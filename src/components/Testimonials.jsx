@@ -2,19 +2,19 @@ import { useRevealGroup } from '../hooks/useReveal.js'
 
 const QUOTES = [
   {
-    image: '/assets/quotes/hunters.jpg',
+    image: 'assets/quotes/hunters.jpg',
     quote: 'With Iru, we’ve significantly reduced IT workload, improved security posture, and enhanced the employee experience.',
     name: 'Erez Epstein',
     role: 'Senior Manager, IT & Operations at Hunters',
   },
   {
-    image: '/assets/quotes/varo.jpg',
+    image: 'assets/quotes/varo.jpg',
     quote: 'Iru is helping our endpoint security infrastructure to be the best it possibly can be.',
     name: 'Christian Corrales',
     role: 'Senior Security Engineer at Varo Bank',
   },
   {
-    image: '/assets/quotes/rackspace.jpg',
+    image: 'assets/quotes/rackspace.jpg',
     quote: 'One of the biggest eye-catchers for me was how quickly we could get our security posture up to speed.',
     name: 'Dorian Cordero',
     role: 'Systems Engineer at Rackspace Technology',

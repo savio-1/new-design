@@ -2,12 +2,12 @@ import { useRevealGroup } from '../hooks/useReveal.js'
 
 const CARDS = [
   {
-    image: '/assets/features/point-click.png',
+    image: 'assets/features/point-click.png',
     title: 'Fully automated and fully visual',
     body: 'Go from zero to fully configured in a couple hours, not weeks. Build assignments visually, push changes in minutes, and trace your configuration logic in seconds when something needs a closer look.',
   },
   {
-    image: '/assets/features/cac.png',
+    image: 'assets/features/cac.png',
     title: 'Config as code for full control',
     body: 'Manage your fleet the way you manage code. Version every change, review it in a pull request, and roll back anything from your repo. Built for teams that need control, history, and a peer review.',
   },

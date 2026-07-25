@@ -151,7 +151,7 @@ export default function Footer() {
             </div>
             <div className="w-38 shrink-0 lg:order-1">
               <a href="/" className="inline-flex items-center gap-2 text-cursor">
-                <img src="/assets/logos/iru-logo.png" alt="" className="h-9 w-auto" />
+                <img src="assets/logos/iru-logo.png" alt="" className="h-9 w-auto" />
                 <span className="text-3xl font-medium tracking-tight lowercase">iru</span>
                 <span className="sr-only">Iru Inc.</span>
               </a>

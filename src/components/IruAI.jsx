@@ -61,7 +61,7 @@ export default function IruAI() {
       >
         <div className="group absolute inset-0 flex items-center justify-center">
           <video ref={videoRef} autoPlay loop muted playsInline className="w-full h-full object-cover">
-            <source src="/assets/video/iru-ai.mp4" type="video/mp4" />
+            <source src="assets/video/iru-ai.mp4" type="video/mp4" />
           </video>
           <div className="absolute inset-0 bg-terminal/30" />
           <button

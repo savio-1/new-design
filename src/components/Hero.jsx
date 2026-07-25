@@ -75,7 +75,7 @@ function ProductivityBand() {
         <div className="flex justify-center px-8 sm:px-0">
           <div className="relative w-full group lg:absolute lg:right-0 lg:top-0 lg:h-full lg:w-[450px]">
             <video autoPlay loop muted playsInline className="h-full w-full max-w-[450px] lg:max-w-none object-cover">
-              <source src="/assets/video/devices-man.mp4" type="video/mp4" />
+              <source src="assets/video/devices-man.mp4" type="video/mp4" />
             </video>
             <div
               className="hidden lg:block absolute inset-0 pointer-events-none"

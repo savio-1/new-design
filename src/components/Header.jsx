@@ -3,39 +3,39 @@ import { ArrowRight, Menu, Close, ChevronDown } from './icons.jsx'
 
 const PRODUCTS = [
   {
-    card: '/assets/cards/endpoint.png',
+    card: 'assets/cards/endpoint.png',
     title: 'Endpoint',
     href: '/products/endpoint',
     blurb: 'Manage every device with one lightweight agent',
     items: [
-      { icon: '/assets/icons/laptop.png', label: 'Endpoint Management', href: '/products/endpoint/endpoint-management' },
-      { icon: '/assets/icons/radar.png', label: 'Endpoint Detection & Response', href: '/products/endpoint/endpoint-detection-response' },
-      { icon: '/assets/icons/triangle.png', label: 'Vulnerability Management', href: '/products/endpoint/vulnerability-management' },
+      { icon: 'assets/icons/laptop.png', label: 'Endpoint Management', href: '/products/endpoint/endpoint-management' },
+      { icon: 'assets/icons/radar.png', label: 'Endpoint Detection & Response', href: '/products/endpoint/endpoint-detection-response' },
+      { icon: 'assets/icons/triangle.png', label: 'Vulnerability Management', href: '/products/endpoint/vulnerability-management' },
     ],
   },
   {
-    card: '/assets/cards/identity.png',
+    card: 'assets/cards/identity.png',
     title: 'Identity',
     href: '/products/identity',
     blurb: 'Passwordless access that adapts to every context',
     items: [
-      { icon: '/assets/icons/identity.png', label: 'Workforce Identity', href: '/products/identity' },
+      { icon: 'assets/icons/identity.png', label: 'Workforce Identity', href: '/products/identity' },
     ],
   },
   {
-    card: '/assets/cards/compliance.png',
+    card: 'assets/cards/compliance.png',
     title: 'Compliance',
     href: '/products/compliance',
     blurb: 'Stay audit-ready with continuous evidence collection',
     items: [
-      { icon: '/assets/icons/checklist.png', label: 'Compliance Automation', href: '/products/compliance/compliance-automation' },
-      { icon: '/assets/icons/world.png', label: 'Trust Center', href: '/products/compliance/trust-center' },
+      { icon: 'assets/icons/checklist.png', label: 'Compliance Automation', href: '/products/compliance/compliance-automation' },
+      { icon: 'assets/icons/world.png', label: 'Trust Center', href: '/products/compliance/trust-center' },
     ],
   },
 ]
 
 const IRU_AI = {
-  card: '/assets/cards/iru-ai.png',
+  card: 'assets/cards/iru-ai.png',
   title: 'Iru AI',
   href: '/iru-ai',
   blurb: 'Automating compliance, insights, and actions from a single interface.',
@@ -107,7 +107,7 @@ export default function Header() {
           {/* Logo */}
           <div className="w-20 md:w-26 shrink-0 flex-1 flex items-center">
             <a href="/" className="inline-flex items-center justify-center text-terminal">
-              <img src="/assets/logos/iru-logo-dark.png" alt="Iru" className="h-7 sm:h-8 w-auto" />
+              <img src="assets/logos/iru-logo-dark.png" alt="Iru" className="h-7 sm:h-8 w-auto" />
             </a>
           </div>
 
@@ -217,8 +217,8 @@ export default function Header() {
                         ))}
                       </ul>
                       <a href="/webinar-iru-mcp" className="bg-terminal text-cursor rounded-lg overflow-hidden relative block basis-1/2 max-w-[253px] aspect-video">
-                        <video loop autoPlay muted playsInline poster="/assets/video/intro-poster.png" className="w-full h-full object-cover">
-                          <source src="/assets/video/iru-ai.mp4" type="video/mp4" />
+                        <video loop autoPlay muted playsInline poster="assets/video/intro-poster.png" className="w-full h-full object-cover">
+                          <source src="assets/video/iru-ai.mp4" type="video/mp4" />
                         </video>
                         <div className="absolute left-3 bottom-3 z-10">
                           <p className="text-sm font-medium">Introducing Iru MCP</p>
@@ -251,7 +251,7 @@ export default function Header() {
       {drawer && (
         <div className="lg:hidden fixed inset-0 z-[1050] h-dvh text-terminal bg-cursor flex flex-col">
           <div className="flex items-center justify-between p-4">
-            <a href="/"><img src="/assets/logos/iru-logo-dark.png" className="h-8 w-auto" alt="Iru" /></a>
+            <a href="/"><img src="assets/logos/iru-logo-dark.png" className="h-8 w-auto" alt="Iru" /></a>
             <button className="p-2.5 cursor-pointer" onClick={() => setDrawer(false)}>
               <Close /><span className="sr-only">Close main menu</span>
             </button>

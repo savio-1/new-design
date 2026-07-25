@@ -17,7 +17,7 @@ export default function HeroLottie({ className = '', ariaLabel }) {
       renderer: 'svg',
       loop: true,
       autoplay: false,
-      path: '/assets/video/panel-animation.json',
+      path: 'assets/video/panel-animation.json',
     })
 
     const observer = new IntersectionObserver(

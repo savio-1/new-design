@@ -18,7 +18,7 @@ export default function TrustedBy() {
           {strip.map(([slug, name], i) => (
             <div key={slug + i} className="relative shrink-0" style={{ paddingRight: 80 }}>
               <img
-                src={`/assets/logos/${slug}.svg`}
+                src={`assets/logos/${slug}.svg`}
                 alt={name}
                 className="size-[90px] md:size-[100px] object-contain"
                 loading="lazy"
