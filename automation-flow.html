@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Automation Run — Animated</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    /* ---- design tokens (from Figma) ---- */
+    --text-primary:#121212;
+    --text-secondary:#616161;
+    --text-tertiary:#8c8c8c;
+    --text-four:#bdbdbd;
+    --card-bg:#ffffff;
+    --card-border:#eeeeee;
+    --chip-bg:#f5f5f5;
+    --line-1:#eeeeee;
+    --canvas-bg:#fafafa;
+    --canvas-dots:#d4d4d4;
+    --connector:#d4d4d4;
+    --badge-indigo-bg:#f4f5ff;
+    --badge-indigo-border:#dbddfc;
+    --badge-indigo-text:#5860ed;
+    --badge-purple-bg:#f9f5ff;
+    --badge-purple-border:#f1e5ff;
+    --badge-purple-text:#9747ff;
+    --orange:#dd7c0e;
+    --green:#689f38;
+    --red:#dc3412;
+    --btn-primary:#0d99ff;
+    --disabled-bg:#eeeeee;
+    --disabled-text:#bdbdbd;
+    --type-default:#e0e0e0;
+    /* accent used for the running/done state (sampled from reference video) */
+    --run-blue:#0d99ff;
+    --done-blue:#0b85ee;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:#eaeaec;
+    font-family:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    overflow:hidden;
+  }
+  .viewport{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  }
+  .scene{
+    position:relative;width:1440px;height:821px;background:#ffffff;
+    transform-origin:center center;flex:0 0 auto;overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.18);
+  }
+
+  /* ================= Nav bar ================= */
+  .nav{
+    position:absolute;top:0;left:0;width:1440px;height:48px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 16px;background:rgba(255,255,255,.85);backdrop-filter:blur(9px);
+    border-bottom:1px solid var(--line-1);z-index:20;
+  }
+  .nav-left{display:flex;align-items:center;gap:8px;}
+  .back-btn{
+    display:flex;align-items:center;justify-content:center;padding:4px;
+    background:#fff;border:1px solid var(--type-default);border-radius:6px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.12));
+  }
+  .crumb{display:flex;align-items:center;gap:2px;}
+  .crumb-item{display:flex;align-items:center;gap:4px;padding:2px 4px;}
+  .crumb-auto{font-weight:500;font-size:14px;line-height:20px;letter-spacing:-0.56px;color:var(--text-tertiary);}
+  .crumb-sep{font-weight:400;font-size:12px;line-height:16px;letter-spacing:-0.24px;color:var(--text-four);}
+  .crumb-title{font-weight:500;font-size:14px;line-height:20px;letter-spacing:-0.56px;color:var(--text-primary);}
+  .nav-right{display:flex;align-items:center;gap:8px;}
+  .btn-save{
+    width:80px;display:flex;align-items:center;justify-content:center;padding:6px 12px;
+    background:var(--btn-primary);border-radius:8px;
+    color:#fff;font-weight:500;font-size:14px;line-height:20px;letter-spacing:-0.56px;
+  }
+  .btn-publish{
+    width:80px;display:flex;align-items:center;justify-content:center;padding:6px 12px;
+    background:var(--disabled-bg);border-radius:8px;
+    color:var(--disabled-text);font-weight:500;font-size:14px;line-height:20px;letter-spacing:-0.56px;
+  }
+
+  /* ================= Canvas ================= */
+  .canvas{
+    position:absolute;top:48px;left:0;right:0;bottom:0;background:var(--canvas-bg);
+    background-image:radial-gradient(var(--canvas-dots) 1px, transparent 1.4px);
+    background-size:16px 16px;background-position:8px 8px;
+  }
+
+  /* ================= Pills (Start / End) ================= */
+  .pill{
+    position:absolute;display:flex;align-items:center;gap:4px;
+    padding:8px 12px;background:#fff;border:1px solid var(--line-1);
+    border-radius:24px;filter:drop-shadow(0 0 1px rgba(18,18,18,.06));z-index:10;
+    transition:box-shadow .25s ease,border-color .25s ease;
+  }
+  .pill span{font-weight:500;font-size:12px;line-height:16px;letter-spacing:-0.24px;color:var(--text-primary);}
+  .pill.lit{border-color:var(--run-blue);box-shadow:0 0 0 3px rgba(13,153,255,.18);}
+  #startPill{left:680px;top:139px;}
+  #endPill{left:684px;top:509px;}
+
+  /* ================= Cards ================= */
+  .node{position:absolute;left:557px;width:320px;z-index:10;}
+  #agentNode{top:195px;}
+  #collatorNode{top:353px;}
+
+  .node-head{display:flex;align-items:center;justify-content:space-between;height:24px;position:relative;}
+  .tag{
+    display:inline-flex;align-items:center;gap:4px;padding:4px 6px;border-radius:8px;
+    font-weight:500;font-size:12px;line-height:16px;letter-spacing:-0.48px;
+  }
+  .tag.indigo{background:var(--badge-indigo-bg);border:1px solid var(--badge-indigo-border);color:var(--badge-indigo-text);}
+  .tag.purple{background:var(--badge-purple-bg);border:1px solid var(--badge-purple-border);color:var(--badge-purple-text);}
+
+  .status-icon{width:16px;height:16px;position:relative;}
+  .status-icon .ic{position:absolute;inset:0;transition:opacity .3s ease,transform .3s ease;}
+  .status-icon .ic.check{opacity:0;transform:scale(.4);}
+  .node.done .status-icon .ic.err{opacity:0;}
+  .node.done .status-icon .ic.check{opacity:1;transform:scale(1);}
+
+  .card-box{
+    position:relative;margin-top:4px;background:var(--card-bg);
+    border:1px solid var(--card-border);border-radius:12px;padding:12px;
+    box-shadow:0 1px 3px 1px rgba(33,33,33,.08);overflow:visible;
+  }
+  #agentNode  .card-box{min-height:98px;}
+  #collatorNode .card-box{min-height:76px;}
+
+  .card-title{font-weight:500;font-size:14px;line-height:20px;letter-spacing:-0.56px;color:var(--text-primary);}
+  .card-desc{
+    font-weight:400;font-size:12px;line-height:16px;letter-spacing:-0.24px;color:var(--text-secondary);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;
+  }
+  .card-tools{display:flex;align-items:center;gap:6px;margin-top:8px;}
+  .tool-chip{width:24px;height:24px;border-radius:6px;display:block;}
+  .count-badge{
+    display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--line-1);
+    border-radius:80px;font-weight:500;font-size:12px;line-height:16px;letter-spacing:-0.24px;color:var(--text-tertiary);
+  }
+  .steps-chip{
+    display:inline-flex;align-items:center;gap:6px;padding:4px 6px;background:var(--chip-bg);border-radius:6px;
+    font-weight:500;font-size:12px;line-height:16px;letter-spacing:-0.24px;color:var(--text-tertiary);
+  }
+
+  /* SVG overlay that draws the running comet + done border, exactly over the card box */
+  .card-fx{position:absolute;left:0;top:4px;width:100%;height:calc(100% - 4px);pointer-events:none;overflow:visible;}
+  .fx-run-ring{stroke:var(--run-blue);fill:none;opacity:0;transition:opacity .3s ease;}
+  .fx-done{stroke:var(--done-blue);fill:none;opacity:0;transition:opacity .35s ease;}
+  .node.running .fx-run-ring{opacity:.22;}
+  .node.done .fx-done{opacity:1;}
+  .comet-group{opacity:0;transition:opacity .3s ease;filter:drop-shadow(0 0 3px rgba(13,153,255,.75));}
+  .node.running .comet-group{opacity:1;}
+  .node.done .comet-group{opacity:0;}
+
+  /* ================= Connectors ================= */
+  .wires{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  .wire-base{stroke:var(--connector);stroke-width:1.5;fill:none;}
+  .wire-head{stroke:var(--connector);fill:var(--connector);transition:fill .3s,stroke .3s;}
+  .wire.done .wire-base{stroke:var(--done-blue);opacity:.9;}
+  .wire.done .wire-head{stroke:var(--done-blue);fill:var(--done-blue);}
+  .beam-trail{stroke-width:2.5;stroke-linecap:round;fill:none;opacity:0;}
+  .beam-dot{fill:var(--run-blue);opacity:0;filter:drop-shadow(0 0 4px rgba(13,153,255,.9));}
+
+  /* ================= Bottom toolbar ================= */
+  .toolbar{
+    position:absolute;left:576px;top:769px;width:289px;height:44px;
+    display:flex;align-items:center;gap:8px;padding:6px 12px;background:#fff;
+    border:1px solid var(--line-1);border-radius:12px;
+    box-shadow:0 4px 16px rgba(18,18,18,.08);z-index:15;
+  }
+  .tb-group{display:flex;align-items:center;gap:6px;color:var(--text-secondary);
+    font-weight:500;font-size:13px;letter-spacing:-0.24px;padding:2px 4px;}
+  .tb-sep{width:1px;height:20px;background:var(--line-1);}
+  .tb-icon{display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);}
+
+  /* replay control (outside the recreated screen) */
+  .replay{
+    position:fixed;right:20px;bottom:20px;z-index:50;display:flex;align-items:center;gap:8px;
+    padding:9px 14px;border-radius:999px;border:none;cursor:pointer;
+    background:#121212;color:#fff;font-family:inherit;font-weight:500;font-size:13px;letter-spacing:-0.2px;
+    box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:.9;transition:opacity .2s,transform .12s;
+  }
+  .replay:hover{opacity:1;}
+  .replay:active{transform:scale(.96);}
+</style>
+</head>
+<body>
+  <div class="viewport">
+    <div class="scene" id="scene">
+
+      <!-- ===================== NAV ===================== -->
+      <div class="nav">
+        <div class="nav-left">
+          <div class="back-btn">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3.5 5.5 8 10 12.5" stroke="#121212" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="crumb">
+            <div class="crumb-item">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2.5" y="4" width="6" height="5" rx="1" stroke="#8c8c8c" stroke-width="1.3"/>
+                <path d="M10.5 6.2c1.6-.9 2.9 .2 2.9 1.6 0 1-.8 1.7-1.9 1.7M6 11.5h4" stroke="#8c8c8c" stroke-width="1.3" stroke-linecap="round"/>
+                <circle cx="4.4" cy="6.4" r=".6" fill="#8c8c8c"/>
+              </svg>
+              <span class="crumb-auto">Automations</span>
+            </div>
+            <span class="crumb-sep">/</span>
+            <div class="crumb-item">
+              <span class="crumb-title">Social media posting</span>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9.5 4.2 11.8 6.5 6.3 12H4v-2.3l5.5-5.5Z" stroke="#8c8c8c" stroke-width="1.2" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="nav-right">
+          <div class="btn-save">Save</div>
+          <div class="btn-publish">Publish</div>
+        </div>
+      </div>
+
+      <!-- ===================== CANVAS ===================== -->
+      <div class="canvas"></div>
+
+      <!-- connectors + beams (svg over the whole scene, canvas coords) -->
+      <svg class="wires" viewBox="0 0 1440 821" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="trailGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--run-blue)" stop-opacity="0"/>
+            <stop offset="1" stop-color="var(--run-blue)" stop-opacity="1"/>
+          </linearGradient>
+        </defs>
+
+        <!-- connector 1: Start -> Agent -->
+        <g class="wire" id="wire1">
+          <path class="wire-base" d="M717 171 V214"/>
+          <path class="wire-head" d="M712.5 213 L717 219 L721.5 213" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <line class="beam-trail" x1="717" y1="171" x2="717" y2="171"/>
+          <circle class="beam-dot" cx="717" cy="171" r="3.2"/>
+        </g>
+        <!-- connector 2: Agent -> Collator -->
+        <g class="wire" id="wire2">
+          <path class="wire-base" d="M717 321 V372"/>
+          <path class="wire-head" d="M712.5 371 L717 377 L721.5 371" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <line class="beam-trail" x1="717" y1="321" x2="717" y2="321"/>
+          <circle class="beam-dot" cx="717" cy="321" r="3.2"/>
+        </g>
+        <!-- connector 3: Collator -> End -->
+        <g class="wire" id="wire3">
+          <path class="wire-base" d="M717 457 V500"/>
+          <path class="wire-head" d="M712.5 499 L717 505 L721.5 499" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <line class="beam-trail" x1="717" y1="457" x2="717" y2="457"/>
+          <circle class="beam-dot" cx="717" cy="457" r="3.2"/>
+        </g>
+      </svg>
+
+      <!-- ===================== START ===================== -->
+      <div class="pill" id="startPill">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5.5 4.2v7.6l6-3.8-6-3.8Z" fill="none" stroke="#689f38" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <span>Start</span>
+      </div>
+
+      <!-- ===================== AGENT CARD ===================== -->
+      <div class="node" id="agentNode">
+        <div class="node-head">
+          <div class="tag indigo">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="3" y="5" width="10" height="7" rx="2" stroke="#5860ed" stroke-width="1.3"/>
+              <path d="M8 3v2M6 8.2v.6M10 8.2v.6" stroke="#5860ed" stroke-width="1.3" stroke-linecap="round"/>
+              <circle cx="8" cy="3" r="1" fill="#5860ed"/>
+            </svg>
+            Agent
+          </div>
+          <div class="status-icon">
+            <svg class="ic check" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#0b85ee"/><path d="M4.8 8.2 7 10.3l4-4.4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="card-box">
+          <div class="card-title">Customer Feedback Analyzer</div>
+          <div class="card-desc">Aggregates and interprets customer reviews to identify key satisfaction drivers.</div>
+          <div class="card-tools">
+            <img class="tool-chip" alt="Gemini" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAAfZJREFUeAG1lstL41AUxr/cpCbTGWeEDuO4KDIuhmEYHIbZKBZciCsRXAiKuBAFt65cuBE3rvwbXPkPCCI+EBRERKgvfEIFrUUrpfVJTZvmYU414ib2prS/EBIuOeeD7x7uF8GygQ09dF2HYRgwTRPFwBiDKIrw+XyvawIJUMNMJoNSIQgCZFnOCzJaKGVzgtzIZrP5JyNbyoFjOcvlcigXZD172eOyQAPDvBQIiQRM+/aCJwF9YRHmyqqXEn4BI3mDq3AE26tn0B413jJ+gejsGna17wjLvzC3nOQtg8TzUWxpGuG9G0Sq6hH1BzFzXI1UwIf+hsITKKTTadcxsm43EN+awk5EwnqqA0fiPyQrvkJnz0dBzWcTQ80aQnXuR4u7RdEJmPvdSGlbOAtYOKhhuPRXvTYn4vcMY/MyxhcrXNu4W1Q7DFbdA/l0EonLEzyIMajWOZR0HUTzWaTzbw4Dtk2VimuX9y1yWIvNYvRwExe3Ifjvf0N5rMVIi472P0ahUr4pagq2oetnI9TKCNRPJ+gLXXM15xYgBn+0IhjIIPAtjsH/H3nL+MbUoTdYjw/25QWuPXC4M1R7doEvEr+IoKqqVWxEFiKfaJSh5YJ6M0nytA3cUC5T+DN6URQFpcQJ/fy79SbSKEMpQotNOee3hVwhEeIJHynNAcKiJOkAAAAASUVORK5CYII="/>
+            <img class="tool-chip" alt="Slack" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAAgNJREFUeAG1lkFPE0EYht+Z2Xa3WDARjFTFgwESboLxZuJBEhOP6sEbIdGL/4GTP0GNBz1I/AcauMABCBc4wBEKBBICoQECNN3SbXdny3wLZelhy7TpPpdvsjPzvTPfzORdVlVAQcHzPEgp4fs+WoFzDiEEEonE9TdGApTQcRy0C8YYTNMMBDl9aGdygqpRLpeDyKkscVArOXddF3FBpedXZxwLdGG47uCtUriQAyevO01PYDFfxeeshz85id87i3i39BPzRxs6U/UE+lMMz9IMaQHkKpert2VZZyqMRp20cltett/cE0oEWD8J+3OqVFn7EK96BpoXyFWAiZ36K/z+fv2Gv2ansHK2i8nn4xhMP2hOoDcJjPXyQKjGBxLofok7wsTI3ScouA6GVYxKTrBisRh5T4vf/4F1dcB8PYLS5AxSY6MQ3S4q27/CBFYGiaefIgUid+Ct7eH8x38kXwyCd3ag9HcW1cI5rPE85MF03ViReQueeticgDH0GF3fvqjYB3c5vJJG30ewdH+4A6MzMnlDAcIcHQ6ii1BAHs1BHi8gOTQBlsrgNrTeAVMlCgY/6lEKNvzTVfi23kNreMg3kfvHECSg8Aub6lwGdKbpC7QKJ9eJMTk4eWhcUG5uGAbigHyZzJ9Tw7IstJOa6Qft6g1LIw8lC23V5Wq/LVQVEiEuAHpuwRGUdQtVAAAAAElFTkSuQmCC"/>
+            <img class="tool-chip" alt="Outlook" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAOdEVYdFNvZnR3YXJlAEZpZ21hnrGWYwAAAhdJREFUeAG1Vk1r1FAUPe/l5SXt6NQKOtBRqbMoClXsRneFCoIff0G30nV3rvwRbty4LF0P9A8UZqfgR8HaVbG0CLZa2zg1meQl3vvaGbqZmU5mciB5j5ebc3I/uDciI4DAS5IkMMYgTVPkgZQSjuPAdd3OmWABJgzDEKOCEAKe51lByQejJGdwNKIosqvksBSBdshlHMcoChx6eZrjQsAFI1Ew1HmMGus7WFnbpDp0IRwFoWiV9KpSeLkwjdlrF4cT+PzXwVo8SQIOpFGoTF2CFA4XPj7+czCLHB7ML63gMCIOpXEsNIJMkwMeqnMzuDF3s2NXLhu6d6/ErjlY39rHzn6A+TtVLD6aQbWkkIQRWsEBBkHPJD9/eBvTV8tYfb+Nt4sPqLjpW6MQcSvtXMb0bis9c3C3dgWNb3v48v23JWf8+bGLra+/OjaNmo97JQ81nQ0u8Kb+Ce+WnuDFwi2sfti1Z+L0WSpTuBMKG65GM8vpwfbPIzx+XScralzKh9A+SpXLaJkjSM1legH90FVg+dUzHB7H2DyIsLyxR4RURdpF+fokxqcmwA1AOgK5BZ7er9mVBerJGJSvyREXanzMkru+PvGij4hoNpt9m1HQMgiSzPZ5wXx8s3thk1JRQwoMA8lTp0ByyhPN0KLA3FKpc/W7gcH54eEveeP7PkaJ9tC3++zMSOMZyiM075Rr/7ZwVGyFEf4DGJ3B7SwB9BYAAAAASUVORK5CYII="/>
+            <span class="count-badge">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10.6 3.2a2.6 2.6 0 0 0-.5 3l-4.7 4.7a1.2 1.2 0 1 0 1.7 1.7l4.7-4.7a2.6 2.6 0 0 0 3-3.4l-1.6 1.6-1.3-.3-.3-1.3 1.6-1.6a2.6 2.6 0 0 0-2.3.6Z" stroke="#8c8c8c" stroke-width="1.15" stroke-linejoin="round"/></svg>
+              2
+            </span>
+            <span class="count-badge">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 2.5h5l2.5 2.5v8.5H4V2.5Z" stroke="#8c8c8c" stroke-width="1.15" stroke-linejoin="round"/><path d="M6.2 8.6l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5.5-1.2Z" fill="#8c8c8c"/></svg>
+              4
+            </span>
+            <span class="count-badge">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2.2 12.5 4v3.4c0 3-2 5-4.5 6.3C5.5 12.4 3.5 10.4 3.5 7.4V4L8 2.2Z" stroke="#8c8c8c" stroke-width="1.15" stroke-linejoin="round"/></svg>
+              1
+            </span>
+          </div>
+          <!-- animated border overlay -->
+          <svg class="card-fx" id="fxAgent" viewBox="0 0 320 98" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+
+      <!-- ===================== DATA COLLATOR CARD ===================== -->
+      <div class="node" id="collatorNode">
+        <div class="node-head">
+          <div class="tag purple">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="4" cy="4" r="1.6" stroke="#9747ff" stroke-width="1.2"/>
+              <circle cx="4" cy="12" r="1.6" stroke="#9747ff" stroke-width="1.2"/>
+              <circle cx="12" cy="8" r="1.6" stroke="#9747ff" stroke-width="1.2"/>
+              <path d="M5.4 4.6 10.6 7.4M5.4 11.4 10.6 8.6" stroke="#9747ff" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            Data Collator
+          </div>
+          <div class="status-icon">
+            <svg class="ic err" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#dd7c0e" stroke-width="1.4"/><path d="M8 4.6v4" stroke="#dd7c0e" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11" r=".9" fill="#dd7c0e"/></svg>
+            <svg class="ic check" width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#0b85ee"/><path d="M4.8 8.2 7 10.3l4-4.4" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="card-box">
+          <div class="card-title">Unnamed node</div>
+          <div class="card-tools">
+            <span class="steps-chip">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.2" stroke="#8c8c8c" stroke-width="1.2"/><path d="M8 2.2v1.6M8 12.2v1.6M13.8 8h-1.6M3.8 8H2.2M12 4l-1.1 1.1M5.1 10.9 4 12M12 12l-1.1-1.1M5.1 5.1 4 4" stroke="#8c8c8c" stroke-width="1.2" stroke-linecap="round"/></svg>
+              0 steps configured
+            </span>
+          </div>
+          <svg class="card-fx" id="fxCollator" viewBox="0 0 320 76" preserveAspectRatio="none"></svg>
+        </div>
+      </div>
+
+      <!-- ===================== END ===================== -->
+      <div class="pill" id="endPill">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.6" fill="#dc3412"/></svg>
+        <span>End</span>
+      </div>
+
+      <!-- ===================== BOTTOM TOOLBAR ===================== -->
+      <div class="toolbar">
+        <div class="tb-group">
+          <span class="tb-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.2" stroke="#8c8c8c" stroke-width="1.4"/><path d="m10.2 10.2 3 3" stroke="#8c8c8c" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          100%
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m4.5 6.5 3.5 3.5 3.5-3.5" stroke="#8c8c8c" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-group">
+          <span class="tb-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3h10v6l-4 4H3V3Z" stroke="#8c8c8c" stroke-width="1.3" stroke-linejoin="round"/><path d="M13 9H9v4" stroke="#8c8c8c" stroke-width="1.3" stroke-linejoin="round"/></svg></span>
+          Notes
+        </div>
+        <div class="tb-sep"></div>
+        <div class="tb-group" style="gap:10px;">
+          <span class="tb-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 5H10.5a3 3 0 0 1 0 6H7" stroke="#8c8c8c" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 3 4 5.5 6.5 8" stroke="#8c8c8c" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="tb-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 5H5.5a3 3 0 0 0 0 6H9" stroke="#bdbdbd" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 3 12 5.5 9.5 8" stroke="#bdbdbd" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="replay" id="replayBtn">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M13 8a5 5 0 1 1-1.5-3.6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M13 2.5V5h-2.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Replay
+  </button>
+
+<script>
+/* ---------- fit the 1440x821 scene to the viewport ---------- */
+(function(){
+  const scene=document.getElementById('scene');
+  function fit(){
+    const s=Math.min(window.innerWidth/1440, window.innerHeight/821);
+    scene.style.transform='scale('+s+')';
+  }
+  window.addEventListener('resize',fit); fit();
+})();
+
+/* ---------- build the comet border for a card ---------- */
+/* SVG rounded-rect perimeter, pathLength normalised to 1000, a chain of
+   overlapping dashes forms a bright head fading to a soft tail (a "comet"). */
+function buildComet(svg, w, h){
+  const NS='http://www.w3.org/2000/svg';
+  const inset=1.25, rx=11;
+  const d = `M ${inset+rx} ${inset}
+             H ${w-inset-rx}
+             A ${rx} ${rx} 0 0 1 ${w-inset} ${inset+rx}
+             V ${h-inset-rx}
+             A ${rx} ${rx} 0 0 1 ${w-inset-rx} ${h-inset}
+             H ${inset+rx}
+             A ${rx} ${rx} 0 0 1 ${inset} ${h-inset-rx}
+             V ${inset+rx}
+             A ${rx} ${rx} 0 0 1 ${inset+rx} ${inset} Z`;
+
+  // faint full-perimeter ring shown while running
+  const ring=document.createElementNS(NS,'path');
+  ring.setAttribute('d',d); ring.setAttribute('class','fx-run-ring');
+  ring.setAttribute('stroke-width','2'); ring.setAttribute('vector-effect','non-scaling-stroke');
+  svg.appendChild(ring);
+
+  // solid blue border for the "done" state
+  const done=document.createElementNS(NS,'path');
+  done.setAttribute('d',d); done.setAttribute('class','fx-done');
+  done.setAttribute('stroke-width','2'); done.setAttribute('vector-effect','non-scaling-stroke');
+  svg.appendChild(done);
+
+  // comet chain
+  const g=document.createElementNS(NS,'g'); g.setAttribute('class','comet-group');
+  const K=24, dash=16, gap=11;         // comet length ~= K*gap = 264 (26% of path)
+  const segs=[];
+  for(let i=0;i<K;i++){
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d',d);
+    p.setAttribute('pathLength','1000');
+    p.setAttribute('fill','none');
+    p.setAttribute('stroke','var(--run-blue)');
+    p.setAttribute('stroke-linecap','round');
+    p.setAttribute('vector-effect','non-scaling-stroke');
+    p.setAttribute('stroke-dasharray', dash+' '+(1000-dash));
+    const t=i/(K-1);
+    p.setAttribute('stroke-width', (2.6-1.1*t).toFixed(2));
+    p.style.opacity = Math.pow(1-t, 1.5).toFixed(3);
+    g.appendChild(p);
+    segs.push({el:p, back:i*gap});
+  }
+  svg.appendChild(g);
+  return {segs};
+}
+
+const fxAgent    = buildComet(document.getElementById('fxAgent'), 320, 98);
+const fxCollator = buildComet(document.getElementById('fxCollator'), 320, 76);
+
+/* start the head near the top-centre of the card and travel clockwise */
+const HEAD_START = 30;
+function drawComet(fx, headPos){
+  for(const s of fx.segs){
+    // dashoffset positions the single dash at (headPos - back) along the path
+    s.el.style.strokeDashoffset = (s.back - headPos);
+  }
+}
+
+/* ---------- connector beam helpers ---------- */
+function wireEls(id){
+  const g=document.getElementById(id);
+  return {
+    g,
+    trail:g.querySelector('.beam-trail'),
+    dot:g.querySelector('.beam-dot'),
+  };
+}
+const wires={
+  1:{...wireEls('wire1'), y0:171, y1:219},
+  2:{...wireEls('wire2'), y0:321, y1:377},
+  3:{...wireEls('wire3'), y0:457, y1:505},
+};
+function drawBeam(w, prog){        // prog 0..1
+  const y = w.y0 + (w.y1-w.y0)*prog;
+  const trailLen=26;
+  const top=Math.max(w.y0, y-trailLen);
+  w.trail.setAttribute('x1',717); w.trail.setAttribute('y1',top);
+  w.trail.setAttribute('x2',717); w.trail.setAttribute('y2',y);
+  w.trail.setAttribute('stroke','url(#trailGrad)');
+  w.trail.style.opacity=1;
+  w.dot.setAttribute('cy',y); w.dot.style.opacity=1;
+}
+function hideBeam(w){ w.trail.style.opacity=0; w.dot.style.opacity=0; }
+
+/* ---------- elements ---------- */
+const startPill=document.getElementById('startPill');
+const endPill=document.getElementById('endPill');
+const agentNode=document.getElementById('agentNode');
+const collatorNode=document.getElementById('collatorNode');
+
+/* ---------- timeline ---------- */
+const SPINS=2.6;                    // rotations per card (2-3 spins as requested)
+const phases=[
+  {name:'startPulse', dur:500},
+  {name:'wire1',      dur:650},
+  {name:'card1',      dur:2500},
+  {name:'card1done',  dur:550},
+  {name:'wire2',      dur:650},
+  {name:'card2',      dur:2500},
+  {name:'card2done',  dur:550},
+  {name:'wire3',      dur:650},
+  {name:'endPulse',   dur:800},
+  {name:'hold',       dur:1500},
+  {name:'reset',      dur:1},
+];
+let startTime=null, rafId=null;
+
+function resetScene(){
+  [wires[1],wires[2],wires[3]].forEach(w=>{hideBeam(w); w.g.classList.remove('done');});
+  agentNode.classList.remove('running','done');
+  collatorNode.classList.remove('running','done');
+  startPill.classList.remove('lit');
+  endPill.classList.remove('lit');
+  drawComet(fxAgent, HEAD_START);
+  drawComet(fxCollator, HEAD_START);
+}
+
+function frame(now){
+  if(startTime===null) startTime=now;
+  let t=now-startTime;
+
+  // find current phase
+  let acc=0, cur=null, local=0;
+  for(const p of phases){
+    if(t < acc+p.dur){ cur=p; local=t-acc; break; }
+    acc+=p.dur;
+  }
+  if(!cur){ // loop
+    startTime=now; resetScene(); rafId=requestAnimationFrame(frame); return;
+  }
+  const prog = Math.min(1, local/cur.dur);
+
+  switch(cur.name){
+    case 'startPulse':
+      startPill.classList.add('lit');
+      break;
+    case 'wire1':
+      drawBeam(wires[1], prog);
+      break;
+    case 'card1':
+      hideBeam(wires[1]); wires[1].g.classList.add('done');
+      agentNode.classList.add('running');
+      drawComet(fxAgent, HEAD_START + prog*SPINS*1000);
+      break;
+    case 'card1done':
+      agentNode.classList.remove('running');
+      agentNode.classList.add('done');
+      break;
+    case 'wire2':
+      drawBeam(wires[2], prog);
+      break;
+    case 'card2':
+      hideBeam(wires[2]); wires[2].g.classList.add('done');
+      collatorNode.classList.add('running');
+      drawComet(fxCollator, HEAD_START + prog*SPINS*1000);
+      break;
+    case 'card2done':
+      collatorNode.classList.remove('running');
+      collatorNode.classList.add('done');
+      break;
+    case 'wire3':
+      drawBeam(wires[3], prog);
+      break;
+    case 'endPulse':
+      hideBeam(wires[3]); wires[3].g.classList.add('done');
+      endPill.classList.add('lit');
+      break;
+    case 'hold':
+      break;
+  }
+  rafId=requestAnimationFrame(frame);
+}
+
+function play(){
+  cancelAnimationFrame(rafId);
+  startTime=null; resetScene();
+  rafId=requestAnimationFrame(frame);
+}
+
+document.getElementById('replayBtn').addEventListener('click', play);
+resetScene();
+play();
+</script>
+</body>
+</html>
