@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Context grounding — reasoning step</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* tokens pulled from the Figma file */
+    --text-primary:#121212;
+    --text-secondary:#616161;
+    --text-tertiary:#8c8c8c;
+    --text-blue:#0d99ff;
+    --text-purple:#9747ff;
+    --text-green:#12923b;
+    --bg-blue:#e5f4ff;
+    --bg-page-3:#f5f5f5;
+    --line-1:#eeeeee;
+    --stroke:#e0e0e0;
+    --font:'Geist','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:#fff;color:var(--text-primary);
+    font-family:var(--font);letter-spacing:-0.01em;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- app chrome ---------- */
+  .top{
+    height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;
+    border-bottom:1px solid var(--line-1);position:relative;
+  }
+  .top .back{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font-size:14px}
+  .top .title{font-weight:600;font-size:15px}
+  .top::after{
+    content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;
+    background:linear-gradient(90deg,#0d99ff 0%,#9747ff 40%,#ff8f00 75%,#ffd24d 100%);
+    opacity:.9;
+  }
+
+  .stage{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+
+  /* user bubble */
+  .user{display:flex;justify-content:flex-end;margin-bottom:28px}
+  .user .bubble{
+    background:var(--bg-blue);color:#0b3b57;border-radius:16px 16px 4px 16px;
+    padding:14px 18px;max-width:560px;font-size:15px;line-height:1.5;
+  }
+
+  /* ---------- reasoning timeline ---------- */
+  .thinking{display:flex;align-items:center;gap:10px;margin:0 0 18px 0}
+  .thinking .ic{width:24px;height:24px;display:grid;place-items:center}
+  .thinking .lbl{color:var(--text-blue);font-weight:600;font-size:15px}
+
+  .timeline{position:relative;padding-left:0}
+
+  .step{position:relative;padding:0 0 8px 40px}
+  .step > .node{
+    position:absolute;left:0;top:0;width:24px;height:24px;
+    display:grid;place-items:center;color:var(--text-secondary);z-index:1;
+  }
+  /* vertical connector running down the icon column */
+  .step:not(:last-child)::before{
+    content:"";position:absolute;left:11px;top:26px;bottom:-2px;width:1px;background:var(--stroke);
+  }
+
+  .step .head{
+    display:flex;align-items:center;gap:8px;min-height:24px;cursor:default;
+  }
+  .step .head .t{font-weight:600;font-size:15px;color:var(--text-primary)}
+  .step .head .chev{margin-left:2px;color:var(--text-tertiary);display:flex}
+
+  .body{padding:10px 0 6px 0}
+
+  /* generic sub-row */
+  .row{display:flex;align-items:flex-start;gap:8px;padding:3px 0;font-size:14px;line-height:20px;color:var(--text-secondary)}
+  .row .ri{width:16px;height:16px;flex:0 0 16px;margin-top:2px;color:var(--text-tertiary)}
+  .row .name{color:var(--text-secondary);font-weight:500}
+  .row .meta{color:var(--text-tertiary)}
+  .muted{color:var(--text-tertiary)}
+
+  .summary{font-size:14px;line-height:21px;color:var(--text-secondary);margin:10px 0 8px;max-width:660px}
+  .summary b{color:var(--text-primary);font-weight:600}
+
+  .done{display:flex;align-items:center;gap:8px;color:var(--text-tertiary);font-size:13px;padding:4px 0}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;background:var(--bg-page-3);
+    color:var(--text-tertiary);font-size:12px;padding:4px 10px;border-radius:8px;
+  }
+
+  /* ===========================================================
+     THE NEW, SIMPLIFIED STEP: "Grounding in attached context"
+     =========================================================== */
+  .ground .head .t{color:var(--text-primary)}
+  .ground .lead{
+    display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text-secondary);
+    padding:2px 0 12px;
+  }
+  .ground .lead .k{color:var(--text-primary);font-weight:600}
+
+  /* the three governance layers, shown as flat lightweight groups */
+  .layers{display:flex;flex-direction:column;gap:14px}
+  .layer .lname{
+    display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.04em;color:var(--text-tertiary);margin-bottom:6px;
+  }
+  .layer .dot{width:7px;height:7px;border-radius:50%}
+  .dot-domain{background:#0d99ff}
+  .dot-org{background:#9747ff}
+  .dot-sol{background:#12923b}
+
+  .art{
+    display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px;line-height:20px;
+  }
+  .art .ai{width:16px;height:16px;flex:0 0 16px;color:var(--text-tertiary);margin-left:15px}
+  .art .an{color:var(--text-primary);font-weight:500;white-space:nowrap}
+  .art .sep{color:var(--stroke)}
+  .art .ad{color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .code{font-family:var(--mono);font-size:12.5px;background:var(--bg-page-3);border:1px solid var(--line-1);
+    padding:1px 6px;border-radius:5px;color:var(--text-secondary)}
+
+  /* annotation panel (design note, not part of the product UI) */
+  .note{
+    max-width:900px;margin:8px auto 60px;padding:22px 24px;border:1px dashed var(--stroke);
+    border-radius:14px;background:#fcfcfc;
+  }
+  .note h3{margin:0 0 4px;font-size:14px;font-weight:600;color:var(--text-primary)}
+  .note p{margin:0 0 14px;font-size:13px;line-height:20px;color:var(--text-secondary)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .cols h4{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-tertiary)}
+  .cols ul{margin:0;padding-left:18px}
+  .cols li{font-size:13px;line-height:22px;color:var(--text-secondary)}
+  .cut{color:#b0342a}
+  @media(max-width:680px){.cols{grid-template-columns:1fr}}
+
+  svg{display:block}
+</style>
+</head>
+<body>
+
+  <div class="top">
+    <span class="back">&#8249;&nbsp;Back</span>
+    <span class="title">Procurement Assistant</span>
+  </div>
+
+  <div class="stage">
+
+    <!-- user turn -->
+    <div class="user">
+      <div class="bubble">What payment terms apply to our tier-1 suppliers, and what's my limit to raise a PO for one?</div>
+    </div>
+
+    <!-- Thinking label -->
+    <div class="thinking">
+      <span class="ic">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#12923b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5A2.5 2.5 0 0 1 4.5 3H10v16H4.5A2.5 2.5 0 0 0 2 21.5z"/><path d="M22 5.5A2.5 2.5 0 0 0 19.5 3H14v16h5.5a2.5 2.5 0 0 1 2.5 2.5z"/></svg>
+      </span>
+      <span class="lbl">Thinking</span>
+    </div>
+
+    <div class="timeline">
+
+      <!-- STEP 1 — existing pattern, kept for context -->
+      <div class="step">
+        <span class="node">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </span>
+        <div class="head"><span class="t">Searching knowledge base</span>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></span>
+        </div>
+        <div class="body">
+          <div class="row"><span class="muted">Shortlisted 12 references from the procurement workspace</span></div>
+          <div class="done">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+            Done
+          </div>
+          <span class="pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Finished in 2.1 sec
+          </span>
+        </div>
+      </div>
+
+      <!-- ============================================================= -->
+      <!-- STEP 2 — THE NEW SIMPLIFIED "GROUNDING IN CONTEXT" STEP        -->
+      <!-- ============================================================= -->
+      <div class="step ground">
+        <span class="node">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v5c0 4.5 3.2 7.9 8 9 4.8-1.1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        </span>
+
+        <div class="head"><span class="t">Grounding in attached context</span>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></span>
+        </div>
+
+        <div class="body">
+          <!-- one honest headline instead of a 94% donut + fragment counts -->
+          <div class="lead">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7 12 3l9 4-9 4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></svg>
+            <span>Read <span class="k">6 context artifacts</span> across 3 governance layers</span>
+          </div>
+
+          <div class="layers">
+            <!-- DOMAIN -->
+            <div class="layer">
+              <div class="lname"><span class="dot dot-domain"></span>Domain · Supply chain &amp; procurement</div>
+              <div class="art"><span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><span class="an">Glossary</span><span class="sep">·</span><span class="ad">defined “Tier-1 Supplier” and “Payment Term”</span></div>
+              <div class="art"><span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6.5 7.5 11 16m7-8.5L13 16"/></svg></span><span class="an">Ontology</span><span class="sep">·</span><span class="ad">Supplier → default PaymentTerm → PurchaseOrder</span></div>
+              <div class="art"><span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v5c0 4.5 3.2 7.9 8 9 4.8-1.1 8-4.5 8-9V6z"/></svg></span><span class="an">Procurement SOP</span><span class="sep">·</span><span class="ad">tier-1 PO creation mandates dual approval</span></div>
+            </div>
+
+            <!-- ORGANIZATION -->
+            <div class="layer">
+              <div class="lname"><span class="dot dot-org"></span>Organization · Enterprise policy</div>
+              <div class="art"><span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v5c0 4.5 3.2 7.9 8 9 4.8-1.1 8-4.5 8-9V6z"/></svg></span><span class="an">Approval Matrix v4</span><span class="sep">·</span><span class="ad">≤ ₹75L → Manager + Finance, above → CFO</span></div>
+              <div class="art"><span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v5c0 4.5 3.2 7.9 8 9 4.8-1.1 8-4.5 8-9V6z"/></svg></span><span class="an">Supplier Payment Policy</span><span class="sep">·</span><span class="ad">Net-45 default, 2% early-pay within Net-15</span></div>
+            </div>
+
+            <!-- SOLUTION -->
+            <div class="layer">
+              <div class="lname"><span class="dot dot-sol"></span>Solution · Procure_ChatAssistant</div>
+              <div class="art"><span class="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 6 6 6"/><path d="m16 6 6 6-6 6"/></svg></span><span class="an">Data &amp; tool bindings</span><span class="sep">·</span><span class="ad"><span class="code">SUPPLIER_MASTER</span>, <span class="code">PO_HEADER</span>, <span class="code">create_purchase_order</span></span></div>
+            </div>
+          </div>
+
+          <!-- the reasoning, in one plain sentence (this replaces the wall of "Assembled Context") -->
+          <p class="summary">
+            Pinned the <b>Net-45 default</b> and the <b>₹75L dual-approval threshold</b> to this
+            supplier's live record, so the answer follows governed policy rather than a guess.
+          </p>
+
+          <div class="done">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+            Grounded
+          </div>
+          <span class="pill">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Finished in 1.4 sec
+          </span>
+        </div>
+      </div>
+
+      <!-- STEP 3 — existing pattern, kept for context -->
+      <div class="step">
+        <span class="node">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </span>
+        <div class="head"><span class="t">Composing the grounded answer</span>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- design handoff note (not part of the shipped UI) -->
+  <div class="note">
+    <h3>Why this is the simplified step</h3>
+    <p>Same visual grammar as every other reasoning step — icon column, tree connector, collapsible header, <em>“Finished in&nbsp;X&nbsp;sec”</em> pill. It answers only the three things a reader actually needs: <b>what</b> it read, <b>from which layer</b>, and <b>how that shaped the answer</b>. Everything scannable in one glance; the full audit view still lives one click deeper.</p>
+    <div class="cols">
+      <div>
+        <h4>Kept (the signal)</h4>
+        <ul>
+          <li>Which artifacts were used, one line each</li>
+          <li>The 3 governance layers, as flat colour-dotted labels</li>
+          <li>One plain-language reasoning sentence</li>
+          <li>Time taken + a “Grounded” done-state</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Cut (the noise)</h4>
+        <ul>
+          <li class="cut">94% coverage donut &amp; fragment counts</li>
+          <li class="cut">Per-artifact relevance scores (0.96, 0.93…)</li>
+          <li class="cut">Ontology attribute &amp; relationship chips</li>
+          <li class="cut">“no signal in this layer” empty rows</li>
+          <li class="cut">The full “Assembled Context” paragraph</li>
+          <li class="cut">All / Domain / Org / Solution filter tabs</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
