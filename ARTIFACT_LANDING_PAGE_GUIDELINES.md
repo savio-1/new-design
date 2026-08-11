@@ -193,12 +193,13 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 
 ### 6.1 Card (the core unit)
 - **Container:** `#ffffff`, 1px `#eeeeee` border, 12px radius, 16px padding. Compact height ≈ **131px**; grows with description lines.
-- **Anatomy (top → bottom, ~8–12px vertical rhythm):**
-  1. **Header row:** icon tile (left) + title + optional trailing control (checkbox / `⋯` menu / hover "Insights" button, right).
+- **Internal vertical rhythm is TIGHT — ~4–6px between rows** (not 8–12px). The compact 131px height only holds if gaps stay small and the description uses a clamped ~18px line-height over 2 lines. Budget (16px pad → title 20 → rating 14 → desc 32 → tags 17 → 16px pad ≈ 131).
+- **Anatomy (top → bottom):**
+  1. **Header row (8px icon→text gap):** icon tile (left) + title + optional trailing control (checkbox / `⋯` menu / hover "Insights" button, right).
      - **Icon tile:** 40×40, 10px radius, `Gradient/<hue>` fill, white glyph. Hue = item identity.
-     - **Title:** `Body1/Med` (16/500) `Text/Primary`, single line, truncates.
+     - **Title:** `Body1/Med` (16 / **line-height 20** / weight **500**) `Text/Primary`, **single line, ellipsis-truncated**. Keep weight at 500 — heavier weights widen the text enough to truncate standard titles. Inner content column ≈ 297px (title area ≈ 249px next to the tile).
   2. **Meta / description:**
-     - *Marketplace pattern:* rating (★ + `4.2`) · download count (⤓ + `2.5k`) in `Caption` grey, then a 2-line description in `Body2/Reg` `Text/Secondary`.
+     - *Marketplace pattern — rating row:* **orange star `#ff8f00`** + value (`Text/Teritiary`), a **1px × 12px vertical divider `#e0e0e0`**, then a grey download glyph + count. All text `Caption` (12/16). Then a 2-line description in `Body2/Reg` `Text/Secondary`, line-height ~18, `line-clamp: 2`.
      - *Model Hub pattern:* 1–2 line description; a row of **count badges** (e.g. skills/tools/prompts icons + numbers) + a **model tag** chip (`gpt-4o-new`, `gemini-ultra-2.0`, `Custom`, `Internal`).
   3. **Footer row:** tags (left) + owner avatar 16px (right).
 - **Tags:** small chips, `Caption/Med` 12px, 6px radius, subtle grey/tinted background, `Text/Secondary`. ~17px tall.
@@ -211,7 +212,7 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 - 4px gap between tabs. Used for the main mode switch ("Explore / Agents / Assistants / Tools / Skills / Guardrails", "Workspace / Marketplace").
 
 ### 6.3 Search field
-- `#f5f5f5` fill, 8px radius, ~32–40px tall, leading magnifier icon (`#757575`), placeholder in `Text/Teritiary`. Right-aligned in the controls bar. Width flexes (≈440px baseline).
+- Two treatments in the system: **(a) catalog search** (the "Search for agents" field on the content header) = **white `#ffffff` fill + 1px `#e0e0e0` border**; **(b) filter/inline search** = `#f5f5f5` fill, borderless. Both: 8px radius, ~32–40px tall, leading magnifier icon (`#757575`), placeholder in `Text/Teritiary`. Right-aligned in the controls bar; width flexes (≈440px baseline).
 
 ### 6.4 Buttons
 | Variant | Fill | Text | Border | Use |
@@ -228,7 +229,7 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 - **Category tree (Tools):** expandable groups with chevron, colored group icon, indented children.
 
 ### 6.6 Badges / tags / pills
-- **Tag** (card taxonomy): 12px `Caption`, 6px radius, grey-tinted.
+- **Tag** (card taxonomy): 12px `Caption`, 6px radius, grey-tinted (`#f5f5f5` bg, `Text/Secondary`). **Uniformly neutral — there is NO coloured/highlighted tag variant** on cards (verified against source). Colour on cards lives only in the icon tile.
 - **Count badge** (Model Hub): icon + number, 12px, tinted background (e.g. `Backgrounds/Badge/Indigo` `#f4f5ff` with `Text/Coloured- Indigo`).
 - **Model tag:** monospace-ish plain chip, grey border/fill, `Caption`.
 - **Filter chip** (Tools "Created" / "Tool templates"): fully-rounded pill; active = tonal blue.
@@ -268,6 +269,22 @@ Notification bell (32px icon button; red dot when unread) · workspace dropdown 
 | Segment tabs | Explore/Agents/Assistants/Tools/Skills/Guardrails | Workspace / Marketplace | Workspace / Marketplace |
 
 These are **content variations on one shell** — the shell, tokens, card mechanics, and spacing are identical and are what this guideline standardises.
+
+---
+
+## 9. Calibration log
+
+**Test 1 — Marketplace (node `1687-430848`).** Built `test-marketplace.html` from this guideline alone, rendered at 1440px, diffed against the Figma frame. Result: faithful match on layout, tokens, colours, and card mechanics. Fixes folded back into the spec above:
+
+| Finding | Correction |
+|--------|-----------|
+| Cards rendered too tall | Card internal rhythm is **4–6px**, not 8–12px; description line-height ~18 clamped to 2 lines (§6.1). |
+| Rating star was grey | Star is **orange `#ff8f00`**; rating & downloads split by a **1px × 12px `#e0e0e0` divider** (§6.1). |
+| Title truncated at weight 600 | Card title weight is **500**; single-line + ellipsis; use `minmax(0,1fr)` grid tracks so long titles truncate inside the track instead of overflowing the grid (§6.1). |
+| Search rendered solid grey | Catalog search is **white + 1px `#e0e0e0` border**; grey fill is only the inline/filter search variant (§6.3). |
+| Tags coloured (incorrect assumption) | Tags are **uniformly neutral grey**; no highlighted variant (§6.6). |
+
+Residual, environment-only (not guideline gaps): `Geist` not installed in the test runner (fell back to Inter/system, minor metric drift); nav-rail glyphs are approximations (the guideline intentionally does not pin exact icon artwork).
 
 ---
 
