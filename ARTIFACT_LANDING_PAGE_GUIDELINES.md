@@ -18,7 +18,7 @@ All four share one design system. Token names below are the **verbatim Figma var
 
 1. **Content-first, chrome-light.** Navigation and controls are quiet (greys, thin borders, no heavy shadows). Color and weight are spent on the content — the cards — and on the single primary action per screen.
 2. **Card-driven catalogs.** Every artifact landing page is a *browsable catalog*: a contextual filter panel on the left, controls (tabs + search) across the top, and a responsive grid of uniform cards. Learn one card, understand them all.
-3. **Flat, border-defined surfaces.** Separation comes from **1px light borders** (`#eeeeee`) and background steps (`#fafafa` page → `#ffffff` card), **not** drop shadows. The only elevation effect in the system is a subtle blur/inner-shadow used sparingly (`secondary-effect`).
+3. **Flat, near-shadowless surfaces.** Separation comes mostly from **1px light borders** (`#f5f5f5`–`#eeeeee`) and background steps (`#fafafa` page → `#ffffff` card). Elevation is minimal: cards carry only a **whisper shadow** `0 1px 2px rgba(33,33,33,0.08)`; the heavier blur/inner-shadow effect (`secondary-effect`) is reserved for floating glass surfaces.
 4. **Tight, calm density.** 4px-based spacing, compact 131px cards, 12–16px gaps. Information-dense but never cramped — generous line-height (20–24px) keeps it readable.
 5. **One accent, colorful identifiers.** UI accent is a single **blue (`#0d99ff`)**. The wider color palette (purple, indigo, orange, green, cyan, pink, yellow) is reserved for **per-item identity** — the gradient icon tile on each card — never for chrome.
 6. **Neutral, legible typography.** `Geist`, medium/regular weights, slightly negative letter-spacing. No display type; hierarchy is carried by size + weight + color, not by font changes.
@@ -98,7 +98,7 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 
 ## 3. Typography
 
-**Family:** `Geist` (all weights). Fallback stack: `"Geist", "Inter", system-ui, -apple-system, sans-serif`.
+**Family:** `Geist` (all weights) — the platform font, **bundled in `/fonts`** (Regular 400, Medium 500, SemiBold 600, Bold 700; from the Cogentiq design system). Load via `@font-face`; do not rely on a system copy. Fallback stack: `"Geist", "Inter", system-ui, -apple-system, sans-serif`.
 **Letter-spacing:** slightly negative throughout (Figma stores it in 1/1000 em steps; the values below are the practical equivalents).
 
 | Style token | Size / Line-height | Weight | Typical use |
@@ -147,10 +147,10 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 | Avatar, circular icon buttons | **50% (circle)** |
 
 ### 4.3 Borders & elevation
-- **Default separation = 1px solid `#eeeeee`.** This is the primary way surfaces are delineated.
-- Inputs/stronger dividers = 1px `#e0e0e0`.
-- **Cards do not use drop shadows.** Hover = border darkens to `#bdbdbd`; selected/focused = border `#0d99ff`.
-- The only elevation effect: `secondary-effect` = `background-blur 4px` + `inner-shadow #FFFFFF99 offset(0.2, 0.1) radius 1` — reserved for floating/glass surfaces, used rarely.
+- **Default separation = 1px solid border.** Cards use a very light **`#f5f5f5` (Strokes/Line-3)** border; general dividers use `#eeeeee` (Line-1); inputs/stronger dividers `#e0e0e0` (Line-2).
+- **Cards carry one subtle shadow: `box-shadow: 0 1px 2px 0 rgba(33,33,33,0.08)`** (verified from source). It's a whisper — combined with the light border, not a replacement for it.
+- Hover = border darkens to `#bdbdbd`; selected/focused = border `#0d99ff`.
+- Heavier effect: `secondary-effect` = `background-blur 4px` + `inner-shadow #FFFFFF99 offset(0.2, 0.1) radius 1` — reserved for floating/glass surfaces, used rarely.
 
 ---
 
@@ -191,18 +191,19 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 
 ## 6. Components
 
-### 6.1 Card (the core unit)
-- **Container:** `#ffffff`, 1px `#eeeeee` border, 12px radius, 16px padding. Compact height ≈ **131px**; grows with description lines.
-- **Internal vertical rhythm is TIGHT — ~4–6px between rows** (not 8–12px). The compact 131px height only holds if gaps stay small and the description uses a clamped ~18px line-height over 2 lines. Budget (16px pad → title 20 → rating 14 → desc 32 → tags 17 → 16px pad ≈ 131).
+### 6.1 Card (the core unit) — exact spec, verified from Figma design context
+- **Container:** `#ffffff`, **1px `#f5f5f5` border**, **12px radius**, **16px padding**, **`box-shadow: 0 1px 2px 0 rgba(33,33,33,0.08)`**. Compact height = **131px**; grows with description lines.
+- **Structure & gaps (authoritative):** card is `flex-column`. Outer **gap 10px** between the [header + description] group and the tags-row; inside that group **gap 6px** between header row and description; header row is `flex`, **gap 8px**, `align-items:center`. Budget: 16 pad → header 34 → gap 6 → desc 32 → gap 10 → tags 17 → 16 pad = **131**.
 - **Anatomy (top → bottom):**
-  1. **Header row (8px icon→text gap):** icon tile (left) + title + optional trailing control (checkbox / `⋯` menu / hover "Insights" button, right).
-     - **Icon tile:** 40×40, 10px radius, `Gradient/<hue>` fill, white glyph. Hue = item identity.
-     - **Title:** `Body1/Med` (16 / **line-height 20** / weight **500**) `Text/Primary`, **single line, ellipsis-truncated**. Keep weight at 500 — heavier weights widen the text enough to truncate standard titles. Inner content column ≈ 297px (title area ≈ 249px next to the tile).
-  2. **Meta / description:**
-     - *Marketplace pattern — rating row:* **orange star `#ff8f00`** + value (`Text/Teritiary`), a **1px × 12px vertical divider `#e0e0e0`**, then a grey download glyph + count. All text `Caption` (12/16). Then a 2-line description in `Body2/Reg` `Text/Secondary`, line-height ~18, `line-clamp: 2`.
-     - *Model Hub pattern:* 1–2 line description; a row of **count badges** (e.g. skills/tools/prompts icons + numbers) + a **model tag** chip (`gpt-4o-new`, `gemini-ultra-2.0`, `Custom`, `Internal`).
-  3. **Footer row:** tags (left) + owner avatar 16px (right).
-- **Tags:** small chips, `Caption/Med` 12px, 6px radius, subtle grey/tinted background, `Text/Secondary`. ~17px tall.
+  1. **Header row:** icon tile (left) + text column + optional trailing control (checkbox / `⋯` / hover "Insights").
+     - **Icon tile:** **32×32**, ~8px radius, `Gradient/<hue>` fill (a pre-rendered asset from the design-system icon set), white glyph. Hue = item identity. **Not 40px.**
+     - **Text column** (`flex-column`, centered) = **title** then **meta row**:
+       - **Title:** **14px / 500 Medium / line-height 20 / letter-spacing −0.56px (≈ −0.04em)**, `Text/Primary`. Single line, **ellipsis-truncated** (use `minmax(0,1fr)` grid tracks so it truncates in-track, never overflows the grid). This is `Body2/Med` — **not** 16px.
+       - **Meta row** (`flex`, gap 6, items-center): `[★ 12px `#ff8f00` + value]` (gap 2) · **1px × 10px divider `#e0e0e0`** · `[download glyph 12px `#757575` + count]` (gap 2). **All meta text is 10px Regular / line-height 14 / `Text/Teritiary` `#8c8c8c`** (`Caption2/Reg`) — not 12px.
+  2. **Description:** **12px Regular / line-height 16 / `Text/Teritiary` `#8c8c8c`** (`Caption1/Reg`), `line-clamp: 2`. Tertiary grey, **not** secondary; 12px, **not** 14px.
+     - *Model Hub variant:* description then a row of **count badges** (skills/tools/prompts icons + numbers) + a **model tag** chip (`gpt-4o-new`, `gemini-ultra-2.0`, `Custom`, `Internal`).
+  3. **Tags-row** (`flex`, `justify-between`, items-center): tags (left, gap 6) + owner avatar **16px** (right).
+- **Tags:** **10px Regular / line-height 14 / `Text/Teritiary` `#8c8c8c`**, background `#f5f5f5` (`Backgrounds/Card/bg-4`), **fully-rounded pill (radius 12)**, padding `1px 6px 2px`. Uniformly neutral (§6.6).
 - **States:** hover → border `#bdbdbd` (+ reveal actions like "Insights"); selected → border `#0d99ff`; the checkbox variant supports multi-select.
 - **Action-card variant (Tools):** right-aligned **tonal "+ Create" button** in the header, description below, and a `⚙ N actions` meta chip in the footer.
 
@@ -229,7 +230,7 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 - **Category tree (Tools):** expandable groups with chevron, colored group icon, indented children.
 
 ### 6.6 Badges / tags / pills
-- **Tag** (card taxonomy): 12px `Caption`, 6px radius, grey-tinted (`#f5f5f5` bg, `Text/Secondary`). **Uniformly neutral — there is NO coloured/highlighted tag variant** on cards (verified against source). Colour on cards lives only in the icon tile.
+- **Tag** (card taxonomy): **10px `Caption2/Reg`, fully-rounded pill (radius 12), `#f5f5f5` bg, `Text/Teritiary` `#8c8c8c`** (verified from source). **Uniformly neutral — there is NO coloured/highlighted tag variant** on cards. Colour on cards lives only in the icon tile.
 - **Count badge** (Model Hub): icon + number, 12px, tinted background (e.g. `Backgrounds/Badge/Indigo` `#f4f5ff` with `Text/Coloured- Indigo`).
 - **Model tag:** monospace-ish plain chip, grey border/fill, `Caption`.
 - **Filter chip** (Tools "Created" / "Tool templates"): fully-rounded pill; active = tonal blue.
@@ -238,20 +239,22 @@ Each hue exposes 300 (tint) / 500 (base) / 600 (deep), plus a matching `Gradient
 Notification bell (32px icon button; red dot when unread) · workspace dropdown (avatar-letter badge + name + chevron, 112×32) · user avatar (32px circle).
 
 ### 6.8 Icons
-- Grid: **16px** in body/cards, **24px** in the nav rail, **12px** for inline meta (rating/download).
+- Grid: **20px** default UI icons, **24px** in the nav rail, **16px** in body/lists, **12px** for inline meta (rating/download), **32px** for the card gradient tile.
 - Default stroke `#757575` (`Strokes/Icon/Default`); accent icons take the item hue. Line style, ~1.5px stroke.
+- **Source & sizing rules are in §10 (Iconography).**
 
 ---
 
 ## 7. Build Checklist (use for every new artifact landing page)
 
-- [ ] Page canvas `#fafafa`; surfaces `#ffffff`; separation via 1px `#eeeeee` borders, **no shadows**.
+- [ ] Font: **Geist bundled via `@font-face`** (`/fonts`), not a system fallback.
+- [ ] Page canvas `#fafafa`; surfaces `#ffffff`; separation via light borders (`#f5f5f5`–`#eeeeee`) + the card whisper-shadow `0 1px 2px rgba(33,33,33,.08)`.
 - [ ] 68px nav rail + 48px header (title left, user cluster right).
 - [ ] Segment control for mode switching; search right-aligned; **at most one** primary blue button.
 - [ ] Contextual left panel 264–288px with an uppercase caption eyebrow.
 - [ ] Card grid: 12px gaps, 16px card padding, 12px card radius, equal-height cards, 2–3 responsive columns.
-- [ ] Each card: `Gradient/<hue>` 40px icon tile + `Body1/Med` title + `Body2/Reg` `Text/Secondary` description + meta + footer (tags + 16px avatar).
-- [ ] Typography = `Geist`; Title `Text/Primary`/Medium, Body `Text/Secondary`/Regular, Meta `Text/Teritiary`/Caption.
+- [ ] Each card (exact, §6.1): `Gradient/<hue>` **32px** tile + **14px/500** title + **12px `Text/Teritiary`** description + **10px** meta (orange star + divider) + footer (10px pill tags + 16px avatar); border `#f5f5f5` + whisper-shadow.
+- [ ] Typography = `Geist`; Title `Text/Primary`/Medium, Body `Text/Secondary`/Regular, Meta & card text `Text/Teritiary`.
 - [ ] Blue `#0d99ff` for all chrome/selection/links; multi-hue **only** on per-item icon tiles & badges.
 - [ ] Hover = border `#bdbdbd`; selected/focus = border `#0d99ff`.
 - [ ] Spacing snaps to the 4px scale (4/8/12/16/24/32).
@@ -284,8 +287,33 @@ These are **content variations on one shell** — the shell, tokens, card mechan
 | Search rendered solid grey | Catalog search is **white + 1px `#e0e0e0` border**; grey fill is only the inline/filter search variant (§6.3). |
 | Tags coloured (incorrect assumption) | Tags are **uniformly neutral grey**; no highlighted variant (§6.6). |
 
-Residual, environment-only (not guideline gaps): `Geist` not installed in the test runner (fell back to Inter/system, minor metric drift); nav-rail glyphs are approximations (the guideline intentionally does not pin exact icon artwork).
+**Test 2 — Marketplace card, authoritative pass (node `1695:433440` via `get_design_context`).** Pulled the card's real CSS/tokens instead of inferring from line-box heights, and bundled the actual Geist font. Corrections folded in:
+
+| Finding | Correction |
+|--------|-----------|
+| Card had "no shadow, `#eeeeee` border" | Real: **1px `#f5f5f5` border + `box-shadow 0 1px 2px rgba(33,33,33,.08)`** (§1, §4.3, §6.1). |
+| Icon tile 40px | Real: **32px** (§6.1, §6.8). |
+| Title 16px (`Body1/Med`) | Real: **14px `Body2/Med`** (lh20, ls −0.56) (§3, §6.1). |
+| Rating/downloads 12px | Real: **10px `Caption2/Reg`, `Text/Teritiary`** (§6.1). |
+| Description 14px `Text/Secondary` | Real: **12px `Caption1/Reg`, line-height 16, `Text/Teritiary`** (§6.1). |
+| Tags 12px / 6px radius / secondary | Real: **10px, fully-rounded pill, `Text/Teritiary`, `#f5f5f5`** (§6.1, §6.6). |
+| Card gaps ~4–6px uniform | Real: **outer 10 / inner 6 / header 8** (§6.1). |
+| Geist not bundled | **Geist now bundled** in `/fonts` via `@font-face` (§3). |
+
+After Test 2 the render is pixel-faithful to the frame. Remaining approximation: the gradient **tile glyphs** are drawn placeholders — production should use the real tile assets / icons from the design system (§10).
 
 ---
 
-*Tokens transcribed verbatim from Figma variable collections; radii/elevation observed from frames (not exposed as variables) and standardised above. Regenerate from source if the Figma library changes.*
+## 10. Iconography & assets
+
+**Source of truth:** Cogentiq design system — file **`Cogentiq design system`** (`HimR0mebP9NQmNK0LQ9MQC`), page **`↳ Iconography`**
+→ https://www.figma.com/design/HimR0mebP9NQmNK0LQ9MQC/Cogentiq-design-system?node-id=496-227152
+
+- **Always take icons from this page first.** It contains ~150 named line icons plus the coloured **AI-assistant / Agents gradient tiles**. Named icons include (not exhaustive): navigation & chrome — Home, Agent, Tool, Tools & skills, Guardrails, Skill, Integrations, Brain, AI assistant, Dashboard, Settings, Users, Notification bell (+ on), Search, Filter, Plus, Close, Tick, Options (vertical); actions — Upload, Edit, Delete, Download, Copy, Share, Save, Undo, Redo, Expand, Minimize, Like/Unlike, Bookmark; providers — Claude, Anthropic, Open ai, Gemini, Mistral ai, Azure Foundry, Hugging face; file types — pdf, docx, xls, csv, ppt, zip, json, html, md, py, js, ts, sql, png, jpg, ipynb, log, txt; misc — Web, Web search, Calendar, Clock, Key, Reload, Trend graph, Message history, Data, MCP, Folder, Cloud storage.
+- **Sizes:** icons are authored at **20px** (default) and **24px**; the AI tiles at **Normal 24 / Big 32**. Match §6.8 sizing.
+- **Extraction:** pull SVGs via `download_assets` / `get_design_context` on the icon node, commit the exact bytes (asset URLs expire ~7 days). Line icons use stroke `#757575` by default and can be recoloured to an accent hue; gradient tiles are pre-rendered per hue/glyph and are used as-is.
+- **Fallback for anything missing:** use **Tabler Icons** — https://tabler.io/icons — matched to the same stroke weight/size, so new glyphs sit consistently with the Cogentiq set.
+
+---
+
+*Tokens transcribed verbatim from Figma variable collections; card spec verified via `get_design_context`; Geist bundled from the design system. Regenerate from source if the Figma library changes.*
