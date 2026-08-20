@@ -1,0 +1,134 @@
+/* ══════════════════════════════════════════════════════════════
+   STREAMING TEXT — design tokens, keyframes, utilities
+   Import once (Tailwind v4). Everything StreamingText references
+   is defined here: the ink/canvas ramp, the hairline shadow, the
+   four keyframes, and the two plain-CSS helper classes.
+   ══════════════════════════════════════════════════════════════ */
+
+@import "tailwindcss";
+
+/* ── palette ─────────────────────────────────────────────────── */
+:root {
+  --canvas:   #fbfbfa;   /* page ground — also the avatar ring color */
+  --surface:  #ffffff;   /* raised card */
+  --inset:    #f1f0ee;   /* recessed: citation chip, source list */
+  --hover:    #00000010; /* stronger hover (links, chips) */
+  --hover-2:  #0000000a; /* quieter hover (icon buttons, rows) */
+  --line:     #00000012; /* divider rules */
+  --hairline: #0000001f; /* 1px ring, drawn as a shadow */
+
+  --ink:   #1c1b19;      /* body text */
+  --ink-2: #6d6b66;      /* secondary — labels, domains */
+  --ink-3: #9c9a94;      /* tertiary — idle icons */
+}
+
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --canvas:   #121212;
+    --surface:  #1d1d1c;
+    --inset:    #242423;
+    --hover:    #ffffff14;
+    --hover-2:  #ffffff0d;
+    --line:     #ffffff14;
+    --hairline: #ffffff1f;
+
+    --ink:   #eeedeb;
+    --ink-2: #a4a29c;
+    --ink-3: #706e69;
+  }
+}
+
+:root[data-theme="dark"] {
+  --canvas:   #121212;
+  --surface:  #1d1d1c;
+  --inset:    #242423;
+  --hover:    #ffffff14;
+  --hover-2:  #ffffff0d;
+  --line:     #ffffff14;
+  --hairline: #ffffff1f;
+
+  --ink:   #eeedeb;
+  --ink-2: #a4a29c;
+  --ink-3: #706e69;
+}
+
+/* ── expose the palette to Tailwind's utility generator ──────── */
+/* `inline` so the utilities emit var() refs and stay theme-reactive. */
+@theme inline {
+  --color-canvas:  var(--canvas);
+  --color-surface: var(--surface);
+  --color-inset:   var(--inset);
+  --color-hover:   var(--hover);
+  --color-hover-2: var(--hover-2);
+  --color-line:    var(--line);
+
+  --color-ink:   var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+
+  /* shadow-hairline — a crisp 1px ring that costs no layout */
+  --shadow-hairline: 0 0 0 1px var(--hairline);
+}
+
+/* ── keyframes ───────────────────────────────────────────────── */
+
+/* words resolve out of blur as they land */
+@keyframes stream-in {
+  from { opacity: 0; filter: blur(5px); }
+  to   { opacity: 1; filter: blur(0);   }
+}
+
+/* the citation chip snaps in mid-sentence.
+   scale only — `translate` is left to the chip's own utility. */
+@keyframes pop-in {
+  from { opacity: 0; scale: 0.86; }
+  to   { opacity: 1; scale: 1;    }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* follow-ups rise into place, staggered */
+@keyframes fade-up {
+  from { opacity: 0; translate: 0 6px; }
+  to   { opacity: 1; translate: 0 0;   }
+}
+
+/* ── utilities ───────────────────────────────────────────────── */
+
+/* underline that wipes in from the left on hover of the parent link */
+.animated-underline {
+  position: relative;
+}
+.animated-underline::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 1px;
+  background: currentColor;
+  scale: 0 1;
+  transform-origin: left center;
+  transition: scale 240ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+a:hover .animated-underline::after,
+button:hover .animated-underline::after {
+  scale: 1 1;
+}
+
+/* favicons: never let flex squeeze them out of square */
+.source-avatar {
+  flex: none;
+  object-fit: cover;
+}
+
+/* ── reduced motion ──────────────────────────────────────────── */
+/* keep the reveal — drop the travel, the blur, and the caret. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes stream-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop-in    { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fade-up   { from { opacity: 0; } to { opacity: 1; } }
+  .animated-underline::after { transition-duration: 1ms; }
+}
