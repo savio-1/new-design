@@ -260,11 +260,12 @@
   .status{display:flex;align-items:center;gap:6px;min-height:20px;
     font:var(--body3);letter-spacing:-.56px;color:var(--text-secondary)}
   .status-ico{display:inline-flex;color:var(--text-secondary)}
-  .spin{display:inline-block;width:12px;height:12px;margin:2px;flex:none;border-radius:50%;
-    vertical-align:middle;
-    border:1.5px solid var(--line-1);border-top-color:var(--text-secondary);
-    animation:rot .7s linear infinite}
+  .logo-spin{display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;flex:none;
+    animation:rot 1.1s linear infinite,logo-pulse 1.6s ease-in-out infinite}
   @keyframes rot{to{transform:rotate(1turn)}}
+  @keyframes logo-pulse{0%,100%{opacity:.5;filter:saturate(.4) brightness(.85)}
+    50%{opacity:1;filter:saturate(1.2) brightness(1.3)}}
   .dots{min-width:14px;text-align:left}
   .dots::after{content:'';animation:dots 1.2s steps(1,end) infinite}
   @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%,100%{content:'...'}}
@@ -295,6 +296,7 @@
     @keyframes grow-down{from{opacity:0}to{opacity:1}}
     .is-working,.caret-bar{animation:none}
     .shimmer,.shimmer-blue{animation:none;background:none;color:var(--text-secondary);-webkit-text-fill-color:var(--text-secondary)}
+    .logo-spin{animation:none}
   }
 
   @media (max-width:900px){
@@ -483,7 +485,8 @@ async function streamWords(host, text, mine) {
    the design's final label — the line becomes the end state. */
 function statusLine(host) {
   const line = el('div', 'status appear', host);
-  el('span', 'spin', line);
+  const sp = el('span', 'logo-spin', line);
+  sp.innerHTML = svg('logo', 14);
   el('span', 'status-txt', line);
   el('span', 'dots', line);
   return line;
@@ -509,7 +512,7 @@ function settle(line, icon, size = 16, cls = null, label = null) {
   const ico = document.createElement('span');
   ico.className = 'status-ico pop';
   ico.innerHTML = svg(icon, size);
-  line.querySelector('.spin').replaceWith(ico);
+  line.querySelector('.logo-spin').replaceWith(ico);
   if (cls) txt.className = 'status-txt ' + cls;
   if (label != null) txt.textContent = label;
 }
@@ -527,7 +530,11 @@ function section(icon, { tile = false, blue = false } = {}) {
   const tail = el('span', 'sec-chev', head);
   return { sec, body, head, title, tail };
 }
-function sectionWorking(s) { s.tail.innerHTML = ''; el('span', 'spin', s.tail); }
+function sectionWorking(s) {
+  s.tail.innerHTML = '';
+  const sp = el('span', 'logo-spin', s.tail);
+  sp.innerHTML = svg('logo', 14);
+}
 function sectionDone(s, chev = 'chevup16') { s.tail.classList.add('pop'); s.tail.innerHTML = svg(chev, 16); }
 
 /* ---------- a context group: narrated, then settled ---------- */
