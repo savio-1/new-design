@@ -4,11 +4,17 @@
 
 <style>
 /* ============================================================
-   AlmaConnect homepage — iteration 6: depth-field hero promoted from
-   the demo page (text upper-left, autonomous image field lower-right,
-   observed floema.com mechanics) + shimmering gradient on the headline's
-   second line. Nav: wonderful.ai-style (transparent → scrolled → white
-   sheet with half-page hover panels). Persona cards rise in on scroll.
+   AlmaConnect homepage — iteration 7: staircase-stack hero.
+   Image mechanic matched to live observation of detroit.paris:
+   bottom-anchored row of images stacked left→right, each ~50% overlapped,
+   scale linear in horizontal position (tiny at left → full at right),
+   z-index rises with scale so the right neighbor sits on top,
+   transform-origin bottom-left, inner-image depth parallax (−15% → 0%),
+   entrance = whole row sweeps in from 600px left over 1.5s easeOutCubic
+   while scale/opacity ramp. Reference is wheel-driven; ours AUTO-DRIFTS
+   rightward continuously (client requirement). No rotation, no radius.
+   Headline keeps the shimmering gradient on line 2. Nav: wonderful.ai
+   style. Persona cards rise in on scroll.
    SOURCE FILE — "@img"/"@video"/"@svg" + ":name" tokens are inlined by
    scripts/build-home.py.
    ============================================================ */
@@ -244,31 +250,33 @@ a { color: inherit; text-decoration: none; }
   padding-top: clamp(80px, 13vh, 150px);
 }
 
-.hero__field {
+/* staircase stack along the hero bottom (reference: detroit.paris) */
+.hero__stack {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  animation: fieldIn 1.1s ease 0.9s forwards;   /* field ramps in as a whole */
-}
-@keyframes fieldIn { to { opacity: 1; } }
-
-.stage {
-  position: absolute;
-  inset: 0;
-  perspective: 1000px;
+  z-index: 1;
   overflow: hidden;
+  pointer-events: none;
 }
 
-.sprite {
+.stk {
   position: absolute;
-  left: 76%;                                     /* field center: lower-right quadrant */
-  top: 62%;
-  border-radius: 4px;
+  left: 0;
+  bottom: 0;
+  width: 432px;                 /* base box; JS scales 0.05 → 1.6 across the viewport */
+  aspect-ratio: 6 / 5;
+  transform-origin: left bottom;
+  overflow: hidden;
   opacity: 0;
-  transform: translate(-50%, -50%);
   will-change: transform, opacity;
-  pointer-events: none;
   user-select: none;
+}
+.stk img {
+  width: 110%;                  /* headroom for the −15% → 0% depth parallax */
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  will-change: transform;
 }
 
 .hero h1 {
@@ -424,7 +432,7 @@ a { color: inherit; text-decoration: none; }
   .nav__logo { width: auto; }
   .nav__logo img { height: 26px; }
   .nav__links, .nav__login, .nav__panelwrap { display: none; }
-  .hero__field { display: none; }
+  .hero__stack { display: none; }
   .hero { min-height: 0; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
   .hero__sub { font-size: 20px; }
   .personas { padding-top: 64px; padding-bottom: 80px; }
@@ -436,7 +444,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero__field { animation: none; opacity: 1; }
   .shine::after { animation: none; opacity: 0; }
   .nav, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__label .arrow, .mega__flink .arrow { transition: none; }
@@ -532,9 +539,7 @@ a { color: inherit; text-decoration: none; }
 <!-- ==================== HERO ==================== -->
 <main>
   <section class="hero">
-    <div class="hero__field">
-      <div class="stage" id="stage" aria-hidden="true"></div>
-    </div>
+    <div class="hero__stack" id="heroStack" aria-hidden="true"></div>
     <div class="container">
       <h1>Your alumni moved on.<br><span class="shine" data-text="Your database didn’t.">Your database didn&rsquo;t.</span></h1>
 
@@ -598,7 +603,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 6 — depth-field hero (text upper-left, image field lower-right) with shimmering gradient headline, Wonderful-style nav, persona cards on scroll. Placeholder media throughout. Trusted-by wall pending port from the demo page.</p>
+    <p>Iteration 7 — staircase-stack hero (detroit.paris mechanic + auto-drift, our placeholder images), shimmering gradient headline, Wonderful-style nav, persona cards on scroll. Trusted-by wall pending port from the demo page.</p>
   </div>
 </footer>
 
@@ -660,15 +665,14 @@ a { color: inherit; text-decoration: none; }
     if (!nav.contains(e.target)) close();
   });
 
-  /* ============ scroll: solid nav + field fade-out ============ */
-  var field = document.querySelector('.hero__field');
-  var stage = document.getElementById('stage');
+  /* ============ scroll: solid nav + stack fade-out ============ */
+  var heroStack = document.getElementById('heroStack');
 
   function onScroll() {
     var y = window.scrollY;
     nav.classList.toggle('is-scrolled', y > 8);
-    /* crossfade the field away as the cards approach (floema fades in place) */
-    stage.style.opacity = Math.max(0, 1 - y / (window.innerHeight * 0.65)).toFixed(3);
+    /* crossfade the stack away as the cards approach */
+    heroStack.style.opacity = Math.max(0, 1 - y / (window.innerHeight * 0.65)).toFixed(3);
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
@@ -694,76 +698,67 @@ a { color: inherit; text-decoration: none; }
     });
   }
 
-  /* ============ depth field (observed floema mechanic) ============ */
+  /* ============ staircase stack (observed detroit.paris mechanic + auto-drift) ============ */
   (function () {
-    /* 17 sprites, one per ~100px depth slot — half the density; lateral
-       offsets biased right/vertical so the text column stays quiet */
-    var LAYOUT = [
-      { img: 1,  x: -120, y: -200, w: 150, z: -1400 },
-      { img: 5,  x:  660, y: -180, w: 160, z: -1300 },
-      { img: 12, x: -120, y: -240, w: 100, z: -1200 },
-      { img: 14, x:  560, y:  220, w: 145, z: -1100 },
-      { img: 10, x:  320, y:  120, w:  90, z: -1000 },
-      { img: 4,  x:  240, y: -180, w: 140, z:  -900 },
-      { img: 11, x:  480, y:  -60, w: 115, z:  -800 },
-      { img: 13, x:  120, y:  380, w: 140, z:  -700 },
-      { img: 1,  x:  640, y: -220, w: 120, z:  -600 },
-      { img: 5,  x: -140, y:  260, w:  95, z:  -500 },
-      { img: 12, x:  400, y: -260, w: 105, z:  -400 },
-      { img: 14, x:  680, y:   80, w: 150, z:  -300 },
-      { img: 10, x:  260, y:  340, w:  95, z:  -200 },
-      { img: 4,  x:  520, y:  380, w: 135, z:  -100 },
-      { img: 11, x: -120, y:  -80, w: 110, z:     0 },
-      { img: 13, x:  100, y:  160, w: 120, z:   100 },
-      { img: 1,  x:  600, y: -280, w: 130, z:   200 }
+    if (!heroStack) return;
+
+    var SOURCES = [
+      "@img:f1",  "@img:f5",  "@img:f9",  "@img:f13",
+      "@img:f4",  "@img:f10", "@img:f14", "@img:f2",
+      "@img:f8",  "@img:f11", "@img:f16", "@img:f6",
+      "@img:f12", "@img:f3",  "@img:f15", "@img:f7"
     ];
+    var N = SOURCES.length;
+    var STEP = 216;               // observed: 50% of the 432px base box → constant overlap
+    var S_MIN = 0.055, S_MAX = 1.6;   // observed scale range across the viewport
+    var SPEED = 80;               // px/s auto-drift (ours; reference is wheel-driven)
+    var ENTER_MS = 1500, ENTER_DELAY = 300, ENTER_OFFSET = 600;  // observed entrance
 
-    var SOURCES = {
-      1: "@img:f1",  2: "@img:f2",  3: "@img:f3",  4: "@img:f4",
-      5: "@img:f5",  6: "@img:f6",  7: "@img:f7",  8: "@img:f8",
-      9: "@img:f9",  10: "@img:f10", 11: "@img:f11", 12: "@img:f12",
-      13: "@img:f13", 14: "@img:f14", 15: "@img:f15", 16: "@img:f16"
-    };
-
-    var Z_FAR = -1400, Z_NEAR = 300;
-    var WRAP = Z_NEAR + 130 - Z_FAR;
-    var DOLLY = 198;                 // px/s (observed 220, dialed back 10%)
-
-    function depth01(z) { return (z - Z_FAR) / (Z_NEAR - Z_FAR); }
     function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
+    function easeOutCubic(p) { return 1 - Math.pow(1 - p, 3); }
 
-    var sprites = LAYOUT.map(function (s) {
-      var el = document.createElement('img');
-      el.className = 'sprite';
-      el.src = SOURCES[s.img];
-      el.style.width = s.w + 'px';
-      stage.appendChild(el);
-      return { el: el, x: s.x, y: s.y, z: s.z };
+    var items = SOURCES.map(function (src) {
+      var el = document.createElement('div');
+      el.className = 'stk';
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = '';
+      el.appendChild(img);
+      heroStack.appendChild(el);
+      return { el: el, img: img };
     });
 
-    var start = null;
+    var current = 0;
+    var start = null, last = null;
 
     function frame(ts) {
-      if (start === null) start = ts;
-      var t = (ts - start) / 1000;
-      var camZ = reduced ? 0 : t * DOLLY;
+      if (start === null) { start = ts; last = ts; }
+      var dt = (ts - last) / 1000;
+      last = ts;
 
-      for (var i = 0; i < sprites.length; i++) {
-        var s = sprites[i];
-        var z = Z_FAR + (((s.z + camZ) - Z_FAR) % WRAP + WRAP) % WRAP;
-        var d = clamp(depth01(z), 0, 1);
+      var e = reduced ? 1
+        : easeOutCubic(clamp((ts - start - ENTER_DELAY) / ENTER_MS, 0, 1));
+      if (!reduced && e > 0) current += SPEED * dt;
 
-        /* full opacity from mid-depth on; only freshly spawned far
-           sprites ease in so they don't pop into existence */
-        var fog = clamp(0.1 + 1.8 * d, 0, 1);
-        var farIn = clamp((z - Z_FAR) / 200, 0, 1);
-        var nearOut = z > 180 ? clamp(1 - (z - 180) / 250, 0, 1) : 1;
+      var vw = window.innerWidth;
+      var total = N * STEP;
 
-        s.el.style.transform =
-          'translate(-50%, -50%) translate3d(' + s.x + 'px, ' + s.y + 'px, ' +
-          z.toFixed(2) + 'px)';
-        s.el.style.opacity = (fog * farIn * nearOut).toFixed(3);
-        s.el.style.zIndex = 1 + Math.round(d * 9);
+      for (var i = 0; i < N; i++) {
+        var it = items[i];
+        /* wrap position into [0, total): items drift right, grow, exit,
+           re-enter tiny at the left edge (reference wraps modulo likewise) */
+        var x = (((i * STEP + current) % total) + total) % total;
+        x -= ENTER_OFFSET * (1 - e);            // entrance: row sweeps in from the left
+
+        var t01 = x / vw;
+        var s = Math.max(0.03, S_MIN + (S_MAX - S_MIN) * Math.min(t01, 1.45)) * e;
+        var visible = x > -60 && x < vw + 220 ? 1 : 0;
+        var px = -15 * (1 - clamp(t01, 0, 1));  // inner depth parallax: −15% → 0%
+
+        it.el.style.transform = 'translateX(' + x.toFixed(2) + 'px) scale(' + s.toFixed(4) + ')';
+        it.el.style.zIndex = Math.max(1, Math.round(s * 10));
+        it.el.style.opacity = (visible * e).toFixed(3);
+        it.img.style.transform = 'translateX(' + px.toFixed(2) + '%)';
       }
 
       if (!reduced) requestAnimationFrame(frame);
