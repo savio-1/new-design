@@ -115,34 +115,41 @@
   .term#end.stopped{border-color:rgba(220,52,18,.55);color:var(--text-red);
     box-shadow:0 0 0 1px rgba(220,52,18,.1),0 0 18px rgba(220,52,18,.12)}
 
-  /* connector: a 46px vertical run with arrowhead + traveling pulse */
-  .conn{position:relative;width:2px;height:46px;flex:none}
-  .conn .track{position:absolute;inset:0 0 6px;width:2px;border-radius:2px;background:var(--line-3);
+  /* connector: a vertical run that ties one node to the next.
+     `.to-node` connectors extend through the next node's floating badge row
+     (negative margin) so the chevron lands exactly on the card's top edge. */
+  .conn{position:relative;width:2px;height:46px;flex:none;z-index:0}
+  .conn.to-node{height:76px;margin-bottom:-30px}
+  .conn .track{position:absolute;inset:0 0 2px;width:2px;border-radius:2px;background:var(--line-2);
     transition:background .5s ease}
-  .conn .head{position:absolute;left:50%;bottom:0;translate:-50% 0;
-    border-left:5px solid transparent;border-right:5px solid transparent;
-    border-top:6px solid var(--line-3);transition:border-top-color .5s ease}
-  .conn .flowline{position:absolute;inset:0 0 6px;width:2px;border-radius:2px;opacity:0;
-    background:repeating-linear-gradient(to bottom,var(--blue-500) 0 5px,transparent 5px 11px);
-    background-size:100% 22px;transition:opacity .4s ease}
+  .conn .head{position:absolute;left:50%;bottom:0;width:9px;height:9px;
+    border:solid var(--line-2);border-width:0 2px 2px 0;border-radius:1px;
+    transform:translate(-50%,-1.5px) rotate(45deg);transition:border-color .5s ease}
+  /* the flow effect: a soft solid gradient shimmer sweeping top → bottom */
+  .conn .flowline{position:absolute;inset:0 0 2px;width:2px;border-radius:2px;opacity:0;
+    background:linear-gradient(to bottom,transparent 0%,rgba(13,153,255,.45) 30%,#9ad1ff 50%,rgba(13,153,255,.45) 70%,transparent 100%);
+    background-size:100% 56px;background-repeat:no-repeat;background-position:0 -56px;
+    transition:opacity .4s ease}
   .conn .spark{position:absolute;left:50%;top:0;translate:-50% -50%;width:7px;height:7px;
     border-radius:100px;background:#9ad1ff;opacity:0;
     box-shadow:0 0 8px 2px rgba(13,153,255,.65)}
-  .conn.flowing .flowline{opacity:1;animation:dash-fall 1s linear infinite}
-  .conn.flowing .spark{opacity:1;animation:spark-fall 1.4s ease-in-out infinite}
-  .conn.flowing .head{border-top-color:var(--blue-500)}
+  .conn.flowing .track{background:rgba(13,153,255,.3)}
+  .conn.flowing .flowline{opacity:1;animation:flow-down 1.15s linear infinite}
+  .conn.flowing .spark{opacity:1;animation:spark-fall 1.15s linear infinite}
+  .conn.flowing .head{border-color:var(--blue-500)}
   .conn.done .track{background:rgba(76,175,80,.6)}
-  .conn.done .head{border-top-color:rgba(76,175,80,.8)}
-  .conn.waiting .flowline{opacity:1;animation:dash-fall 2.2s linear infinite;
-    background:repeating-linear-gradient(to bottom,var(--amber-500) 0 4px,transparent 4px 11px);
-    background-size:100% 22px}
-  .conn.waiting .head{border-top-color:var(--amber-500)}
-  @keyframes dash-fall{to{background-position:0 22px}}
+  .conn.done .head{border-color:rgba(76,175,80,.8)}
+  .conn.waiting .track{background:rgba(255,160,0,.3)}
+  .conn.waiting .flowline{opacity:1;animation:flow-down 2s linear infinite;
+    background:linear-gradient(to bottom,transparent 0%,rgba(255,160,0,.45) 30%,#ffce7a 50%,rgba(255,160,0,.45) 70%,transparent 100%);
+    background-size:100% 56px;background-repeat:no-repeat;background-position:0 -56px}
+  .conn.waiting .head{border-color:var(--amber-500)}
+  @keyframes flow-down{from{background-position:0 -56px}to{background-position:0 92px}}
   @keyframes spark-fall{0%{top:0;opacity:0}12%{opacity:1}82%{opacity:1}100%{top:100%;opacity:0}}
 
   /* ── a block node: floating badge row + card ── */
   .node{width:320px;flex:none;display:flex;flex-direction:column;gap:6px}
-  .node-top{display:flex;align-items:center;justify-content:space-between;min-height:24px}
+  .node-top{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;min-height:24px}
   .node-badge{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border-radius:100px;
     font:500 12px/16px var(--sans);letter-spacing:-.24px;
     background:var(--bg-card);border:1px solid var(--line-1);color:var(--text-secondary)}
@@ -233,14 +240,33 @@
     box-shadow:0 6px 20px rgba(0,0,0,.4)}
   .zoom .ico{color:var(--text-tertiary)}
 
-  /* floating waiting chip near End while checkpoint holds */
-  .wait-chip{position:absolute;left:calc(50% + 70px);display:flex;align-items:center;gap:6px;
-    padding:4px 10px;border-radius:100px;font:500 12px/16px var(--sans);letter-spacing:-.24px;
-    background:rgba(38,29,10,.92);border:1px solid rgba(255,160,0,.5);color:var(--text-amber);
-    opacity:0;translate:0 4px;transition:opacity .4s ease,translate .4s var(--ease);white-space:nowrap}
-  .wait-chip.on{opacity:1;translate:0 0}
-  .wait-chip .pulse-dot{width:6px;height:6px;border-radius:100px;background:var(--amber-500);
+  /* human checkpoint node: pink identity, amber waiting state */
+  .node-badge.pink{border-color:rgba(236,72,153,.55);background:rgba(45,16,32,.92);color:#f9a8d4}
+  .stat.waiting{border-color:rgba(255,160,0,.55);color:var(--text-amber);background:rgba(38,29,10,.92)}
+  .stat.waiting .spin,.stat.waiting .qico{display:none}
+  .stat.waiting::before{content:'';width:6px;height:6px;border-radius:100px;background:var(--amber-500);
     animation:working 1.2s ease-in-out infinite}
+  .node.waiting .node-card{border-color:rgba(255,160,0,.45);transform:translateY(-1px);
+    animation:breathe-amber 2.6s ease-in-out infinite}
+  @keyframes breathe-amber{
+    0%,100%{box-shadow:0 0 0 1px rgba(255,160,0,.08),0 0 16px rgba(255,160,0,.10),0 10px 28px rgba(0,0,0,.45)}
+    50%{box-shadow:0 0 0 1px rgba(255,160,0,.16),0 0 30px rgba(255,160,0,.18),0 10px 28px rgba(0,0,0,.45)}
+  }
+  .node.waiting .ring{opacity:1;background:conic-gradient(from var(--orbit),
+      transparent 0turn,transparent .58turn,
+      rgba(255,160,0,.25) .72turn,var(--amber-500) .85turn,#ffe2ae .95turn,transparent 1turn);
+    animation:orbit 3.2s linear infinite}
+  .node.waiting .ring2{opacity:1;background:conic-gradient(from var(--orbit),
+      transparent 0turn,rgba(255,160,0,.5) .07turn,transparent .16turn,transparent 1turn);
+    animation:orbit 3.2s linear infinite;filter:blur(1px)}
+  .node.waiting .sheen{opacity:1}
+  .node.waiting .sheen::before{background:linear-gradient(105deg,transparent 43%,rgba(255,206,122,.07) 50%,transparent 57%)}
+
+  .approver{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px 0 4px;border-radius:100px;
+    border:1px solid var(--line-3);background:var(--bg-chip);
+    font:500 12px/16px var(--sans);color:var(--text-secondary)}
+  .avatar{width:18px;height:18px;border-radius:100px;display:grid;place-items:center;
+    font:600 9px/1 var(--sans);color:#fff}
 
   /* ══════════════ right panel ══════════════ */
   .panel{width:460px;flex:none;display:flex;flex-direction:column;background:var(--bg-panel);
@@ -351,7 +377,7 @@
     animation:pop-in .3s var(--ease) both}
 
   /* checkpoint block accents */
-  .rblock.checkpoint{border-color:rgba(255,160,0,.35)}
+  .rblock.checkpoint{border-color:rgba(236,72,153,.35)}
   .rblock.checkpoint.resolved{border-color:var(--line-3)}
   .cp-text{font:400 12px/18px var(--sans);letter-spacing:-.24px;color:var(--text-secondary);
     max-width:340px}
@@ -377,6 +403,7 @@
   .badge-sm.blue{border-color:rgba(13,153,255,.5);background:rgba(13,26,38,.9);color:#8ecdfb}
   .badge-sm.purple{border-color:rgba(151,71,255,.5);background:rgba(30,19,46,.9);color:#cda4ff}
   .badge-sm.amber{border-color:rgba(255,160,0,.5);background:rgba(38,29,10,.9);color:#ffc866}
+  .badge-sm.pink{border-color:rgba(236,72,153,.5);background:rgba(45,16,32,.9);color:#f9a8d4}
 
   /* generic entrances */
   @keyframes pop-in{from{opacity:0;scale:.86}to{opacity:1;scale:1}}
@@ -398,8 +425,10 @@
     @keyframes fade-up{from{opacity:0}to{opacity:1}}
     .ring,.ring2{animation:none;opacity:0 !important}
     .node.running .node-card{animation:none;border-color:rgba(13,153,255,.6)}
+    .node.waiting .node-card{animation:none;border-color:rgba(255,160,0,.6)}
     .sheen{display:none}
-    .conn.flowing .flowline,.conn.waiting .flowline{animation:none}
+    .conn.flowing .flowline,.conn.waiting .flowline{animation:none;opacity:0}
+    .stat.waiting::before{animation:none}
     .conn .spark{display:none}
     .bar-fill::after{animation:none;opacity:0}
     .shimmer{animation:none;background:none;color:var(--text-secondary);-webkit-text-fill-color:var(--text-secondary)}
@@ -447,7 +476,7 @@
           <span class="ico" data-icon="play" data-size="15"></span>Start
         </div>
 
-        <div class="conn" id="conn0">
+        <div class="conn to-node" id="conn0">
           <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
         </div>
 
@@ -478,7 +507,7 @@
           </div>
         </div>
 
-        <div class="conn" id="conn1">
+        <div class="conn to-node" id="conn1">
           <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
         </div>
 
@@ -505,13 +534,38 @@
           </div>
         </div>
 
-        <div class="conn" id="conn2" style="position:relative">
+        <div class="conn to-node" id="conn2">
           <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
         </div>
 
-        <div class="term" id="end" style="position:relative">
+        <!-- block 3 · Human checkpoint -->
+        <div class="node" id="node3">
+          <div class="node-top">
+            <span class="node-badge pink"><span data-icon="usercheck" data-size="14"></span>Human checkpoint</span>
+            <span class="stat" id="stat3">
+              <span class="qico" data-icon="dot" data-size="8"></span>
+              <span class="spin" data-icon="spinner" data-size="13"></span>
+              <span class="ok" data-icon="checkfill" data-size="17"></span>
+              <span class="lbl">Queued</span>
+            </span>
+          </div>
+          <div class="node-card">
+            <span class="ring" aria-hidden="true"></span><span class="ring2" aria-hidden="true"></span>
+            <span class="sheen" aria-hidden="true"></span><span class="flash" aria-hidden="true"></span>
+            <div class="card-title">Check for agent output</div>
+            <div class="card-row">
+              <span class="approver"><span class="avatar" style="background:#6366f1">S</span>Savio Govindu</span>
+              <span class="approver"><span class="avatar" style="background:#f59e0b">H</span>Hemavathi</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn" id="conn3">
+          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+        </div>
+
+        <div class="term" id="end">
           <span class="ico" data-icon="stopfill" data-size="12"></span>End
-          <span class="wait-chip" id="wait-chip"><span class="pulse-dot"></span>Waiting for approval</span>
         </div>
       </div>
 
@@ -582,6 +636,7 @@ const ICONS = {
   calendar:  { vb:'0 0 16 16', body: P('M3 4h10v9.5H3ZM3 7h10M5.5 2.5v2.6M10.5 2.5v2.6', 'stroke="#4285f4"')+'<rect x="7" y="9" width="3.6" height="2.6" rx=".6" fill="#4285f4"/>' },
   storage:   { vb:'0 0 16 16', body: P('M2.5 4.6 8 2.4l5.5 2.2v6.8L8 13.6l-5.5-2.2Z', 'stroke="#29b6f6"')+P('M2.5 4.6 8 6.8l5.5-2.2M8 6.8v6.8','stroke="#29b6f6"') },
   user:      { vb:'0 0 16 16', body:'<circle cx="8" cy="5.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('M3.2 13.4a4.9 4.9 0 0 1 9.6 0') },
+  usercheck: { vb:'0 0 16 16', body:'<circle cx="6.2" cy="5.2" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('M2 13.2a4.5 4.5 0 0 1 7.4-2.9M9.9 12l1.6 1.6 2.7-3') },
   checkline: { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('m5.3 8.2 1.9 1.9 3.6-4') },
   stopline:  { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="5.6" y="5.6" width="4.8" height="4.8" rx="1" fill="currentColor"/>' },
   flag:      { vb:'0 0 16 16', body: P('M3.5 14V2.5M3.5 3h8.6l-2 2.9 2 2.9H3.5') },
@@ -645,7 +700,6 @@ const bar = document.getElementById('bar');
 const barRow = document.getElementById('bar-row');
 const pctEl = document.getElementById('pct');
 const stepLabel = document.getElementById('step-label');
-const waitChip = document.getElementById('wait-chip');
 
 let run = 0;
 const wait = ms => new Promise(r=>setTimeout(r, reduced ? Math.min(ms, 250) : ms));
@@ -693,11 +747,12 @@ function setStat(id, state, label){
 }
 function setConn(id, state){
   const c = document.getElementById(id);
-  c.className = 'conn' + (state ? ' ' + state : '');
+  const keep = c.classList.contains('to-node') ? ' to-node' : '';
+  c.className = 'conn' + keep + (state ? ' ' + state : '');
 }
 function setNode(id, state){
   const n = document.getElementById(id);
-  n.classList.remove('running','done','stopped');
+  n.classList.remove('running','waiting','done','stopped');
   if (state) n.classList.add(state);
 }
 
@@ -832,13 +887,12 @@ async function play(){
   bar.className = 'bar'; barRow.className = 'bar-row';
   barFill.style.width = '0%';
   stepLabel.textContent = 'Waiting to start';
-  ['node1','node2'].forEach(id=>setNode(id,null));
-  setStat('stat1','', 'Queued'); setStat('stat2','', 'Queued');
-  ['conn0','conn1','conn2'].forEach(id=>setConn(id,null));
+  ['node1','node2','node3'].forEach(id=>setNode(id,null));
+  ['stat1','stat2','stat3'].forEach(id=>setStat(id,'', 'Queued'));
+  ['conn0','conn1','conn2','conn3'].forEach(id=>setConn(id,null));
   document.getElementById('start').classList.remove('lit');
   const end = document.getElementById('end');
   end.classList.remove('lit','stopped');
-  waitChip.classList.remove('on');
 
   await wait(600); if (stale(mine)) return;
 
@@ -862,11 +916,14 @@ async function play(){
   if (stale(mine) || !b2) return;
 
   // 4 · human checkpoint
-  setConn('conn2','waiting');
-  waitChip.classList.add('on');
+  setConn('conn2','flowing');
+  await wait(1000); if (stale(mine)) return;
+  setConn('conn2','done');
+  setNode('node3','waiting');
+  setStat('stat3','waiting','Waiting for approval');
   setProgress(82, 'Step 4/5 · Human checkpoint');
 
-  const cp = makeBlock({badge:{cls:'amber',icon:'user',label:'Human checkpoint'}, name:'Review & approve'}, true);
+  const cp = makeBlock({badge:{cls:'pink',icon:'usercheck',label:'Human checkpoint'}, name:'Check for agent output'}, true);
   const row = el('div','tstep', cp.tl);
   const ico = el('span','t-ico amber', row);
   ico.innerHTML = `<span class="spin">${svg('spinner',14)}</span>`;
@@ -896,7 +953,6 @@ async function play(){
   actions.classList.add('spent');
   label.querySelector('.dots').remove();
   txt.classList.remove('shimmer');
-  waitChip.classList.remove('on');
 
   const stamp = document.createElement('span');
   stamp.className = 't-time'; stamp.textContent = now();
@@ -907,12 +963,14 @@ async function play(){
     ico.className = 't-ico green'; ico.innerHTML = svg('checkline',15); ico.classList.add('pop');
     blockDone(cp);
     cp.root.classList.add('resolved');
+    setNode('node3','done');
+    setStat('stat3','done');
 
     // 5 · finish
-    setConn('conn2','flowing');
+    setConn('conn3','flowing');
     setProgress(92, 'Step 5/5 · Finishing');
     await wait(900); if (stale(mine)) return;
-    setConn('conn2','done');
+    setConn('conn3','done');
     end.classList.add('lit');
     setProgress(100, 'Run completed');
     bar.classList.add('settled'); barRow.classList.add('settled');
@@ -924,7 +982,9 @@ async function play(){
     ico.className = 't-ico red'; ico.innerHTML = svg('stopline',15); ico.classList.add('pop');
     cp.state.innerHTML = `<span class="pop" style="color:var(--text-red)">${svg('stopline',16)}</span>`;
     cp.root.classList.add('resolved');
-    setConn('conn2',null);
+    setNode('node3','stopped');
+    setStat('stat3','stopped','Rejected');
+    setConn('conn3',null);
     end.classList.add('stopped');
     stepLabel.textContent = 'Run stopped';
     bar.classList.add('stopped'); barRow.classList.add('stopped');
