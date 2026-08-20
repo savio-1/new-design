@@ -118,24 +118,20 @@
   /* connector: a vertical run that ties one node to the next.
      `.to-node` connectors extend through the next node's floating badge row
      (negative margin) so the chevron lands exactly on the card's top edge. */
-  .conn{position:relative;width:2px;height:46px;flex:none;z-index:0}
+  .conn{position:relative;width:1px;height:46px;flex:none;z-index:0}
   .conn.to-node{height:76px;margin-bottom:-30px}
-  .conn .track{position:absolute;inset:0 0 2px;width:2px;border-radius:2px;background:var(--line-2);
-    transition:background .5s ease}
-  .conn .head{position:absolute;left:50%;bottom:0;width:9px;height:9px;
-    border:solid var(--line-2);border-width:0 2px 2px 0;border-radius:1px;
-    transform:translate(-50%,-1.5px) rotate(45deg);transition:border-color .5s ease}
+  .conn .track{position:absolute;inset:0 0 2px;width:1px;border-radius:2px;background:var(--line-2);
+    transition:background .7s ease}
+  .conn .head{position:absolute;left:50%;bottom:0;width:8px;height:8px;
+    border:solid var(--line-2);border-width:0 1.5px 1.5px 0;border-radius:.5px;
+    transform:translate(-50%,-1.5px) rotate(45deg);transition:border-color .7s ease}
   /* the flow effect: a soft solid gradient shimmer sweeping top → bottom */
-  .conn .flowline{position:absolute;inset:0 0 2px;width:2px;border-radius:2px;opacity:0;
+  .conn .flowline{position:absolute;inset:0 0 2px;width:1px;border-radius:2px;opacity:0;
     background:linear-gradient(to bottom,transparent 0%,rgba(13,153,255,.45) 30%,#9ad1ff 50%,rgba(13,153,255,.45) 70%,transparent 100%);
     background-size:100% 56px;background-repeat:no-repeat;background-position:0 -56px;
-    transition:opacity .4s ease}
-  .conn .spark{position:absolute;left:50%;top:0;translate:-50% -50%;width:7px;height:7px;
-    border-radius:100px;background:#9ad1ff;opacity:0;
-    box-shadow:0 0 8px 2px rgba(13,153,255,.65)}
+    transition:opacity .5s ease}
   .conn.flowing .track{background:rgba(13,153,255,.3)}
-  .conn.flowing .flowline{opacity:1;animation:flow-down 1.15s linear infinite}
-  .conn.flowing .spark{opacity:1;animation:spark-fall 1.15s linear infinite}
+  .conn.flowing .flowline{opacity:1;animation:flow-down 1.3s linear infinite}
   .conn.flowing .head{border-color:var(--blue-500)}
   .conn.done .track{background:rgba(76,175,80,.6)}
   .conn.done .head{border-color:rgba(76,175,80,.8)}
@@ -145,7 +141,6 @@
     background-size:100% 56px;background-repeat:no-repeat;background-position:0 -56px}
   .conn.waiting .head{border-color:var(--amber-500)}
   @keyframes flow-down{from{background-position:0 -56px}to{background-position:0 92px}}
-  @keyframes spark-fall{0%{top:0;opacity:0}12%{opacity:1}82%{opacity:1}100%{top:100%;opacity:0}}
 
   /* ── a block node: floating badge row + card ── */
   .node{width:320px;flex:none;display:flex;flex-direction:column;gap:6px}
@@ -173,15 +168,13 @@
   .stat.stopped .spin,.stat.stopped .qico{display:none}
   @keyframes rot{to{transform:rotate(1turn)}}
 
+  /* state colors crossfade via transitions only — no keyframed glow, so
+     running settles into done without any flicker or fade-out */
   .node-card{position:relative;border-radius:10px;background:rgba(27,27,27,.94);
     border:1px solid var(--line-1);padding:12px;display:flex;flex-direction:column;gap:10px;
-    transition:border-color .5s ease,box-shadow .6s ease,transform .5s var(--ease)}
-  .node.running .node-card{border-color:rgba(13,153,255,.4);transform:translateY(-1px);
-    animation:breathe 2.4s ease-in-out infinite}
-  @keyframes breathe{
-    0%,100%{box-shadow:0 0 0 1px rgba(13,153,255,.08),0 0 16px rgba(13,153,255,.10),0 10px 28px rgba(0,0,0,.45)}
-    50%{box-shadow:0 0 0 1px rgba(13,153,255,.16),0 0 34px rgba(13,153,255,.22),0 10px 28px rgba(0,0,0,.45)}
-  }
+    transition:border-color .8s var(--ease),box-shadow .9s var(--ease)}
+  .node.running .node-card{border-color:rgba(13,153,255,.5);
+    box-shadow:0 0 0 1px rgba(13,153,255,.12),0 0 26px rgba(13,153,255,.15),0 10px 28px rgba(0,0,0,.45)}
   .node.done .node-card{border-color:rgba(76,175,80,.55);
     box-shadow:0 0 0 1px rgba(76,175,80,.08),0 0 14px rgba(76,175,80,.08)}
   .node.stopped .node-card{border-color:rgba(220,52,18,.45)}
@@ -189,7 +182,7 @@
   /* the moving stroke: a conic highlight orbiting the card's border ring */
   @property --orbit{syntax:'<angle>';initial-value:0deg;inherits:false}
   .ring,.ring2{position:absolute;inset:-2px;border-radius:12px;padding:2px;opacity:0;
-    pointer-events:none;transition:opacity .45s ease;
+    pointer-events:none;transition:opacity .8s ease;
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     -webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     mask-composite:exclude}
@@ -211,12 +204,6 @@
     transform:translateX(-60%);animation:sweep 2.6s ease-in-out infinite}
   .node.running .sheen{opacity:1}
   @keyframes sweep{55%,100%{transform:translateX(60%)}}
-
-  /* one-time completion flash */
-  .flash{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;opacity:0;
-    border:1.5px solid rgba(102,187,106,.9)}
-  .node.done .flash{animation:done-flash .9s var(--ease) both}
-  @keyframes done-flash{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
 
   .card-title{font:500 14px/20px var(--sans);letter-spacing:-.28px;color:var(--text-primary)}
   .card-desc{font:400 12px/17px var(--sans);letter-spacing:-.24px;color:var(--text-tertiary);
@@ -246,12 +233,8 @@
   .stat.waiting .spin,.stat.waiting .qico{display:none}
   .stat.waiting::before{content:'';width:6px;height:6px;border-radius:100px;background:var(--amber-500);
     animation:working 1.2s ease-in-out infinite}
-  .node.waiting .node-card{border-color:rgba(255,160,0,.45);transform:translateY(-1px);
-    animation:breathe-amber 2.6s ease-in-out infinite}
-  @keyframes breathe-amber{
-    0%,100%{box-shadow:0 0 0 1px rgba(255,160,0,.08),0 0 16px rgba(255,160,0,.10),0 10px 28px rgba(0,0,0,.45)}
-    50%{box-shadow:0 0 0 1px rgba(255,160,0,.16),0 0 30px rgba(255,160,0,.18),0 10px 28px rgba(0,0,0,.45)}
-  }
+  .node.waiting .node-card{border-color:rgba(255,160,0,.5);
+    box-shadow:0 0 0 1px rgba(255,160,0,.12),0 0 24px rgba(255,160,0,.13),0 10px 28px rgba(0,0,0,.45)}
   .node.waiting .ring{opacity:1;background:conic-gradient(from var(--orbit),
       transparent 0turn,transparent .58turn,
       rgba(255,160,0,.25) .72turn,var(--amber-500) .85turn,#ffe2ae .95turn,transparent 1turn);
@@ -424,12 +407,9 @@
     @keyframes pop-in{from{opacity:0}to{opacity:1}}
     @keyframes fade-up{from{opacity:0}to{opacity:1}}
     .ring,.ring2{animation:none;opacity:0 !important}
-    .node.running .node-card{animation:none;border-color:rgba(13,153,255,.6)}
-    .node.waiting .node-card{animation:none;border-color:rgba(255,160,0,.6)}
     .sheen{display:none}
     .conn.flowing .flowline,.conn.waiting .flowline{animation:none;opacity:0}
     .stat.waiting::before{animation:none}
-    .conn .spark{display:none}
     .bar-fill::after{animation:none;opacity:0}
     .shimmer{animation:none;background:none;color:var(--text-secondary);-webkit-text-fill-color:var(--text-secondary)}
     .stat.running .spin,.rblock-state .spin,.t-ico .spin{animation:none}
@@ -477,7 +457,7 @@
         </div>
 
         <div class="conn to-node" id="conn0">
-          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+          <span class="track"></span><span class="flowline"></span><span class="head"></span>
         </div>
 
         <!-- block 1 · Agent -->
@@ -493,7 +473,7 @@
           </div>
           <div class="node-card">
             <span class="ring" aria-hidden="true"></span><span class="ring2" aria-hidden="true"></span>
-            <span class="sheen" aria-hidden="true"></span><span class="flash" aria-hidden="true"></span>
+            <span class="sheen" aria-hidden="true"></span>
             <div class="card-title">Customer Feedback Analyzer</div>
             <div class="card-desc">Aggregates and interprets customer reviews to identify recurring themes.</div>
             <div class="card-row">
@@ -508,7 +488,7 @@
         </div>
 
         <div class="conn to-node" id="conn1">
-          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+          <span class="track"></span><span class="flowline"></span><span class="head"></span>
         </div>
 
         <!-- block 2 · Data Collator -->
@@ -524,7 +504,7 @@
           </div>
           <div class="node-card">
             <span class="ring" aria-hidden="true"></span><span class="ring2" aria-hidden="true"></span>
-            <span class="sheen" aria-hidden="true"></span><span class="flash" aria-hidden="true"></span>
+            <span class="sheen" aria-hidden="true"></span>
             <div class="card-title">Data converger</div>
             <div class="card-row">
               <span class="chip-op"><span class="ico" data-icon="branch" data-size="13"></span>Collation</span>
@@ -535,7 +515,7 @@
         </div>
 
         <div class="conn to-node" id="conn2">
-          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+          <span class="track"></span><span class="flowline"></span><span class="head"></span>
         </div>
 
         <!-- block 3 · Human checkpoint -->
@@ -551,7 +531,7 @@
           </div>
           <div class="node-card">
             <span class="ring" aria-hidden="true"></span><span class="ring2" aria-hidden="true"></span>
-            <span class="sheen" aria-hidden="true"></span><span class="flash" aria-hidden="true"></span>
+            <span class="sheen" aria-hidden="true"></span>
             <div class="card-title">Check for agent output</div>
             <div class="card-row">
               <span class="approver"><span class="avatar" style="background:#6366f1">S</span>Savio Govindu</span>
@@ -561,7 +541,7 @@
         </div>
 
         <div class="conn" id="conn3">
-          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+          <span class="track"></span><span class="flowline"></span><span class="head"></span>
         </div>
 
         <div class="term" id="end">
