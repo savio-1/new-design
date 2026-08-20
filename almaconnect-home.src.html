@@ -237,14 +237,20 @@ a { color: inherit; text-decoration: none; }
 
 /* ============ HERO — text left, depth field vanishing right ============ */
 
-.hero {
-  position: relative;
-  min-height: 100vh;
+/* pinned scroll track (detroit-style): the viewport sticks while the
+   scroll scrubs the image row — images never detach from the bottom */
+.hero { position: relative; height: 210vh; }
+
+.hero__pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   display: flex;
-  align-items: flex-start;              /* text sits upper-left, field lower-right */
+  align-items: flex-start;              /* text sits upper-left */
   padding-top: var(--nav-h);
   overflow: hidden;
 }
+
 .hero .container {
   position: relative; z-index: 12; width: 100%;
   padding-top: clamp(80px, 13vh, 150px);
@@ -433,7 +439,8 @@ a { color: inherit; text-decoration: none; }
   .nav__logo img { height: 26px; }
   .nav__links, .nav__login, .nav__panelwrap { display: none; }
   .hero__stack { display: none; }
-  .hero { min-height: 0; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
+  .hero { height: auto; }
+  .hero__pin { position: static; height: auto; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
   .hero__sub { font-size: 20px; }
   .personas { padding-top: 64px; padding-bottom: 80px; }
 }
@@ -444,6 +451,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero { height: 100vh; }        /* no pin track when nothing scrubs */
   .shine::after { animation: none; opacity: 0; }
   .nav, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__label .arrow, .mega__flink .arrow { transition: none; }
@@ -539,6 +547,7 @@ a { color: inherit; text-decoration: none; }
 <!-- ==================== HERO ==================== -->
 <main>
   <section class="hero">
+    <div class="hero__pin">
     <div class="hero__stack" id="heroStack" aria-hidden="true"></div>
     <div class="container">
       <h1>Your alumni moved on.<br><span class="shine" data-text="Your database didn’t.">Your database didn&rsquo;t.</span></h1>
@@ -552,6 +561,7 @@ a { color: inherit; text-decoration: none; }
       <div class="hero__cta">
         <a class="btn btn--hero" href="#demo">Book a demo</a>
       </div>
+    </div>
     </div>
   </section>
 
@@ -603,7 +613,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 7 — staircase-stack hero (detroit.paris mechanic + auto-drift, our placeholder images), shimmering gradient headline, Wonderful-style nav, persona cards on scroll. Trusted-by wall pending port from the demo page.</p>
+    <p>Iteration 8 — pinned staircase-stack hero (gapless width-chained row, auto-drift + scroll-scrub, no fading), shimmering gradient headline, Wonderful-style nav, persona cards on scroll. Trusted-by wall pending port from the demo page.</p>
   </div>
 </footer>
 
@@ -665,14 +675,11 @@ a { color: inherit; text-decoration: none; }
     if (!nav.contains(e.target)) close();
   });
 
-  /* ============ scroll: solid nav + stack fade-out ============ */
+  /* ============ scroll: solid nav (no fading — scroll drives the stack) ============ */
   var heroStack = document.getElementById('heroStack');
 
   function onScroll() {
-    var y = window.scrollY;
-    nav.classList.toggle('is-scrolled', y > 8);
-    /* crossfade the stack away as the cards approach */
-    heroStack.style.opacity = Math.max(0, 1 - y / (window.innerHeight * 0.65)).toFixed(3);
+    nav.classList.toggle('is-scrolled', window.scrollY > 8);
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
@@ -698,7 +705,11 @@ a { color: inherit; text-decoration: none; }
     });
   }
 
-  /* ============ staircase stack (observed detroit.paris mechanic + auto-drift) ============ */
+  /* ============ staircase stack (observed detroit.paris mechanic):
+     constant EXPOSED strip per image (uniform origin spacing) with the
+     minimum scale raised so even the smallest image is wider than the
+     spacing → neighbors always overlap, no gaps at any position.
+     Auto-drifts right; scrolling scrubs it faster (no fading). ============ */
   (function () {
     if (!heroStack) return;
 
@@ -709,9 +720,11 @@ a { color: inherit; text-decoration: none; }
       "@img:f12", "@img:f3",  "@img:f15", "@img:f7"
     ];
     var N = SOURCES.length;
-    var STEP = 216;               // observed: 50% of the 432px base box → constant overlap
-    var S_MIN = 0.055, S_MAX = 1.6;   // observed scale range across the viewport
-    var SPEED = 80;               // px/s auto-drift (ours; reference is wheel-driven)
+    var BASE = 432;               // unscaled box width
+    var S_L = 0.35, S_R = 1.6;    // scale at left edge → right edge
+    var STEP = 140;               // exposed strip per image; min width 151 → always ≥11px overlap
+    var SPEED = 80;               // px/s auto-drift
+    var SCROLL_K = 1.4;           // scroll → row-advance coupling (lerped, no fade)
     var ENTER_MS = 1500, ENTER_DELAY = 300, ENTER_OFFSET = 600;  // observed entrance
 
     function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
@@ -729,35 +742,37 @@ a { color: inherit; text-decoration: none; }
     });
 
     var current = 0;
+    var sc = window.scrollY;
     var start = null, last = null;
 
     function frame(ts) {
       if (start === null) { start = ts; last = ts; }
-      var dt = (ts - last) / 1000;
+      var dt = Math.min((ts - last) / 1000, 0.05);
       last = ts;
+      var vw = window.innerWidth;
+      var total = N * STEP;       // wrap length; > vw so recycling happens offscreen
 
       var e = reduced ? 1
         : easeOutCubic(clamp((ts - start - ENTER_DELAY) / ENTER_MS, 0, 1));
-      if (!reduced && e > 0) current += SPEED * dt;
 
-      var vw = window.innerWidth;
-      var total = N * STEP;
+      var scPrev = sc;
+      sc += (window.scrollY - sc) * 0.08;              // lerped scroll → inertia feel
+      if (!reduced) current += SPEED * dt * e + (sc - scPrev) * SCROLL_K;
 
       for (var i = 0; i < N; i++) {
         var it = items[i];
-        /* wrap position into [0, total): items drift right, grow, exit,
-           re-enter tiny at the left edge (reference wraps modulo likewise) */
-        var x = (((i * STEP + current) % total) + total) % total;
-        x -= ENTER_OFFSET * (1 - e);            // entrance: row sweeps in from the left
+        /* uniform origin spacing wrapped modulo total → the exposed strip
+           of every image stays STEP px; widths grow rightward, so overlap
+           grows rightward and the right neighbor always covers the seam */
+        var x = (((i * STEP + current) % total) + total) % total - BASE * S_L;
+        x -= ENTER_OFFSET * (1 - e);                    // entrance sweep from the left
 
-        var t01 = x / vw;
-        var s = Math.max(0.03, S_MIN + (S_MAX - S_MIN) * Math.min(t01, 1.45)) * e;
-        var visible = x > -60 && x < vw + 220 ? 1 : 0;
-        var px = -15 * (1 - clamp(t01, 0, 1));  // inner depth parallax: −15% → 0%
+        var s = Math.max((S_L + (S_R - S_L) * clamp(x / vw, 0, 1)) * e, 0.02);
+        var px = -15 * (1 - clamp(x / vw, 0, 1));       // inner depth parallax
 
         it.el.style.transform = 'translateX(' + x.toFixed(2) + 'px) scale(' + s.toFixed(4) + ')';
         it.el.style.zIndex = Math.max(1, Math.round(s * 10));
-        it.el.style.opacity = (visible * e).toFixed(3);
+        it.el.style.opacity = e.toFixed(3);
         it.img.style.transform = 'translateX(' + px.toFixed(2) + '%)';
       }
 
