@@ -256,6 +256,28 @@
   @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
   @keyframes working{0%,100%{opacity:.45}50%{opacity:1}}
 
+  /* ---------- live-activity status lines ---------- */
+  .status{display:flex;align-items:center;gap:6px;min-height:20px;
+    font:var(--body3);letter-spacing:-.56px;color:var(--text-secondary)}
+  .status-ico{display:inline-flex;color:var(--text-secondary)}
+  .spin{display:inline-block;width:12px;height:12px;margin:2px;flex:none;border-radius:50%;
+    vertical-align:middle;
+    border:1.5px solid var(--line-1);border-top-color:var(--text-secondary);
+    animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(1turn)}}
+  .dots{min-width:14px;text-align:left}
+  .dots::after{content:'';animation:dots 1.2s steps(1,end) infinite}
+  @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%,100%{content:'...'}}
+  .dots.blue{color:var(--text-blue)}
+  .shimmer{background:linear-gradient(100deg,var(--text-tertiary) 25%,var(--text-primary) 50%,var(--text-tertiary) 75%);
+    background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
+    color:transparent;animation:shine 1.8s linear infinite}
+  .shimmer-blue{background:linear-gradient(100deg,var(--text-blue) 25%,#d9efff 50%,var(--text-blue) 75%);
+    background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
+    color:transparent;animation:shine 1.8s linear infinite}
+  @keyframes shine{from{background-position:200% 0}to{background-position:-100% 0}}
+  .grp-note{padding-inline:24px;font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
+
   .word{display:inline;will-change:filter,opacity;
     animation:stream-in 420ms cubic-bezier(.22,.61,.25,1) both}
   .caret{display:inline-block;width:2px;height:12px;margin-left:2px;translate:0 1px;
@@ -272,6 +294,7 @@
     @keyframes fade-up{from{opacity:0}to{opacity:1}}
     @keyframes grow-down{from{opacity:0}to{opacity:1}}
     .is-working,.caret-bar{animation:none}
+    .shimmer,.shimmer-blue{animation:none;background:none;color:var(--text-secondary);-webkit-text-fill-color:var(--text-secondary)}
   }
 
   @media (max-width:900px){
@@ -344,38 +367,51 @@ document.querySelectorAll('[data-icon]').forEach((el) => {
 });
 
 /* ══════════════════════════════════════════════════════════
-   CONTENT — verbatim from Figma node 2246:140053
+   CONTENT — verbatim from Figma node 2246:140053, narrated
+   as live activities that settle into the design's end state
    ══════════════════════════════════════════════════════════ */
 const GROUPS = [
-  { icon:'book14', label:'Definitions I used', rows:[
-    { icon:'bookrow14', name:'Annual Recurring Revenue', chev:'chev12',
-      desc:'Revenue retained from existing customers including expansion' },
-    { icon:'bookrow14', name:'Customer Churn Rate', chev:'chevr12' },
-    { icon:'bookrow14', name:'Net Revenue Retention', chev:'chevr12', badge:'Low relavance' },
-  ]},
-  { icon:'ontology', label:'How some terms are related', rows:[
-    { icon:'ontology', name:'Customer Churn Rate', chev:'chev12',
-      desc:'Percentage of customers who cancel within a period', graph:true },
-  ]},
-  { icon:'warehouse', label:'Where the data came from', rows:[
-    { icon:'warehouse', name:'Revenue figures', tag:'Snowflake',
-      desc:'Live revenue data from company warehouse' },
-    { icon:'warehouse', name:'Customer accounts', tag:'Snowflake' },
-  ]},
-  { icon:'warehouse', label:'Applying rules and policies', rows:[
-    { icon:'warehouse', name:'Revenue figures',
-      desc:'Live revenue data from company warehouse' },
-    { icon:'warehouse', name:'Customer accounts' },
-  ]},
+  { icon:'book14', iconSize:14, label:'Definitions I used',
+    activities:['Searching for relevant definitions'],
+    note:'Found 3 definitions that match',
+    rows:[
+      { icon:'bookrow14', name:'Annual Recurring Revenue', chev:'chev12',
+        desc:'Revenue retained from existing customers including expansion' },
+      { icon:'bookrow14', name:'Customer Churn Rate', chev:'chevr12' },
+      { icon:'bookrow14', name:'Net Revenue Retention', chev:'chevr12', badge:'Low relavance' },
+    ]},
+  { icon:'ontology', iconSize:16, label:'How some terms are related',
+    activities:['Now looking for relations between the terms','Searching for the relations'],
+    note:'Found 2 relations for Customer Churn Rate',
+    rows:[
+      { icon:'ontology', name:'Customer Churn Rate', chev:'chev12',
+        desc:'Percentage of customers who cancel within a period', graph:true },
+    ]},
+  { icon:'warehouse', iconSize:16, label:'Where the data came from',
+    activities:['Tracing where the data came from','Querying the company warehouse'],
+    note:'Pulled 2 live sources from Snowflake',
+    rows:[
+      { icon:'warehouse', name:'Revenue figures', tag:'Snowflake',
+        desc:'Live revenue data from company warehouse' },
+      { icon:'warehouse', name:'Customer accounts', tag:'Snowflake' },
+    ]},
+  { icon:'warehouse', iconSize:16, label:'Applying rules and policies',
+    activities:['Checking your disclosure and privacy rules'],
+    note:'2 rules apply to this answer',
+    rows:[
+      { icon:'warehouse', name:'Revenue figures',
+        desc:'Live revenue data from company warehouse' },
+      { icon:'warehouse', name:'Customer accounts' },
+    ]},
 ];
 
 const PPT_STEPS = [
-  { icon:'search', text:'Searching for relavant skills' },
-  { chips:[{ icon:'skill', text:'PPT skill' }, { icon:'skill', text:'Writing skill' }] },
-  { icon:'ppt',  text:'Create PPT one-pager slide' },
-  { icon:'file', text:'Analysing required files for full context' },
-  { icon:'web',  text:'Searching relevant web sources' },
-  { icon:'edit', text:'Replace/ re-write the content in the one-pager to target the audience' },
+  { icon:'search', text:'Searching for relavant skills', hold:700,
+    chips:[{ icon:'skill', text:'PPT skill' }, { icon:'skill', text:'Writing skill' }] },
+  { icon:'ppt',  text:'Create PPT one-pager slide', hold:1100 },
+  { icon:'file', text:'Analysing required files for full context', hold:1300 },
+  { icon:'web',  text:'Searching relevant web sources', hold:1200 },
+  { icon:'edit', text:'Replace/ re-write the content in the one-pager to target the audience', hold:1100 },
 ];
 
 const CODE_LINES = [
@@ -416,7 +452,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const stale = (mine) => mine !== run;
 
 function follow() {
-  // keep the newest line in view, the way a real thread scrolls itself
   scroller.scrollTo({ top: scroller.scrollHeight, behavior: reduced ? 'auto' : 'smooth' });
 }
 
@@ -441,34 +476,83 @@ async function streamWords(host, text, mine) {
   caret.remove();
 }
 
-/** a trace section: 24px icon rail + streamed title + a body to fill in */
-function section(icon, { tile = false, blue = false, chev = null } = {}) {
+/* ---------- the live-activity primitive ----------
+   spinner + streamed present-tense text + animated ellipsis;
+   narrate() runs one activity and holds it shimmering;
+   settle() swaps the spinner for the real icon and the text for
+   the design's final label — the line becomes the end state. */
+function statusLine(host) {
+  const line = el('div', 'status appear', host);
+  el('span', 'spin', line);
+  el('span', 'status-txt', line);
+  el('span', 'dots', line);
+  return line;
+}
+
+async function narrate(line, text, mine, hold = 1200) {
+  const txt = line.querySelector('.status-txt');
+  txt.classList.remove('shimmer');
+  txt.textContent = '';
+  await streamWords(txt, text, mine);
+  if (stale(mine)) return;
+  txt.textContent = text;            // collapse spans so the shimmer clips cleanly
+  txt.classList.add('shimmer');
+  follow();
+  await wait(hold);
+}
+
+function settle(line, icon, size = 16, cls = null, label = null) {
+  const dots = line.querySelector('.dots');
+  if (dots) dots.remove();
+  const txt = line.querySelector('.status-txt');
+  txt.classList.remove('shimmer');
+  const ico = document.createElement('span');
+  ico.className = 'status-ico pop';
+  ico.innerHTML = svg(icon, size);
+  line.querySelector('.spin').replaceWith(ico);
+  if (cls) txt.className = 'status-txt ' + cls;
+  if (label != null) txt.textContent = label;
+}
+
+/** a trace section: 24px icon rail + streamed title + a working/done tail */
+function section(icon, { tile = false, blue = false } = {}) {
   const sec = el('div', 'sec appear', thread);
   const rail = el('div', 'sec-rail', sec);
   const ico = el('div', 'sec-ico pop' + (tile ? ' tile' : ''), rail);
   ico.innerHTML = svg(icon, 16);
-  const connector = el('div', 'sec-connector', rail);
+  el('div', 'sec-connector', rail);
   const body = el('div', 'sec-body', sec);
   const head = el('div', 'sec-head', body);
   const title = el('span', 'sec-title' + (blue ? ' blue' : ''), head);
-  return { sec, body, head, title, connector, chev };
+  const tail = el('span', 'sec-chev', head);
+  return { sec, body, head, title, tail };
 }
+function sectionWorking(s) { s.tail.innerHTML = ''; el('span', 'spin', s.tail); }
+function sectionDone(s, chev = 'chevup16') { s.tail.classList.add('pop'); s.tail.innerHTML = svg(chev, 16); }
 
-function addChev(head, name) {
-  const c = el('span', 'sec-chev pop', head);
-  c.innerHTML = svg(name, 16);
-}
-
-/* ---------- the reasoning trace ---------- */
+/* ---------- a context group: narrated, then settled ---------- */
 async function buildGroup(host, g, mine) {
   const grp = el('div', 'grp', host);
-  const head = el('div', 'grp-head appear', grp);
-  const gi = el('span', '', head);
-  gi.innerHTML = svg(g.icon, g.icon === 'book14' ? 14 : 16);
-  const label = el('span', 'grp-label', head);
-  await streamWords(label, g.label, mine);
+  const head = el('div', 'grp-head', grp);
+  const line = statusLine(head);
+
+  for (let i = 0; i < g.activities.length; i++) {
+    if (stale(mine)) return;
+    await narrate(line, g.activities[i], mine, i === g.activities.length - 1 ? 1400 : 1200);
+  }
   if (stale(mine)) return;
-  addChev(head, 'chev16');
+
+  settle(line, g.icon, g.iconSize, 'grp-label', g.label);
+  const chev = el('span', 'sec-chev pop', line);
+  chev.innerHTML = svg('chev16', 16);
+  await wait(150);
+
+  if (g.note) {
+    const note = el('div', 'grp-note', grp);
+    await streamWords(note, g.note, mine);
+    if (stale(mine)) return;
+    await wait(250);
+  }
 
   const list = el('div', 'grp-list', grp);
   for (const r of g.rows) {
@@ -487,7 +571,7 @@ async function buildGroup(host, g, mine) {
     if (r.tag) el('span', 'row-tag', top).textContent = r.tag;
     if (r.desc) el('div', 'row-desc', main).textContent = r.desc;
     follow();
-    await wait(260);
+    await wait(240);
 
     if (r.badge) {
       const b = el('span', 'badge pop', row);
@@ -567,36 +651,38 @@ async function play() {
   const setPhase = (n, of) => { phaseEl.textContent = `${n}/${of}`; };
   const OF = 5;
 
-  /* 1 — Thinking */
+  /* 1 — Thinking: shimmer and hold before anything is shown */
   setPhase(1, OF);
   await wait(500); if (stale(mine)) return;
   const think = section('thinking', { tile:true, blue:true });
   await streamWords(think.title, 'Thinking', mine); if (stale(mine)) return;
-  await wait(600);
+  think.title.textContent = 'Thinking';
+  think.title.classList.add('shimmer-blue');
+  const tdots = el('span', 'dots blue', think.head);
+  await wait(2300); if (stale(mine)) return;
+  think.title.classList.remove('shimmer-blue');
+  tdots.remove();
 
-  /* 2 — Reading context */
+  /* 2 — Reading context: each group narrates what it is doing,
+         then settles into the design's end state */
   setPhase(2, OF);
   const read = section('docsearch');
   await streamWords(read.title, 'Reading context', mine); if (stale(mine)) return;
-  addChev(read.head, 'chevup16');
-  await wait(300);
+  sectionWorking(read);
+  await wait(400);
 
   for (const g of GROUPS) {
     if (stale(mine)) return;
     await buildGroup(read.body, g, mine);
-    await wait(420);
+    await wait(380);
   }
   if (stale(mine)) return;
 
-  const composing = el('div', 'step appear', read.body);
-  const ci = el('span', 'i', composing);
-  ci.innerHTML = svg('edit', 16);
-  const ctext = el('span', '', composing);
-  composing.classList.add('is-working');
-  await streamWords(ctext, 'Composing answer with 8 grounded items', mine);
+  const comp = statusLine(read.body);
+  await narrate(comp, 'Composing answer with 8 grounded items', mine, 1700);
   if (stale(mine)) return;
-  await wait(700);
-  composing.classList.remove('is-working');
+  settle(comp, 'edit', 16);
+  sectionDone(read);
 
   /* 3 — Context summary */
   setPhase(3, OF);
@@ -611,14 +697,17 @@ async function play() {
   el('span', '', meta).textContent = '2 rules applied';
   await wait(700);
 
-  /* 4 — Generate one-pager PPT */
+  /* 4 — Generate one-pager PPT: every step runs live, then ticks over */
   setPhase(4, OF);
   const ppt = section('ppt');
   await streamWords(ppt.title, 'Generate one-pager PPT', mine); if (stale(mine)) return;
-  addChev(ppt.head, 'chevup16');
+  sectionWorking(ppt);
   const steps = el('div', 'steps', ppt.body);
 
   for (const s of PPT_STEPS) {
+    if (stale(mine)) return;
+    const line = statusLine(steps);
+    await narrate(line, s.text, mine, s.hold);
     if (stale(mine)) return;
     if (s.chips) {
       const wrap = el('div', 'chips', steps);
@@ -630,17 +719,10 @@ async function play() {
         follow();
         await wait(220);
       }
-      await wait(280);
-      continue;
+      await wait(400);
     }
-    const step = el('div', 'step appear is-working', steps);
-    const si = el('span', 'i', step);
-    si.innerHTML = svg(s.icon, 16);
-    const st = el('span', '', step);
-    await streamWords(st, s.text, mine);
-    if (stale(mine)) return;
-    step.classList.remove('is-working');
-    await wait(240);
+    settle(line, s.icon, 16);
+    await wait(180);
   }
   if (stale(mine)) return;
 
@@ -652,13 +734,19 @@ async function play() {
   pi.innerHTML = svg('clock', 16);
   el('span', '', pill).textContent = 'Finished in 3.2 sec';
   follow();
+  sectionDone(ppt);
   await wait(700);
 
   /* 5 — Create code for the document */
   setPhase(5, OF);
   const code = section('code');
   await streamWords(code.title, 'Create code for the document', mine); if (stale(mine)) return;
-  addChev(code.head, 'chevup16');
+  sectionWorking(code);
+  const writing = statusLine(code.body);
+  await narrate(writing, 'Writing the code', mine, 1300);
+  if (stale(mine)) return;
+  writing.remove();
+
   const block = el('div', 'codeblock appear', code.body);
   const exp = el('button', 'graph-expand', block);
   exp.setAttribute('aria-label', 'Expand code');
@@ -676,6 +764,7 @@ async function play() {
     await wait(110);
   }
   if (stale(mine)) return;
+  sectionDone(code);
 
   /* settled */
   document.getElementById('elapsed').classList.remove('is-working');
