@@ -1,40 +1,260 @@
 <title>AlmaConnect Depth Hero</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Nunito+Sans:opsz,wght@6..12,200..1000&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap">
 
 <style>
 /* ============================================================
-   Floema-style depth-field hero — standalone study page.
-   Mechanic replicated from floema.com's first section: small images
-   scattered through a 3D volume around a centered headline; they float
-   idly, parallax with the pointer (depth-weighted, lerped), fade toward
-   the background with distance, and autoplay a continuous fly-through:
-   the camera dollies forward on load, images pass by and recycle to the
-   far plane. No scroll interaction.
-   Own images (placeholder stills) and own copy throughout.
-   SOURCE FILE — "@img" + ":name" tokens (see SOURCES map) are inlined
-   by scripts/build-demo.py.
+   AlmaConnect depth-hero — full hero assembly (v4).
+   Depth field mechanic matched to live observation of floema.com:
+   autonomous camera-dolly tunnel, sprites spawn faint near the vanishing
+   point, travel radially outward at constant z-velocity, recycle; alpha
+   wash toward the ground, no blur, no pointer coupling; field ramps in
+   as a whole ~0.9s after load. Vanishing point sits RIGHT of center
+   (our layout: text left). Field fades out as you scroll to the cards.
+   Nav + persona cards: same as the homepage build (wonderful.ai-style
+   nav with half-page hover panels; P2 persona video cards).
+   SOURCE FILE — "@img"/"@video"/"@svg" + ":name" tokens are inlined by
+   scripts/build-demo.py.
    ============================================================ */
 
 :root {
-  --bg: #f3efe6;
+  --accent: #00c4b5;
+  --accent-dark: #00a396;
+  --accent-tint: #e0f7f4;
+
   --ink: #04302b;
+  --ink-80: rgba(4, 48, 43, 0.8);
+  --ink-65: rgba(6, 48, 43, 0.65);
+  --ink-45: rgba(6, 48, 43, 0.45);
+
+  --ground: #f2efea;
+  --surface: #ffffff;
+  --panel: #edebe4;
+  --hairline: rgba(153, 159, 153, 0.25);
+
+  --font-display: "Geist", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --container: 1288px;
+  --page-margin: 76px;
+  --nav-h: 76px;
+  --nav-solid: rgba(242, 239, 234, 0.9);
+  --panel-left: 268px;
+
+  --r-button: 8px;
+  --r-card: 12px;
+  --r-pill: 9999px;
+
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
+html, body { margin: 0; padding: 0; background: var(--ground); }
 
 body {
-  background: var(--bg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
   color: var(--ink);
-  font-family: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
-  overflow: hidden;
-  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.stage {
+.container {
+  max-width: calc(var(--container) + 2 * var(--page-margin));
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+}
+
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; cursor: pointer;
+  font-family: var(--font-body); font-size: 16px; font-weight: 600;
+  border-radius: var(--r-button);
+  transition: background 0.15s ease;
+}
+.btn--nav {
+  height: 44px; padding-inline: 26px; font-size: 15px;
+  border-radius: var(--r-pill);
+  background: var(--accent); color: var(--ink);
+}
+.btn--nav:hover { background: var(--accent-dark); }
+.btn--hero { height: 50px; padding-inline: 32px; background: var(--ink); color: #fff; }
+.btn--hero:hover { background: #0a4a42; }
+
+/* ============ NAV — Wonderful-style (same as homepage build) ============ */
+
+.nav {
   position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  color: var(--ink);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.35s ease, border-color 0.35s ease;
+}
+
+.nav.is-scrolled {
+  background: var(--nav-solid);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom-color: var(--hairline);
+}
+
+.nav.is-open {
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom-color: var(--hairline);
+}
+
+.nav__bar {
+  display: flex;
+  align-items: center;
+  height: var(--nav-h);
+  padding-inline: 32px;
+}
+
+.nav__logo { display: flex; align-items: center; flex: none; width: 220px; }
+.nav__logo img { height: 30px; width: auto; display: block; }
+
+.nav__links {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0; padding: 0; list-style: none;
+}
+
+.nav__link {
+  font-family: var(--font-body); font-size: 15px; font-weight: 500;
+  color: inherit; background: none; border: 0; cursor: pointer;
+  padding: 10px 16px;
+  transition: opacity 0.2s ease;
+}
+.nav__links:hover .nav__link { opacity: 0.45; }
+.nav__links .nav__link:hover,
+.nav__links .nav__link[aria-expanded="true"] { opacity: 1; }
+
+.nav__right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+
+.nav__login {
+  font-size: 15px; font-weight: 500; color: inherit;
+  padding: 10px 14px;
+  transition: opacity 0.2s ease;
+}
+.nav__login:hover { opacity: 0.6; }
+
+.nav__panelwrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s var(--ease);
+}
+.nav.is-open .nav__panelwrap { grid-template-rows: 1fr; }
+.nav__panel { overflow: hidden; }
+
+.mega {
+  display: none;
+  gap: 64px;
+  padding: 40px 48px 80px var(--panel-left);
+}
+.mega.is-active { display: flex; }
+
+.mega__main { flex: 1; max-width: 760px; }
+
+.mega__label { font-size: 13px; color: var(--ink-45); margin: 0 0 30px; }
+
+.mega__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px 56px;
+}
+
+.mega__item { display: block; }
+.mega__title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 400; line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  transition: color 0.15s ease;
+}
+.mega__desc {
+  display: block;
+  font-size: 15px; line-height: 1.5;
+  color: var(--ink-45);
+  margin-top: 6px;
+}
+.mega__item:hover .mega__title { color: var(--accent-dark); }
+
+.mega__footlinks {
+  margin-top: 48px;
+  display: flex; flex-wrap: wrap; gap: 8px 32px;
+}
+.mega__flink {
+  font-size: 14px; font-weight: 600; color: var(--accent-dark);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.mega__flink .arrow { display: inline-block; transition: translate 0.2s var(--ease); }
+.mega__flink:hover .arrow { translate: 3px 0; }
+.mega__flink em { font-style: normal; color: var(--ink-65); font-weight: 400; }
+
+.mega__feature { width: 400px; flex: none; }
+.mega__feature video {
+  width: 100%; aspect-ratio: 16 / 9;
+  object-fit: cover; display: block;
+  border-radius: var(--r-card);
+  background: var(--panel);
+}
+.mega__feature p {
+  font-size: 17px; line-height: 1.4;
+  color: var(--ink); margin: 14px 0 0;
+}
+
+.mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 0; }
+.nav.is-open .mega.is-active :is(.mega__label, .mega__item, .mega__flink, .mega__feature) {
+  animation: megaIn 0.45s var(--ease) forwards;
+}
+.nav.is-open .mega.is-active .mega__label { animation-delay: 0.05s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(1) { animation-delay: 0.10s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(2) { animation-delay: 0.14s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(3) { animation-delay: 0.18s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(4) { animation-delay: 0.22s; }
+.nav.is-open .mega.is-active .mega__flink { animation-delay: 0.26s; }
+.nav.is-open .mega.is-active .mega__feature { animation-delay: 0.16s; }
+
+@keyframes megaIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ HERO — text left, depth field vanishing right ============ */
+
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding-top: var(--nav-h);
+  overflow: hidden;
+}
+.hero .container { position: relative; z-index: 12; width: 100%; }
+
+.hero__field {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: fieldIn 1.1s ease 0.9s forwards;   /* field ramps in as a whole */
+}
+@keyframes fieldIn { to { opacity: 1; } }
+
+.stage {
+  position: absolute;
   inset: 0;
   perspective: 1000px;
   overflow: hidden;
@@ -42,7 +262,7 @@ body {
 
 .sprite {
   position: absolute;
-  left: 50%;
+  left: 66%;                                     /* vanishing point right of center */
   top: 50%;
   border-radius: 4px;
   opacity: 0;
@@ -52,184 +272,478 @@ body {
   user-select: none;
 }
 
-.headline {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  z-index: 12;
-  pointer-events: none;
-  will-change: transform;
-}
-.headline h1 {
+.hero h1 {
   margin: 0;
-  font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
-  font-size: clamp(44px, 5.2vw, 76px);
-  line-height: 1.08;
+  font-family: var(--font-display);
+  font-size: clamp(52px, 6.1vw, 88px);
+  line-height: 0.95;
   letter-spacing: -0.04em;
   font-weight: 300;
-  max-width: 22ch;
-  opacity: 0;
-  animation: headIn 1.4s var(--ease) 0.35s forwards;
+  max-width: 960px;
+  color: var(--ink);
 }
 
-@keyframes headIn {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
+.hero__sub {
+  margin: 28px 0 0;
+  font-family: var(--font-body);
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+  color: var(--ink-80);
+  max-width: 580px;
 }
 
-.note {
-  position: fixed;
-  left: 24px;
-  bottom: 20px;
-  z-index: 20;
-  font-size: 12.5px;
-  color: rgba(6, 48, 43, 0.45);
-}
-.note b { font-weight: 700; color: rgba(6, 48, 43, 0.65); }
+.hero__cta { margin-top: 24px; }
 
-.hint {
-  position: fixed;
-  right: 24px;
-  bottom: 20px;
-  z-index: 20;
-  font-size: 12.5px;
-  color: rgba(6, 48, 43, 0.45);
+/* ============ PERSONA CARDS — P2 editorial 4-up (same as homepage) ============ */
+
+.personas { padding-top: 88px; padding-bottom: 120px; }
+
+.personas__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+
+.pcard {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.pcard__label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 18px 0;
+  font-size: 16px; font-weight: 600; line-height: 1.3;
+  color: var(--ink);
+}
+.pcard__label .arrow {
+  color: var(--accent-dark);
+  opacity: 0; translate: -4px 0;
+  transition: opacity 0.2s ease, translate 0.25s var(--ease);
+  font-weight: 400;
+}
+.pcard:hover .pcard__label .arrow { opacity: 1; translate: 0 0; }
+
+.pcard__media {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-card);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.pcard__video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pcard__plus {
+  position: absolute; right: 12px; bottom: 12px;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(69, 71, 67, 0.35);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: grid; place-items: center;
+  color: #fff; font-size: 22px; font-weight: 300; line-height: 1;
+  transition: background 0.2s ease;
+}
+.pcard:hover .pcard__plus { background: rgba(69, 71, 67, 0.55); }
+
+.pcard__desc {
+  padding: 20px 0 24px;
+  font-size: 16px; line-height: 1.5;
+  color: var(--ink-65);
+  margin: 0;
+}
+.pcard__desc b { color: var(--ink); font-weight: 600; }
+
+/* cards rise in when scrolled into view */
+.personas__grid { opacity: 0; transform: translateY(18px);
+  transition: opacity 0.6s var(--ease), transform 0.7s var(--ease); }
+.personas__grid.in-view { opacity: 1; transform: translateY(0); }
+
+/* ============ build-status stub ============ */
+
+.stub { border-top: 1px solid var(--hairline); padding: 28px 0 48px; }
+.stub p { font-size: 13px; color: var(--ink-45); margin: 0; }
+
+/* ============ responsive ============ */
+
+@media (max-width: 1160px) {
+  .personas__grid { grid-template-columns: repeat(2, 1fr); }
+  .mega__feature { display: none; }
+  :root { --panel-left: 220px; }
+}
+
+@media (max-width: 920px) {
+  :root { --page-margin: 24px; --nav-h: 64px; }
+  .nav__bar { padding-inline: 20px; }
+  .nav__logo { width: auto; }
+  .nav__logo img { height: 26px; }
+  .nav__links, .nav__login, .nav__panelwrap { display: none; }
+  .hero__field { display: none; }
+  .hero { min-height: 0; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
+  .hero__sub { font-size: 20px; }
+  .personas { padding-top: 64px; padding-bottom: 80px; }
+}
+
+@media (max-width: 560px) {
+  .personas__grid { grid-template-columns: 1fr; }
+  .pcard__media { aspect-ratio: 4 / 3; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .headline h1 { animation: none; opacity: 1; }
+  .hero__field { animation: none; opacity: 1; }
+  .nav, .nav__panelwrap, .nav__link, .nav__login,
+  .pcard__label .arrow, .mega__flink .arrow { transition: none; }
+  .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
+  .nav.is-open .mega.is-active :is(.mega__label, .mega__item, .mega__flink, .mega__feature) { animation: none; }
+  .personas__grid { opacity: 1; transform: none; transition: none; }
 }
 </style>
 
-<div class="stage" id="stage" aria-hidden="true"></div>
+<!-- ==================== NAV ==================== -->
+<header class="nav" id="siteNav">
+  <div class="nav__bar">
+    <a class="nav__logo" href="#" aria-label="AlmaConnect home">
+      <img src="@svg:almaconnect-logo" alt="AlmaConnect">
+    </a>
 
-<div class="headline" id="headline">
-  <h1>Your alumni moved on.<br>Your database didn&rsquo;t.</h1>
-</div>
+    <ul class="nav__links">
+      <li><button class="nav__link" type="button" data-menu="products" aria-expanded="false" aria-haspopup="true">Products</button></li>
+      <li><a class="nav__link" data-plain href="#customers">Customers</a></li>
+      <li><a class="nav__link" data-plain href="#pricing">Pricing</a></li>
+      <li><button class="nav__link" type="button" data-menu="company" aria-expanded="false" aria-haspopup="true">Company</button></li>
+    </ul>
 
-<p class="note"><b>Depth-hero study</b> · placeholder images · Floema-mechanic clone</p>
-<p class="hint">autoplaying fly-through · move the mouse for parallax</p>
+    <div class="nav__right">
+      <a class="nav__login" data-plain href="#login">Log in</a>
+      <a class="btn btn--nav" data-plain href="#demo">Book a demo</a>
+    </div>
+  </div>
+
+  <div class="nav__panelwrap">
+    <div class="nav__panel">
+
+      <div class="mega" data-group="products">
+        <div class="mega__main">
+          <p class="mega__label">Products</p>
+          <div class="mega__grid">
+            <a class="mega__item" href="#news">
+              <span class="mega__title">AlmaConnect News</span>
+              <span class="mega__desc">Know when a prospect makes news — verified, within 24–48 hours</span>
+            </a>
+            <a class="mega__item" href="#data-mine">
+              <span class="mega__title">AlmaConnect Data Mine</span>
+              <span class="mega__desc">Know where every alum works now — matched to your constituent IDs</span>
+            </a>
+            <a class="mega__item" href="#network-institutions">
+              <span class="mega__title">Alumni Network for Institutions</span>
+              <span class="mega__desc">Directory, events, mentorship — your community in one place</span>
+            </a>
+            <a class="mega__item" href="#network-corporates">
+              <span class="mega__title">Alumni Network for Corporates</span>
+              <span class="mega__desc">Turn former employees into a talent pipeline</span>
+            </a>
+          </div>
+          <div class="mega__footlinks">
+            <a class="mega__flink" href="#all-products"><em>Not sure which fits?</em> See all products <span class="arrow">→</span></a>
+            <a class="mega__flink" href="#free-alerts">Get free news alerts <span class="arrow">→</span></a>
+          </div>
+        </div>
+        <aside class="mega__feature">
+          <video src="@video:feature" autoplay muted loop playsinline aria-hidden="true"></video>
+          <p>See what we&rsquo;d find about your alumni — real news about real people from your constituency.</p>
+        </aside>
+      </div>
+
+      <div class="mega" data-group="company">
+        <div class="mega__main">
+          <p class="mega__label">Company</p>
+          <div class="mega__grid">
+            <a class="mega__item" href="#about">
+              <span class="mega__title">About</span>
+              <span class="mega__desc">The alumni-data company, since 2011</span>
+            </a>
+            <a class="mega__item" href="#customers">
+              <span class="mega__title">Customers</span>
+              <span class="mega__desc">The teams we work with</span>
+            </a>
+            <a class="mega__item" href="#security">
+              <span class="mega__title">Security</span>
+              <span class="mega__desc">SOC 2 Type II · ISO 27001 · GDPR</span>
+            </a>
+            <a class="mega__item" href="#contact">
+              <span class="mega__title">Contact</span>
+              <span class="mega__desc">Talk to a human</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</header>
+
+<!-- ==================== HERO ==================== -->
+<main>
+  <section class="hero">
+    <div class="hero__field">
+      <div class="stage" id="stage" aria-hidden="true"></div>
+    </div>
+    <div class="container">
+      <h1>Your alumni moved on.<br>Your database didn&rsquo;t.</h1>
+
+      <p class="hero__sub">
+        AlmaConnect helps universities, schools, nonprofits and companies find where
+        their alumni and donors are now — and know the moment something happens in
+        their lives worth acting on.
+      </p>
+
+      <div class="hero__cta">
+        <a class="btn btn--hero" href="#demo">Book a demo</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PERSONA CARDS ==================== -->
+  <section class="personas">
+    <div class="container">
+      <div class="personas__grid" id="personas">
+
+        <a class="pcard" href="#news">
+          <span class="pcard__label">Prospect research &amp; fundraising <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card1" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>AlmaConnect News.</b> Know when a prospect makes news — verified, within 24–48 hours.</p>
+        </a>
+
+        <a class="pcard" href="#data-mine">
+          <span class="pcard__label">Advancement services &amp; database <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card2" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>AlmaConnect Data Mine.</b> Know where every alum works now, matched to your constituent IDs.</p>
+        </a>
+
+        <a class="pcard" href="#network-institutions">
+          <span class="pcard__label">Alumni relations <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card3" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>Network for Institutions.</b> Directory, events, mentorship — your community in one place.</p>
+        </a>
+
+        <a class="pcard" href="#network-corporates">
+          <span class="pcard__label">HR, talent &amp; employer brand <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card4" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>Network for Corporates.</b> Turn former employees into a talent pipeline.</p>
+        </a>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="stub">
+  <div class="container">
+    <p>Depth-hero assembly (v4) — Floema-mechanic field (observed behavior, vanishing point right), full hero copy, Wonderful-style nav, persona cards on scroll. Placeholder media throughout.</p>
+  </div>
+</footer>
 
 <script>
 (function () {
-  var stage = document.getElementById('stage');
-  var headline = document.getElementById('headline');
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* x/y: offsets from screen center at z=0 (px, laid out for ~1440w) ·
-     z: depth (negative = far) · w: rendered width px */
-  var LAYOUT = [
-    { img: 1,  x: -620, y: -180, z:  180,  w: 170 },
-    { img: 2,  x: -350, y: -260, z: -350,  w: 110 },
-    { img: 3,  x:  -80, y: -300, z: -700,  w:  90 },
-    { img: 4,  x:  300, y: -280, z: -250,  w: 150 },
-    { img: 5,  x:  640, y: -120, z:  220,  w: 180 },
-    { img: 6,  x: -260, y:  -60, z: -900,  w:  80 },
-    { img: 7,  x:   60, y:  -40, z: -1000, w:  85 },
-    { img: 8,  x:  330, y:  -20, z: -800,  w: 100 },
-    { img: 9,  x: -420, y:  200, z: -450,  w: 130 },
-    { img: 10, x:  -60, y:  240, z: -750,  w:  85 },
-    { img: 11, x:  260, y:  260, z: -350,  w: 110 },
-    { img: 12, x:  480, y:   60, z: -600,  w:  95 },
-    { img: 13, x:   60, y:  340, z: -150,  w: 140 },
-    { img: 14, x:  520, y:  300, z:  120,  w: 150 },
-    { img: 15, x:  150, y: -180, z: -550,  w:  90 },
-    { img: 16, x: -560, y:  320, z:   60,  w: 130 },
-    { img: 1,  x:  560, y: -320, z: -1050, w:  70 },
-    { img: 4,  x: -180, y:  120, z: -1100, w:  75 },
-    { img: 9,  x:  700, y:  180, z: -950,  w:  70 },
-    { img: 2,  x: -700, y:   40, z: -800,  w:  80 },
-    { img: 11, x: -520, y:  -80, z: -600,  w:  90 }
-  ];
+  /* ============ nav (same behavior as homepage build) ============ */
+  var nav = document.getElementById('siteNav');
+  var parents = nav.querySelectorAll('.nav__link[data-menu]');
+  var plains = nav.querySelectorAll('[data-plain]');
+  var megas = nav.querySelectorAll('.mega');
+  var CLOSE_DELAY = 180;
+  var timer;
 
-  var SOURCES = {
-    1: "@img:f1",  2: "@img:f2",  3: "@img:f3",  4: "@img:f4",
-    5: "@img:f5",  6: "@img:f6",  7: "@img:f7",  8: "@img:f8",
-    9: "@img:f9",  10: "@img:f10", 11: "@img:f11", 12: "@img:f12",
-    13: "@img:f13", 14: "@img:f14", 15: "@img:f15", 16: "@img:f16"
-  };
+  function setActive(menu) {
+    megas.forEach(function (m) {
+      m.classList.toggle('is-active', m.dataset.group === menu);
+    });
+    parents.forEach(function (b) {
+      b.setAttribute('aria-expanded', b.dataset.menu === menu ? 'true' : 'false');
+    });
+  }
+  function open(menu) {
+    clearTimeout(timer);
+    nav.classList.add('is-open');
+    setActive(menu);
+  }
+  function close() {
+    nav.classList.remove('is-open');
+    parents.forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+  }
 
-  var Z_FAR = -1150, Z_NEAR = 260;
-
-  function depth01(z) { return (z - Z_FAR) / (Z_NEAR - Z_FAR); } // 0 far … 1 near
-  function easeOutCubic(p) { return 1 - Math.pow(1 - p, 3); }
-  function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
-
-  var sprites = LAYOUT.map(function (s, i) {
-    var el = document.createElement('img');
-    el.className = 'sprite';
-    el.src = SOURCES[s.img];
-    el.style.width = s.w + 'px';
-    stage.appendChild(el);
-    return {
-      el: el, x: s.x, y: s.y, z: s.z,
-      phase: i * 1.7,
-      enterDelay: 0.12 + i * 0.055
-    };
+  parents.forEach(function (btn) {
+    btn.addEventListener('mouseenter', function () { open(btn.dataset.menu); });
+    btn.addEventListener('focus', function () { open(btn.dataset.menu); });
+    btn.addEventListener('click', function () {
+      btn.getAttribute('aria-expanded') === 'true' ? close() : open(btn.dataset.menu);
+    });
+  });
+  plains.forEach(function (el) {
+    el.addEventListener('mouseenter', function () {
+      clearTimeout(timer);
+      timer = setTimeout(close, 120);
+    });
+  });
+  nav.addEventListener('mouseleave', function () {
+    clearTimeout(timer);
+    timer = setTimeout(close, CLOSE_DELAY);
+  });
+  nav.addEventListener('mouseenter', function () { clearTimeout(timer); });
+  nav.addEventListener('focusout', function (e) {
+    if (!nav.contains(e.relatedTarget)) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') close();
+  });
+  document.addEventListener('click', function (e) {
+    if (!nav.contains(e.target)) close();
   });
 
-  var mouse = { tx: 0, ty: 0, x: 0, y: 0 };    // normalized target + lerped current
+  /* ============ scroll: solid nav + field fade-out ============ */
+  var field = document.querySelector('.hero__field');
+  var stage = document.getElementById('stage');
 
-  window.addEventListener('mousemove', function (e) {
-    mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
-    mouse.ty = (e.clientY / window.innerHeight) * 2 - 1;
-  }, { passive: true });
+  function onScroll() {
+    var y = window.scrollY;
+    nav.classList.toggle('is-scrolled', y > 8);
+    /* crossfade the field away as the cards approach (floema fades in place) */
+    stage.style.opacity = Math.max(0, 1 - y / (window.innerHeight * 0.65)).toFixed(3);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
 
-  /* autoplay fly-through: constant forward dolly; sprites that pass the
-     camera recycle to the far plane, so the field never runs out */
-  var DOLLY = 42;                              // px/s camera speed
-  var WRAP = Z_NEAR + 340 - Z_FAR;             // full depth of the recycling loop
-  var ENTER = 1.1;
-  var start = null;
+  /* ============ persona cards rise in on scroll ============ */
+  var grid = document.getElementById('personas');
+  if ('IntersectionObserver' in window && !reduced) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { grid.classList.add('in-view'); io.disconnect(); }
+      });
+    }, { threshold: 0.15 });
+    io.observe(grid);
+  } else {
+    grid.classList.add('in-view');
+  }
 
-  function frame(ts) {
-    if (start === null) start = ts;
-    var t = (ts - start) / 1000;
+  /* ============ reduced motion: freeze videos ============ */
+  if (reduced) {
+    document.querySelectorAll('video').forEach(function (v) {
+      v.removeAttribute('autoplay');
+      v.pause();
+    });
+  }
 
-    mouse.x += (mouse.tx - mouse.x) * 0.06;    // lerp = the eased, trailing feel
-    mouse.y += (mouse.ty - mouse.y) * 0.06;
+  /* ============ depth field (observed floema mechanic) ============ */
+  (function () {
+    var LAYOUT = [
+      { img: 1,  x: -520, y: -260, w: 150, z: -1400 },
+      { img: 9,  x:  420, y:  300, w: 130, z: -1350 },
+      { img: 5,  x:  660, y: -180, w: 160, z: -1300 },
+      { img: 2,  x: -300, y:  340, w: 110, z: -1250 },
+      { img: 12, x:  180, y: -360, w: 100, z: -1200 },
+      { img: 7,  x: -420, y:  140, w:  95, z: -1150 },
+      { img: 14, x:  560, y:  220, w: 145, z: -1100 },
+      { img: 3,  x: -160, y: -300, w:  90, z: -1050 },
+      { img: 10, x:  320, y:  120, w:  90, z: -1000 },
+      { img: 16, x: -500, y:  320, w: 135, z:  -950 },
+      { img: 4,  x:  240, y: -240, w: 140, z:  -900 },
+      { img: 8,  x: -360, y:  -80, w: 105, z:  -850 },
+      { img: 11, x:  480, y:  -60, w: 115, z:  -800 },
+      { img: 6,  x: -140, y:  240, w:  85, z:  -750 },
+      { img: 13, x:  120, y:  380, w: 140, z:  -700 },
+      { img: 15, x: -460, y: -340, w:  95, z:  -650 },
+      { img: 1,  x:  640, y: -320, w: 120, z:  -600 },
+      { img: 9,  x: -240, y: -160, w: 100, z:  -550 },
+      { img: 5,  x:  200, y:  200, w:  95, z:  -500 },
+      { img: 2,  x: -540, y:  -40, w: 125, z:  -450 },
+      { img: 12, x:  400, y: -380, w: 105, z:  -400 },
+      { img: 7,  x: -320, y:  400, w:  95, z:  -350 },
+      { img: 14, x:  680, y:   80, w: 150, z:  -300 },
+      { img: 3,  x:  -80, y: -400, w:  85, z:  -250 },
+      { img: 10, x:  260, y:  340, w:  95, z:  -200 },
+      { img: 16, x: -480, y: -200, w: 130, z:  -150 },
+      { img: 4,  x:  520, y:  380, w: 135, z:  -100 },
+      { img: 8,  x: -420, y:  240, w: 110, z:   -50 },
+      { img: 11, x:  360, y: -140, w: 110, z:     0 },
+      { img: 6,  x: -200, y: -420, w:  90, z:    50 },
+      { img: 13, x:  100, y:  160, w: 120, z:   100 },
+      { img: 15, x: -520, y:  400, w: 100, z:   150 },
+      { img: 1,  x:  600, y: -420, w: 130, z:   200 },
+      { img: 9,  x: -100, y:   90, w:  95, z:   250 }
+    ];
 
-    var camZ = reduced ? 0 : t * DOLLY;
+    var SOURCES = {
+      1: "@img:f1",  2: "@img:f2",  3: "@img:f3",  4: "@img:f4",
+      5: "@img:f5",  6: "@img:f6",  7: "@img:f7",  8: "@img:f8",
+      9: "@img:f9",  10: "@img:f10", 11: "@img:f11", 12: "@img:f12",
+      13: "@img:f13", 14: "@img:f14", 15: "@img:f15", 16: "@img:f16"
+    };
 
-    for (var i = 0; i < sprites.length; i++) {
-      var s = sprites[i];
-      var e = reduced ? 1 : easeOutCubic(clamp((t - s.enterDelay) / ENTER, 0, 1));
+    var Z_FAR = -1400, Z_NEAR = 300;
+    var WRAP = Z_NEAR + 130 - Z_FAR;
+    var DOLLY = 220;                 // px/s → ~6-8s center→edge life (observed)
 
-      /* wrap depth into [Z_FAR, Z_NEAR+340) so passed sprites re-enter far */
-      var z = Z_FAR + (((s.z + camZ) - Z_FAR) % WRAP + WRAP) % WRAP;
-      var d = clamp(depth01(z), 0, 1);
+    function depth01(z) { return (z - Z_FAR) / (Z_NEAR - Z_FAR); }
+    function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
 
-      var bob = reduced ? 0 : Math.sin(t * 0.55 + s.phase) * (6 + 8 * d);
-      var sway = reduced ? 0 : Math.cos(t * 0.38 + s.phase * 1.3) * (6 + 8 * d) * 0.45;
+    var sprites = LAYOUT.map(function (s) {
+      var el = document.createElement('img');
+      el.className = 'sprite';
+      el.src = SOURCES[s.img];
+      el.style.width = s.w + 'px';
+      stage.appendChild(el);
+      return { el: el, x: s.x, y: s.y, z: s.z };
+    });
 
-      /* pointer parallax: near sprites shift most, opposite the pointer */
-      var px = -mouse.x * (14 + 52 * d);
-      var py = -mouse.y * (9 + 30 * d);
+    var start = null;
 
-      var fog = 0.14 + 0.86 * d * d;                               // wash into the ground
-      var farIn = clamp((z - Z_FAR) / 150, 0, 1);                  // ease in from the back
-      var nearOut = z > 140 ? clamp(1 - (z - 140) / 200, 0, 1) : 1; // fade passing camera
-      var scaleIn = 0.55 + 0.45 * e;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var t = (ts - start) / 1000;
+      var camZ = reduced ? 0 : t * DOLLY;
 
-      s.el.style.transform =
-        'translate(-50%, -50%) translate3d(' + (s.x + px + sway).toFixed(2) + 'px, ' +
-        (s.y + py + bob).toFixed(2) + 'px, ' + z.toFixed(2) + 'px) scale(' + scaleIn.toFixed(3) + ')';
-      s.el.style.opacity = (fog * e * farIn * nearOut).toFixed(3);
-      s.el.style.zIndex = z > -80 ? 14 : Math.round(d * 10);       // near ones above headline
+      for (var i = 0; i < sprites.length; i++) {
+        var s = sprites[i];
+        var z = Z_FAR + (((s.z + camZ) - Z_FAR) % WRAP + WRAP) % WRAP;
+        var d = clamp(depth01(z), 0, 1);
+
+        var fog = 0.05 + 0.95 * d * d;
+        var farIn = clamp((z - Z_FAR) / 200, 0, 1);
+        var nearOut = z > 180 ? clamp(1 - (z - 180) / 250, 0, 1) : 1;
+
+        s.el.style.transform =
+          'translate(-50%, -50%) translate3d(' + s.x + 'px, ' + s.y + 'px, ' +
+          z.toFixed(2) + 'px)';
+        s.el.style.opacity = (fog * farIn * nearOut).toFixed(3);
+        s.el.style.zIndex = 1 + Math.round(d * 9);
+      }
+
+      if (!reduced) requestAnimationFrame(frame);
     }
 
-    headline.style.transform =
-      'translate3d(' + (-mouse.x * 8).toFixed(2) + 'px, ' + (-mouse.y * 5).toFixed(2) + 'px, 0)';
-
-    if (!reduced) requestAnimationFrame(frame);
-  }
-
-  if (reduced) {
-    frame(0);                                  // single static composition
-  } else {
-    requestAnimationFrame(frame);
-  }
+    if (reduced) { frame(0); } else { requestAnimationFrame(frame); }
+  })();
 })();
 </script>
