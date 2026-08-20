@@ -1,0 +1,231 @@
+<title>AlmaConnect Depth Hero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Nunito+Sans:opsz,wght@6..12,200..1000&display=swap">
+
+<style>
+/* ============================================================
+   Floema-style depth-field hero — standalone study page.
+   Mechanic replicated from floema.com's first section: small images
+   scattered through a 3D volume around a centered headline; they float
+   idly, parallax with the pointer (depth-weighted, lerped), fade toward
+   the background with distance, and fly past the camera on wheel.
+   Own images (placeholder stills) and own copy throughout.
+   SOURCE FILE — "@img" + ":name" tokens (see SOURCES map) are inlined
+   by scripts/build-demo.py.
+   ============================================================ */
+
+:root {
+  --bg: #f3efe6;
+  --ink: #04302b;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  perspective: 1000px;
+  overflow: hidden;
+}
+
+.sprite {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 4px;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  pointer-events: none;
+  user-select: none;
+}
+
+.headline {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  z-index: 12;
+  pointer-events: none;
+  will-change: transform;
+}
+.headline h1 {
+  margin: 0;
+  font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(44px, 5.2vw, 76px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  font-weight: 300;
+  max-width: 22ch;
+  opacity: 0;
+  animation: headIn 1.4s var(--ease) 0.35s forwards;
+}
+
+@keyframes headIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.note {
+  position: fixed;
+  left: 24px;
+  bottom: 20px;
+  z-index: 20;
+  font-size: 12.5px;
+  color: rgba(6, 48, 43, 0.45);
+}
+.note b { font-weight: 700; color: rgba(6, 48, 43, 0.65); }
+
+.hint {
+  position: fixed;
+  right: 24px;
+  bottom: 20px;
+  z-index: 20;
+  font-size: 12.5px;
+  color: rgba(6, 48, 43, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headline h1 { animation: none; opacity: 1; }
+}
+</style>
+
+<div class="stage" id="stage" aria-hidden="true"></div>
+
+<div class="headline" id="headline">
+  <h1>Your alumni moved on.<br>Your database didn&rsquo;t.</h1>
+</div>
+
+<p class="note"><b>Depth-hero study</b> · placeholder images · Floema-mechanic clone</p>
+<p class="hint">move the mouse · scroll to fly through</p>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var headline = document.getElementById('headline');
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* x/y: offsets from screen center at z=0 (px, laid out for ~1440w) ·
+     z: depth (negative = far) · w: rendered width px */
+  var LAYOUT = [
+    { img: 1,  x: -620, y: -180, z:  180,  w: 170 },
+    { img: 2,  x: -350, y: -260, z: -350,  w: 110 },
+    { img: 3,  x:  -80, y: -300, z: -700,  w:  90 },
+    { img: 4,  x:  300, y: -280, z: -250,  w: 150 },
+    { img: 5,  x:  640, y: -120, z:  220,  w: 180 },
+    { img: 6,  x: -260, y:  -60, z: -900,  w:  80 },
+    { img: 7,  x:   60, y:  -40, z: -1000, w:  85 },
+    { img: 8,  x:  330, y:  -20, z: -800,  w: 100 },
+    { img: 9,  x: -420, y:  200, z: -450,  w: 130 },
+    { img: 10, x:  -60, y:  240, z: -750,  w:  85 },
+    { img: 11, x:  260, y:  260, z: -350,  w: 110 },
+    { img: 12, x:  480, y:   60, z: -600,  w:  95 },
+    { img: 13, x:   60, y:  340, z: -150,  w: 140 },
+    { img: 14, x:  520, y:  300, z:  120,  w: 150 },
+    { img: 15, x:  150, y: -180, z: -550,  w:  90 },
+    { img: 16, x: -560, y:  320, z:   60,  w: 130 },
+    { img: 1,  x:  560, y: -320, z: -1050, w:  70 },
+    { img: 4,  x: -180, y:  120, z: -1100, w:  75 },
+    { img: 9,  x:  700, y:  180, z: -950,  w:  70 },
+    { img: 2,  x: -700, y:   40, z: -800,  w:  80 },
+    { img: 11, x: -520, y:  -80, z: -600,  w:  90 }
+  ];
+
+  var SOURCES = {
+    1: "@img:f1",  2: "@img:f2",  3: "@img:f3",  4: "@img:f4",
+    5: "@img:f5",  6: "@img:f6",  7: "@img:f7",  8: "@img:f8",
+    9: "@img:f9",  10: "@img:f10", 11: "@img:f11", 12: "@img:f12",
+    13: "@img:f13", 14: "@img:f14", 15: "@img:f15", 16: "@img:f16"
+  };
+
+  var Z_FAR = -1150, Z_NEAR = 260;
+
+  function depth01(z) { return (z - Z_FAR) / (Z_NEAR - Z_FAR); } // 0 far … 1 near
+  function easeOutCubic(p) { return 1 - Math.pow(1 - p, 3); }
+  function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
+
+  var sprites = LAYOUT.map(function (s, i) {
+    var el = document.createElement('img');
+    el.className = 'sprite';
+    el.src = SOURCES[s.img];
+    el.style.width = s.w + 'px';
+    el.style.zIndex = s.z > -80 ? 14 : Math.round(depth01(s.z) * 10); // near ones above headline
+    stage.appendChild(el);
+    var d = depth01(s.z);
+    return {
+      el: el, x: s.x, y: s.y, z: s.z, d: d,
+      baseOpacity: 0.14 + 0.86 * d * d,       // fog: far images wash into the ground
+      phase: i * 1.7,
+      bobAmp: 6 + 8 * d,                       // near images float a touch more
+      enterDelay: 0.12 + i * 0.055
+    };
+  });
+
+  var mouse = { tx: 0, ty: 0, x: 0, y: 0 };    // normalized target + lerped current
+  var cam = { tz: 0, z: 0 };                   // wheel fly-through
+
+  window.addEventListener('mousemove', function (e) {
+    mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.ty = (e.clientY / window.innerHeight) * 2 - 1;
+  }, { passive: true });
+
+  window.addEventListener('wheel', function (e) {
+    cam.tz = clamp(cam.tz + e.deltaY * 0.6, 0, 850);
+  }, { passive: true });
+
+  var ENTER = 1.1;
+  var start = null;
+
+  function frame(ts) {
+    if (start === null) start = ts;
+    var t = (ts - start) / 1000;
+
+    mouse.x += (mouse.tx - mouse.x) * 0.06;    // lerp = the eased, trailing feel
+    mouse.y += (mouse.ty - mouse.y) * 0.06;
+    cam.z += (cam.tz - cam.z) * 0.08;
+
+    for (var i = 0; i < sprites.length; i++) {
+      var s = sprites[i];
+      var e = reduced ? 1 : easeOutCubic(clamp((t - s.enterDelay) / ENTER, 0, 1));
+
+      var bob = reduced ? 0 : Math.sin(t * 0.55 + s.phase) * s.bobAmp;
+      var sway = reduced ? 0 : Math.cos(t * 0.38 + s.phase * 1.3) * s.bobAmp * 0.45;
+
+      /* pointer parallax: near sprites shift most, opposite the pointer */
+      var px = -mouse.x * (14 + 52 * s.d);
+      var py = -mouse.y * (9 + 30 * s.d);
+
+      var z = s.z + cam.z;
+      var fade = z > 140 ? clamp(1 - (z - 140) / 220, 0, 1) : 1;  // flying past camera
+      var scaleIn = 0.55 + 0.45 * e;
+
+      s.el.style.transform =
+        'translate(-50%, -50%) translate3d(' + (s.x + px + sway).toFixed(2) + 'px, ' +
+        (s.y + py + bob).toFixed(2) + 'px, ' + z.toFixed(2) + 'px) scale(' + scaleIn.toFixed(3) + ')';
+      s.el.style.opacity = (s.baseOpacity * e * fade).toFixed(3);
+    }
+
+    headline.style.transform =
+      'translate3d(' + (-mouse.x * 8).toFixed(2) + 'px, ' + (-mouse.y * 5).toFixed(2) + 'px, 0)';
+
+    if (!reduced) requestAnimationFrame(frame);
+  }
+
+  if (reduced) {
+    frame(0);                                  // single static composition
+  } else {
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
