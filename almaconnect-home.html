@@ -346,6 +346,62 @@ a { color: inherit; text-decoration: none; }
   100% { background-position: -40% 0; }
 }
 
+/* ============ TRUSTED BY — wonderful.ai-style logo wall ============ */
+
+.trusted {
+  background: var(--surface);
+  padding: 96px 0 104px;
+}
+
+.trusted__head {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--ink);
+  margin: 0 0 52px;
+}
+
+.trusted__grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+.tcell {
+  position: relative;
+  background: #f7f7f7;
+  border-radius: 8px;
+  height: 96px;
+  overflow: hidden;
+}
+
+.tcell__logo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px 18px;
+  text-align: center;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(20px);                /* incoming waits below */
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+  white-space: nowrap;
+}
+.tcell__logo.is-on  { opacity: 0.35; transform: translateY(0); }   /* faint grey, like the reference */
+.tcell__logo.is-out { opacity: 0;    transform: translateY(-20px); }  /* exits upward */
+
+/* placeholder text wordmarks until real logo SVGs arrive */
+.wm-serif { font-family: Georgia, "Times New Roman", serif; font-size: 16px; letter-spacing: 0.01em; }
+.wm-caps  { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.wm-slab  { font-family: Georgia, serif; font-weight: 700; font-size: 17px; }
+.wm-ital  { font-family: Georgia, serif; font-style: italic; font-size: 16px; }
+.wm-sans  { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
+.wm-light { font-weight: 300; font-size: 16px; letter-spacing: 0.06em; }
+
 /* ============ PERSONA CARDS — P2 editorial 4-up (same as homepage) ============ */
 
 .personas { padding-top: 88px; padding-bottom: 120px; background: #fafafa; }
@@ -591,6 +647,14 @@ a { color: inherit; text-decoration: none; }
     </div>
   </section>
 
+  <!-- ==================== TRUSTED BY (02 · Customer logos) ==================== -->
+  <section class="trusted">
+    <div class="container">
+      <p class="trusted__head">Trusted by 500+ institutions, foundations and companies</p>
+      <div class="trusted__grid" id="trustedGrid"></div>
+    </div>
+  </section>
+
   <!-- ==================== PERSONA CARDS ==================== -->
   <section class="personas">
     <div class="container">
@@ -651,7 +715,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 12 — step-ramp hero (trimmed image height 20:21, 80% visibility, exponential spacing), ink headline with periodic turquoise shimmer sweep, tightened top padding, 20/24 subtext, Wonderful-style nav, persona cards. Trusted-by wall pending port.</p>
+    <p>Iteration 14 — trusted-by logo wall added between hero and persona cards (wonderful.ai mechanics: 6×3 grey cells, slide-up logo relay, placeholder wordmarks until real logo SVGs arrive), step-ramp hero, shimmer headline, Wonderful-style nav.</p>
   </div>
 </footer>
 
@@ -721,6 +785,90 @@ a { color: inherit; text-decoration: none; }
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+
+  /* ============ trusted-by wall: cells relay logos (slide up + fade) ============ */
+  (function () {
+    var grid = document.getElementById('trustedGrid');
+    if (!grid) return;
+    var CELLS = 18;
+    var EMPTY = { 3: true, 14: true };   // reference keeps a couple of blank cells
+    /* institutions named in the copy doc + almaconnect.com's customer wall;
+       [name, placeholder wordmark style] — swap for real logo SVGs later */
+    var POOL = [
+      ['Harvard Medical School', 'wm-serif'],
+      ['Punahou School', 'wm-ital'],
+      ['Princeton', 'wm-slab'],
+      ['Bryant University', 'wm-caps'],
+      ['San Diego State', 'wm-sans'],
+      ['Willamette', 'wm-light'],
+      ['Marquette', 'wm-serif'],
+      ['Bryn Mawr', 'wm-slab'],
+      ['Augsburg', 'wm-caps'],
+      ['BITS Pilani', 'wm-sans'],
+      ['IIT Delhi', 'wm-slab'],
+      ['IIM Udaipur', 'wm-caps'],
+      ['Ryerson', 'wm-light'],
+      ['Syneos Health', 'wm-sans'],
+      ['Comviva', 'wm-ital'],
+      ['IIM', 'wm-slab']
+    ];
+
+    function makeLogo(entry) {
+      var el = document.createElement('span');
+      el.className = 'tcell__logo ' + entry[1];
+      el.textContent = entry[0];
+      return el;
+    }
+
+    var visible = [];
+    var spare = POOL.slice();
+    var cells = [];
+
+    for (var i = 0; i < CELLS; i++) {
+      var cell = document.createElement('div');
+      cell.className = 'tcell';
+      grid.appendChild(cell);
+      if (EMPTY[i]) continue;
+      var entry = spare.shift();
+      visible.push(entry);
+      var logo = makeLogo(entry);
+      cell.appendChild(logo);
+      cells.push({ el: cell, current: logo, entry: entry });
+      (function (l, d) {
+        setTimeout(function () { l.classList.add('is-on'); }, 150 + d * 60);
+      })(logo, cells.length);
+    }
+
+    function swapCell(ci) {
+      var cell = cells[ci];
+      var incoming = spare.shift();
+      spare.push(cell.entry);
+      cell.entry = incoming;
+
+      var next = makeLogo(incoming);
+      cell.el.appendChild(next);
+      var old = cell.current;
+      old.classList.remove('is-on');
+      old.classList.add('is-out');                       // slide up + fade out
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          next.classList.add('is-on');                   // rises in from below
+        });
+      });
+      cell.current = next;
+      setTimeout(function () { old.remove(); }, 700);
+    }
+
+    if (!reduced && spare.length) {
+      setInterval(function () {
+        /* two distinct cells per tick, second offset slightly for rhythm */
+        var a = Math.floor(Math.random() * cells.length);
+        var b = (a + 1 + Math.floor(Math.random() * (cells.length - 1))) % cells.length;
+        swapCell(a);
+        if (spare.length) setTimeout(function () { swapCell(b); }, 160);
+      }, 1500);
+    }
+  })();
 
   /* ============ persona cards rise in on scroll ============ */
   var grid = document.getElementById('personas');
