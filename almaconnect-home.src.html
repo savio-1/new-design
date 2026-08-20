@@ -266,8 +266,8 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 500px;                 /* base box; JS scales it across the viewport */
-  aspect-ratio: 6 / 5;
+  width: 400px;                 /* base box; JS scales it across the viewport */
+  aspect-ratio: 4 / 5;          /* portrait, close to the reference's ratios */
   transform-origin: left bottom;
   overflow: hidden;
   opacity: 0;
@@ -296,8 +296,8 @@ a { color: inherit; text-decoration: none; }
 .hero__sub {
   margin: 28px 0 0;
   font-family: var(--font-body);
-  font-size: 22px;
-  line-height: 1.35;
+  font-size: 20px;
+  line-height: 24px;
   letter-spacing: -0.04em;
   font-weight: 400;
   color: var(--ink-80);
@@ -608,7 +608,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 10 — breathable staircase-stack hero (every image ≥64% visible, gapless), normal page scroll with scroll-boosted image speed, shimmering gradient headline, Wonderful-style nav, persona cards. Trusted-by wall pending port from the demo page.</p>
+    <p>Iteration 11 — reference-matched step ramp (portrait 4:5, small left → big right, 80% of every image visible via exponential spacing), 20/24 subtext, normal scroll with scroll-boosted image speed, shimmer headline, Wonderful-style nav, persona cards. Trusted-by wall pending port.</p>
   </div>
 </footer>
 
@@ -718,16 +718,26 @@ a { color: inherit; text-decoration: none; }
     var SOURCES = [];
     for (var si = 0; si < SLOTS; si++) SOURCES.push(IMAGES[si % IMAGES.length]);
     var N = SOURCES.length;
-    var BASE = 500;               // unscaled box width
-    var S_L = 0.72, S_R = 1.10;   // narrow scale spread keeps every image readable
-    var STEP = 350;               // exposed strip; min width 360 → no gaps,
-                                  // max width 550 → ≥64% of every image visible
-    var SPEED = 80;               // px/s auto-drift
-    var SCROLL_K = 1.4;           // scroll → row-advance coupling (lerped, no fade)
+    var BASE = 400;               // unscaled box width (4:5 portrait → 500 tall)
+    var S_L = 0.36, S_R = 1.15;   // strong small→big ramp like the reference
+    var K = 0.8;                  // exposed fraction: every image stays 80% visible
+    var U0 = 1.5;                 // offscreen-left buffer (in slots)
+    var SLOT_S = 3.5;             // seconds between image arrivals (auto-drift)
+    var SCROLL_U = 0.0045;        // scroll px → slot units (row speeds up on scroll)
     var ENTER_MS = 1500, ENTER_DELAY = 300, ENTER_OFFSET = 600;  // observed entrance
 
     function clamp(v, a, b) { return Math.min(Math.max(v, a), b); }
     function easeOutCubic(p) { return 1 - Math.pow(1 - p, 3); }
+
+    /* slots are uniform in phase u; the x mapping is exponential so local
+       spacing always equals K x the local image width — the size ramp and
+       the constant 80% visibility hold at every position, permanently */
+    function xOf(u, vw) {
+      var a = S_L, b = (S_R - S_L) / vw;
+      var du = u - U0;
+      if (du < 0) return du * (K * BASE * S_L);          // linear offscreen-left
+      return (a / b) * (Math.exp(K * BASE * b * du) - 1);
+    }
 
     var items = SOURCES.map(function (src) {
       var el = document.createElement('div');
@@ -740,7 +750,7 @@ a { color: inherit; text-decoration: none; }
       return { el: el, img: img };
     });
 
-    var current = 0;
+    var currentU = 0;
     var sc = window.scrollY;
     var start = null, last = null;
 
@@ -749,22 +759,18 @@ a { color: inherit; text-decoration: none; }
       var dt = Math.min((ts - last) / 1000, 0.05);
       last = ts;
       var vw = window.innerWidth;
-      var total = N * STEP;       // wrap length; > vw so recycling happens offscreen
 
       var e = reduced ? 1
         : easeOutCubic(clamp((ts - start - ENTER_DELAY) / ENTER_MS, 0, 1));
 
       var scPrev = sc;
       sc += (window.scrollY - sc) * 0.08;              // lerped scroll → inertia feel
-      if (!reduced) current += SPEED * dt * e + (sc - scPrev) * SCROLL_K;
+      if (!reduced) currentU += (dt / SLOT_S) * e + (sc - scPrev) * SCROLL_U;
 
       for (var i = 0; i < N; i++) {
         var it = items[i];
-        /* uniform origin spacing wrapped modulo total → the exposed strip
-           of every image stays STEP px; widths grow rightward, so overlap
-           grows rightward and the right neighbor always covers the seam */
-        var x = (((i * STEP + current) % total) + total) % total - BASE * S_L;
-        x -= ENTER_OFFSET * (1 - e);                    // entrance sweep from the left
+        var u = (((i + currentU) % N) + N) % N;         // wrap in phase space
+        var x = xOf(u, vw) - ENTER_OFFSET * (1 - e);    // entrance sweep from the left
 
         var s = Math.max((S_L + (S_R - S_L) * clamp(x / vw, 0, 1)) * e, 0.02);
         var px = -15 * (1 - clamp(x / vw, 0, 1));       // inner depth parallax
