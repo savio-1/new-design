@@ -4,7 +4,9 @@
 
 <style>
 /* ============================================================
-   AlmaConnect homepage — iteration 4: Wonderful-style nav
+   AlmaConnect homepage — iteration 5: Floema-style hero orbit
+   Hero: full-viewport, text left, orbiting image ring right (reference:
+   floema.com — images emerge from the ring center, spread, then drift)
    Nav: transparent over page → solid on scroll → white sheet with
    half-page panel on hover (reference: wonderful.ai)
    Layout: AngelList reference (Figma wPFGlGLF2kGdcC06My35za, node 3:2)
@@ -247,9 +249,44 @@ a { color: inherit; text-decoration: none; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ============ HERO — mock layout, Asana scale ============ */
+/* ============ HERO — mock layout, Asana scale, Floema-style orbit right ============ */
 
-.hero { padding-top: calc(var(--nav-h) + 96px); }
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding-top: var(--nav-h);
+  overflow: hidden;
+}
+.hero .container { position: relative; z-index: 2; width: 100%; }
+
+/* orbiting image ring (reference: floema.com) — ring center sits right of the hero */
+.hero__viz {
+  position: absolute;
+  top: 50%;
+  right: -120px;
+  width: 700px;
+  height: 700px;
+  translate: 0 -50%;
+  z-index: 1;
+  perspective: 1100px;
+  pointer-events: none;
+}
+
+.orb__card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 150px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 10px;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+  background: var(--panel);
+}
 
 .hero h1 {
   margin: 0;
@@ -360,10 +397,15 @@ a { color: inherit; text-decoration: none; }
 
 /* ============ responsive ============ */
 
+@media (max-width: 1280px) {
+  .hero__viz { scale: 0.82; right: -110px; }
+}
+
 @media (max-width: 1160px) {
   .personas__grid { grid-template-columns: repeat(2, 1fr); }
   .mega__feature { display: none; }
   :root { --panel-left: 220px; }
+  .hero__viz { scale: 0.68; right: -160px; }
 }
 
 @media (max-width: 920px) {
@@ -372,6 +414,8 @@ a { color: inherit; text-decoration: none; }
   .nav__logo { width: auto; }
   .nav__logo img { height: 26px; }
   .nav__links, .nav__login, .nav__panelwrap { display: none; }
+  .hero__viz { display: none; }
+  .hero { min-height: 0; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
   .hero__sub { font-size: 20px; }
   .personas { padding-top: 64px; padding-bottom: 80px; }
 }
@@ -383,6 +427,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .rise { animation: none; opacity: 1; transform: none; }
+  .orb__card { transition: none; }
   .nav, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__label .arrow, .mega__flink .arrow { transition: none; }
   .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
@@ -476,6 +521,16 @@ a { color: inherit; text-decoration: none; }
 <!-- ==================== HERO ==================== -->
 <main>
   <section class="hero">
+    <div class="hero__viz" id="orbit" aria-hidden="true">
+      <img class="orb__card" src="@img:still1" alt="">
+      <img class="orb__card" src="@img:still2" alt="">
+      <img class="orb__card" src="@img:still3" alt="">
+      <img class="orb__card" src="@img:still4" alt="">
+      <img class="orb__card" src="@img:still5" alt="">
+      <img class="orb__card" src="@img:still6" alt="">
+      <img class="orb__card" src="@img:still7" alt="">
+      <img class="orb__card" src="@img:still8" alt="">
+    </div>
     <div class="container">
       <h1 class="rise rise-1">Your alumni moved on.<br>Your database didn&rsquo;t.</h1>
 
@@ -543,7 +598,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 4 — Wonderful-style navigation (transparent → scrolled → half-page panel), hero with persona video cards. Card and panel videos are placeholder loops from the Satomo Framer template. Sections 03–10 follow after review.</p>
+    <p>Iteration 5 — Floema-style orbiting image ring on the right of the hero (placeholder stills until the real people images arrive), Wonderful-style navigation, persona video cards. Sections 03–10 follow after review.</p>
   </div>
 </footer>
 
@@ -618,11 +673,59 @@ a { color: inherit; text-decoration: none; }
   onScroll();
 
   // respect reduced motion: freeze the placeholder videos
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reducedMotion) {
     document.querySelectorAll('video').forEach(function (v) {
       v.removeAttribute('autoplay');
       v.pause();
     });
   }
+
+  /* ---- Floema-style orbit: cards emerge from the ring's center,
+         spread onto a tilted circle, then drift around it ---- */
+  (function () {
+    var viz = document.getElementById('orbit');
+    if (!viz) return;
+    var cards = viz.querySelectorAll('.orb__card');
+    var N = cards.length;
+    var RADIUS = 238;         // ring radius (px)
+    var TILT = 46;            // vertical squash: near side dips, far side rises
+    var LOOP = 48;            // seconds per full revolution
+    var ENTER = 1.5;          // entrance duration per card (s)
+    var STAGGER = 0.07;       // entrance stagger between cards (s)
+
+    function easeOutCubic(p) { return 1 - Math.pow(1 - p, 3); }
+
+    function place(t) {
+      var rot = (t * Math.PI * 2) / LOOP;
+      for (var i = 0; i < N; i++) {
+        var p = Math.min(Math.max((t - i * STAGGER) / ENTER, 0), 1);
+        var e = easeOutCubic(p);
+        var a = (i / N) * Math.PI * 2 + rot;
+        var x = Math.cos(a) * RADIUS * e;
+        var z = Math.sin(a) * RADIUS * e;
+        var y = Math.sin(a) * TILT * e;
+        var depth = (z / RADIUS + 1) / 2;   // 0 far … 1 near
+        cards[i].style.transform =
+          'translate(-50%, -50%) translate3d(' + x.toFixed(2) + 'px, ' +
+          y.toFixed(2) + 'px, ' + z.toFixed(2) + 'px)';
+        cards[i].style.opacity = (e * (0.6 + 0.4 * depth)).toFixed(3);
+        cards[i].style.zIndex = Math.round(depth * 100);
+      }
+    }
+
+    if (reducedMotion) {
+      place(ENTER + N * STAGGER);   // static ring, fully entered, no drift
+      return;
+    }
+
+    var start = null;
+    function frame(ts) {
+      if (start === null) start = ts;
+      place((ts - start) / 1000);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
 })();
 </script>

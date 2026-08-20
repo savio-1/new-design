@@ -16,6 +16,7 @@ SRC = ROOT / "almaconnect-home.src.html"
 OUT = ROOT / "almaconnect-home.html"
 VIDEO_DIR = ROOT / "assets" / "videos"
 LOGO_DIR = ROOT / "assets" / "logo"
+IMG_DIR = ROOT / "assets" / "img"
 
 
 def data_uri(path: Path, mime: str) -> str:
@@ -37,9 +38,14 @@ def main() -> None:
         lambda m: data_uri(LOGO_DIR / f"{m.group(1)}.svg", "image/svg+xml"),
         html,
     )
+    html, imgs = re.subn(
+        r"@img:([\w-]+)",
+        lambda m: data_uri(IMG_DIR / f"{m.group(1)}.jpg", "image/jpeg"),
+        html,
+    )
 
     OUT.write_text(html, encoding="utf-8")
-    print(f"built {OUT.name}: {videos} video(s), {svgs} svg(s) inlined, "
+    print(f"built {OUT.name}: {videos} video(s), {svgs} svg(s), {imgs} img(s) inlined, "
           f"{OUT.stat().st_size / 1e6:.2f} MB")
 
 
