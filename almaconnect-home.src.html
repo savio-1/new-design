@@ -4,14 +4,16 @@
 
 <style>
 /* ============================================================
-   AlmaConnect homepage — iteration 3: nav + hero w/ persona video cards
+   AlmaConnect homepage — iteration 4: Wonderful-style nav
+   Nav: transparent over page → solid on scroll → white sheet with
+   half-page panel on hover (reference: wonderful.ai)
    Layout: AngelList reference (Figma wPFGlGLF2kGdcC06My35za, node 3:2)
    Type & spacing: asana.com-measured scale (.claude/skills/almaconnect-type-spacing)
    + client overrides: H1 88px/−4%, subtext 22px/−4%
    Fonts: Geist (headlines) + Nunito Sans (body)
-   SOURCE FILE — card videos use "@video" + ":cardN" tokens (see the video tags);
-   scripts/build-home.py inlines them as data URIs into almaconnect-home.html
-   (the published file).
+   SOURCE FILE — media use "@video" / "@svg" + ":name" tokens (see the
+   video/img tags); scripts/build-home.py inlines them as data URIs into
+   almaconnect-home.html (the published file).
    ============================================================ */
 
 :root {
@@ -27,7 +29,7 @@
 
   --ground: #f7f6f2;
   --surface: #ffffff;
-  --panel: #edebe4;                /* card-image panel, sits darker than ground */
+  --panel: #edebe4;
   --hairline: rgba(153, 159, 153, 0.25);
 
   --tint-mint: #e5f6f0;  --on-mint: #2f9e77;
@@ -39,7 +41,11 @@
 
   --container: 1288px;
   --page-margin: 76px;
-  --nav-h: 68px;
+  --nav-h: 76px;
+  /* scrolled-nav surface — will be re-pointed per section later */
+  --nav-solid: rgba(247, 246, 242, 0.9);
+  /* left edge of nav links = logo column + bar padding; panel content aligns to it */
+  --panel-left: 268px;
 
   --r-button: 8px;
   --r-card: 12px;
@@ -75,54 +81,6 @@ a { color: inherit; text-decoration: none; }
   border-radius: 4px;
 }
 
-/* ============ NAV — P0 white bar, A1 anchored dropdown ============ */
-
-.nav {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--surface);
-  border-bottom: 1px solid var(--hairline);
-  height: var(--nav-h);
-}
-
-.nav__inner { height: var(--nav-h); display: flex; align-items: center; gap: 42px; }
-
-.nav__logo {
-  display: inline-flex; align-items: center; gap: 9px;
-  font-size: 19px; font-weight: 800; letter-spacing: -0.02em;
-  color: var(--ink); flex: none;
-}
-.nav__logo svg { display: block; }
-
-.nav__links {
-  display: flex; align-items: stretch; height: 100%;
-  gap: 4px; margin: 0; padding: 0; list-style: none;
-}
-
-.nav__item { position: relative; display: flex; align-items: stretch; }
-
-.nav__link {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 0 12px;
-  font-family: var(--font-body); font-size: 15px; font-weight: 500;
-  color: var(--ink); background: none; border: 0; cursor: pointer;
-  transition: color 0.15s ease;
-}
-.nav__link:hover { color: var(--accent-dark); }
-
-.nav__chev { width: 10px; height: 10px; transition: transform 0.25s var(--ease); flex: none; }
-.nav__item.is-open .nav__chev { transform: rotate(180deg); }
-.nav__item.is-open > .nav__link { color: var(--accent-dark); }
-
-.nav__right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-
-.nav__login {
-  font-size: 15px; font-weight: 500; color: var(--ink);
-  padding: 8px 14px; transition: color 0.15s ease;
-}
-.nav__login:hover { color: var(--accent-dark); }
-
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   border: 0; cursor: pointer;
@@ -130,91 +88,168 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--r-button);
   transition: background 0.15s ease;
 }
-.btn--nav { height: 44px; padding-inline: 24px; font-size: 15px; background: var(--accent); color: var(--ink); }
+.btn--nav {
+  height: 44px; padding-inline: 26px; font-size: 15px;
+  border-radius: var(--r-pill);
+  background: var(--accent); color: var(--ink);
+}
 .btn--nav:hover { background: var(--accent-dark); }
 .btn--hero { height: 50px; padding-inline: 32px; background: var(--ink); color: #fff; }
 .btn--hero:hover { background: #0a4a42; }
 
-/* --- dropdown (unchanged behavior from iteration 1) --- */
+/* ============ NAV — Wonderful-style: transparent → scrolled → white sheet ============ */
 
-.dd {
-  position: absolute; top: 100%; left: -8px; padding-top: 10px;
-  opacity: 0; transform: translateY(-4px); visibility: hidden; pointer-events: none;
-  transition: opacity 0.28s var(--ease), transform 0.28s var(--ease), visibility 0s linear 0.28s;
-}
-.nav__item.is-open .dd {
-  opacity: 1; transform: translateY(0); visibility: visible; pointer-events: auto;
-  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease);
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  color: var(--ink);
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.35s ease, border-color 0.35s ease;
 }
 
-.dd__panel {
-  background: var(--surface); border: 1px solid var(--hairline);
-  border-radius: var(--r-card); padding: 8px; width: 460px;
+.nav.is-scrolled {
+  background: var(--nav-solid);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom-color: var(--hairline);
 }
-.dd__panel--slim { width: 224px; }
 
-.dd__row {
-  display: block; padding: 12px 14px; border-radius: 8px;
-  transition: background 0.15s ease;
-  opacity: 0; translate: 0 6px;
+.nav.is-open {
+  background: var(--surface);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom-color: var(--hairline);
 }
-.nav__item.is-open .dd__row {
-  opacity: 1; translate: 0 0;
-  transition: background 0.15s ease, opacity 0.25s var(--ease), translate 0.25s var(--ease);
-}
-.nav__item.is-open .dd__row:nth-child(1) { transition-delay: 0s, 0.05s, 0.05s; }
-.nav__item.is-open .dd__row:nth-child(2) { transition-delay: 0s, 0.07s, 0.07s; }
-.nav__item.is-open .dd__row:nth-child(3) { transition-delay: 0s, 0.09s, 0.09s; }
-.nav__item.is-open .dd__row:nth-child(4) { transition-delay: 0s, 0.11s, 0.11s; }
-.dd__row:hover { background: var(--accent-tint); }
 
-.dd__name {
-  font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--ink);
+.nav__bar {
+  display: flex;
+  align-items: center;
+  height: var(--nav-h);
+  padding-inline: 32px;
+}
+
+.nav__logo { display: flex; align-items: center; flex: none; width: 220px; }
+.nav__logo img { height: 30px; width: auto; display: block; }
+
+.nav__links {
   display: flex; align-items: center; gap: 8px;
+  margin: 0; padding: 0; list-style: none;
 }
-.dd__name .arrow {
-  opacity: 0; translate: -3px 0;
-  transition: opacity 0.15s ease, translate 0.2s var(--ease);
-  color: var(--accent-dark); font-weight: 400;
+
+.nav__link {
+  font-family: var(--font-body); font-size: 15px; font-weight: 500;
+  color: inherit; background: none; border: 0; cursor: pointer;
+  padding: 10px 16px;
+  transition: opacity 0.2s ease;
 }
-.dd__row:hover .dd__name .arrow { opacity: 1; translate: 0 0; }
+/* hovering the link row dims siblings; the hovered / open item stays full */
+.nav__links:hover .nav__link { opacity: 0.45; }
+.nav__links .nav__link:hover,
+.nav__links .nav__link[aria-expanded="true"] { opacity: 1; }
 
-.dd__buyer { font-size: 13px; line-height: 1.5; color: var(--ink-45); margin-top: 1px; display: block; }
+.nav__right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 
-.dd__desc { font-size: 14px; line-height: 1.5; color: var(--ink-65); margin-top: 4px; display: block; }
-.dd__desc b { color: var(--ink); font-weight: 600; }
-
-.dd__footer {
-  border-top: 1px solid var(--hairline); margin-top: 6px;
-  padding: 10px 14px 6px; display: flex; flex-direction: column; gap: 6px;
+.nav__login {
+  font-size: 15px; font-weight: 500; color: inherit;
+  padding: 10px 14px;
+  transition: opacity 0.2s ease;
 }
-.dd__flink {
+.nav__login:hover { opacity: 0.6; }
+
+/* --- half-page panel: grid-rows trick animates height smoothly --- */
+
+.nav__panelwrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.45s var(--ease);
+}
+.nav.is-open .nav__panelwrap { grid-template-rows: 1fr; }
+.nav__panel { overflow: hidden; }
+
+.mega {
+  display: none;
+  gap: 64px;
+  padding: 40px 48px 80px var(--panel-left);
+}
+.mega.is-active { display: flex; }
+
+.mega__main { flex: 1; max-width: 760px; }
+
+.mega__label {
+  font-size: 13px; color: var(--ink-45);
+  margin: 0 0 30px;
+}
+
+.mega__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 40px 56px;
+}
+
+.mega__item { display: block; }
+.mega__title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 400; line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  transition: color 0.15s ease;
+}
+.mega__desc {
+  display: block;
+  font-size: 15px; line-height: 1.5;
+  color: var(--ink-45);
+  margin-top: 6px;
+}
+.mega__item:hover .mega__title { color: var(--accent-dark); }
+
+.mega__footlinks {
+  margin-top: 48px;
+  display: flex; flex-wrap: wrap; gap: 8px 32px;
+}
+.mega__flink {
   font-size: 14px; font-weight: 600; color: var(--accent-dark);
-  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  display: inline-flex; align-items: center; gap: 6px;
 }
-.dd__flink .arrow { transition: translate 0.2s var(--ease); display: inline-block; }
-.dd__flink:hover .arrow { translate: 3px 0; }
-.dd__flink em { font-style: normal; color: var(--ink-65); font-weight: 400; }
+.mega__flink .arrow { display: inline-block; transition: translate 0.2s var(--ease); }
+.mega__flink:hover .arrow { translate: 3px 0; }
+.mega__flink em { font-style: normal; color: var(--ink-65); font-weight: 400; }
 
-.dd__slimlink {
-  display: block; padding: 9px 14px; border-radius: 8px;
-  font-size: 15px; color: var(--ink-80);
-  transition: background 0.15s ease, color 0.15s ease;
-  opacity: 0; translate: 0 6px;
+.mega__feature { width: 400px; flex: none; }
+.mega__feature video {
+  width: 100%; aspect-ratio: 16 / 9;
+  object-fit: cover; display: block;
+  border-radius: var(--r-card);
+  background: var(--panel);
 }
-.nav__item.is-open .dd__slimlink {
-  opacity: 1; translate: 0 0;
-  transition: background 0.15s ease, color 0.15s ease, opacity 0.25s var(--ease), translate 0.25s var(--ease);
+.mega__feature p {
+  font-size: 17px; line-height: 1.4;
+  color: var(--ink); margin: 14px 0 0;
 }
-.nav__item.is-open .dd__slimlink:nth-child(1) { transition-delay: 0s, 0s, 0.05s, 0.05s; }
-.nav__item.is-open .dd__slimlink:nth-child(2) { transition-delay: 0s, 0s, 0.07s, 0.07s; }
-.nav__item.is-open .dd__slimlink:nth-child(3) { transition-delay: 0s, 0s, 0.09s, 0.09s; }
-.nav__item.is-open .dd__slimlink:nth-child(4) { transition-delay: 0s, 0s, 0.11s, 0.11s; }
-.dd__slimlink:hover { background: var(--accent-tint); color: var(--ink); }
+
+/* content staggers in each time a group becomes active */
+.mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 0; }
+.nav.is-open .mega.is-active :is(.mega__label, .mega__item, .mega__flink, .mega__feature) {
+  animation: megaIn 0.45s var(--ease) forwards;
+}
+.nav.is-open .mega.is-active .mega__label { animation-delay: 0.05s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(1) { animation-delay: 0.10s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(2) { animation-delay: 0.14s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(3) { animation-delay: 0.18s; }
+.nav.is-open .mega.is-active .mega__item:nth-child(4) { animation-delay: 0.22s; }
+.nav.is-open .mega.is-active .mega__flink { animation-delay: 0.26s; }
+.nav.is-open .mega.is-active .mega__feature { animation-delay: 0.16s; }
+
+@keyframes megaIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ============ HERO — mock layout, Asana scale ============ */
 
-.hero { padding-top: 96px; }
+.hero { padding-top: calc(var(--nav-h) + 96px); }
 
 .hero h1 {
   margin: 0;
@@ -279,6 +314,15 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
 }
 
+/* ---- placeholder videos inside the media panel (Satomo template loops) ---- */
+
+.pcard__video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .pcard__plus {
   position: absolute; right: 12px; bottom: 12px;
   width: 48px; height: 48px; border-radius: 50%;
@@ -299,15 +343,6 @@ a { color: inherit; text-decoration: none; }
 }
 .pcard__desc b { color: var(--ink); font-weight: 600; }
 
-/* ---- placeholder videos inside the media panel (Satomo template loops) ---- */
-
-.pcard__video {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
 /* ============ page-load rise ============ */
 
 .rise { opacity: 0; transform: translateY(14px); animation: rise 0.5s var(--ease) forwards; }
@@ -327,12 +362,16 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 1160px) {
   .personas__grid { grid-template-columns: repeat(2, 1fr); }
+  .mega__feature { display: none; }
+  :root { --panel-left: 220px; }
 }
 
 @media (max-width: 920px) {
-  :root { --page-margin: 24px; }
-  .nav__links, .nav__login { display: none; }
-  .hero { padding-top: 64px; }
+  :root { --page-margin: 24px; --nav-h: 64px; }
+  .nav__bar { padding-inline: 20px; }
+  .nav__logo { width: auto; }
+  .nav__logo img { height: 26px; }
+  .nav__links, .nav__login, .nav__panelwrap { display: none; }
   .hero__sub { font-size: 20px; }
   .personas { padding-top: 64px; padding-bottom: 80px; }
 }
@@ -344,93 +383,93 @@ a { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .rise { animation: none; opacity: 1; transform: none; }
-  .dd, .dd__row, .dd__slimlink, .nav__chev,
-  .pcard__label .arrow, .dd__flink .arrow { transition: none; }
+  .nav, .nav__panelwrap, .nav__link, .nav__login,
+  .pcard__label .arrow, .mega__flink .arrow { transition: none; }
+  .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
+  .nav.is-open .mega.is-active :is(.mega__label, .mega__item, .mega__flink, .mega__feature) { animation: none; }
 }
 </style>
 
 <!-- ==================== NAV ==================== -->
-<header class="nav">
-  <div class="container nav__inner">
-
+<header class="nav" id="siteNav">
+  <div class="nav__bar">
     <a class="nav__logo" href="#" aria-label="AlmaConnect home">
-      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-        <circle cx="8" cy="16" r="5.5" fill="#00c4b5"/>
-        <circle cx="18.5" cy="8.5" r="3.75" fill="#04302b"/>
-        <path d="M11.5 12.5 L15.75 10.25" stroke="#04302b" stroke-width="1.75" stroke-linecap="round"/>
-      </svg>
-      AlmaConnect
+      <img src="@svg:almaconnect-logo" alt="AlmaConnect">
     </a>
 
     <ul class="nav__links">
-      <li class="nav__item" data-dd>
-        <button class="nav__link" type="button" aria-expanded="false" aria-haspopup="true">
-          Products
-          <svg class="nav__chev" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-            <path d="M1.5 3.5 L5 7 L8.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <div class="dd">
-          <div class="dd__panel">
-            <a class="dd__row" href="#news">
-              <span class="dd__name">AlmaConnect News <span class="arrow">→</span></span>
-              <span class="dd__buyer">For prospect research &amp; advancement teams</span>
-              <span class="dd__desc"><b>Know when a prospect makes news</b> — verified, within 24–48 hours.</span>
-            </a>
-            <a class="dd__row" href="#data-mine">
-              <span class="dd__name">AlmaConnect Data Mine <span class="arrow">→</span></span>
-              <span class="dd__buyer">For advancement services &amp; database teams</span>
-              <span class="dd__desc"><b>Know where every alum works now</b> — matched to your constituent IDs.</span>
-            </a>
-            <a class="dd__row" href="#network-institutions">
-              <span class="dd__name">Alumni Network for Institutions <span class="arrow">→</span></span>
-              <span class="dd__buyer">For alumni relations teams</span>
-              <span class="dd__desc"><b>Directory, events, mentorship</b> — your community in one place.</span>
-            </a>
-            <a class="dd__row" href="#network-corporates">
-              <span class="dd__name">Alumni Network for Corporates <span class="arrow">→</span></span>
-              <span class="dd__buyer">For HR, talent &amp; employer brand teams</span>
-              <span class="dd__desc"><b>Turn former employees</b> into a talent pipeline.</span>
-            </a>
-            <div class="dd__footer">
-              <a class="dd__flink" href="#all-products"><em>Not sure which fits?</em> See all products <span class="arrow">→</span></a>
-              <a class="dd__flink" href="#free-alerts">Get free news alerts <span class="arrow">→</span></a>
-            </div>
-          </div>
-        </div>
-      </li>
-
-      <li class="nav__item">
-        <a class="nav__link" href="#customers">Customers</a>
-      </li>
-
-      <li class="nav__item">
-        <a class="nav__link" href="#pricing">Pricing</a>
-      </li>
-
-      <li class="nav__item" data-dd>
-        <button class="nav__link" type="button" aria-expanded="false" aria-haspopup="true">
-          Company
-          <svg class="nav__chev" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-            <path d="M1.5 3.5 L5 7 L8.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <div class="dd">
-          <div class="dd__panel dd__panel--slim">
-            <a class="dd__slimlink" href="#about">About</a>
-            <a class="dd__slimlink" href="#customers">Customers</a>
-            <a class="dd__slimlink" href="#security">Security</a>
-            <a class="dd__slimlink" href="#contact">Contact</a>
-          </div>
-        </div>
-      </li>
+      <li><button class="nav__link" type="button" data-menu="products" aria-expanded="false" aria-haspopup="true">Products</button></li>
+      <li><a class="nav__link" data-plain href="#customers">Customers</a></li>
+      <li><a class="nav__link" data-plain href="#pricing">Pricing</a></li>
+      <li><button class="nav__link" type="button" data-menu="company" aria-expanded="false" aria-haspopup="true">Company</button></li>
     </ul>
 
     <div class="nav__right">
-      <a class="nav__login" href="#login">Log in</a>
-      <a class="btn btn--nav" href="#demo">Book a demo</a>
+      <a class="nav__login" data-plain href="#login">Log in</a>
+      <a class="btn btn--nav" data-plain href="#demo">Book a demo</a>
     </div>
+  </div>
 
+  <div class="nav__panelwrap">
+    <div class="nav__panel">
+
+      <div class="mega" data-group="products">
+        <div class="mega__main">
+          <p class="mega__label">Products</p>
+          <div class="mega__grid">
+            <a class="mega__item" href="#news">
+              <span class="mega__title">AlmaConnect News</span>
+              <span class="mega__desc">Know when a prospect makes news — verified, within 24–48 hours</span>
+            </a>
+            <a class="mega__item" href="#data-mine">
+              <span class="mega__title">AlmaConnect Data Mine</span>
+              <span class="mega__desc">Know where every alum works now — matched to your constituent IDs</span>
+            </a>
+            <a class="mega__item" href="#network-institutions">
+              <span class="mega__title">Alumni Network for Institutions</span>
+              <span class="mega__desc">Directory, events, mentorship — your community in one place</span>
+            </a>
+            <a class="mega__item" href="#network-corporates">
+              <span class="mega__title">Alumni Network for Corporates</span>
+              <span class="mega__desc">Turn former employees into a talent pipeline</span>
+            </a>
+          </div>
+          <div class="mega__footlinks">
+            <a class="mega__flink" href="#all-products"><em>Not sure which fits?</em> See all products <span class="arrow">→</span></a>
+            <a class="mega__flink" href="#free-alerts">Get free news alerts <span class="arrow">→</span></a>
+          </div>
+        </div>
+        <aside class="mega__feature">
+          <video src="@video:feature" autoplay muted loop playsinline aria-hidden="true"></video>
+          <p>See what we&rsquo;d find about your alumni — real news about real people from your constituency.</p>
+        </aside>
+      </div>
+
+      <div class="mega" data-group="company">
+        <div class="mega__main">
+          <p class="mega__label">Company</p>
+          <div class="mega__grid">
+            <a class="mega__item" href="#about">
+              <span class="mega__title">About</span>
+              <span class="mega__desc">The alumni-data company, since 2011</span>
+            </a>
+            <a class="mega__item" href="#customers">
+              <span class="mega__title">Customers</span>
+              <span class="mega__desc">The teams we work with</span>
+            </a>
+            <a class="mega__item" href="#security">
+              <span class="mega__title">Security</span>
+              <span class="mega__desc">SOC 2 Type II · ISO 27001 · GDPR</span>
+            </a>
+            <a class="mega__item" href="#contact">
+              <span class="mega__title">Contact</span>
+              <span class="mega__desc">Talk to a human</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </header>
 
@@ -504,69 +543,83 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 3 — navigation + hero with persona video cards. Card videos are placeholder loops from the Satomo Framer template, to be replaced with AlmaConnect product footage. Sections 03–10 follow after review.</p>
+    <p>Iteration 4 — Wonderful-style navigation (transparent → scrolled → half-page panel), hero with persona video cards. Card and panel videos are placeholder loops from the Satomo Framer template. Sections 03–10 follow after review.</p>
   </div>
 </footer>
 
 <script>
 (function () {
-  var items = document.querySelectorAll('.nav__item[data-dd]');
+  var nav = document.getElementById('siteNav');
+  var parents = nav.querySelectorAll('.nav__link[data-menu]');
+  var plains = nav.querySelectorAll('[data-plain]');
+  var megas = nav.querySelectorAll('.mega');
   var CLOSE_DELAY = 180; // hover intent — load-bearing, prevents flicker
+  var timer;
 
-  items.forEach(function (item) {
-    var btn = item.querySelector('.nav__link');
-    var timer;
-
-    function open() {
-      clearTimeout(timer);
-      items.forEach(function (other) {
-        if (other !== item) close(other);
-      });
-      item.classList.add('is-open');
-      btn.setAttribute('aria-expanded', 'true');
-    }
-    function close(target) {
-      var el = target || item;
-      el.classList.remove('is-open');
-      el.querySelector('.nav__link').setAttribute('aria-expanded', 'false');
-    }
-
-    item.addEventListener('mouseenter', open);
-    item.addEventListener('mouseleave', function () {
-      timer = setTimeout(function () { close(); }, CLOSE_DELAY);
+  function setActive(menu) {
+    megas.forEach(function (m) {
+      m.classList.toggle('is-active', m.dataset.group === menu);
     });
+    parents.forEach(function (b) {
+      b.setAttribute('aria-expanded', b.dataset.menu === menu ? 'true' : 'false');
+    });
+  }
 
+  function open(menu) {
+    clearTimeout(timer);
+    nav.classList.add('is-open');
+    setActive(menu);
+  }
+
+  function close() {
+    nav.classList.remove('is-open');
+    parents.forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+  }
+
+  parents.forEach(function (btn) {
+    btn.addEventListener('mouseenter', function () { open(btn.dataset.menu); });
+    btn.addEventListener('focus', function () { open(btn.dataset.menu); });
     btn.addEventListener('click', function () {
-      item.classList.contains('is-open') ? close() : open();
+      btn.getAttribute('aria-expanded') === 'true' ? close() : open(btn.dataset.menu);
     });
+  });
 
-    item.addEventListener('focusin', open);
-    item.addEventListener('focusout', function (e) {
-      if (!item.contains(e.relatedTarget)) close();
+  // hovering a non-parent nav control closes the panel
+  plains.forEach(function (el) {
+    el.addEventListener('mouseenter', function () {
+      clearTimeout(timer);
+      timer = setTimeout(close, 120);
     });
+  });
+
+  nav.addEventListener('mouseleave', function () {
+    clearTimeout(timer);
+    timer = setTimeout(close, CLOSE_DELAY);
+  });
+  nav.addEventListener('mouseenter', function () { clearTimeout(timer); });
+
+  nav.addEventListener('focusout', function (e) {
+    if (!nav.contains(e.relatedTarget)) close();
   });
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      items.forEach(function (item) {
-        item.classList.remove('is-open');
-        item.querySelector('.nav__link').setAttribute('aria-expanded', 'false');
-      });
-    }
+    if (e.key === 'Escape') close();
   });
 
   document.addEventListener('click', function (e) {
-    items.forEach(function (item) {
-      if (!item.contains(e.target)) {
-        item.classList.remove('is-open');
-        item.querySelector('.nav__link').setAttribute('aria-expanded', 'false');
-      }
-    });
+    if (!nav.contains(e.target)) close();
   });
 
-  // respect reduced motion: freeze the placeholder card videos
+  // transparent → solid on scroll
+  function onScroll() {
+    nav.classList.toggle('is-scrolled', window.scrollY > 8);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // respect reduced motion: freeze the placeholder videos
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    document.querySelectorAll('.pcard__video').forEach(function (v) {
+    document.querySelectorAll('video').forEach(function (v) {
       v.removeAttribute('autoplay');
       v.pause();
     });
