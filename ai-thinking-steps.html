@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claims Review Assistant — AI Thinking Steps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+/* ════════════════════════════════════════════════════════════════
+   Tokens — pulled from the Figma file (Cogentiq · Builder)
+   ════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-page-1:#121212;
+  --bg-page-2:#212121;
+  --bg-page-3:#1b1b1b;
+  --bg-card-1:#323232;
+  --bg-card-5:#1b1b1b;
+  --bg-tonal-2:#424242;
+
+  --stroke-card:#424242;
+  --stroke-line-1:#424242;
+  --stroke-line-2:#545454;
+  --stroke-line-3:#323232;
+  --stroke-icon:#9e9e9e;
+
+  --text-primary:#ffffff;
+  --text-secondary:#bdbdbd;
+  --text-tertiary:#8c8c8c;
+  --text-blue:#44aaf3;
+  --text-orange:#dd7c0e;
+  --text-purple:#bb7fff;
+
+  --blue-500:#0d99ff;
+  --purple-500:#9747ff;
+  --cyan-500:#00a2c2;
+  --tonal-blue:#093077;
+
+  --stack:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+
+  --r-sm:6px; --r-md:8px; --r-lg:12px; --r-xl:16px;
+
+  --ease:cubic-bezier(.16,1,.3,1);
+  --ease-soft:cubic-bezier(.32,.72,0,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg-page-1);
+  color:var(--text-primary);
+  font-family:var(--stack);
+  font-size:14px;
+  letter-spacing:-.02em;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+
+/* ── App shell ─────────────────────────────────────────────── */
+.app{display:flex;height:100vh;padding:8px 8px 8px 0;gap:0}
+.rail{
+  width:68px;flex:0 0 68px;display:flex;flex-direction:column;align-items:center;
+  gap:8px;padding:14px 0;
+}
+.rail .logo{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  background:linear-gradient(150deg,#1d3b57,#12212e);border:1px solid #2c4a63;margin-bottom:10px}
+.rail button{
+  width:36px;height:36px;border-radius:10px;border:1px solid transparent;background:transparent;
+  color:var(--stroke-icon);display:grid;place-items:center;cursor:pointer;
+  transition:background .2s var(--ease),color .2s var(--ease),border-color .2s var(--ease);
+}
+.rail button:hover{background:#1e1e1e;color:#e6e6e6}
+.rail button.active{background:var(--bg-card-1);border-color:var(--stroke-card);color:#fff}
+
+.panel{
+  flex:1;min-width:0;background:var(--bg-page-2);border:1px solid #2a2a2a;
+  border-radius:var(--r-lg);display:flex;flex-direction:column;overflow:hidden;position:relative;
+}
+
+/* ── Top bar ───────────────────────────────────────────────── */
+.topbar{height:48px;flex:0 0 48px;display:flex;align-items:center;padding:0 12px;gap:8px}
+.back{display:flex;align-items:center;gap:4px;background:transparent;border:0;color:var(--text-secondary);
+  font:500 14px/24px var(--stack);letter-spacing:-.02em;cursor:pointer;padding:0 4px;border-radius:6px;
+  transition:color .18s var(--ease)}
+.back:hover{color:#fff}
+.crumb{font:500 16px/24px var(--stack);letter-spacing:-.02em;margin-left:8px}
+.assets{margin-left:auto;display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;
+  border-radius:var(--r-md);background:var(--bg-card-1);border:1px solid var(--stroke-card);
+  color:var(--text-secondary);font:500 12px/16px var(--stack);cursor:pointer;
+  transition:background .2s var(--ease),color .2s var(--ease)}
+.assets:hover{background:#3b3b3b;color:#fff}
+
+/* ── Scroll region ─────────────────────────────────────────── */
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#3a3a3a transparent}
+.scroll::-webkit-scrollbar{width:8px}
+.scroll::-webkit-scrollbar-thumb{background:#333;border-radius:8px;border:2px solid var(--bg-page-2)}
+.thread{width:780px;max-width:calc(100% - 48px);margin:0 auto;padding:12px 0 220px}
+
+/* ── User bubble ───────────────────────────────────────────── */
+.userrow{display:flex;justify-content:flex-end;padding:12px 0 28px}
+.bubble{
+  max-width:548px;background:var(--tonal-blue);border-radius:var(--r-lg);
+  padding:12px 16px;font:400 16px/24px var(--stack);letter-spacing:-.02em;color:#fff;
+}
+
+/* ── Generic entrance ──────────────────────────────────────── */
+@keyframes riseIn{
+  from{opacity:0;transform:translateY(9px);filter:blur(6px)}
+  60% {filter:blur(0)}
+  to  {opacity:1;transform:none;filter:blur(0)}
+}
+.enter{animation:riseIn .52s var(--ease) both}
+
+@keyframes wordIn{
+  from{opacity:0;transform:translateY(4px);filter:blur(4px)}
+  to  {opacity:1;transform:none;filter:blur(0)}
+}
+.w{display:inline-block;animation:wordIn .42s var(--ease) both;white-space:pre}
+
+/* ── Shimmer (the "thinking" text sweep) ───────────────────── */
+@keyframes shim{from{background-position:180% 0}to{background-position:-80% 0}}
+.shimmer{
+  background-image:linear-gradient(100deg,#7a7a7a 26%,#ffffff 46%,#7a7a7a 66%);
+  background-size:240% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:shim 2.1s linear infinite;
+}
+.shimmer.blue{background-image:linear-gradient(100deg,#2f6f9d 26%,#8ed3ff 46%,#2f6f9d 66%)}
+/* settled: the sweep stops and the label falls back to its own colour */
+.shimmer.done{
+  animation:none;background-image:none;
+  -webkit-background-clip:border-box;background-clip:border-box;
+  -webkit-text-fill-color:currentColor;
+  transition:color .4s var(--ease);
+}
+
+/* ── Thinking header row ───────────────────────────────────── */
+.thinking{display:grid;grid-template-columns:24px 1fr;column-gap:12px;align-items:center;margin-bottom:20px}
+.thinking .badge{width:24px;height:24px;border-radius:7px;background:#2fa84f;display:grid;place-items:center;
+  box-shadow:0 0 0 0 rgba(47,168,79,.55)}
+.thinking .badge.live{animation:pulseRing 2s var(--ease-soft) infinite}
+@keyframes pulseRing{
+  0%{box-shadow:0 0 0 0 rgba(47,168,79,.45)}
+  70%{box-shadow:0 0 0 9px rgba(47,168,79,0)}
+  100%{box-shadow:0 0 0 0 rgba(47,168,79,0)}
+}
+.thinking .label{font:500 16px/24px var(--stack);letter-spacing:-.02em;color:var(--text-blue)}
+
+/* ── Step group ────────────────────────────────────────────── */
+.group{display:grid;grid-template-columns:24px 1fr;column-gap:12px;margin-bottom:28px}
+.gicon{width:24px;height:24px;display:grid;place-items:center;color:var(--stroke-icon);
+  transition:color .4s var(--ease)}
+.group.active .gicon{color:#e8e8e8}
+.gmain{min-width:0}
+.ghead{
+  display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;cursor:pointer;
+  font:500 16px/24px var(--stack);letter-spacing:-.02em;color:#fff;
+}
+.ghead .chev{width:16px;height:16px;color:var(--stroke-icon);display:grid;place-items:center;
+  transition:transform .38s var(--ease),color .2s var(--ease)}
+.ghead:hover .chev{color:#e0e0e0}
+.collapsed > .ghead .chev, .collapsed > .shead .chev{transform:rotate(-180deg)}
+
+/* smooth collapse */
+.coll{display:grid;grid-template-rows:1fr;transition:grid-template-rows .46s var(--ease),opacity .3s var(--ease)}
+.collapsed > .coll{grid-template-rows:0fr;opacity:0}
+.coll > .inner{overflow:hidden;min-height:0}
+.gbody{padding-top:12px}
+
+/* ── Section (Definitions I used / …) ──────────────────────── */
+.section + .section{margin-top:24px}
+.shead{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;cursor:pointer;
+  font:500 14px/20px var(--stack);letter-spacing:-.02em;color:#fff;text-align:left}
+.shead .sicon{width:18px;height:18px;display:grid;place-items:center;color:var(--stroke-icon);flex:0 0 18px}
+.shead .chev{width:16px;height:16px;color:var(--stroke-icon);display:grid;place-items:center;
+  transition:transform .38s var(--ease)}
+.slist{padding-left:24px;padding-top:8px;display:flex;flex-direction:column;gap:4px}
+
+/* ── Card rows ─────────────────────────────────────────────── */
+.row{
+  background:var(--bg-card-5);border:1px solid #272727;border-radius:var(--r-md);
+  padding:8px 12px;display:flex;align-items:flex-start;gap:12px;
+  transition:background .25s var(--ease),border-color .25s var(--ease);
+}
+.row:hover{background:#202020;border-color:#333}
+.row .body{min-width:0;flex:1}
+.row .rtop{display:flex;align-items:center;gap:6px}
+.row .ricon{width:16px;height:16px;display:grid;place-items:center;color:var(--stroke-icon);flex:0 0 16px}
+.row .rtitle{font:500 12px/16px var(--stack);letter-spacing:-.01em;color:#fff}
+.row .rchev{width:12px;height:12px;color:#6f6f6f;display:grid;place-items:center;margin-left:2px;
+  transition:transform .35s var(--ease)}
+.row.open .rchev{transform:rotate(90deg)}
+.row .rdesc{font:400 12px/16px var(--stack);letter-spacing:-.01em;color:var(--text-tertiary);margin-top:4px}
+.pill{
+  flex:0 0 auto;align-self:center;font:500 10px/14px var(--stack);letter-spacing:-.01em;
+  padding:3px 8px;border-radius:var(--r-sm);color:var(--text-tertiary);background:#232323;border:1px solid #2c2c2c;
+}
+.pill.orange{color:var(--text-orange);background:rgba(221,124,14,.10);border-color:rgba(221,124,14,.22)}
+@keyframes pillIn{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
+.pill.enter{animation:pillIn .4s var(--ease) both}
+
+/* ── Step line (Composing answer …) ────────────────────────── */
+.step{display:flex;align-items:center;gap:12px;min-height:24px;padding:2px 0;color:var(--text-secondary);
+  font:400 14px/20px var(--stack);letter-spacing:-.02em;transition:color .4s var(--ease)}
+.step .sic{width:16px;height:16px;flex:0 0 16px;display:grid;place-items:center;color:var(--stroke-icon);
+  transition:color .4s var(--ease),opacity .4s var(--ease)}
+.step.running{color:#fff}
+.step.running .sic{color:#dcdcdc}
+.step.done{color:var(--text-secondary)}
+.gbody > .step{margin-top:10px}
+.gbody > .step:first-child{margin-top:0}
+
+/* spinner that swaps in while a step runs */
+.spin{width:14px;height:14px;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.swap{position:relative;width:16px;height:16px}
+.swap > *{position:absolute;inset:0;display:grid;place-items:center;
+  transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.swap .off{opacity:0;transform:scale(.7)}
+
+/* ── Skill chips ───────────────────────────────────────────── */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-sm);
+  background:var(--bg-card-1);border:1px solid #3b3b3b;color:#e4e4e4;font:500 12px/16px var(--stack);
+  letter-spacing:-.01em}
+.chip svg{color:var(--stroke-icon)}
+@keyframes chipIn{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
+.chip.enter{animation:chipIn .44s var(--ease) both}
+
+/* ── Context summary ───────────────────────────────────────── */
+.divider{height:1px;background:var(--stroke-line-3);margin:16px 0}
+.summary .shead{margin-bottom:10px}
+.summary .stext{font:400 14px/22px var(--stack);letter-spacing:-.02em;color:var(--text-secondary)}
+.summary .meta{display:flex;align-items:center;gap:10px;margin-top:10px;color:var(--text-tertiary);
+  font:400 12px/16px var(--stack)}
+.summary .meta .dot{width:3px;height:3px;border-radius:50%;background:#5a5a5a}
+
+/* ── Final answer ──────────────────────────────────────────── */
+.final{font:500 16px/24px var(--stack);letter-spacing:-.02em;color:#fff;margin:4px 0 14px;padding-left:36px}
+.finished{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:var(--r-md);
+  background:var(--bg-card-1);border:1px solid var(--stroke-card);color:var(--text-secondary);
+  font:400 12px/16px var(--stack)}
+.footnote{margin-top:14px;color:var(--text-tertiary);font:400 12px/16px var(--stack)}
+.footnote a{color:var(--text-secondary)}
+
+/* ── Graph card ────────────────────────────────────────────── */
+.gcard{background:var(--bg-card-5);border:1px solid #272727;border-radius:var(--r-md);padding:10px 12px 12px}
+.gcard .rtop{display:flex;align-items:center;gap:6px}
+.gcard .rdesc{font:400 12px/16px var(--stack);color:var(--text-tertiary);margin-top:4px}
+.canvas{
+  position:relative;height:148px;margin-top:10px;border-radius:var(--r-sm);
+  background-color:#161616;
+  background-image:radial-gradient(circle, #303030 1px, transparent 1.2px);
+  background-size:13px 13px;overflow:hidden;
+}
+.canvas .expand{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:var(--r-sm);
+  background:var(--bg-card-1);border:1px solid #3a3a3a;color:var(--stroke-icon);display:grid;place-items:center;
+  cursor:pointer}
+.canvas svg.edges{position:absolute;inset:0;width:100%;height:100%}
+.canvas .node{
+  position:absolute;transform:translate(-50%,-50%) scale(.9);opacity:0;
+  display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;
+  background:#242424;border:1px solid #3a3a3a;color:#fff;font:500 11px/14px var(--stack);white-space:nowrap;
+}
+.canvas .node.on{animation:nodeIn .5s var(--ease) forwards}
+@keyframes nodeIn{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.canvas .node.primary{border-color:var(--blue-500);background:#1a2836;box-shadow:0 0 0 3px rgba(13,153,255,.12)}
+.canvas .node .swatch{width:7px;height:7px;border-radius:2px}
+.canvas .elabel{
+  position:absolute;transform:translate(-50%,-50%);opacity:0;
+  padding:2px 7px;border-radius:5px;background:#242424;border:1px solid #383838;
+  color:var(--text-secondary);font:400 10px/14px var(--stack);white-space:nowrap;
+}
+.canvas .elabel.on{animation:fadeIn .45s var(--ease) forwards}
+@keyframes fadeIn{to{opacity:1}}
+.edges path{stroke:#4a4a4a;stroke-width:1.25;fill:none;stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.edges path.draw{animation:draw .75s var(--ease-soft) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* ── Composer ──────────────────────────────────────────────── */
+.composer{
+  position:absolute;left:50%;transform:translateX(-50%);bottom:44px;width:780px;max-width:calc(100% - 48px);
+  background:var(--bg-page-3);border:1px solid var(--stroke-card);border-radius:var(--r-xl);
+  padding:14px 16px 10px;backdrop-filter:blur(12px);
+  box-shadow:0 -18px 40px -10px rgba(18,18,18,.95),0 10px 40px rgba(0,0,0,.4);
+}
+.composer .ph{color:#6d6d6d;font:400 16px/24px var(--stack);letter-spacing:-.02em;display:flex;align-items:center}
+.composer .caret{width:1px;height:18px;background:#8a8a8a;margin-right:1px;animation:blink 1.15s steps(1) infinite}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.composer .tools{display:flex;align-items:center;gap:8px;margin-top:14px}
+.composer .tools .sp{margin-left:auto}
+.iconbtn{width:32px;height:32px;border-radius:50%;border:1px solid transparent;background:transparent;
+  color:var(--stroke-icon);display:grid;place-items:center;cursor:pointer;transition:background .2s,color .2s}
+.iconbtn:hover{background:#282828;color:#eee}
+.canvasbtn{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:999px;
+  background:var(--bg-card-1);border:1px solid #3b3b3b;color:var(--text-secondary);font:500 12px/16px var(--stack);cursor:pointer}
+.sendbtn{width:34px;height:34px;border-radius:50%;border:0;background:var(--blue-500);color:#fff;
+  display:grid;place-items:center;cursor:pointer;transition:transform .3s var(--ease),background .3s var(--ease)}
+.sendbtn:active{transform:scale(.94)}
+.statusbar{position:absolute;left:0;right:0;bottom:12px;display:flex;align-items:center;justify-content:center;gap:20px}
+
+/* ── Demo controls ─────────────────────────────────────────── */
+.ctrls{position:fixed;left:18px;bottom:16px;display:flex;gap:8px;z-index:20}
+.ctrls button{height:30px;padding:0 12px;border-radius:999px;background:rgba(40,40,40,.82);
+  border:1px solid #3d3d3d;color:#d9d9d9;font:500 12px/16px var(--stack);cursor:pointer;
+  backdrop-filter:blur(8px);transition:background .2s,color .2s,border-color .2s}
+.ctrls button:hover{background:#3a3a3a;color:#fff}
+.ctrls button.on{border-color:var(--blue-500);color:#8ed3ff}
+
+@media (prefers-reduced-motion: reduce){
+  .enter,.w,.chip.enter,.pill.enter,.node.on,.elabel.on,.edges path.draw{animation-duration:.01ms !important}
+  .shimmer{animation:none;background-image:none;-webkit-text-fill-color:currentColor}
+  .thinking .badge.live{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="ctrls">
+  <button id="speed">1×</button>
+  <button id="replay">Replay</button>
+</div>
+
+<div class="app">
+  <nav class="rail">
+    <div class="logo">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#5aa9e6" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3 21 20H3z"/><path d="M12 10.5 16 20H8z"/></svg>
+    </div>
+    <button class="active" title="Chats">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"/><path d="M12 8v5M9.5 10.5h5"/></svg>
+    </button>
+    <button title="Search">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+    </button>
+  </nav>
+
+  <main class="panel">
+    <header class="topbar">
+      <button class="back">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back
+      </button>
+      <span class="crumb">Claims Review Assistant</span>
+      <button class="assets">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 15 5-4 4 3 3-2 6 5"/><circle cx="9" cy="9" r="1.2"/></svg>
+        Assets
+      </button>
+    </header>
+
+    <div class="scroll" id="scroll">
+      <div class="thread" id="thread"></div>
+    </div>
+
+    <div class="composer">
+      <div class="ph"><span class="caret"></span>Ask anything..</div>
+      <div class="tools">
+        <button class="iconbtn" title="Attach">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button class="canvasbtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 15 5-4 4 3 3-2 6 5"/></svg>
+          Canvas
+        </button>
+        <span class="sp"></span>
+        <button class="iconbtn" title="Voice">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        </button>
+        <button class="sendbtn" id="sendbtn">
+          <span id="sendglyph"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <span id="finishedslot"></span>
+      <span class="footnote" style="margin:0">Facing issues with the assistant? <a href="#">Give feedback</a></span>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   Icons
+   ════════════════════════════════════════════════════════════════ */
+const S = (d, w=16, extra='') =>
+  `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+
+const I = {
+  docSearch: w => S('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6"/><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M19 8v3"/><circle cx="17" cy="16" r="3"/><path d="m21.5 20.5-2-2"/>', w),
+  book:      w => S('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H19v3H6.5A2.5 2.5 0 0 1 4 20.5z"/>', w),
+  relate:    w => S('<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="19" r="2.4"/><path d="M7.6 7.9c1.4 1.5 2.6 2.9 3 5.1M16.4 7.9c-1.4 1.5-2.6 2.9-3 5.1"/>', w),
+  source:    w => S('<path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="m3 12 9 4.5L21 12"/><path d="m3 16.5 9 4.5 9-4.5"/>', w),
+  pencil:    w => S('<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 6.5 3 3"/>', w),
+  fileText:  w => S('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M9 13h6M9 17h4"/>', w),
+  filePlus:  w => S('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M12 12v5M9.5 14.5h5"/>', w),
+  search:    w => S('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/>', w),
+  globe:     w => S('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 3 2.6 15 0 18M12 3c-2.6 3-2.6 15 0 18"/>', w),
+  clock:     w => S('<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.8"/>', w),
+  chevD:     w => S('<path d="m6 9 6 6 6-6"/>', w),
+  chevR:     w => S('<path d="m9 6 6 6-6 6"/>', w),
+  expand:    w => S('<path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5"/>', w),
+  spark:     w => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 3.2 14.2 9l5.8 2.2L14.2 13.4 12 19.2 9.8 13.4 4 11.2 9.8 9z"/></svg>`,
+  columns:   w => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="#0f3d1d" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="6" height="16" rx="1.4" fill="#0f3d1d" stroke="none"/><rect x="14" y="4" width="6" height="16" rx="1.4"/></svg>`,
+  spinner:   w => `<svg class="spin" width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5" stroke="currentColor" opacity=".22"/><path d="M20.5 12a8.5 8.5 0 0 0-8.5-8.5"/></svg>`,
+};
+
+/* ════════════════════════════════════════════════════════════════
+   DOM + timing helpers
+   ════════════════════════════════════════════════════════════════ */
+const $  = s => document.querySelector(s);
+const el = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const T = { scale: REDUCED ? 0.08 : 1 };
+let RUN = 0;
+const ABORT = Symbol('abort');
+
+const thread = $('#thread');
+const scroll = $('#scroll');
+
+/* ── Buttery auto-follow scrolling ─────────────────────────── */
+let follow = true;
+scroll.addEventListener('wheel',    () => { follow = false; }, { passive: true });
+scroll.addEventListener('touchmove',() => { follow = false; }, { passive: true });
+scroll.addEventListener('scroll', () => {
+  if (scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 40) follow = true;
+}, { passive: true });
+(function followLoop(){
+  if (follow) {
+    const target = scroll.scrollHeight - scroll.clientHeight;
+    const d = target - scroll.scrollTop;
+    if (Math.abs(d) > 0.5) scroll.scrollTop += d * 0.11;
+  }
+  requestAnimationFrame(followLoop);
+})();
+
+/* ════════════════════════════════════════════════════════════════
+   Builders
+   ════════════════════════════════════════════════════════════════ */
+function collapsible(node){
+  const head = node.querySelector(':scope > .ghead, :scope > .shead');
+  if (head) head.addEventListener('click', () => node.classList.toggle('collapsed'));
+}
+
+function addGroup({ icon, title }){
+  const g = el(`<section class="group enter active">
+    <div class="gicon">${icon(16)}</div>
+    <div class="gmain">
+      <button class="ghead"><span class="gtitle shimmer">${title}</span><span class="chev">${I.chevD(16)}</span></button>
+      <div class="coll"><div class="inner"><div class="gbody"></div></div></div>
+    </div>
+  </section>`);
+  thread.appendChild(g);
+  // the collapse toggle lives on .gmain so the chevron rotation targets the right node
+  const gmain = g.querySelector('.gmain');
+  gmain.querySelector('.ghead').addEventListener('click', () => gmain.classList.toggle('collapsed'));
+  return {
+    node: g,
+    body: g.querySelector('.gbody'),
+    settle(){ g.querySelector('.gtitle').classList.add('done'); g.classList.remove('active'); }
+  };
+}
+
+function addSection(parent, { icon, label, wrap = 'slist' }){
+  const s = el(`<div class="section enter">
+    <button class="shead"><span class="sicon">${icon(18)}</span><span class="slabel shimmer">${label}</span><span class="chev">${I.chevD(16)}</span></button>
+    <div class="coll"><div class="inner"><div class="${wrap}"></div></div></div>
+  </div>`);
+  parent.appendChild(s);
+  s.querySelector('.shead').addEventListener('click', () => s.classList.toggle('collapsed'));
+  return {
+    node: s,
+    list: s.querySelector('.' + wrap),
+    settle(){ s.querySelector('.slabel').classList.add('done'); }
+  };
+}
+
+function addRow(list, { icon = I.book, title, desc, chev, pill, pillTone }){
+  const r = el(`<div class="row enter">
+    <div class="body">
+      <div class="rtop">
+        <span class="ricon">${icon(16)}</span>
+        <span class="rtitle">${title}</span>
+        ${chev ? `<span class="rchev">${chev === 'down' ? I.chevD(12) : I.chevR(12)}</span>` : ''}
+      </div>
+      ${desc ? `<div class="rdesc"></div>` : ''}
+    </div>
+  </div>`);
+  list.appendChild(r);
+  if (pill){
+    const p = el(`<span class="pill ${pillTone || ''}">${pill}</span>`);
+    r.appendChild(p);
+    p.style.opacity = '0';
+    setTimeout(() => { p.style.opacity = ''; p.classList.add('enter'); }, 380 * T.scale);
+  }
+  return r;
+}
+
+function addStep(parent, { icon, text, indent = false }){
+  const s = el(`<div class="step enter running">
+    <span class="sic swap"><span class="on">${I.spinner(14)}</span><span class="off">${icon(16)}</span></span>
+    <span class="stext shimmer">${text}</span>
+  </div>`);
+  if (indent) s.style.paddingLeft = '0';
+  parent.appendChild(s);
+  return {
+    node: s,
+    done(){
+      s.classList.remove('running'); s.classList.add('done');
+      s.querySelector('.stext').classList.add('done');
+      const sw = s.querySelector('.swap');
+      sw.children[0].classList.add('off');
+      sw.children[1].classList.remove('off');
+    }
+  };
+}
+
+/* ── Word-by-word text reveal (the Claude streaming feel) ──── */
+function streamInto(node, text, { step = 26 } = {}){
+  const parts = text.split(/(\s+)/);
+  node.textContent = '';
+  let i = 0;
+  for (const p of parts){
+    if (!p.trim()){ node.appendChild(document.createTextNode(p)); continue; }
+    const w = document.createElement('span');
+    w.className = 'w';
+    w.textContent = p;
+    w.style.animationDelay = (i * step * T.scale) + 'ms';
+    node.appendChild(w);
+    i++;
+  }
+  return i * step + 320;
+}
+
+/* ── Relationship graph card ───────────────────────────────── */
+function addGraphCard(list){
+  const c = el(`<div class="gcard enter">
+    <div class="rtop">
+      <span class="ricon">${I.relate(16)}</span>
+      <span class="rtitle">Customer Churn Rate</span>
+      <span class="rchev">${I.chevD(12)}</span>
+    </div>
+    <div class="rdesc">Percentage of customers who cancel within a period</div>
+    <div class="canvas">
+      <button class="expand">${I.expand(13)}</button>
+      <svg class="edges" viewBox="0 0 636 148" preserveAspectRatio="none">
+        <path id="e1" d="M280 52 C 246 66, 206 82, 152 92"/>
+        <path id="e2" d="M356 52 C 390 66, 430 82, 484 92"/>
+      </svg>
+      <div class="node primary" style="left:318px;top:46px">Customer</div>
+      <div class="elabel" style="left:218px;top:74px">has many</div>
+      <div class="elabel" style="left:418px;top:74px">belongs to</div>
+      <div class="node" style="left:104px;top:98px"><i class="swatch" style="background:var(--purple-500)"></i>Subcriptions</div>
+      <div class="node" style="left:532px;top:98px"><i class="swatch" style="background:var(--cyan-500)"></i>account</div>
+    </div>
+  </div>`);
+  list.appendChild(c);
+
+  // scale the absolute node positions from the 636-wide design grid to the real box
+  const cv = c.querySelector('.canvas');
+  const place = () => {
+    const k = cv.clientWidth / 636;
+    cv.querySelectorAll('.node,.elabel').forEach(n => {
+      if (!n.dataset.x){ n.dataset.x = parseFloat(n.style.left); n.dataset.y = parseFloat(n.style.top); }
+      n.style.left = (n.dataset.x * k) + 'px';
+      n.style.top  = n.dataset.y + 'px';
+    });
+  };
+  place();
+  new ResizeObserver(place).observe(cv);
+
+  return {
+    async play(wait){
+      const nodes  = [...cv.querySelectorAll('.node')];
+      const labels = [...cv.querySelectorAll('.elabel')];
+      const paths  = [...cv.querySelectorAll('.edges path')];
+      paths.forEach(p => p.style.setProperty('--len', p.getTotalLength()));
+
+      nodes[0].classList.add('on');              // Customer first — the anchor concept
+      await wait(220);
+      paths[0].classList.add('draw');
+      await wait(140);
+      nodes[1].classList.add('on');              // Subcriptions
+      labels[0].classList.add('on');
+      await wait(240);
+      paths[1].classList.add('draw');
+      await wait(140);
+      nodes[2].classList.add('on');              // account
+      labels[1].classList.add('on');
+      await wait(260);
+    }
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════
+   The timeline — this is the "script" the assistant performs
+   ════════════════════════════════════════════════════════════════ */
+async function play(){
+  const my = ++RUN;
+  thread.innerHTML = '';
+  $('#finishedslot').innerHTML = '';
+  follow = true;
+  scroll.scrollTop = 0;
+
+  const wait = ms => new Promise((res, rej) => setTimeout(() => (my === RUN ? res() : rej(ABORT)), ms * T.scale));
+
+
+  /* 1 ── the question ------------------------------------------------ */
+  const userRow = el(`<div class="userrow"><div class="bubble enter">Can you review this insurance claim and tell me if there are any issues or risks of rejection?</div></div>`);
+  thread.appendChild(userRow);
+  await wait(620);
+
+  /* 2 ── "Thinking" -------------------------------------------------- */
+  const thinking = el(`<div class="thinking enter">
+    <span class="badge live">${I.columns(15)}</span>
+    <span class="label shimmer blue">Thinking</span>
+  </div>`);
+  thread.appendChild(thinking);
+  await wait(900);
+
+  /* 3 ── Group: Reading context -------------------------------------- */
+  const g1 = addGroup({ icon: I.docSearch, title: 'Reading context' });
+  await wait(520);
+
+  /* 3a · Definitions I used */
+  const defs = addSection(g1.body, { icon: I.book, label: 'Definitions I used' });
+  await wait(420);
+  addRow(defs.list, { icon: I.book, title: 'Annual Recurring Revenue', chev: 'down',
+                      desc: 'Revenue retained from existing customers including expansion' });
+  const d1 = defs.list.lastElementChild.querySelector('.rdesc');
+  await wait(180);
+  streamInto(d1, 'Revenue retained from existing customers including expansion', { step: 20 });
+  await wait(560);
+  addRow(defs.list, { icon: I.book, title: 'Customer Churn Rate', chev: 'right' });
+  await wait(420);
+  addRow(defs.list, { icon: I.book, title: 'Net Revenue Retention', chev: 'right',
+                      pill: 'Low relavance', pillTone: 'orange' });
+  await wait(680);
+  defs.settle();
+  await wait(240);
+
+  /* 3b · How some terms are related */
+  const rel = addSection(g1.body, { icon: I.relate, label: 'How some terms are related' });
+  await wait(400);
+  const graph = addGraphCard(rel.list);
+  await wait(300);
+  await graph.play(wait);
+  rel.settle();
+  await wait(260);
+
+  /* 3c · Where the data came from */
+  const src = addSection(g1.body, { icon: I.source, label: 'Where the data came from' });
+  await wait(420);
+  addRow(src.list, { icon: I.source, title: 'Revenue figures',
+                     desc: 'Live revenue data from company warehouse', pill: 'Snowflake' });
+  streamInto(src.list.lastElementChild.querySelector('.rdesc'), 'Live revenue data from company warehouse', { step: 20 });
+  await wait(560);
+  addRow(src.list, { icon: I.source, title: 'Customer accounts', pill: 'Snowflake' });
+  await wait(620);
+  src.settle();
+  await wait(240);
+
+  /* 3d · Applying rules and policies */
+  const rules = addSection(g1.body, { icon: I.source, label: 'Applying rules and policies' });
+  await wait(420);
+  addRow(rules.list, { icon: I.source, title: 'Revenue figures',
+                       desc: 'Live revenue data from company warehouse' });
+  streamInto(rules.list.lastElementChild.querySelector('.rdesc'), 'Live revenue data from company warehouse', { step: 20 });
+  await wait(540);
+  addRow(rules.list, { icon: I.source, title: 'Customer accounts' });
+  await wait(620);
+  rules.settle();
+  await wait(300);
+
+  /* 3e · Composing */
+  const compose = addStep(g1.body, { icon: I.pencil, text: 'Composing answer with 8 grounded items' });
+  compose.node.style.marginTop = '16px';
+  await wait(1250);
+  compose.done();
+  await wait(220);
+
+  /* 3f · Context summary — the "what I did, and why" recap */
+  const sum = el(`<div class="summary enter">
+    <div class="divider"></div>
+    <div class="shead" style="cursor:default">
+      <span class="sicon" style="color:var(--text-orange)">${I.spark(16)}</span>
+      <span>Context summary</span>
+    </div>
+    <div class="stext"></div>
+  </div>`);
+  g1.body.appendChild(sum);
+  await wait(280);
+  const dur = streamInto(sum.querySelector('.stext'),
+    "I used your company's definitions of ARR and churn rather than the industry-standard ones, pulled live revenue from Snowflake, and applied your disclosure and privacy rules to how the figures appear.");
+  await wait(dur);
+  const meta = el(`<div class="meta enter"><span>8 items used</span><i class="dot"></i><span>2 rules applied</span></div>`);
+  sum.appendChild(meta);
+  await wait(420);
+  g1.settle();
+  await wait(520);
+
+  /* 4 ── Group: Generate one-pager PPT ------------------------------- */
+  const g2 = addGroup({ icon: I.filePlus, title: 'Generate one-pager PPT' });
+  await wait(560);
+
+  const s1 = addStep(g2.body, { icon: I.search, text: 'Searching for relavant skills' });
+  await wait(1150);
+  s1.done();
+  const chips = el(`<div class="chips"></div>`);
+  g2.body.appendChild(chips);
+  for (const name of ['PPT skill', 'Writing skill']){
+    chips.appendChild(el(`<span class="chip enter">${I.fileText(13)}${name}</span>`));
+    await wait(200);
+  }
+  await wait(520);
+
+  const later = [
+    { icon: I.fileText, text: 'Create PPT one-pager slide',                            hold: 1500 },
+    { icon: I.fileText, text: 'Analysing required files for full context',             hold: 1350 },
+    { icon: I.globe,    text: 'Searching relevant web sources',                        hold: 1500 },
+    { icon: I.pencil,   text: 'Replace/ re-write the content in the one-pager to target the audience', hold: 1650 },
+  ];
+  for (const s of later){
+    const step = addStep(g2.body, { icon: s.icon, text: s.text });
+    await wait(s.hold);
+    step.done();
+    await wait(180);
+  }
+  g2.settle();
+  await wait(420);
+
+  /* 5 ── The answer -------------------------------------------------- */
+  const final = el(`<div class="final enter"></div>`);
+  thread.appendChild(final);
+  const fdur = streamInto(final, "I've created the required one-pager document", { step: 42 });
+  await wait(fdur);
+
+  /* 6 ── Settle: stop the thinking pulse, report elapsed time --------- */
+  thinking.querySelector('.badge').classList.remove('live');
+  thinking.querySelector('.label').classList.add('done');
+
+  // the design reports the model's own wall-clock, not the length of this replay
+  const pill = el(`<span class="finished enter">${I.clock(14)} Finished in 3.2 sec</span>`);
+  $('#finishedslot').appendChild(pill);
+
+  // composer flips from "stop generating" back to "send"
+  $('#sendglyph').innerHTML =
+    `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>`;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Controls
+   ════════════════════════════════════════════════════════════════ */
+const SPEEDS = [1, 1.75, 0.6];
+let sIdx = 0;
+$('#speed').addEventListener('click', () => {
+  sIdx = (sIdx + 1) % SPEEDS.length;
+  T.scale = 1 / SPEEDS[sIdx];
+  $('#speed').textContent = SPEEDS[sIdx] + '×';
+  $('#speed').classList.toggle('on', SPEEDS[sIdx] !== 1);
+});
+
+function start(){
+  $('#sendglyph').innerHTML =
+    `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg>`;
+  play().catch(e => { if (e !== ABORT) console.error(e); });
+}
+$('#replay').addEventListener('click', start);
+start();
+</script>
+</body>
+</html>
