@@ -1,0 +1,939 @@
+<title>Cogentiq Run</title>
+<meta name="description" content="The automation run screen live: cards light up with an orbiting stroke while the run log streams each step on the right." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ══════════════════════════════════════════════════════════════
+     DESIGN TOKENS — Cogentiq Builder (Run screen, node 2100:415249).
+     Single committed dark theme: this is the product's own chrome.
+     ══════════════════════════════════════════════════════════════ */
+  :root{
+    --text-primary:#ffffff;
+    --text-secondary:#bdbdbd;
+    --text-tertiary:#8c8c8c;
+    --text-blue:#44aaf3;
+    --text-green:#66bb6a;
+    --text-amber:#ffa000;
+    --text-red:#ef5350;
+    --text-purple:#bb7fff;
+
+    --bg-app:#121212;
+    --bg-canvas:#101010;
+    --bg-panel:#121212;
+    --bg-card:#1b1b1b;
+    --bg-card-2:#212121;
+    --bg-inset:#161616;
+    --bg-chip:#232323;
+
+    --line-1:#424242;
+    --line-2:#545454;
+    --line-3:#323232;
+    --canvas-dots:#262626;
+
+    --blue-500:#0d99ff;
+    --blue-soft:rgba(13,153,255,.14);
+    --green-500:#4caf50;
+    --green-soft:rgba(76,175,80,.14);
+    --purple-500:#9747ff;
+    --purple-soft:rgba(151,71,255,.16);
+    --amber-500:#ffa000;
+    --amber-soft:rgba(255,160,0,.14);
+    --red-500:#dc3412;
+
+    --sans:'Geist', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono:'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ease:cubic-bezier(.23,1,.32,1);
+  }
+
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg-app);
+    color:var(--text-primary);
+    font-family:var(--sans);
+    font-size:14px;letter-spacing:-.28px;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  button{font:inherit;letter-spacing:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  svg{display:block;flex:none}
+  :focus-visible{outline:2px solid var(--blue-500);outline-offset:2px;border-radius:6px}
+
+  .app{display:flex;flex-direction:column;height:100%}
+
+  /* ══════════════ top nav ══════════════ */
+  .nav{flex:none;height:52px;display:flex;align-items:center;gap:16px;
+    padding:0 16px;border-bottom:1px solid var(--line-3);position:relative;z-index:5;background:var(--bg-app)}
+  .nav-left{display:flex;align-items:center;gap:8px;min-width:0}
+  .nav-back{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;
+    border:1px solid var(--line-3);color:var(--text-secondary);transition:background .15s ease}
+  .nav-back:hover{background:var(--bg-card)}
+  .crumb{display:flex;align-items:center;gap:6px;font:500 13px/20px var(--sans);
+    letter-spacing:-.26px;color:var(--text-tertiary);white-space:nowrap}
+  .crumb .ico{color:var(--text-tertiary)}
+  .crumb .sep{color:var(--text-tertiary)}
+  .crumb .current{color:var(--text-primary)}
+  .crumb .edit{color:var(--text-tertiary);padding:2px;border-radius:4px}
+  .crumb .edit:hover{color:var(--text-secondary);background:var(--bg-card)}
+
+  .nav-center{position:absolute;left:50%;translate:-50% 0;display:flex;gap:2px;padding:4px;
+    border-radius:10px;background:var(--bg-card);border:1px solid var(--line-3)}
+  .seg{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:7px;
+    font:500 13px/20px var(--sans);letter-spacing:-.26px;color:var(--text-tertiary);
+    border:1px solid transparent;transition:background .15s ease,color .15s ease}
+  .seg:hover{color:var(--text-secondary)}
+  .seg.is-active{background:var(--bg-chip);border-color:var(--line-1);color:var(--text-primary);
+    box-shadow:0 1px 2px rgba(0,0,0,.3)}
+
+  .nav-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .btn{padding:6px 16px;border-radius:8px;font:500 13px/20px var(--sans);letter-spacing:-.26px}
+  .btn-primary{background:var(--blue-500);color:#fff;transition:filter .15s ease}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .btn-disabled{background:var(--bg-card);color:var(--text-tertiary);cursor:default}
+
+  /* ══════════════ shell: canvas + panel ══════════════ */
+  .main{flex:1;min-height:0;display:flex}
+
+  /* ── canvas ── */
+  .canvas{flex:1;min-width:0;position:relative;background:var(--bg-canvas);
+    background-image:radial-gradient(var(--canvas-dots) 1px, transparent 1px);
+    background-size:22px 22px;background-position:11px 11px;overflow:hidden}
+  .flow{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:0;padding-bottom:24px}
+
+  .term{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;
+    background:var(--bg-card);border:1px solid var(--line-1);
+    font:500 13px/16px var(--sans);letter-spacing:-.26px;color:var(--text-secondary);
+    transition:border-color .5s ease,color .5s ease,box-shadow .6s ease}
+  .term .ico{color:var(--text-tertiary);transition:color .5s ease}
+  .term.lit{border-color:rgba(76,175,80,.55);color:var(--text-green);
+    box-shadow:0 0 0 1px rgba(76,175,80,.1),0 0 18px rgba(76,175,80,.12)}
+  .term.lit .ico{color:var(--text-green)}
+  .term#end .ico{color:#e05744}
+  .term#end.lit{border-color:rgba(76,175,80,.55);color:var(--text-green)}
+  .term#end.stopped{border-color:rgba(220,52,18,.55);color:var(--text-red);
+    box-shadow:0 0 0 1px rgba(220,52,18,.1),0 0 18px rgba(220,52,18,.12)}
+
+  /* connector: a 46px vertical run with arrowhead + traveling pulse */
+  .conn{position:relative;width:2px;height:46px;flex:none}
+  .conn .track{position:absolute;inset:0 0 6px;width:2px;border-radius:2px;background:var(--line-3);
+    transition:background .5s ease}
+  .conn .head{position:absolute;left:50%;bottom:0;translate:-50% 0;
+    border-left:5px solid transparent;border-right:5px solid transparent;
+    border-top:6px solid var(--line-3);transition:border-top-color .5s ease}
+  .conn .flowline{position:absolute;inset:0 0 6px;width:2px;border-radius:2px;opacity:0;
+    background:repeating-linear-gradient(to bottom,var(--blue-500) 0 5px,transparent 5px 11px);
+    background-size:100% 22px;transition:opacity .4s ease}
+  .conn .spark{position:absolute;left:50%;top:0;translate:-50% -50%;width:7px;height:7px;
+    border-radius:100px;background:#9ad1ff;opacity:0;
+    box-shadow:0 0 8px 2px rgba(13,153,255,.65)}
+  .conn.flowing .flowline{opacity:1;animation:dash-fall 1s linear infinite}
+  .conn.flowing .spark{opacity:1;animation:spark-fall 1.4s ease-in-out infinite}
+  .conn.flowing .head{border-top-color:var(--blue-500)}
+  .conn.done .track{background:rgba(76,175,80,.6)}
+  .conn.done .head{border-top-color:rgba(76,175,80,.8)}
+  .conn.waiting .flowline{opacity:1;animation:dash-fall 2.2s linear infinite;
+    background:repeating-linear-gradient(to bottom,var(--amber-500) 0 4px,transparent 4px 11px);
+    background-size:100% 22px}
+  .conn.waiting .head{border-top-color:var(--amber-500)}
+  @keyframes dash-fall{to{background-position:0 22px}}
+  @keyframes spark-fall{0%{top:0;opacity:0}12%{opacity:1}82%{opacity:1}100%{top:100%;opacity:0}}
+
+  /* ── a block node: floating badge row + card ── */
+  .node{width:320px;flex:none;display:flex;flex-direction:column;gap:6px}
+  .node-top{display:flex;align-items:center;justify-content:space-between;min-height:24px}
+  .node-badge{display:flex;align-items:center;gap:6px;padding:4px 10px 4px 8px;border-radius:100px;
+    font:500 12px/16px var(--sans);letter-spacing:-.24px;
+    background:var(--bg-card);border:1px solid var(--line-1);color:var(--text-secondary)}
+  .node-badge.blue{border-color:rgba(13,153,255,.5);background:rgba(13,26,38,.9);color:#8ecdfb}
+  .node-badge.purple{border-color:rgba(151,71,255,.5);background:rgba(30,19,46,.9);color:#cda4ff}
+
+  /* status chip — swaps queued → running → done */
+  .stat{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:100px;
+    font:500 12px/16px var(--sans);letter-spacing:-.24px;
+    background:var(--bg-card);border:1px solid var(--line-3);color:var(--text-tertiary);
+    transition:border-color .4s ease,color .4s ease,background .4s ease}
+  .stat .spin{display:none}
+  .stat .ok{display:none}
+  .stat.running{border-color:rgba(13,153,255,.55);color:var(--text-blue);background:rgba(13,26,38,.92)}
+  .stat.running .spin{display:block;animation:rot .9s linear infinite}
+  .stat.running .qico{display:none}
+  .stat.done{border-color:transparent;background:transparent;color:var(--text-green);padding-right:2px}
+  .stat.done .spin,.stat.done .qico,.stat.done .lbl{display:none}
+  .stat.done .ok{display:block;animation:pop-in .35s var(--ease) both}
+  .stat.stopped{border-color:rgba(220,52,18,.5);color:var(--text-red)}
+  .stat.stopped .spin,.stat.stopped .qico{display:none}
+  @keyframes rot{to{transform:rotate(1turn)}}
+
+  .node-card{position:relative;border-radius:10px;background:rgba(27,27,27,.94);
+    border:1px solid var(--line-1);padding:12px;display:flex;flex-direction:column;gap:10px;
+    transition:border-color .5s ease,box-shadow .6s ease,transform .5s var(--ease)}
+  .node.running .node-card{border-color:rgba(13,153,255,.4);transform:translateY(-1px);
+    animation:breathe 2.4s ease-in-out infinite}
+  @keyframes breathe{
+    0%,100%{box-shadow:0 0 0 1px rgba(13,153,255,.08),0 0 16px rgba(13,153,255,.10),0 10px 28px rgba(0,0,0,.45)}
+    50%{box-shadow:0 0 0 1px rgba(13,153,255,.16),0 0 34px rgba(13,153,255,.22),0 10px 28px rgba(0,0,0,.45)}
+  }
+  .node.done .node-card{border-color:rgba(76,175,80,.55);
+    box-shadow:0 0 0 1px rgba(76,175,80,.08),0 0 14px rgba(76,175,80,.08)}
+  .node.stopped .node-card{border-color:rgba(220,52,18,.45)}
+
+  /* the moving stroke: a conic highlight orbiting the card's border ring */
+  @property --orbit{syntax:'<angle>';initial-value:0deg;inherits:false}
+  .ring,.ring2{position:absolute;inset:-2px;border-radius:12px;padding:2px;opacity:0;
+    pointer-events:none;transition:opacity .45s ease;
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    mask-composite:exclude}
+  .ring{background:conic-gradient(from var(--orbit),
+      transparent 0turn,transparent .58turn,
+      rgba(13,153,255,.25) .72turn,var(--blue-500) .85turn,#b5defd .95turn,transparent 1turn);
+    animation:orbit 2.4s linear infinite}
+  .ring2{background:conic-gradient(from var(--orbit),
+      transparent 0turn,rgba(13,153,255,.5) .07turn,transparent .16turn,transparent 1turn);
+    animation:orbit 2.4s linear infinite;filter:blur(1px)}
+  .node.running .ring,.node.running .ring2{opacity:1}
+  @keyframes orbit{to{--orbit:1turn}}
+
+  /* shimmer sweeping across the running card */
+  .sheen{position:absolute;inset:0;border-radius:inherit;overflow:hidden;opacity:0;
+    pointer-events:none;transition:opacity .4s ease}
+  .sheen::before{content:'';position:absolute;inset:-30% -60%;
+    background:linear-gradient(105deg,transparent 43%,rgba(140,200,255,.085) 50%,transparent 57%);
+    transform:translateX(-60%);animation:sweep 2.6s ease-in-out infinite}
+  .node.running .sheen{opacity:1}
+  @keyframes sweep{55%,100%{transform:translateX(60%)}}
+
+  /* one-time completion flash */
+  .flash{position:absolute;inset:-2px;border-radius:12px;pointer-events:none;opacity:0;
+    border:1.5px solid rgba(102,187,106,.9)}
+  .node.done .flash{animation:done-flash .9s var(--ease) both}
+  @keyframes done-flash{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
+
+  .card-title{font:500 14px/20px var(--sans);letter-spacing:-.28px;color:var(--text-primary)}
+  .card-desc{font:400 12px/17px var(--sans);letter-spacing:-.24px;color:var(--text-tertiary);
+    display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .card-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .tile{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;
+    background:var(--bg-chip);border:1px solid var(--line-3)}
+  .mini-badge{display:flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:100px;
+    border:1px solid var(--line-3);background:var(--bg-chip);
+    font:500 12px/16px var(--sans);color:var(--text-secondary)}
+  .mini-badge .ico{color:var(--text-tertiary)}
+  .chip-op{display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:7px;
+    border:1px solid var(--line-3);background:var(--bg-chip);
+    font:500 12px/16px var(--sans);color:var(--text-secondary)}
+  .chip-op .ico{color:var(--text-purple)}
+  .chip-op.ghost .ico{color:var(--text-tertiary)}
+
+  .zoom{position:absolute;left:50%;bottom:20px;translate:-50% 0;display:flex;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:10px;background:var(--bg-card);border:1px solid var(--line-3);
+    font:500 13px/16px var(--sans);color:var(--text-secondary);
+    box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  .zoom .ico{color:var(--text-tertiary)}
+
+  /* floating waiting chip near End while checkpoint holds */
+  .wait-chip{position:absolute;left:calc(50% + 70px);display:flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:100px;font:500 12px/16px var(--sans);letter-spacing:-.24px;
+    background:rgba(38,29,10,.92);border:1px solid rgba(255,160,0,.5);color:var(--text-amber);
+    opacity:0;translate:0 4px;transition:opacity .4s ease,translate .4s var(--ease);white-space:nowrap}
+  .wait-chip.on{opacity:1;translate:0 0}
+  .wait-chip .pulse-dot{width:6px;height:6px;border-radius:100px;background:var(--amber-500);
+    animation:working 1.2s ease-in-out infinite}
+
+  /* ══════════════ right panel ══════════════ */
+  .panel{width:460px;flex:none;display:flex;flex-direction:column;background:var(--bg-panel);
+    border-left:1px solid var(--line-3)}
+  .panel-head{flex:none;padding:16px 16px 12px;display:flex;flex-direction:column;gap:12px;
+    border-bottom:1px solid var(--line-3)}
+  .panel-title{display:flex;align-items:center;gap:8px;font:600 15px/24px var(--sans);
+    letter-spacing:-.3px;color:var(--text-primary)}
+  .panel-title .ico{color:var(--text-secondary)}
+  .panel-tabs{display:flex;gap:2px;padding:3px;border-radius:9px;background:var(--bg-card);
+    border:1px solid var(--line-3);align-self:flex-start}
+  .ptab{padding:4px 12px;border-radius:6px;font:500 12px/18px var(--sans);letter-spacing:-.24px;
+    color:var(--text-tertiary);border:1px solid transparent}
+  .ptab.is-active{background:var(--bg-chip);border-color:var(--line-1);color:var(--text-primary)}
+
+  .run-meta{flex:none;padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;
+    border-bottom:1px solid var(--line-3)}
+  .run-name{display:flex;align-items:center;gap:8px;font:500 13px/20px var(--sans);
+    color:var(--text-primary)}
+  .run-name .ico{color:var(--text-secondary)}
+  .bar{position:relative;height:6px;border-radius:100px;background:var(--bg-chip);overflow:hidden}
+  .bar-fill{position:absolute;inset:0 auto 0 0;width:0%;border-radius:100px;
+    background:linear-gradient(90deg,#0d99ff,#67c1ff);
+    transition:width .8s var(--ease),background .5s ease}
+  .bar-fill::after{content:'';position:absolute;inset:0;border-radius:inherit;
+    background:linear-gradient(90deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);
+    background-size:200% 100%;animation:bar-shine 1.6s linear infinite}
+  .bar.settled .bar-fill{background:linear-gradient(90deg,#43a047,#7ed483)}
+  .bar.stopped .bar-fill{background:linear-gradient(90deg,#c62828,#ef5350)}
+  .bar.settled .bar-fill::after,.bar.stopped .bar-fill::after{animation:none;opacity:0}
+  @keyframes bar-shine{from{background-position:200% 0}to{background-position:-100% 0}}
+  .bar-row{display:flex;align-items:center;justify-content:space-between;
+    font:500 12px/16px var(--sans);color:var(--text-tertiary)}
+  .bar-row .pct{color:var(--text-blue);font-variant-numeric:tabular-nums}
+  .bar-row.settled .pct{color:var(--text-green)}
+  .bar-row.stopped .pct{color:var(--text-red)}
+
+  .log{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:12px 12px 24px;
+    display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;
+    scrollbar-color:var(--line-1) transparent}
+  .log::-webkit-scrollbar{width:8px}
+  .log::-webkit-scrollbar-thumb{background:var(--line-1);border-radius:4px}
+  .log>*{flex:none}
+
+  /* ── one run block in the log ── */
+  .rblock{border:1px solid var(--line-3);border-radius:12px;background:var(--bg-card);
+    overflow:hidden;animation:fade-up .45s var(--ease) both}
+  .rblock-head{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;
+    transition:background .15s ease}
+  .rblock-head:hover{background:var(--bg-card-2)}
+  .rblock-name{flex:1;min-width:0;font:500 14px/20px var(--sans);letter-spacing:-.28px;
+    color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rblock-state{display:grid;place-items:center;width:20px;height:20px}
+  .rblock-state .spin{animation:rot .9s linear infinite;color:var(--text-blue)}
+  .rblock-chev{color:var(--text-tertiary);transition:transform .3s var(--ease)}
+  .rblock.folded .rblock-chev{transform:rotate(180deg)}
+  .rblock-fold{display:grid;grid-template-rows:1fr;
+    transition:grid-template-rows .45s var(--ease),opacity .4s var(--ease)}
+  .rblock-fold>div{overflow:hidden;min-width:0}
+  .rblock.folded .rblock-fold{grid-template-rows:0fr;opacity:0}
+  .rblock-body{padding:6px 16px 16px 16px;border-top:1px solid var(--line-3)}
+
+  /* timeline inside a block */
+  .tl{position:relative;display:flex;flex-direction:column}
+  .tl::before{content:'';position:absolute;left:11px;top:14px;bottom:14px;width:1px;
+    background:var(--line-3)}
+  .tstep{position:relative;display:grid;grid-template-columns:24px 1fr auto;gap:0 12px;
+    align-items:start;padding:9px 0;animation:fade-up .4s var(--ease) both}
+  .t-ico{position:relative;z-index:1;width:24px;height:24px;display:grid;place-items:center;
+    border-radius:100px;background:var(--bg-card);color:var(--text-tertiary)}
+  .t-ico .spin{animation:rot .9s linear infinite;color:var(--text-blue)}
+  .t-ico.green{color:var(--text-green)}
+  .t-ico.amber{color:var(--text-amber)}
+  .t-ico.red{color:var(--text-red)}
+  .t-label{align-self:center;min-width:0;font:500 13px/20px var(--sans);letter-spacing:-.26px;
+    color:var(--text-primary)}
+  .t-label .dots{display:inline-block;min-width:12px;text-align:left}
+  .t-label .dots::after{content:'';animation:dots 1.2s steps(1,end) infinite}
+  .t-time{align-self:center;font:400 11px/16px var(--mono);color:var(--text-tertiary);
+    white-space:nowrap;animation:fade-in .3s ease both}
+  .t-extra{grid-column:2 / -1;min-width:0;display:flex;flex-direction:column;gap:8px;
+    padding-top:8px}
+  @keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%,100%{content:'...'}}
+
+  /* shimmer for in-flight labels — same recipe as the thinking trace */
+  .shimmer{background:linear-gradient(100deg,var(--text-tertiary) 25%,var(--text-primary) 50%,var(--text-tertiary) 75%);
+    background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
+    color:transparent;animation:shine 1.8s linear infinite}
+  @keyframes shine{from{background-position:200% 0}to{background-position:-100% 0}}
+  .word{display:inline;will-change:filter,opacity;
+    animation:stream-in 420ms cubic-bezier(.22,.61,.25,1) both}
+  @keyframes stream-in{from{opacity:0;filter:blur(5px)}to{opacity:1;filter:blur(0)}}
+
+  /* nested payload cards */
+  .tcard{border:1px solid var(--line-3);border-radius:10px;background:var(--bg-card-2);
+    padding:10px 12px;display:flex;flex-direction:column;gap:6px;animation:fade-up .4s var(--ease) both}
+  .tcard.dark{background:var(--bg-inset)}
+  .tcard-tag{display:flex;align-items:center;gap:6px;
+    font:500 10px/14px var(--sans);letter-spacing:.6px;text-transform:uppercase;color:var(--text-blue)}
+  .tcard-txt{font:400 12px/17px var(--sans);letter-spacing:-.24px;color:var(--text-secondary)}
+  .tcard-code{font:400 12px/18px var(--mono);color:var(--text-secondary);white-space:pre-wrap}
+  .tcard-code .k{color:#7fb8ff}
+  .tcard-code .v{color:#ffd479}
+  .tchips{display:flex;gap:8px;flex-wrap:wrap}
+  .tchip{display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:8px;
+    border:1px solid var(--line-3);background:var(--bg-chip);
+    font:500 12px/16px var(--sans);color:var(--text-secondary);
+    animation:pop-in .3s var(--ease) both}
+
+  /* checkpoint block accents */
+  .rblock.checkpoint{border-color:rgba(255,160,0,.35)}
+  .rblock.checkpoint.resolved{border-color:var(--line-3)}
+  .cp-text{font:400 12px/18px var(--sans);letter-spacing:-.24px;color:var(--text-secondary);
+    max-width:340px}
+  .cp-actions{display:flex;gap:10px;padding-top:4px}
+  .cp-accept{padding:7px 16px;border-radius:8px;background:var(--blue-500);color:#fff;
+    font:500 13px/18px var(--sans);transition:filter .15s ease,opacity .3s ease}
+  .cp-accept:hover{filter:brightness(1.12)}
+  .cp-reject{padding:7px 16px;border-radius:8px;border:1px solid var(--line-1);
+    color:var(--text-secondary);font:500 13px/18px var(--sans);
+    transition:border-color .15s ease,color .15s ease,opacity .3s ease}
+  .cp-reject:hover{border-color:rgba(220,52,18,.6);color:var(--text-red)}
+  .cp-actions.spent .cp-accept,.cp-actions.spent .cp-reject{animation:none;opacity:.35;pointer-events:none}
+
+  /* run summary footer line inside log */
+  .run-note{display:flex;align-items:center;gap:8px;justify-content:center;padding:4px 0 2px;
+    font:500 12px/16px var(--sans);color:var(--text-tertiary);animation:fade-up .5s var(--ease) both}
+  .run-note.green{color:var(--text-green)}
+  .run-note.red{color:var(--text-red)}
+
+  .badge-sm{display:flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;border-radius:100px;
+    font:500 11px/16px var(--sans);letter-spacing:-.22px;flex:none;
+    background:var(--bg-chip);border:1px solid var(--line-1);color:var(--text-secondary)}
+  .badge-sm.blue{border-color:rgba(13,153,255,.5);background:rgba(13,26,38,.9);color:#8ecdfb}
+  .badge-sm.purple{border-color:rgba(151,71,255,.5);background:rgba(30,19,46,.9);color:#cda4ff}
+  .badge-sm.amber{border-color:rgba(255,160,0,.5);background:rgba(38,29,10,.9);color:#ffc866}
+
+  /* generic entrances */
+  @keyframes pop-in{from{opacity:0;scale:.86}to{opacity:1;scale:1}}
+  @keyframes fade-in{from{opacity:0}to{opacity:1}}
+  @keyframes fade-up{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+  @keyframes working{0%,100%{opacity:.4}50%{opacity:1}}
+  .pop{animation:pop-in .3s var(--ease) both}
+
+  /* replay control (demo chrome, not part of the design) */
+  .replay{position:fixed;left:16px;bottom:16px;z-index:20;display:flex;align-items:center;gap:8px;
+    padding:6px 10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--line-3);
+    color:var(--text-secondary);font:500 12px/16px var(--sans);
+    transition:background .15s ease,color .15s ease}
+  .replay:hover{background:var(--bg-chip);color:var(--text-primary)}
+
+  @media (prefers-reduced-motion:reduce){
+    @keyframes stream-in{from{opacity:0}to{opacity:1}}
+    @keyframes pop-in{from{opacity:0}to{opacity:1}}
+    @keyframes fade-up{from{opacity:0}to{opacity:1}}
+    .ring,.ring2{animation:none;opacity:0 !important}
+    .node.running .node-card{animation:none;border-color:rgba(13,153,255,.6)}
+    .sheen{display:none}
+    .conn.flowing .flowline,.conn.waiting .flowline{animation:none}
+    .conn .spark{display:none}
+    .bar-fill::after{animation:none;opacity:0}
+    .shimmer{animation:none;background:none;color:var(--text-secondary);-webkit-text-fill-color:var(--text-secondary)}
+    .stat.running .spin,.rblock-state .spin,.t-ico .spin{animation:none}
+  }
+  @media (max-width:1060px){
+    .panel{width:380px}
+    .nav-center{display:none}
+  }
+  @media (max-width:820px){
+    .main{flex-direction:column}
+    .canvas{min-height:52vh}
+    .panel{width:100%;flex:1;border-left:none;border-top:1px solid var(--line-3)}
+    body{overflow:auto}
+  }
+</style>
+
+<div class="app">
+  <!-- ═════════ top nav ═════════ -->
+  <header class="nav">
+    <div class="nav-left">
+      <button class="nav-back" aria-label="Back"><span data-icon="chevleft" data-size="14"></span></button>
+      <div class="crumb">
+        <span class="ico" data-icon="automation" data-size="16"></span>
+        <span>Automations</span><span class="sep">/</span>
+        <span class="current">Social media posting</span>
+        <button class="edit" aria-label="Rename"><span data-icon="pencil" data-size="14"></span></button>
+      </div>
+    </div>
+    <div class="nav-center" role="tablist" aria-label="View">
+      <button class="seg" role="tab" aria-selected="false"><span data-icon="editor" data-size="14"></span>Editor</button>
+      <button class="seg is-active" role="tab" aria-selected="true"><span data-icon="clock" data-size="14"></span>Run history</button>
+    </div>
+    <div class="nav-right">
+      <button class="btn btn-primary">Save</button>
+      <button class="btn btn-disabled" disabled>Publish</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- ═════════ canvas ═════════ -->
+    <section class="canvas" aria-label="Automation canvas">
+      <div class="flow">
+        <div class="term" id="start">
+          <span class="ico" data-icon="play" data-size="15"></span>Start
+        </div>
+
+        <div class="conn" id="conn0">
+          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+        </div>
+
+        <!-- block 1 · Agent -->
+        <div class="node" id="node1">
+          <div class="node-top">
+            <span class="node-badge blue"><span data-icon="agent" data-size="14"></span>Agent</span>
+            <span class="stat" id="stat1">
+              <span class="qico" data-icon="dot" data-size="8"></span>
+              <span class="spin" data-icon="spinner" data-size="13"></span>
+              <span class="ok" data-icon="checkfill" data-size="17"></span>
+              <span class="lbl">Queued</span>
+            </span>
+          </div>
+          <div class="node-card">
+            <span class="ring" aria-hidden="true"></span><span class="ring2" aria-hidden="true"></span>
+            <span class="sheen" aria-hidden="true"></span><span class="flash" aria-hidden="true"></span>
+            <div class="card-title">Customer Feedback Analyzer</div>
+            <div class="card-desc">Aggregates and interprets customer reviews to identify recurring themes.</div>
+            <div class="card-row">
+              <span class="tile"><span data-icon="sparkle" data-size="13" style="color:#44aaf3"></span></span>
+              <span class="tile"><span data-icon="slack" data-size="13"></span></span>
+              <span class="tile"><span data-icon="mail" data-size="13" style="color:#54b0e8"></span></span>
+              <span class="mini-badge"><span class="ico" data-icon="wrench" data-size="13"></span>2</span>
+              <span class="mini-badge"><span class="ico" data-icon="doc" data-size="13"></span>4</span>
+              <span class="mini-badge"><span class="ico" data-icon="shield" data-size="13"></span>1</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn" id="conn1">
+          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+        </div>
+
+        <!-- block 2 · Data Collator -->
+        <div class="node" id="node2">
+          <div class="node-top">
+            <span class="node-badge purple"><span data-icon="collator" data-size="14"></span>Data Collator</span>
+            <span class="stat" id="stat2">
+              <span class="qico" data-icon="dot" data-size="8"></span>
+              <span class="spin" data-icon="spinner" data-size="13"></span>
+              <span class="ok" data-icon="checkfill" data-size="17"></span>
+              <span class="lbl">Queued</span>
+            </span>
+          </div>
+          <div class="node-card">
+            <span class="ring" aria-hidden="true"></span><span class="ring2" aria-hidden="true"></span>
+            <span class="sheen" aria-hidden="true"></span><span class="flash" aria-hidden="true"></span>
+            <div class="card-title">Data converger</div>
+            <div class="card-row">
+              <span class="chip-op"><span class="ico" data-icon="branch" data-size="13"></span>Collation</span>
+              <span class="chip-op"><span class="ico" data-icon="convert" data-size="13"></span>Convert</span>
+              <span class="chip-op ghost"><span class="ico" data-icon="plus" data-size="13"></span>Add</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn" id="conn2" style="position:relative">
+          <span class="track"></span><span class="flowline"></span><span class="spark"></span><span class="head"></span>
+        </div>
+
+        <div class="term" id="end" style="position:relative">
+          <span class="ico" data-icon="stopfill" data-size="12"></span>End
+          <span class="wait-chip" id="wait-chip"><span class="pulse-dot"></span>Waiting for approval</span>
+        </div>
+      </div>
+
+      <div class="zoom"><span class="ico" data-icon="search" data-size="14"></span>100%<span class="ico" data-icon="chevdown" data-size="12"></span></div>
+    </section>
+
+    <!-- ═════════ right panel ═════════ -->
+    <aside class="panel" aria-label="Run history">
+      <div class="panel-head">
+        <div class="panel-title"><span class="ico" data-icon="clock" data-size="18"></span>Run history</div>
+        <div class="panel-tabs" role="tablist" aria-label="Run history view">
+          <button class="ptab" role="tab" aria-selected="false">Overview</button>
+          <button class="ptab" role="tab" aria-selected="false">Past runs</button>
+          <button class="ptab is-active" role="tab" aria-selected="true">Live logs</button>
+        </div>
+      </div>
+
+      <div class="run-meta">
+        <div class="run-name"><span class="ico" data-icon="automation" data-size="15"></span>Social media posting</div>
+        <div class="bar" id="bar"><span class="bar-fill" id="bar-fill"></span></div>
+        <div class="bar-row" id="bar-row">
+          <span id="step-label">Waiting to start</span>
+          <span class="pct" id="pct">0%</span>
+        </div>
+      </div>
+
+      <div class="log" id="log"></div>
+    </aside>
+  </div>
+</div>
+
+<button class="replay" id="replay"><span data-icon="convert" data-size="13"></span>Replay run</button>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   ICONS — compact stroke set drawn for this screen (16px grid)
+   ══════════════════════════════════════════════════════════════ */
+const P = (d, extra='') => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`;
+const ICONS = {
+  play:      { vb:'0 0 16 16', body: P('M5 3.2 12.2 8 5 12.8Z') },
+  stopfill:  { vb:'0 0 16 16', body:'<rect x="3" y="3" width="10" height="10" rx="2.4" fill="currentColor"/>' },
+  spinner:   { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity=".25" stroke-width="1.8"/><path d="M14 8a6 6 0 0 0-6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>' },
+  checkfill: { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="7" fill="#4caf50"/><path d="m4.9 8.2 2.1 2.1 4.1-4.4" fill="none" stroke="#0f1a10" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>' },
+  dot:       { vb:'0 0 8 8',   body:'<circle cx="4" cy="4" r="3" fill="currentColor"/>' },
+  agent:     { vb:'0 0 16 16', body: P('M8 2v2M4.5 4h7A1.5 1.5 0 0 1 13 5.5v5A1.5 1.5 0 0 1 11.5 12h-7A1.5 1.5 0 0 1 3 10.5v-5A1.5 1.5 0 0 1 4.5 4Z')+'<circle cx="6" cy="7.6" r=".9" fill="currentColor"/><circle cx="10" cy="7.6" r=".9" fill="currentColor"/>'+P('M6 14h4') },
+  collator:  { vb:'0 0 16 16', body: P('M3.5 3.5v2A3 3 0 0 0 6.5 8.5H8M12.5 3.5v2a3 3 0 0 1-3 3H8M8 8.5V13')+'<circle cx="3.5" cy="3" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12.5" cy="3" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="13.2" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/>' },
+  automation:{ vb:'0 0 16 16', body:'<circle cx="3.4" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12.4" cy="4" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12.4" cy="12" r="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/>'+P('M4.9 7.3 10.9 4.6M4.9 8.7l6 2.7') },
+  clock:     { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('M8 4.8V8l2.2 1.4') },
+  pencil:    { vb:'0 0 16 16', body: P('m9.7 3.3 3 3L6 13H3v-3Zm1.5-1.5 1.2-1.2 3 3-1.2 1.2', 'transform="translate(0.2,0.8) scale(0.88)"') },
+  editor:    { vb:'0 0 16 16', body: P('M3 3h10v10H3ZM6.3 3v10') },
+  chevleft:  { vb:'0 0 16 16', body: P('m10 3.5-4.5 4.5L10 12.5') },
+  chevdown:  { vb:'0 0 16 16', body: P('m4 6 4 4 4-4') },
+  chevup:    { vb:'0 0 16 16', body: P('m4 10 4-4 4 4') },
+  search:    { vb:'0 0 16 16', body:'<circle cx="7" cy="7" r="4.4" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('m13.5 13.5-3.4-3.4') },
+  sparkle:   { vb:'0 0 16 16', body:'<path d="M8 1.8 9.5 6l4.2 1.5L9.5 9 8 13.2 6.5 9 2.3 7.5 6.5 6Z" fill="currentColor"/>' },
+  slack:     { vb:'0 0 16 16', body:'<rect x="6.7" y="1.6" width="2.6" height="6" rx="1.3" fill="#36c5f0" transform="rotate(90 8 4.6)"/><rect x="6.7" y="8.4" width="2.6" height="6" rx="1.3" fill="#e01e5a" transform="rotate(90 8 11.4)"/><rect x="1.6" y="6.7" width="6" height="2.6" rx="1.3" fill="#2eb67d" transform="rotate(90 4.6 8)"/><rect x="8.4" y="6.7" width="6" height="2.6" rx="1.3" fill="#ecb22e" transform="rotate(90 11.4 8)"/>' },
+  mail:      { vb:'0 0 16 16', body: P('M2.5 4h11v8h-11ZM2.8 4.5 8 8.8l5.2-4.3') },
+  wrench:    { vb:'0 0 16 16', body: P('M9.8 2.6a3.4 3.4 0 0 0-4.4 4.4L2.6 9.8a1.6 1.6 0 1 0 3.6 3.6l2.8-2.8a3.4 3.4 0 0 0 4.4-4.4l-2.1 2.1-2-2Z') },
+  doc:       { vb:'0 0 16 16', body: P('M4 2h5.2L12 4.8V14H4ZM9 2.2V5h2.8M6 8h4M6 10.5h3') },
+  shield:    { vb:'0 0 16 16', body: P('M8 2 13 3.8v4.4c0 3-2.1 4.9-5 5.8-2.9-.9-5-2.8-5-5.8V3.8Z') },
+  branch:    { vb:'0 0 16 16', body: P('M4.5 4.5v7M4.5 4.5A7 7 0 0 0 11.5 9')+'<circle cx="4.5" cy="3" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="4.5" cy="13" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="12.6" cy="9.6" r="1.4" fill="none" stroke="currentColor" stroke-width="1.3"/>' },
+  convert:   { vb:'0 0 16 16', body: P('M13 6.5H4.4M6.6 3.8 4 6.5l2.6 2.7M3 9.5h8.6M9.4 12.2 12 9.5 9.4 6.8', 'transform="translate(0,0)"') },
+  plus:      { vb:'0 0 16 16', body: P('M8 3.5v9M3.5 8h9') },
+  taskplay:  { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.6 5.6 10.4 8l-3.8 2.4Z" fill="currentColor"/>' },
+  arrin:     { vb:'0 0 16 16', body: P('M9.5 3h3v10h-3M2.5 8h7M7 5.5 9.5 8 7 10.5') },
+  arrout:    { vb:'0 0 16 16', body: P('M6.5 3h-3v10h3M6.5 8h7M11 5.5 13.5 8 11 10.5') },
+  code:      { vb:'0 0 16 16', body: P('m5.5 4.5-3.5 3.5 3.5 3.5m5-7 3.5 3.5-3.5 3.5') },
+  calendar:  { vb:'0 0 16 16', body: P('M3 4h10v9.5H3ZM3 7h10M5.5 2.5v2.6M10.5 2.5v2.6', 'stroke="#4285f4"')+'<rect x="7" y="9" width="3.6" height="2.6" rx=".6" fill="#4285f4"/>' },
+  storage:   { vb:'0 0 16 16', body: P('M2.5 4.6 8 2.4l5.5 2.2v6.8L8 13.6l-5.5-2.2Z', 'stroke="#29b6f6"')+P('M2.5 4.6 8 6.8l5.5-2.2M8 6.8v6.8','stroke="#29b6f6"') },
+  user:      { vb:'0 0 16 16', body:'<circle cx="8" cy="5.4" r="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('M3.2 13.4a4.9 4.9 0 0 1 9.6 0') },
+  checkline: { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/>'+P('m5.3 8.2 1.9 1.9 3.6-4') },
+  stopline:  { vb:'0 0 16 16', body:'<circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="5.6" y="5.6" width="4.8" height="4.8" rx="1" fill="currentColor"/>' },
+  flag:      { vb:'0 0 16 16', body: P('M3.5 14V2.5M3.5 3h8.6l-2 2.9 2 2.9H3.5') },
+};
+function svg(name, size){
+  const ic = ICONS[name]; if(!ic) return '';
+  return `<svg viewBox="${ic.vb}" width="${size}" height="${size}" aria-hidden="true">${ic.body}</svg>`;
+}
+function hydrateIcons(root=document){
+  root.querySelectorAll('[data-icon]').forEach(el=>{
+    el.innerHTML = svg(el.dataset.icon, Number(el.dataset.size)||16);
+  });
+}
+hydrateIcons();
+
+/* ══════════════════════════════════════════════════════════════
+   RUN SCRIPT — what each block logs, in order
+   ══════════════════════════════════════════════════════════════ */
+const DESC_IN = 'Validated one record and marked it valid. Confidence was 92%, above the 80% threshold. One field came through empty, so the record was passed on with a flag rather than rejected.';
+const DESC_OUT = 'Drafted a post summary from 214 reviews. Two low-confidence themes were flagged for review, with sentiment scores attached per theme.';
+const DESC_IN2 = 'Merged the agent output with the staging table. One record queued for collation and format conversion.';
+
+const JSON_IN  = [['{'],['  ','k','"raw"',': ','v','"1"'],['}']];
+const JSON_OUT = [['{'],['  ','k','"status"',': ','v','"ok"',','],['  ','k','"records"',': ','v','1'],['}']];
+
+const BLOCK1 = {
+  badge:{cls:'blue', icon:'agent', label:'Agent'}, name:'Customer Feedback Analyzer',
+  steps:[
+    { icon:'taskplay', label:'Task started', hold:500 },
+    { icon:'arrin', label:'Received input', hold:400,
+      extras:[{type:'desc',text:DESC_IN},{type:'json',lines:JSON_IN}] },
+    { icon:'wrench', label:'Called 2 tools', hold:400,
+      extras:[{type:'chips',chips:[['calendar','Sales calendar'],['storage','Client storage']]}] },
+    { icon:'pencil', label:'Worked on the instructions', hold:900 },
+    { icon:'arrout', label:'Produced output', hold:400,
+      extras:[{type:'desc',text:DESC_OUT},{type:'json',lines:JSON_OUT}] },
+    { icon:'checkline', label:'Completed step', hold:400, green:true },
+  ]};
+
+const BLOCK2 = {
+  badge:{cls:'purple', icon:'collator', label:'Data Collator'}, name:'Data converger',
+  steps:[
+    { icon:'taskplay', label:'Task started', hold:450 },
+    { icon:'arrin', label:'Received input', hold:400,
+      extras:[{type:'desc',text:DESC_IN2},{type:'json',lines:JSON_IN}] },
+    { icon:'branch', label:'Ran Collation and Convert', hold:500,
+      extras:[{type:'chips',chips:[['branch','Collation'],['convert','Convert']]}] },
+    { icon:'arrout', label:'Produced output', hold:400,
+      extras:[{type:'json',lines:JSON_OUT}] },
+    { icon:'checkline', label:'Completed step', hold:400, green:true },
+  ]};
+
+/* ══════════════════════════════════════════════════════════════
+   TIMELINE ENGINE — same streaming grammar as the thinking trace
+   ══════════════════════════════════════════════════════════════ */
+const WORD_MS = 55;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const log = document.getElementById('log');
+const barFill = document.getElementById('bar-fill');
+const bar = document.getElementById('bar');
+const barRow = document.getElementById('bar-row');
+const pctEl = document.getElementById('pct');
+const stepLabel = document.getElementById('step-label');
+const waitChip = document.getElementById('wait-chip');
+
+let run = 0;
+const wait = ms => new Promise(r=>setTimeout(r, reduced ? Math.min(ms, 250) : ms));
+const stale = mine => mine !== run;
+const now = () => new Date().toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+
+function el(tag, cls, parent){
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (parent) parent.append(n);
+  return n;
+}
+function follow(){ log.scrollTo({top:log.scrollHeight, behavior:reduced?'auto':'smooth'}); }
+
+async function streamWords(host, text, mine){
+  for (const w of text.split(' ')){
+    if (stale(mine)) return;
+    const s = el('span','word'); s.textContent = w + ' ';
+    host.append(s); follow();
+    await wait(reduced ? 0 : WORD_MS);
+  }
+}
+
+/* progress: animate percentage counter toward a target */
+let pctShown = 0, pctTarget = 0, pctRAF = 0;
+function setProgress(target, label){
+  pctTarget = target;
+  if (label) stepLabel.textContent = label;
+  barFill.style.width = target + '%';
+  cancelAnimationFrame(pctRAF);
+  const tick = () => {
+    pctShown += (pctTarget - pctShown) * 0.08 + 0.02;
+    if (pctShown >= pctTarget) pctShown = pctTarget;
+    pctEl.textContent = Math.round(pctShown) + '%';
+    if (pctShown < pctTarget) pctRAF = requestAnimationFrame(tick);
+  };
+  pctRAF = requestAnimationFrame(tick);
+}
+
+/* ── canvas helpers ── */
+function setStat(id, state, label){
+  const s = document.getElementById(id);
+  s.className = 'stat ' + state;
+  if (label) s.querySelector('.lbl').textContent = label;
+}
+function setConn(id, state){
+  const c = document.getElementById(id);
+  c.className = 'conn' + (state ? ' ' + state : '');
+}
+function setNode(id, state){
+  const n = document.getElementById(id);
+  n.classList.remove('running','done','stopped');
+  if (state) n.classList.add(state);
+}
+
+/* ── panel block scaffolding ── */
+function makeBlock({badge, name}, checkpoint=false){
+  const b = el('section','rblock' + (checkpoint?' checkpoint':''), log);
+  const head = el('div','rblock-head', b);
+  const bd = el('span','badge-sm ' + badge.cls, head);
+  bd.innerHTML = svg(badge.icon,13) + badge.label;
+  const nm = el('span','rblock-name', head); nm.textContent = name;
+  const state = el('span','rblock-state', head);
+  state.innerHTML = `<span class="spin">${svg('spinner',15)}</span>`;
+  const chev = el('span','rblock-chev', head); chev.innerHTML = svg('chevup',14);
+  const fold = el('div','rblock-fold', b);
+  const inner = el('div','', fold);
+  const body = el('div','rblock-body', inner);
+  const tl = el('div','tl', body);
+  head.addEventListener('click', ()=> b.classList.toggle('folded'));
+  follow();
+  return { root:b, state, tl };
+}
+function blockDone(block){
+  block.state.innerHTML = `<span class="pop">${svg('checkfill',17)}</span>`;
+}
+
+/* one timeline step: spinner + shimmer-streamed label, then settle */
+async function runStep(tl, step, mine){
+  const row = el('div','tstep', tl);
+  const ico = el('span','t-ico', row);
+  ico.innerHTML = `<span class="spin">${svg('spinner',14)}</span>`;
+  const label = el('span','t-label', row);
+  const txt = el('span','', label);
+  el('span','dots', label);
+  follow();
+
+  await streamWords(txt, step.label, mine);
+  if (stale(mine)) return null;
+  txt.textContent = step.label;         // collapse spans so the shimmer clips cleanly
+  txt.classList.add('shimmer');
+
+  let extraHost = null;
+  if (step.extras && step.extras.length){
+    extraHost = el('div','t-extra', row);
+    for (const ex of step.extras){
+      if (stale(mine)) return null;
+      await renderExtra(extraHost, ex, mine);
+    }
+  }
+  await wait(step.hold || 500);
+  if (stale(mine)) return null;
+
+  // settle: real icon, solid label, timestamp
+  txt.classList.remove('shimmer');
+  label.querySelector('.dots').remove();
+  ico.innerHTML = svg(step.icon, 15);
+  ico.classList.add('pop');
+  if (step.green) ico.classList.add('green');
+  const t = el('span','t-time', row);
+  t.textContent = now();
+  if (extraHost) row.append(extraHost);   // keep extras below the timestamp row
+  follow();
+  return row;
+}
+
+async function renderExtra(host, ex, mine){
+  if (ex.type === 'desc'){
+    const c = el('div','tcard', host);
+    c.innerHTML = `<div class="tcard-tag">${svg('sparkle',11)}Quick description</div>`;
+    const p = el('div','tcard-txt', c);
+    follow();
+    await streamWords(p, ex.text, mine);
+    if (stale(mine)) return;
+    p.textContent = ex.text;
+  } else if (ex.type === 'json'){
+    const c = el('div','tcard dark', host);
+    c.innerHTML = `<div class="tcard-tag">${svg('code',11)}JSON</div>`;
+    const code = el('div','tcard-code', c);
+    follow();
+    for (const line of ex.lines){
+      if (stale(mine)) return;
+      const div = document.createElement('div');
+      let html = '';
+      for (let i=0;i<line.length;i++){
+        const part = line[i];
+        if (part==='k'||part==='v'){ html += `<span class="${part}">${line[++i]}</span>`; }
+        else html += part;
+      }
+      div.innerHTML = html || '&nbsp;';
+      code.append(div); follow();
+      await wait(90);
+    }
+  } else if (ex.type === 'chips'){
+    const c = el('div','tchips', host);
+    for (const [icon,text] of ex.chips){
+      if (stale(mine)) return;
+      const chip = el('span','tchip', c);
+      chip.innerHTML = svg(icon,13) + text;
+      follow();
+      await wait(220);
+    }
+  }
+}
+
+/* run one canvas block + its panel section together */
+async function runBlock(nodeId, statId, spec, mine, progress){
+  setNode(nodeId, 'running');
+  setStat(statId, 'running', 'Running');
+  const block = makeBlock(spec);
+  const [from, to] = progress.range;
+  for (let i=0;i<spec.steps.length;i++){
+    if (stale(mine)) return null;
+    await runStep(block.tl, spec.steps[i], mine);
+    if (stale(mine)) return null;
+    setProgress(from + (to-from) * ((i+1)/spec.steps.length), progress.label);
+  }
+  if (stale(mine)) return null;
+  setNode(nodeId, 'done');
+  setStat(statId, 'done');
+  blockDone(block);
+  return block;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   THE RUN
+   ══════════════════════════════════════════════════════════════ */
+async function play(){
+  const mine = ++run;
+
+  // reset
+  log.innerHTML = '';
+  pctShown = 0; pctTarget = 0; pctEl.textContent = '0%';
+  bar.className = 'bar'; barRow.className = 'bar-row';
+  barFill.style.width = '0%';
+  stepLabel.textContent = 'Waiting to start';
+  ['node1','node2'].forEach(id=>setNode(id,null));
+  setStat('stat1','', 'Queued'); setStat('stat2','', 'Queued');
+  ['conn0','conn1','conn2'].forEach(id=>setConn(id,null));
+  document.getElementById('start').classList.remove('lit');
+  const end = document.getElementById('end');
+  end.classList.remove('lit','stopped');
+  waitChip.classList.remove('on');
+
+  await wait(600); if (stale(mine)) return;
+
+  // 1 · start fires
+  document.getElementById('start').classList.add('lit');
+  setConn('conn0','flowing');
+  setProgress(6, 'Step 1/5 · Trigger');
+  await wait(1100); if (stale(mine)) return;
+  setConn('conn0','done');
+
+  // 2 · agent block
+  const b1 = await runBlock('node1','stat1', BLOCK1, mine, {range:[8,42], label:'Step 2/5 · Customer Feedback Analyzer'});
+  if (stale(mine) || !b1) return;
+
+  setConn('conn1','flowing');
+  await wait(1000); if (stale(mine)) return;
+  setConn('conn1','done');
+
+  // 3 · data collator block
+  const b2 = await runBlock('node2','stat2', BLOCK2, mine, {range:[44,74], label:'Step 3/5 · Data converger'});
+  if (stale(mine) || !b2) return;
+
+  // 4 · human checkpoint
+  setConn('conn2','waiting');
+  waitChip.classList.add('on');
+  setProgress(82, 'Step 4/5 · Human checkpoint');
+
+  const cp = makeBlock({badge:{cls:'amber',icon:'user',label:'Human checkpoint'}, name:'Review & approve'}, true);
+  const row = el('div','tstep', cp.tl);
+  const ico = el('span','t-ico amber', row);
+  ico.innerHTML = `<span class="spin">${svg('spinner',14)}</span>`;
+  const label = el('span','t-label', row);
+  const txt = el('span','', label);
+  el('span','dots', label);
+  await streamWords(txt, 'Waiting for approval', mine); if (stale(mine)) return;
+  txt.textContent = 'Waiting for approval';
+  txt.classList.add('shimmer');
+
+  const extra = el('div','t-extra', row);
+  const msg = el('div','cp-text', extra);
+  await streamWords(msg, 'Waiting for approval to proceed the automation. Please review the input data and choose an action.', mine);
+  if (stale(mine)) return;
+  msg.textContent = 'Waiting for approval to proceed the automation. Please review the input data and choose an action.';
+
+  const actions = el('div','cp-actions', extra);
+  const accept = el('button','cp-accept pop', actions); accept.textContent = 'Accept & Proceed';
+  const reject = el('button','cp-reject pop', actions); reject.textContent = 'Reject';
+  follow();
+
+  const choice = await new Promise(res=>{
+    accept.addEventListener('click',()=>res('accept'),{once:true});
+    reject.addEventListener('click',()=>res('reject'),{once:true});
+  });
+  if (stale(mine)) return;
+  actions.classList.add('spent');
+  label.querySelector('.dots').remove();
+  txt.classList.remove('shimmer');
+  waitChip.classList.remove('on');
+
+  const stamp = document.createElement('span');
+  stamp.className = 't-time'; stamp.textContent = now();
+  row.insertBefore(stamp, extra);
+
+  if (choice === 'accept'){
+    txt.textContent = 'Approved — automation resumed';
+    ico.className = 't-ico green'; ico.innerHTML = svg('checkline',15); ico.classList.add('pop');
+    blockDone(cp);
+    cp.root.classList.add('resolved');
+
+    // 5 · finish
+    setConn('conn2','flowing');
+    setProgress(92, 'Step 5/5 · Finishing');
+    await wait(900); if (stale(mine)) return;
+    setConn('conn2','done');
+    end.classList.add('lit');
+    setProgress(100, 'Run completed');
+    bar.classList.add('settled'); barRow.classList.add('settled');
+    const note = el('div','run-note green', log);
+    note.innerHTML = svg('checkline',14) + 'Run completed · all 5 steps succeeded';
+    follow();
+  } else {
+    txt.textContent = 'Rejected — run stopped';
+    ico.className = 't-ico red'; ico.innerHTML = svg('stopline',15); ico.classList.add('pop');
+    cp.state.innerHTML = `<span class="pop" style="color:var(--text-red)">${svg('stopline',16)}</span>`;
+    cp.root.classList.add('resolved');
+    setConn('conn2',null);
+    end.classList.add('stopped');
+    stepLabel.textContent = 'Run stopped';
+    bar.classList.add('stopped'); barRow.classList.add('stopped');
+    const note = el('div','run-note red', log);
+    note.innerHTML = svg('stopline',14) + 'Run stopped at the human checkpoint';
+    follow();
+  }
+}
+
+document.getElementById('replay').addEventListener('click', play);
+play();
+</script>
