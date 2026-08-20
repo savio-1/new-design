@@ -349,7 +349,7 @@ a { color: inherit; text-decoration: none; }
 /* ============ TRUSTED BY — wonderful.ai-style logo wall ============ */
 
 .trusted {
-  background: var(--surface);
+  background: var(--ground);           /* same ground as the hero */
   padding: 72px 0 80px;
 }
 
@@ -372,10 +372,40 @@ a { color: inherit; text-decoration: none; }
 
 .tcell {
   position: relative;
-  background: #f7f7f7;
+  background: var(--surface);          /* white cards on the cream ground */
   border-radius: 8px;
   height: 72px;
   overflow: hidden;
+}
+
+/* hover: grey-white shimmer band sweeps the card while the mark colors up */
+.tcell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg,
+    rgba(188, 188, 182, 0) 30%,
+    rgba(188, 188, 182, 0.35) 44%,
+    rgba(255, 255, 255, 0.95) 52%,
+    rgba(188, 188, 182, 0.35) 60%,
+    rgba(188, 188, 182, 0) 74%);
+  background-size: 220% 100%;
+  background-position: 135% 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.tcell:hover::after {
+  opacity: 1;
+  animation: cellShimmer 1.2s linear infinite;
+}
+@keyframes cellShimmer {
+  from { background-position: 135% 0; }
+  to   { background-position: -35% 0; }
+}
+.tcell:hover .tcell__logo.is-on {
+  opacity: 1;
+  color: var(--wm-color, var(--ink));  /* placeholder brand color per mark */
 }
 
 .tcell__logo {
@@ -388,7 +418,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
   opacity: 0;
   transform: translateY(20px);                /* incoming waits below */
-  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease), color 0.3s ease;
   white-space: nowrap;
 }
 .tcell__logo.is-on  { opacity: 0.62; transform: translateY(0); }   /* darker for contrast */
@@ -535,6 +565,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .shine::after { animation: none; opacity: 0; }
+  .tcell:hover::after { animation: none; opacity: 0; }
   .nav, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__label .arrow, .mega__flink .arrow { transition: none; }
   .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
@@ -715,7 +746,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 15 — compact trusted-by wall (6×2, 72px cells, darker marks, live slide-up relay), step-ramp hero, shimmer headline, Wonderful-style nav, persona cards. Placeholder wordmarks until real logo SVGs arrive.</p>
+    <p>Iteration 16 — trusted wall on the hero ground (white cells, hover shimmer + colored marks), step-ramp hero, shimmer headline, Wonderful-style nav, persona cards. Placeholder wordmarks and colors until real logo SVGs arrive.</p>
   </div>
 </footer>
 
@@ -793,29 +824,32 @@ a { color: inherit; text-decoration: none; }
     var CELLS = 12;                      // 2 compact rows, every cell filled
     /* institutions named in the copy doc + almaconnect.com's customer wall;
        [name, placeholder wordmark style] — swap for real logo SVGs later */
+    /* [name, wordmark style, placeholder hover color] — dummy colors until
+       real logo SVGs arrive (then: grayscale filter → none on hover) */
     var POOL = [
-      ['Harvard Medical School', 'wm-serif'],
-      ['Punahou School', 'wm-ital'],
-      ['Princeton', 'wm-slab'],
-      ['Bryant University', 'wm-caps'],
-      ['San Diego State', 'wm-sans'],
-      ['Willamette', 'wm-light'],
-      ['Marquette', 'wm-serif'],
-      ['Bryn Mawr', 'wm-slab'],
-      ['Augsburg', 'wm-caps'],
-      ['BITS Pilani', 'wm-sans'],
-      ['IIT Delhi', 'wm-slab'],
-      ['IIM Udaipur', 'wm-caps'],
-      ['Ryerson', 'wm-light'],
-      ['Syneos Health', 'wm-sans'],
-      ['Comviva', 'wm-ital'],
-      ['IIM', 'wm-slab']
+      ['Harvard Medical School', 'wm-serif', '#a51c30'],
+      ['Punahou School', 'wm-ital', '#1e5aa8'],
+      ['Princeton', 'wm-slab', '#e77500'],
+      ['Bryant University', 'wm-caps', '#8a6d2f'],
+      ['San Diego State', 'wm-sans', '#a6192e'],
+      ['Willamette', 'wm-light', '#9d2235'],
+      ['Marquette', 'wm-serif', '#003366'],
+      ['Bryn Mawr', 'wm-slab', '#a67f00'],
+      ['Augsburg', 'wm-caps', '#7a0019'],
+      ['BITS Pilani', 'wm-sans', '#1f4e79'],
+      ['IIT Delhi', 'wm-slab', '#8b1e3f'],
+      ['IIM Udaipur', 'wm-caps', '#4b306a'],
+      ['Ryerson', 'wm-light', '#004c9b'],
+      ['Syneos Health', 'wm-sans', '#0077c8'],
+      ['Comviva', 'wm-ital', '#d2232a'],
+      ['IIM', 'wm-slab', '#2e5e4e']
     ];
 
     function makeLogo(entry) {
       var el = document.createElement('span');
       el.className = 'tcell__logo ' + entry[1];
       el.textContent = entry[0];
+      el.style.setProperty('--wm-color', entry[2]);
       return el;
     }
 
