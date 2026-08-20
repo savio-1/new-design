@@ -24,11 +24,11 @@ Stacks:
 
 | Role | Face | Size / line-height | Weight | Tracking | Notes |
 |---|---|---|---|---|---|
-| Display / H1 | Geist | 102px / 0.90 | 300 | −0.025em | Homepage hero only. `clamp(56px, 7.1vw, 102px)`. Max-width ~900px. |
+| Display / H1 | Geist | **88px** / 0.95 | 300 | **−0.04em** | Homepage hero only. `clamp(52px, 6.1vw, 88px)`. Max-width ~900px. (Asana measured 102/0.90/−0.025em; 88px/−4% is the client's confirmed override.) |
 | H2 (every section headline) | Geist | 54px / 1.00 | 300 | −0.02em | One spec reused by ALL sections — never invent per-section sizes. |
 | H3 / feature title | Geist | 30px / 1.20 | 400 | 0 | |
 | Card / accordion title | Geist | 24px / 1.20 | 500 | 0 | |
-| Hero subtext | Nunito Sans | 26px / 1.30 | 375 | 0 | Color: ink at 80%. Renders ~520–630px wide. |
+| Hero subtext | Nunito Sans | **22px** / 1.35 | 400 | **−0.04em** | Color: ink at 80%. Renders ~520–630px wide. (Asana measured 26/1.3; 22px/−4% is the client's confirmed override.) |
 | Section subtext / card body (large) | Nunito Sans | 20px / 1.50 | 400 | 0 | |
 | Body / button labels | Nunito Sans | 16px / 1.55 | 400 (body) · 600 (buttons, links, card leads) | 0 | |
 | Nav items | Nunito Sans | 15px / 1.5 | 500 | 0 | (Asana: 14px/500 — nudged +1 for Nunito's smaller x-height feel) |
@@ -36,7 +36,7 @@ Stacks:
 | Eyebrow | Nunito Sans | 16px / 1.5 | 600 | +0.04em | Asana sets these uppercase; AlmaConnect keeps **sentence case** (house rule) — the +0.04em tracking only applies if a rare uppercase chip is used. |
 | Micro-chip labels | Nunito Sans | 10–11px / 1.5 | 600–700 | +0.04em | UPPERCASE allowed here only (`NEWS ALERT`, `DEPLOY`-style annotation chips). |
 
-Distinct sizes on the page — stay inside this inventory: **102, 54, 30, 26, 24, 20, 16, 15, 13, 11px.**
+Distinct sizes on the page — stay inside this inventory: **88, 54, 30, 24, 22, 20, 16, 15, 13, 11px.**
 
 **Line-height law:** 1.5 at ≤20px → 1.2–1.3 mid-scale → 1.0 at H2 → 0.9 at display. **Tracking law:** negative above 26px, neutral for body, positive only on uppercase micro-text.
 

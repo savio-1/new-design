@@ -1,0 +1,575 @@
+<title>AlmaConnect Homepage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap">
+
+<style>
+/* ============================================================
+   AlmaConnect homepage — iteration 3: nav + hero w/ persona video cards
+   Layout: AngelList reference (Figma wPFGlGLF2kGdcC06My35za, node 3:2)
+   Type & spacing: asana.com-measured scale (.claude/skills/almaconnect-type-spacing)
+   + client overrides: H1 88px/−4%, subtext 22px/−4%
+   Fonts: Geist (headlines) + Nunito Sans (body)
+   SOURCE FILE — card videos use "@video" + ":cardN" tokens (see the video tags);
+   scripts/build-home.py inlines them as data URIs into almaconnect-home.html
+   (the published file).
+   ============================================================ */
+
+:root {
+  --accent: #00c4b5;
+  --accent-dark: #00a396;
+  --accent-tint: #e0f7f4;
+  --on-aqua: #00806f;
+
+  --ink: #04302b;
+  --ink-80: rgba(4, 48, 43, 0.8);
+  --ink-65: rgba(6, 48, 43, 0.65);
+  --ink-45: rgba(6, 48, 43, 0.45);
+
+  --ground: #f7f6f2;
+  --surface: #ffffff;
+  --panel: #edebe4;                /* card-image panel, sits darker than ground */
+  --hairline: rgba(153, 159, 153, 0.25);
+
+  --tint-mint: #e5f6f0;  --on-mint: #2f9e77;
+  --tint-sand: #fdf4e3;  --on-sand: #d08a21;
+  --tint-sky:  #ebf4fd;  --on-sky:  #2f6fbf;
+
+  --font-display: "Geist", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --container: 1288px;
+  --page-margin: 76px;
+  --nav-h: 68px;
+
+  --r-button: 8px;
+  --r-card: 12px;
+  --r-pill: 9999px;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; background: var(--ground); }
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.container {
+  max-width: calc(var(--container) + 2 * var(--page-margin));
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+}
+
+a { color: inherit; text-decoration: none; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============ NAV — P0 white bar, A1 anchored dropdown ============ */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
+  height: var(--nav-h);
+}
+
+.nav__inner { height: var(--nav-h); display: flex; align-items: center; gap: 42px; }
+
+.nav__logo {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 19px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--ink); flex: none;
+}
+.nav__logo svg { display: block; }
+
+.nav__links {
+  display: flex; align-items: stretch; height: 100%;
+  gap: 4px; margin: 0; padding: 0; list-style: none;
+}
+
+.nav__item { position: relative; display: flex; align-items: stretch; }
+
+.nav__link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 12px;
+  font-family: var(--font-body); font-size: 15px; font-weight: 500;
+  color: var(--ink); background: none; border: 0; cursor: pointer;
+  transition: color 0.15s ease;
+}
+.nav__link:hover { color: var(--accent-dark); }
+
+.nav__chev { width: 10px; height: 10px; transition: transform 0.25s var(--ease); flex: none; }
+.nav__item.is-open .nav__chev { transform: rotate(180deg); }
+.nav__item.is-open > .nav__link { color: var(--accent-dark); }
+
+.nav__right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.nav__login {
+  font-size: 15px; font-weight: 500; color: var(--ink);
+  padding: 8px 14px; transition: color 0.15s ease;
+}
+.nav__login:hover { color: var(--accent-dark); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; cursor: pointer;
+  font-family: var(--font-body); font-size: 16px; font-weight: 600;
+  border-radius: var(--r-button);
+  transition: background 0.15s ease;
+}
+.btn--nav { height: 44px; padding-inline: 24px; font-size: 15px; background: var(--accent); color: var(--ink); }
+.btn--nav:hover { background: var(--accent-dark); }
+.btn--hero { height: 50px; padding-inline: 32px; background: var(--ink); color: #fff; }
+.btn--hero:hover { background: #0a4a42; }
+
+/* --- dropdown (unchanged behavior from iteration 1) --- */
+
+.dd {
+  position: absolute; top: 100%; left: -8px; padding-top: 10px;
+  opacity: 0; transform: translateY(-4px); visibility: hidden; pointer-events: none;
+  transition: opacity 0.28s var(--ease), transform 0.28s var(--ease), visibility 0s linear 0.28s;
+}
+.nav__item.is-open .dd {
+  opacity: 1; transform: translateY(0); visibility: visible; pointer-events: auto;
+  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease);
+}
+
+.dd__panel {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-card); padding: 8px; width: 460px;
+}
+.dd__panel--slim { width: 224px; }
+
+.dd__row {
+  display: block; padding: 12px 14px; border-radius: 8px;
+  transition: background 0.15s ease;
+  opacity: 0; translate: 0 6px;
+}
+.nav__item.is-open .dd__row {
+  opacity: 1; translate: 0 0;
+  transition: background 0.15s ease, opacity 0.25s var(--ease), translate 0.25s var(--ease);
+}
+.nav__item.is-open .dd__row:nth-child(1) { transition-delay: 0s, 0.05s, 0.05s; }
+.nav__item.is-open .dd__row:nth-child(2) { transition-delay: 0s, 0.07s, 0.07s; }
+.nav__item.is-open .dd__row:nth-child(3) { transition-delay: 0s, 0.09s, 0.09s; }
+.nav__item.is-open .dd__row:nth-child(4) { transition-delay: 0s, 0.11s, 0.11s; }
+.dd__row:hover { background: var(--accent-tint); }
+
+.dd__name {
+  font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+.dd__name .arrow {
+  opacity: 0; translate: -3px 0;
+  transition: opacity 0.15s ease, translate 0.2s var(--ease);
+  color: var(--accent-dark); font-weight: 400;
+}
+.dd__row:hover .dd__name .arrow { opacity: 1; translate: 0 0; }
+
+.dd__buyer { font-size: 13px; line-height: 1.5; color: var(--ink-45); margin-top: 1px; display: block; }
+
+.dd__desc { font-size: 14px; line-height: 1.5; color: var(--ink-65); margin-top: 4px; display: block; }
+.dd__desc b { color: var(--ink); font-weight: 600; }
+
+.dd__footer {
+  border-top: 1px solid var(--hairline); margin-top: 6px;
+  padding: 10px 14px 6px; display: flex; flex-direction: column; gap: 6px;
+}
+.dd__flink {
+  font-size: 14px; font-weight: 600; color: var(--accent-dark);
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+}
+.dd__flink .arrow { transition: translate 0.2s var(--ease); display: inline-block; }
+.dd__flink:hover .arrow { translate: 3px 0; }
+.dd__flink em { font-style: normal; color: var(--ink-65); font-weight: 400; }
+
+.dd__slimlink {
+  display: block; padding: 9px 14px; border-radius: 8px;
+  font-size: 15px; color: var(--ink-80);
+  transition: background 0.15s ease, color 0.15s ease;
+  opacity: 0; translate: 0 6px;
+}
+.nav__item.is-open .dd__slimlink {
+  opacity: 1; translate: 0 0;
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.25s var(--ease), translate 0.25s var(--ease);
+}
+.nav__item.is-open .dd__slimlink:nth-child(1) { transition-delay: 0s, 0s, 0.05s, 0.05s; }
+.nav__item.is-open .dd__slimlink:nth-child(2) { transition-delay: 0s, 0s, 0.07s, 0.07s; }
+.nav__item.is-open .dd__slimlink:nth-child(3) { transition-delay: 0s, 0s, 0.09s, 0.09s; }
+.nav__item.is-open .dd__slimlink:nth-child(4) { transition-delay: 0s, 0s, 0.11s, 0.11s; }
+.dd__slimlink:hover { background: var(--accent-tint); color: var(--ink); }
+
+/* ============ HERO — mock layout, Asana scale ============ */
+
+.hero { padding-top: 96px; }
+
+.hero h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(52px, 6.1vw, 88px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-weight: 300;
+  max-width: 960px;
+  color: var(--ink);
+}
+
+.hero__sub {
+  margin: 28px 0 0;                    /* Asana: H1 → subtext 28px */
+  font-family: var(--font-body);
+  font-size: 22px;
+  line-height: 1.35;
+  letter-spacing: -0.04em;
+  font-weight: 400;
+  color: var(--ink-80);
+  max-width: 580px;
+}
+
+.hero__cta { margin-top: 24px; }       /* Asana: subtext → CTA 24px */
+
+/* ============ PERSONA CARDS — P2 editorial 4-up ============ */
+
+.personas { padding-top: 88px; padding-bottom: 120px; }
+
+.personas__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;                           /* Asana card-grid gap */
+}
+
+.pcard {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.pcard__label {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 18px 0;
+  font-size: 16px; font-weight: 600; line-height: 1.3;
+  color: var(--ink);
+}
+.pcard__label .arrow {
+  color: var(--accent-dark);
+  opacity: 0; translate: -4px 0;
+  transition: opacity 0.2s ease, translate 0.25s var(--ease);
+  font-weight: 400;
+}
+.pcard:hover .pcard__label .arrow { opacity: 1; translate: 0 0; }
+
+.pcard__media {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-card);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.pcard__plus {
+  position: absolute; right: 12px; bottom: 12px;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(69, 71, 67, 0.35);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: grid; place-items: center;
+  color: #fff; font-size: 22px; font-weight: 300; line-height: 1;
+  transition: background 0.2s ease;
+}
+.pcard:hover .pcard__plus { background: rgba(69, 71, 67, 0.55); }
+
+.pcard__desc {
+  padding: 20px 0 24px;
+  font-size: 16px; line-height: 1.5;
+  color: var(--ink-65);
+  margin: 0;
+}
+.pcard__desc b { color: var(--ink); font-weight: 600; }
+
+/* ---- placeholder videos inside the media panel (Satomo template loops) ---- */
+
+.pcard__video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ============ page-load rise ============ */
+
+.rise { opacity: 0; transform: translateY(14px); animation: rise 0.5s var(--ease) forwards; }
+.rise-1 { animation-delay: 0.02s; }
+.rise-2 { animation-delay: 0.08s; }
+.rise-3 { animation-delay: 0.14s; }
+.rise-4 { animation-delay: 0.22s; }
+
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+
+/* ============ build-status stub ============ */
+
+.stub { border-top: 1px solid var(--hairline); padding: 28px 0 48px; }
+.stub p { font-size: 13px; color: var(--ink-45); margin: 0; }
+
+/* ============ responsive ============ */
+
+@media (max-width: 1160px) {
+  .personas__grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 920px) {
+  :root { --page-margin: 24px; }
+  .nav__links, .nav__login { display: none; }
+  .hero { padding-top: 64px; }
+  .hero__sub { font-size: 20px; }
+  .personas { padding-top: 64px; padding-bottom: 80px; }
+}
+
+@media (max-width: 560px) {
+  .personas__grid { grid-template-columns: 1fr; }
+  .pcard__media { aspect-ratio: 4 / 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise { animation: none; opacity: 1; transform: none; }
+  .dd, .dd__row, .dd__slimlink, .nav__chev,
+  .pcard__label .arrow, .dd__flink .arrow { transition: none; }
+}
+</style>
+
+<!-- ==================== NAV ==================== -->
+<header class="nav">
+  <div class="container nav__inner">
+
+    <a class="nav__logo" href="#" aria-label="AlmaConnect home">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <circle cx="8" cy="16" r="5.5" fill="#00c4b5"/>
+        <circle cx="18.5" cy="8.5" r="3.75" fill="#04302b"/>
+        <path d="M11.5 12.5 L15.75 10.25" stroke="#04302b" stroke-width="1.75" stroke-linecap="round"/>
+      </svg>
+      AlmaConnect
+    </a>
+
+    <ul class="nav__links">
+      <li class="nav__item" data-dd>
+        <button class="nav__link" type="button" aria-expanded="false" aria-haspopup="true">
+          Products
+          <svg class="nav__chev" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M1.5 3.5 L5 7 L8.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="dd">
+          <div class="dd__panel">
+            <a class="dd__row" href="#news">
+              <span class="dd__name">AlmaConnect News <span class="arrow">→</span></span>
+              <span class="dd__buyer">For prospect research &amp; advancement teams</span>
+              <span class="dd__desc"><b>Know when a prospect makes news</b> — verified, within 24–48 hours.</span>
+            </a>
+            <a class="dd__row" href="#data-mine">
+              <span class="dd__name">AlmaConnect Data Mine <span class="arrow">→</span></span>
+              <span class="dd__buyer">For advancement services &amp; database teams</span>
+              <span class="dd__desc"><b>Know where every alum works now</b> — matched to your constituent IDs.</span>
+            </a>
+            <a class="dd__row" href="#network-institutions">
+              <span class="dd__name">Alumni Network for Institutions <span class="arrow">→</span></span>
+              <span class="dd__buyer">For alumni relations teams</span>
+              <span class="dd__desc"><b>Directory, events, mentorship</b> — your community in one place.</span>
+            </a>
+            <a class="dd__row" href="#network-corporates">
+              <span class="dd__name">Alumni Network for Corporates <span class="arrow">→</span></span>
+              <span class="dd__buyer">For HR, talent &amp; employer brand teams</span>
+              <span class="dd__desc"><b>Turn former employees</b> into a talent pipeline.</span>
+            </a>
+            <div class="dd__footer">
+              <a class="dd__flink" href="#all-products"><em>Not sure which fits?</em> See all products <span class="arrow">→</span></a>
+              <a class="dd__flink" href="#free-alerts">Get free news alerts <span class="arrow">→</span></a>
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <li class="nav__item">
+        <a class="nav__link" href="#customers">Customers</a>
+      </li>
+
+      <li class="nav__item">
+        <a class="nav__link" href="#pricing">Pricing</a>
+      </li>
+
+      <li class="nav__item" data-dd>
+        <button class="nav__link" type="button" aria-expanded="false" aria-haspopup="true">
+          Company
+          <svg class="nav__chev" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+            <path d="M1.5 3.5 L5 7 L8.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="dd">
+          <div class="dd__panel dd__panel--slim">
+            <a class="dd__slimlink" href="#about">About</a>
+            <a class="dd__slimlink" href="#customers">Customers</a>
+            <a class="dd__slimlink" href="#security">Security</a>
+            <a class="dd__slimlink" href="#contact">Contact</a>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="nav__right">
+      <a class="nav__login" href="#login">Log in</a>
+      <a class="btn btn--nav" href="#demo">Book a demo</a>
+    </div>
+
+  </div>
+</header>
+
+<!-- ==================== HERO ==================== -->
+<main>
+  <section class="hero">
+    <div class="container">
+      <h1 class="rise rise-1">Your alumni moved on.<br>Your database didn&rsquo;t.</h1>
+
+      <p class="hero__sub rise rise-2">
+        AlmaConnect helps universities, schools, nonprofits and companies find where
+        their alumni and donors are now — and know the moment something happens in
+        their lives worth acting on.
+      </p>
+
+      <div class="hero__cta rise rise-3">
+        <a class="btn btn--hero" href="#demo">Book a demo</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PERSONA CARDS ==================== -->
+  <section class="personas">
+    <div class="container">
+      <div class="personas__grid rise rise-4">
+
+        <!-- 1 · Prospect research → News -->
+        <a class="pcard" href="#news">
+          <span class="pcard__label">Prospect research &amp; fundraising <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card1" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>AlmaConnect News.</b> Know when a prospect makes news — verified, within 24–48 hours.</p>
+        </a>
+
+        <!-- 2 · Advancement services → Data Mine -->
+        <a class="pcard" href="#data-mine">
+          <span class="pcard__label">Advancement services &amp; database <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card2" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>AlmaConnect Data Mine.</b> Know where every alum works now, matched to your constituent IDs.</p>
+        </a>
+
+        <!-- 3 · Alumni relations → Network for Institutions -->
+        <a class="pcard" href="#network-institutions">
+          <span class="pcard__label">Alumni relations <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card3" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>Network for Institutions.</b> Directory, events, mentorship — your community in one place.</p>
+        </a>
+
+        <!-- 4 · HR & talent → Network for Corporates -->
+        <a class="pcard" href="#network-corporates">
+          <span class="pcard__label">HR, talent &amp; employer brand <span class="arrow">→</span></span>
+          <span class="pcard__media">
+            <video class="pcard__video" src="@video:card4" autoplay muted loop playsinline aria-hidden="true"></video>
+            <span class="pcard__plus" aria-hidden="true">+</span>
+          </span>
+          <p class="pcard__desc"><b>Network for Corporates.</b> Turn former employees into a talent pipeline.</p>
+        </a>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="stub">
+  <div class="container">
+    <p>Iteration 3 — navigation + hero with persona video cards. Card videos are placeholder loops from the Satomo Framer template, to be replaced with AlmaConnect product footage. Sections 03–10 follow after review.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var items = document.querySelectorAll('.nav__item[data-dd]');
+  var CLOSE_DELAY = 180; // hover intent — load-bearing, prevents flicker
+
+  items.forEach(function (item) {
+    var btn = item.querySelector('.nav__link');
+    var timer;
+
+    function open() {
+      clearTimeout(timer);
+      items.forEach(function (other) {
+        if (other !== item) close(other);
+      });
+      item.classList.add('is-open');
+      btn.setAttribute('aria-expanded', 'true');
+    }
+    function close(target) {
+      var el = target || item;
+      el.classList.remove('is-open');
+      el.querySelector('.nav__link').setAttribute('aria-expanded', 'false');
+    }
+
+    item.addEventListener('mouseenter', open);
+    item.addEventListener('mouseleave', function () {
+      timer = setTimeout(function () { close(); }, CLOSE_DELAY);
+    });
+
+    btn.addEventListener('click', function () {
+      item.classList.contains('is-open') ? close() : open();
+    });
+
+    item.addEventListener('focusin', open);
+    item.addEventListener('focusout', function (e) {
+      if (!item.contains(e.relatedTarget)) close();
+    });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      items.forEach(function (item) {
+        item.classList.remove('is-open');
+        item.querySelector('.nav__link').setAttribute('aria-expanded', 'false');
+      });
+    }
+  });
+
+  document.addEventListener('click', function (e) {
+    items.forEach(function (item) {
+      if (!item.contains(e.target)) {
+        item.classList.remove('is-open');
+        item.querySelector('.nav__link').setAttribute('aria-expanded', 'false');
+      }
+    });
+  });
+
+  // respect reduced motion: freeze the placeholder card videos
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.querySelectorAll('.pcard__video').forEach(function (v) {
+      v.removeAttribute('autoplay');
+      v.pause();
+    });
+  }
+})();
+</script>
