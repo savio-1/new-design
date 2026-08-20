@@ -237,14 +237,11 @@ a { color: inherit; text-decoration: none; }
 
 /* ============ HERO — text left, depth field vanishing right ============ */
 
-/* pinned scroll track (detroit-style): the viewport sticks while the
-   scroll scrubs the image row — images never detach from the bottom */
-.hero { position: relative; height: 210vh; }
+.hero { position: relative; }
 
 .hero__pin {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: relative;
+  min-height: 100vh;
   display: flex;
   align-items: flex-start;              /* text sits upper-left */
   padding-top: var(--nav-h);
@@ -269,7 +266,7 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 432px;                 /* base box; JS scales 0.05 → 1.6 across the viewport */
+  width: 500px;                 /* base box; JS scales it across the viewport */
   aspect-ratio: 6 / 5;
   transform-origin: left bottom;
   overflow: hidden;
@@ -439,8 +436,7 @@ a { color: inherit; text-decoration: none; }
   .nav__logo img { height: 26px; }
   .nav__links, .nav__login, .nav__panelwrap { display: none; }
   .hero__stack { display: none; }
-  .hero { height: auto; }
-  .hero__pin { position: static; height: auto; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
+  .hero__pin { min-height: 0; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
   .hero__sub { font-size: 20px; }
   .personas { padding-top: 64px; padding-bottom: 80px; }
 }
@@ -451,7 +447,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero { height: 100vh; }        /* no pin track when nothing scrubs */
   .shine::after { animation: none; opacity: 0; }
   .nav, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__label .arrow, .mega__flink .arrow { transition: none; }
@@ -613,7 +608,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 9 — pinned staircase-stack hero with the client&rsquo;s 11 images cycling, gapless row, auto-drift + scroll-scrub, shimmering gradient headline, Wonderful-style nav, persona cards on scroll. Trusted-by wall pending port from the demo page.</p>
+    <p>Iteration 10 — breathable staircase-stack hero (every image ≥64% visible, gapless), normal page scroll with scroll-boosted image speed, shimmering gradient headline, Wonderful-style nav, persona cards. Trusted-by wall pending port from the demo page.</p>
   </div>
 </footer>
 
@@ -723,9 +718,10 @@ a { color: inherit; text-decoration: none; }
     var SOURCES = [];
     for (var si = 0; si < SLOTS; si++) SOURCES.push(IMAGES[si % IMAGES.length]);
     var N = SOURCES.length;
-    var BASE = 432;               // unscaled box width
-    var S_L = 0.35, S_R = 1.6;    // scale at left edge → right edge
-    var STEP = 140;               // exposed strip per image; min width 151 → always ≥11px overlap
+    var BASE = 500;               // unscaled box width
+    var S_L = 0.72, S_R = 1.10;   // narrow scale spread keeps every image readable
+    var STEP = 350;               // exposed strip; min width 360 → no gaps,
+                                  // max width 550 → ≥64% of every image visible
     var SPEED = 80;               // px/s auto-drift
     var SCROLL_K = 1.4;           // scroll → row-advance coupling (lerped, no fade)
     var ENTER_MS = 1500, ENTER_DELAY = 300, ENTER_OFFSET = 600;  // observed entrance
