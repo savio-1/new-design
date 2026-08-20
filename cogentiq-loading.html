@@ -279,6 +279,35 @@
   @keyframes shine{from{background-position:200% 0}to{background-position:-100% 0}}
   .grp-note{padding-inline:24px;font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
 
+  /* ---------- collapsing (crunch) ---------- */
+  .sec-fold{display:grid;grid-template-rows:1fr;
+    transition:grid-template-rows .45s var(--ease),opacity .4s var(--ease)}
+  .sec-fold>div{overflow:hidden;display:flex;flex-direction:column;gap:12px;min-width:0}
+  .sec-fold.folded{grid-template-rows:0fr;opacity:0}
+  .trace{display:grid;grid-template-rows:1fr;
+    transition:grid-template-rows .55s var(--ease),opacity .5s var(--ease)}
+  .trace>div{overflow:hidden;display:flex;flex-direction:column;gap:16px;min-width:0}
+  .trace.folded{grid-template-rows:0fr;opacity:0}
+  .reasoning-toggle{display:flex;align-items:center;gap:6px;align-self:flex-start;
+    margin-left:36px;padding:4px 8px;border-radius:8px;
+    background:var(--bg-page-3);border:1px solid var(--line-3);
+    color:var(--text-secondary);font:500 14px/20px var(--sans);letter-spacing:-.56px;
+    transition:background .15s ease,color .15s ease}
+  .reasoning-toggle:hover{background:var(--bg-card-1);color:var(--text-primary)}
+  .reasoning-toggle .chev{display:inline-flex;transition:transform .3s var(--ease)}
+  .reasoning-toggle.open .chev{transform:rotate(90deg)}
+  .trace .rule{margin-left:36px}
+
+  /* ---------- the final answer ---------- */
+  .answer{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:start}
+  .answer-ico{width:24px;height:24px;border-radius:6px;background:var(--thinking-tile);
+    display:grid;place-items:center}
+  .answer-body{font:400 16px/24px var(--sans);letter-spacing:-.64px;
+    color:var(--text-primary);max-width:688px}
+
+  /* dots hug the label they belong to */
+  .sec-head .dots{margin-left:-6px}
+
   .word{display:inline;will-change:filter,opacity;
     animation:stream-in 420ms cubic-bezier(.22,.61,.25,1) both}
   .caret{display:inline-block;width:2px;height:12px;margin-left:2px;translate:0 1px;
@@ -437,6 +466,11 @@ const SUMMARY = "I used your company's definitions of ARR and churn rather than 
   "industry-standard ones, pulled live revenue from Snowflake, and applied your " +
   "disclosure and privacy rules to how the figures appear.";
 
+const ANSWER = "I reviewed the claim against your policy rules and found two items that " +
+  "raise rejection risk: the repair estimate exceeds the pre-authorised limit, and the " +
+  "loss date falls outside the notification window. The one-pager I generated breaks " +
+  "both down with the exact clauses, and the code renders it for the document.";
+
 /* ══════════════════════════════════════════════════════════
    TIMELINE RUNNER
    ══════════════════════════════════════════════════════════ */
@@ -450,6 +484,7 @@ const elapsedT = document.getElementById('elapsed-text');
 const reduced  = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let run = 0;                                    // cancels an in-flight timeline
+let traceInner = null;                          // the collapsible thinking window
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const stale = (mine) => mine !== run;
 
@@ -519,7 +554,7 @@ function settle(line, icon, size = 16, cls = null, label = null) {
 
 /** a trace section: 24px icon rail + streamed title + a working/done tail */
 function section(icon, { tile = false, blue = false } = {}) {
-  const sec = el('div', 'sec appear', thread);
+  const sec = el('div', 'sec appear', traceInner);
   const rail = el('div', 'sec-rail', sec);
   const ico = el('div', 'sec-ico pop' + (tile ? ' tile' : ''), rail);
   ico.innerHTML = svg(icon, 16);
@@ -528,7 +563,20 @@ function section(icon, { tile = false, blue = false } = {}) {
   const head = el('div', 'sec-head', body);
   const title = el('span', 'sec-title' + (blue ? ' blue' : ''), head);
   const tail = el('span', 'sec-chev', head);
-  return { sec, body, head, title, tail };
+  const fold = el('div', 'sec-fold', body);
+  const content = el('div', '', fold);
+  const obj = { sec, body, head, title, tail, fold, content, done: false };
+  head.style.cursor = 'pointer';
+  head.addEventListener('click', () => {          // settled sections crunch/expand on tap
+    if (!obj.done) return;
+    const folded = obj.fold.classList.toggle('folded');
+    obj.tail.innerHTML = svg(folded ? 'chev16' : 'chevup16', 16);
+  });
+  return obj;
+}
+function foldSection(s) {
+  s.fold.classList.add('folded');
+  s.tail.innerHTML = svg('chev16', 16);
 }
 /* a working section shimmers its title; the loader mark itself only ever
    sits on the newest active status line */
@@ -541,6 +589,7 @@ function sectionDone(s, chev = 'chevup16') {
   s.title.classList.remove('shimmer');
   s.tail.classList.add('pop');
   s.tail.innerHTML = svg(chev, 16);
+  s.done = true;
 }
 
 /* ---------- a context group: narrated, then settled ---------- */
@@ -656,13 +705,15 @@ async function buildGraph(host, mine) {
    ══════════════════════════════════════════════════════════ */
 async function play() {
   const mine = ++run;
-  thread.querySelectorAll('.sec').forEach((n) => n.remove());
+  thread.querySelectorAll('.trace, .reasoning-toggle, .answer').forEach((n) => n.remove());
+  const traceWrap = el('div', 'trace', thread);
+  traceInner = el('div', '', traceWrap);
   scroller.scrollTop = 0;
   elapsedT.textContent = 'Working…';
   document.getElementById('elapsed').classList.add('is-working');
 
   const setPhase = (n, of) => { phaseEl.textContent = `${n}/${of}`; };
-  const OF = 5;
+  const OF = 6;
 
   /* 1 — Thinking: shimmer and hold before anything is shown */
   setPhase(1, OF);
@@ -672,9 +723,11 @@ async function play() {
   think.title.textContent = 'Thinking';
   think.title.classList.add('shimmer-blue');
   const tdots = el('span', 'dots blue', think.head);
+  think.title.after(tdots);
   await wait(2300); if (stale(mine)) return;
-  think.title.classList.remove('shimmer-blue');
-  tdots.remove();
+  /* answering begins: the label becomes a live answering state and keeps
+     shimmering until the whole trace completes */
+  think.title.textContent = 'Working on the answer';
 
   /* 2 — Reading context: each group narrates what it is doing,
          then settles into the design's end state */
@@ -686,25 +739,28 @@ async function play() {
 
   for (const g of GROUPS) {
     if (stale(mine)) return;
-    await buildGroup(read.body, g, mine);
+    await buildGroup(read.content, g, mine);
     await wait(380);
   }
   if (stale(mine)) return;
 
-  const comp = statusLine(read.body);
+  const comp = statusLine(read.content);
   await narrate(comp, 'Composing answer with 8 grounded items', mine, 1700);
   if (stale(mine)) return;
   settle(comp, 'edit', 16);
   sectionDone(read);
+  await wait(500); if (stale(mine)) return;
+  foldSection(read);                          // crunch the finished step
+  await wait(400);
 
   /* 3 — Context summary */
   setPhase(3, OF);
-  el('div', 'rule', read.body);
+  el('div', 'rule appear', traceInner);
   const sum = section('summarylogo');
   await streamWords(sum.title, 'Context summary', mine); if (stale(mine)) return;
-  const sumBody = el('div', 'sum-body', sum.body);
+  const sumBody = el('div', 'sum-body', sum.content);
   await streamWords(sumBody, SUMMARY, mine); if (stale(mine)) return;
-  const meta = el('div', 'sum-meta appear', sum.body);
+  const meta = el('div', 'sum-meta appear', sum.content);
   el('span', '', meta).textContent = '8 items used';
   el('span', '', meta).textContent = '•';
   el('span', '', meta).textContent = '2 rules applied';
@@ -715,7 +771,7 @@ async function play() {
   const ppt = section('ppt');
   await streamWords(ppt.title, 'Generate one-pager PPT', mine); if (stale(mine)) return;
   sectionWorking(ppt);
-  const steps = el('div', 'steps', ppt.body);
+  const steps = el('div', 'steps', ppt.content);
 
   for (const s of PPT_STEPS) {
     if (stale(mine)) return;
@@ -739,28 +795,30 @@ async function play() {
   }
   if (stale(mine)) return;
 
-  const done = el('div', 'step-done appear', ppt.body);
+  const done = el('div', 'step-done appear', ppt.content);
   await streamWords(done, "I’ve created the required one-pager document", mine);
   if (stale(mine)) return;
-  const pill = el('span', 'pill pop', ppt.body);
+  const pill = el('span', 'pill pop', ppt.content);
   const pi = el('span', '', pill);
   pi.innerHTML = svg('clock', 16);
   el('span', '', pill).textContent = 'Finished in 3.2 sec';
   follow();
   sectionDone(ppt);
-  await wait(700);
+  await wait(600); if (stale(mine)) return;
+  foldSection(ppt);                           // crunch the finished step
+  await wait(400);
 
   /* 5 — Create code for the document */
   setPhase(5, OF);
   const code = section('code');
   await streamWords(code.title, 'Create code for the document', mine); if (stale(mine)) return;
   sectionWorking(code);
-  const writing = statusLine(code.body);
+  const writing = statusLine(code.content);
   await narrate(writing, 'Writing the code', mine, 1300);
   if (stale(mine)) return;
   writing.remove();
 
-  const block = el('div', 'codeblock appear', code.body);
+  const block = el('div', 'codeblock appear', code.content);
   const exp = el('button', 'graph-expand', block);
   exp.setAttribute('aria-label', 'Expand code');
   exp.innerHTML = svg('expand', 16);
@@ -778,6 +836,34 @@ async function play() {
   }
   if (stale(mine)) return;
   sectionDone(code);
+  await wait(600); if (stale(mine)) return;
+
+  /* the answer is fully thought through: crunch the entire thinking
+     window into a “My reasoning” toggle */
+  think.title.classList.remove('shimmer-blue');
+  tdots.remove();
+  think.title.textContent = 'Thought through the answer';
+  traceWrap.classList.add('folded');
+  const tog = el('button', 'reasoning-toggle appear');
+  tog.innerHTML = `<span class="t-ico">${svg('summarylogo', 16)}</span>`
+    + '<span>My reasoning</span>'
+    + `<span class="chev">${svg('chevr12', 12)}</span>`;
+  thread.insertBefore(tog, traceWrap);
+  tog.addEventListener('click', () => {
+    const open = !traceWrap.classList.toggle('folded');
+    tog.classList.toggle('open', open);
+  });
+  follow();
+  await wait(650); if (stale(mine)) return;
+
+  /* 6 — the actual answer */
+  setPhase(6, OF);
+  const ans = el('div', 'answer appear', thread);
+  const ai = el('div', 'answer-ico', ans);
+  ai.innerHTML = svg('thinking', 16);
+  const abody = el('div', 'answer-body', ans);
+  await streamWords(abody, ANSWER, mine);
+  if (stale(mine)) return;
 
   /* settled */
   document.getElementById('elapsed').classList.remove('is-working');
