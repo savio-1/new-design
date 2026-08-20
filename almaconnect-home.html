@@ -531,6 +531,44 @@ a { color: inherit; text-decoration: none; }
   transition: opacity 0.6s var(--ease), transform 0.7s var(--ease); }
 .personas__grid.in-view { opacity: 1; transform: translateY(0); }
 
+/* ============ THE PROBLEM (03) — headline left, scroll-lit body right ============ */
+
+.problem {
+  background: var(--ground);
+  padding: 128px 0 136px;
+}
+
+.problem__grid {
+  display: grid;
+  grid-template-columns: 5fr 6fr;
+  gap: 72px;
+  align-items: start;
+}
+
+.problem__head {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 2.9vw, 42px);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  font-weight: 350;
+  color: var(--ink);
+}
+
+.problem__body p {
+  margin: 0 0 24px;
+  font-family: var(--font-body);
+  font-size: 24px;
+  line-height: 1.55;
+  letter-spacing: -0.02em;
+  max-width: 620px;
+}
+.problem__body p:last-child { margin-bottom: 0; }
+
+/* words start greyed; scroll lights them to ink in reading order */
+.problem__body .w { color: rgba(6, 48, 43, 0.22); transition: color 0.3s ease; }
+.problem__body .w.lit { color: var(--ink); }
+
 /* ============ build-status stub ============ */
 
 .stub { border-top: 1px solid var(--hairline); padding: 28px 0 48px; }
@@ -560,6 +598,9 @@ a { color: inherit; text-decoration: none; }
   .hero__pin { min-height: 0; padding-top: calc(var(--nav-h) + 72px); padding-bottom: 48px; }
   .hero__sub { font-size: 20px; }
   .personas { padding-top: 64px; padding-bottom: 80px; }
+  .problem { padding: 80px 0; }
+  .problem__grid { grid-template-columns: 1fr; gap: 32px; }
+  .problem__body p { font-size: 20px; }
 }
 
 @media (max-width: 560px) {
@@ -751,11 +792,22 @@ a { color: inherit; text-decoration: none; }
       </div>
     </div>
   </section>
+
+  <!-- ==================== THE PROBLEM (03) ==================== -->
+  <section class="problem">
+    <div class="container problem__grid">
+      <h2 class="problem__head">Everything you know about your alumni was true on the day you recorded it.</h2>
+      <div class="problem__body" id="problemBody">
+        <p>Graduates change jobs, cities, surnames and companies. Senior people stop updating LinkedIn. Constituent records go quiet for years — and by the time you learn someone sold their company, joined a board, or lost a parent, the moment to reach out has passed.</p>
+        <p>Most institutions close this gap with Google Alerts, a spreadsheet, and whoever happens to notice something. That finds a fraction of what&rsquo;s out there, on no particular schedule, and puts it in one person&rsquo;s inbox.</p>
+      </div>
+    </div>
+  </section>
 </main>
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 18 — products section: headline added, 14px pills, 16px/−2% subtext, no bottom rules, hover Learn-more CTA. Trusted wall on hero ground, step-ramp hero, shimmer headline, Wonderful-style nav. Placeholder media throughout.</p>
+    <p>Iteration 19 — problem section added (headline left, scroll-lit body right), products section, trusted wall, step-ramp hero, shimmer headline, Wonderful-style nav. Placeholder media throughout.</p>
   </div>
 </footer>
 
@@ -923,6 +975,50 @@ a { color: inherit; text-decoration: none; }
   } else {
     grid.classList.add('in-view');
   }
+
+  /* ============ problem section: scroll lights the body words ============ */
+  (function () {
+    var body = document.getElementById('problemBody');
+    if (!body) return;
+
+    var words = [];
+    body.querySelectorAll('p').forEach(function (p) {
+      var parts = p.textContent.split(' ');
+      p.textContent = '';
+      parts.forEach(function (word, i) {
+        var s = document.createElement('span');
+        s.className = 'w';
+        s.textContent = word;
+        p.appendChild(s);
+        if (i < parts.length - 1) p.appendChild(document.createTextNode(' '));
+        words.push(s);
+      });
+    });
+
+    if (reduced) {
+      words.forEach(function (w) { w.classList.add('lit'); });
+      return;
+    }
+
+    var N = words.length;
+    var lit = 0;
+    function update() {
+      var r = body.getBoundingClientRect();
+      var vh = window.innerHeight;
+      /* fill starts as the body enters at 80% of the viewport and completes
+         by the time its bottom reaches ~65%; scrolling back un-lights */
+      var p = (vh * 0.8 - r.top) / (r.height + vh * 0.15);
+      p = Math.min(Math.max(p, 0), 1);
+      var target = Math.round(p * N);
+      var i;
+      if (target > lit) { for (i = lit; i < target; i++) words[i].classList.add('lit'); }
+      else if (target < lit) { for (i = target; i < lit; i++) words[i].classList.remove('lit'); }
+      lit = target;
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  })();
 
   /* ============ reduced motion: freeze videos ============ */
   if (reduced) {
