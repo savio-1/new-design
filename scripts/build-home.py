@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build almaconnect-home.html from almaconnect-home.src.html.
 
-Replaces @img:<name> (assets/img/floema/<name>.jpg), @video:<name>
+Replaces @img:<name> (assets/img/floema/<name>.jpg), @png:<name>
+(assets/logo/<name>.png, for marks that need transparency), @video:<name>
 (assets/videos/<name>.mp4) and @svg:<name> (assets/logo/<name>.svg) tokens
 with base64 data URIs so the published page is fully self-contained
 (the artifact host blocks external asset requests).
@@ -31,6 +32,9 @@ def main() -> None:
     html, imgs = re.subn(
         r"@img:([\w-]+)",
         lambda m: data_uri(IMG_DIR / f"{m.group(1)}.jpg", "image/jpeg"), html)
+    html, pngs = re.subn(
+        r"@png:([\w-]+)",
+        lambda m: data_uri(LOGO_DIR / f"{m.group(1)}.png", "image/png"), html)
     html, videos = re.subn(
         r"@video:([\w-]+)",
         lambda m: data_uri(VIDEO_DIR / f"{m.group(1)}.mp4", "video/mp4"), html)
@@ -39,8 +43,8 @@ def main() -> None:
         lambda m: data_uri(LOGO_DIR / f"{m.group(1)}.svg", "image/svg+xml"), html)
 
     OUT.write_text(html, encoding="utf-8")
-    print(f"built {OUT.name}: {imgs} img, {videos} video, {svgs} svg inlined, "
-          f"{OUT.stat().st_size / 1e6:.2f} MB")
+    print(f"built {OUT.name}: {imgs} img, {pngs} png, {videos} video, "
+          f"{svgs} svg inlined, {OUT.stat().st_size / 1e6:.2f} MB")
 
 
 if __name__ == "__main__":
