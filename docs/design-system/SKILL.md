@@ -30,7 +30,8 @@ Build AlmaConnect web pages in the visual language of the AngelList reference de
 | `--deep` | **#10261E** | The dark section ground — deeper than `--ink`, which is reserved for type and fills. |
 | `--deep-raised` | #1B3A2E | A card sitting on the dark ground. |
 | `--on-deep` | rgba(255,255,255,0.72) | Body text on the dark ground. Headlines there go full white. |
-| `--warm` | **#F6E47F** | The one warm accent: progress lines and chasing lights on dark grounds only. Never on light. |
+| `--warm` | **#F6E47F** | The one warm accent: chasing lights on dark grounds only. Never on light. |
+| `--grad-aqua/-lilac/-sky/-peach` | — | Progress-line gradients, in the four hues the numerals shimmer in. |
 | `--on-dark` | #FFFFFF / #BFF0EA | Text on `--ink` sections; #BFF0EA (pale turquoise) replaces the reference's periwinkle `#CDCBFF` for oversized display text on dark. |
 
 Color discipline (this is what makes the reference look expensive):
@@ -163,6 +164,10 @@ keep the two in sync. Which variant:
   (`--aqua/--lilac/--sky/--peach`), so a stat band shimmers a different colour per stat.
 - **SVG outlines** — `.trace` runs a lit dash round a drawn mark; `.chase` runs a light
   around a ring of small marks.
+- **Progress lines** — `.progress-line` is the timer bar under an auto-advancing item.
+  It fills in one of the four gradient hues; set `--load-grad` per item and offset the
+  starting hue per panel so all four appear across a section even when each panel holds
+  fewer than four rows. `--warm` is no longer used for these — it is chasing lights only.
 
 Four traps, each of which cost a debugging round on the homepage — the stylesheet
 comments carry the fixes:

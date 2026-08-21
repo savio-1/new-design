@@ -58,7 +58,8 @@ with 76px margins (§3), not the 1344/48 written there.
 | `--deep-raised` | #1B3A2E | A card sitting on the dark ground. |
 | `--deep-line` | rgba(255,255,255,0.16) | Dividers on dark. |
 | `--on-deep` | rgba(255,255,255,0.72) | Body text on dark. Headlines there go full white. |
-| `--warm` | **#F6E47F** | The one warm accent: progress lines and chasing lights, on dark grounds only. Never on light. |
+| `--warm` | **#F6E47F** | The one warm accent: chasing lights on dark grounds only. Never on light. |
+| `--grad-aqua/-lilac/-sky/-peach` | — | Progress-line gradients, in the four hues the numerals shimmer in. |
 
 **Support palette** — tint fill paired with its same-hue text, for *category and state
 only*. Each hue stays under ~1% of screen area. Never on CTAs, links, or headlines.
@@ -242,6 +243,7 @@ keep the two in sync.
 | `.shimmer-num` + `--aqua/--lilac/--sky/--peach` | Numerals shimmer on hover, a different hue per column of a stat band. |
 | `.trace` | A lit dash runs the outline of a drawn SVG mark. |
 | `.chase` | A light runs around a ring of small SVG marks. |
+| `.progress-line` | Timer bar under an auto-advancing item, filling in one of the four gradient hues. Offset the starting hue per panel so all four appear across a section. |
 
 **Five traps, each of which cost a debugging round.** The stylesheet carries the fixes
 next to the code:
