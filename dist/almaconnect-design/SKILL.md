@@ -197,7 +197,8 @@ radius 10px, no shadow.
 at 6% white holding all tabs, with only the selected tab filled solid white and ink;
 unselected tabs carry no fill of their own, just muted label colour. Not a row of
 separate pills. The fill is **one element that slides** between tabs (`.segmented__thumb`),
-measured in JS because the tabs are different widths. Below the width the track needs for a single row it becomes a 2-up
+measured in JS because the tabs are different widths. Where the track sits beside a visual, that grid must be `align-items: start` —
+centred, one extra line of copy on a single tab slides the whole tab row. Below the width the track needs for a single row it becomes a 2-up
 block with the panel radius — a stadium radius wrapped around two rows reads as a bug.
 
 **Keyword highlight** (`.hl` + `--aqua/--lilac/--sky/--peach`) — a saturated support
