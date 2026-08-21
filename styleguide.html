@@ -63,4 +63,67 @@
   });
 })();
 </script>
+<script>
+var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// blur-in: split words, reveal on first sight, then hand off to the shimmer
+(function () {
+  var TARGETS = 'h1, h2, .t-hero-sub, .t-sub';   // pick per page
+  var STEP = 46, RUN = 620, CAP = 900;           // ms between words / per word / stagger cap
+
+  function wrap(el, out) {
+    [].slice.call(el.childNodes).forEach(function (node) {
+      if (node.nodeType === 3) {
+        var parts = node.textContent.split(/(\s+)/);
+        if (parts.length === 1 && !parts[0].trim()) return;
+        var frag = document.createDocumentFragment();
+        parts.forEach(function (part) {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+          var w = document.createElement('span');
+          w.className = 'bw';
+          w.textContent = part;
+          frag.appendChild(w);
+          out.push(w);
+        });
+        el.replaceChild(frag, node);
+      } else if (node.nodeType === 1 && node.tagName !== 'BR') {
+        wrap(node, out);   // recurse, so .shine keeps its identity
+      }
+    });
+  }
+
+  var targets = [].slice.call(document.querySelectorAll(TARGETS));
+  // mark the shimmers this sequences, so the plain observer skips them
+  targets.forEach(function (t) {
+    [].slice.call(t.querySelectorAll('.shine--once')).forEach(function (sh) {
+      sh.setAttribute('data-seq', '');
+    });
+  });
+  if (reduced || !('IntersectionObserver' in window)) return;
+
+  targets.forEach(function (t) {
+    var words = [];
+    wrap(t, words);
+    if (!words.length) return;
+    words.forEach(function (w, i) { w.style.setProperty('--bd', Math.min(i * STEP, CAP) + 'ms'); });
+    t._bwLast = Math.min((words.length - 1) * STEP, CAP);
+  });
+
+  var bio = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      var t = entry.target;
+      bio.unobserve(t);
+      t.classList.add('is-in');
+      setTimeout(function () {
+        t.classList.add('bi--done');
+        [].slice.call(t.querySelectorAll('.shine--once')).forEach(function (sh) {
+          sh.classList.add('is-lit');
+        });
+      }, (t._bwLast || 0) + RUN);       // sweep as the last word lands
+    });
+  }, { threshold: 0.35 });
+  targets.forEach(function (t) { bio.observe(t); });
+})();
+</script>
 </body></html>

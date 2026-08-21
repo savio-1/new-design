@@ -165,6 +165,9 @@ The string is duplicated into `data-text` because `::after` paints `attr(data-te
 keep the two in sync. Which variant:
 
 - **Hero headline loops** — plain `.shine`, 5s cycle, ~45% sweep then rest.
+- **Blur-in first** — `.bw` + `.is-in` resolve headlines and section subtext word by word on
+  first sight, and the shimmer is sequenced to start as the last word lands rather than
+  running over text that has not appeared yet.
 - **Every other headline sweeps once**, the first time it scrolls into view — add
   `.shine--once` and let the IntersectionObserver (threshold 0.6, then `unobserve`)
   add `.is-lit`. Once per session, never on re-scroll.

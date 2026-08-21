@@ -452,6 +452,27 @@ button, input, select, textarea, td, th {
   to   { background-position: -40% 0; }
 }
 
+/* ---- blur-in ----------------------------------------------------------
+   Headlines and section subtext resolve word by word the first time they
+   reach the viewport — sharp at the start of the line while the tail is
+   still blurred — and the shimmer sweeps only once the last word lands.
+   Words are wrapped by JS (snippet at the foot of this file) so the markup
+   stays plain text and nested elements keep their identity. */
+.bw {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(9px);
+  translate: 0 8px;
+  transition:
+    opacity 0.62s var(--ease) var(--bd, 0ms),
+    filter 0.62s var(--ease) var(--bd, 0ms),
+    translate 0.62s var(--ease) var(--bd, 0ms);
+}
+.is-in .bw { opacity: 1; filter: blur(0); translate: 0 0; }
+/* a blurred inline-block keeps its own layer; once landed the filter comes
+   off entirely so a long headline stops costing compositing */
+.bi--done .bw { filter: none; transition: none; }
+
 /* ---- hover shimmer on a numeral, one hue per column --------------------
    Same clip trick, but the sweep fires on hover and each column of a stat
    band takes a different support hue. */
@@ -539,6 +560,7 @@ button, input, select, textarea, td, th {
     scroll-behavior: auto !important;
   }
   .shine::after, .shimmer-num::after { animation: none; opacity: 0; }
+  .bw { opacity: 1; filter: none; translate: 0 0; transition: none; }
   .rise { opacity: 1; translate: 0 0; }
 }
 
@@ -550,9 +572,71 @@ button, input, select, textarea, td, th {
 
    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+   // blur-in: split words, reveal on first sight, then hand off to the shimmer
+   (function () {
+     var TARGETS = 'h1, h2, .t-hero-sub, .t-sub';   // pick per page
+     var STEP = 46, RUN = 620, CAP = 900;           // ms between words / per word / stagger cap
+
+     function wrap(el, out) {
+       [].slice.call(el.childNodes).forEach(function (node) {
+         if (node.nodeType === 3) {
+           var parts = node.textContent.split(/(\s+)/);
+           if (parts.length === 1 && !parts[0].trim()) return;
+           var frag = document.createDocumentFragment();
+           parts.forEach(function (part) {
+             if (!part) return;
+             if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+             var w = document.createElement('span');
+             w.className = 'bw';
+             w.textContent = part;
+             frag.appendChild(w);
+             out.push(w);
+           });
+           el.replaceChild(frag, node);
+         } else if (node.nodeType === 1 && node.tagName !== 'BR') {
+           wrap(node, out);   // recurse, so .shine keeps its identity
+         }
+       });
+     }
+
+     var targets = [].slice.call(document.querySelectorAll(TARGETS));
+     // mark the shimmers this sequences, so the plain observer skips them
+     targets.forEach(function (t) {
+       [].slice.call(t.querySelectorAll('.shine--once')).forEach(function (sh) {
+         sh.setAttribute('data-seq', '');
+       });
+     });
+     if (reduced || !('IntersectionObserver' in window)) return;
+
+     targets.forEach(function (t) {
+       var words = [];
+       wrap(t, words);
+       if (!words.length) return;
+       words.forEach(function (w, i) { w.style.setProperty('--bd', Math.min(i * STEP, CAP) + 'ms'); });
+       t._bwLast = Math.min((words.length - 1) * STEP, CAP);
+     });
+
+     var bio = new IntersectionObserver(function (entries) {
+       entries.forEach(function (entry) {
+         if (!entry.isIntersecting) return;
+         var t = entry.target;
+         bio.unobserve(t);
+         t.classList.add('is-in');
+         setTimeout(function () {
+           t.classList.add('bi--done');
+           [].slice.call(t.querySelectorAll('.shine--once')).forEach(function (sh) {
+             sh.classList.add('is-lit');
+           });
+         }, (t._bwLast || 0) + RUN);       // sweep as the last word lands
+       });
+     }, { threshold: 0.35 });
+     targets.forEach(function (t) { bio.observe(t); });
+   })();
+
+   // any shimmer NOT sequenced above still sweeps on its own
    // headlines sweep once, the first time they scroll into view
    (function () {
-     var once = [].slice.call(document.querySelectorAll('.shine--once'));
+     var once = [].slice.call(document.querySelectorAll('.shine--once:not([data-seq])'));
      if (!once.length || reduced || !('IntersectionObserver' in window)) return;
      var io = new IntersectionObserver(function (entries) {
        entries.forEach(function (entry) {

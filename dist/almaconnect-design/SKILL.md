@@ -244,6 +244,7 @@ keep the two in sync.
 | Variant | Behaviour |
 |---|---|
 | `.shine` | Hero headline. Loops: 5s cycle, ~45% sweep, then rests. |
+| `.bw` + `.is-in` | **Blur-in.** Headlines and section subtext resolve word by word on first sight — sharp at the line start while the tail is still blurred. The shimmer is sequenced to start as the last word lands, never over text that has not resolved. |
 | `.shine--once` | Every other headline. Sweeps **once**, the first time it scrolls into view — an IntersectionObserver (threshold 0.6, then `unobserve`) adds `.is-lit`. Never on re-scroll. |
 | `.shine--dark` | On a dark ground: sweeps aqua → white instead of ink → turquoise. |
 | `.shimmer-num` + `--aqua/--lilac/--sky/--peach` | Numerals shimmer on hover, a different hue per column of a stat band. |

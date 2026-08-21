@@ -350,6 +350,27 @@ button, input, select, textarea, td, th {
 
 .hero__cta { margin-top: 24px; }
 
+/* ============ blur-in: headlines and section subtext resolve word by
+   word the first time they reach the viewport, then the shimmer sweeps.
+   Words are wrapped by JS so the markup stays plain text. ============ */
+
+.bw {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(9px);
+  translate: 0 8px;
+  transition:
+    opacity 0.62s var(--ease) var(--bd, 0ms),
+    filter 0.62s var(--ease) var(--bd, 0ms),
+    translate 0.62s var(--ease) var(--bd, 0ms);
+}
+
+.is-in .bw { opacity: 1; filter: blur(0); translate: 0 0; }
+
+/* a blurred inline-block still paints its own layer; once it has landed the
+   filter comes off entirely so long headlines stop costing compositing */
+.bi--done .bw { filter: none; transition: none; }
+
 /* ---- shimmer headline: line 2 is ink by default; a turquoise gradient
    band sweeps across it periodically, then it returns to ink ---- */
 .shine {
@@ -1976,6 +1997,7 @@ button, input, select, textarea, td, th {
 
 @media (prefers-reduced-motion: reduce) {
   .shine::after { animation: none; opacity: 0; }
+  .bw { opacity: 1; filter: none; translate: 0 0; transition: none; }
   .nav, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__learn .arrow, .mega__flink .arrow { transition: none; }
   .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
@@ -2888,10 +2910,101 @@ button, input, select, textarea, td, th {
     update();
   })();
 
-  /* ============ section headlines: sweep the shimmer once, the first
-     time each headline scrolls into view ============ */
+  /* ============ headlines and section subtext: blur in word by word the
+     first time they reach the viewport, then hand off to the shimmer.
+     The two used to be independent, which meant the sweep could run over
+     text that had not resolved yet. ============ */
+  var BLUR_IN = [
+    '.hero h1', '.hero__sub',
+    '.trusted__head',
+    '.personas__head',
+    '.problem__head',
+    '.solution__top h2', '.solution__top p',
+    '.benefits__head',
+    '.tstm__head h2',
+    '.duo__head h2', '.duo__head p',
+    '.close h2'
+  ].join(', ');
+  /* .problem__body is deliberately absent: its words already light on
+     scroll, and two word-splitters on one paragraph would fight. */
+
+  var STEP = 46;      /* ms between words */
+  var RUN  = 620;     /* ms each word takes */
+  var CAP  = 900;     /* longest headline still starts its last word by here */
+
   (function () {
-    var once = [].slice.call(document.querySelectorAll('.shine--once'));
+    var targets = [].slice.call(document.querySelectorAll(BLUR_IN));
+    if (!targets.length) return;
+
+    /* Split text nodes into word spans, recursing so nested elements —
+       .shine above all — keep their identity and their own children. */
+    function wrap(el, out) {
+      [].slice.call(el.childNodes).forEach(function (node) {
+        if (node.nodeType === 3) {
+          var parts = node.textContent.split(/(\s+)/);
+          if (parts.length === 1 && !parts[0].trim()) return;
+          var frag = document.createDocumentFragment();
+          parts.forEach(function (part) {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+            var w = document.createElement('span');
+            w.className = 'bw';
+            w.textContent = part;
+            frag.appendChild(w);
+            out.push(w);
+          });
+          el.replaceChild(frag, node);
+        } else if (node.nodeType === 1 && node.tagName !== 'BR') {
+          wrap(node, out);
+        }
+      });
+    }
+
+    /* every .shine--once inside a target is sequenced here, so the plain
+       shimmer observer below must leave those alone */
+    targets.forEach(function (t) {
+      [].slice.call(t.querySelectorAll('.shine--once')).forEach(function (sh) {
+        sh.setAttribute('data-seq', '');
+      });
+    });
+
+    if (reduced || !('IntersectionObserver' in window)) return;
+
+    targets.forEach(function (t) {
+      var words = [];
+      wrap(t, words);
+      if (!words.length) return;
+      words.forEach(function (w, i) {
+        w.style.setProperty('--bd', Math.min(i * STEP, CAP) + 'ms');
+      });
+      t._bwLast = Math.min((words.length - 1) * STEP, CAP);
+    });
+
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var t = entry.target;
+        io.unobserve(t);                       /* first time only */
+        t.classList.add('is-in');
+
+        var settled = (t._bwLast || 0) + RUN;
+        /* the sweep starts as the last word lands, not before */
+        setTimeout(function () {
+          t.classList.add('bi--done');
+          [].slice.call(t.querySelectorAll('.shine--once')).forEach(function (sh) {
+            sh.classList.add('is-lit');
+          });
+        }, settled);
+      });
+    }, { threshold: 0.35 });
+
+    targets.forEach(function (t) { io.observe(t); });
+  })();
+
+  /* ============ any shimmer NOT sequenced by the blur-in above still
+     sweeps on its own when scrolled into view ============ */
+  (function () {
+    var once = [].slice.call(document.querySelectorAll('.shine--once:not([data-seq])'));
     if (!once.length) return;
     if (reduced || !('IntersectionObserver' in window)) return;
 
