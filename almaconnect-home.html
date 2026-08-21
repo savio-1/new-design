@@ -39,8 +39,8 @@
   --tint-lilac: #f5edfd;  --on-lilac: #9b5fd0;
   --tint-sky:   #ebf4fd;  --on-sky:   #2f6fbf;
   --tint-peach: #fce9dc;  --on-peach: #c4703c;
-  --deep:        #17403a;                        /* dark section ground */
-  --deep-raised: #245450;
+  --deep:        #10261e;                        /* dark section ground */
+  --deep-raised: #1b3a2e;
   --deep-line:   rgba(255, 255, 255, 0.16);
   --on-deep:     rgba(255, 255, 255, 0.72);
   --warm:        #f6e47f;                        /* loader line on dark */
@@ -545,7 +545,7 @@ a { color: inherit; text-decoration: none; }
 .benefits { background: var(--deep); padding: 120px 0; }
 
 .benefits__head {
-  margin: 0 0 8px;
+  margin: 0 0 64px;
   text-align: center;
   font-family: var(--font-display);
   font-size: clamp(36px, 3.75vw, 54px);
@@ -554,21 +554,12 @@ a { color: inherit; text-decoration: none; }
   font-weight: 300;
   color: #fff;
 }
-.benefits__sub {
-  margin: 0 0 64px;
-  text-align: center;
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.68);   /* AA on --deep at 16px */
-}
-
 /* ---- pill tablist: right column, above the accordion ---- */
 .benefits__tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 .btab {
   display: inline-flex;
@@ -641,6 +632,7 @@ a { color: inherit; text-decoration: none; }
 /* one benefit per row: hairline rule above, accent rule when open */
 .bacc { display: flex; flex-direction: column; }
 .bacc__row { position: relative; border-top: 1px solid var(--deep-line); }
+.bacc__row:first-child { border-top: 0; }
 .bacc__row:last-child { border-bottom: 1px solid var(--deep-line); }
 /* progress line under the open benefit: fills over the dwell, then the
    accordion advances to the next benefit */
@@ -963,8 +955,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 640px) {
   .benefits { padding: 80px 0; }
-  .benefits__sub { margin-bottom: 40px; }
-  .benefits__tabs { margin-bottom: 28px; }
+  .benefits__tabs { margin-bottom: 18px; }
   .benefits__visuals { padding: 24px 20px; }
 }
 
@@ -1211,7 +1202,6 @@ a { color: inherit; text-decoration: none; }
   <section class="benefits" id="benefits">
     <div class="container" data-plx>
       <h2 class="benefits__head">Our data. Your people.</h2>
-      <p class="benefits__sub">Pick a product to see what it does.</p>
 
       <div class="benefits__grid">
         <div class="benefits__visuals" aria-hidden="true">
@@ -1377,7 +1367,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 31 — section 05b: supplied panel image, auto-playing benefit accordion with a yellow progress line, white/faint-white pills. Placeholder media throughout.</p>
+    <p>Iteration 32 — section 05b: deeper green ground, no sub-headline, tighter tab/intro spacing, no rule above benefit 1, auto-play pause bug fixed. Placeholder media throughout.</p>
   </div>
 </footer>
 
@@ -1665,18 +1655,25 @@ a { color: inherit; text-decoration: none; }
     panels.forEach(function (panel) {
       rowsOf(panel).forEach(function (r) {
         r.querySelector('.bacc__head').addEventListener('click', function () {
+          paused = false;              /* a click always resumes the cycle */
           resetBars();
           openRow(panel, r, false);
-          play();                                   /* restart the cycle here */
+          play();                      /* ...restarting from the clicked benefit */
         });
       });
-      /* pause while the visitor is reading or tabbing through */
+      /* Pause only for keyboard users reading with the caret in the list.
+         Hover must NOT pause: the pointer sits over this column whenever the
+         section is scrolled into view, which would stop the cycle before it
+         ever started. `:focus-visible` keeps a plain mouse click — which also
+         fires focusin — from pausing. */
       var acc = panel.closest('.benefits__content');
       if (acc && !acc.dataset.bound) {
         acc.dataset.bound = '1';
-        acc.addEventListener('pointerenter', function () { paused = true; stop(); });
-        acc.addEventListener('pointerleave', function () { paused = false; play(); });
-        acc.addEventListener('focusin', function () { paused = true; stop(); });
+        acc.addEventListener('focusin', function (e) {
+          var kb = false;
+          try { kb = e.target.matches(':focus-visible'); } catch (err) { kb = false; }
+          if (kb) { paused = true; stop(); }
+        });
         acc.addEventListener('focusout', function () { paused = false; play(); });
       }
     });
