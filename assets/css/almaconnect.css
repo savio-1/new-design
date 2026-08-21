@@ -1,0 +1,514 @@
+/* ============================================================
+   AlmaConnect Design System — v2
+   ------------------------------------------------------------
+   Extracted from the built homepage (almaconnect-home.src.html) so
+   every other page starts from the same tokens, type ladder, colour
+   rules, gradients and shimmer machinery.
+
+   This sheet supersedes references/design-tokens.css v1 (which was
+   Nunito-Sans-only, on the pre-Geist scale and the #f7f6f2 ground).
+
+   Load order for a page:
+     1. the Google Fonts link below (or local @font-face)
+     2. this file
+     3. page-specific CSS
+
+   Fonts — put this in <head> before this sheet:
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap">
+   ============================================================ */
+
+
+/* ============================================================
+   1. TOKENS
+   ============================================================ */
+
+:root {
+  /* ---- brand ---- */
+  --accent:      #00c4b5;   /* primary turquoise */
+  --accent-dark: #00a396;   /* hover / pressed, and the shimmer's mid stop */
+  --accent-tint: #e0f7f4;   /* pale wash: tag pills, highlight backgrounds */
+  --accent-lift: #7fe8de;   /* the bright crest inside gradients */
+
+  /* ---- ink ---- */
+  --ink:    #04302b;                  /* headlines + primary body. Never pure black. */
+  --ink-80: rgba(4, 48, 43, 0.8);
+  --ink-65: rgba(6, 48, 43, 0.65);    /* secondary body */
+  --ink-45: rgba(6, 48, 43, 0.45);    /* captions, dates, disclaimers */
+
+  /* ---- grounds ---- */
+  --ground:   #f2efea;                /* warm page ground — never pure white */
+  --surface:  #ffffff;                /* cards, nav bar, panels sit ON the ground */
+  --panel:    #edebe4;                /* recessed panel, one step under the ground */
+  --hairline: rgba(153, 159, 153, 0.25);  /* every rule, border and divider */
+
+  /* ---- dark ground (one or two sections per page, full-bleed) ---- */
+  --deep:        #10261e;
+  --deep-raised: #1b3a2e;                    /* a card on the dark ground */
+  --deep-line:   rgba(255, 255, 255, 0.16);
+  --on-deep:     rgba(255, 255, 255, 0.72);  /* body text on dark */
+  --warm:        #f6e47f;                    /* the only warm accent: progress
+                                                lines and chasing lights on dark */
+
+  /* ---- support palette: tint fill + its same-hue text, category/state only.
+         Each hue stays under ~1% of screen area. Never on CTAs or headlines. ---- */
+  --tint-aqua:  #e0f7f4;  --on-aqua:  #00806f;
+  --tint-lilac: #f5edfd;  --on-lilac: #9b5fd0;
+  --tint-sky:   #ebf4fd;  --on-sky:   #2f6fbf;
+  --tint-peach: #fce9dc;  --on-peach: #c4703c;
+  --tint-mint:  #e5f6f0;  --on-mint:  #2f9e77;   /* verified / positive */
+  --tint-sand:  #fdf4e3;  --on-sand:  #d08a21;   /* former / pending */
+
+  /* saturated ends of the support hues — used only inside gradients */
+  --hl-aqua:  #6fe0d3;
+  --hl-lilac: #cdb1f2;
+  --hl-sky:   #9ec9f5;
+  --hl-peach: #f7bf95;
+
+  /* ---- type ---- */
+  --font-display: "Geist", "Helvetica Neue", Arial, sans-serif;
+  --font-body:    "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+
+  /* ---- layout ---- */
+  --container:    1288px;
+  --page-margin:  76px;
+  --nav-h:        72px;
+  --nav-solid:    rgba(242, 239, 234, 0.9);   /* nav once it has scrolled */
+
+  /* ---- radii ---- */
+  --r-button: 10px;
+  --r-card:   12px;
+  --r-panel:  16px;
+  --r-pill:   9999px;
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);   /* the house easing, used everywhere */
+}
+
+@media (max-width: 920px) {
+  :root { --page-margin: 24px; --nav-h: 64px; }
+}
+
+
+/* ============================================================
+   2. BASE + THE TWO TYPE LAWS
+   ============================================================ */
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; background: var(--ground); }
+
+body {
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  letter-spacing: -0.03em;          /* body default */
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* -3% cannot live on `body` alone. `em` resolves to a pixel value at the
+   body's own size and then inherits as THAT PIXEL VALUE, so a 14px child
+   renders -3.4% and an 18px child -2.7%. Re-anchoring on the elements
+   themselves makes -3% resolve against each element's own size, and picks
+   up form controls, which inherit neither font nor tracking. */
+h1, h2, h3, h4, h5, h6,
+p, li, a, blockquote, cite, figcaption, label, dt, dd,
+button, input, select, textarea, td, th {
+  letter-spacing: -0.03em;
+}
+/* span/em/strong stay OUT of that list on purpose: they wrap a run inside a
+   headline (.shine does exactly this) and must take the parent's tracking,
+   not reset it. Any <span> carrying its own font-size needs its own -0.03em. */
+
+.container {
+  max-width: calc(var(--container) + 2 * var(--page-margin));
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+
+/* ============================================================
+   3. TYPE SCALE
+   ------------------------------------------------------------
+   HEADLINES — Geist. Two hinges, no exceptions:
+     · tracking: -4% at 48px and above, -3% below
+     · weight:   350 at 32px and above, 400 at 24px and below
+   BODY — Nunito Sans, weight 400, -3%, always.
+
+   Sizes are the whole inventory. Do not invent steps between them.
+     Geist        88 / 64 / 48 / 32 / 24 / 16 / 14
+     Nunito Sans  24 / 20 / 18 / 16 / 14 / 12
+   ============================================================ */
+
+.t-display,          /* 88 — homepage hero only */
+.t-num,              /* 64 — stat numerals */
+.t-h2,               /* 48 — EVERY section headline, one spec */
+.t-h3,               /* 32 */
+.t-h4,               /* 24 */
+.t-tab,              /* 16 — tab / segmented control */
+.t-pill {            /* 14 — category pill */
+  font-family: var(--font-display);
+  margin: 0;
+}
+
+.t-display { font-size: clamp(52px, 6.1vw, 88px);  line-height: 0.95; letter-spacing: -0.04em; font-weight: 350; }
+.t-num     { font-size: clamp(40px, 4.45vw, 64px); line-height: 0.95; letter-spacing: -0.04em; font-weight: 350; font-variant-numeric: tabular-nums; }
+.t-h2      { font-size: clamp(34px, 3.34vw, 48px); line-height: 1.08; letter-spacing: -0.04em; font-weight: 350; }
+.t-h3      { font-size: 32px;                      line-height: 1.25; letter-spacing: -0.03em; font-weight: 350; }
+.t-h4      { font-size: 24px;                      line-height: 1.22; letter-spacing: -0.03em; font-weight: 400; }
+.t-tab     { font-size: 16px;                      line-height: 1;    letter-spacing: -0.03em; font-weight: 400; }
+.t-pill    { font-size: 14px;                      line-height: 1.4;  letter-spacing: -0.03em; font-weight: 400; }
+
+/* A headline that drops a step at a breakpoint crosses the weight hinge
+   with it — 32px H3 falling to 24px must also go 350 -> 400. */
+@media (max-width: 620px) {
+  .t-h3 { font-size: 24px; line-height: 28px; font-weight: 400; }
+}
+
+.t-editorial { font-family: var(--font-body); font-size: 24px; line-height: 1.55; letter-spacing: -0.03em; font-weight: 400; }
+.t-lead      { font-family: var(--font-body); font-size: 20px; line-height: 1.45; letter-spacing: -0.03em; font-weight: 400; }
+.t-sub       { font-family: var(--font-body); font-size: 18px; line-height: 1.5;  letter-spacing: -0.03em; font-weight: 400; }
+.t-body      { font-family: var(--font-body); font-size: 16px; line-height: 1.5;  letter-spacing: -0.03em; font-weight: 400; }
+.t-label     { font-family: var(--font-body); font-size: 14px; line-height: 1.4;  letter-spacing: -0.03em; font-weight: 400; }
+.t-micro     { font-family: var(--font-body); font-size: 12px; line-height: 1.5;  letter-spacing: -0.03em; font-weight: 400; }
+
+/* Hero subtext is the one body style with a fixed line-height. */
+.t-hero-sub  { font-family: var(--font-body); font-size: 20px; line-height: 24px; letter-spacing: -0.03em; font-weight: 400; color: var(--ink-80); }
+
+/* Reading measure: paragraphs never span the container. */
+.t-editorial { max-width: 620px; }
+.t-sub, .t-body { max-width: 54ch; }
+
+/* Weight exceptions — the ONLY ones. UI controls read as affordances, not
+   prose, so they keep their heavier label weight. Sizes still come from
+   the ladder above. */
+.t-btn-label { font-family: var(--font-body); font-size: 16px; font-weight: 600; letter-spacing: -0.03em; }
+.t-nav-label { font-family: var(--font-body); font-size: 16px; font-weight: 500; letter-spacing: -0.03em; }
+
+/* Logotypes are exempt from the tracking laws — a drawn mark keeps
+   whatever spacing the mark itself specifies. */
+.t-logotype { letter-spacing: 0.06em; }
+
+/* Two-tone paragraph device: lead phrase at full ink, the rest at 65%. */
+.t-twotone       { color: var(--ink-65); }
+.t-twotone b,
+.t-twotone strong { font-weight: 600; color: var(--ink); }
+
+
+/* ============================================================
+   4. COMPONENTS
+   ============================================================ */
+
+/* ---- buttons ----------------------------------------------------------
+   #00c4b5 is LIGHT: white text on it fails AA. Primary buttons are ink
+   fill + white text; turquoise fill takes INK text. Never white on
+   turquoise. No drop shadows anywhere — depth is hairlines and tints. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; cursor: pointer;
+  font-family: var(--font-body); font-size: 16px; font-weight: 600;
+  letter-spacing: -0.03em;
+  border-radius: var(--r-button);
+  height: 50px; padding-inline: 32px;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.btn--ink    { background: var(--ink);    color: #fff; }
+.btn--ink:hover { background: #06413a; }
+.btn--accent { background: var(--accent); color: var(--ink); }
+.btn--accent:hover { background: var(--accent-dark); }
+.btn--outline {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--ink); height: 40px; padding-inline: 18px;
+}
+.btn--outline:hover { background: var(--ink); color: #fff; border-radius: 0; }
+.btn--nav { height: 44px; padding-inline: 26px; font-size: 16px; }
+
+/* text link with a nudging arrow */
+.link-arrow { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; color: var(--accent); }
+.link-arrow .arrow { display: inline-block; transition: translate 0.2s var(--ease); }
+.link-arrow:hover .arrow { translate: 3px 0; }
+
+/* ---- pills, chips, hairlines ---- */
+.pill {
+  display: inline-flex; align-items: center;
+  height: 32px; padding-inline: 12px;
+  border-radius: var(--r-pill);
+  background: var(--panel); color: var(--ink-65);
+  font-family: var(--font-display); font-size: 14px; font-weight: 400; letter-spacing: -0.03em;
+}
+/* tab pills on the dark ground: selected is solid white, the rest are a
+   faint white wash. No greens on pills. */
+.pill--tab           { height: 40px; padding-inline: 18px; font-size: 16px; background: rgba(255,255,255,0.09); color: var(--on-deep); }
+.pill--tab[aria-selected="true"] { background: #fff; color: var(--ink); }
+
+.hl { padding: 1px 6px; border-radius: 5px; }        /* highlighted keyword */
+.hl--aqua  { background: var(--hl-aqua); }
+.hl--lilac { background: var(--hl-lilac); }
+.hl--sky   { background: var(--hl-sky); }
+.hl--peach { background: var(--hl-peach); }
+
+.rule { border: 0; border-top: 1px solid var(--hairline); margin: 0; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+}
+
+
+/* ============================================================
+   5. GRADIENTS
+   ------------------------------------------------------------
+   Gradients are for GROUNDS and SHIMMERS only — never a flat gradient
+   behind static text, and never more than one gradient surface per
+   viewport.
+   ============================================================ */
+
+/* Pastel wash behind orbiting/floating elements. Four offset radial
+   blooms, heavily blurred, so no individual blob reads as a shape. */
+.wash-pastel {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(48% 82% at 12% 46%, rgba(112, 226, 188, 0.62), transparent 70%),
+    radial-gradient(48% 82% at 40% 28%, rgba(150, 205, 245, 0.62), transparent 70%),
+    radial-gradient(48% 82% at 72% 38%, rgba(205, 180, 245, 0.62), transparent 70%),
+    radial-gradient(42% 82% at 96% 58%, rgba(250, 205, 175, 0.42), transparent 70%);
+  filter: blur(42px);
+}
+
+/* Scrim over a photographic/gradient ground: darker at top and bottom so
+   a headline at the top and cards at the bottom both hold contrast. */
+.scrim-ink {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(4, 48, 43, 0.58) 0%,
+    rgba(4, 48, 43, 0.22) 45%,
+    rgba(4, 48, 43, 0.5) 100%);
+}
+
+/* Frosted card on a busy ground. */
+.glass {
+  background: rgba(250, 250, 250, 0.94);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-radius: var(--r-panel);
+}
+
+
+/* ============================================================
+   6. SHIMMER SYSTEM
+   ------------------------------------------------------------
+   The house signature. A gradient band sweeps across TEXT (clipped to
+   the glyphs) or along an SVG OUTLINE, then the element returns to its
+   resting colour. It never leaves a gradient sitting on the text.
+
+   Markup: <span class="shine" data-text="Your database didn't.">Your database didn't.</span>
+   The duplicated string in data-text is what ::after paints — keep the
+   two in sync, and keep aria off the pseudo (the real text is still there).
+
+   Rules of the device:
+     · the HERO headline loops (5s cycle, ~45% sweep, then rests)
+     · every other headline sweeps ONCE, the first time it scrolls into
+       view — add .shine--once and let the observer add .is-lit
+     · on a dark ground add .shine--dark (aqua -> white instead of ink)
+   ============================================================ */
+
+.shine { position: relative; display: inline-block; color: var(--ink); }
+
+.shine::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg,
+    rgba(0, 196, 181, 0) 30%,
+    rgba(0, 163, 150, 0.85) 42%,
+    #00c4b5 50%,
+    rgba(127, 232, 222, 0.95) 54%,
+    #00c4b5 58%,
+    rgba(0, 163, 150, 0.85) 66%,
+    rgba(0, 196, 181, 0) 78%);
+  background-size: 240% 100%;
+  background-position: 130% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  pointer-events: none;
+  animation: shineSweep 5s ease-in-out 1.2s infinite;
+}
+
+.shine--once::after { animation: none; }
+.shine--once.is-lit::after { animation: shineOnce 2.4s ease-in-out 0.15s 1 both; }
+
+.shine--dark { color: inherit; }
+.shine--dark::after {
+  /* background-image, NOT the `background` shorthand — the shorthand resets
+     background-clip and paints a solid band over the text. */
+  background-image: linear-gradient(100deg,
+    rgba(127, 232, 222, 0) 30%,
+    rgba(127, 232, 222, 0.9) 42%,
+    #d9fbf6 50%,
+    #ffffff 54%,
+    #d9fbf6 58%,
+    rgba(127, 232, 222, 0.9) 66%,
+    rgba(127, 232, 222, 0) 78%);
+  background-size: 240% 100%;
+  background-position: 130% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@keyframes shineSweep {
+  0%   { background-position: 130% 0; }
+  45%  { background-position: -40% 0; }
+  100% { background-position: -40% 0; }   /* rest before looping */
+}
+@keyframes shineOnce {
+  from { background-position: 130% 0; }
+  to   { background-position: -40% 0; }
+}
+
+/* ---- hover shimmer on a numeral, one hue per column --------------------
+   Same clip trick, but the sweep fires on hover and each column of a stat
+   band takes a different support hue. */
+.shimmer-num { position: relative; }
+.shimmer-num::after {
+  content: attr(data-text);
+  position: absolute; inset: 0;
+  background-size: 240% 100%;
+  background-position: 130% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  pointer-events: none;
+  opacity: 0;
+}
+.shimmer-num:hover::after,
+.shimmer-num.is-sweeping::after { opacity: 1; animation: shineOnce 1.1s ease-in-out 1 both; }
+
+.shimmer-num--aqua::after  { background-image: linear-gradient(100deg, rgba(0,196,181,0) 30%,   #00a396 42%, #7fe8de 50%, #00a396 58%, rgba(0,196,181,0) 78%); }
+.shimmer-num--lilac::after { background-image: linear-gradient(100deg, rgba(155,95,208,0) 30%,  #7c42ad 42%, #cdb1f2 50%, #7c42ad 58%, rgba(155,95,208,0) 78%); }
+.shimmer-num--sky::after   { background-image: linear-gradient(100deg, rgba(47,111,191,0) 30%,  #2f6fbf 42%, #9ec9f5 50%, #2f6fbf 58%, rgba(47,111,191,0) 78%); }
+.shimmer-num--peach::after { background-image: linear-gradient(100deg, rgba(196,112,60,0) 30%,  #a85a28 42%, #f7bf95 50%, #a85a28 58%, rgba(196,112,60,0) 78%); }
+
+/* ---- travelling light on an SVG outline -------------------------------
+   A lit dash runs the perimeter of a drawn mark. Give the path a
+   `pathLength` or measure getTotalLength(), then write LITERAL numbers
+   into the dash pattern and the keyframe: a calc(var(--x)) endpoint in a
+   keyframe DOES NOT INTERPOLATE — Chrome snaps to the end value and
+   holds. That is why each mark carries its own @keyframes. */
+.trace {
+  fill: none;
+  stroke: url(#traceGrad);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+/* pattern: `stroke-dasharray: <lit> <total - lit>` and the keyframe runs
+   dashoffset from 0 to -<total>. Example for a 383.4-long path: */
+.trace--example { stroke-dasharray: 66 317.4; animation: traceExample 3.6s linear infinite; }
+@keyframes traceExample { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -383.4; } }
+
+/* ---- chasing light around a ring of marks -----------------------------
+   Each star sets --i (its index). The glow ramps up AND down across a span
+   wider than the gap between neighbours, so the peaks overlap and the
+   light flows instead of stepping. Delay must ADVANCE with the index —
+   (count - i), not -i — or the chase runs anticlockwise. */
+.chase { fill: #fff; opacity: 0.55; animation: chaseGlow 3.4s linear infinite; }
+.chase { animation-delay: calc((var(--count, 12) - 1 - var(--i)) * -0.2833s); }
+@keyframes chaseGlow {
+  0%   { fill: #ffffff; opacity: 0.55; }
+  9%   { fill: var(--warm); opacity: 1; }   /* ramp up  */
+  20%  { fill: #ffffff; opacity: 0.55; }    /* ramp down */
+  100% { fill: #ffffff; opacity: 0.55; }
+}
+
+
+/* ============================================================
+   7. SCROLL-IN
+   ============================================================ */
+
+.rise { opacity: 0; translate: 0 14px; transition: opacity 0.5s var(--ease), translate 0.5s var(--ease); }
+.rise.is-in { opacity: 1; translate: 0 0; }
+
+
+/* ============================================================
+   8. REDUCED MOTION
+   ------------------------------------------------------------
+   Everything above stops. Anything the JS gates must ALSO read the same
+   media query (see the snippet at the bottom of this file).
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .shine::after, .shimmer-num::after { animation: none; opacity: 0; }
+  .rise { opacity: 1; translate: 0 0; }
+}
+
+
+/* ============================================================
+   9. THE JS THIS SHEET EXPECTS
+   ------------------------------------------------------------
+   Two observers. Copy into the page's main closure.
+
+   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+   // headlines sweep once, the first time they scroll into view
+   (function () {
+     var once = [].slice.call(document.querySelectorAll('.shine--once'));
+     if (!once.length || reduced || !('IntersectionObserver' in window)) return;
+     var io = new IntersectionObserver(function (entries) {
+       entries.forEach(function (entry) {
+         if (!entry.isIntersecting) return;
+         entry.target.classList.add('is-lit');
+         io.unobserve(entry.target);            // first time only
+       });
+     }, { threshold: 0.6 });
+     once.forEach(function (el) { io.observe(el); });
+   })();
+
+   // .rise elements fade+lift in, staggered
+   (function () {
+     var els = [].slice.call(document.querySelectorAll('.rise'));
+     if (!els.length) return;
+     if (reduced || !('IntersectionObserver' in window)) {
+       els.forEach(function (el) { el.classList.add('is-in'); });
+       return;
+     }
+     var io = new IntersectionObserver(function (entries) {
+       entries.forEach(function (entry, n) {
+         if (!entry.isIntersecting) return;
+         setTimeout(function () { entry.target.classList.add('is-in'); }, n * 60);
+         io.unobserve(entry.target);
+       });
+     }, { threshold: 0.2 });
+     els.forEach(function (el) { io.observe(el); });
+   })();
+
+   Two traps worth knowing, both cost a debugging round on the homepage:
+   · An auto-advancing carousel or accordion must NOT pause on `focusin`
+     — that event fires on a plain mouse click, so clicking an item stops
+     the cycle. Pause on :focus-visible only, and always clear the pause
+     on click. Do not pause on hover over a whole column: the pointer sits
+     over it whenever the section scrolls into view.
+   · A transparent overlay (a copy block's padding above icons) swallows
+     pointer events. Give it `pointer-events: none` and put `auto` back on
+     its real children.
+   ============================================================ */
