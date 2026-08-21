@@ -1667,7 +1667,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 38 — headline shimmer on every section (once, on first scroll into view); faster hero cadence. Portraits are placeholders, not the quoted people. Placeholder media throughout.</p>
+    <p>Iteration 39 — testimonial carousel auto-advances every 4.5s, pausing on hover. Portraits are placeholders, not the quoted people. Placeholder media throughout.</p>
   </div>
 </footer>
 
@@ -1948,15 +1948,55 @@ a { color: inherit; text-decoration: none; }
       }, 140);                                  /* only wrap once motion stops */
     }
 
+    function go(dir) {
+      track.scrollBy({ left: (cardW() + GAP) * dir,
+                       behavior: reduced ? 'auto' : 'smooth' });
+    }
+
+    /* auto-advance one card every DWELL, looping through the clones.
+       Hovering the cards pauses it (you can't read a quote that keeps
+       sliding away); it resumes on leave. Keyboard focus pauses too, but
+       only when it came from the keyboard — focusin also fires on a plain
+       click, which would otherwise stop the carousel dead. */
+    var DWELL = 4500;
+    var timer = null, paused = false, onScreen = false;
+
+    function stopAuto() { clearTimeout(timer); timer = null; }
+    function startAuto() {
+      stopAuto();
+      if (reduced || paused || !onScreen) return;
+      timer = setTimeout(function () { go(1); startAuto(); }, DWELL);
+    }
+
     arrows.forEach(function (a) {
       a.addEventListener('click', function () {
-        track.scrollBy({ left: (cardW() + GAP) * Number(a.dataset.dir),
-                         behavior: reduced ? 'auto' : 'smooth' });
+        go(Number(a.dataset.dir));
+        startAuto();                            /* restart the clock */
       });
     });
+
+    track.addEventListener('pointerenter', function () { paused = true; stopAuto(); });
+    track.addEventListener('pointerleave', function () { paused = false; startAuto(); });
+    track.addEventListener('focusin', function (e) {
+      var kb = false;
+      try { kb = e.target.matches(':focus-visible'); } catch (err) { kb = false; }
+      if (kb) { paused = true; stopAuto(); }
+    });
+    track.addEventListener('focusout', function () { paused = false; startAuto(); });
+
     track.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', function () { park(); });
     park();
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        onScreen = entries[0].isIntersecting;
+        if (onScreen) startAuto(); else stopAuto();
+      }, { threshold: 0.2 }).observe(track);
+    } else {
+      onScreen = true;
+      startAuto();
+    }
   })();
 
   /* ============ product benefits (05b): pill tablist + auto-playing
