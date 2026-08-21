@@ -925,21 +925,21 @@ a { color: inherit; text-decoration: none; }
    right) that bleeds off the right edge. A four-up stat band sits under
    it. ============ */
 
-.tstm { background: var(--ground); padding: 120px 0 128px; overflow: hidden; }
-
-.tstm__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-65);
+.tstm { position: relative; background: var(--ground); padding: 120px 0 128px; overflow: hidden; }
+/* the loop always has a card either side, so mask the left gutter to keep
+   the clean margin the layout starts from */
+.tstm::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: max(var(--page-margin), calc((100vw - var(--container)) / 2));
+  background: var(--ground);
+  z-index: 1;
+  pointer-events: none;
 }
-.tstm__eyebrow svg { color: var(--accent-dark); }
 
 .tstm__head h2 {
-  margin: 20px 0 0;
+  margin: 0;
   max-width: 38ch;
   font-family: var(--font-display);
   font-size: clamp(30px, 3vw, 42px);
@@ -1048,8 +1048,14 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink-45);
   margin-top: 4px;
 }
-.tcard__photo { background: var(--panel); }
-.tcard__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tcard__photo { background: var(--panel); overflow: hidden; }
+.tcard__photo img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: scale 0.6s var(--ease);
+}
+.tcard:hover .tcard__photo img { scale: 1.07; }
 
 /* ---- proof numbers ---- */
 .tstats {
@@ -1062,7 +1068,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 208px;
+  min-height: 132px;
   padding: 0 24px 0 20px;
   border-left: 1px solid var(--hairline);
 }
@@ -1141,7 +1147,7 @@ a { color: inherit; text-decoration: none; }
   .tcard { flex-basis: min(86%, 520px); grid-template-columns: 1fr; min-height: 0; }
   .tcard__photo { display: none; }
   .tstats { grid-template-columns: repeat(2, 1fr); margin-top: 72px; }
-  .tstat { min-height: 168px; }
+  .tstat { min-height: 116px; }
 }
 
 @media (max-width: 640px) {
@@ -1166,6 +1172,8 @@ a { color: inherit; text-decoration: none; }
   .personas__grid { opacity: 1; transform: none; transition: none; }
   .pcard__learn { opacity: 1; translate: 0 0; transition: none; }
   .bvis, .bshot, .bpanel, .btab, .bmore .arrow, .bacc__body, .bacc__body p { transition: none; }
+  .tcard__photo img { transition: none; }
+  .tcard:hover .tcard__photo img { scale: 1; }
 }
 </style>
 
@@ -1568,7 +1576,6 @@ a { color: inherit; text-decoration: none; }
   <section class="tstm" id="customers">
     <div class="container" data-plx>
       <div class="tstm__head">
-        <span class="tstm__eyebrow"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden="true"><path d="M5 0l5 5-5 5-5-5z"/></svg> Advancement teams on AlmaConnect</span>
         <h2>Meet the teams who trust AlmaConnect</h2>
       </div>
       <div class="tstm__actions">
@@ -1630,7 +1637,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 36 — testimonials: short headline, larger cards (~1.5 in view), Geist names, ruled stat columns. Portraits are placeholders, not the quoted people. Placeholder media throughout.</p>
+    <p>Iteration 37 — testimonials: endless carousel loop, portrait zoom on card hover, no eyebrow, shorter stat cells. Portraits are placeholders, not the quoted people. Placeholder media throughout.</p>
   </div>
 </footer>
 
@@ -1843,33 +1850,65 @@ a { color: inherit; text-decoration: none; }
     update();
   })();
 
-  /* ============ testimonial carousel: arrows scroll one card at a time,
-     disabled at each end ============ */
+  /* ============ testimonial carousel: endless loop.
+     The three cards are cloned into three identical sets and the track
+     parks on the middle one; once a scroll settles near either edge the
+     position jumps a whole set sideways, which is invisible because the
+     sets are identical. Arrows therefore never dead-end. ============ */
   (function () {
     var track = document.getElementById('tstmTrack');
     if (!track) return;
     var arrows = [].slice.call(document.querySelectorAll('.tstm__arrow'));
+    var GAP = 24;
+    var originals = [].slice.call(track.children);
+    var count = originals.length;
+    if (!count) return;
 
-    function step() {
-      var card = track.querySelector('.tcard');
-      if (!card) return 0;
-      return card.getBoundingClientRect().width + 24;   /* card + gap */
-    }
-    function sync() {
-      var max = track.scrollWidth - track.clientWidth;
-      arrows.forEach(function (a) {
-        var back = a.dataset.dir === '-1';
-        a.disabled = back ? track.scrollLeft <= 2 : track.scrollLeft >= max - 2;
+    /* two extra sets, hidden from assistive tech */
+    for (var pass = 0; pass < 2; pass++) {
+      originals.forEach(function (card) {
+        var clone = card.cloneNode(true);
+        clone.setAttribute('aria-hidden', 'true');
+        track.appendChild(clone);
       });
     }
+
+    function cardW() {
+      var card = track.querySelector('.tcard');
+      return card ? card.getBoundingClientRect().width : 0;
+    }
+    function setW() { return count * (cardW() + GAP); }
+
+    function jump(px) {
+      var prev = track.style.scrollBehavior;
+      track.style.scrollBehavior = 'auto';
+      track.scrollLeft += px;
+      track.offsetHeight;                       /* commit before restoring */
+      track.style.scrollBehavior = prev;
+    }
+
+    function park() { jump(setW() - track.scrollLeft); }
+
+    var settle;
+    function onScroll() {
+      clearTimeout(settle);
+      settle = setTimeout(function () {
+        var set = setW();
+        if (!set) return;
+        if (track.scrollLeft < set * 0.5) jump(set);
+        else if (track.scrollLeft > set * 1.5) jump(-set);
+      }, 140);                                  /* only wrap once motion stops */
+    }
+
     arrows.forEach(function (a) {
       a.addEventListener('click', function () {
-        track.scrollBy({ left: step() * Number(a.dataset.dir), behavior: reduced ? 'auto' : 'smooth' });
+        track.scrollBy({ left: (cardW() + GAP) * Number(a.dataset.dir),
+                         behavior: reduced ? 'auto' : 'smooth' });
       });
     });
-    track.addEventListener('scroll', sync, { passive: true });
-    window.addEventListener('resize', sync);
-    sync();
+    track.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', function () { park(); });
+    park();
   })();
 
   /* ============ product benefits (05b): pill tablist + auto-playing
