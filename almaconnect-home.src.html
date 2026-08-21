@@ -804,13 +804,6 @@ a { color: inherit; text-decoration: none; }
 
 [data-plx] { will-change: transform; }
 
-/* one bg layer per card; z-index juggling stays inside this stacking context
-   so the scrim (::after) always paints above the images */
-.solution__bgs {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
 .solution__bg {
   position: absolute;
   inset: 0;
@@ -818,10 +811,7 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: clip-path 0.8s var(--ease), transform 0.8s var(--ease);
 }
-/* no-JS fallback: only the first layer shows */
-.solution__bg:not(:first-child) { clip-path: inset(0 0 0 100%); }
 /* scrim: darker at top (headline) and bottom (cards) */
 .solution::after {
   content: "";
@@ -872,24 +862,24 @@ a { color: inherit; text-decoration: none; }
 /* card accordion: one open (white, subtext + icon), others frosted titles */
 .solution__cards {
   display: flex;
+  align-items: flex-end;    /* only the open card grows taller */
   gap: 16px;
 }
 
 .scard {
   position: relative;
   flex: 1;
-  min-height: 300px;
+  height: 300px;
   border-radius: 16px;
   padding: 28px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   background: rgba(16, 34, 31, 0.42);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   cursor: pointer;
-  transition: flex-grow 0.55s var(--ease), background 0.4s ease;
+  transition: flex-grow 0.55s var(--ease), height 0.55s var(--ease), background 0.4s ease;
 }
 .scard.is-open {
   flex-grow: 2.4;
@@ -897,6 +887,27 @@ a { color: inherit; text-decoration: none; }
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+/* cards that carry a screenshot open taller to make room for it */
+.scard--shot.is-open { height: 436px; }
+
+/* the screenshot sits at the top of the open card, text stays pinned low */
+.scard__shot {
+  display: block;
+  height: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  opacity: 0;
+  transition: height 0.55s var(--ease), opacity 0.35s ease;
+}
+.scard--shot.is-open .scard__shot {
+  height: 218px;
+  opacity: 1;
+  transition: height 0.55s var(--ease), opacity 0.4s ease 0.15s;
+}
+.scard__shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* copy stays pinned to the bottom whether or not a screenshot is above it */
+.scard__text { margin-top: auto; }
 
 .scard h3 {
   margin: 0;
@@ -1154,7 +1165,8 @@ a { color: inherit; text-decoration: none; }
   .solution__inner { padding: 48px 24px; gap: 48px; min-height: 0; }
   .solution__top { flex-direction: column; gap: 20px; }
   .solution__cards { flex-direction: column; }
-  .scard { min-height: 0; padding: 24px; }
+  .scard, .scard--shot.is-open { height: auto; padding: 24px; }
+  .scard--shot .scard__shot { height: 180px; opacity: 1; }
   .scard p { opacity: 1; max-height: none; margin-bottom: 12px; }
   .scard .scard__icon { opacity: 1; scale: 1; }
   .scard h3 { color: var(--ink); }
@@ -1394,34 +1406,37 @@ a { color: inherit; text-decoration: none; }
 
   <!-- ==================== WHAT ALMACONNECT DOES (04) ==================== -->
   <section class="solution">
-    <div class="solution__bgs" aria-hidden="true">
-      <img class="solution__bg" src="@img:solution" alt="">
-      <img class="solution__bg" src="@img:sol2" alt="">
-      <img class="solution__bg" src="@img:sol3" alt="">
-    </div>
+    <img class="solution__bg" src="@img:solution" alt="" aria-hidden="true">
     <div class="solution__inner" data-plx>
       <div class="solution__top">
         <h2>We keep institutions connected<br><span class="shine shine--once shine--dark" data-text="to people who’ve left.">to people who&rsquo;ve left.</span></h2>
         <p>Since 2011, AlmaConnect has helped 500+ universities, schools, foundations, nonprofits and companies do three things:</p>
       </div>
       <div class="solution__cards" id="solutionCards">
-        <div class="scard is-open" tabindex="0">
-          <p>We identify your alumni across the public web and match them to your records — a unique ID on every match.</p>
-          <h3>Find them.</h3>
+        <div class="scard scard--shot is-open" tabindex="0">
+          <span class="scard__shot"><img src="@img:shot-find" alt=""></span>
+          <div class="scard__text">
+            <p>We identify your alumni across the public web and match them to your records — a unique ID on every match.</p>
+            <h3>Find them.</h3>
+          </div>
           <span class="scard__icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.7"/><path d="M13 13l4.2 4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </span>
         </div>
         <div class="scard" tabindex="0">
-          <p>We monitor 400,000+ sources against your list and verify every match before it reaches you.</p>
-          <h3>Watch for what matters.</h3>
+          <div class="scard__text">
+            <p>We monitor 400,000+ sources against your list and verify every match before it reaches you.</p>
+            <h3>Watch for what matters.</h3>
+          </div>
           <span class="scard__icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5c-3 0-5 2.2-5 5v3.2L3.4 13.6c-.4.6 0 1.4.8 1.4h11.6c.8 0 1.2-.8.8-1.4L15 10.7V7.5c0-2.8-2-5-5-5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 17.5c.4.9 1.1 1.4 2 1.4s1.6-.5 2-1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </span>
         </div>
         <div class="scard" tabindex="0">
-          <p>We run the alumni networks — directory, jobs, events, mentorship — that turn names into a community.</p>
-          <h3>Bring them back together.</h3>
+          <div class="scard__text">
+            <p>We run the alumni networks — directory, jobs, events, mentorship — that turn names into a community.</p>
+            <h3>Bring them back together.</h3>
+          </div>
           <span class="scard__icon" aria-hidden="true">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="6.5" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M1.8 16.5c.6-2.8 2.8-4.5 5.2-4.5s4.6 1.7 5.2 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="14.5" cy="7.5" r="2.3" stroke="currentColor" stroke-width="1.7"/><path d="M14.2 12.3c2 .2 3.6 1.6 4.1 3.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
           </span>
@@ -1667,7 +1682,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 39 — testimonial carousel auto-advances every 4.5s, pausing on hover. Portraits are placeholders, not the quoted people. Placeholder media throughout.</p>
+    <p>Iteration 40 — solution cards: static background, open card grows taller to show a use-case screenshot (first card only so far). Placeholder media throughout.</p>
   </div>
 </footer>
 
@@ -2158,53 +2173,16 @@ a { color: inherit; text-decoration: none; }
     if (reduced) bars().forEach(function (bar) { bar.style.transform = 'scaleX(1)'; });
   })();
 
-  /* ============ solution cards: one open at a time, switch on hover.
-     Each card has its own background image; on switch the new image
-     wipes in behind a clip-path mask, sweeping in the direction you
-     moved (to a card on the right → left-to-right wipe, and vice versa). ============ */
+  /* ============ solution cards: one open at a time, switched on hover.
+     The open card widens and — where it carries a screenshot — grows
+     taller to show it. ============ */
   (function () {
     var wrap = document.getElementById('solutionCards');
     if (!wrap) return;
     var cards = [].slice.call(wrap.querySelectorAll('.scard'));
-    var bgs = [].slice.call(document.querySelectorAll('.solution__bg'));
-    var current = 0;
-
-    function switchBg(next) {
-      if (next === current || !bgs[next]) return;
-      var incoming = bgs[next];
-      var outgoing = bgs[current];
-      var ltr = next > current; /* moved right → wipe sweeps left-to-right */
-
-      if (reduced) {
-        bgs.forEach(function (b, i) {
-          b.style.transition = 'none';
-          b.style.clipPath = i === next ? 'inset(0 0 0 0)' : 'inset(0 0 0 100%)';
-          b.style.webkitClipPath = b.style.clipPath;
-        });
-        current = next;
-        return;
-      }
-
-      /* outgoing stays fully visible underneath while the wipe runs */
-      bgs.forEach(function (b) { b.style.zIndex = 0; });
-      outgoing.style.zIndex = 1;
-      incoming.style.zIndex = 2;
-
-      incoming.style.transition = 'none';
-      incoming.style.clipPath = ltr ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)';
-      incoming.style.webkitClipPath = incoming.style.clipPath;
-      incoming.style.transform = 'scale(1.06)';
-      incoming.getBoundingClientRect(); /* flush so the start state paints */
-      incoming.style.transition = '';
-      incoming.style.clipPath = 'inset(0 0 0 0)';
-      incoming.style.webkitClipPath = incoming.style.clipPath;
-      incoming.style.transform = 'scale(1)';
-      current = next;
-    }
 
     function open(card) {
       cards.forEach(function (c) { c.classList.toggle('is-open', c === card); });
-      switchBg(cards.indexOf(card));
     }
     cards.forEach(function (card) {
       card.addEventListener('mouseenter', function () { open(card); });
