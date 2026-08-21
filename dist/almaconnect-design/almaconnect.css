@@ -261,13 +261,32 @@ button, input, select, textarea, td, th {
    of separate pills. Shown here on a dark ground; on light, make the track
    rgba(4,48,43,.06) and the selected fill --ink with white text. */
 .segmented {
+  position: relative;            /* the thumb positions against this */
   display: inline-flex;          /* the track hugs its tabs */
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 4px;
+  gap: 4px;
+  padding: 8px;
   border-radius: var(--r-pill);
   background: rgba(255, 255, 255, 0.06);
 }
+
+/* The fill is ONE element that slides between tabs — not a background
+   switching on and off. It has to be measured in JS because the tabs are
+   different widths; CSS alone cannot size it to the active one. See the
+   snippet at the bottom of this file. */
+.segmented__thumb {
+  position: absolute;
+  top: 0; left: 0; width: 0; height: 0;
+  border-radius: var(--r-pill);
+  background: #fff;
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.42s var(--ease), width 0.42s var(--ease), height 0.42s var(--ease);
+}
+/* before the first measurement it would fly in from the corner, and during
+   a resize it should track the layout rather than chase it */
+.segmented:not(.is-ready) .segmented__thumb,
+.segmented.is-resizing .segmented__thumb { transition: none; }
 .segmented__tab {
   display: inline-flex; align-items: center;
   height: 40px; padding: 0 18px;
@@ -277,11 +296,15 @@ button, input, select, textarea, td, th {
   letter-spacing: -0.03em; line-height: 1;
   background: transparent;
   color: rgba(255, 255, 255, 0.62);
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  position: relative; z-index: 1;   /* above the thumb */
+  /* the label colour lands slightly late, so it turns as the thumb arrives
+     under it rather than the moment it sets off */
+  transition: background 0.15s var(--ease), color 0.28s var(--ease) 0.08s;
 }
 .segmented__tab:hover { background: rgba(255, 255, 255, 0.07); color: rgba(255, 255, 255, 0.9); }
+/* the thumb paints the fill, so the selected tab only changes its label */
 .segmented__tab[aria-selected="true"],
-.segmented__tab[aria-selected="true"]:hover { background: #fff; color: var(--ink); }
+.segmented__tab[aria-selected="true"]:hover { background: transparent; color: var(--ink); }
 /* inset, so the ring sits inside the track rather than straddling its edge */
 .segmented__tab:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 
@@ -290,6 +313,10 @@ button, input, select, textarea, td, th {
 @media (max-width: 620px) {
   .segmented { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: var(--r-panel); }
   .segmented__tab { justify-content: center; padding: 0 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segmented__thumb { transition: none; }
 }
 
 .hl { padding: 1px 6px; border-radius: 5px; }        /* highlighted keyword */
@@ -547,6 +574,43 @@ button, input, select, textarea, td, th {
        });
      }, { threshold: 0.2 });
      els.forEach(function (el) { io.observe(el); });
+   })();
+
+   // segmented control: move the fill to the active tab
+   (function () {
+     var track = document.querySelector('.segmented');
+     if (!track) return;
+     var thumb = track.querySelector('.segmented__thumb');
+     var tabs  = [].slice.call(track.querySelectorAll('.segmented__tab'));
+
+     function move() {
+       var t = tabs.filter(function (x) { return x.getAttribute('aria-selected') === 'true'; })[0];
+       if (!t || !thumb) return;
+       thumb.style.width  = t.offsetWidth + 'px';
+       thumb.style.height = t.offsetHeight + 'px';
+       // offsetTop matters: the track becomes a 2-up block on narrow screens
+       thumb.style.transform = 'translate(' + t.offsetLeft + 'px, ' + t.offsetTop + 'px)';
+     }
+
+     move();
+     requestAnimationFrame(function () { track.classList.add('is-ready'); });
+     // the display face arriving changes every tab's width — re-measure then
+     if (document.fonts && document.fonts.ready) document.fonts.ready.then(move);
+
+     var rt;
+     window.addEventListener('resize', function () {
+       track.classList.add('is-resizing');
+       move();
+       clearTimeout(rt);
+       rt = setTimeout(function () { track.classList.remove('is-resizing'); }, 160);
+     });
+
+     tabs.forEach(function (t) {
+       t.addEventListener('click', function () {
+         tabs.forEach(function (x) { x.setAttribute('aria-selected', String(x === t)); });
+         move();
+       });
+     });
    })();
 
    Two traps worth knowing, both cost a debugging round on the homepage:

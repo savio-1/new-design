@@ -23,6 +23,44 @@
 </div>
 <div class="dark"><div class="container">
 <h2 class="t-h2 shine shine--dark shine--once is-lit" data-text="Our data. Your people.">Our data. Your people.</h2>
-<div class="segmented"><button class="segmented__tab" aria-selected="true">News tracker</button><button class="segmented__tab">Data Mine</button><button class="segmented__tab">Institution network</button><button class="segmented__tab">Corporate network</button></div>
+<div class="segmented"><span class="segmented__thumb" aria-hidden="true"></span><button class="segmented__tab" aria-selected="true">News tracker</button><button class="segmented__tab">Data Mine</button><button class="segmented__tab">Institution network</button><button class="segmented__tab">Corporate network</button></div>
 </div></div>
+<script>
+// segmented control: move the fill to the active tab
+(function () {
+  var track = document.querySelector('.segmented');
+  if (!track) return;
+  var thumb = track.querySelector('.segmented__thumb');
+  var tabs  = [].slice.call(track.querySelectorAll('.segmented__tab'));
+
+  function move() {
+    var t = tabs.filter(function (x) { return x.getAttribute('aria-selected') === 'true'; })[0];
+    if (!t || !thumb) return;
+    thumb.style.width  = t.offsetWidth + 'px';
+    thumb.style.height = t.offsetHeight + 'px';
+    // offsetTop matters: the track becomes a 2-up block on narrow screens
+    thumb.style.transform = 'translate(' + t.offsetLeft + 'px, ' + t.offsetTop + 'px)';
+  }
+
+  move();
+  requestAnimationFrame(function () { track.classList.add('is-ready'); });
+  // the display face arriving changes every tab's width — re-measure then
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(move);
+
+  var rt;
+  window.addEventListener('resize', function () {
+    track.classList.add('is-resizing');
+    move();
+    clearTimeout(rt);
+    rt = setTimeout(function () { track.classList.remove('is-resizing'); }, 160);
+  });
+
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      tabs.forEach(function (x) { x.setAttribute('aria-selected', String(x === t)); });
+      move();
+    });
+  });
+})();
+</script>
 </body></html>

@@ -669,15 +669,34 @@ button, input, select, textarea, td, th {
 }
 /* ---- pill tablist: right column, above the accordion ---- */
 .benefits__tabs {
+  position: relative;            /* the thumb positions against this */
   display: inline-flex;          /* the track hugs its tabs */
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 4px;
+  gap: 4px;
+  padding: 8px;
   border-radius: var(--r-pill);
   background: rgba(255, 255, 255, 0.06);
   margin-top: -32px;
   margin-bottom: 20px;
 }
+
+/* The white fill is one element that slides between tabs rather than a
+   background switching on and off. It is measured in JS because the tabs
+   are different widths — CSS alone cannot size it to the active one. */
+.btab__thumb {
+  position: absolute;
+  top: 0; left: 0;
+  height: 0; width: 0;
+  border-radius: var(--r-pill);
+  background: #fff;
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.42s var(--ease), width 0.42s var(--ease), height 0.42s var(--ease);
+}
+/* before the first measurement, and while the viewport is resizing, the
+   thumb must jump rather than fly in from the corner */
+.benefits__tabs:not(.is-ready) .btab__thumb,
+.benefits__tabs.is-resizing .btab__thumb { transition: none; }
 .btab {
   display: inline-flex;
   align-items: center;
@@ -694,11 +713,17 @@ button, input, select, textarea, td, th {
   color: rgba(255, 255, 255, 0.62);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  position: relative;
+  z-index: 1;                    /* above the thumb */
+  /* the label colour lands slightly late, so it changes as the thumb
+     arrives under it rather than before it has set off */
+  transition: background 0.15s var(--ease), color 0.28s var(--ease) 0.08s;
 }
 .btab:hover { background: rgba(255, 255, 255, 0.07); color: rgba(255, 255, 255, 0.9); }
-.btab[aria-selected="true"] { background: #fff; color: var(--ink); }
-.btab[aria-selected="true"]:hover { background: #fff; }
+/* the thumb paints the fill; the tab only changes its label colour, timed
+   to land as the thumb arrives */
+.btab[aria-selected="true"],
+.btab[aria-selected="true"]:hover { background: transparent; color: var(--ink); }
 /* inside the track, so the ring sits in rather than straddling the edge */
 .btab:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
 
@@ -1781,7 +1806,7 @@ button, input, select, textarea, td, th {
   .personas__grid { opacity: 1; transform: none; transition: none; }
   .pcard__learn { opacity: 1; translate: 0 0; transition: none; }
   .pcard__points, .pcard__plus { transition: none; }
-  .bvis, .bshot, .bpanel, .btab, .bmore .arrow, .bacc__body, .bacc__body p { transition: none; }
+  .bvis, .bshot, .bpanel, .btab, .btab__thumb, .bmore .arrow, .bacc__body, .bacc__body p { transition: none; }
   .btn, .tstm__btn, .pcard__learn { transition: none; }
   .tcell, .pcard__media, .scard, .tcard { transition: none; }
   .sat, .sat img { animation: none; }
@@ -2079,6 +2104,7 @@ button, input, select, textarea, td, th {
         </div>
         <div class="benefits__content">
           <div class="benefits__tabs" role="tablist" aria-label="AlmaConnect products">
+          <span class="btab__thumb" aria-hidden="true"></span>
           <button class="btab" role="tab" type="button" id="btab-news" aria-controls="bpanel-news" aria-selected="true" tabindex="0">News tracker</button>
           <button class="btab" role="tab" type="button" id="btab-datamine" aria-controls="bpanel-datamine" aria-selected="false" tabindex="-1">Data Mine</button>
           <button class="btab" role="tab" type="button" id="btab-institutions" aria-controls="bpanel-institutions" aria-selected="false" tabindex="-1">Institution network</button>
@@ -2884,8 +2910,37 @@ button, input, select, textarea, td, th {
       }
     });
 
+    /* The tabs are different widths, so the sliding fill has to be measured
+       rather than expressed in CSS. offsetLeft/offsetTop are relative to the
+       track, which is position:relative — and offsetTop matters because the
+       track becomes a 2-up block on narrow screens. */
+    var thumb = list.querySelector('.btab__thumb');
+
+    function moveThumb() {
+      var t = tabs[current];
+      if (!t || !thumb) return;
+      thumb.style.width = t.offsetWidth + 'px';
+      thumb.style.height = t.offsetHeight + 'px';
+      thumb.style.transform = 'translate(' + t.offsetLeft + 'px, ' + t.offsetTop + 'px)';
+    }
+
+    moveThumb();
+    /* only start animating after the first placement, or it flies in from 0,0 */
+    requestAnimationFrame(function () { list.classList.add('is-ready'); });
+    /* Geist arriving changes every tab's width, so re-measure once it has */
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveThumb);
+
+    var resizeT;
+    window.addEventListener('resize', function () {
+      list.classList.add('is-resizing');       /* track the layout, don't glide after it */
+      moveThumb();
+      clearTimeout(resizeT);
+      resizeT = setTimeout(function () { list.classList.remove('is-resizing'); }, 160);
+    });
+
     function select(i, focus) {
       current = i;
+      moveThumb();
       tabs.forEach(function (t, n) {
         t.setAttribute('aria-selected', n === i ? 'true' : 'false');
         t.tabIndex = n === i ? 0 : -1;

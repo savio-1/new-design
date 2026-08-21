@@ -126,7 +126,8 @@ Sans 16px/600 at −3%; radius is 10px (`--r-button`); no shadows, ever.
 **Segmented control:** the horizontal tab pattern. One track at 6% white (6% ink on
 light) holding all tabs, with only the selected tab filled — solid white with ink text
 on dark, `--ink` with white text on light. Unselected tabs carry no fill of their own,
-just a muted label colour. Not a row of separate pills. Below the width the track needs
+just a muted label colour. Not a row of separate pills. The fill is one element that
+slides between tabs (`.segmented__thumb`), measured in JS because tabs differ in width. Below the width the track needs
 for a single row it becomes a 2-up block with the panel radius; a stadium radius wrapped
 around two rows reads as a bug. Classes `.segmented` + `.segmented__tab`.
 

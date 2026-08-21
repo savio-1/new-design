@@ -196,7 +196,8 @@ radius 10px, no shadow.
 **Segmented control** (`.segmented` + `.segmented__tab`) — the tab pattern. One track
 at 6% white holding all tabs, with only the selected tab filled solid white and ink;
 unselected tabs carry no fill of their own, just muted label colour. Not a row of
-separate pills. Below the width the track needs for a single row it becomes a 2-up
+separate pills. The fill is **one element that slides** between tabs (`.segmented__thumb`),
+measured in JS because the tabs are different widths. Below the width the track needs for a single row it becomes a 2-up
 block with the panel radius — a stadium radius wrapped around two rows reads as a bug.
 
 **Keyword highlight** (`.hl` + `--aqua/--lilac/--sky/--peach`) — a saturated support
