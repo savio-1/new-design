@@ -123,6 +123,13 @@ Sans 16px/600 at −3%; radius is 10px (`--r-button`); no shadows, ever.
 
 **FAQ row:** 20px question, chevron right-aligned, hairline separators, "FAQ" Display M pinned in left column.
 
+**Segmented control:** the horizontal tab pattern. One track at 6% white (6% ink on
+light) holding all tabs, with only the selected tab filled — solid white with ink text
+on dark, `--ink` with white text on light. Unselected tabs carry no fill of their own,
+just a muted label colour. Not a row of separate pills. Below the width the track needs
+for a single row it becomes a 2-up block with the panel radius; a stadium radius wrapped
+around two rows reads as a bug. Classes `.segmented` + `.segmented__tab`.
+
 **Vertical tab selector:** stacked 20–24px items, active = full ink + short underline, inactive = `--ink-45`; media panel on the right swaps per tab (reference "Attract investors / Engage investors…" pattern).
 
 **Timeline row ("Our Story"):** year caption left · hairline-separated rows · body text with key phrases wash-highlighted in `--accent-tint`.

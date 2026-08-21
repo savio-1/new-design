@@ -191,9 +191,13 @@ radius 10px, no shadow.
 | Nav CTA | `.btn--nav` | 44px tall, 26px x-padding |
 | Text link | `.link-arrow` | accent, 16px/600, inline `→` nudging 3px right on hover |
 
-**Pill** (`.pill`) — 32px tall, Geist 14px/400, `--panel` fill. **Tab pill**
-(`.pill--tab`) — 40px tall, Geist 16px/400; selected is solid white, unselected a
-faint white wash. On dark grounds use no greens on pills.
+**Pill** (`.pill`) — 32px tall, Geist 14px/400, `--panel` fill. No greens on pills.
+
+**Segmented control** (`.segmented` + `.segmented__tab`) — the tab pattern. One track
+at 6% white holding all tabs, with only the selected tab filled solid white and ink;
+unselected tabs carry no fill of their own, just muted label colour. Not a row of
+separate pills. Below the width the track needs for a single row it becomes a 2-up
+block with the panel radius — a stadium radius wrapped around two rows reads as a bug.
 
 **Keyword highlight** (`.hl` + `--aqua/--lilac/--sky/--peach`) — a saturated support
 hue washed behind a word inside a paragraph. Rotate hues; don't repeat one twice in a row.
