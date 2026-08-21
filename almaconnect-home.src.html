@@ -574,6 +574,13 @@ a { color: inherit; text-decoration: none; }
 
 [data-plx] { will-change: transform; }
 
+/* one bg layer per card; z-index juggling stays inside this stacking context
+   so the scrim (::after) always paints above the images */
+.solution__bgs {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
 .solution__bg {
   position: absolute;
   inset: 0;
@@ -581,7 +588,10 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: clip-path 0.8s var(--ease), transform 0.8s var(--ease);
 }
+/* no-JS fallback: only the first layer shows */
+.solution__bg:not(:first-child) { clip-path: inset(0 0 0 100%); }
 /* scrim: darker at top (headline) and bottom (cards) */
 .solution::after {
   content: "";
@@ -954,7 +964,11 @@ a { color: inherit; text-decoration: none; }
 
   <!-- ==================== WHAT ALMACONNECT DOES (04) ==================== -->
   <section class="solution">
-    <img class="solution__bg" src="@img:solution" alt="">
+    <div class="solution__bgs" aria-hidden="true">
+      <img class="solution__bg" src="@img:solution" alt="">
+      <img class="solution__bg" src="@img:sol2" alt="">
+      <img class="solution__bg" src="@img:sol3" alt="">
+    </div>
     <div class="solution__inner" data-plx>
       <div class="solution__top">
         <h2>We keep institutions connected<br>to people who&rsquo;ve left.</h2>
@@ -989,7 +1003,7 @@ a { color: inherit; text-decoration: none; }
 
 <footer class="stub">
   <div class="container">
-    <p>Iteration 25 — product cards reordered: pill below video (pill → name → subtext), CTA renamed to Explore. Placeholder media throughout.</p>
+    <p>Iteration 26 — solution section: per-card background images with directional clip-path wipe on card hover. Placeholder media throughout.</p>
   </div>
 </footer>
 
@@ -1202,13 +1216,53 @@ a { color: inherit; text-decoration: none; }
     update();
   })();
 
-  /* ============ solution cards: one open at a time, switch on hover ============ */
+  /* ============ solution cards: one open at a time, switch on hover.
+     Each card has its own background image; on switch the new image
+     wipes in behind a clip-path mask, sweeping in the direction you
+     moved (to a card on the right → left-to-right wipe, and vice versa). ============ */
   (function () {
     var wrap = document.getElementById('solutionCards');
     if (!wrap) return;
-    var cards = wrap.querySelectorAll('.scard');
+    var cards = [].slice.call(wrap.querySelectorAll('.scard'));
+    var bgs = [].slice.call(document.querySelectorAll('.solution__bg'));
+    var current = 0;
+
+    function switchBg(next) {
+      if (next === current || !bgs[next]) return;
+      var incoming = bgs[next];
+      var outgoing = bgs[current];
+      var ltr = next > current; /* moved right → wipe sweeps left-to-right */
+
+      if (reduced) {
+        bgs.forEach(function (b, i) {
+          b.style.transition = 'none';
+          b.style.clipPath = i === next ? 'inset(0 0 0 0)' : 'inset(0 0 0 100%)';
+          b.style.webkitClipPath = b.style.clipPath;
+        });
+        current = next;
+        return;
+      }
+
+      /* outgoing stays fully visible underneath while the wipe runs */
+      bgs.forEach(function (b) { b.style.zIndex = 0; });
+      outgoing.style.zIndex = 1;
+      incoming.style.zIndex = 2;
+
+      incoming.style.transition = 'none';
+      incoming.style.clipPath = ltr ? 'inset(0 100% 0 0)' : 'inset(0 0 0 100%)';
+      incoming.style.webkitClipPath = incoming.style.clipPath;
+      incoming.style.transform = 'scale(1.06)';
+      incoming.getBoundingClientRect(); /* flush so the start state paints */
+      incoming.style.transition = '';
+      incoming.style.clipPath = 'inset(0 0 0 0)';
+      incoming.style.webkitClipPath = incoming.style.clipPath;
+      incoming.style.transform = 'scale(1)';
+      current = next;
+    }
+
     function open(card) {
       cards.forEach(function (c) { c.classList.toggle('is-open', c === card); });
+      switchBg(cards.indexOf(card));
     }
     cards.forEach(function (card) {
       card.addEventListener('mouseenter', function () { open(card); });
