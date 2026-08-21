@@ -1,6 +1,6 @@
 ---
 name: almaconnect-type-spacing
-description: Typography scale, font pairing, and spacing system for the AlmaConnect website — Geist for headlines, Nunito Sans for body, on a type/spacing scale measured from asana.com. Use alongside the almaconnect-design skill whenever building or reviewing any AlmaConnect page or section; this skill overrides almaconnect-design's type scale and section spacing, while colors, components, and section patterns still come from almaconnect-design.
+description: Typography scale, font pairing, and spacing system for the AlmaConnect website — Geist 350 for headlines (88/64/48/32/24/16/14, −4% at 48px+ and −3% below), Nunito Sans 400 for body (24/20/18/16/14/12 at −3%), on spacing measured from asana.com. Use alongside the almaconnect-design skill whenever building or reviewing any AlmaConnect page or section; this skill overrides almaconnect-design's type scale and section spacing, while colors, components, and section patterns still come from almaconnect-design.
 ---
 
 # AlmaConnect Type & Spacing System
@@ -18,27 +18,82 @@ Stacks:
 - `--font-display: "Geist", "Helvetica Neue", Arial, sans-serif;`
 - `--font-body: "Nunito Sans", ui-sans-serif, system-ui, sans-serif;`
 
-**Weight discipline (Asana's signature move):** headlines are *light* — Geist **300** at display sizes, with negative tracking. Small UI text (buttons, nav, chips, card titles) is *medium/semibold* — Nunito Sans **500–600**. Nothing on the page is ever 700+ except tiny chips. The scale does the talking, not the boldness.
+**Weight discipline:** headlines are *light* — Geist **350** at every size, from the 88px display down to a 14px pill, always with negative tracking. Body prose is Nunito Sans **400**. Only UI controls go heavier: buttons and CTA links **600**, nav **500**. Nothing on the page is ever 700+. The scale does the talking, not the boldness — see §2 for the locked ladder.
 
-## 2. Type scale (as measured on asana.com at 1440px)
+## 2. Type scale — LOCKED (2026-08-21)
 
-| Role | Face | Size / line-height | Weight | Tracking | Notes |
-|---|---|---|---|---|---|
-| Display / H1 | Geist | **88px** / 0.95 | 300 | **−0.04em** | Homepage hero only. `clamp(52px, 6.1vw, 88px)`. Max-width ~900px. (Asana measured 102/0.90/−0.025em; 88px/−4% is the client's confirmed override.) |
-| H2 (every section headline) | Geist | 54px / 1.00 | 300 | −0.02em | One spec reused by ALL sections — never invent per-section sizes. |
-| H3 / feature title | Geist | 30px / 1.20 | 400 | 0 | |
-| Card / accordion title | Geist | 24px / 1.20 | 500 | 0 | |
-| Hero subtext | Nunito Sans | **20px** / **24px** | 400 | **−0.04em** | Color: ink at 80%. Renders ~520–630px wide. (Asana measured 26/1.3; 20px/24px/−4% is the client's confirmed override.) |
-| Section subtext / card body (large) | Nunito Sans | 20px / 1.50 | 400 | 0 | |
-| Body / button labels | Nunito Sans | 16px / 1.55 | 400 (body) · 600 (buttons, links, card leads) | 0 | |
-| Nav items | Nunito Sans | 15px / 1.5 | 500 | 0 | (Asana: 14px/500 — nudged +1 for Nunito's smaller x-height feel) |
-| Caption / legal | Nunito Sans | 13px / 1.50 | 400 | +0.02em | |
-| Eyebrow | Nunito Sans | 16px / 1.5 | 600 | +0.04em | Asana sets these uppercase; AlmaConnect keeps **sentence case** (house rule) — the +0.04em tracking only applies if a rare uppercase chip is used. |
-| Micro-chip labels | Nunito Sans | 10–11px / 1.5 | 600–700 | +0.04em | UPPERCASE allowed here only (`NEWS ALERT`, `DEPLOY`-style annotation chips). |
+This is the ratified scale, signed off by the client and applied wholesale to the
+homepage. It supersedes the earlier asana-derived draft (kept in §2b for provenance).
+Two faces, two rules, no exceptions:
 
-Distinct sizes on the page — stay inside this inventory: **88, 54, 30, 24, 22, 20, 16, 15, 13, 11px.**
+- **Headlines are Geist at weight 350, always.** Tracking is **−4% from 88px down to
+  48px**, and **−3% for anything below 48px**.
+- **Body is Nunito Sans at weight 400, always, at −3% tracking.** Line-heights vary by
+  role; tracking does not.
 
-**Line-height law:** 1.5 at ≤20px → 1.2–1.3 mid-scale → 1.0 at H2 → 0.9 at display. **Tracking law:** negative above 26px, neutral for body, positive only on uppercase micro-text.
+### Headlines — Geist, weight 350
+
+| Step | Size | Tracking | Line-height | Used for |
+|---|---|---|---|---|
+| Display / H1 | **88px** `clamp(52px, 6.1vw, 88px)` | **−4%** | 0.95 | Homepage hero only |
+| Numerals | **64px** `clamp(40px, 4.45vw, 64px)` | **−4%** | 0.95 | Stat bands |
+| H2 | **48px** `clamp(34px, 3.34vw, 48px)` | **−4%** | 1.05–1.12 | Every section headline — one spec, never per-section |
+| H3 | **32px** | **−3%** | 1.25 | Sub-section heads, large card titles |
+| H4 | **24px** | **−3%** | 1.2–1.25 | Card titles, accordion heads, product names, mega-menu titles |
+| Tabs | **16px** | **−3%** | 1 | Tab/segmented controls |
+| Small pills | **14px** | **−3%** | 1.4 | Category pills |
+
+48px is the hinge: at 48 and above use −4%, below use −3%.
+
+### Body — Nunito Sans, weight 400, −3% tracking
+
+| Size | Line-height | Used for |
+|---|---|---|
+| **24px** | 1.55 | Editorial / long-form lead paragraphs |
+| **20px** | 24px (hero) · 1.45 | Hero subtext, pull quotes, testimonials |
+| **18px** | 1.5–1.55 | Section subtext, intro paragraphs |
+| **16px** | 1.5 | Default body, card copy, nav, buttons, list items |
+| **14px** | 1.4 | Labels, roles, captions, legal |
+| **12px** | 1.5 | Micro-labels only |
+
+Distinct sizes on the page — stay inside this inventory:
+**Geist 88 / 64 / 48 / 32 / 24 / 16 / 14 · Nunito Sans 24 / 20 / 18 / 16 / 14 / 12.**
+
+### Weight exceptions (the only ones)
+
+Body weight is 400 for prose. **UI controls keep their heavier label weight** because
+they read as affordances, not text: buttons and inline CTA links stay Nunito Sans
+**600**, nav items stay **500**. Sizes still come from the ladder above.
+
+### Implementing −3% body tracking
+
+`letter-spacing: -0.03em` on `body` alone is not enough. `em` resolves to a pixel
+value at the body's own font-size and then **inherits as that pixel value**, so a 14px
+child renders −3.4% and an 18px child −2.7%. Set the default on `body`, then re-anchor
+it on the elements themselves so `em` resolves against each element's own size — and
+include form controls, which inherit neither font nor tracking:
+
+```css
+h1, h2, h3, h4, h5, h6,
+p, li, a, blockquote, cite, figcaption, label, dt, dd,
+button, input, select, textarea, td, th { letter-spacing: -0.03em; }
+```
+
+Keep `span`, `em`, and `strong` **out** of that list: they wrap a run inside a headline
+(the shimmer device does exactly this) and must take the parent's tracking, not reset
+it. Any `<span>` that carries its own `font-size` needs its own explicit `-0.03em`.
+
+Logotypes are exempt from the tracking laws — a drawn mark's lettering keeps whatever
+spacing the mark specifies (e.g. +6%).
+
+## 2b. Provenance — the asana.com measurement this replaced
+
+Measured live from asana.com (1440×900, 2026-08-20, computed styles). Retained only to
+explain where the scale came from; **do not build to these numbers.** Asana's draft used
+88/54/30/24/22/20/16/15/13/11px with headline weight 300 and mostly-neutral body
+tracking. The locked scale above collapses that to seven headline steps and six body
+steps, moves headline weight 300 → 350, and makes negative tracking universal rather
+than "negative above 26px only".
 
 ## 3. Spacing system (measured)
 
@@ -57,7 +112,7 @@ Distinct sizes on the page — stay inside this inventory: **88, 54, 30, 24, 22,
 
 ## 4. Buttons
 
-Height ladder by prominence (Asana), label always Nunito Sans 16px/600 (nav: 15px):
+Height ladder by prominence (Asana), label always Nunito Sans **16px/600** — nav included (nav moved 15px → 16px with the locked scale):
 
 | Tier | Height | Padding-x |
 |---|---|---|
