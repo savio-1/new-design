@@ -136,7 +136,8 @@ around two rows reads as a bug. Classes `.segmented` + `.segmented__tab`.
 
 **Timeline row ("Our Story"):** year caption left · hairline-separated rows · body text with key phrases wash-highlighted in `--accent-tint`.
 
-**Testimonial:** either (a) full-bleed photo band, 44px quote in pale accent on the image, caption + prev/next circles, or (b) 4-up white cards with avatar, name/handle, body quote, hairline border. AlmaConnect prefers (b) for named-institution quotes.
+**Testimonial:** either (a) full-bleed photo band, 44px quote in pale accent on the image, caption + prev/next circles, or (b) 4-up white cards with avatar, name/handle, body quote, hairline border. AlmaConnect prefers (b) for named-institution quotes. Hovering a card washes it in one of the four support hues via `.card--wash` —
+set the hue in the markup, not by DOM position, so a carousel's clones keep it.
 
 **Footer:** 5 link columns (16px, ink), logo mark bottom-left, hairline, then legal row + social squares, then small disclaimer text at `--ink-45`. Sits on `--ground`.
 

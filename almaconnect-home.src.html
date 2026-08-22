@@ -1413,6 +1413,7 @@ button, input, select, textarea, td, th {
 .tstm__track::-webkit-scrollbar { display: none; }
 
 .tcard {
+  position: relative;
   flex: 0 0 clamp(320px, 66%, 880px);   /* ~1.5 cards in view */
   scroll-snap-align: start;
   display: grid;
@@ -1423,6 +1424,32 @@ button, input, select, textarea, td, th {
   border-radius: var(--r-card);
   overflow: hidden;
 }
+
+/* hovering a card washes it in its own hue. A background-image cannot be
+   transitioned, so the gradient rides a pseudo-element that cross-fades
+   over the white — which also keeps it clipped by the card's radius as
+   that radius animates to 0. */
+.tcard::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--tgrad);
+  transition: opacity 0.38s var(--ease);
+}
+.tcard:hover::before { opacity: 1; }
+/* the content has to outrank the wash */
+.tcard__body, .tcard__photo { position: relative; z-index: 1; }
+
+/* each testimonial keeps its own hue: the carousel deep-clones the cards,
+   so a class set here rides along and a person never changes colour as
+   the loop brings them back */
+.tcard--aqua  { --tgrad: linear-gradient(165deg, #ffffff 0%, #e3f8f5 40%, #b3e9e0 100%); }
+.tcard--lilac { --tgrad: linear-gradient(165deg, #ffffff 0%, #f5edfd 40%, #d5bef5 100%); }
+.tcard--sky   { --tgrad: linear-gradient(165deg, #ffffff 0%, #ebf4fd 40%, #bcd8fa 100%); }
+.tcard--peach { --tgrad: linear-gradient(165deg, #ffffff 0%, #fce9dc 40%, #f7cdad 100%); }
 .tcard__body {
   display: flex;
   flex-direction: column;
@@ -2013,7 +2040,7 @@ button, input, select, textarea, td, th {
   .tstat:hover .tstat__num::after { animation: none; opacity: 0; }
   .gstar { animation: none; }
   .cert__travel { display: none; }
-  .tcard__photo img { transition: none; }
+  .tcard__photo img, .tcard::before { transition: none; }
   .tcard:hover .tcard__photo img { scale: 1; }
 }
 </style>
@@ -2515,7 +2542,7 @@ button, input, select, textarea, td, th {
     </div>
 
     <div class="tstm__track" id="tstmTrack" tabindex="0" role="region" aria-label="Customer testimonials">
-      <article class="tcard">
+      <article class="tcard tcard--aqua">
         <div class="tcard__body">
           <span class="tcard__logo wm-serif">Bryant University</span>
           <blockquote>&ldquo;I am able to find prospects that I would not have found through other methods.&rdquo;</blockquote>
@@ -2526,7 +2553,7 @@ button, input, select, textarea, td, th {
         </div>
         <div class="tcard__photo"><img src="@img:p3" alt=""></div>
       </article>
-      <article class="tcard">
+      <article class="tcard tcard--lilac">
         <div class="tcard__body">
           <span class="tcard__logo wm-caps">San Diego State University</span>
           <blockquote>&ldquo;We&rsquo;re all very impressed. Google Alerts can&rsquo;t compare. I like that we are getting significant, actionable news.&rdquo;</blockquote>
@@ -2537,7 +2564,7 @@ button, input, select, textarea, td, th {
         </div>
         <div class="tcard__photo"><img src="@img:p8" alt=""></div>
       </article>
-      <article class="tcard">
+      <article class="tcard tcard--peach">
         <div class="tcard__body">
           <span class="tcard__logo wm-slab">Willamette University</span>
           <blockquote>&ldquo;It&rsquo;s really changed the way we&rsquo;ve been doing news alerts.&rdquo;</blockquote>

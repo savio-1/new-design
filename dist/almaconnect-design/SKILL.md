@@ -213,7 +213,8 @@ band. Caption sits **above** the numeral. Tabular figures.
 two-tone description → `.link-arrow`. The router pattern for the products row.
 
 **Testimonial** — white card, logo, quote at `.t-lead`, then name in **Geist 16px/400**
-over role at 14px `--ink-45`.
+over role at 14px `--ink-45`. Hovering a card washes it in one of the four support hues via `.card--wash` —
+set the hue in the markup, not by DOM position, so a carousel's clones keep it.
 
 **Footer** — 5 link columns at 16px, logo bottom-left, hairline, legal row, then
 disclaimer at `--ink-45`. Sits on `--ground`.
