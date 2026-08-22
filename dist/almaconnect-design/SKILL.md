@@ -189,6 +189,13 @@ radius 10px, no shadow.
 | Turquoise | `.btn--accent` | `--accent` fill, **ink** text — never white |
 | Secondary | `.btn--outline` | 1px ink outline, 40px tall; on hover inverts to ink fill **and drops to 0 radius** (house signature) |
 | Nav CTA | `.btn--nav` | 44px tall, 26px x-padding |
+
+**Scrolled nav:** the bar contracts into a floating glass pill (`.nav-bar` +
+`.is-scrolled`) — max-width pulls in, the logo releases its reserved slot so the row
+converges, and a blurred translucent ground carries it. Keep that ground at ~0.82
+alpha or higher: over a photographic hero a thinner pill drops nav labels to 2:1.
+Opening a mega menu un-contracts the bar, since a full-width panel hanging off a
+pill reads as broken.
 | Text link | `.link-arrow` | accent, 16px/600, inline `→` nudging 3px right on hover |
 
 **Pill** (`.pill`) — 32px tall, Geist 14px/400, `--panel` fill. No greens on pills.

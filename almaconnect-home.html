@@ -148,12 +148,10 @@ button, input, select, textarea, td, th {
   transition: background 0.35s ease, border-color 0.35s ease;
 }
 
-.nav.is-scrolled {
-  background: var(--nav-solid);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-bottom-color: var(--hairline);
-}
+/* Scrolled, the bar contracts into a floating glass pill rather than the
+   whole header going solid — so .nav itself stays transparent and the pill
+   below carries the surface. */
+.nav.is-scrolled { background: transparent; border-bottom-color: transparent; }
 
 .nav.is-open {
   background: var(--surface);
@@ -167,9 +165,53 @@ button, input, select, textarea, td, th {
   align-items: center;
   height: var(--nav-h);
   padding-inline: 32px;
+  max-width: 100%;
+  margin-inline: auto;
+  border: 1px solid transparent;
+  border-radius: 0;
+  transition:
+    max-width 0.5s var(--ease),
+    margin-top 0.5s var(--ease),
+    padding-inline 0.5s var(--ease),
+    border-radius 0.5s var(--ease),
+    background 0.35s ease,
+    border-color 0.35s ease;
 }
 
-.nav__logo { display: flex; align-items: center; flex: none; width: 220px; }
+/* the pill: narrower, so the links and the CTA converge toward the middle */
+.nav.is-scrolled .nav__bar {
+  max-width: min(1040px, calc(100% - 32px));
+  margin-top: 12px;
+  padding-inline: 14px;
+  border-radius: var(--r-pill);
+  background: rgba(242, 239, 234, 0.82);
+  border-color: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(20px) saturate(1.7);
+}
+
+/* opening a menu needs the full sheet back, or a full-width panel would
+   hang off a pill */
+.nav.is-open .nav__bar,
+.nav.is-scrolled.is-open .nav__bar {
+  max-width: 100%;
+  margin-top: 0;
+  padding-inline: 32px;
+  border-radius: 0;
+  background: transparent;
+  border-color: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* the logo reserves a wide slot at rest; in the pill it gives that space
+   back, which is what pulls the row together */
+.nav__logo {
+  display: flex; align-items: center; flex: none;
+  width: 220px;
+  transition: width 0.5s var(--ease);
+}
+.nav.is-scrolled:not(.is-open) .nav__logo { width: auto; }
 .nav__logo img { height: 30px; width: auto; display: block; }
 
 .nav__links {
@@ -2025,7 +2067,7 @@ button, input, select, textarea, td, th {
 @media (prefers-reduced-motion: reduce) {
   .shine::after { animation: none; opacity: 0; }
   .bw { opacity: 1; filter: none; translate: 0 0; transition: none; }
-  .nav, .nav__panelwrap, .nav__link, .nav__login,
+  .nav, .nav__bar, .nav__logo, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__learn .arrow, .mega__flink .arrow { transition: none; }
   .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
   .nav.is-open .mega.is-active :is(.mega__label, .mega__item, .mega__flink, .mega__feature) { animation: none; }
