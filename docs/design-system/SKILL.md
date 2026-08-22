@@ -115,8 +115,9 @@ Sans 16px/600 at −3%; radius is 10px (`--r-button`); no shadows, ever.
 `.is-scrolled`) — max-width pulls in, the logo releases its reserved slot so the row
 converges, and a blurred translucent ground carries it. Keep that ground at ~0.82
 alpha or higher: over a photographic hero a thinner pill drops nav labels to 2:1.
-Opening a mega menu un-contracts the bar, since a full-width panel hanging off a
-pill reads as broken.
+**Never** change the bar's geometry on open: it moves the links out from under a
+stationary pointer, which re-fires mouseenter and makes the nav oscillate. The menu
+drops as a floating card (`.nav-menu`) under the bar instead.
 - Text link with arrow: accent, 16px/600, inline `→` that nudges 3px right on hover
   (`.link-arrow`).
 

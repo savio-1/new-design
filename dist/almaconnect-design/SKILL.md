@@ -194,8 +194,9 @@ radius 10px, no shadow.
 `.is-scrolled`) — max-width pulls in, the logo releases its reserved slot so the row
 converges, and a blurred translucent ground carries it. Keep that ground at ~0.82
 alpha or higher: over a photographic hero a thinner pill drops nav labels to 2:1.
-Opening a mega menu un-contracts the bar, since a full-width panel hanging off a
-pill reads as broken.
+**Never** change the bar's geometry on open: it moves the links out from under a
+stationary pointer, which re-fires mouseenter and makes the nav oscillate. The menu
+drops as a floating card (`.nav-menu`) under the bar instead.
 | Text link | `.link-arrow` | accent, 16px/600, inline `→` nudging 3px right on hover |
 
 **Pill** (`.pill`) — 32px tall, Geist 14px/400, `--panel` fill. No greens on pills.
