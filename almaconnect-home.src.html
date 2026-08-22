@@ -1948,9 +1948,9 @@ button, input, select, textarea, td, th {
 
 .foot__col a:hover { color: var(--accent); }
 
-/* ============ intro: the product's arc spelled out once on load, then
-   the page. Same blur-in language as the headlines, so the two read as
-   one idea rather than two effects. ============ */
+/* ============ intro: one keyword at a time in a single slot — each
+   blur-fades in, holds, blur-fades out, then the next. Same blur language
+   as the headlines, so the intro and the page read as one idea. ============ */
 
 .intro {
   position: fixed;
@@ -1959,16 +1959,15 @@ button, input, select, textarea, td, th {
   display: grid;
   place-items: center;
   background: var(--ground);
-  transition: opacity 0.55s var(--ease);
+  transition: opacity 0.5s var(--ease);
 }
 .intro.is-done { opacity: 0; pointer-events: none; }
 
+/* every word occupies the same grid cell, so nothing moves as they swap and
+   the slot sizes itself to the longest one */
 .intro__line {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
+  display: grid;
+  place-items: center;
   margin: 0;
   padding-inline: 24px;
   font-family: var(--font-display);
@@ -1978,19 +1977,21 @@ button, input, select, textarea, td, th {
   color: var(--ink);
 }
 
-.intro__w, .intro__sep {
+.intro__w {
+  grid-area: 1 / 1;
   opacity: 0;
-  filter: blur(6px);
-  translate: 0 5px;
-  transition:
-    opacity 0.5s var(--ease) var(--d, 0ms),
-    filter 0.5s var(--ease) var(--d, 0ms),
-    translate 0.5s var(--ease) var(--d, 0ms);
+  white-space: nowrap;
 }
-.intro.is-in .intro__w,
-.intro.is-in .intro__sep { opacity: 1; filter: blur(0); translate: 0 0; }
+.intro.is-in .intro__w {
+  animation: introWord var(--dur) var(--ease) var(--d) both;
+}
 
-.intro__sep { color: var(--ink-45); }
+@keyframes introWord {
+  0%   { opacity: 0; filter: blur(8px); translate: 0 6px; }
+  30%  { opacity: 1; filter: blur(0);   translate: 0 0; }
+  70%  { opacity: 1; filter: blur(0);   translate: 0 0; }
+  100% { opacity: 0; filter: blur(8px); translate: 0 -6px; }
+}
 
 /* nothing scrolls behind the intro while it plays */
 .intro-on, .intro-on body { overflow: hidden; }
@@ -2133,13 +2134,10 @@ button, input, select, textarea, td, th {
 <!-- ==================== NAV ==================== -->
 <div class="intro" id="intro" role="status" aria-label="AlmaConnect">
   <p class="intro__line">
-        <span class="intro__w">Find.</span>
-        <span class="intro__sep" aria-hidden="true">&rarr;</span>
-        <span class="intro__w">Verify.</span>
-        <span class="intro__sep" aria-hidden="true">&rarr;</span>
-        <span class="intro__w">Alert.</span>
-        <span class="intro__sep" aria-hidden="true">&rarr;</span>
-        <span class="intro__w">Reconnect.</span>
+    <span class="intro__w">Find.</span>
+    <span class="intro__w">Verify.</span>
+    <span class="intro__w">Alert.</span>
+    <span class="intro__w">Reconnect.</span>
   </p>
 </div>
 <script>document.documentElement.classList.add('intro-on');</script>
@@ -2839,11 +2837,16 @@ button, input, select, textarea, td, th {
 
     if (reduced) { finish(); return; }
 
-    var STEP = 170, RUN = 500, HOLD = 520;
-    var items = [].slice.call(introEl.querySelectorAll('.intro__w, .intro__sep'));
-    items.forEach(function (el, i) { el.style.setProperty('--d', (i * STEP) + 'ms'); });
+    /* DUR is one word's whole in-hold-out cycle; STEP is slightly shorter so
+       the next word starts as the previous one is on its way out */
+    var DUR = 720, STEP = 500;
+    var items = [].slice.call(introEl.querySelectorAll('.intro__w'));
+    items.forEach(function (el, i) {
+      el.style.setProperty('--dur', DUR + 'ms');
+      el.style.setProperty('--d', (i * STEP) + 'ms');
+    });
     requestAnimationFrame(function () { introEl.classList.add('is-in'); });
-    setTimeout(finish, (items.length - 1) * STEP + RUN + HOLD);
+    setTimeout(finish, (items.length - 1) * STEP + DUR);
   })();
 
   /* ============ nav (same behavior as homepage build) ============ */
