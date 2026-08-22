@@ -1948,6 +1948,53 @@ button, input, select, textarea, td, th {
 
 .foot__col a:hover { color: var(--accent); }
 
+/* ============ intro: the product's arc spelled out once on load, then
+   the page. Same blur-in language as the headlines, so the two read as
+   one idea rather than two effects. ============ */
+
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: grid;
+  place-items: center;
+  background: var(--ground);
+  transition: opacity 0.55s var(--ease);
+}
+.intro.is-done { opacity: 0; pointer-events: none; }
+
+.intro__line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding-inline: 24px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.intro__w, .intro__sep {
+  opacity: 0;
+  filter: blur(6px);
+  translate: 0 5px;
+  transition:
+    opacity 0.5s var(--ease) var(--d, 0ms),
+    filter 0.5s var(--ease) var(--d, 0ms),
+    translate 0.5s var(--ease) var(--d, 0ms);
+}
+.intro.is-in .intro__w,
+.intro.is-in .intro__sep { opacity: 1; filter: blur(0); translate: 0 0; }
+
+.intro__sep { color: var(--ink-45); }
+
+/* nothing scrolls behind the intro while it plays */
+.intro-on, .intro-on body { overflow: hidden; }
+
 /* ============ responsive ============ */
 
 @media (max-width: 1100px) {
@@ -2062,6 +2109,7 @@ button, input, select, textarea, td, th {
 @media (prefers-reduced-motion: reduce) {
   .shine::after { animation: none; opacity: 0; }
   .bw { opacity: 1; filter: none; translate: 0 0; transition: none; }
+  .intro { display: none; }
   .nav, .nav__bar, .nav__logo, .nav__panelwrap, .nav__link, .nav__login,
   .pcard__learn .arrow, .mega__flink .arrow { transition: none; }
   .mega__label, .mega__item, .mega__flink, .mega__feature { opacity: 1; }
@@ -2083,6 +2131,19 @@ button, input, select, textarea, td, th {
 </style>
 
 <!-- ==================== NAV ==================== -->
+<div class="intro" id="intro" role="status" aria-label="AlmaConnect">
+  <p class="intro__line">
+        <span class="intro__w">Find.</span>
+        <span class="intro__sep" aria-hidden="true">&rarr;</span>
+        <span class="intro__w">Verify.</span>
+        <span class="intro__sep" aria-hidden="true">&rarr;</span>
+        <span class="intro__w">Alert.</span>
+        <span class="intro__sep" aria-hidden="true">&rarr;</span>
+        <span class="intro__w">Reconnect.</span>
+  </p>
+</div>
+<script>document.documentElement.classList.add('intro-on');</script>
+
 <header class="nav" id="siteNav">
   <div class="nav__bar">
     <a class="nav__logo" href="#" aria-label="AlmaConnect home">
@@ -2756,6 +2817,35 @@ button, input, select, textarea, td, th {
 (function () {
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /* ============ intro ============ */
+  var introEl = document.getElementById('intro');
+  var introDone = !introEl;          /* nothing to wait for if it is absent */
+
+  function afterIntro(fn) {
+    if (introDone) { fn(); return; }
+    document.addEventListener('intro:done', fn, { once: true });
+  }
+
+  (function () {
+    if (!introEl) return;
+
+    function finish() {
+      introDone = true;
+      document.documentElement.classList.remove('intro-on');
+      introEl.classList.add('is-done');
+      document.dispatchEvent(new CustomEvent('intro:done'));
+      setTimeout(function () { if (introEl.parentNode) introEl.remove(); }, 700);
+    }
+
+    if (reduced) { finish(); return; }
+
+    var STEP = 170, RUN = 500, HOLD = 520;
+    var items = [].slice.call(introEl.querySelectorAll('.intro__w, .intro__sep'));
+    items.forEach(function (el, i) { el.style.setProperty('--d', (i * STEP) + 'ms'); });
+    requestAnimationFrame(function () { introEl.classList.add('is-in'); });
+    setTimeout(finish, (items.length - 1) * STEP + RUN + HOLD);
+  })();
+
   /* ============ nav (same behavior as homepage build) ============ */
   var nav = document.getElementById('siteNav');
   var parents = nav.querySelectorAll('.nav__link[data-menu]');
@@ -3062,7 +3152,9 @@ button, input, select, textarea, td, th {
       });
     }, { threshold: 0.35 });
 
-    targets.forEach(function (t) { io.observe(t); });
+    /* hold until the intro clears — otherwise the hero resolves behind the
+       overlay and the reader never sees it */
+    afterIntro(function () { targets.forEach(function (t) { io.observe(t); }); });
   })();
 
   /* ============ any shimmer NOT sequenced by the blur-in above still
