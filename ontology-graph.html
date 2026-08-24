@@ -37,8 +37,17 @@
       radial-gradient(100% 100% at 50% 50%, rgba(10,11,13,0) 55%, rgba(0,0,0,.55) 100%);}
   svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
 
-  .edge{stroke:var(--edge);stroke-width:1;fill:none;transition:stroke .2s,opacity .2s;}
-  .edge.hi{stroke:var(--edge-hi);stroke-width:1.4;opacity:1!important}
+  .edge{stroke:var(--edge);stroke-width:1.4;fill:none;stroke-linecap:round;
+    stroke-dasharray:1 6;transition:stroke .2s,opacity .2s;}
+  .edge.hi{stroke:var(--edge-hi);stroke-width:1.6;opacity:1!important}
+
+  .comet{pointer-events:none;mix-blend-mode:screen;}
+  .rel-pill{pointer-events:none;}
+  .rel-pill rect{fill:#15171b;stroke:#2a2e35;stroke-width:1;}
+  .rel-pill text{fill:#a9afb9;font-size:10.5px;font-family:var(--font);letter-spacing:-.01em;
+    text-anchor:middle;dominant-baseline:middle;}
+  .rel-pill.hi rect{stroke:#4a4030;fill:#1c1710}
+  .rel-pill.hi text{fill:#e4c98a}
 
   .node{cursor:pointer;transition:opacity .35s ease;}
   .node text{font-size:12px;fill:var(--text);paint-order:stroke;pointer-events:none;
@@ -100,9 +109,22 @@
 <body>
   <div id="stage">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="cometGlow" x="-300%" y="-300%" width="700%" height="700%">
+          <feGaussianBlur stdDeviation="3.2" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <radialGradient id="cometGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fff0d0" stop-opacity="1"/>
+          <stop offset="55%" stop-color="#f0c26a" stop-opacity=".9"/>
+          <stop offset="100%" stop-color="#f0c26a" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
       <g id="camera">
         <g id="ambient"></g>
         <g id="edges"></g>
+        <g id="pills"></g>
+        <g id="comets"></g>
         <g id="nodes"></g>
       </g>
     </svg>
@@ -240,6 +262,7 @@ let active=new Set();          // ids currently in the ego view
 const nodeEls={};              // id -> {g, refs}
 const edgeEls=[];              // {line, a, b}
 let hoverId=null, dragId=null, dragMoved=false;
+let clock=0;
 const history=[];
 
 function neighbors(id){return adj[id];}
@@ -318,14 +341,34 @@ function createNode(id){
 
 function buildEdges(){
   const layer=document.getElementById('edges');
-  edgeEls.length=0; layer.innerHTML='';
-  const seen=new Set();
+  const pillLayer=document.getElementById('pills');
+  const cometLayer=document.getElementById('comets');
+  edgeEls.length=0; layer.innerHTML=''; pillLayer.innerHTML=''; cometLayer.innerHTML='';
+  const seen=new Set(); let idx=0;
   for(const a of active){
     for(const b of neighbors(a)){
       if(!active.has(b))continue;
       const key=a<b?a+'|'+b:b+'|'+a; if(seen.has(key))continue; seen.add(key);
       const line=el('line',{class:'edge'});
-      layer.appendChild(line); edgeEls.push({line,a,b});
+      layer.appendChild(line);
+
+      // direction: comet always travels OUT from the focus node
+      const from = a===focusId ? a : (b===focusId ? b : a);
+      const to   = from===a ? b : a;
+
+      // relationship pill at the edge midpoint
+      const rel = relOf[a+'|'+b] || '';
+      const pg = el('g',{class:'rel-pill'});
+      const prect = el('rect',{rx:7,ry:7,height:20});
+      const ptext = el('text',{y:1}); ptext.textContent=rel;
+      pg.appendChild(prect); pg.appendChild(ptext); pillLayer.appendChild(pg);
+
+      // traveling shimmer comet, staggered phase per edge
+      const comet = el('circle',{class:'comet', r:3.4, fill:'url(#cometGrad)', filter:'url(#cometGlow)'});
+      cometLayer.appendChild(comet);
+
+      edgeEls.push({line,a,b,from,to,pg,prect,ptext,comet,phase:(idx%7)/7, speed:0.55+((idx*37)%5)/20});
+      idx++;
     }
   }
 }
@@ -418,6 +461,7 @@ function tick(){
   for(const id of ids){ if(id===focusId){continue;} const p=pos[id]; if(id===dragId){continue;}
     p.vx*=0.86; p.vy*=0.86; p.x+=p.vx; p.y+=p.vy; }
 
+  clock+=0.012;
   render();
   requestAnimationFrame(tick);
 }
@@ -454,10 +498,38 @@ function render(){
     const a=pos[e.a],b=pos[e.b]; if(!a||!b)continue;
     e.line.setAttribute('x1',a.x);e.line.setAttribute('y1',a.y);
     e.line.setAttribute('x2',b.x);e.line.setAttribute('y2',b.y);
+
+    // relationship pill — biased away from the focus node's wide capsule
+    if(e.ptext.textContent){
+      let tf=0.5, F=null, O=null;
+      if(e.a===focusId){F=a;O=b;} else if(e.b===focusId){F=b;O=a;}
+      if(F){
+        const L=Math.hypot(O.x-F.x,O.y-F.y)||1;
+        const focusReach = O.x>=F.x ? (32+estW(focusId)) : 21; // capsule only extends rightward
+        tf = Math.min(0.76, Math.max(0.5, (focusReach+46)/L));
+      }
+      const mx = F ? F.x+(O.x-F.x)*tf : (a.x+b.x)/2;
+      const my = F ? F.y+(O.y-F.y)*tf : (a.y+b.y)/2;
+      const tw=estW(e.ptext.textContent, 10.5, 500);
+      e.pg.setAttribute('transform',`translate(${mx},${my})`);
+      e.prect.setAttribute('x',-tw/2-8); e.prect.setAttribute('y',-10); e.prect.setAttribute('width',tw+16);
+      const on = hoverId && (e.a===hoverId||e.b===hoverId);
+      e.pg.classList.toggle('hi', !!on);
+      e.pg.style.opacity = hoverId ? (on?1:0.12) : 1;
+    } else { e.pg.setAttribute('transform','translate(-9999,-9999)'); }
+
+    // traveling shimmer comet: always runs FROM the focus node outward
+    const fp=pos[e.from], tp=pos[e.to];
+    const t = (clock*e.speed + e.phase) % 1;
+    const cx = fp.x + (tp.x-fp.x)*t, cy = fp.y + (tp.y-fp.y)*t;
+    const fade = Math.pow(Math.sin(Math.PI*t), 0.6);
+    const dimmed = hoverId && !(e.a===hoverId||e.b===hoverId);
+    e.comet.setAttribute('cx',cx); e.comet.setAttribute('cy',cy);
+    e.comet.setAttribute('opacity', (dimmed?0.05:(0.15+0.85*fade)).toFixed(3));
   }
 }
 const _m=document.createElement('canvas').getContext('2d');
-function estW(s){_m.font='600 12px Geist, Inter, sans-serif';return Math.ceil(_m.measureText(s).width);}
+function estW(s,size,weight){_m.font=`${weight||600} ${size||12}px Geist, Inter, sans-serif`;return Math.ceil(_m.measureText(s).width);}
 
 // ---- chrome (breadcrumbs / legend) --------------------------------------
 function updateChrome(){
