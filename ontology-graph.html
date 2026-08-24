@@ -258,7 +258,9 @@ const initials = s => s.replace(/[^A-Za-z0-9 ]/g,'').split(/(?=[A-Z])|\s+/).filt
 
 // ---- camera --------------------------------------------------------------
 let W=innerWidth, H=innerHeight;
-const cam={x:W/2,y:H/2,k:1};
+// anchor the focus toward the left of the viewport — the fan opens rightward
+// from it, so it needs room on its right rather than sitting dead-center.
+const cam={x:W*0.26,y:H/2,k:1};
 const camG=document.getElementById('camera');
 const focusGradEl=document.getElementById('focusGrad');
 function applyCam(){camG.setAttribute('transform',`translate(${cam.x},${cam.y}) scale(${cam.k})`);
@@ -328,9 +330,14 @@ function setFocus(id, pushHist=true){
   const want=new Set([id, ...neighbors(id)]);
 
   const f=ensure(id);
-  neighbors(id).forEach((nb,i)=>{
-    if(!pos[nb]){const a=(i/neighbors(id).length)*Math.PI*2; ensure(nb);
-      pos[nb].x=f.x+Math.cos(a)*180; pos[nb].y=f.y+Math.sin(a)*180;}
+  const nbs=neighbors(id);
+  nbs.forEach((nb,i)=>{
+    if(!pos[nb]){ ensure(nb);
+      // seed straight into a right-hand column so the fan opens rightward
+      // from the very first frame, rather than needing to swing over from
+      // an all-directions circle.
+      pos[nb].x=f.x+170; pos[nb].y=f.y+(i-(nbs.length-1)/2)*62;
+    }
   });
 
   for(const nid of Array.from(active)){
@@ -567,9 +574,9 @@ document.getElementById('fullscr').onclick=()=>{
 // ---- simulation ----------------------------------------------------------
 function tick(){
   const ids=[...active];
-  // ring radius accounts for the focus capsule's width and long chip labels
+  // column distance accounts for the focus capsule's width and long chip labels
   const maxChipW = ids.reduce((m,i)=>Math.max(m,estW(i)),0);
-  const REST = 95 + ids.length*6 + estW(focusId)*0.4 + maxChipW*0.25;
+  const REST_X = 150 + estW(focusId)*0.55 + maxChipW*0.35;
   {const f=pos[focusId]; f.vx=0; f.vy=0; f.x*=0.86; f.y*=0.86;
    if(Math.abs(f.x)<0.3)f.x=0; if(Math.abs(f.y)<0.3)f.y=0;}
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
@@ -581,8 +588,12 @@ function tick(){
   }
   const F=pos[focusId];
   for(const id of ids){ if(id===focusId||id===dragId)continue;
-    const p=pos[id]; let dx=p.x-F.x,dy=p.y-F.y,d=Math.hypot(dx,dy)||0.01;
-    p.vx-=(dx/d)*(d-REST)*0.03; p.vy-=(dy/d)*(d-REST)*0.03;
+    // spring toward a fixed offset to the right of the focus (not a radius
+    // in every direction) so the whole cluster fans out one-sided; a weak
+    // pull back toward the focus's own y keeps the column from drifting.
+    const p=pos[id];
+    p.vx-=(p.x-(F.x+REST_X))*0.045;
+    p.vy-=(p.y-F.y)*0.01;
   }
   for(const id of ids){ if(id===focusId){continue;} const p=pos[id]; if(id===dragId){continue;}
     p.vx*=0.86; p.vy*=0.86; p.x+=p.vx; p.y+=p.vy; }
@@ -633,18 +644,22 @@ function render(){
   }
   for(const e of edgeEls){
     const a=pos[e.a],b=pos[e.b]; if(!a||!b)continue;
-    e.line.setAttribute('d', curvePath(a.x,a.y,b.x,b.y));
+    // edges touching the focus leave from its capsule's right edge, not its
+    // center, so the fan visibly emerges from one side of the focus node.
+    let ax=a.x, ay=a.y, bx=b.x, by=b.y;
+    if(e.a===focusId) ax += focusEdgeReach(e.a);
+    else if(e.b===focusId) bx += focusEdgeReach(e.b);
+    e.line.setAttribute('d', curvePath(ax,ay,bx,by));
 
     if(e.ptext.textContent){
       let tf=0.5, F=null, O=null, aIsFocus=false;
-      if(e.a===focusId){F=a;O=b;aIsFocus=true;} else if(e.b===focusId){F=b;O=a;}
+      if(e.a===focusId){F={x:ax,y:ay};O={x:bx,y:by};aIsFocus=true;} else if(e.b===focusId){F={x:bx,y:by};O={x:ax,y:ay};}
       if(F){
         const L=Math.hypot(O.x-F.x,O.y-F.y)||1;
-        const focusReach = O.x>=F.x ? (48+estW(focusId)) : 26;
-        tf = Math.min(0.76, Math.max(0.5, (focusReach+46)/L));
+        tf = Math.min(0.76, Math.max(0.5, (26+46)/L));
       }
       const tPath = F ? (aIsFocus ? tf : 1-tf) : 0.5;
-      const pt = curvePoint(tPath, a.x,a.y,b.x,b.y);
+      const pt = curvePoint(tPath, ax,ay,bx,by);
       const mx = pt.x, my = pt.y;
       const tw=estW(e.ptext.textContent, 10.5, 500);
       e.pg.setAttribute('transform',`translate(${mx},${my})`);
@@ -658,7 +673,10 @@ function render(){
     // focus node to the neighbor in TRAVEL seconds, then resting quietly.
     const PERIOD=5.5, TRAVEL=1.1;
     const fp=pos[e.from], tp=pos[e.to];
-    e.shimmer.setAttribute('d', curvePath(fp.x,fp.y,tp.x,tp.y));
+    let fx=fp.x, fy=fp.y, tx=tp.x, ty=tp.y;
+    if(e.from===focusId) fx += focusEdgeReach(e.from);
+    else if(e.to===focusId) tx += focusEdgeReach(e.to);
+    e.shimmer.setAttribute('d', curvePath(fx,fy,tx,ty));
     const tt=(clock + e.phase*PERIOD) % PERIOD;
     let visible=false;
     if(tt<TRAVEL){
@@ -695,6 +713,10 @@ function curvePoint(t,x1,y1,x2,y2){
   const y=mt*mt*mt*y1 + 3*mt*mt*t*y1 + 3*mt*t*t*y2 + t*t*t*y2;
   return {x,y};
 }
+// x-offset from the focus node's own position out to its capsule's right
+// edge — matches the capsule geometry built in createNode() (width = w+66,
+// left-aligned at x:-21, so the right edge sits at w+45).
+function focusEdgeReach(id){ return (nodeEls[id]?nodeEls[id].w:0)+45; }
 
 // ---- chrome (breadcrumbs / legend) --------------------------------------
 function updateChrome(){
