@@ -110,6 +110,18 @@
     text-align:center;line-height:28px;border-radius:8px;}
   .zoomwrap button:hover{background:#2a2a2a;color:#fff}
   .zoomwrap .pct{color:var(--text-dim);font-size:12px;width:46px;text-align:center;font-family:var(--mono);}
+
+  /* hover definition card */
+  #tip{position:fixed;z-index:8;max-width:280px;pointer-events:none;
+    background:rgba(26,26,26,.95);backdrop-filter:blur(10px);
+    border:1px solid var(--panel-br2);border-radius:12px;padding:12px 14px;
+    opacity:0;transform:translateY(4px);transition:opacity .16s ease,transform .16s ease;}
+  #tip.show{opacity:1;transform:translateY(0)}
+  #tip .t-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+  #tip .t-dot{width:8px;height:8px;border-radius:2.5px;flex:0 0 8px}
+  #tip .t-type{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dimmer)}
+  #tip .t-name{font-size:13px;font-weight:600;color:#fff;margin-bottom:4px;letter-spacing:-.01em}
+  #tip .t-def{font-size:12px;line-height:17px;color:var(--text-dim)}
 </style>
 </head>
 <body>
@@ -149,69 +161,59 @@
   <div class="zoomwrap panel">
     <button id="zout">−</button><span class="pct" id="pct">100%</span><button id="zin">+</button>
   </div>
-  <div class="hint"><b>Click</b> a node to re-center · <b>Drag</b> canvas to pan · <b>Scroll</b> to zoom</div>
+  <div class="hint"><b>Click</b> a node to re-center · <b>Hover</b> for definition · <b>Drag</b> to pan · <b>Scroll</b> to zoom</div>
+
+  <div id="tip">
+    <div class="t-head"><span class="t-dot"></span><span class="t-type"></span></div>
+    <div class="t-name"></div>
+    <div class="t-def"></div>
+  </div>
 
 <script>
 /* =========================================================================
-   DATA — replace this block with the real ontology (nodes + links).
-   type controls the accent colour: 'entity' indigo · 'doc' blue ·
-   'role' red · 'value' green · 'policy' orange · 'system' light-blue
+   DATA — CPG demand-planning ontology (from the current Cogentiq graph).
+   Structure (names + relationships) shows by default; each node's `def`
+   is revealed in a card only on hover.
    ========================================================================= */
 const NODES = [
-  {id:'Supplier',      type:'entity'},
-  {id:'Tier',          type:'entity'},
-  {id:'Category',      type:'entity'},
-  {id:'RiskScore',     type:'value'},
-  {id:'PaymentTerm',   type:'doc'},
-  {id:'PurchaseOrder', type:'doc'},
-  {id:'Invoice',       type:'doc'},
-  {id:'Contract',      type:'doc'},
-  {id:'Approval',      type:'entity'},
-  {id:'Policy',        type:'policy'},
-  {id:'Buyer',         type:'role'},
-  {id:'Approver',      type:'role'},
-  {id:'CostCenter',    type:'entity'},
-  {id:'Budget',        type:'value'},
-  {id:'GLAccount',     type:'system'},
-  {id:'Warehouse',     type:'entity'},
-  {id:'DeliveryNote',  type:'doc'},
-  {id:'TaxCode',       type:'system'},
+  {id:'Forecast Deviation', type:'derived',
+   def:'A computed comparison between actual demand and the calibrated forecast, used to visualize forecast accuracy.'},
+  {id:'Calibrated Actual Demand', type:'measure',
+   def:'Actual demand calibrated with org-specific POS lag rules.'},
+  {id:'Observed Actual Demand', type:'measure',
+   def:'Actual demand as the observed half of the forecast-accuracy comparison.'},
+  {id:'Consensus Demand Forecast', type:'forecast',
+   def:'Demand forecast defaulting to the consensus scenario for the account.'},
+  {id:'Calibrated Demand Forecast', type:'forecast',
+   def:'Demand forecast calibrated with org-specific bias corrections.'},
+  {id:'Walmart', type:'account',
+   def:'Major retail account with strict OTIF and full-truckload requirements.'},
+  {id:'Monitored Inventory Position', type:'inventory',
+   def:'Inventory position monitored against org-specific DOS (days of supply) risk thresholds.'},
+  {id:'Retailer Replenishment Policy', type:'policy',
+   def:'Replenishment policy shaped by retailer-specific service levels.'},
 ];
 const LINKS = [
-  ['Supplier','Tier','classified as'],
-  ['Supplier','Category','belongs to'],
-  ['Supplier','RiskScore','scored by'],
-  ['Supplier','PaymentTerm','has default'],
-  ['Supplier','Contract','party to'],
-  ['PurchaseOrder','Supplier','raised for'],
-  ['PurchaseOrder','PaymentTerm','applies'],
-  ['PurchaseOrder','Approval','requires'],
-  ['PurchaseOrder','CostCenter','charged to'],
-  ['PurchaseOrder','Invoice','generates'],
-  ['PurchaseOrder','Warehouse','delivers to'],
-  ['Approval','Policy','governed by'],
-  ['Approval','Approver','authorised by'],
-  ['Policy','Tier','applies to'],
-  ['Buyer','Category','manages'],
-  ['Buyer','PurchaseOrder','creates'],
-  ['Invoice','GLAccount','posted to'],
-  ['Invoice','TaxCode','taxed by'],
-  ['Invoice','PurchaseOrder','references'],
-  ['CostCenter','Budget','funded by'],
-  ['Contract','PaymentTerm','defines'],
-  ['Warehouse','DeliveryNote','issues'],
-  ['DeliveryNote','PurchaseOrder','confirms'],
+  ['Calibrated Demand Forecast','Forecast Deviation','produces deviation'],
+  ['Calibrated Actual Demand','Forecast Deviation','produces deviation'],
+  ['Observed Actual Demand','Calibrated Actual Demand','calibrated by lag rules'],
+  ['Consensus Demand Forecast','Calibrated Demand Forecast','bias-corrected into'],
+  ['Walmart','Consensus Demand Forecast','plans account for'],
+  ['Walmart','Observed Actual Demand','sells through'],
+  ['Forecast Deviation','Monitored Inventory Position','adjusts timing'],
+  ['Monitored Inventory Position','Retailer Replenishment Policy','stockout risk rule'],
+  ['Walmart','Retailer Replenishment Policy','sets service levels'],
 ];
-const START = 'Supplier';
+const START = 'Forecast Deviation';
 /* ===================================================================== */
 
 const TYPE = {
-  entity:{color:'#5860ed', label:'Entity'},
-  doc:   {color:'#0d99ff', label:'Document'},
-  role:  {color:'#f24822', label:'Role / person'},
-  value: {color:'#14ae5c', label:'Value'},
-  policy:{color:'#fc9e24', label:'Policy'},
-  system:{color:'#80caff', label:'System'},
+  measure:  {color:'#14ae5c', label:'Measure'},
+  forecast: {color:'#5860ed', label:'Forecast'},
+  derived:  {color:'#80caff', label:'Derived metric'},
+  account:  {color:'#f24822', label:'Account'},
+  inventory:{color:'#0d99ff', label:'Inventory'},
+  policy:   {color:'#fc9e24', label:'Policy'},
 };
 
 // ---- adjacency -----------------------------------------------------------
@@ -390,7 +392,8 @@ function buildEdges(){
   edgeEls.forEach((e,i)=>{ e.phase=i/edgeEls.length; });
 }
 
-// ---- hover highlight -----------------------------------------------------
+// ---- hover highlight + definition card -----------------------------------
+const tip=document.getElementById('tip');
 function setHover(id){
   hoverId=id;
   document.getElementById('stat').textContent = id ? '— '+ (relCount(id)) : '— explore';
@@ -404,6 +407,28 @@ function setHover(id){
     if(!id){ g.style.opacity=1; }
     else g.style.opacity = connected.has(nid)?1:0.28;
   }
+  // definition card
+  if(id && byId[id].def){
+    const t=TYPE[byId[id].type]||{};
+    tip.querySelector('.t-dot').style.background=t.color||'#888';
+    tip.querySelector('.t-type').textContent=t.label||'';
+    tip.querySelector('.t-name').textContent=id;
+    tip.querySelector('.t-def').textContent=byId[id].def;
+    placeTip(id);
+    tip.classList.add('show');
+  } else {
+    tip.classList.remove('show');
+  }
+}
+function placeTip(id){
+  const p=pos[id]; if(!p)return;
+  const sx=p.x*cam.k+cam.x, sy=p.y*cam.k+cam.y;
+  const r=tip.getBoundingClientRect();
+  let x=sx+26*cam.k, y=sy+22*cam.k;                       // below-right of the node
+  if(x+r.width>innerWidth-14)  x=sx-r.width-26*cam.k;     // flip left
+  if(y+r.height>innerHeight-14) y=sy-r.height-22*cam.k;   // flip above
+  tip.style.left=Math.max(14,x)+'px';
+  tip.style.top =Math.max(14,y)+'px';
 }
 function relCount(id){const n=adj[id].length;return n+' relationship'+(n===1?'':'s');}
 
@@ -454,7 +479,9 @@ document.getElementById('fullscr').onclick=()=>{
 // ---- simulation ----------------------------------------------------------
 function tick(){
   const ids=[...active];
-  const REST = 150 + ids.length*7;
+  // ring radius accounts for the focus capsule's width and long chip labels
+  const maxChipW = ids.reduce((m,i)=>Math.max(m,estW(i)),0);
+  const REST = 140 + ids.length*8 + estW(focusId)*0.55 + maxChipW*0.35;
   {const f=pos[focusId]; f.vx=0; f.vy=0; f.x*=0.86; f.y*=0.86;
    if(Math.abs(f.x)<0.3)f.x=0; if(Math.abs(f.y)<0.3)f.y=0;}
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
@@ -474,6 +501,7 @@ function tick(){
 
   clock+=0.016;
   render();
+  if(hoverId) placeTip(hoverId);   // card tracks the node while physics settle
   requestAnimationFrame(tick);
 }
 
