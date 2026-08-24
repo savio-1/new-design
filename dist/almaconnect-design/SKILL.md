@@ -22,6 +22,10 @@ a page — use the classes and tokens, so the ladder stays closed.
 <link rel="stylesheet" href="almaconnect.css">
 ```
 
+**Read `CONTEXT.md` first if you are picking this project up.** It carries what
+this file deliberately does not: the build pipeline, what is placeholder, what is
+still open, and the browser traps that each cost a debugging round.
+
 **Companion references, read before the work they cover:**
 
 | File | Read before |
@@ -30,6 +34,8 @@ a page — use the classes and tokens, so the ladder stays closed.
 | `references/motion-patterns.md` | adding animation or interactive nav — logo marquee, link ticker, expanding pill-nav (M1–M3) |
 | `references/color-system.md` | using any colour beyond `--accent`, `--ink` and the grounds |
 | `references/reference-index.md` | adding a new reference to the system |
+| `styleguide.html` | a rendered proof of every class — open it to check a change |
+| `build-home.py` | the src → build inliner, if the new page follows the same split |
 
 If a section resembles a pattern in `section-patterns.md`, inherit that pattern's
 layout, spacing and hierarchy rather than inventing a new one. Note that file predates
@@ -253,6 +259,7 @@ keep the two in sync.
 | Variant | Behaviour |
 |---|---|
 | `.shine` | Hero headline. Loops: 5s cycle, ~45% sweep, then rests. |
+| `.intro` + `.intro__w` | **Load intro.** One keyword at a time in a single slot, each blur-fading in and out. The page's blur-in must be gated behind its `intro:done` event, or the hero resolves unseen behind the overlay. |
 | `.bw` + `.is-in` | **Blur-in.** Headlines and section subtext resolve word by word on first sight — sharp at the line start while the tail is still blurred. The shimmer is sequenced to start as the last word lands, never over text that has not resolved. |
 | `.shine--once` | Every other headline. Sweeps **once**, the first time it scrolls into view — an IntersectionObserver (threshold 0.6, then `unobserve`) adds `.is-lit`. Never on re-scroll. |
 | `.shine--dark` | On a dark ground: sweeps aqua → white instead of ink → turquoise. |

@@ -1,115 +1,200 @@
 ---
 name: almaconnect-design
-description: Design system and section patterns for building the AlmaConnect website (almaconnect.com and news.almaconnect.com). Use whenever designing, building, or reviewing any AlmaConnect page, section, component, or Figma frame — heroes, navigation, product cards, pricing, stats, testimonials, FAQs, footers, blog/resource layouts. Derived from the AngelList reference designs (Figma file wPFGlGLF2kGdcC06My35za), adapted to AlmaConnect's brand — Geist headlines + Nunito Sans body, turquoise #00C4B5. Carries the drop-in stylesheet references/almaconnect.css (tokens, type ladder, colours, gradients, shimmer system) — start every page from it. If a section being built resembles a pattern in references/section-patterns.md, reuse that pattern's layout, spacing, and hierarchy rather than inventing a new one.
+description: Complete design system for building AlmaConnect web pages (almaconnect.com, news.almaconnect.com) — brand tokens, the ratified Geist + Nunito Sans type ladder, colour rules, layout and spacing, component recipes, gradients, and the shimmer motion system. Bundles almaconnect.css, a drop-in stylesheet implementing all of it. Use whenever designing, building, or reviewing any AlmaConnect page, section, component, or Figma frame — heroes, navigation, product cards, pricing, stats, testimonials, FAQs, footers, blog and resource layouts — and whenever a question touches AlmaConnect type sizes, colours, spacing, buttons, or animation.
 ---
 
-# AlmaConnect Design Skill
+# AlmaConnect Design System
 
-Build AlmaConnect web pages in the visual language of the AngelList reference designs: quiet, editorial, type-led, generous whitespace, hairline rules, restrained color. The reference's structure and rhythm are kept; the brand layer (font, accent color) is swapped to AlmaConnect's.
+Build AlmaConnect pages in a quiet, editorial, type-led visual language: generous
+whitespace, hairline rules, restrained colour, no drop shadows. Structure and rhythm
+come from the AngelList reference designs; the brand layer — Geist + Nunito Sans,
+turquoise `#00C4B5`, warm cream ground — is AlmaConnect's own.
 
-**`references/almaconnect.css` is the stylesheet — start every page from it.** It is the drop-in implementation of everything below: tokens, the ratified type ladder, buttons/pills/chips, the gradient recipes and the shimmer system, plus the JS the shimmer expects. It supersedes `references/design-tokens.css` (v1, kept only for provenance). A rendered proof of every class is in the website repo at `styleguide.html`.
+**Start every page from `almaconnect.css`.** It is the drop-in implementation of
+everything in this file: tokens, the type ladder as `.t-*` classes, buttons and pills,
+the gradient recipes, and the full shimmer system with the JS it expects. Link it after
+the font stylesheet and before any page CSS. Don't hand-write type or colour values into
+a page — use the classes and tokens, so the ladder stays closed.
 
-**Read `references/section-patterns.md` before designing any full section** — it catalogs every studied reference section with exact layout specs. **Read `references/motion-patterns.md` before adding any animation or interactive nav** — it holds the adopted motion patterns (logo marquee, link ticker, expanding pill-nav overlay) with working CSS/JS. **Read `references/color-system.md` before using any color beyond `--accent`, `--ink`, and the grounds** — it holds the support palette and the rules that keep it subtle. `references/design-tokens.css` is the drop-in token sheet. `references/reference-index.md` tracks which references have been absorbed (this skill grows as more references are added).
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap">
+<link rel="stylesheet" href="almaconnect.css">
+```
+
+**Read `CONTEXT.md` first if you are picking this project up.** It carries what
+this file deliberately does not: the build pipeline, what is placeholder, what is
+still open, and the browser traps that each cost a debugging round.
+
+**Companion references, read before the work they cover:**
+
+| File | Read before |
+|---|---|
+| `references/section-patterns.md` | designing any full section — a catalog of studied layouts (P0–P18) with exact specs |
+| `references/motion-patterns.md` | adding animation or interactive nav — logo marquee, link ticker, expanding pill-nav (M1–M3) |
+| `references/color-system.md` | using any colour beyond `--accent`, `--ink` and the grounds |
+| `references/reference-index.md` | adding a new reference to the system |
+| `styleguide.html` | a rendered proof of every class — open it to check a change |
+| `build-home.py` | the src → build inliner, if the new page follows the same split |
+
+If a section resembles a pattern in `section-patterns.md`, inherit that pattern's
+layout, spacing and hierarchy rather than inventing a new one. Note that file predates
+the current container width — take its **proportions**, but the container is 1288px
+with 76px margins (§3), not the 1344/48 written there.
+
+---
 
 ## 1. Brand layer
 
 | Token | Value | Role |
 |---|---|---|
-| `--accent` | **#00C4B5** | Primary turquoise. CTAs, links, eyebrow labels, active states. Replaces the reference's purple `#5A50F5`. |
-| `--accent-dark` | #00A396 | Hover/pressed accent; link hover. |
-| `--accent-tint` | #E0F7F4 | Pale turquoise wash — tag pills, highlighted-phrase backgrounds, icon chips. Replaces reference lavender tints. |
-| `--ink` | **#04302B** | Near-black teal ink. ALL headlines and primary body text. Derived from turquoise the way the reference's `#002B31` derives from its palette. Also the fill for dark buttons and dark sections. |
-| `--ink-65` | rgba(6, 48, 43, 0.65) | Secondary body text (the reference runs most paragraph text at 65% ink). |
+| `--accent` | **#00C4B5** | Primary turquoise. CTAs, links, active states. |
+| `--accent-dark` | #00A396 | Hover/pressed; the mid stop inside shimmer gradients. |
+| `--accent-tint` | #E0F7F4 | Pale wash — tag pills, highlighted-phrase backgrounds, icon chips. |
+| `--accent-lift` | #7FE8DE | The bright crest inside gradients. |
+| `--ink` | **#04302B** | Near-black teal. ALL headlines and primary body text; also dark button fills. Never pure black. |
+| `--ink-80` | rgba(4, 48, 43, 0.8) | Hero subtext. |
+| `--ink-65` | rgba(6, 48, 43, 0.65) | Secondary body text — most paragraph text runs here. |
 | `--ink-45` | rgba(6, 48, 43, 0.45) | Tertiary: dates, captions, disclaimers. |
 | `--ground` | **#F2EFEA** | Warm off-white page ground. Never pure white for page backgrounds. |
+| `--surface` | #FFFFFF | Cards, nav bar, panels — white sits *on* the cream ground. |
 | `--panel` | #EDEBE4 | Recessed panel, one step under the ground. |
-| `--surface` | #FFFFFF | Cards, nav bar, pricing panels — white sits *on* the cream ground. |
-| `--tint-mint` | #DDF2E4 | Pale green full-bleed band (reference: "Full Service Fund Management" band). |
-| `--tint-sand` | #F3EAE0 | Warm beige explainer panel background. |
 | `--hairline` | rgba(153, 159, 153, 0.25) | ALL rules, borders, dividers. One hairline everywhere. |
-| `--deep` | **#10261E** | The dark section ground — deeper than `--ink`, which is reserved for type and fills. |
+| `--deep` | **#10261E** | The dark section ground — deeper than `--ink`, which stays for type and fills. |
 | `--deep-raised` | #1B3A2E | A card sitting on the dark ground. |
-| `--on-deep` | rgba(255,255,255,0.72) | Body text on the dark ground. Headlines there go full white. |
+| `--deep-line` | rgba(255,255,255,0.16) | Dividers on dark. |
+| `--on-deep` | rgba(255,255,255,0.72) | Body text on dark. Headlines there go full white. |
 | `--warm` | **#F6E47F** | The one warm accent: chasing lights on dark grounds only. Never on light. |
 | `--grad-aqua/-lilac/-sky/-peach` | — | Progress-line gradients, in the four hues the numerals shimmer in. |
-| `--on-dark` | #FFFFFF / #BFF0EA | Text on `--ink` sections; #BFF0EA (pale turquoise) replaces the reference's periwinkle `#CDCBFF` for oversized display text on dark. |
 
-Color discipline (this is what makes the reference look expensive):
-- Pages are 90% ink-on-cream. Accent appears in small doses: links, one button, an eyebrow, a tag.
-- Tinted bands (`--tint-mint`, `--tint-sand`, `--deep` dark) appear **at most once or twice per page**, full-bleed, to break rhythm.
-- Never use pure black. **Gradients are for grounds and shimmers only** — never a flat gradient sitting behind static text, and never more than one gradient surface per viewport. The shimmer device (§4b) is the sanctioned way a gradient touches type: it sweeps and then leaves.
-- **A support palette exists** (mint/sand/blush/sky/lilac/peach tints + a butter-yellow hero accent) for *state and category only* — see `references/color-system.md` before using any color that isn't `--accent`, `--ink`, or a ground. Each support hue stays under ~1% of screen area, always as a tint fill paired with its same-hue saturated text, never on CTAs, links, or headlines.
-- **`#00C4B5` is light.** White text on it fails AA. Primary buttons are `--ink` on `--accent`; use white only on `--ink`/`--deep` fills or at ≥24px bold.
+**Support palette** — tint fill paired with its same-hue text, for *category and state
+only*. Each hue stays under ~1% of screen area. Never on CTAs, links, or headlines.
 
-## 2. Typography — Geist headlines + Nunito Sans body
+| Pair | Tint | Text | Saturated (gradients only) |
+|---|---|---|---|
+| aqua | #E0F7F4 | #00806F | #6FE0D3 |
+| lilac | #F5EDFD | #9B5FD0 | #CDB1F2 |
+| sky | #EBF4FD | #2F6FBF | #9EC9F5 |
+| peach | #FCE9DC | #C4703C | #F7BF95 |
+| mint — *verified / positive* | #E5F6F0 | #2F9E77 | — |
+| sand — *former / pending* | #FDF4E3 | #D08A21 | — |
 
-**Two faces.** Geist for everything that behaves like a headline; Nunito Sans for
-everything else. The full rationale, provenance and spacing rhythm live in the
-`almaconnect-type-spacing` skill — that skill wins on any type question. What follows
-is the ratified ladder as implemented in `references/almaconnect.css`.
+**Colour discipline — this is what makes it look expensive:**
 
-| Role | Face | Size | Weight | Tracking | Line-height |
-|---|---|---|---|---|---|
-| Display / H1 | Geist | **88px** `clamp(52px, 6.1vw, 88px)` | 350 | **−4%** | 0.95 |
-| Stat numeral | Geist | **64px** `clamp(40px, 4.45vw, 64px)` | 350 | **−4%** | 0.95 |
-| H2 — every section headline | Geist | **48px** `clamp(34px, 3.34vw, 48px)` | 350 | **−4%** | ~1.08 |
-| H3 | Geist | **32px** | 350 | −3% | 1.25 |
-| H4 — card titles, accordion heads | Geist | **24px** | 400 | −3% | 1.22 |
-| Tabs | Geist | **16px** | 400 | −3% | 1 |
-| Category pills | Geist | **14px** | 400 | −3% | 1.4 |
-| Editorial lead | Nunito Sans | **24px** | 400 | −3% | 1.55 |
-| Hero subtext / quotes | Nunito Sans | **20px** | 400 | −3% | 24px / 1.45 |
-| Section subtext | Nunito Sans | **18px** | 400 | −3% | 1.5 |
-| Body, nav, buttons | Nunito Sans | **16px** | 400 · *600 buttons · 500 nav* | −3% | 1.5 |
-| Labels, roles, captions | Nunito Sans | **14px** | 400 | −3% | 1.4 |
-| Micro | Nunito Sans | **12px** | 400 | −3% | 1.5 |
+- Pages are 90% ink-on-cream. Accent appears in small doses: a link, one button, a tag.
+- Tinted or dark full-bleed bands appear **at most once or twice per page**, to break rhythm.
+- **`#00C4B5` is light.** White text on it fails AA. Primary buttons are ink-filled;
+  turquoise fill takes **ink** text. Use white only on `--ink` / `--deep`.
+- **Gradients are for grounds and shimmers only** (§5) — never flat behind static text,
+  never more than one gradient surface per viewport.
+- Never introduce new greys. Every neutral is `--ink` at an opacity, or a ground.
 
-Two hinges carry the whole system — learn these instead of the table:
+---
 
-- **Tracking:** −4% at 48px and above, −3% at everything below (body included).
-- **Weight:** Geist 350 at 32px and above, Geist 400 at 24px and below. Nunito Sans 400.
-  A headline that drops a step at a breakpoint crosses the weight hinge with it.
+## 2. Typography — Geist headlines, Nunito Sans body
 
-The size inventory is closed. **Geist 88 / 64 / 48 / 32 / 24 / 16 / 14 · Nunito Sans
-24 / 20 / 18 / 16 / 14 / 12.** Do not invent steps between them.
+Two faces. Geist for anything that behaves like a headline; Nunito Sans for everything
+else. Geist is bundled/available on Google Fonts (`wght@100..900`); Nunito Sans is the
+variable font (`wght 200–1000`).
 
-**Weight exceptions — the only ones.** Buttons and inline CTA links stay Nunito Sans
-600, nav stays 500: they read as affordances, not prose. Logotypes are exempt from
-the tracking laws and keep whatever spacing the drawn mark specifies.
+```css
+--font-display: "Geist", "Helvetica Neue", Arial, sans-serif;
+--font-body:    "Nunito Sans", ui-sans-serif, system-ui, sans-serif;
+```
 
-**Implementing −3%:** `letter-spacing: -0.03em` on `body` alone is wrong. `em` resolves
-to a pixel value at body size and then inherits as *that pixel value*, so 14px text
-renders −3.4% and 18px renders −2.7%, while form controls sit at 0 (they inherit
-neither font nor tracking). `almaconnect.css` re-anchors it on the elements themselves.
-Keep `span`/`em`/`strong` out of that rule — they wrap a run inside a headline (the
-shimmer does exactly this) and must take the parent's tracking.
+### The ladder
 
-Two-tone paragraph device (signature reference move): lead phrase at full `--ink`,
-remainder of the sentence at `--ink-65` — `.t-twotone` in the stylesheet. Lead at
-wght 600, rest at 400/65%.
+| Role | Face | Size | Weight | Tracking | Line-height | Class |
+|---|---|---|---|---|---|---|
+| Display / H1 | Geist | **88px** `clamp(52px, 6.1vw, 88px)` | 350 | **−4%** | 0.95 | `.t-display` |
+| Stat numeral | Geist | **64px** `clamp(40px, 4.45vw, 64px)` | 350 | **−4%** | 0.95 | `.t-num` |
+| H2 — every section headline | Geist | **48px** `clamp(34px, 3.34vw, 48px)` | 350 | **−4%** | ~1.08 | `.t-h2` |
+| H3 | Geist | **32px** | 350 | −3% | 1.25 | `.t-h3` |
+| H4 — card titles, accordion heads | Geist | **24px** | **400** | −3% | 1.22 | `.t-h4` |
+| Tabs | Geist | **16px** | **400** | −3% | 1 | `.t-tab` |
+| Category pills | Geist | **14px** | **400** | −3% | 1.4 | `.t-pill` |
+| Editorial lead | Nunito Sans | **24px** | 400 | −3% | 1.55 | `.t-editorial` |
+| Hero subtext | Nunito Sans | **20px** | 400 | −3% | 24px | `.t-hero-sub` |
+| Quotes, large body | Nunito Sans | **20px** | 400 | −3% | 1.45 | `.t-lead` |
+| Section subtext | Nunito Sans | **18px** | 400 | −3% | 1.5 | `.t-sub` |
+| Body, nav, buttons | Nunito Sans | **16px** | 400 | −3% | 1.5 | `.t-body` |
+| Labels, roles, captions | Nunito Sans | **14px** | 400 | −3% | 1.4 | `.t-label` |
+| Micro | Nunito Sans | **12px** | 400 | −3% | 1.5 | `.t-micro` |
 
-## 3. Layout system
+### Two hinges — learn these instead of the table
 
-- **Canvas:** 1440px design width. **Container: 1288px** centered (**76px** side margins, dropping to 24px below 920px). Content that "hangs" text columns often uses a narrower measure inside it.
-- **Grid:** 12-col mental model; the recurring physical grids are **4 × 298px cards with 32px gaps** (= 1288) and a **2-col split** (roughly 1/3 text : 2/3 visual) for explainer sections.
-- **Nav height:** 72px (64px below 920px), bottom hairline, sticky; the bar goes to `--nav-solid` rgba(242,239,234,0.9) once scrolled.
-- **Section vertical rhythm:** 80px standard, 120–160px for marquee sections, 40px for thin strips; hero top offset ~120px below nav. Sections butt together — padding carries all rhythm, never margins.
-- **Radii:** **10px buttons** · 12px cards/images · 9999px pills, tag chips, circular icon buttons · 16px large media panels. Tokens: `--r-button` / `--r-card` / `--r-pill` / `--r-panel`.
-- **Easing:** one curve everywhere — `--ease: cubic-bezier(0.22, 1, 0.36, 1)`.
-- **Shadows: none.** Depth comes from hairlines, tinted panels, and layered UI-screenshot compositions — never drop shadows on cards.
-- **Dividers:** hairline top+bottom borders on editorial card columns; single hairline between FAQ rows, blog list rows, timeline rows.
+- **Tracking turns at 48px.** −4% at 48px and above; −3% at everything below, body included.
+- **Weight turns at 24px.** Geist 350 at 32px and above; Geist 400 at 24px and below.
+  Nunito Sans is 400 throughout.
+
+A headline that drops a step at a breakpoint **crosses the hinge with it** — a 32px H3
+falling to 24px must also go 350 → 400.
+
+**The size inventory is closed.** Geist 88 / 64 / 48 / 32 / 24 / 16 / 14 · Nunito Sans
+24 / 20 / 18 / 16 / 14 / 12. Never invent a step between them. One H2 spec serves every
+section — never a per-section headline size.
+
+### Weight exceptions — the only ones
+
+Buttons and inline CTA links stay Nunito Sans **600**; nav stays **500**. They read as
+affordances, not prose. Sizes still come from the ladder. Nothing on the page is ever
+700+. Logotypes are exempt from the tracking laws and keep whatever spacing the drawn
+mark specifies (e.g. +6%).
+
+### Implementing −3% tracking (a real trap)
+
+`letter-spacing: -0.03em` on `body` alone is **wrong**. `em` resolves to a pixel value
+at the body's own size and then inherits as *that pixel value* — so a 14px child renders
+−3.4% and an 18px child −2.7%, while form controls sit at 0 (they inherit neither font
+nor tracking). Re-anchor on the elements themselves so `em` resolves against each
+element's own size:
+
+```css
+h1, h2, h3, h4, h5, h6,
+p, li, a, blockquote, cite, figcaption, label, dt, dd,
+button, input, select, textarea, td, th { letter-spacing: -0.03em; }
+```
+
+Keep `span`, `em` and `strong` **out** of that list — they wrap a run inside a headline
+(the shimmer device does exactly this) and must take the parent's tracking, not reset
+it. Any `<span>` carrying its own `font-size` needs its own explicit `-0.03em`.
+
+### Two-tone paragraph device (house signature)
+
+Lead phrase at full `--ink` weight 600, remainder at 400 / `--ink-65`. Use this instead
+of bolding a whole paragraph. Class: `.t-twotone`.
+
+---
+
+## 3. Layout and spacing
+
+- **Canvas** 1440px. **Container 1288px**, 76px side margins (24px below 920px).
+- **Grid** 4 × 298px cards with 32px gaps (= 1288); 2-col explainer split ~1/3 text : 2/3 visual.
+- **Nav** 72px tall (64px below 920px), bottom hairline, sticky; goes to
+  `--nav-solid` rgba(242,239,234,0.9) once scrolled.
+- **Section rhythm** 80px standard · 120–160px for marquee sections · 40px thin strips.
+  Sections butt together — **padding carries all rhythm, never margins**.
+- **Reading measure** ~54ch for body and subtext; 620px for 24px editorial text.
+  Text never spans the full container.
+- **Intra-stack scale** 8 / 16 / 24 / 28 / 32px — never arbitrary values.
+  H1 → hero subtext 28px · subtext → CTA 24px · H2 → section subtext 16–24px.
+- **Radii** `--r-button` 10px · `--r-card` 12px · `--r-panel` 16px · `--r-pill` 9999px.
+- **Easing** one curve everywhere: `--ease: cubic-bezier(0.22, 1, 0.36, 1)`.
+- **Shadows: none.** Depth comes from hairlines, tinted panels and layered UI cards.
+
+---
 
 ## 4. Component recipes
 
-**Buttons** — `.btn` + a fill modifier in `almaconnect.css`. Label is always Nunito
-Sans 16px/600 at −3%; radius is 10px (`--r-button`); no shadows, ever.
-- Primary: `--ink` fill, white text, 50px height, 32px x-padding (`.btn--ink`).
-- Turquoise fill: `--accent` with **ink** text (`.btn--accent`). **Never white on
-  turquoise** — #00C4B5 is light and white on it fails AA. White is for `--ink`/`--deep`
-  fills only.
-- Secondary: 1px ink outline, ink text, 40px height (`.btn--outline`). On hover it
-  inverts to ink fill *and drops to 0 radius* — a small house signature.
-- Nav CTA: 44px height, 26px x-padding (`.btn--nav`).
+**Buttons** — `.btn` plus a fill modifier. Label always Nunito Sans 16px/600 at −3%,
+radius 10px, no shadow.
+
+| Tier | Class | Spec |
+|---|---|---|
+| Primary | `.btn--ink` | `--ink` fill, white text, 50px tall, 32px x-padding |
+| Turquoise | `.btn--accent` | `--accent` fill, **ink** text — never white |
+| Secondary | `.btn--outline` | 1px ink outline, 40px tall; on hover inverts to ink fill **and drops to 0 radius** (house signature) |
+| Nav CTA | `.btn--nav` | 44px tall, 26px x-padding |
 
 **Scrolled nav:** the bar contracts into a floating glass pill (`.nav-bar` +
 `.is-scrolled`) — max-width pulls in, the logo releases its reserved slot so the row
@@ -118,134 +203,117 @@ alpha or higher: over a photographic hero a thinner pill drops nav labels to 2:1
 **Never** change the bar's geometry on open: it moves the links out from under a
 stationary pointer, which re-fires mouseenter and makes the nav oscillate. The menu
 drops as a floating card (`.nav-menu`) under the bar instead.
-- Text link with arrow: accent, 16px/600, inline `→` that nudges 3px right on hover
-  (`.link-arrow`).
+| Text link | `.link-arrow` | accent, 16px/600, inline `→` nudging 3px right on hover |
 
-**Announcement pill:** dark `--ink` pill, 44px, radius 9999, gradient text (reference: coral→periwinkle; AlmaConnect: `#7FE8DE → #BFF0EA`), small arrow. Sits above the H1.
+**Pill** (`.pill`) — 32px tall, Geist 14px/400, `--panel` fill. No greens on pills.
 
-**Editorial product card (4-up):** 18px eyebrow label → hairline → 432px tall image (12px radius, 48px circular ⊕ overlay bottom-right) → two-tone description. Column has top+bottom hairlines. This is the pattern for the AlmaConnect product router.
+**Segmented control** (`.segmented` + `.segmented__tab`) — the tab pattern. One track
+at 6% white holding all tabs, with only the selected tab filled solid white and ink;
+unselected tabs carry no fill of their own, just muted label colour. Not a row of
+separate pills. The fill is **one element that slides** between tabs (`.segmented__thumb`),
+measured in JS because the tabs are different widths. Where the track sits beside a visual, that grid must be `align-items: start` —
+centred, one extra line of copy on a single tab slides the whole tab row. Below the width the track needs for a single row it becomes a 2-up
+block with the panel radius — a stadium radius wrapped around two rows reads as a bug.
 
-**Tag chip:** 12–13px text, `--ground`-darker or `--accent-tint` fill, radius 4–6px, 4px 10px padding ("Report", "Product News" pattern).
+**Keyword highlight** (`.hl` + `--aqua/--lilac/--sky/--peach`) — a saturated support
+hue washed behind a word inside a paragraph. Rotate hues; don't repeat one twice in a row.
 
-**Stat block:** giant numeral over 16px `--ink-65` caption, left-aligned or centered; grouped 3-up or in a 1-big + 2×2 grid with hairline rows.
+**Card** (`.card`) — `--surface` fill, 1px hairline, 12px radius.
 
-**FAQ row:** 20px question, chevron right-aligned, hairline separators, "FAQ" Display M pinned in left column.
+**Stat block** — `.t-num` numeral over a 14–16px `--ink-65` caption, in a hairline-ruled
+band. Caption sits **above** the numeral. Tabular figures.
 
-**Segmented control:** the horizontal tab pattern. One track at 6% white (6% ink on
-light) holding all tabs, with only the selected tab filled — solid white with ink text
-on dark, `--ink` with white text on light. Unselected tabs carry no fill of their own,
-just a muted label colour. Not a row of separate pills. The fill is one element that
-slides between tabs (`.segmented__thumb`), measured in JS because tabs differ in width. Where the track sits beside a visual, that grid must be `align-items: start` —
-centred, one extra line of copy on a single tab slides the whole tab row. Below the width the track needs
-for a single row it becomes a 2-up block with the panel radius; a stadium radius wrapped
-around two rows reads as a bug. Classes `.segmented` + `.segmented__tab`.
+**Editorial product card** — eyebrow pill → media (12px radius) → `.t-h4` name →
+two-tone description → `.link-arrow`. The router pattern for the products row.
 
-**Vertical tab selector:** stacked 20–24px items, active = full ink + short underline, inactive = `--ink-45`; media panel on the right swaps per tab (reference "Attract investors / Engage investors…" pattern).
-
-**Timeline row ("Our Story"):** year caption left · hairline-separated rows · body text with key phrases wash-highlighted in `--accent-tint`.
-
-**Testimonial:** either (a) full-bleed photo band, 44px quote in pale accent on the image, caption + prev/next circles, or (b) 4-up white cards with avatar, name/handle, body quote, hairline border. AlmaConnect prefers (b) for named-institution quotes. Hovering a card washes it in one of the four support hues via `.card--wash` —
+**Testimonial** — white card, logo, quote at `.t-lead`, then name in **Geist 16px/400**
+over role at 14px `--ink-45`. Hovering a card washes it in one of the four support hues via `.card--wash` —
 set the hue in the markup, not by DOM position, so a carousel's clones keep it.
 
-**Footer:** 5 link columns (16px, ink), logo mark bottom-left, hairline, then legal row + social squares, then small disclaimer text at `--ink-45`. Sits on `--ground`.
+**Footer** — 5 link columns at 16px, logo bottom-left, hairline, legal row, then
+disclaimer at `--ink-45`. Sits on `--ground`.
 
-## 4b. Gradients and the shimmer system
+---
 
-Both are implemented in `references/almaconnect.css`; this is when to reach for them.
+## 5. Gradients and the shimmer system
 
-**Gradients are for grounds and shimmers only.** Never a flat gradient behind static
-text, never more than one gradient surface per viewport.
+**Gradients are for grounds and shimmers only.**
 
 | Recipe | Class | Use |
 |---|---|---|
-| Pastel wash | `.wash-pastel` | Four offset radial blooms under `blur(42px)` behind floating/orbiting elements. The blur is the point — no individual blob may read as a shape. |
-| Ink scrim | `.scrim-ink` | Over a photographic or gradient ground: 58% ink at the top, 22% at 45%, 50% at the bottom, so a headline up top and cards at the bottom both hold contrast. |
-| Frosted card | `.glass` | A card on a busy ground: `rgba(250,250,250,0.94)` + `backdrop-filter: blur(14px)`. |
+| Pastel wash | `.wash-pastel` | Four offset radial blooms under `blur(42px)` behind floating/orbiting elements. The blur is the point — no blob may read as a shape. |
+| Ink scrim | `.scrim-ink` | Over a photographic ground: 58% ink top, 22% at 45%, 50% bottom, so a headline up top and cards below both hold contrast. |
+| Frosted card | `.glass` | `rgba(250,250,250,0.94)` + `backdrop-filter: blur(14px)` on a busy ground. |
 
-**The shimmer** is the house signature. A gradient band sweeps across the glyphs
-(clipped with `background-clip: text`) or along an SVG outline, then the element
-returns to its resting colour. It never leaves a gradient parked on the text.
+**The shimmer is the house signature.** A gradient band sweeps across the glyphs
+(clipped with `background-clip: text`) or along an SVG outline, then the element returns
+to its resting colour. It never leaves a gradient parked on the text.
 
 ```html
 <span class="shine" data-text="Your database didn't.">Your database didn't.</span>
 ```
 
 The string is duplicated into `data-text` because `::after` paints `attr(data-text)` —
-keep the two in sync. Which variant:
+keep the two in sync.
 
-- **Hero headline loops** — plain `.shine`, 5s cycle, ~45% sweep then rest.
-- **Blur-in first** — `.bw` + `.is-in` resolve headlines and section subtext word by word on
-  first sight, and the shimmer is sequenced to start as the last word lands rather than
-  running over text that has not appeared yet.
-- **Every other headline sweeps once**, the first time it scrolls into view — add
-  `.shine--once` and let the IntersectionObserver (threshold 0.6, then `unobserve`)
-  add `.is-lit`. Once per session, never on re-scroll.
-- **On a dark ground** add `.shine--dark` — sweeps aqua→white instead of ink→turquoise.
-- **Numerals on hover** — `.shimmer-num` plus one hue modifier per column
-  (`--aqua/--lilac/--sky/--peach`), so a stat band shimmers a different colour per stat.
-- **SVG outlines** — `.trace` runs a lit dash round a drawn mark; `.chase` runs a light
-  around a ring of small marks.
-- **Progress lines** — `.progress-line` is the timer bar under an auto-advancing item.
-  It fills in one of the four gradient hues; set `--load-grad` per item and offset the
-  starting hue per panel so all four appear across a section even when each panel holds
-  fewer than four rows. `--warm` is no longer used for these — it is chasing lights only.
+| Variant | Behaviour |
+|---|---|
+| `.shine` | Hero headline. Loops: 5s cycle, ~45% sweep, then rests. |
+| `.intro` + `.intro__w` | **Load intro.** One keyword at a time in a single slot, each blur-fading in and out. The page's blur-in must be gated behind its `intro:done` event, or the hero resolves unseen behind the overlay. |
+| `.bw` + `.is-in` | **Blur-in.** Headlines and section subtext resolve word by word on first sight — sharp at the line start while the tail is still blurred. The shimmer is sequenced to start as the last word lands, never over text that has not resolved. |
+| `.shine--once` | Every other headline. Sweeps **once**, the first time it scrolls into view — an IntersectionObserver (threshold 0.6, then `unobserve`) adds `.is-lit`. Never on re-scroll. |
+| `.shine--dark` | On a dark ground: sweeps aqua → white instead of ink → turquoise. |
+| `.shimmer-num` + `--aqua/--lilac/--sky/--peach` | Numerals shimmer on hover, a different hue per column of a stat band. |
+| `.trace` | A lit dash runs the outline of a drawn SVG mark. |
+| `.chase` | A light runs around a ring of small SVG marks. |
+| `.progress-line` | Timer bar under an auto-advancing item, filling in one of the four gradient hues. Offset the starting hue per panel so all four appear across a section. |
 
-Four traps, each of which cost a debugging round on the homepage — the stylesheet
-comments carry the fixes:
+**Five traps, each of which cost a debugging round.** The stylesheet carries the fixes
+next to the code:
 
-1. Use `background-image`, **not** the `background` shorthand, on `.shine--dark`. The
+1. Use `background-image`, **not** the `background` shorthand, on `.shine--dark` — the
    shorthand resets `background-clip` and paints a solid band over the text.
 2. A `calc(var(--x))` endpoint in a `@keyframes` **does not interpolate** — Chrome snaps
    to the end value and holds. SVG traces need literal measured path lengths, so each
    mark carries its own keyframes.
-3. A chasing light's delay must **advance** with the index — `(count - i)`, not `-i`, or
-   the chase runs anticlockwise. Ramp the glow up *and* down across a span wider than
-   the gap between neighbours, or it steps instead of flowing.
-4. Never pause an auto-advancing carousel/accordion on `focusin` — it fires on a plain
-   mouse click, so clicking an item kills the cycle. Pause on `:focus-visible` only, and
-   don't pause on hover over a whole column: the pointer is already there when the
-   section scrolls into view.
+3. A chase delay must **advance** with the index — `(count - i)`, not `-i`, or the chase
+   runs anticlockwise. Ramp the glow up *and* down across a span wider than the gap
+   between neighbours, or it steps instead of flowing.
+4. Never pause an auto-advancing carousel or accordion on `focusin` — it fires on a
+   plain mouse click, so clicking an item kills the cycle. Pause on `:focus-visible`
+   only, always clear the pause on click, and don't pause on hover over a whole column:
+   the pointer is already there when the section scrolls into view.
+5. A transparent overlay (a copy block's padding sitting above icons) swallows pointer
+   events. Give it `pointer-events: none` and put `auto` back on its real children.
 
-`prefers-reduced-motion: reduce` stops all of it, and any JS gate must read the same
-media query.
+**Motion baseline:** sections and cards may fade + rise 12–16px on scroll-into-view
+(once, ~500ms, staggered ≤60ms) via `.rise`. Nothing else moves unless it's an
+M-pattern from `references/motion-patterns.md`. `prefers-reduced-motion: reduce` stops
+all of it — and any JS gate must read the same media query.
 
-## 5. Section pattern matching
-
-When asked to design a section, first check `references/section-patterns.md` for the closest match and inherit its layout. Quick map to AlmaConnect pages:
-
-| AlmaConnect need | Reference pattern |
-|---|---|
-| Homepage hero | P1 Hero (announcement pill + Display XL + 28px sub + CTA) |
-| Product router (4 products) | P2 Editorial 4-card row with eyebrow labels |
-| "Trusted by 500+" logos | P3 Partner logo strip w/ vertical hairlines + dark pill banner |
-| What we do / capabilities | P4 Statement H2 + vertical-tab media explainer |
-| News/Data Mine cross-sell band | P5 Full-bleed mint band, 1/3 text : 2/3 media |
-| Stats ("500+ institutions…") | P6 Stat grids (3-up band or 1+4 hairline grid) |
-| Differentiation explainer | P7 Split explainer w/ sand panel + annotated UI collage |
-| Testimonials | P8 photo band or P13 card row |
-| Pricing | P9 three white panels on ground |
-| FAQ | P10 left-pinned FAQ + hairline rows |
-| Guides/резources, blog | P11 blog patterns; P12 Data-Center card library |
-| About/company story | P14 mission split + P15 timeline |
-| Dark closing/partnership band | P16 dark band w/ pale display type |
-| Auto-scrolling logo strip | **M1** logo marquee (motion-patterns.md) — pairs with P3's heading |
-| Scrolling proof/outcomes ticker | **M2** case-study link ticker |
-| Nav over dark/media hero | **M3** pill-nav → white overlay panel (content still per P0/mega-menu spec) |
-
-Motion baseline: sections and cards may fade+rise 12–16px on scroll-into-view (once, 400ms, staggered ≤60ms); nothing else moves unless it's an M-pattern. `prefers-reduced-motion` disables all of it.
+---
 
 ## 6. Do / Don't
 
-- DO let type scale carry hierarchy; headline weight is 350 at 32px and up, 400 below — never bold display type.
-- DO use sentence case everywhere — headlines, buttons, nav. Never Title Case or ALL CAPS (except tiny annotation chips like `DEPLOY`).
-- DO keep paragraph measure tight — ~54ch for body/subtext, 620px for 24px editorial text. Text never spans the full container.
-- DO use real product-UI screenshots/mock cards inside tinted panels as the illustration style — small white UI cards with 12px radius floating on tint, connected by 1px ink lines and tiny labeled chips.
-- DON'T use stock-photo hero collages, drop shadows, or more than one accent per viewport. Gradients are allowed **only** as grounds and shimmers per §4b — never flat behind static text.
-- DON'T center body text (only stat bands and the dark closing band center).
-- DON'T introduce new greys — every neutral derives from `--ink` at an opacity or the two ground/surface values.
-- DON'T bold whole paragraphs; use the two-tone device instead.
-- DON'T hand-write type values into a page — use the `.t-*` classes from `almaconnect.css` so the ladder stays closed.
+- DO let type scale carry hierarchy — headline weight 350 at 32px+, 400 below. Never bold display type.
+- DO use sentence case everywhere: headlines, buttons, nav. Never Title Case or ALL CAPS, except tiny annotation chips.
+- DO use real product-UI screenshots and mock cards inside tinted panels as the illustration style — small white UI cards, 12px radius, floating on tint, connected by 1px ink lines and small labelled chips.
+- DO keep every measure tight; text never spans the full container.
+- DON'T use stock-photo hero collages, drop shadows, or more than one accent per viewport.
+- DON'T centre body text — only stat bands and a dark closing band centre.
+- DON'T introduce new greys, or hand-write type values instead of using the `.t-*` classes.
+- DON'T bold whole paragraphs; use the two-tone device.
+- DON'T put white text on turquoise.
 
-## 7. Extending this skill
+---
 
-New references go through the same pipeline: study frames → extract tokens/patterns → append a `P##` entry to `references/section-patterns.md` → log the source in `references/reference-index.md`. Never overwrite existing patterns; if a new reference conflicts, note both and prefer the newer only if the user says so.
+## 7. Extending this system
+
+New references go through the same pipeline: study the frames → extract tokens and
+patterns → append a `P##` entry to `references/section-patterns.md` → log the source in
+`references/reference-index.md`. Never overwrite an existing pattern; if a new reference
+conflicts, record both and prefer the newer only if the user says so.
+
+When changing type, colour or motion, **change `almaconnect.css` first** and let this
+file describe it — the stylesheet is the implementation of record, and `styleguide.html`
+in the website repo renders every class in it for an end-to-end check.

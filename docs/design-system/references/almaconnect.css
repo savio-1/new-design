@@ -535,6 +535,40 @@ button, input, select, textarea, td, th {
   to   { background-position: -40% 0; }
 }
 
+/* ---- load intro -------------------------------------------------------
+   One keyword at a time in a single slot: blur-fades in, holds, blur-fades
+   out, next takes its place. Every word shares one grid cell, so the slot
+   sizes to the longest and nothing moves as they swap.
+   Gate the page's own blur-in behind this — IntersectionObserver fires
+   regardless of what is painted over an element, so without the gate the
+   hero resolves behind the overlay and is finished before it lifts.
+   Snippet at the foot of this file. */
+.intro {
+  position: fixed; inset: 0; z-index: 999;
+  display: grid; place-items: center;
+  background: var(--ground);
+  transition: opacity 0.5s var(--ease);
+}
+.intro.is-done { opacity: 0; pointer-events: none; }
+.intro__line {
+  display: grid; place-items: center;
+  margin: 0; padding-inline: 24px;
+  font-family: var(--font-display);
+  font-size: 18px; font-weight: 400; letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.intro__w { grid-area: 1 / 1; opacity: 0; white-space: nowrap; }
+.intro.is-in .intro__w { animation: introWord var(--dur) var(--ease) var(--d) both; }
+@keyframes introWord {
+  0%   { opacity: 0; filter: blur(8px); translate: 0 6px; }
+  30%  { opacity: 1; filter: blur(0);   translate: 0 0; }
+  70%  { opacity: 1; filter: blur(0);   translate: 0 0; }
+  100% { opacity: 0; filter: blur(8px); translate: 0 -6px; }
+}
+/* nothing scrolls behind it; set .intro-on from an inline script so it
+   applies before the rest of the body parses */
+.intro-on, .intro-on body { overflow: hidden; }
+
 /* ---- blur-in ----------------------------------------------------------
    Headlines and section subtext resolve word by word the first time they
    reach the viewport — sharp at the start of the line while the tail is
@@ -644,6 +678,7 @@ button, input, select, textarea, td, th {
   }
   .shine::after, .shimmer-num::after { animation: none; opacity: 0; }
   .bw { opacity: 1; filter: none; translate: 0 0; transition: none; }
+  .intro { display: none; }
   .rise { opacity: 1; translate: 0 0; }
 }
 
@@ -654,6 +689,34 @@ button, input, select, textarea, td, th {
    Two observers. Copy into the page's main closure.
 
    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+   // load intro: cycle the keywords, then release the page
+   var introEl = document.getElementById('intro');
+   var introDone = !introEl;
+   function afterIntro(fn) {
+     if (introDone) { fn(); return; }
+     document.addEventListener('intro:done', fn, { once: true });
+   }
+   (function () {
+     if (!introEl) return;
+     function finish() {
+       introDone = true;
+       document.documentElement.classList.remove('intro-on');
+       introEl.classList.add('is-done');
+       document.dispatchEvent(new CustomEvent('intro:done'));
+       setTimeout(function () { if (introEl.parentNode) introEl.remove(); }, 700);
+     }
+     if (reduced) { finish(); return; }
+     var DUR = 720, STEP = 500;      // STEP < DUR so words cross under the eye
+     var items = [].slice.call(introEl.querySelectorAll('.intro__w'));
+     items.forEach(function (el, i) {
+       el.style.setProperty('--dur', DUR + 'ms');
+       el.style.setProperty('--d', (i * STEP) + 'ms');
+     });
+     requestAnimationFrame(function () { introEl.classList.add('is-in'); });
+     setTimeout(finish, (items.length - 1) * STEP + DUR);
+   })();
+   // ...and the page's blur-in waits for it: afterIntro(function(){ observe(); })
 
    // blur-in: split words, reveal on first sight, then hand off to the shimmer
    (function () {
