@@ -588,15 +588,16 @@ function tick(){
 
   clock+=0.016;
 
-  // focus ring: TWO full loops around the capsule, done quickly and clearly,
-  // then the glow fades out smoothly and it rests before repeating.
-  {const SPIN=1.5, FADE=0.9, REST=4.0, PERIOD=SPIN+REST;
+  // focus ring: TWO full loops around the capsule, eased smoothly (slow to
+  // start, slow to finish), then the glow fades out and it rests before repeating.
+  {const SPIN=1.95, FADE=0.9, REST=4.0, PERIOD=SPIN+REST; // 30% slower than the original 1.5s
    const t=clock%PERIOD;
    let angle, glow;
    if(t<SPIN){
      const p=t/SPIN;
-     angle=p*720;                                   // 2 full 360° loops, linear = clearly visible
-     glow=Math.min(1, t/0.18);                       // quick glow-in as the spin starts
+     const eased = p<.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2;   // easeInOutCubic
+     angle=eased*720;                                // 2 full 360° loops, eased in/out
+     glow=Math.min(1, t/0.22);                        // slightly slower glow-in to match
    } else {
      angle=720;                                      // frozen at the end of the second loop
      const rt=t-SPIN;
