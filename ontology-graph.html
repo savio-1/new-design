@@ -336,7 +336,7 @@ function setFocus(id, pushHist=true){
       // seed straight into a right-hand column so the fan opens rightward
       // from the very first frame, rather than needing to swing over from
       // an all-directions circle.
-      pos[nb].x=f.x+170; pos[nb].y=f.y+(i-(nbs.length-1)/2)*62;
+      pos[nb].x=f.x+205; pos[nb].y=f.y+(i-(nbs.length-1)/2)*82;
     }
   });
 
@@ -517,10 +517,15 @@ function setHover(id){
 }
 function placeTip(id){
   const p=pos[id]; if(!p)return;
-  const sx=p.x*cam.k+cam.x, sy=p.y*cam.k+cam.y;
+  // align the card's left edge with the hovered node's own left edge,
+  // whatever shape that node currently is (capsule or chip)
+  const rec=nodeEls[id]||bgEls[id];
+  const rectEl=rec&&(rec.capRect||rec.chipRect);
+  const leftLocalX=rectEl?parseFloat(rectEl.getAttribute('x'))||0:0;
+  const sx=(p.x+leftLocalX)*cam.k+cam.x, sy=p.y*cam.k+cam.y;
   const r=tip.getBoundingClientRect();
-  let x=sx+26*cam.k, y=sy+22*cam.k;                       // below-right of the node
-  if(x+r.width>innerWidth-14)  x=sx-r.width-26*cam.k;     // flip left
+  let x=sx, y=sy+22*cam.k;                                // left-aligned, below the node
+  if(x+r.width>innerWidth-14) x=innerWidth-14-r.width;    // clamp on-screen, keep alignment when it fits
   if(y+r.height>innerHeight-14) y=sy-r.height-22*cam.k;   // flip above
   tip.style.left=Math.max(14,x)+'px';
   tip.style.top =Math.max(14,y)+'px';
@@ -576,13 +581,13 @@ function tick(){
   const ids=[...active];
   // column distance accounts for the focus capsule's width and long chip labels
   const maxChipW = ids.reduce((m,i)=>Math.max(m,estW(i)),0);
-  const REST_X = 150 + estW(focusId)*0.55 + maxChipW*0.35;
+  const REST_X = 190 + estW(focusId)*0.6 + maxChipW*0.4;
   {const f=pos[focusId]; f.vx=0; f.vy=0; f.x*=0.86; f.y*=0.86;
    if(Math.abs(f.x)<0.3)f.x=0; if(Math.abs(f.y)<0.3)f.y=0;}
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
     const a=pos[ids[i]],b=pos[ids[j]];
     let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy||0.01,d=Math.sqrt(d2);
-    const f=4200/d2; const ux=dx/d,uy=dy/d;
+    const f=5600/d2; const ux=dx/d,uy=dy/d;
     if(ids[i]!==focusId&&ids[i]!==dragId){a.vx+=ux*f;a.vy+=uy*f;}
     if(ids[j]!==focusId&&ids[j]!==dragId){b.vx-=ux*f;b.vy-=uy*f;}
   }
