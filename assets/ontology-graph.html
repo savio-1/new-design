@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ontology Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Cogentiq Builder palette */
+    --bg:#121212;
+    --panel:#212121;
+    --panel-br:#323232;
+    --panel-br2:#424242;
+    --text:#f5f5f5;
+    --text-dim:#bdbdbd;
+    --text-dimmer:#8c8c8c;
+    --indigo:#5860ed;
+    --indigo-d:#454de0;
+    --blue:#0d99ff;
+    --blue-l:#80caff;
+    --red:#f24822;
+    --green:#14ae5c;
+    --green-l:#7cb342;
+    --orange:#fc9e24;
+    --orange-d:#f79722;
+    --font:'Geist','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --mono:'Geist Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;font-family:var(--font)}
+  #stage{position:fixed;inset:0;cursor:grab}
+  #stage.panning{cursor:grabbing}
+  /* dot-grid canvas, Cogentiq-style, plus a soft central lift */
+  #stage::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+    background-image:
+      radial-gradient(rgba(255,255,255,.06) 1px, transparent 1.6px),
+      radial-gradient(1100px 850px at 50% 42%, rgba(255,255,255,.025), rgba(0,0,0,0) 62%);
+    background-size:26px 26px, 100% 100%;
+    background-position:-3px -3px, 0 0;}
+  svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
+
+  /* default: dotted grey relation lines */
+  .edge{fill:none;stroke:#4d5158;stroke-linecap:round;stroke-width:1.6;
+    stroke-dasharray:2 7;opacity:.75;transition:opacity .25s,stroke .25s;}
+  /* edges touching the focused node: solid blue */
+  .edge.solid{stroke:var(--blue);stroke-dasharray:none;stroke-width:1.7;opacity:.85}
+  .edge.hi{opacity:1;stroke-width:2.1}
+  .shimmer{fill:none;stroke-linecap:round;stroke-width:2.4;mix-blend-mode:screen;pointer-events:none;}
+
+  .rel-pill{pointer-events:none;}
+  .rel-pill rect{fill:#1c1c1cf0;stroke:var(--panel-br2);stroke-width:1;}
+  .rel-pill text{fill:var(--text-dim);font-size:10.5px;font-family:var(--font);font-weight:500;
+    letter-spacing:-.01em;text-anchor:middle;dominant-baseline:middle;}
+  .rel-pill.hi rect{stroke:#5c5c5c;fill:#232323f5}
+  .rel-pill.hi text{fill:#fff}
+
+  .node{cursor:pointer;transition:opacity .35s ease;}
+  .node text{font-size:12px;fill:var(--text);paint-order:stroke;pointer-events:none;
+    letter-spacing:-.01em;dominant-baseline:middle;font-weight:500;}
+
+  /* plain chip (non-focus entity) */
+  .chip-rect{fill:var(--panel);stroke:var(--panel-br);stroke-width:1;rx:8;ry:8;}
+  .node.hover .chip-rect{stroke:var(--panel-br2)}
+  .chip-sq{rx:2.5;ry:2.5;}
+
+  /* focus node: avatar + capsule with animated gradient ring */
+  .avatar-init{font-size:16px;font-weight:300;font-family:'Geist',sans-serif;fill:#fff;
+    text-anchor:middle;dominant-baseline:central;pointer-events:none}
+  .cap-rect{fill:#1a1a1af5;stroke:url(#focusGrad);stroke-width:1.8;}
+  .cap-glow{fill:none;stroke:url(#focusGrad);stroke-width:5;filter:url(#capGlowBlur);
+    pointer-events:none;opacity:0;}
+  .node.focus text{font-weight:600}
+
+  .halo{opacity:0;transition:opacity .2s;pointer-events:none;}
+  .node.hover .halo{opacity:.5}
+
+  /* rest of the ontology: real nodes/edges, kept faded until selected */
+  .bg-chip{cursor:pointer}
+  .bg-chip .chip-rect{stroke:#2a2a2a}
+  .bg-edge{fill:none;stroke:#2a2c30;stroke-linecap:round;stroke-width:1;
+    stroke-dasharray:2 8;opacity:.03;pointer-events:none;transition:opacity .3s ease;}
+
+  /* ---------- chrome ---------- */
+  .panel{background:rgba(28,28,28,.82);backdrop-filter:blur(9px);border:1px solid var(--panel-br);border-radius:11px;}
+  .topbar{position:fixed;z-index:5;top:16px;left:16px;display:flex;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:9px;padding:8px 12px;}
+  .brand .dot{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,var(--orange),var(--orange-d))}
+  .brand b{color:var(--text);font-size:13px;font-weight:600;letter-spacing:-.01em}
+  .brand span{color:var(--text-dimmer);font-size:12px}
+  .crumbs{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 6px;max-width:60vw;overflow:hidden}
+  .crumbs button{all:unset;cursor:pointer;color:var(--text-dimmer);font-size:12px;padding:4px 8px;border-radius:7px;white-space:nowrap}
+  .crumbs button:hover{background:#2a2a2a;color:var(--text-dim)}
+  .crumbs .sep{color:#4a4a4a;font-size:11px}
+  .crumbs .cur{color:#fff;background:#2a2a2a;border:1px solid var(--panel-br2)}
+
+  .search{position:fixed;z-index:5;top:16px;right:16px;display:flex;align-items:center;gap:8px;padding:8px 12px;width:230px}
+  .search svg{position:static;width:15px;height:15px;flex:0 0 15px;opacity:.5}
+  .search input{all:unset;color:var(--text);font-size:12.5px;width:100%;font-family:var(--font)}
+  .search input::placeholder{color:var(--text-dimmer)}
+
+  .fullscr{position:fixed;z-index:5;top:16px;right:262px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim)}
+  .fullscr:hover{color:#fff;border-color:var(--panel-br2)}
+
+  .legend{position:fixed;z-index:5;left:16px;bottom:16px;display:flex;flex-direction:column;gap:7px;padding:11px 13px}
+  .legend .row{display:flex;align-items:center;gap:8px;color:var(--text-dimmer);font-size:11.5px}
+  .legend .sw{width:9px;height:9px;border-radius:2.5px}
+
+  .hint{position:fixed;z-index:5;right:16px;bottom:16px;color:var(--text-dimmer);font-size:11px;
+    padding:7px 11px;line-height:1.5}
+  .hint b{color:#9a9a9a;font-weight:500}
+
+  .zoomwrap{position:fixed;z-index:5;left:50%;bottom:16px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:2px;padding:5px;}
+  .zoomwrap button{all:unset;cursor:pointer;color:var(--text-dim);font-size:15px;width:28px;height:28px;
+    text-align:center;line-height:28px;border-radius:8px;}
+  .zoomwrap button:hover{background:#2a2a2a;color:#fff}
+  .zoomwrap .pct{color:var(--text-dim);font-size:12px;width:46px;text-align:center;font-family:var(--mono);}
+
+  /* hover definition card */
+  #tip{position:fixed;z-index:8;max-width:280px;pointer-events:none;
+    background:rgba(26,26,26,.95);backdrop-filter:blur(10px);
+    border:1px solid var(--panel-br2);border-radius:12px;padding:12px 14px;
+    opacity:0;transform:translateY(4px);transition:opacity .16s ease,transform .16s ease;}
+  #tip.show{opacity:1;transform:translateY(0)}
+  #tip .t-head{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+  #tip .t-dot{width:8px;height:8px;border-radius:2.5px;flex:0 0 8px}
+  #tip .t-type{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dimmer)}
+  #tip .t-name{font-size:13px;font-weight:600;color:#fff;margin-bottom:4px;letter-spacing:-.01em}
+  #tip .t-def{font-size:12px;line-height:17px;color:var(--text-dim)}
+</style>
+</head>
+<body>
+  <div id="stage">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="shimmerBlur" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="1.1"/>
+        </filter>
+        <filter id="capGlowBlur" x="-120%" y="-200%" width="340%" height="500%">
+          <feGaussianBlur stdDeviation="5.5"/>
+        </filter>
+        <!-- rainbow-button-style multi-hue sweep; first/last stop match so the
+             loop has no seam as it rotates through -->
+        <linearGradient id="focusGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%"   stop-color="#0d99ff"/>
+          <stop offset="25%"  stop-color="#9747ff"/>
+          <stop offset="50%"  stop-color="#e91e63"/>
+          <stop offset="75%"  stop-color="#fc9e24"/>
+          <stop offset="100%" stop-color="#0d99ff"/>
+        </linearGradient>
+      </defs>
+      <defs id="edgeDefs"></defs>
+      <g id="camera">
+        <g id="bgEdgeLayer"></g>
+        <g id="bgLayer"></g>
+        <g id="edges"></g>
+        <g id="shimmers"></g>
+        <g id="pills"></g>
+        <g id="nodes"></g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="topbar">
+    <div class="brand panel"><span class="dot"></span><b>Ontology</b><span id="stat">— explore</span></div>
+    <div class="crumbs panel" id="crumbs"></div>
+  </div>
+
+  <div class="fullscr panel" id="fullscr" title="Fullscreen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  </div>
+  <div class="search panel">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#8b929c" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" placeholder="Search entities…" autocomplete="off" />
+  </div>
+
+  <div class="legend panel" id="legend"></div>
+
+  <div class="zoomwrap panel">
+    <button id="zout">−</button><span class="pct" id="pct">100%</span><button id="zin">+</button>
+  </div>
+  <div class="hint"><b>Click</b> a node to re-center · <b>Hover</b> for definition · <b>Drag</b> to pan · <b>Scroll</b> to zoom</div>
+
+  <div id="tip">
+    <div class="t-head"><span class="t-dot"></span><span class="t-type"></span></div>
+    <div class="t-name"></div>
+    <div class="t-def"></div>
+  </div>
+
+<script>
+/* =========================================================================
+   DATA — Acme Consumer Brands Integrated Business Planning ontology
+   (enterprise ontology export). Structure (names + relationships) shows
+   by default; each node's `def` is revealed in a card only on hover.
+   ========================================================================= */
+const NODES = [
+  {id:"Acme Consumer Brands", type:"organization",
+   def:"The enterprise itself: a mid-cap household-products manufacturer."},
+  {id:"Walmart", type:"organization",
+   def:"Largest customer by volume; operates its own replenishment engine."},
+  {id:"Target", type:"organization",
+   def:"Second national account, forecast-collaborative."},
+  {id:"Kroger", type:"organization",
+   def:"Grocery banner with DSD and warehouse-delivered mix."},
+  {id:"Northline Contract Mfg", type:"organization",
+   def:"Externally owned capacity for overflow and refill packs."},
+  {id:"Delta Surfactants", type:"organization",
+   def:"Tier-1 chemical supplier, single-sourced."},
+  {id:"Vessel Packaging Co", type:"organization",
+   def:"Bottle and closure supplier, dual-sourced."},
+  {id:"Ridgeway Logistics", type:"organization",
+   def:"3PL managing outbound truckload and pool distribution."},
+  {id:"Midwest Wholesale Group", type:"organization",
+   def:"Indirect channel distributor serving independents."},
+  {id:"Demand Planner", type:"role",
+   def:"Owns the statistical baseline and the demand review."},
+  {id:"Supply Planner", type:"role",
+   def:"Balances the demand plan against capacity and materials."},
+  {id:"National Account Manager", type:"role",
+   def:"Commercial owner of the Walmart relationship."},
+  {id:"Retail Category Manager", type:"role",
+   def:"Customer-side buyer setting assortment and promo calendar."},
+  {id:"S&OP Lead", type:"role",
+   def:"Chairs the executive cycle and arbitrates gaps."},
+  {id:"Master Data Steward", type:"role",
+   def:"Accountable for product and location master quality."},
+  {id:"Columbus Plant", type:"location",
+   def:"Primary liquid fill and pack site."},
+  {id:"Reno Plant", type:"location",
+   def:"West-coast site, shorter lead time to Pacific DCs."},
+  {id:"Dallas Mixing Center", type:"location",
+   def:"Acme-owned DC feeding southern retail DCs."},
+  {id:"Harrisburg DC", type:"location",
+   def:"East-coast finished-goods DC."},
+  {id:"Walmart DC 6094", type:"location",
+   def:"Customer-owned regional DC, Bentonville network."},
+  {id:"Southwest Store Cluster", type:"location",
+   def:"Roughly 400 stores sharing a demand signature."},
+  {id:"Port of Long Beach", type:"location",
+   def:"Inbound gateway for imported closures."},
+  {id:"Delta Baton Rouge Site", type:"location",
+   def:"Surfactant production site with fixed campaign runs."},
+  {id:"Household Cleaners", type:"product",
+   def:"Top-level reporting category."},
+  {id:"Sparkle", type:"product",
+   def:"Flagship brand; ~60% of category revenue."},
+  {id:"Spray Cleaner Family", type:"product",
+   def:"Planning family used for baseline statistics."},
+  {id:"Sparkle 32oz Trigger", type:"product",
+   def:"Highest-velocity sellable SKU."},
+  {id:"Sparkle 64oz Refill", type:"product",
+   def:"Value pack, promo-sensitive."},
+  {id:"Sparkle Concentrate Pods", type:"product",
+   def:"New item, 14 weeks of history."},
+  {id:"Case Pack 12", type:"product",
+   def:"Shipping configuration and order multiple."},
+  {id:"Surfactant Blend A", type:"product",
+   def:"Critical raw material with 9-week lead time."},
+  {id:"PET Bottle 32oz", type:"product",
+   def:"Component with tooling-limited supply."},
+  {id:"Retailer POS Feed", type:"demand",
+   def:"Daily store-level scan data by item and location."},
+  {id:"Shipment History", type:"demand",
+   def:"What Acme actually shipped; the ERP view of demand."},
+  {id:"Observed Actual Demand", type:"demand",
+   def:"Unadjusted consumption as recorded at the shelf."},
+  {id:"Calibrated Actual Demand", type:"demand",
+   def:"Actuals cleansed of stockouts, one-offs, and data gaps."},
+  {id:"Downstream Demand Signal", type:"demand",
+   def:"Blended POS and withdrawal signal used for sensing."},
+  {id:"Promotional Lift", type:"demand",
+   def:"Incremental volume attributed to a specific offer."},
+  {id:"Cannibalization Effect", type:"demand",
+   def:"Volume shifted between SKUs rather than created."},
+  {id:"Seasonality Profile", type:"demand",
+   def:"Recurring weekly and holiday index by family."},
+  {id:"New Item Launch Curve", type:"demand",
+   def:"Adoption shape applied where history is thin."},
+  {id:"Estimated Lost Sales", type:"demand",
+   def:"Modelled demand not served during out-of-stocks."},
+  {id:"Statistical Baseline Forecast", type:"forecast",
+   def:"Unbiased machine output before human input."},
+  {id:"Sales Overlay", type:"forecast",
+   def:"Field-entered adjustments carrying market intelligence."},
+  {id:"Consensus Demand Forecast", type:"forecast",
+   def:"Single agreed number leaving the demand review."},
+  {id:"Calibrated Demand Forecast", type:"forecast",
+   def:"Consensus corrected for known structural bias."},
+  {id:"Retailer Demand Forecast", type:"forecast",
+   def:"The customer's own forward view, shared via CPFR."},
+  {id:"Forecast Deviation", type:"forecast",
+   def:"Signed gap between forecast and calibrated actuals."},
+  {id:"Forecast Bias", type:"forecast",
+   def:"Persistent directional error across periods."},
+  {id:"Approved Demand Plan", type:"forecast",
+   def:"Locked plan of record handed to supply."},
+  {id:"Constrained Demand Plan", type:"forecast",
+   def:"Demand plan after capacity and material feasibility."},
+  {id:"Monitored Inventory Position", type:"inventory",
+   def:"Netted position: on hand plus in transit minus commitments."},
+  {id:"DC On-Hand Inventory", type:"inventory",
+   def:"Physical stock at Acme-controlled locations."},
+  {id:"Retailer On-Hand Inventory", type:"inventory",
+   def:"Customer-side stock visible through Retail Link."},
+  {id:"In-Transit Inventory", type:"inventory",
+   def:"Committed stock between network nodes."},
+  {id:"Safety Stock Level", type:"inventory",
+   def:"Buffer sized from variability and target service."},
+  {id:"Reorder Point", type:"inventory",
+   def:"Trigger level for replenishment orders."},
+  {id:"Days of Supply", type:"inventory",
+   def:"Forward cover expressed in days of demand."},
+  {id:"Excess and Obsolete Stock", type:"inventory",
+   def:"Stock beyond horizon or past shelf-life policy."},
+  {id:"Supply Plan", type:"supply",
+   def:"Time-phased plan to meet the demand plan."},
+  {id:"Master Production Schedule", type:"supply",
+   def:"Firmed production by line, site, and period."},
+  {id:"Capacity Plan", type:"supply",
+   def:"Available line hours against required hours."},
+  {id:"Material Requirements Plan", type:"supply",
+   def:"Exploded component needs by lead-time offset."},
+  {id:"Supplier Purchase Order", type:"supply",
+   def:"Committed buy against a raw material need."},
+  {id:"Customer Order", type:"supply",
+   def:"EDI 850 received from the retailer."},
+  {id:"Advance Ship Notice", type:"supply",
+   def:"EDI 856 declaring shipment contents and timing."},
+  {id:"Outbound Shipment", type:"supply",
+   def:"Physical movement to a customer DC."},
+  {id:"Load Tender", type:"supply",
+   def:"Carrier offer and acceptance for a lane."},
+  {id:"Lead Time Profile", type:"supply",
+   def:"Distribution of transit and production durations."},
+  {id:"Deployment Plan", type:"supply",
+   def:"Allocation of available stock across DCs."},
+  {id:"Retailer Replenishment Policy", type:"policy",
+   def:"Customer's ordering logic: min/max, review cycle, multiples."},
+  {id:"Service Level Target", type:"policy",
+   def:"Committed fill rate by customer and segment."},
+  {id:"Allocation Policy", type:"policy",
+   def:"Fair-share rules applied when supply is short."},
+  {id:"Minimum Order Quantity", type:"policy",
+   def:"Supplier and production batch constraints."},
+  {id:"OTIF Compliance Program", type:"policy",
+   def:"Customer scorecard with financial penalties."},
+  {id:"Inventory Segmentation", type:"policy",
+   def:"ABC value and XYZ variability classification."},
+  {id:"Frozen Period Rule", type:"policy",
+   def:"Window inside which the schedule cannot change."},
+  {id:"S&OP Cycle", type:"process",
+   def:"Monthly cadence linking demand, supply, and finance."},
+  {id:"Demand Review", type:"process",
+   def:"Forum that agrees the consensus number."},
+  {id:"Supply Review", type:"process",
+   def:"Forum that tests feasibility and raises gaps."},
+  {id:"Executive S&OP Meeting", type:"process",
+   def:"Decision forum for unresolved gaps and trade-offs."},
+  {id:"CPFR Collaboration", type:"process",
+   def:"Joint forecasting exchange with the retailer."},
+  {id:"Promotion Planning", type:"process",
+   def:"Offer design, funding, and volume commitment."},
+  {id:"Order to Cash", type:"process",
+   def:"Order capture through delivery and invoicing."},
+  {id:"Exception Management", type:"process",
+   def:"Alert triage and resolution workflow."},
+  {id:"Rollback Promotion Event", type:"event",
+   def:"Deep price cut with a two-week retail window."},
+  {id:"Store Stockout Event", type:"event",
+   def:"Shelf out-of-stock detected from POS gaps."},
+  {id:"Forecast Exception Alert", type:"event",
+   def:"Deviation breaching tolerance for two cycles."},
+  {id:"Supply Disruption", type:"event",
+   def:"Force majeure at the surfactant site."},
+  {id:"Item Transition", type:"event",
+   def:"Planned changeover from legacy to new pack."},
+  {id:"Forecast Accuracy (MAPE)", type:"metric",
+   def:"Absolute error over actuals at the planning level."},
+  {id:"Forecast Bias %", type:"metric",
+   def:"Signed error revealing systematic over- or under-call."},
+  {id:"Case Fill Rate", type:"metric",
+   def:"Cases shipped against cases ordered."},
+  {id:"On Time In Full", type:"metric",
+   def:"Customer-scored delivery compliance."},
+  {id:"Inventory Turns", type:"metric",
+   def:"Annualised cost of goods over average stock."},
+  {id:"Lost Sales Value", type:"metric",
+   def:"Revenue foregone to unserved demand."},
+  {id:"Working Capital", type:"metric",
+   def:"Cash locked in inventory and receivables."},
+  {id:"Gross Margin", type:"metric",
+   def:"Net revenue less cost of goods sold."},
+  {id:"ERP (SAP S/4HANA)", type:"system",
+   def:"Transactional system of record for orders and stock."},
+  {id:"Advanced Planning System", type:"system",
+   def:"Where statistical, consensus, and supply plans live."},
+  {id:"Warehouse Management System", type:"system",
+   def:"Site-level inventory and task execution."},
+  {id:"Transportation Management", type:"system",
+   def:"Tendering, routing, and freight settlement."},
+  {id:"Retailer Data Portal", type:"system",
+   def:"Customer-hosted POS and inventory reporting."},
+  {id:"EDI Gateway", type:"system",
+   def:"Translates 850, 856, 810, and 852 documents."},
+  {id:"Analytics Lakehouse", type:"system",
+   def:"Harmonised store of planning and execution history."},
+  {id:"Product Master Data Hub", type:"system",
+   def:"Golden record for item, pack, and hierarchy."},
+  {id:"Walmart Customer Account", type:"commercial",
+   def:"Commercial container for terms, plans, and P&L."},
+  {id:"Joint Business Plan", type:"commercial",
+   def:"Annual growth and service commitments with the customer."},
+  {id:"Trade Promotion Fund", type:"commercial",
+   def:"Budget consumed by promotional offers."},
+  {id:"Price List", type:"commercial",
+   def:"List and net pricing by customer and item."},
+  {id:"Supply Agreement", type:"commercial",
+   def:"Contract governing volumes, penalties, and terms."},
+  {id:"Planning Hierarchy", type:"planning",
+   def:"Item, customer, and geography roll-up structure."},
+  {id:"Weekly Time Bucket", type:"planning",
+   def:"Standard planning grain for demand."},
+  {id:"Planning Horizon", type:"planning",
+   def:"Rolling 18-month window with tiered lock rules."},
+  {id:"Demand Forecast Unit", type:"planning",
+   def:"SKU x customer x DC intersection being forecast."},
+];
+const LINKS = [
+  ["Walmart","Observed Actual Demand","sells through"],
+  ["Walmart","Consensus Demand Forecast","plans account for"],
+  ["Walmart","Retailer Replenishment Policy","sets service levels"],
+  ["Walmart","Walmart DC 6094","operates"],
+  ["Walmart","Southwest Store Cluster","operates"],
+  ["Walmart","Retailer POS Feed","publishes"],
+  ["Walmart","OTIF Compliance Program","governs"],
+  ["Walmart","Retailer Demand Forecast","publishes"],
+  ["Walmart","Walmart Customer Account","part of"],
+  ["Walmart","Retail Category Manager","employs"],
+  ["Target","Observed Actual Demand","sells through"],
+  ["Target","CPFR Collaboration","part of"],
+  ["Kroger","Observed Actual Demand","sells through"],
+  ["Midwest Wholesale Group","Southwest Store Cluster","replenishes"],
+  ["Acme Consumer Brands","Sparkle","owns"],
+  ["Acme Consumer Brands","Columbus Plant","operates"],
+  ["Acme Consumer Brands","Reno Plant","operates"],
+  ["Acme Consumer Brands","Dallas Mixing Center","operates"],
+  ["Acme Consumer Brands","Harrisburg DC","operates"],
+  ["Acme Consumer Brands","Demand Planner","employs"],
+  ["Acme Consumer Brands","Supply Planner","employs"],
+  ["Acme Consumer Brands","National Account Manager","employs"],
+  ["Acme Consumer Brands","S&OP Lead","employs"],
+  ["Acme Consumer Brands","Master Data Steward","employs"],
+  ["Acme Consumer Brands","S&OP Cycle","governs"],
+  ["Acme Consumer Brands","Walmart","ships to"],
+  ["Delta Surfactants","Surfactant Blend A","supplies"],
+  ["Delta Surfactants","Delta Baton Rouge Site","operates"],
+  ["Vessel Packaging Co","PET Bottle 32oz","supplies"],
+  ["Northline Contract Mfg","Sparkle Concentrate Pods","produces"],
+  ["Ridgeway Logistics","Outbound Shipment","operates"],
+  ["Ridgeway Logistics","Load Tender","consumes"],
+  ["Sparkle","Household Cleaners","part of"],
+  ["Spray Cleaner Family","Sparkle","part of"],
+  ["Sparkle 32oz Trigger","Spray Cleaner Family","aggregates to"],
+  ["Sparkle 64oz Refill","Spray Cleaner Family","aggregates to"],
+  ["Sparkle Concentrate Pods","Spray Cleaner Family","aggregates to"],
+  ["Sparkle 32oz Trigger","Case Pack 12","part of"],
+  ["Sparkle 32oz Trigger","Surfactant Blend A","consumes"],
+  ["Sparkle 32oz Trigger","PET Bottle 32oz","consumes"],
+  ["Sparkle 64oz Refill","Surfactant Blend A","consumes"],
+  ["Sparkle 32oz Trigger","Product Master Data Hub","mastered in"],
+  ["Sparkle Concentrate Pods","Product Master Data Hub","mastered in"],
+  ["Master Data Steward","Product Master Data Hub","responsible for"],
+  ["Household Cleaners","Planning Hierarchy","aggregates to"],
+  ["Columbus Plant","Sparkle 32oz Trigger","produces"],
+  ["Columbus Plant","Sparkle 64oz Refill","produces"],
+  ["Reno Plant","Sparkle 32oz Trigger","produces"],
+  ["Columbus Plant","Dallas Mixing Center","ships to"],
+  ["Reno Plant","Dallas Mixing Center","ships to"],
+  ["Columbus Plant","Harrisburg DC","ships to"],
+  ["Dallas Mixing Center","Walmart DC 6094","ships to"],
+  ["Harrisburg DC","Walmart DC 6094","ships to"],
+  ["Walmart DC 6094","Southwest Store Cluster","replenishes"],
+  ["Port of Long Beach","Reno Plant","ships to"],
+  ["Delta Baton Rouge Site","Columbus Plant","ships to"],
+  ["DC On-Hand Inventory","Dallas Mixing Center","stored at"],
+  ["Retailer On-Hand Inventory","Walmart DC 6094","stored at"],
+  ["Retailer POS Feed","Observed Actual Demand","feeds"],
+  ["Shipment History","Observed Actual Demand","feeds"],
+  ["Observed Actual Demand","Calibrated Actual Demand","calibrates"],
+  ["Estimated Lost Sales","Calibrated Actual Demand","calibrates"],
+  ["Store Stockout Event","Estimated Lost Sales","triggers"],
+  ["Retailer POS Feed","Downstream Demand Signal","feeds"],
+  ["Retailer On-Hand Inventory","Downstream Demand Signal","feeds"],
+  ["Calibrated Actual Demand","Statistical Baseline Forecast","feeds"],
+  ["Seasonality Profile","Calibrated Actual Demand","derived from"],
+  ["Promotional Lift","Calibrated Actual Demand","derived from"],
+  ["Cannibalization Effect","Promotional Lift","derived from"],
+  ["New Item Launch Curve","Sparkle Concentrate Pods","applies to"],
+  ["Observed Actual Demand","Weekly Time Bucket","bucketed by"],
+  ["Seasonality Profile","Statistical Baseline Forecast","feeds"],
+  ["New Item Launch Curve","Statistical Baseline Forecast","feeds"],
+  ["Statistical Baseline Forecast","Consensus Demand Forecast","feeds"],
+  ["Sales Overlay","Consensus Demand Forecast","feeds"],
+  ["Promotional Lift","Consensus Demand Forecast","feeds"],
+  ["Retailer Demand Forecast","Consensus Demand Forecast","reconciles with"],
+  ["Consensus Demand Forecast","Calibrated Demand Forecast","calibrates"],
+  ["Forecast Bias","Calibrated Demand Forecast","calibrates"],
+  ["Calibrated Demand Forecast","Approved Demand Plan","feeds"],
+  ["Approved Demand Plan","Constrained Demand Plan","constrains"],
+  ["Capacity Plan","Constrained Demand Plan","constrains"],
+  ["Consensus Demand Forecast","Calibrated Actual Demand","deviates from"],
+  ["Forecast Deviation","Consensus Demand Forecast","derived from"],
+  ["Forecast Deviation","Calibrated Actual Demand","derived from"],
+  ["Forecast Bias","Forecast Deviation","derived from"],
+  ["Consensus Demand Forecast","Demand Forecast Unit","applies to"],
+  ["Consensus Demand Forecast","Weekly Time Bucket","bucketed by"],
+  ["Demand Forecast Unit","Planning Hierarchy","part of"],
+  ["Approved Demand Plan","Planning Horizon","applies to"],
+  ["National Account Manager","Sales Overlay","responsible for"],
+  ["Demand Planner","Statistical Baseline Forecast","responsible for"],
+  ["Demand Planner","Consensus Demand Forecast","responsible for"],
+  ["S&OP Lead","Approved Demand Plan","approves"],
+  ["Constrained Demand Plan","Supply Plan","feeds"],
+  ["Supply Plan","Master Production Schedule","feeds"],
+  ["Supply Plan","Deployment Plan","feeds"],
+  ["Master Production Schedule","Material Requirements Plan","feeds"],
+  ["Material Requirements Plan","Supplier Purchase Order","triggers"],
+  ["Supplier Purchase Order","Surfactant Blend A","allocated to"],
+  ["Capacity Plan","Master Production Schedule","constrains"],
+  ["Minimum Order Quantity","Supplier Purchase Order","constrains"],
+  ["Frozen Period Rule","Master Production Schedule","constrains"],
+  ["Lead Time Profile","Material Requirements Plan","constrains"],
+  ["Lead Time Profile","Safety Stock Level","constrains"],
+  ["Customer Order","Outbound Shipment","triggers"],
+  ["Outbound Shipment","Advance Ship Notice","triggers"],
+  ["Outbound Shipment","DC On-Hand Inventory","consumes"],
+  ["Outbound Shipment","Walmart DC 6094","ships to"],
+  ["Load Tender","Outbound Shipment","part of"],
+  ["Deployment Plan","DC On-Hand Inventory","allocated to"],
+  ["Supply Planner","Supply Plan","responsible for"],
+  ["Supply Planner","Deployment Plan","responsible for"],
+  ["DC On-Hand Inventory","Monitored Inventory Position","aggregates to"],
+  ["In-Transit Inventory","Monitored Inventory Position","aggregates to"],
+  ["Monitored Inventory Position","Reorder Point","monitors"],
+  ["Safety Stock Level","Reorder Point","constrains"],
+  ["Service Level Target","Safety Stock Level","governs"],
+  ["Forecast Deviation","Safety Stock Level","impacts"],
+  ["Inventory Segmentation","Safety Stock Level","governs"],
+  ["Monitored Inventory Position","Days of Supply","derived from"],
+  ["Days of Supply","Approved Demand Plan","derived from"],
+  ["Excess and Obsolete Stock","Monitored Inventory Position","derived from"],
+  ["Reorder Point","Customer Order","triggers"],
+  ["Retailer Replenishment Policy","Customer Order","governs"],
+  ["Retailer Replenishment Policy","Retailer On-Hand Inventory","governs"],
+  ["Allocation Policy","Deployment Plan","governs"],
+  ["Walmart Customer Account","Joint Business Plan","has part"],
+  ["Joint Business Plan","Service Level Target","governs"],
+  ["Supply Agreement","OTIF Compliance Program","governs"],
+  ["Supply Agreement","Price List","governs"],
+  ["Trade Promotion Fund","Promotion Planning","constrains"],
+  ["Promotion Planning","Rollback Promotion Event","produces"],
+  ["Rollback Promotion Event","Promotional Lift","impacts"],
+  ["Rollback Promotion Event","Consensus Demand Forecast","impacts"],
+  ["Rollback Promotion Event","Trade Promotion Fund","consumes"],
+  ["Price List","Sparkle 32oz Trigger","applies to"],
+  ["National Account Manager","Walmart Customer Account","responsible for"],
+  ["Retail Category Manager","Rollback Promotion Event","approves"],
+  ["OTIF Compliance Program","On Time In Full","measures"],
+  ["Service Level Target","Case Fill Rate","measures"],
+  ["S&OP Cycle","Demand Review","has part"],
+  ["S&OP Cycle","Supply Review","has part"],
+  ["S&OP Cycle","Executive S&OP Meeting","has part"],
+  ["Demand Review","Consensus Demand Forecast","produces"],
+  ["Supply Review","Constrained Demand Plan","produces"],
+  ["Executive S&OP Meeting","Approved Demand Plan","approves"],
+  ["CPFR Collaboration","Retailer Demand Forecast","produces"],
+  ["CPFR Collaboration","Retailer POS Feed","consumes"],
+  ["Order to Cash","Customer Order","consumes"],
+  ["Order to Cash","Outbound Shipment","produces"],
+  ["Exception Management","Forecast Exception Alert","consumes"],
+  ["S&OP Lead","S&OP Cycle","responsible for"],
+  ["Demand Planner","Demand Review","part of"],
+  ["Supply Planner","Supply Review","part of"],
+  ["Forecast Deviation","Forecast Exception Alert","triggers"],
+  ["Forecast Exception Alert","Demand Review","escalates to"],
+  ["Supply Disruption","Surfactant Blend A","impacts"],
+  ["Supply Disruption","Master Production Schedule","impacts"],
+  ["Supply Disruption","Allocation Policy","triggers"],
+  ["Store Stockout Event","Lost Sales Value","impacts"],
+  ["Store Stockout Event","Observed Actual Demand","impacts"],
+  ["Item Transition","Sparkle Concentrate Pods","impacts"],
+  ["Item Transition","Excess and Obsolete Stock","impacts"],
+  ["Forecast Accuracy (MAPE)","Consensus Demand Forecast","measures"],
+  ["Forecast Bias %","Forecast Bias","measures"],
+  ["Case Fill Rate","Outbound Shipment","measures"],
+  ["On Time In Full","Advance Ship Notice","measures"],
+  ["Inventory Turns","Monitored Inventory Position","measures"],
+  ["Lost Sales Value","Estimated Lost Sales","measures"],
+  ["Working Capital","Monitored Inventory Position","impacted by"],
+  ["Gross Margin","Trade Promotion Fund","impacted by"],
+  ["Forecast Accuracy (MAPE)","Safety Stock Level","impacts"],
+  ["On Time In Full","Gross Margin","impacts"],
+  ["ERP (SAP S/4HANA)","Shipment History","publishes"],
+  ["ERP (SAP S/4HANA)","DC On-Hand Inventory","publishes"],
+  ["ERP (SAP S/4HANA)","Customer Order","masters"],
+  ["Advanced Planning System","Statistical Baseline Forecast","masters"],
+  ["Advanced Planning System","Consensus Demand Forecast","masters"],
+  ["Advanced Planning System","Supply Plan","masters"],
+  ["Advanced Planning System","Safety Stock Level","masters"],
+  ["Retailer Data Portal","Retailer POS Feed","publishes"],
+  ["Retailer Data Portal","Retailer On-Hand Inventory","publishes"],
+  ["EDI Gateway","Customer Order","feeds"],
+  ["EDI Gateway","Advance Ship Notice","feeds"],
+  ["Warehouse Management System","DC On-Hand Inventory","publishes"],
+  ["Transportation Management","Load Tender","masters"],
+  ["Transportation Management","In-Transit Inventory","publishes"],
+  ["Analytics Lakehouse","ERP (SAP S/4HANA)","fed by"],
+  ["Analytics Lakehouse","Retailer Data Portal","fed by"],
+  ["Analytics Lakehouse","Advanced Planning System","fed by"],
+  ["Analytics Lakehouse","Forecast Accuracy (MAPE)","feeds"],
+  ["Analytics Lakehouse","On Time In Full","feeds"],
+  ["Product Master Data Hub","Advanced Planning System","feeds"],
+  ["Product Master Data Hub","ERP (SAP S/4HANA)","feeds"],
+];
+const START = "Walmart";
+/* ===================================================================== */
+
+// colors + labels pulled directly from the ontology's nodeClasses (T-Box)
+const TYPE = {
+  organization: {color:"#F97316", label:"Organization"},
+  role: {color:"#EC4899", label:"Role"},
+  location: {color:"#06B6D4", label:"Location"},
+  product: {color:"#A3E635", label:"Product"},
+  demand: {color:"#22C55E", label:"Demand artifact"},
+  forecast: {color:"#6366F1", label:"Forecast artifact"},
+  inventory: {color:"#38BDF8", label:"Inventory artifact"},
+  supply: {color:"#3B82F6", label:"Supply artifact"},
+  policy: {color:"#F59E0B", label:"Policy"},
+  process: {color:"#8B5CF6", label:"Process"},
+  event: {color:"#EF4444", label:"Event"},
+  metric: {color:"#14B8A6", label:"Metric"},
+  system: {color:"#94A3B8", label:"System"},
+  commercial: {color:"#D946EF", label:"Commercial"},
+  planning: {color:"#64748B", label:"Planning construct"},
+};
+
+// ---- adjacency -----------------------------------------------------------
+const byId = Object.fromEntries(NODES.map(n=>[n.id,n]));
+const adj = Object.fromEntries(NODES.map(n=>[n.id,[]]));
+const relOf = {};
+for(const [a,b,r] of LINKS){ if(!byId[a]||!byId[b])continue;
+  adj[a].push(b); adj[b].push(a); relOf[a+'|'+b]=r; relOf[b+'|'+a]=r; }
+function colorOf(id){ return (TYPE[byId[id].type]||TYPE.entity).color; }
+function shade(hex,amt){ // amt -1..1, negative darkens toward black, positive lightens toward white
+  const c=hex.replace('#','');
+  const r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);
+  const mix=(v)=> amt<0 ? Math.round(v*(1+amt)) : Math.round(v+(255-v)*amt);
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
+
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={})=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const initials = s => s.replace(/[^A-Za-z0-9 ]/g,'').split(/(?=[A-Z])|\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+
+// ---- camera --------------------------------------------------------------
+let W=innerWidth, H=innerHeight;
+// anchor the focus toward the left of the viewport — the fan opens rightward
+// from it, so it needs room on its right rather than sitting dead-center.
+const cam={x:W*0.26,y:H/2,k:1};
+const camG=document.getElementById('camera');
+const focusGradEl=document.getElementById('focusGrad');
+function applyCam(){camG.setAttribute('transform',`translate(${cam.x},${cam.y}) scale(${cam.k})`);
+  document.getElementById('pct').textContent=Math.round(cam.k*100)+'%';}
+
+// ---- full-graph layout, computed once: gives every node (not just the
+// active ego cluster) a stable slot so the un-selected rest of the
+// ontology can be shown for real, faded, instead of decorative filler.
+function computeFullLayout(){
+  const P={}; let seed=42; const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
+
+  // per-node footprint, sized off its actual label — this is what keeps
+  // long labels from visually colliding, not just point-repulsion
+  const _mm=document.createElement('canvas').getContext('2d'); _mm.font='500 12px Geist, sans-serif';
+  const SIZE={};
+  for(const n of NODES) SIZE[n.id]=Math.max(34, _mm.measureText(n.id).width/2+18);
+
+  // seed spread out across an area proportional to node count, so the
+  // simulation starts near its resting scale instead of uncrushing a ball
+  const spread=90*Math.sqrt(NODES.length);
+  for(const n of NODES){ const a=rnd()*Math.PI*2, r=spread*(0.3+rnd()*0.7); P[n.id]={x:Math.cos(a)*r,y:Math.sin(a)*r}; }
+
+  const LINK_LEN=170;
+  for(let iter=0; iter<500; iter++){
+    // soft-collision on each pair's real footprint (not a uniform point
+    // radius) — this is what makes the rest-of-graph layer read as evenly
+    // spaced, like the reference, instead of crowding wherever labels are long
+    for(let i=0;i<NODES.length;i++)for(let j=i+1;j<NODES.length;j++){
+      const idA=NODES[i].id, idB=NODES[j].id, A=P[idA], B=P[idB];
+      let dx=A.x-B.x,dy=A.y-B.y,d=Math.hypot(dx,dy)||0.01;
+      const minD=SIZE[idA]+SIZE[idB]+22;
+      if(d<minD){ const push=(minD-d)/d*0.5; A.x+=dx*push; A.y+=dy*push; B.x-=dx*push; B.y-=dy*push; }
+    }
+    for(const [a,b] of LINKS){
+      const A=P[a],B=P[b]; if(!A||!B)continue;
+      let dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy)||0.01;
+      const f=(d-LINK_LEN)*0.012;
+      A.x+=dx/d*f; A.y+=dy/d*f; B.x-=dx/d*f; B.y-=dy/d*f;
+    }
+    for(const n of NODES){ const p=P[n.id]; p.x*=0.998; p.y*=0.998; }
+  }
+  // keep the layout clear of the active cluster's own footprint: only nodes
+  // that landed inside that radius get pushed just outside it (angle kept),
+  // rather than compressing the whole graph into a ring like before — every
+  // node further out keeps the even spacing the collision pass just gave it
+  const CLEAR_R=420;
+  for(const n of NODES){
+    const p=P[n.id], r=Math.hypot(p.x,p.y)||1;
+    if(r<CLEAR_R){ const ang=Math.atan2(p.y,p.x); p.x=Math.cos(ang)*CLEAR_R; p.y=Math.sin(ang)*CLEAR_R*0.85; }
+  }
+  return P;
+}
+const FULLPOS = computeFullLayout();
+const bgEls={};
+const BG_OPACITY=0.06, BG_DIM=0.016;
+
+// ---- physics state -------------------------------------------------------
+const pos={};                 // id -> {x,y,vx,vy}
+function ensure(id, near){
+  if(pos[id])return pos[id];
+  const a=Math.random()*Math.PI*2, r=40+Math.random()*40;
+  pos[id]={x:(near?near.x:0)+Math.cos(a)*r, y:(near?near.y:0)+Math.sin(a)*r, vx:0, vy:0};
+  return pos[id];
+}
+for(const n of NODES) pos[n.id]={x:FULLPOS[n.id].x, y:FULLPOS[n.id].y, vx:0, vy:0};
+pos[START]={x:0,y:0,vx:0,vy:0};
+
+let focusId=START;
+let active=new Set();          // ids currently in the ego view
+const nodeEls={};              // id -> {g, refs}
+const edgeEls=[];              // {line,a,b,from,to,pg,prect,ptext,shimmer,edgeGrad,shGrad,stops,phase,speed}
+let hoverId=null, dragId=null, dragMoved=false;
+let clock=0, gradSeq=0;
+const history=[];
+
+function neighbors(id){return adj[id];}
+
+// ---- build / rebuild ego view -------------------------------------------
+function setFocus(id, pushHist=true){
+  if(!byId[id]) return;
+  if(pushHist && id!==focusId) history.push(focusId);
+  const prevFocus=focusId;
+  focusId=id;
+  const want=new Set([id, ...neighbors(id)]);
+
+  const f=ensure(id);
+  const nbs=neighbors(id);
+  // every node already has *some* pos (its background slot, or a stale fan
+  // position from whatever was focused before) — reseeding only "if(!pos[nb])"
+  // never actually fired, so newly-entering neighbors kept whatever unrelated
+  // position they last had and had to crawl into place via weak physics
+  // alone, which is what was reading as crowded/colliding with more nodes.
+  // Reseed anything actually new to this fan (including the old focus,
+  // demoted to a regular neighbor) with spacing that opens up as the
+  // neighbor count grows, so a busy node starts already breathable.
+  const entering=nbs.filter(nb=>!active.has(nb)||nb===prevFocus);
+  const vGap=Math.min(150, 62+entering.length*7);
+  entering.forEach((nb,i)=>{ ensure(nb);
+    pos[nb].x=f.x+205; pos[nb].y=f.y+(i-(entering.length-1)/2)*vGap;
+  });
+
+  for(const nid of Array.from(active)){
+    if(!want.has(nid)){
+      const rec=nodeEls[nid]; if(rec){rec.g.style.opacity=0; const gg=rec.g; setTimeout(()=>gg.remove(),350);}
+      delete nodeEls[nid]; active.delete(nid);
+      pos[nid]={x:FULLPOS[nid].x, y:FULLPOS[nid].y, vx:0, vy:0}; // return to its background slot
+    }
+  }
+  for(const nid of want){ createNode(nid); active.add(nid); } // rebuild all (chip<->avatar swap on focus change)
+
+  buildEdges();
+  renderBackground();
+  updateChrome();
+}
+
+// ---- background layer: the rest of the real ontology, faded ------------
+function renderBackground(){
+  const layer=document.getElementById('bgLayer');
+  const edgeLayer=document.getElementById('bgEdgeLayer');
+  layer.innerHTML=''; edgeLayer.innerHTML='';
+  for(const k in bgEls) delete bgEls[k];
+
+  const bgIds=NODES.map(n=>n.id).filter(id=>!active.has(id));
+  const bgSet=new Set(bgIds);
+  const seen=new Set();
+  for(const a of bgIds){
+    for(const b of neighbors(a)){
+      if(!bgSet.has(b))continue;
+      const key=a<b?a+'|'+b:b+'|'+a; if(seen.has(key))continue; seen.add(key);
+      const A=FULLPOS[a],B=FULLPOS[b];
+      edgeLayer.appendChild(el('path',{class:'bg-edge', d:curvePath(A.x,A.y,B.x,B.y)}));
+    }
+  }
+
+  const _mm=document.createElement('canvas').getContext('2d'); _mm.font='500 11px Geist, sans-serif';
+  for(const id of bgIds){
+    const P=FULLPOS[id];
+    const color=colorOf(id);
+    const w=Math.ceil(_mm.measureText(id).width);
+    const g=el('g',{class:'node bg-chip'}); g.dataset.id=id;
+    g.setAttribute('transform',`translate(${P.x},${P.y})`);
+    const rect=el('rect',{class:'chip-rect', x:0, y:-13, height:26, width:w+26});
+    g.appendChild(rect);
+    g.appendChild(el('rect',{class:'chip-sq', x:8, y:-3.5, width:7, height:7, fill:color}));
+    const label=el('text',{x:21, y:1}); label.textContent=id;
+    g.appendChild(label);
+    g.addEventListener('pointerenter',()=>setHover(id));
+    g.addEventListener('pointerleave',()=>setHover(null));
+    g.addEventListener('pointerdown',e=>{e.stopPropagation(); setFocus(id);});
+    layer.appendChild(g);
+    bgEls[id]={g, label, chipRect:rect};
+  }
+  applyDim();
+}
+
+function createNode(id){
+  if(nodeEls[id]){ nodeEls[id].g.remove(); }
+  const isFocus = id===focusId;
+  const color = colorOf(id);
+  const g=el('g',{class:'node'+(isFocus?' focus':'')}); g.dataset.id=id; g.style.opacity=0;
+
+  g.appendChild(el('circle',{class:'halo', r:isFocus?26:18, fill:color, opacity:0, 'fill-opacity':.16}));
+
+  let label, chipRect, capRect, capGlow, w;
+  const _mm=document.createElement('canvas').getContext('2d');
+  _mm.font=(isFocus?'600 13px':'500 12px')+' Geist, sans-serif';
+  w=Math.ceil(_mm.measureText(id).width);
+
+  if(isFocus){
+    const cw=21+27+w+18;
+    capGlow=el('rect',{class:'cap-glow', x:-21, y:-19, height:38, width:cw, rx:19, ry:19});
+    g.appendChild(capGlow);
+    capRect=el('rect',{class:'cap-rect', x:-21, y:-19, height:38, width:cw, rx:19, ry:19});
+    g.appendChild(capRect);
+    const avatar=el('circle',{r:14, fill:color});
+    g.appendChild(avatar);
+    const ini=el('text',{class:'avatar-init'}); ini.textContent=initials(id); g.appendChild(ini);
+    label=el('text',{x:25, y:1}); label.textContent=id; label.style.fill='#fff';
+    g.appendChild(label);
+  } else {
+    chipRect=el('rect',{class:'chip-rect', x:0, y:-15, height:30, width:w+30});
+    g.appendChild(chipRect);
+    g.appendChild(el('rect',{class:'chip-sq', x:9, y:-4, width:8, height:8, fill:color}));
+    label=el('text',{x:25, y:1}); label.textContent=id;
+    g.appendChild(label);
+  }
+
+  g.addEventListener('pointerenter',()=>setHover(id));
+  g.addEventListener('pointerleave',()=>setHover(null));
+  g.addEventListener('pointerdown',e=>{e.stopPropagation();startNodeDrag(id,e);});
+
+  document.getElementById('nodes').appendChild(g);
+  nodeEls[id]={g, label, chipRect, capRect, capGlow, isFocus, w};
+  requestAnimationFrame(()=>{g.style.opacity=1;});
+}
+
+function buildEdges(){
+  const layer=document.getElementById('edges');
+  const shLayer=document.getElementById('shimmers');
+  const pillLayer=document.getElementById('pills');
+  const defs=document.getElementById('edgeDefs');
+  edgeEls.length=0; layer.innerHTML=''; shLayer.innerHTML=''; pillLayer.innerHTML=''; defs.innerHTML='';
+  const seen=new Set(); let idx=0;
+  for(const a of active){
+    for(const b of neighbors(a)){
+      if(!active.has(b))continue;
+      const key=a<b?a+'|'+b:b+'|'+a; if(seen.has(key))continue; seen.add(key);
+
+      const from = a===focusId ? a : (b===focusId ? b : a);
+      const to   = from===a ? b : a;
+      const touchesFocus = (a===focusId||b===focusId);
+      const sid='sh'+(gradSeq++);
+
+      // shimmer gradient: a soft light window travelling the line
+      const glow = touchesFocus ? '#cfe9ff' : '#e8ecf4';
+      const sg=el('linearGradient',{id:sid, gradientUnits:'userSpaceOnUse'});
+      const ss0=el('stop',{offset:'0%', 'stop-color':glow,'stop-opacity':0});
+      const ss1=el('stop',{offset:'50%','stop-color':'#ffffff','stop-opacity':.95});
+      const ss2=el('stop',{offset:'100%','stop-color':glow,'stop-opacity':0});
+      sg.appendChild(ss0); sg.appendChild(ss1); sg.appendChild(ss2); defs.appendChild(sg);
+
+      const line=el('path',{class:'edge'+(touchesFocus?' solid':'')});
+      layer.appendChild(line);
+      const shimmer=el('path',{class:'shimmer', stroke:`url(#${sid})`, filter:'url(#shimmerBlur)'});
+      if(!touchesFocus) shimmer.setAttribute('stroke-dasharray','2 7');
+      shLayer.appendChild(shimmer);
+
+      const rel = relOf[a+'|'+b] || '';
+      const pg = el('g',{class:'rel-pill'});
+      const prect = el('rect',{rx:7,ry:7,height:20});
+      const ptext = el('text',{y:1}); ptext.textContent=rel;
+      pg.appendChild(prect); pg.appendChild(ptext); pillLayer.appendChild(pg);
+
+      edgeEls.push({line,shimmer,a,b,from,to,pg,prect,ptext,ss0,ss1,ss2,idx});
+      idx++;
+    }
+  }
+  // spread pulse phases evenly across the period so pulses ripple one after another
+  edgeEls.forEach((e,i)=>{ e.phase=i/edgeEls.length; });
+}
+
+// ---- hover highlight + definition card -----------------------------------
+const tip=document.getElementById('tip');
+function applyDim(){
+  const id=hoverId;
+  const connected = id ? new Set([id,...neighbors(id)]) : null;
+  for(const nid in nodeEls){
+    const g=nodeEls[nid].g;
+    g.classList.toggle('hover', nid===id);
+    if(!id){ g.style.opacity=1; }
+    else g.style.opacity = connected.has(nid)?1:0.28;
+  }
+  for(const nid in bgEls){
+    const g=bgEls[nid].g;
+    g.classList.toggle('hover', nid===id);
+    if(!id){ g.style.opacity=BG_OPACITY; }
+    else g.style.opacity = connected.has(nid)?1:BG_DIM;
+  }
+}
+function setHover(id){
+  hoverId=id;
+  document.getElementById('stat').textContent = id ? '— '+ (relCount(id)) : '— explore';
+  applyDim();
+  // definition card
+  if(id && byId[id].def){
+    const t=TYPE[byId[id].type]||{};
+    tip.querySelector('.t-dot').style.background=t.color||'#888';
+    tip.querySelector('.t-type').textContent=t.label||'';
+    tip.querySelector('.t-name').textContent=id;
+    tip.querySelector('.t-def').textContent=byId[id].def;
+    placeTip(id);
+    tip.classList.add('show');
+  } else {
+    tip.classList.remove('show');
+  }
+}
+function placeTip(id){
+  const p=pos[id]; if(!p)return;
+  // align the card's left edge with the hovered node's own left edge,
+  // whatever shape that node currently is (capsule or chip)
+  const rec=nodeEls[id]||bgEls[id];
+  const rectEl=rec&&(rec.capRect||rec.chipRect);
+  const leftLocalX=rectEl?parseFloat(rectEl.getAttribute('x'))||0:0;
+  const sx=(p.x+leftLocalX)*cam.k+cam.x, sy=p.y*cam.k+cam.y;
+  const r=tip.getBoundingClientRect();
+  let x=sx, y=sy+22*cam.k;                                // left-aligned, below the node
+  if(x+r.width>innerWidth-14) x=innerWidth-14-r.width;    // clamp on-screen, keep alignment when it fits
+  if(y+r.height>innerHeight-14) y=sy-r.height-22*cam.k;   // flip above
+  tip.style.left=Math.max(14,x)+'px';
+  tip.style.top =Math.max(14,y)+'px';
+}
+function relCount(id){const n=adj[id].length;return n+' relationship'+(n===1?'':'s');}
+
+// ---- node drag / click ---------------------------------------------------
+function startNodeDrag(id,e){
+  dragId=id; dragMoved=false;
+  const start={x:e.clientX,y:e.clientY};
+  const move=ev=>{
+    if(Math.hypot(ev.clientX-start.x,ev.clientY-start.y)>4)dragMoved=true;
+    const p=pos[id]; const wx=(ev.clientX-cam.x)/cam.k, wy=(ev.clientY-cam.y)/cam.k;
+    p.x=wx; p.y=wy; p.vx=0; p.vy=0;
+  };
+  const up=ev=>{
+    window.removeEventListener('pointermove',move);
+    window.removeEventListener('pointerup',up);
+    if(!dragMoved && id!==focusId) setFocus(id);
+    dragId=null;
+  };
+  window.addEventListener('pointermove',move);
+  window.addEventListener('pointerup',up);
+}
+
+// ---- pan / zoom ----------------------------------------------------------
+const stage=document.getElementById('stage');
+stage.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node'))return;
+  stage.classList.add('panning');
+  const s={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y};
+  const move=ev=>{cam.x=s.cx+(ev.clientX-s.x);cam.y=s.cy+(ev.clientY-s.y);applyCam();};
+  const up=()=>{stage.classList.remove('panning');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);
+});
+stage.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const factor=Math.exp(-e.deltaY*0.0016);
+  const nk=Math.min(2.4,Math.max(0.35,cam.k*factor));
+  const wx=(e.clientX-cam.x)/cam.k, wy=(e.clientY-cam.y)/cam.k;
+  cam.k=nk; cam.x=e.clientX-wx*nk; cam.y=e.clientY-wy*nk; applyCam();
+},{passive:false});
+document.getElementById('zin').onclick=()=>zoomBy(1.2);
+document.getElementById('zout').onclick=()=>zoomBy(1/1.2);
+function zoomBy(f){const nk=Math.min(2.4,Math.max(0.35,cam.k*f));const wx=(W/2-cam.x)/cam.k,wy=(H/2-cam.y)/cam.k;cam.k=nk;cam.x=W/2-wx*nk;cam.y=H/2-wy*nk;applyCam();}
+document.getElementById('fullscr').onclick=()=>{
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+};
+
+// ---- simulation ----------------------------------------------------------
+function tick(){
+  const ids=[...active];
+  // column distance accounts for the focus capsule's width and long chip labels
+  const maxChipW = ids.reduce((m,i)=>Math.max(m,estW(i)),0);
+  const REST_X = 190 + estW(focusId)*0.6 + maxChipW*0.4;
+  {const f=pos[focusId]; f.vx=0; f.vy=0; f.x*=0.86; f.y*=0.86;
+   if(Math.abs(f.x)<0.3)f.x=0; if(Math.abs(f.y)<0.3)f.y=0;}
+  for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+    const a=pos[ids[i]],b=pos[ids[j]];
+    let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy||0.01,d=Math.sqrt(d2);
+    const f=13000/d2; const ux=dx/d,uy=dy/d;
+    if(ids[i]!==focusId&&ids[i]!==dragId){a.vx+=ux*f;a.vy+=uy*f;}
+    if(ids[j]!==focusId&&ids[j]!==dragId){b.vx-=ux*f;b.vy-=uy*f;}
+  }
+  const F=pos[focusId];
+  for(const id of ids){ if(id===focusId||id===dragId)continue;
+    // spring toward a fixed offset to the right of the focus (not a radius
+    // in every direction) so the whole cluster fans out one-sided; a weak
+    // pull back toward the focus's own y keeps the column from drifting.
+    const p=pos[id];
+    p.vx-=(p.x-(F.x+REST_X))*0.045;
+    p.vy-=(p.y-F.y)*0.004;
+  }
+  for(const id of ids){ if(id===focusId){continue;} const p=pos[id]; if(id===dragId){continue;}
+    p.vx*=0.86; p.vy*=0.86; p.x+=p.vx; p.y+=p.vy; }
+
+  clock+=0.016;
+
+  // focus ring: TWO full loops around the capsule, eased smoothly (slow to
+  // start, slow to finish), then the glow fades out and it rests before repeating.
+  {const SPIN=3.6, FADE=1.1, REST=4.0, PERIOD=SPIN+REST; // slow, deliberate sweep
+   const t=clock%PERIOD;
+   let angle, glow;
+   if(t<SPIN){
+     const p=t/SPIN;
+     const eased = p<.5 ? 4*p*p*p : 1-Math.pow(-2*p+2,3)/2;   // easeInOutCubic
+     angle=eased*720;                                // 2 full 360° loops, eased in/out
+     glow=Math.min(1, t/0.22);                        // slightly slower glow-in to match
+   } else {
+     angle=720;                                      // frozen at the end of the second loop
+     const rt=t-SPIN;
+     glow = rt<FADE ? 1-(rt/FADE) : 0;                // smooth fade-out, then dark rest
+   }
+   focusGradEl.setAttribute('gradientTransform',`rotate(${angle%360} 0.5 0.5)`);
+   for(const id in nodeEls){ const rec=nodeEls[id]; if(rec.capGlow) rec.capGlow.style.opacity=glow; }
+  }
+
+  render();
+  if(hoverId) placeTip(hoverId);   // card tracks the node while physics settle
+  requestAnimationFrame(tick);
+}
+
+function render(){
+  for(const id of active){
+    const rec=nodeEls[id]; if(!rec)continue;
+    const p=pos[id];
+    rec.g.setAttribute('transform',`translate(${p.x},${p.y})`);
+    if(rec.isFocus)continue;
+    const sq=rec.g.querySelector('.chip-sq');
+    const left = p.x < pos[focusId].x - 2;
+    if(left){
+      rec.chipRect.setAttribute('x',-(rec.w+30));
+      if(sq)sq.setAttribute('x',-(rec.w+21));
+      rec.label.setAttribute('x',-(rec.w+5)); rec.label.setAttribute('text-anchor','start');
+    } else {
+      rec.chipRect.setAttribute('x',0);
+      if(sq)sq.setAttribute('x',9);
+      rec.label.setAttribute('x',25); rec.label.setAttribute('text-anchor','start');
+    }
+  }
+  for(const e of edgeEls){
+    const a=pos[e.a],b=pos[e.b]; if(!a||!b)continue;
+    // edges touching the focus leave from its capsule's right edge, not its
+    // center, so the fan visibly emerges from one side of the focus node.
+    let ax=a.x, ay=a.y, bx=b.x, by=b.y;
+    if(e.a===focusId) ax += focusEdgeReach(e.a);
+    else if(e.b===focusId) bx += focusEdgeReach(e.b);
+    e.line.setAttribute('d', curvePath(ax,ay,bx,by));
+
+    if(e.ptext.textContent){
+      let tf=0.5, F=null, O=null, aIsFocus=false;
+      if(e.a===focusId){F={x:ax,y:ay};O={x:bx,y:by};aIsFocus=true;} else if(e.b===focusId){F={x:bx,y:by};O={x:ax,y:ay};}
+      if(F){
+        const L=Math.hypot(O.x-F.x,O.y-F.y)||1;
+        tf = Math.min(0.76, Math.max(0.5, (26+46)/L));
+      }
+      const tPath = F ? (aIsFocus ? tf : 1-tf) : 0.5;
+      const pt = curvePoint(tPath, ax,ay,bx,by);
+      const mx = pt.x, my = pt.y;
+      const tw=estW(e.ptext.textContent, 10.5, 500);
+      e.pg.setAttribute('transform',`translate(${mx},${my})`);
+      e.prect.setAttribute('x',-tw/2-8); e.prect.setAttribute('y',-10); e.prect.setAttribute('width',tw+16);
+      const on = hoverId && (e.a===hoverId||e.b===hoverId);
+      e.pg.classList.toggle('hi', !!on);
+      e.pg.style.opacity = hoverId ? (on?1:0.12) : 1;
+    } else { e.pg.setAttribute('transform','translate(-9999,-9999)'); }
+
+    // shimmer: one pulse per PERIOD, travelling the FULL length from the
+    // focus node to the neighbor in TRAVEL seconds, then resting quietly.
+    const PERIOD=5.5, TRAVEL=1.1;
+    const fp=pos[e.from], tp=pos[e.to];
+    let fx=fp.x, fy=fp.y, tx=tp.x, ty=tp.y;
+    if(e.from===focusId) fx += focusEdgeReach(e.from);
+    else if(e.to===focusId) tx += focusEdgeReach(e.to);
+    e.shimmer.setAttribute('d', curvePath(fx,fy,tx,ty));
+    const tt=(clock + e.phase*PERIOD) % PERIOD;
+    let visible=false;
+    if(tt<TRAVEL){
+      visible=true;
+      const p=tt/TRAVEL;                       // 0 → 1 across the whole edge
+      const ease=p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
+      const band=13;                            // glow half-width in % of length
+      const c=-band + ease*(100+2*band);        // slides fully in and fully out
+      const cl=v=>Math.min(100,Math.max(0,v));
+      e.ss0.setAttribute('offset', cl(c-band)+'%');
+      e.ss1.setAttribute('offset', cl(c)+'%');
+      e.ss2.setAttribute('offset', cl(c+band)+'%');
+    }
+
+    const dimmed = hoverId && !(e.a===hoverId||e.b===hoverId);
+    e.line.classList.toggle('hi', !!(hoverId && !dimmed));
+    e.line.style.opacity = hoverId ? (dimmed?0.1:'') : '';
+    e.shimmer.style.opacity = !visible ? 0 : (dimmed ? 0.04 : 1);
+  }
+}
+const _m=document.createElement('canvas').getContext('2d');
+function estW(s,size,weight){_m.font=`${weight||600} ${size||13}px Geist, Inter, sans-serif`;return Math.ceil(_m.measureText(s).width);}
+
+// horizontal-tangent S-curve (à la d3.linkHorizontal): leaves/arrives flat,
+// bends in the middle, so a fan of edges reads as sweeping curves rather
+// than straight spokes.
+function curvePath(x1,y1,x2,y2){
+  const cx=(x1+x2)/2;
+  return `M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}`;
+}
+function curvePoint(t,x1,y1,x2,y2){
+  const cx=(x1+x2)/2, mt=1-t;
+  const x=mt*mt*mt*x1 + 3*mt*mt*t*cx + 3*mt*t*t*cx + t*t*t*x2;
+  const y=mt*mt*mt*y1 + 3*mt*mt*t*y1 + 3*mt*t*t*y2 + t*t*t*y2;
+  return {x,y};
+}
+// x-offset from the focus node's own position out to its capsule's right
+// edge — matches the capsule geometry built in createNode() (width = w+66,
+// left-aligned at x:-21, so the right edge sits at w+45).
+function focusEdgeReach(id){ return (nodeEls[id]?nodeEls[id].w:0)+45; }
+
+// ---- chrome (breadcrumbs / legend) --------------------------------------
+function updateChrome(){
+  const c=document.getElementById('crumbs'); c.innerHTML='';
+  const trail=[...history.slice(-3), focusId];
+  trail.forEach((id,i)=>{
+    if(i>0){const s=document.createElement('span');s.className='sep';s.textContent='›';c.appendChild(s);}
+    const b=document.createElement('button'); b.textContent=id;
+    if(id===focusId){b.className='cur'; b.style.borderColor=colorOf(id); b.style.color='#fff';}
+    b.onclick=()=>{ if(id!==focusId){
+      const idx=history.lastIndexOf(id); if(idx>=0)history.length=idx; setFocus(id,false);} };
+    c.appendChild(b);
+  });
+  if(history.length){const back=document.createElement('button');back.textContent='← back';
+    back.onclick=()=>{const prev=history.pop(); if(prev)setFocus(prev,false);};
+    c.insertBefore(back,c.firstChild);}
+}
+(function legend(){
+  const L=document.getElementById('legend');
+  const used=[...new Set(NODES.map(n=>n.type))];
+  for(const k of used){const t=TYPE[k];const row=document.createElement('div');row.className='row';
+    row.innerHTML=`<span class="sw" style="background:${t.color}"></span>${t.label}`;
+    L.appendChild(row);}
+})();
+
+// ---- search --------------------------------------------------------------
+document.getElementById('q').addEventListener('keydown',e=>{
+  if(e.key!=='Enter')return;
+  const v=e.target.value.trim().toLowerCase(); if(!v)return;
+  const hit=NODES.find(n=>n.id.toLowerCase().includes(v));
+  if(hit){setFocus(hit.id); e.target.blur();}
+});
+
+// ---- resize --------------------------------------------------------------
+addEventListener('resize',()=>{W=innerWidth;H=innerHeight;});
+
+// ---- go ------------------------------------------------------------------
+applyCam();
+setFocus(START,false);
+tick();
+
+// text widths are measured with canvas before the Geist webfont may have
+// finished loading; once it's actually ready, rebuild so every chip/capsule
+// hugs its real (Geist-metric) text width instead of a fallback-font guess.
+document.fonts.ready.then(()=>{ setFocus(focusId,false); });
+</script>
+</body>
+</html>
