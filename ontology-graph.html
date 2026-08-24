@@ -42,9 +42,13 @@
     background-position:-3px -3px, 0 0;}
   svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
 
-  .edge{fill:none;stroke-linecap:round;stroke-width:1.6;opacity:.62;transition:opacity .2s,stroke-width .2s;}
+  /* default: dotted grey relation lines */
+  .edge{fill:none;stroke:#4d5158;stroke-linecap:round;stroke-width:1.6;
+    stroke-dasharray:2 7;opacity:.75;transition:opacity .25s,stroke .25s;}
+  /* edges touching the focused node: solid blue */
+  .edge.solid{stroke:var(--blue);stroke-dasharray:none;stroke-width:1.7;opacity:.85}
   .edge.hi{opacity:1;stroke-width:2.1}
-  .shimmer{fill:none;stroke-linecap:round;stroke-width:2.2;mix-blend-mode:screen;pointer-events:none;}
+  .shimmer{fill:none;stroke-linecap:round;stroke-width:2.4;mix-blend-mode:screen;pointer-events:none;}
 
   .rel-pill{pointer-events:none;}
   .rel-pill rect{fill:#1c1c1cf0;stroke:var(--panel-br2);stroke-width:1;}
@@ -355,24 +359,21 @@ function buildEdges(){
 
       const from = a===focusId ? a : (b===focusId ? b : a);
       const to   = from===a ? b : a;
-      const gid='eg'+(gradSeq++), sid='sh'+(gradSeq++);
+      const touchesFocus = (a===focusId||b===focusId);
+      const sid='sh'+(gradSeq++);
 
-      // base gradient: blends the two endpoint colours
-      const eg=el('linearGradient',{id:gid, gradientUnits:'userSpaceOnUse'});
-      const es0=el('stop',{offset:'0%', 'stop-color':colorOf(a)});
-      const es1=el('stop',{offset:'100%','stop-color':colorOf(b)});
-      eg.appendChild(es0); eg.appendChild(es1); defs.appendChild(eg);
-
-      // shimmer gradient: a soft warm-white travelling window
+      // shimmer gradient: a soft light window travelling the line
+      const glow = touchesFocus ? '#cfe9ff' : '#e8ecf4';
       const sg=el('linearGradient',{id:sid, gradientUnits:'userSpaceOnUse'});
-      const ss0=el('stop',{offset:'0%', 'stop-color':'#ffe9c0','stop-opacity':0});
-      const ss1=el('stop',{offset:'50%','stop-color':'#fff6e2','stop-opacity':.95});
-      const ss2=el('stop',{offset:'100%','stop-color':'#ffe9c0','stop-opacity':0});
+      const ss0=el('stop',{offset:'0%', 'stop-color':glow,'stop-opacity':0});
+      const ss1=el('stop',{offset:'50%','stop-color':'#ffffff','stop-opacity':.95});
+      const ss2=el('stop',{offset:'100%','stop-color':glow,'stop-opacity':0});
       sg.appendChild(ss0); sg.appendChild(ss1); sg.appendChild(ss2); defs.appendChild(sg);
 
-      const line=el('line',{class:'edge', stroke:`url(#${gid})`});
+      const line=el('line',{class:'edge'+(touchesFocus?' solid':'')});
       layer.appendChild(line);
       const shimmer=el('line',{class:'shimmer', stroke:`url(#${sid})`, filter:'url(#shimmerBlur)'});
+      if(!touchesFocus) shimmer.setAttribute('stroke-dasharray','2 7');
       shLayer.appendChild(shimmer);
 
       const rel = relOf[a+'|'+b] || '';
@@ -381,11 +382,12 @@ function buildEdges(){
       const ptext = el('text',{y:1}); ptext.textContent=rel;
       pg.appendChild(prect); pg.appendChild(ptext); pillLayer.appendChild(pg);
 
-      edgeEls.push({line,shimmer,a,b,from,to,pg,prect,ptext,eg,ss0,ss1,ss2,
-        phase:(idx%7)/7, speed:0.7+((idx*37)%6)/10});
+      edgeEls.push({line,shimmer,a,b,from,to,pg,prect,ptext,ss0,ss1,ss2,idx});
       idx++;
     }
   }
+  // spread pulse phases evenly across the period so pulses ripple one after another
+  edgeEls.forEach((e,i)=>{ e.phase=i/edgeEls.length; });
 }
 
 // ---- hover highlight -----------------------------------------------------
@@ -497,8 +499,6 @@ function render(){
     const a=pos[e.a],b=pos[e.b]; if(!a||!b)continue;
     e.line.setAttribute('x1',a.x);e.line.setAttribute('y1',a.y);
     e.line.setAttribute('x2',b.x);e.line.setAttribute('y2',b.y);
-    e.eg.setAttribute('x1',a.x);e.eg.setAttribute('y1',a.y);
-    e.eg.setAttribute('x2',b.x);e.eg.setAttribute('y2',b.y);
 
     if(e.ptext.textContent){
       let tf=0.5, F=null, O=null;
@@ -518,22 +518,30 @@ function render(){
       e.pg.style.opacity = hoverId ? (on?1:0.12) : 1;
     } else { e.pg.setAttribute('transform','translate(-9999,-9999)'); }
 
-    // shimmer: a soft window sliding along the SAME coordinates as the line,
-    // always travelling from the focus node outward, looping continuously.
+    // shimmer: one pulse per PERIOD, travelling the FULL length from the
+    // focus node to the neighbor in TRAVEL seconds, then resting quietly.
+    const PERIOD=5.5, TRAVEL=1.1;
     const fp=pos[e.from], tp=pos[e.to];
-    const t = (clock*e.speed + e.phase) % 1;
     e.shimmer.setAttribute('x1',fp.x);e.shimmer.setAttribute('y1',fp.y);
     e.shimmer.setAttribute('x2',tp.x);e.shimmer.setAttribute('y2',tp.y);
-    const band=17; // half-width of the bright window, in % of edge length
-    e.ss0.setAttribute('offset', Math.max(0,t*100-band)+'%');
-    e.ss1.setAttribute('offset', Math.min(100,Math.max(0,t*100))+'%');
-    e.ss2.setAttribute('offset', Math.min(100,t*100+band)+'%');
-    const envelope = Math.min(1, t*12, (1-t)*12); // soft fade at the very ends of each loop
+    const tt=(clock + e.phase*PERIOD) % PERIOD;
+    let visible=false;
+    if(tt<TRAVEL){
+      visible=true;
+      const p=tt/TRAVEL;                       // 0 → 1 across the whole edge
+      const ease=p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
+      const band=13;                            // glow half-width in % of length
+      const c=-band + ease*(100+2*band);        // slides fully in and fully out
+      const cl=v=>Math.min(100,Math.max(0,v));
+      e.ss0.setAttribute('offset', cl(c-band)+'%');
+      e.ss1.setAttribute('offset', cl(c)+'%');
+      e.ss2.setAttribute('offset', cl(c+band)+'%');
+    }
 
     const dimmed = hoverId && !(e.a===hoverId||e.b===hoverId);
     e.line.classList.toggle('hi', !!(hoverId && !dimmed));
-    e.line.style.opacity = hoverId ? (dimmed?0.1:1) : '';
-    e.shimmer.style.opacity = dimmed ? 0.04 : envelope;
+    e.line.style.opacity = hoverId ? (dimmed?0.1:'') : '';
+    e.shimmer.style.opacity = !visible ? 0 : (dimmed ? 0.04 : 1);
   }
 }
 const _m=document.createElement('canvas').getContext('2d');
