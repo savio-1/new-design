@@ -31,18 +31,31 @@ figure { margin: 0; }
 .btn--light { height: 52px; padding-inline: 34px; background: #fff; color: var(--ink); }
 .btn--light:hover { background: var(--accent); color: var(--ink); }
 
-/* ============ NAV — same shell as the homepage build ============ */
+/* ============ NAV — same shell as the homepage build ============
+   One difference: this page opens on a dark hero, so at rest the bar
+   runs light-on-dark; once it contracts into the cream glass pill it
+   returns to ink. The white/ink logo pair swaps with it. */
 
 .nav {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
-  color: var(--ink);
+  color: #fff;
   background: transparent;
   border-bottom: 1px solid transparent;
-  transition: background 0.35s ease, border-color 0.35s ease;
+  transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
 }
+.nav.is-scrolled { color: var(--ink); }
 .nav.is-scrolled, .nav.is-open { background: transparent; border-bottom-color: transparent; }
+
+.nav__logo .logo-ink { display: none; }
+.nav.is-scrolled .nav__logo .logo-ink { display: block; }
+.nav.is-scrolled .nav__logo .logo-white { display: none; }
+
+/* over the dark hero the CTA is white with an ink label (never
+   white-on-turquoise); the pill state returns it to ink/white */
+.nav:not(.is-scrolled) .btn--nav { background: #fff; color: var(--ink); }
+.nav:not(.is-scrolled) .btn--nav:hover { background: var(--accent); color: var(--ink); }
 
 .nav__bar {
   display: grid;
@@ -178,9 +191,53 @@ figure { margin: 0; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ============ 01 · HERO — headline left, lede right, five cards ============ */
+/* ============ 01 · HERO — dark panel, aurora at the top, headline
+   left, lede right, five dream-state cards that focus on hover ============ */
 
-.ahero { padding: calc(var(--nav-h) + 72px) 0 0; }
+.ahero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--deep);
+  padding: calc(var(--nav-h) + 88px) 0 88px;
+}
+
+/* the gradient sits at the top and dissolves into the dark ground —
+   same bloom grammar as the homepage closing band, hung from above */
+.ahero__aurora {
+  position: absolute;
+  inset: -22% -14% auto;
+  height: 560px;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 66% at 12% 38%, rgba(56, 214, 196, 0.85), transparent 66%),
+    radial-gradient(32% 56% at 34% 22%, rgba(126, 156, 255, 0.8),  transparent 68%),
+    radial-gradient(30% 52% at 52% 40%, rgba(178, 142, 255, 0.65), transparent 70%),
+    radial-gradient(34% 58% at 72% 24%, rgba(255, 176, 74, 0.75),  transparent 66%),
+    radial-gradient(30% 54% at 90% 42%, rgba(206, 224, 104, 0.7),  transparent 68%);
+  filter: blur(58px) saturate(1.15);
+}
+/* pull the wash down into the ground so there is no visible edge */
+.ahero__fade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(16, 38, 30, 0.28) 0%,
+    rgba(16, 38, 30, 0.7) 38%,
+    var(--deep) 64%);
+}
+
+/* tiny bracketed annotation chip — the one sanctioned use of caps */
+.ahero__eyebrow {
+  margin: 0 0 28px;
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 400;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.55);
+}
 
 .ahero__top {
   display: grid;
@@ -196,7 +253,7 @@ figure { margin: 0; }
   line-height: 1.02;
   letter-spacing: -0.04em;
   font-weight: 350;
-  color: var(--ink);
+  color: #fff;
 }
 
 /* the lede hangs right, top-aligned with the headline */
@@ -206,11 +263,11 @@ figure { margin: 0; }
   font-size: 18px;
   line-height: 1.5;
   letter-spacing: -0.03em;
-  color: var(--ink-65);
+  color: var(--on-deep);
 }
 
-.ahero__rule { margin-top: 48px; }
-.ahero__label { margin: 14px 0 0; color: var(--ink-45); }
+.ahero__rule { margin-top: 48px; border-top-color: var(--deep-line); }
+.ahero__label { margin: 14px 0 0; color: rgba(255, 255, 255, 0.55); }
 
 .ahero__cards {
   margin-top: 56px;
@@ -219,21 +276,44 @@ figure { margin: 0; }
   gap: 16px;
 }
 
+/* Dream-state cards: at rest each portrait sits out of focus under a
+   support-hue wash — the page's blur language applied to imagery
+   ("records blur") — and resolves sharp on hover ("we bring them back
+   into focus"). Reduced motion keeps the resting state. */
 .acard {
   position: relative;
   border-radius: var(--r-card);
   overflow: hidden;
   aspect-ratio: 5 / 7;
-  background: var(--panel);
+  background: var(--deep-raised);
 }
 .acard img {
   width: 100%; height: 100%;
   object-fit: cover; display: block;
-  transition: transform 0.6s var(--ease);
+  filter: blur(13px) saturate(1.15) brightness(1.06);
+  transform: scale(1.14);            /* hides the blur's soft edges */
+  transition: filter 0.65s var(--ease), transform 0.65s var(--ease);
 }
-.acard:hover img { transform: scale(1.045); }
+/* the hue wash rides a pseudo-element above the photo */
+.acard::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--card-wash);
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+  pointer-events: none;
+  transition: opacity 0.65s var(--ease);
+}
+.acard--aqua  { --card-wash: linear-gradient(170deg, #7fe8de 0%, rgba(16,38,30,0) 70%); }
+.acard--lilac { --card-wash: linear-gradient(170deg, #cdb1f2 0%, rgba(16,38,30,0) 70%); }
+.acard--sky   { --card-wash: linear-gradient(170deg, #9ec9f5 0%, rgba(16,38,30,0) 70%); }
+.acard--peach { --card-wash: linear-gradient(170deg, #f7bf95 0%, rgba(16,38,30,0) 70%); }
+.acard:hover img { filter: blur(0) saturate(1) brightness(1); transform: scale(1.03); }
+.acard:hover::after { opacity: 0.25; }
+
 .acard__pill {
   position: absolute; top: 12px; left: 12px;
+  z-index: 1;
   display: inline-flex; align-items: center;
   height: 30px; padding-inline: 12px;
   border-radius: var(--r-pill);
@@ -295,16 +375,36 @@ figure { margin: 0; }
 .trow__body {
   margin: 0;
   max-width: 720px;
-  border-left: 2px solid var(--ink);
+  position: relative;
   padding-left: 24px;
   color: var(--ink-80);
 }
+/* the 2px ink rule draws itself top-down as each row lands (the rise
+   observer's .is-in doubles as the trigger) */
+.trow__body::before {
+  content: "";
+  position: absolute; left: 0; top: 3px; bottom: 3px;
+  width: 2px;
+  background: var(--ink);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.7s var(--ease) 0.12s;
+}
+.trow.is-in .trow__body::before { transform: scaleY(1); }
 /* timeline highlights keep the brand hue — a pale tint wash, not the
-   saturated keyword highlight */
+   saturated keyword highlight. The wash arrives late, like a marker
+   run over the phrase after the row settles. */
 .twash {
-  background: var(--accent-tint);
+  background: linear-gradient(90deg, var(--accent-tint), var(--accent-tint)) no-repeat 0 0 / 0% 100%;
   padding: 1px 6px;
   border-radius: 5px;
+  transition: background-size 0.55s var(--ease) 0.55s;
+}
+.trow.is-in .twash { background-size: 100% 100%; }
+/* reduced motion: rows land pre-highlighted */
+@media (prefers-reduced-motion: reduce) {
+  .trow__body::before { transform: scaleY(1); }
+  .twash { background-size: 100% 100%; }
 }
 
 /* ============ 05 · VALUES — four editorial columns, no cards ============ */
@@ -318,6 +418,25 @@ figure { margin: 0; }
   padding-top: 48px;
 }
 .value__icon { display: block; color: var(--ink); }
+/* icons draw their own strokes on first sight — every stroke carries
+   pathLength="1", so one dash pattern serves all of them */
+.value__icon [stroke] {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.9s var(--ease) var(--vd, 0.1s);
+}
+.value.is-in .value__icon [stroke] { stroke-dashoffset: 0; }
+.value__icon [stroke]:nth-child(2) { --vd: 0.4s; }
+.value__icon [stroke]:nth-child(3) { --vd: 0.7s; }
+.value__icon [fill]:not([fill="none"]) {
+  opacity: 0;
+  transition: opacity 0.4s var(--ease) 0.8s;
+}
+.value.is-in .value__icon [fill]:not([fill="none"]) { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .value__icon [stroke] { stroke-dashoffset: 0; }
+  .value__icon [fill]:not([fill="none"]) { opacity: 1; }
+}
 .value h3 { margin: 22px 0 10px; }
 .value p { margin: 0; color: var(--ink-65); }
 
@@ -481,7 +600,8 @@ figure { margin: 0; }
 <header class="nav" id="siteNav">
   <div class="nav__bar">
     <a class="nav__logo" href="#" aria-label="AlmaConnect home">
-      <img src="@svg:almaconnect-logo" alt="AlmaConnect">
+      <img class="logo-white" src="@svg:almaconnect-logo-white" alt="AlmaConnect">
+      <img class="logo-ink" src="@svg:almaconnect-logo" alt="" aria-hidden="true">
     </a>
 
     <ul class="nav__links">
@@ -564,10 +684,13 @@ figure { margin: 0; }
 
   <!-- ============ 01 · HERO ============ -->
   <section class="ahero">
+    <div class="ahero__aurora" aria-hidden="true"></div>
+    <div class="ahero__fade" aria-hidden="true"></div>
     <div class="container">
+      <p class="ahero__eyebrow">[ ABOUT US ]</p>
       <div class="ahero__top">
         <h1 class="ahero__title">In a world that never stops moving, we keep institutions<br>
-          <span class="shine" data-text="close to their people.">close to their people.</span></h1>
+          <span class="shine shine--dark" data-text="close to their people.">close to their people.</span></h1>
         <p class="ahero__lede">Relationships outlast records. Since 2011, AlmaConnect has
           helped universities, schools, nonprofits and companies follow the lives of the
           people who once walked their halls &mdash; accurately, respectfully, at scale.</p>
@@ -577,11 +700,11 @@ figure { margin: 0; }
       <p class="t-label ahero__label">Our story &amp; people</p>
 
       <div class="ahero__cards">
-        <figure class="acard rise"><span class="acard__pill">Universities</span><img src="@img:p11" alt=""></figure>
-        <figure class="acard rise"><span class="acard__pill">Schools</span><img src="@img:p5" alt=""></figure>
-        <figure class="acard rise"><span class="acard__pill">Nonprofits</span><img src="@img:p8" alt=""></figure>
-        <figure class="acard rise"><span class="acard__pill">Foundations</span><img src="@img:p7" alt=""></figure>
-        <figure class="acard rise"><span class="acard__pill">Companies</span><img src="@img:still1" alt=""></figure>
+        <figure class="acard acard--aqua rise"><span class="acard__pill">Universities</span><img src="@img:p11" alt=""></figure>
+        <figure class="acard acard--lilac rise"><span class="acard__pill">Schools</span><img src="@img:p5" alt=""></figure>
+        <figure class="acard acard--sky rise"><span class="acard__pill">Nonprofits</span><img src="@img:p8" alt=""></figure>
+        <figure class="acard acard--peach rise"><span class="acard__pill">Foundations</span><img src="@img:p7" alt=""></figure>
+        <figure class="acard acard--aqua rise"><span class="acard__pill">Companies</span><img src="@img:still1" alt=""></figure>
       </div>
     </div>
   </section>
@@ -686,8 +809,8 @@ figure { margin: 0; }
       <div class="values__grid">
         <div class="value rise">
           <svg class="value__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="1.5"/>
-            <circle cx="16" cy="16" r="6" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="1.5" pathLength="1"/>
+            <circle cx="16" cy="16" r="6" stroke="currentColor" stroke-width="1.5" pathLength="1"/>
             <circle cx="16" cy="16" r="1.5" fill="currentColor"/>
           </svg>
           <h3 class="t-h4">Accuracy over volume</h3>
@@ -696,8 +819,8 @@ figure { margin: 0; }
         </div>
         <div class="value rise">
           <svg class="value__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <path d="M16 3.5 27 8v8c0 7-4.8 11.2-11 12.5C9.8 27.2 5 23 5 16V8l11-4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-            <path d="m11.5 16 3 3 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 3.5 27 8v8c0 7-4.8 11.2-11 12.5C9.8 27.2 5 23 5 16V8l11-4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" pathLength="1"/>
+            <path d="m11.5 16 3 3 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" pathLength="1"/>
           </svg>
           <h3 class="t-h4">Privacy by default</h3>
           <p class="t-body">Constituent data is borrowed, never owned. We collect what the
@@ -705,8 +828,8 @@ figure { margin: 0; }
         </div>
         <div class="value rise">
           <svg class="value__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <path d="M5 27c0-8 4-12 11-12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M22.5 4.5 27 9l-12 12-6 1.5L10.5 16.5l12-12Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M5 27c0-8 4-12 11-12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" pathLength="1"/>
+            <path d="M22.5 4.5 27 9l-12 12-6 1.5L10.5 16.5l12-12Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" pathLength="1"/>
           </svg>
           <h3 class="t-h4">Quiet craft</h3>
           <p class="t-body">The best tools disappear into the work. We&rsquo;d rather remove
@@ -714,9 +837,9 @@ figure { margin: 0; }
         </div>
         <div class="value rise">
           <svg class="value__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <path d="M4 27c2-9 7-14 12-16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M9 27c2-6 5.5-9.5 10-11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <circle cx="24" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M4 27c2-9 7-14 12-16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" pathLength="1"/>
+            <path d="M9 27c2-6 5.5-9.5 10-11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" pathLength="1"/>
+            <circle cx="24" cy="8" r="4" stroke="currentColor" stroke-width="1.5" pathLength="1"/>
           </svg>
           <h3 class="t-h4">The long game</h3>
           <p class="t-body">Alumni relationships compound over decades. We build &mdash; and
@@ -1070,20 +1193,40 @@ figure { margin: 0; }
     els.forEach(function (el) { io.observe(el); });
   })();
 
-  /* stat numerals sweep once, staggered, when the band scrolls in;
-     hover re-sweeps via CSS */
+  /* stat numerals count up to their value when the band scrolls in,
+     staggered, then the hue shimmer sweeps; hover re-sweeps via CSS.
+     The count starts from 40% of the target so it reads as settling,
+     not as spinning from zero. */
   (function () {
     var nums = [].slice.call(document.querySelectorAll('.shimmer-num'));
     if (!nums.length || reduced || !('IntersectionObserver' in window)) return;
+
+    function countUp(el, done) {
+      var m = /^(\d+)(.*)$/.exec(el.textContent.trim());
+      if (!m) { done(); return; }
+      var target = parseInt(m[1], 10), suffix = m[2];
+      var start = Math.round(target * 0.4), DUR = 1000, t0;
+      function tick(now) {
+        if (!t0) t0 = now;
+        var p = Math.min((now - t0) / DUR, 1);
+        p = 1 - Math.pow(1 - p, 3);            /* ease-out cubic */
+        el.textContent = Math.round(start + (target - start) * p) + suffix;
+        if (p < 1) requestAnimationFrame(tick); else done();
+      }
+      requestAnimationFrame(tick);
+    }
+
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
         io.unobserve(entry.target);
         var i = nums.indexOf(entry.target);
         setTimeout(function () {
-          entry.target.classList.add('is-sweeping');
-          setTimeout(function () { entry.target.classList.remove('is-sweeping'); }, 1300);
-        }, 200 + i * 140);
+          countUp(entry.target, function () {
+            entry.target.classList.add('is-sweeping');
+            setTimeout(function () { entry.target.classList.remove('is-sweeping'); }, 1300);
+          });
+        }, 150 + i * 120);
       });
     }, { threshold: 0.6 });
     nums.forEach(function (el) { io.observe(el); });
