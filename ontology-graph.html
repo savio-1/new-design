@@ -757,13 +757,18 @@ function setFocus(id, pushHist=true){
 
   const f=ensure(id);
   const nbs=neighbors(id);
-  nbs.forEach((nb,i)=>{
-    if(!pos[nb]){ ensure(nb);
-      // seed straight into a right-hand column so the fan opens rightward
-      // from the very first frame, rather than needing to swing over from
-      // an all-directions circle.
-      pos[nb].x=f.x+205; pos[nb].y=f.y+(i-(nbs.length-1)/2)*82;
-    }
+  // every node already has *some* pos (its background slot, or a stale fan
+  // position from whatever was focused before) — reseeding only "if(!pos[nb])"
+  // never actually fired, so newly-entering neighbors kept whatever unrelated
+  // position they last had and had to crawl into place via weak physics
+  // alone, which is what was reading as crowded/colliding with more nodes.
+  // Reseed anything actually new to this fan (including the old focus,
+  // demoted to a regular neighbor) with spacing that opens up as the
+  // neighbor count grows, so a busy node starts already breathable.
+  const entering=nbs.filter(nb=>!active.has(nb)||nb===prevFocus);
+  const vGap=Math.min(150, 62+entering.length*7);
+  entering.forEach((nb,i)=>{ ensure(nb);
+    pos[nb].x=f.x+205; pos[nb].y=f.y+(i-(entering.length-1)/2)*vGap;
   });
 
   for(const nid of Array.from(active)){
