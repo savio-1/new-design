@@ -76,6 +76,12 @@
   .halo{opacity:0;transition:opacity .2s;pointer-events:none;}
   .node.hover .halo{opacity:.5}
 
+  /* rest of the ontology: real nodes/edges, kept faded until selected */
+  .bg-chip{cursor:pointer}
+  .bg-chip .chip-rect{stroke:#2a2a2a}
+  .bg-edge{fill:none;stroke:#3a3d42;stroke-linecap:round;stroke-width:1.2;
+    stroke-dasharray:2 7;pointer-events:none;transition:opacity .3s ease;}
+
   /* ---------- chrome ---------- */
   .panel{background:rgba(28,28,28,.82);backdrop-filter:blur(9px);border:1px solid var(--panel-br);border-radius:11px;}
   .topbar{position:fixed;z-index:5;top:16px;left:16px;display:flex;align-items:center;gap:10px}
@@ -135,15 +141,20 @@
         <filter id="capGlowBlur" x="-120%" y="-200%" width="340%" height="500%">
           <feGaussianBlur stdDeviation="5.5"/>
         </filter>
+        <!-- rainbow-button-style multi-hue sweep; first/last stop match so the
+             loop has no seam as it rotates through -->
         <linearGradient id="focusGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%"  stop-color="#3b82f6"/>
-          <stop offset="45%" stop-color="#8a5cff"/>
-          <stop offset="100%" stop-color="#ff9d2e"/>
+          <stop offset="0%"   stop-color="#0d99ff"/>
+          <stop offset="25%"  stop-color="#9747ff"/>
+          <stop offset="50%"  stop-color="#e91e63"/>
+          <stop offset="75%"  stop-color="#fc9e24"/>
+          <stop offset="100%" stop-color="#0d99ff"/>
         </linearGradient>
       </defs>
       <defs id="edgeDefs"></defs>
       <g id="camera">
-        <g id="ambient"></g>
+        <g id="bgEdgeLayer"></g>
+        <g id="bgLayer"></g>
         <g id="edges"></g>
         <g id="shimmers"></g>
         <g id="pills"></g>
@@ -216,13 +227,14 @@ const LINKS = [
 const START = 'Forecast Deviation';
 /* ===================================================================== */
 
+// colors pulled directly from the Cogentiq variable-collection tokens (500/600 tier)
 const TYPE = {
-  measure:  {color:'#14ae5c', label:'Measure'},
-  forecast: {color:'#5860ed', label:'Forecast'},
-  derived:  {color:'#80caff', label:'Derived metric'},
-  account:  {color:'#f24822', label:'Account'},
-  inventory:{color:'#0d99ff', label:'Inventory'},
-  policy:   {color:'#fc9e24', label:'Policy'},
+  measure:  {color:'#14ae5c', label:'Measure'},    // Green/500
+  forecast: {color:'#5860ed', label:'Forecast'},   // Indigo/500
+  derived:  {color:'#00a2c2', label:'Derived metric'}, // Cyan/500
+  account:  {color:'#f24822', label:'Account'},    // Red/500
+  inventory:{color:'#0d99ff', label:'Inventory'},  // Blue/500
+  policy:   {color:'#fc9e24', label:'Policy'},     // Orange/600
 };
 
 // ---- adjacency -----------------------------------------------------------
@@ -251,26 +263,39 @@ const focusGradEl=document.getElementById('focusGrad');
 function applyCam(){camG.setAttribute('transform',`translate(${cam.x},${cam.y}) scale(${cam.k})`);
   document.getElementById('pct').textContent=Math.round(cam.k*100)+'%';}
 
-// ---- ambient depth field: faded miniature chips for "rest of the graph" -
-(function ambient(){
-  const g=document.getElementById('ambient');
-  let seed=7;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
-  const _mm=document.createElement('canvas').getContext('2d'); _mm.font='500 10px Geist, sans-serif';
-  for(let i=0;i<60;i++){
-    const ang=rnd()*Math.PI*2, rad=560+rnd()*1600;
-    const x=Math.cos(ang)*rad, y=Math.sin(ang)*rad*0.82;
-    const n=NODES[Math.floor(rnd()*NODES.length)];
-    const op=(0.05+rnd()*0.13).toFixed(3);
-    const w=Math.ceil(_mm.measureText(n.id).width);
-    const grp=el('g',{transform:`translate(${x},${y})`,opacity:op});
-    if(rnd()>0.55){const l=el('line',{x1:0,y1:0,x2:(rnd()-.5)*170,y2:(rnd()-.5)*170,stroke:'#3a3a3a','stroke-width':1});grp.appendChild(l);}
-    grp.appendChild(el('rect',{x:0,y:-11,width:w+24,height:22,rx:6,ry:6,fill:'#212121',stroke:'#323232','stroke-width':1}));
-    grp.appendChild(el('rect',{x:8,y:-3.5,width:7,height:7,rx:2,ry:2,fill:colorOf(n.id)}));
-    const tx=el('text',{x:21,y:0.5,fill:'#8c8c8c','font-size':10,'dominant-baseline':'middle'});
-    tx.textContent=n.id; grp.appendChild(tx);
-    g.appendChild(grp);
+// ---- full-graph layout, computed once: gives every node (not just the
+// active ego cluster) a stable slot so the un-selected rest of the
+// ontology can be shown for real, faded, instead of decorative filler.
+function computeFullLayout(){
+  const P={}; let seed=42; const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
+  for(const n of NODES){ const a=rnd()*Math.PI*2, r=110+rnd()*70; P[n.id]={x:Math.cos(a)*r,y:Math.sin(a)*r}; }
+  for(let iter=0; iter<260; iter++){
+    for(let i=0;i<NODES.length;i++)for(let j=i+1;j<NODES.length;j++){
+      const A=P[NODES[i].id],B=P[NODES[j].id];
+      let dx=A.x-B.x,dy=A.y-B.y,d2=dx*dx+dy*dy||0.01,d=Math.sqrt(d2);
+      const f=9000/d2, ux=dx/d,uy=dy/d;
+      A.x+=ux*f*0.02; A.y+=uy*f*0.02; B.x-=ux*f*0.02; B.y-=uy*f*0.02;
+    }
+    for(const [a,b] of LINKS){
+      const A=P[a],B=P[b]; if(!A||!B)continue;
+      let dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy)||0.01;
+      const f=(d-230)*0.02;
+      A.x+=dx/d*f; A.y+=dy/d*f; B.x-=dx/d*f; B.y-=dy/d*f;
+    }
+    for(const n of NODES){ const p=P[n.id]; p.x*=0.995; p.y*=0.995; }
   }
-})();
+  // push the whole arrangement out into a ring beyond the active-cluster
+  // radius, preserving each node's angle so related nodes stay together
+  for(const n of NODES){
+    const p=P[n.id], r=Math.hypot(p.x,p.y)||1, ang=Math.atan2(p.y,p.x);
+    const newR=540+r*1.5;
+    p.x=Math.cos(ang)*newR; p.y=Math.sin(ang)*newR*0.85;
+  }
+  return P;
+}
+const FULLPOS = computeFullLayout();
+const bgEls={};
+const BG_OPACITY=0.32, BG_DIM=0.07;
 
 // ---- physics state -------------------------------------------------------
 const pos={};                 // id -> {x,y,vx,vy}
@@ -280,6 +305,7 @@ function ensure(id, near){
   pos[id]={x:(near?near.x:0)+Math.cos(a)*r, y:(near?near.y:0)+Math.sin(a)*r, vx:0, vy:0};
   return pos[id];
 }
+for(const n of NODES) pos[n.id]={x:FULLPOS[n.id].x, y:FULLPOS[n.id].y, vx:0, vy:0};
 pos[START]={x:0,y:0,vx:0,vy:0};
 
 let focusId=START;
@@ -310,12 +336,54 @@ function setFocus(id, pushHist=true){
     if(!want.has(nid)){
       const rec=nodeEls[nid]; if(rec){rec.g.style.opacity=0; const gg=rec.g; setTimeout(()=>gg.remove(),350);}
       delete nodeEls[nid]; active.delete(nid);
+      pos[nid]={x:FULLPOS[nid].x, y:FULLPOS[nid].y, vx:0, vy:0}; // return to its background slot
     }
   }
   for(const nid of want){ createNode(nid); active.add(nid); } // rebuild all (chip<->avatar swap on focus change)
 
   buildEdges();
+  renderBackground();
   updateChrome();
+}
+
+// ---- background layer: the rest of the real ontology, faded ------------
+function renderBackground(){
+  const layer=document.getElementById('bgLayer');
+  const edgeLayer=document.getElementById('bgEdgeLayer');
+  layer.innerHTML=''; edgeLayer.innerHTML='';
+  for(const k in bgEls) delete bgEls[k];
+
+  const bgIds=NODES.map(n=>n.id).filter(id=>!active.has(id));
+  const bgSet=new Set(bgIds);
+  const seen=new Set();
+  for(const a of bgIds){
+    for(const b of neighbors(a)){
+      if(!bgSet.has(b))continue;
+      const key=a<b?a+'|'+b:b+'|'+a; if(seen.has(key))continue; seen.add(key);
+      const A=FULLPOS[a],B=FULLPOS[b];
+      edgeLayer.appendChild(el('line',{class:'bg-edge',x1:A.x,y1:A.y,x2:B.x,y2:B.y}));
+    }
+  }
+
+  const _mm=document.createElement('canvas').getContext('2d'); _mm.font='500 11px Geist, sans-serif';
+  for(const id of bgIds){
+    const P=FULLPOS[id];
+    const color=colorOf(id);
+    const w=Math.ceil(_mm.measureText(id).width);
+    const g=el('g',{class:'node bg-chip'}); g.dataset.id=id;
+    g.setAttribute('transform',`translate(${P.x},${P.y})`);
+    const rect=el('rect',{class:'chip-rect', x:0, y:-13, height:26, width:w+26});
+    g.appendChild(rect);
+    g.appendChild(el('rect',{class:'chip-sq', x:8, y:-3.5, width:7, height:7, fill:color}));
+    const label=el('text',{x:21, y:1}); label.textContent=id;
+    g.appendChild(label);
+    g.addEventListener('pointerenter',()=>setHover(id));
+    g.addEventListener('pointerleave',()=>setHover(null));
+    g.addEventListener('pointerdown',e=>{e.stopPropagation(); setFocus(id);});
+    layer.appendChild(g);
+    bgEls[id]={g, label, chipRect:rect};
+  }
+  applyDim();
 }
 
 function createNode(id){
@@ -406,19 +474,26 @@ function buildEdges(){
 
 // ---- hover highlight + definition card -----------------------------------
 const tip=document.getElementById('tip');
-function setHover(id){
-  hoverId=id;
-  document.getElementById('stat').textContent = id ? '— '+ (relCount(id)) : '— explore';
-  for(const nid in nodeEls){
-    const g=nodeEls[nid].g;
-    g.classList.toggle('hover', nid===id);
-  }
+function applyDim(){
+  const id=hoverId;
   const connected = id ? new Set([id,...neighbors(id)]) : null;
   for(const nid in nodeEls){
     const g=nodeEls[nid].g;
+    g.classList.toggle('hover', nid===id);
     if(!id){ g.style.opacity=1; }
     else g.style.opacity = connected.has(nid)?1:0.28;
   }
+  for(const nid in bgEls){
+    const g=bgEls[nid].g;
+    g.classList.toggle('hover', nid===id);
+    if(!id){ g.style.opacity=BG_OPACITY; }
+    else g.style.opacity = connected.has(nid)?1:BG_DIM;
+  }
+}
+function setHover(id){
+  hoverId=id;
+  document.getElementById('stat').textContent = id ? '— '+ (relCount(id)) : '— explore';
+  applyDim();
   // definition card
   if(id && byId[id].def){
     const t=TYPE[byId[id].type]||{};
