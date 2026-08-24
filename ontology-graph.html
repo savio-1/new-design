@@ -680,31 +680,45 @@ function applyCam(){camG.setAttribute('transform',`translate(${cam.x},${cam.y}) 
 // ontology can be shown for real, faded, instead of decorative filler.
 function computeFullLayout(){
   const P={}; let seed=42; const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
-  for(const n of NODES){ const a=rnd()*Math.PI*2, r=110+rnd()*70; P[n.id]={x:Math.cos(a)*r,y:Math.sin(a)*r}; }
-  // tuned for ~115 nodes (up from the ~8-node seed set): stronger repulsion,
-  // a longer rest link-length, and more iterations so a graph this size has
-  // room to settle without nodes/labels piling on top of each other.
-  for(let iter=0; iter<420; iter++){
+
+  // per-node footprint, sized off its actual label — this is what keeps
+  // long labels from visually colliding, not just point-repulsion
+  const _mm=document.createElement('canvas').getContext('2d'); _mm.font='500 12px Geist, sans-serif';
+  const SIZE={};
+  for(const n of NODES) SIZE[n.id]=Math.max(34, _mm.measureText(n.id).width/2+18);
+
+  // seed spread out across an area proportional to node count, so the
+  // simulation starts near its resting scale instead of uncrushing a ball
+  const spread=90*Math.sqrt(NODES.length);
+  for(const n of NODES){ const a=rnd()*Math.PI*2, r=spread*(0.3+rnd()*0.7); P[n.id]={x:Math.cos(a)*r,y:Math.sin(a)*r}; }
+
+  const LINK_LEN=170;
+  for(let iter=0; iter<500; iter++){
+    // soft-collision on each pair's real footprint (not a uniform point
+    // radius) — this is what makes the rest-of-graph layer read as evenly
+    // spaced, like the reference, instead of crowding wherever labels are long
     for(let i=0;i<NODES.length;i++)for(let j=i+1;j<NODES.length;j++){
-      const A=P[NODES[i].id],B=P[NODES[j].id];
-      let dx=A.x-B.x,dy=A.y-B.y,d2=dx*dx+dy*dy||0.01,d=Math.sqrt(d2);
-      const f=26000/d2, ux=dx/d,uy=dy/d;
-      A.x+=ux*f*0.02; A.y+=uy*f*0.02; B.x-=ux*f*0.02; B.y-=uy*f*0.02;
+      const idA=NODES[i].id, idB=NODES[j].id, A=P[idA], B=P[idB];
+      let dx=A.x-B.x,dy=A.y-B.y,d=Math.hypot(dx,dy)||0.01;
+      const minD=SIZE[idA]+SIZE[idB]+22;
+      if(d<minD){ const push=(minD-d)/d*0.5; A.x+=dx*push; A.y+=dy*push; B.x-=dx*push; B.y-=dy*push; }
     }
     for(const [a,b] of LINKS){
       const A=P[a],B=P[b]; if(!A||!B)continue;
       let dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy)||0.01;
-      const f=(d-260)*0.02;
+      const f=(d-LINK_LEN)*0.012;
       A.x+=dx/d*f; A.y+=dy/d*f; B.x-=dx/d*f; B.y-=dy/d*f;
     }
-    for(const n of NODES){ const p=P[n.id]; p.x*=0.995; p.y*=0.995; }
+    for(const n of NODES){ const p=P[n.id]; p.x*=0.998; p.y*=0.998; }
   }
-  // push the whole arrangement out just beyond the active-cluster radius,
-  // preserving each node's angle so related nodes stay together
+  // keep the layout clear of the active cluster's own footprint: only nodes
+  // that landed inside that radius get pushed just outside it (angle kept),
+  // rather than compressing the whole graph into a ring like before — every
+  // node further out keeps the even spacing the collision pass just gave it
+  const CLEAR_R=420;
   for(const n of NODES){
-    const p=P[n.id], r=Math.hypot(p.x,p.y)||1, ang=Math.atan2(p.y,p.x);
-    const newR=340+r*0.85;
-    p.x=Math.cos(ang)*newR; p.y=Math.sin(ang)*newR*0.85;
+    const p=P[n.id], r=Math.hypot(p.x,p.y)||1;
+    if(r<CLEAR_R){ const ang=Math.atan2(p.y,p.x); p.x=Math.cos(ang)*CLEAR_R; p.y=Math.sin(ang)*CLEAR_R*0.85; }
   }
   return P;
 }
