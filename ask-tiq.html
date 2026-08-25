@@ -517,7 +517,7 @@ svg{display:block}
 .tiq-body::-webkit-scrollbar-track{background:transparent}
 
 /* ── empty state ─────────────────────────────────────────────── */
-.empty{display:flex;flex-direction:column;justify-content:center;min-height:100%}
+.empty{display:flex;flex-direction:column;justify-content:flex-end;min-height:100%;padding-bottom:28px}
 .empty.gone{display:none}
 .hero{
   flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -530,8 +530,11 @@ svg{display:block}
   animation:drawGlyph 1.5s var(--ease) .12s forwards;
 }
 @keyframes drawGlyph{to{stroke-dashoffset:0}}
-/* spin, ease to a stop, hold, repeat — timing lives on the keyframe stops themselves */
-.mark-spin{animation:spinPause 5s infinite}
+/* spin, ease to a stop, hold, repeat — timing lives on the keyframe stops themselves.
+   origin sits at the glyph's stroke-weighted visual centroid (measured via
+   getPointAtLength sampling), not the geometric bbox center — the mark reads
+   bottom-heavy at rest, so a pure-center pivot looked like it hinged above middle. */
+.mark-spin{animation:spinPause 5s infinite;transform-origin:50% 56.7%}
 @keyframes spinPause{
   0%   { transform:rotate(0deg);   animation-timing-function:cubic-bezier(.16,1,.3,1); }
   44%  { transform:rotate(360deg); animation-timing-function:linear; }
@@ -541,11 +544,16 @@ svg{display:block}
   margin-top:16px;
   font-size:var(--fs-body-2);line-height:var(--lh-body-2);letter-spacing:-0.16px;
   font-weight:500;color:var(--text-four);
+  opacity:0;filter:blur(6px);transform:translateY(6px);
+  animation:heroFadeBlur .6s var(--ease) .12s both;
 }
 .hero-greet{
   margin-top:3px;text-align:center;white-space:nowrap;
   font-size:24px;line-height:32px;letter-spacing:-0.96px;font-weight:400;
+  opacity:0;filter:blur(8px);transform:translateY(8px);
+  animation:heroFadeBlur .65s var(--ease) .22s both;
 }
+@keyframes heroFadeBlur{to{opacity:1;filter:blur(0);transform:none}}
 .hero-greet .grad{
   background:linear-gradient(96deg,#0d99ff,#5860ed 32%,#f24822 62%,#ffca28 88%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
@@ -562,8 +570,8 @@ svg{display:block}
 .sg{
   display:flex;align-items:center;gap:10px;width:100%;padding:6px 8px;border-radius:10px;
   text-align:left;border:1px solid transparent;
-  opacity:0;transform:translateY(10px);
-  animation:sgIn .5s var(--spring) forwards;
+  opacity:0;transform:translateY(16px);
+  animation:sgIn .55s var(--spring) forwards;
   transition:background .18s var(--ease),border-color .18s var(--ease),transform .18s var(--spring)
 }
 @keyframes sgIn{to{opacity:1;transform:none}}
@@ -1361,7 +1369,7 @@ function renderSuggestions(){
   SUGGESTIONS.forEach((s, i) => {
     const b = document.createElement('button');
     b.className = 'sg';
-    b.style.animationDelay = (0.18 + i * 0.07) + 's';
+    b.style.animationDelay = (0.34 + i * 0.07) + 's';
     b.innerHTML = `<span class="sg-ico">${ico(s.icon, 16)}</span>
                    <span class="sg-txt">${s.text}</span>
                    <span class="sg-arrow">${ico('up', 14)}</span>`;
@@ -1370,12 +1378,27 @@ function renderSuggestions(){
   });
 }
 
+/* replay a CSS entrance animation on an element that's already in the DOM
+   (a fresh keyframe only auto-plays once, on first paint) */
+function replayAnim(el){
+  if (!el) return;
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
+}
+function replayHeroEntrance(){
+  replayAnim($('.hero-eyebrow'));
+  replayAnim($('.hero-greet'));
+  renderSuggestions();
+}
+
 /* ══════════════════════════════════════════════════════════════════
    PANEL OPEN / CLOSE / EXPAND
    ══════════════════════════════════════════════════════════════════ */
 
 function openPanel(){
   frame.classList.add('panel-open');
+  if (thread.classList.contains('hidden')) replayHeroEntrance();
   setTimeout(() => ta.focus(), 320);
 }
 function closePanel(){
@@ -1396,7 +1419,7 @@ $('#newChat').addEventListener('click', () => {
   thread.innerHTML = '';
   thread.classList.add('hidden');
   emptyEl.classList.remove('gone');
-  renderSuggestions();
+  replayHeroEntrance();
   bodyEl.scrollTop = 0;
   ta.value = ''; sync();
   toast(ico('newchat', 15, '#8c8c8c'), 'Started a new chat', 'context kept');
@@ -1429,8 +1452,8 @@ sendBtn.addEventListener('click', () => busy ? null : submit(ta.value));
 /* model popover */
 const modelPop = $('#modelPop');
 $('#modelBtn').addEventListener('click', e => { e.stopPropagation(); modelPop.classList.toggle('open'); });
-$$('.pop-i').forEach(b => b.addEventListener('click', () => {
-  $$('.pop-i').forEach(x => x.classList.remove('on'));
+$$('.pop-i', modelPop).forEach(b => b.addEventListener('click', () => {
+  $$('.pop-i', modelPop).forEach(x => x.classList.remove('on'));
   b.classList.add('on');
   $('#modelName').textContent = b.dataset.model;
   modelPop.classList.remove('open');
@@ -2154,19 +2177,18 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     frame.classList.contains('panel-open') ? closePanel() : openPanel();
   }
-  if (e.key === 'Escape' && frame.classList.contains('panel-open')){
+  if (e.key === 'Escape'){
     if (menu.classList.contains('open')) closeMenu();
     else if (modelPop.classList.contains('open')) modelPop.classList.remove('open');
-    else closePanel();
-  }
-  if (e.key === 'Escape'){
-    if (addNodeMenu.classList.contains('open')){
+    else if (addNodeMenu.classList.contains('open')){
       addNodeMenu.classList.remove('open');
       addNodeBtn.classList.remove('open');
     } else if (zoomMenu.classList.contains('open')){
       zoomMenu.classList.remove('open');
     } else if (frame.classList.contains('agent-open')){
       closeAgentPanel();
+    } else if (frame.classList.contains('panel-open')){
+      closePanel();
     }
   }
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
