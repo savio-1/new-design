@@ -147,15 +147,16 @@ svg{display:block}
 .canvas{
   position:absolute;top:48px;right:0;bottom:0;left:0;overflow:hidden;
   transition:left .52s var(--ease),right .52s var(--ease);
+  cursor:grab;
 }
+.canvas.panning{cursor:grabbing}
 .frame.panel-open .canvas{left:var(--dock,380px)}
 .frame.panel-expanded .canvas{left:var(--dock-wide,560px)}
 .frame.agent-open .canvas{right:var(--agent-dock,360px)}
 .dots{
-  position:absolute;inset:-240px;
+  position:absolute;inset:-2000px;
   background-image:radial-gradient(circle, var(--canvas-dots) 1.1px, transparent 1.2px);
   background-size:16px 16px;
-  transition:transform .9s var(--ease);
   will-change:transform;
 }
 /* soft indigo bloom that wakes up while Tiq is working */
@@ -166,7 +167,7 @@ svg{display:block}
 }
 .frame.tiq-working .canvas-bloom{opacity:1}
 
-.stage{position:absolute;inset:0}
+.stage{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
 
 .wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 /* connector: a straight grey line from the middle of one node to the middle of the next,
@@ -260,6 +261,7 @@ svg{display:block}
 .bb-add:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(13,153,255,.4)}
 .bb-add:active,.bb-add.open{transform:scale(.9)}
 .bb-add-wrap{position:relative}
+.bb-zoom-wrap{position:relative}
 .bb-div{width:1px;height:20px;background:var(--line-2);flex:none}
 
 /* ── add-node popover · Figma 2:29202 (Backgrounds/Card/bg-4 container, bg-5 rows) ── */
@@ -818,6 +820,9 @@ svg{display:block}
 .pop-i .ds{font-size:11px;line-height:15px;color:var(--text-four);margin-top:1px}
 .pop-i .ck{margin-left:auto;color:var(--blue-500);opacity:0}
 .pop-i.on .ck{opacity:1}
+.pop-i .k{margin-left:auto;padding-left:10px;font-family:var(--mono);font-size:11px;color:var(--text-four)}
+.pop-left{left:0;right:auto}
+.pop-sep{height:1px;background:var(--line-3);margin:5px 4px}
 
 /* ── toast ───────────────────────────────────────────────────── */
 .toast{
@@ -980,7 +985,7 @@ svg{display:block}
       </div>
 
       <!-- Agent node · Figma 27:80342 -->
-      <div class="node node-group" style="left:563px;top:228px">
+      <div class="node node-group" style="left:563px;top:195px">
         <span class="badge-agent"><svg width="16" height="16" style="color:#5860ed"><use href="#i-agent"/></svg>Agent</span>
         <div class="card-node" id="cardStatic">
           <div style="display:flex;flex-direction:column;gap:4px">
@@ -1017,7 +1022,21 @@ svg{display:block}
       </div>
     </div>
     <span class="bb-div"></span>
-    <button class="bb-zoom"><svg width="20" height="20" style="color:#757575"><use href="#i-search"/></svg>100%<svg width="16" height="16" style="color:#757575"><use href="#i-chev-down"/></svg></button>
+    <div class="bb-zoom-wrap">
+      <button class="bb-zoom" id="zoomBtn"><svg width="20" height="20" style="color:#757575"><use href="#i-search"/></svg><span id="zoomLabel">100%</span><svg width="16" height="16" style="color:#757575"><use href="#i-chev-down"/></svg></button>
+      <div class="pop pop-left" id="zoomMenu">
+        <button class="pop-i" data-act="in"><span class="nm">Zoom in</span><span class="k">⌘+</span></button>
+        <button class="pop-i" data-act="out"><span class="nm">Zoom out</span><span class="k">⌘−</span></button>
+        <button class="pop-i" data-act="fit"><span class="nm">Zoom to fit</span><span class="k">⇧1</span></button>
+        <div class="pop-sep"></div>
+        <button class="pop-i" data-pct="50"><span class="nm">50%</span><span class="ck"><svg width="14" height="14"><use href="#i-check"/></svg></span></button>
+        <button class="pop-i" data-pct="75"><span class="nm">75%</span><span class="ck"><svg width="14" height="14"><use href="#i-check"/></svg></span></button>
+        <button class="pop-i on" data-pct="100"><span class="nm">100%</span><span class="ck"><svg width="14" height="14"><use href="#i-check"/></svg></span></button>
+        <button class="pop-i" data-pct="125"><span class="nm">125%</span><span class="ck"><svg width="14" height="14"><use href="#i-check"/></svg></span></button>
+        <button class="pop-i" data-pct="150"><span class="nm">150%</span><span class="ck"><svg width="14" height="14"><use href="#i-check"/></svg></span></button>
+        <button class="pop-i" data-pct="200"><span class="nm">200%</span><span class="ck"><svg width="14" height="14"><use href="#i-check"/></svg></span></button>
+      </div>
+    </div>
     <span class="bb-div"></span>
     <button class="bb-btn"><svg width="20" height="20" style="color:#757575"><use href="#i-notes"/></svg>Notes</button>
     <span class="bb-div"></span>
@@ -1185,6 +1204,8 @@ const composer = $('#composer');
 const sendBtn  = $('#send');
 const menu     = $('#menu');
 const toastEl  = $('#toast');
+const stageEl  = $('#stage');
+const dotsEl   = $('#dots');
 
 let busy = false;
 let builtCount = 0;
@@ -1197,8 +1218,12 @@ let lastAnchorEl = null;
 function connectArrow(fromEl, toEl){
   const stageBox = $('#stage').getBoundingClientRect();
   const f = fromEl.getBoundingClientRect(), t = toEl.getBoundingClientRect();
-  const a = { x: f.left + f.width / 2 - stageBox.left, y: f.bottom - stageBox.top };
-  const b = { x: t.left + t.width / 2 - stageBox.left, y: t.top  - stageBox.top };
+  /* getBoundingClientRect is in post-zoom screen pixels, but the path this
+     draws lives inside #stage and gets the same transform applied again —
+     divide out the current zoom so coordinates land in stage-local units */
+  const z = (typeof zoomLevel === 'number' && zoomLevel) || 1;
+  const a = { x: (f.left + f.width / 2 - stageBox.left) / z, y: (f.bottom - stageBox.top) / z };
+  const b = { x: (t.left + t.width / 2 - stageBox.left) / z, y: (t.top  - stageBox.top) / z };
 
   const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
   const inset = 7; // leaves room for the chevron marker so it isn't buried in the node
@@ -1735,7 +1760,7 @@ function metaChipsHTML(apps, counts){
 
 function addToCanvas(spec){
   const slot = $('#builtSlot');
-  const top  = 438 + builtCount * 210;
+  const top  = 376 + builtCount * 181;
   builtCount++;
 
   const isTool = spec.badge === 'Tool';
@@ -1786,7 +1811,7 @@ function addTypedNode(type){
   const t = TYPED_NODES[type];
   if (!t) return;
   const slot = $('#builtSlot');
-  const top  = 438 + builtCount * 210;
+  const top  = 376 + builtCount * 181;
   builtCount++;
 
   const node = document.createElement('div');
@@ -1966,6 +1991,112 @@ canvasEl.addEventListener('drop', e => {
   placeAgent(id);
 });
 
+/* ══════════════════════════════════════════════════════════════════
+   CANVAS PAN & ZOOM
+   ══════════════════════════════════════════════════════════════════ */
+
+const ZOOM_MIN = 0.25, ZOOM_MAX = 2, ZOOM_STEP = 0.1;
+let panX = 0, panY = 0, zoomLevel = 1;
+
+const zoomBtn   = $('#zoomBtn');
+const zoomMenu  = $('#zoomMenu');
+const zoomLabel = $('#zoomLabel');
+
+function applyView(smooth){
+  const t = smooth ? 'transform .22s var(--spring)' : 'none';
+  stageEl.style.transition = t;
+  dotsEl.style.transition  = t;
+  stageEl.style.transform = `translate(${panX}px,${panY}px) scale(${zoomLevel})`;
+  dotsEl.style.transform  = `translate(${panX}px,${panY}px) scale(${zoomLevel})`;
+  zoomLabel.textContent = Math.round(zoomLevel * 100) + '%';
+  $$('.pop-i[data-pct]', zoomMenu).forEach(b =>
+    b.classList.toggle('on', Math.round(zoomLevel * 100) === +b.dataset.pct));
+}
+
+function setZoom(next, anchorX, anchorY){
+  const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+  if (anchorX != null){
+    /* keep the point under the anchor (cursor, or canvas center) stationary */
+    const rect = canvasEl.getBoundingClientRect();
+    const cx = anchorX - rect.left, cy = anchorY - rect.top;
+    const stageX = (cx - panX) / zoomLevel, stageY = (cy - panY) / zoomLevel;
+    panX = cx - stageX * clamped;
+    panY = cy - stageY * clamped;
+  }
+  zoomLevel = clamped;
+  applyView(true);
+}
+
+function zoomByStep(dir){
+  const rect = canvasEl.getBoundingClientRect();
+  setZoom(zoomLevel + dir * ZOOM_STEP, rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+
+function zoomToFit(){
+  const nodes = $$('.node', stageEl);
+  if (!nodes.length) return;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    const left = parseFloat(n.style.left) || 0, top = parseFloat(n.style.top) || 0;
+    minX = Math.min(minX, left); minY = Math.min(minY, top);
+    maxX = Math.max(maxX, left + n.offsetWidth); maxY = Math.max(maxY, top + n.offsetHeight);
+  });
+  const pad = 70;
+  const rect = canvasEl.getBoundingClientRect();
+  const fit = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN,
+    Math.min(rect.width / (maxX - minX + pad * 2), rect.height / (maxY - minY + pad * 2))));
+  zoomLevel = fit;
+  panX = rect.width / 2 - (minX + maxX) / 2 * fit;
+  panY = rect.height / 2 - (minY + maxY) / 2 * fit;
+  applyView(true);
+}
+
+/* click-drag anywhere on the canvas to pan around */
+let panning = false, panPointerX = 0, panPointerY = 0, panBaseX = 0, panBaseY = 0;
+canvasEl.addEventListener('mousedown', e => {
+  if (e.button !== 0 || e.target.closest('.bottombar, .toast, .addnode-menu, .pop')) return;
+  panning = true;
+  panPointerX = e.clientX; panPointerY = e.clientY;
+  panBaseX = panX; panBaseY = panY;
+  canvasEl.classList.add('panning');
+  stageEl.style.transition = 'none';
+  dotsEl.style.transition  = 'none';
+});
+window.addEventListener('mousemove', e => {
+  if (!panning) return;
+  panX = panBaseX + (e.clientX - panPointerX);
+  panY = panBaseY + (e.clientY - panPointerY);
+  stageEl.style.transform = `translate(${panX}px,${panY}px) scale(${zoomLevel})`;
+  dotsEl.style.transform  = `translate(${panX}px,${panY}px) scale(${zoomLevel})`;
+});
+window.addEventListener('mouseup', () => {
+  if (!panning) return;
+  panning = false;
+  canvasEl.classList.remove('panning');
+});
+
+/* wheel to zoom, centered on the cursor */
+canvasEl.addEventListener('wheel', e => {
+  e.preventDefault();
+  setZoom(zoomLevel + (e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP), e.clientX, e.clientY);
+}, { passive: false });
+
+/* the zoom dropdown */
+zoomBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  zoomMenu.classList.toggle('open');
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.bb-zoom-wrap')) zoomMenu.classList.remove('open');
+});
+$$('.pop-i', zoomMenu).forEach(btn => btn.addEventListener('click', () => {
+  zoomMenu.classList.remove('open');
+  if (btn.dataset.act === 'in') zoomByStep(1);
+  else if (btn.dataset.act === 'out') zoomByStep(-1);
+  else if (btn.dataset.act === 'fit') zoomToFit();
+  else if (btn.dataset.pct) setZoom(+btn.dataset.pct / 100);
+}));
+
 /* create-agent inline form */
 function closeAgentForm(){
   $('#agentForm').hidden = true;
@@ -2015,24 +2146,8 @@ function toast(iconHtml, title, note){
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   AMBIENT + SHORTCUTS
+   SHORTCUTS
    ══════════════════════════════════════════════════════════════════ */
-
-if (!reduced){
-  let rx = 0, ry = 0, tx = 0, ty = 0, raf = 0;
-  frame.addEventListener('mousemove', e => {
-    const r = frame.getBoundingClientRect();
-    tx = ((e.clientX - r.left) / r.width  - .5) * -16;
-    ty = ((e.clientY - r.top)  / r.height - .5) * -12;
-    if (!raf) raf = requestAnimationFrame(drift);
-  });
-  const dots = $('#dots');
-  function drift(){
-    rx += (tx - rx) * .06; ry += (ty - ry) * .06;
-    dots.style.transform = `translate(${rx.toFixed(2)}px, ${ry.toFixed(2)}px)`;
-    raf = (Math.abs(tx - rx) > .1 || Math.abs(ty - ry) > .1) ? requestAnimationFrame(drift) : 0;
-  }
-}
 
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k'){
@@ -2048,10 +2163,17 @@ document.addEventListener('keydown', e => {
     if (addNodeMenu.classList.contains('open')){
       addNodeMenu.classList.remove('open');
       addNodeBtn.classList.remove('open');
+    } else if (zoomMenu.classList.contains('open')){
+      zoomMenu.classList.remove('open');
     } else if (frame.classList.contains('agent-open')){
       closeAgentPanel();
     }
   }
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
+  if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')){ e.preventDefault(); zoomByStep(1); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '-'){ e.preventDefault(); zoomByStep(-1); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '0'){ e.preventDefault(); zoomLevel = 1; panX = 0; panY = 0; applyView(true); }
+  if (!typing && e.shiftKey && e.key === '1' && !e.metaKey && !e.ctrlKey){ e.preventDefault(); zoomToFit(); }
 });
 
 /* ══════════════════════════════════════════════════════════════════
@@ -2059,6 +2181,7 @@ document.addEventListener('keydown', e => {
    ══════════════════════════════════════════════════════════════════ */
 renderSuggestions();
 sync();
+applyView(false);
 setTimeout(openPanel, reduced ? 0 : 620);
 
 requestAnimationFrame(() => requestAnimationFrame(() => {
