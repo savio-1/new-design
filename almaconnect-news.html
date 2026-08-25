@@ -1091,16 +1091,17 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   .mega__feature { width: 100%; }
 }
 
-/* ============================================================ HERO */
-.hero { position: relative; padding-top: var(--nav-h); background: var(--ground); }
-.hero__grid {
-  /* 704px carries the display headline's longest line (670px measured at
-     87.84px Geist 350 / -4%); the art panel takes the remaining 536px */
-  display: grid; grid-template-columns: minmax(0, 704px) minmax(0, 1fr);
-  gap: 48px; align-items: center;
-  /* padding-block, never the shorthand: `padding` here would reset the
-     .container's padding-inline and run the hero to the window edge */
-  padding-block: clamp(56px, 9vh, 104px) 128px;
+/* ============================================================ HERO
+   The globe is the thesis: AlmaConnect News finds your people wherever
+   they are, so the hero shows the whole world with verified results
+   surfacing on it. Copy sits top-left; the globe is anchored bottom-right
+   and bleeds off the bottom edge, masked into the cream ground. */
+.hero { position: relative; overflow: hidden; background: var(--ground); padding-top: var(--nav-h); }
+.hero__stage { position: relative; min-height: clamp(600px, 80vh, 840px); }
+.hero__copy {
+  position: relative; z-index: 3;
+  padding-block: clamp(48px, 7vh, 96px) 0;
+  max-width: 704px;
 }
 /* .shine is an inline-block, so it never splits across lines — the copy
    before it wraps freely and the shimmering phrase lands whole on its
@@ -1110,12 +1111,74 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   margin: 28px 0 0;
   font-family: var(--font-body); font-size: 20px; line-height: 24px;
   letter-spacing: -0.03em; font-weight: 400; color: var(--ink-80);
-  max-width: 520px;
+  max-width: 496px;
 }
 .hero__cta { margin-top: 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-.hero .art { min-height: 480px; }
-/* the verified result card — the product in one image */
-.hero__card { width: min(430px, 100%); margin-inline: auto; }
+
+/* ---- the globe ---- */
+.hero__globe {
+  position: absolute; z-index: 1;
+  right: -11%; bottom: -24%;
+  width: min(760px, 62vw); aspect-ratio: 1 / 1;
+  /* the fade is a mask on the canvas itself, not an overlay: an overlay
+     would sit above the canvas and swallow the drag */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, rgba(0,0,0,0.5) 60%, transparent 74%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, rgba(0,0,0,0.5) 60%, transparent 74%);
+  touch-action: pan-y;               /* vertical scroll still belongs to the page */
+  cursor: grab;
+}
+.hero__globe.is-dragging { cursor: grabbing; }
+.hero__globe canvas { display: block; width: 100%; height: 100%; }
+.hero__globe:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 12px; }
+
+/* the label that rides the active marker — a result card in miniature */
+.gtag {
+  position: absolute; z-index: 4; top: 0; left: 0;
+  width: 268px; padding: 13px 15px;
+  background: rgba(255, 255, 255, 0.93);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline); border-radius: var(--r-card);
+  box-shadow: 0 18px 40px rgba(4, 48, 43, 0.14);
+  opacity: 0; translate: 0 6px;
+  transition: opacity 0.4s var(--ease), translate 0.4s var(--ease);
+  pointer-events: none;              /* the globe underneath keeps the drag */
+}
+.gtag.is-on { opacity: 1; translate: 0 0; }
+/* At and below the 1160px stacking breakpoint the globe sits behind the
+   copy, so a card that tracks its marker lands on top of the CTA. Pinned to
+   the foot of the stage it keeps the content without colliding. */
+.gtag.is-pinned { left: 0; top: auto; bottom: 10px; width: min(320px, 100%); transform: none !important; }
+.gtag__who { display: flex; align-items: baseline; gap: 8px; }
+.gtag__name { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink); }
+.gtag__place { font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-45); }
+.gtag__news { margin: 6px 0 0; font-family: var(--font-body); font-size: 14px; line-height: 1.4; letter-spacing: -0.03em; color: var(--ink-65); }
+.gtag__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.gtag__cat { font-family: var(--font-display); font-size: 14px; letter-spacing: -0.03em; color: var(--on-aqua); background: var(--tint-aqua); border-radius: var(--r-pill); padding: 3px 9px; }
+.gtag__conf { font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-45); }
+
+/* a hint that the thing is grabbable, faded once the user has dragged */
+.hero__hint {
+  position: absolute; z-index: 4; right: 4px; bottom: 4px;
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em;
+  color: var(--ink-45);
+  opacity: 1; transition: opacity 0.5s var(--ease);
+}
+.hero__stage.has-dragged .hero__hint { opacity: 0; }
+
+@media (max-width: 1160px) {
+  .hero__stage { min-height: 0; }
+  .hero__copy { padding-bottom: calc(min(700px, 92vw) + 56px); }
+  .hero__globe { right: -14%; bottom: 28px; width: min(700px, 92vw); }
+  .hero__sub { max-width: 560px; }
+}
+@media (max-width: 620px) {
+  .hero__copy { padding-bottom: calc(108vw + 52px); }
+  .hero__globe { right: -24%; bottom: 28px; width: 108vw; }
+  .hero__hint { display: none; }
+}
+
+/* the verified result card — used by the result-anatomy section */
 .rescard { background: #fff; border-radius: 12px; box-shadow: 0 20px 44px rgba(4, 48, 43, 0.2); padding: 20px 22px 16px; }
 .rescard__tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rescard__src { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-45); }
@@ -1130,7 +1193,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 .rescard__who { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hairline); }
 .rescard__route { margin-left: auto; text-align: right; font-family: var(--font-body); font-size: 12px; line-height: 1.4; letter-spacing: -0.03em; color: var(--ink-45); }
 .rescard__route b { display: block; font-weight: 600; color: var(--ink); }
-.hero__dedup { margin-top: 12px; display: flex; justify-content: center; }
 
 /* ============================================================ TRUSTED */
 .trusted { background: var(--ground); padding: 8px 0 96px; }
@@ -1706,8 +1768,8 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
 <!-- ============================================================ 01 HERO -->
 <section class="hero">
-  <div class="container hero__grid">
-    <div>
+  <div class="container hero__stage" id="heroStage">
+    <div class="hero__copy">
       <h1 class="t-display">Prospect monitoring for advancement and <span class="shine" data-text="fundraising teams.">fundraising teams.</span></h1>
       <p class="hero__sub">AlmaConnect News watches 400,000+ news and public-data sources for the people in your constituent database, verifies every match, and alerts the gift officer who owns the relationship — usually within 24 to 48 hours of publication.</p>
       <div class="hero__cta">
@@ -1716,32 +1778,27 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       </div>
     </div>
 
-    <div class="art art--aqua rise">
-      <span class="art__wash" aria-hidden="true"></span>
-      <span class="art__grain" aria-hidden="true"></span>
-      <div class="art__stage hero__card">
-        <article class="rescard">
-          <div class="rescard__tags">
-            <span class="pill">Job changes</span>
-            <span class="pill">High confidence</span>
-          </div>
-          <p class="rescard__src"><b>Portland Business Journal</b> · 14 hours ago</p>
-          <h3>Meridian Health names Sarah Okafor as its next chief executive</h3>
-          <p class="rescard__sent">&ldquo;…succeeding retiring CEO Alan Wu. <mark>Okafor, who earned her MBA in 2004, has served as Meridian&rsquo;s chief operating officer since 2019</mark> and will assume the role in January…&rdquo;</p>
-          <div class="rescard__who">
-            <span class="mk__ava">SO</span>
-            <span class="mk__txt">
-              <span class="mk__who">Sarah Okafor</span>
-              <span class="mk__what">Your ID 88-04231 · MBA &rsquo;04</span>
-            </span>
-            <span class="rescard__route">Routed to <b>M. Alvarez, gift officer</b></span>
-          </div>
-        </article>
-        <div class="hero__dedup">
-          <span class="gchip">One result &middot; 5 more outlets carried this story</span>
-        </div>
-      </div>
+    <!-- Illustrative constituents: invented people on real coordinates, the
+         same placeholder convention the result cards use. Swap for real
+         (permissioned) customer results before launch. -->
+    <div class="hero__globe" id="heroGlobe" tabindex="0" role="img"
+         aria-label="A rotating globe of the world. Verified news results surface on it for constituents in different countries. Drag to spin it; the same results are listed below.">
+      <canvas id="globeCanvas"></canvas>
     </div>
+
+    <div class="gtag" id="globeTag" aria-hidden="true">
+      <div class="gtag__who"><span class="gtag__name"></span><span class="gtag__place"></span></div>
+      <p class="gtag__news"></p>
+      <div class="gtag__foot"><span class="gtag__cat"></span><span class="gtag__conf">High confidence</span></div>
+    </div>
+
+    <p class="hero__hint" aria-hidden="true">
+      <svg width="15" height="11" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M5 2.5 1.5 6 5 9.5M13 2.5 16.5 6 13 9.5M1.5 6h15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Drag to spin
+    </p>
+
+    <!-- the globe is a canvas, so the results it surfaces are also real text -->
+    <ul class="sr-only" id="globeList"></ul>
   </div>
 </section>
 
@@ -2815,6 +2872,320 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         track.scrollBy({ left: step * (+btn.dataset.dir), behavior: reduced ? 'auto' : 'smooth' });
       });
     });
+  })();
+
+
+  /* ---------- hero globe -------------------------------------------------
+     A dotted Earth on canvas. The land mask is Natural Earth 110m land,
+     rasterised at build time and run-length encoded (scripts/make-land-mask.py),
+     so the page carries ~6KB of geography and no runtime dependency.
+
+     Dots sit on latitude rings with longitude spacing divided by cos(lat),
+     which keeps their spacing even instead of bunching at the poles.
+
+     Perf: fillStyle changes dominate a few thousand arcs, so dots are
+     bucketed by depth and each bucket is drawn as ONE path with one fill.
+     Rotation is a plain rAF loop — canvas work is per-pixel, not per-DOM-node,
+     so there is nothing for a tween engine to drive here. */
+  (function () {
+    var wrap = document.getElementById('heroGlobe');
+    var cv = document.getElementById('globeCanvas');
+    var stage = document.getElementById('heroStage');
+    var tagEl = document.getElementById('globeTag');
+    var listEl = document.getElementById('globeList');
+    if (!wrap || !cv || !cv.getContext) return;
+
+    var ctx = cv.getContext('2d');
+    var RAD = Math.PI / 180, TAU = Math.PI * 2;
+
+    /* --- the people the globe surfaces (illustrative, real coordinates) --- */
+    var MARKS = [
+      { lat: 45.52, lon: -122.68, name: 'Sarah Okafor',    place: 'Portland, US',  cat: 'Job changes',   news: 'Named chief executive of Meridian Health' },
+      { lat: 51.51, lon: -0.13,   name: 'Priya Raman',     place: 'London, UK',    cat: 'Board seats',   news: 'Appointed to the board of a FTSE 250 insurer' },
+      { lat: 1.35,  lon: 103.82,  name: 'Wei Lin Tan',     place: 'Singapore',     cat: 'Financial',     news: 'Form 4 filing shows a $4.1m insider sale' },
+      { lat: -1.29, lon: 36.82,   name: 'Amara Otieno',    place: 'Nairobi, KE',   cat: 'Philanthropy',  news: 'Endowed a scholarship fund at her old faculty' },
+      { lat: -23.55, lon: -46.63, name: 'Bruno Carvalho',  place: 'São Paulo, BR', cat: 'Company news',  news: 'Sold his logistics firm to a listed acquirer' },
+      { lat: 19.08, lon: 72.88,   name: 'Devika Nair',     place: 'Mumbai, IN',    cat: 'Awards',        news: 'Won a national award for materials research' },
+      { lat: 43.65, lon: -79.38,  name: 'Marc Lévesque',   place: 'Toronto, CA',   cat: 'Achievements',  news: 'Led the team behind a record clinical trial' },
+      { lat: -33.87, lon: 151.21, name: 'Holly Whitmore',  place: 'Sydney, AU',    cat: 'Job changes',   news: 'Promoted to managing partner at her firm' },
+      { lat: 52.52, lon: 13.40,   name: 'Jonas Brandt',    place: 'Berlin, DE',    cat: 'Event',         news: 'Keynoted a European climate-finance summit' }
+    ];
+
+    /* --- land mask: "W,H,<base36 runs>" alternating water/land --- */
+    var mask = (function (payload) {
+      var a = payload.indexOf(','), b = payload.indexOf(',', a + 1);
+      var W = +payload.slice(0, a), H = +payload.slice(a + 1, b);
+      var runs = payload.slice(b + 1).split('.');
+      var bits = new Uint8Array(W * H), p = 0, v = 0;
+      for (var i = 0; i < runs.length; i++) {
+        var n = parseInt(runs[i], 36);
+        if (v) bits.fill(1, p, p + n);
+        p += n; v ^= 1;
+      }
+      return { W: W, H: H, bits: bits };
+    })('540,270,4a4.o.v.w.cd.11.h.1.5.z.c6.11.6.1p.5.9.bl.4.4.x.4.24.4i.4.6y.d.8.j.4.23.1g.d.v.3.1s.b.6w.d.2.k.b.1y.18.5.1.6.2.a.2s.a.6g.5.c.a.3.e.b.22.1a.f.33.7.1.5.6e.4.2.5.4.6.2.h.4.28.1d.9.4.3.37.8.5w.4.m.3.9.3.1.b.a.25.1g.5.4.5.3c.1.5m.7.t.3.8.f.1.1.a.27.1f.3.3i.8.5g.6.4.3.5.4.a.5.6.5.6.2.5.3.g.21.3h.9.19.l.5f.9.3.5.5.7.8.5.6.7.w.1n.39.9.14.z.z.b.4a.9.9.4.2.5.1.j.x.1k.37.7.13.13.12.a.3.6.3k.5.2o.1k.34.5.15.10.59.c.n.2.1.2.2.8.5.2.5.1.2.3.y.1h.34.5.z.1d.2.4.9.1.p.3.3v.b.1.4.8.5.7.4.3.6.4.4.2.6.2.6.v.1d.35.6.k.1.f.1r.1.8.4f.9.1.f.1.4.5.8.2.2.6.e.3.4.v.1a.2.2.34.4.k.6.3.1.8.20.g.c.3n.7.2.m.7.5.2.2.6.o.r.1e.33.6.j.6.3.2.1.27.5.1.b.f.19.3.v.4.1b.1.7.k.c.6.6.q.s.15.1.4.1y.2.1.3.11.5.f.9.2.2d.1.w.6.1.w.2.r.k.v.1.m.g.8.7.6.t.l.17.22.b.1i.9.2.3l.1j.y.c.a.1.1.3.3.6.n.3.4.2.5.a.4.8.f.j.4.2.14.1s.i.1.2.15.4.7.8.1.3m.f.a.t.14.2.s.5.9.5.4.5.1.1.2.3.5.2.1.5.6.7.d.p.12.1t.t.10.7.5.6.3.3x.3.h.h.27.8.6.9.3.3.a.3.6.c.a.l.11.1v.y.8.2.9.4.2.j.1.7.2.4k.h.2b.2.u.2.8.6.3.4.c.h.v.1z.13.5.4.3.11.2.4o.f.3e.d.f.f.t.20.15.4.2.4.10.3.4t.8.2.3.36.2.1.f.a.1.7.d.r.j.1.8.3.15.w.4.5.3.2.1.15.2.4i.1.c.4.3e.1.1.h.9.4.4.e.m.m.e.14.f.4.f.8.5v.5.5.9.3b.2.4.8.h.m.h.r.d.12.f.6.e.3.2.3.5u.9.2.h.32.3.7.5.3.3.d.k.h.s.a.12.h.3.i.3.5v.f.1.f.2y.5.5.2.4.c.b.k.f.w.3.14.h.3.6j.p.33.t.6.1.3.l.d.22.h.4.6l.n.31.d.2.4.1.2.3.3.1.7.3.p.b.20.i.6.5x.2.i.3.1.m.31.k.1.2.9.y.a.20.i.6.5q.1.5.2.f.v.l.1.2d.o.d.v.9.20.i.6.5m.6.2.3.d.w.1.2.j.1.5.4.24.q.c.10.3.21.k.6.5.4.5a.a.9.2.2.15.d.2.3.e.1x.q.c.6.2.2w.k.f.59.9.4.1g.2.1.a.m.1u.p.d.5.4.2v.6.2.b.8.4y.e.4.9.4.1o.5.p.1v.m.f.1.7.2e.3.f.3.4.8.c.4v.q.5.1o.4.2.3.r.1q.o.m.2c.3.1.2.l.7.8.1.2.4u.p.9.1m.3.3.2.u.1t.k.n.2b.6.g.3.2.7.7.4w.q.b.1j.3.13.1u.h.m.2c.5.g.4.3.5.8.4v.r.b.1g.4.15.1x.d.q.2b.4.f.3.1.5.b.4t.s.a.1f.3.1b.21.5.v.23.2.2.6.f.2.g.4s.u.a.2t.20.5.x.21.4.4.4.e.3.2.1.5.51.t.7.2r.2.4.1z.5.y.1y.5.4.5.b.5k.n.6.2t.1.4.1z.5.y.1y.5.2.8.6.5s.j.4.2w.1.5.1y.4.y.1y.4.4.8.4.5t.j.4.32.1z.2.y.25.a.4.5p.2.2.k.2.34.2v.2.2.25.8.2.5s.2.2.3p.3.1.2q.4.1.25.3.7.5t.2.3.3q.2.2.2d.5.2.7.3.2c.5v.2.3.3r.3.2.29.3.3.9.8.25.5x.3.2.3x.28.1.6.9.8.21.61.3.1.3v.2a.1.7.8.7.1.2.22.5y.4.1.3w.28.1.8.d.1.2.2.24.1n.2.46.5.2.3v.2h.1.3.1.1.2h.1c.2.5.4.h.6.3j.6.1.3w.2o.2g.l.1.p.5.3.3.g.8.3i.44.2d.3.5.2j.l.3.m.6.3.3.f.6.3k.8.1.3w.2c.3.3.2m.l.4.k.f.c.6.3k.8.3.3v.29.6.1.2e.1.8.e.4.5.4.j.g.c.6.3i.9.6.3r.29.2k.j.b.5.5.g.j.a.7.3c.1.2.9.6.3t.29.2k.i.9.1.3.5.6.e.k.a.7.39.e.2.2.1.3v.29.2j.i.9.1.4.6.5.d.6.6.8.b.8.36.f.2.3y.26.2n.e.c.1.7.5.3.c.3.d.1.g.8.35.f.2.3x.24.2q.e.c.2.7.3.1.2.1.7.3.1.1.y.4.2u.2.a.h.3.3x.23.2p.e.d.2.8.2.5.4.6.y.6.2r.3.3.2.4.j.3.3x.1z.1.1.2r.e.o.2.5.4.5.y.7.2o.b.4.i.3.3y.1y.1.1.2r.d.x.4.4.x.8.2o.a.6.g.3.40.1z.2s.c.k.4.9.3.6.x.7.2p.3.1.7.5.e.3.42.1x.2t.2.1.7.c.2.2.2.1.1.4.2.9.2.7.z.5.2v.6.4.b.6.42.1x.2x.2.8.f.s.2.2.3.3.3j.8.5.a.7.43.1w.2x.1.6.i.12.3i.a.4.7.1.2.7.44.1v.2w.q.l.2.9.3.3.3h.b.3.5.c.47.1r.2y.p.13.3i.h.3.3.2.4e.1n.2y.s.11.3k.f.1.2.3.1.1.4g.1l.2y.v.z.3k.d.4.1.1.4k.1j.2z.11.7.5.h.3m.e.2.4n.1h.30.11.7.8.e.3n.c.2.4o.3.2.1c.2z.15.4.d.1.6.1.3o.53.2.3.10.1.1.2.7.30.16.1.49.55.2.2.s.2.1.1.3.9.3.2z.2f.4.2z.55.2.2.p.j.3.2x.2g.4.2z.56.2.2.m.l.3.2w.1u.1.n.4.2y.55.3.3.k.m.3.2t.1y.3.k.5.2v.58.3.3.j.m.4.2s.1z.3.k.6.4.1.2o.5a.2.3.i.n.3.2r.20.4.k.9.1.1.2m.5c.1.3.i.o.2.2q.22.3.k.1.1.a.2k.5d.2.4.g.3g.22.4.l.5.3.f.27.3.1.5a.1.5.e.u.1.2l.24.3.l.4.4.g.25.3.2.5b.2.4.d.3f.25.5.u.e.22.4.2.5d.1.5.c.m.5.2o.25.5.v.f.1y.6.2.5j.c.k.2.2.6.2k.28.4.v.e.w.2.w.5w.c.r.3.2j.28.4.u.f.s.6.u.5y.c.b.5.c.5.2f.2a.3.t.i.2.1.m.7.n.3.2.5z.e.9.5.f.5.2e.29.4.r.m.l.9.l.5.1.3w.2.22.d.9.5.l.5.28.29.5.q.m.j.c.j.4.3.3w.1.24.d.7.6.m.5.28.28.6.p.m.i.e.i.4.3.63.d.1.9.f.2.3.7.4.2.23.29.5.n.p.g.f.i.5.1.g.2.5o.l.30.2a.5.k.r.f.h.i.l.2.5q.j.2z.2b.6.h.t.d.j.j.k.3.5s.f.30.2c.5.f.v.d.i.4.1.g.i.3.61.e.2t.2c.5.e.x.9.q.h.h.2.63.e.2r.2f.3.c.z.9.r.g.h.2.64.d.2r.2g.3.9.12.8.r.h.h.2.66.a.2s.2g.2.6.15.8.r.h.j.3.67.6.2s.2h.1.3.18.8.s.2.1.d.h.1.3.1.68.5.h.1.2a.2i.1c.7.s.2.3.b.n.1.66.5.g.2.2b.2g.b.2.10.7.s.2.4.a.n.1.67.3.d.a.28.2g.6.6.11.6.s.1.6.8.k.1.3.1.67.4.c.5.1.8.2.3.1.2.1x.2q.12.5.t.1.8.4.h.1.5.2.1.1.69.3.a.6.1.f.1z.2p.13.3.2.1.r.1.8.3.o.1.6e.2.2.4.2.o.1z.2o.13.3.2.2.p.3.7.2.h.1.b.1.6a.5.3.r.1y.2n.15.1.3.2.p.3.y.6.6c.2.3.t.1x.2m.19.3.q.2.w.2.1.4.6h.t.1y.2k.1a.3.q.2.z.2.1.1.6i.u.1y.2i.1a.2.s.3.m.1.a.2.6k.z.1u.g.6.1u.25.4.k.4.6u.11.1t.5.4.3.a.1t.1y.4.4.4.h.6.6u.12.2f.1.3.1n.20.3.4.4.g.6.6v.13.2j.1l.22.4.2.4.f.6.6v.15.2j.1j.24.4.2.3.e.7.6u.16.2i.1j.26.4.2.3.b.a.6t.17.2h.1h.29.5.1.2.8.d.e.1.6d.18.2h.1g.2a.6.a.e.3.2.3.1.4.2.6b.18.2i.1f.2c.6.8.d.4.1.4.1.5.2.6a.1c.2f.1e.2e.5.9.c.3.1.6n.1c.1.2.2b.1e.2f.6.8.c.3.2.1.2.c.5.62.1i.29.1c.2h.6.8.a.4.4.f.3.62.1i.29.1b.2j.5.8.a.4.4.i.1.2.6.5u.1o.23.19.2k.7.7.1.1.7.3.2.1.2.9.3.3.4.2.9.e.1.5b.1r.22.18.2l.6.d.2.5.5.6.1.8.1.1.f.c.1.59.1t.22.16.2n.5.k.2.1.2.i.g.9.3.58.1v.21.15.2p.3.k.2.3.1.l.d.8.1.5b.1w.1z.14.2r.2.1c.d.3.4.5.1.56.1w.1z.14.2t.3.13.1.6.e.b.1.56.1w.1z.14.2s.a.13.d.e.1.55.1v.1z.14.2v.8.11.e.h.1.52.1v.20.13.31.5.a.1.6.1.f.2.2.5.4.3.h.1.52.1t.20.14.38.1.b.2.m.4.5.3.i.1.50.1t.21.14.3b.2.5.1.y.4.f.1.52.1r.22.14.3h.1.12.2.5h.1p.25.14.48.1.5u.1o.25.14.3u.1.d.1.5u.1n.25.15.c.1.3e.9.8.2.5u.1l.25.16.c.2.3c.a.7.3.5u.1l.25.16.c.2.3c.9.8.3.5v.1k.24.17.b.3.36.3.2.a.8.5.5u.1j.24.17.a.5.33.g.a.5.w.1.4x.1i.24.16.a.6.33.i.7.6.1g.1.4f.1f.25.16.7.8.33.l.5.6.x.1.h.1.4i.1d.25.14.8.8.32.1.1.m.4.7.5y.1c.25.12.a.8.31.10.1b.2.4m.1b.25.11.b.8.31.10.60.19.27.z.c.8.30.12.5z.19.27.x.f.6.30.15.5x.19.28.w.e.7.2x.19.n.1.58.18.29.x.d.7.2t.1e.n.2.56.18.2a.w.c.7.2t.1f.o.2.55.16.2c.w.c.7.2s.1h.5u.14.2f.v.c.7.2r.1j.5s.12.2i.v.d.5.2r.1l.5r.10.2k.v.d.5.2r.1m.5q.y.2m.t.f.4.2t.1m.5p.y.2m.r.3e.1m.5p.x.2o.q.3e.1n.5o.x.2o.q.3e.1n.5o.x.2o.q.3e.1n.5n.y.2p.p.3f.1m.5n.x.2r.n.3g.1m.5n.w.2s.m.3i.1l.5n.w.2t.k.3j.1l.5n.v.2v.i.3k.1l.5n.u.2w.h.3m.k.3.w.5o.t.2x.g.3n.f.c.s.5o.s.2y.f.3o.c.f.r.5o.s.2z.c.3q.d.g.4.1.k.5p.k.1.6.31.4.3x.6.o.1.2.l.5p.m.79.2.t.1.1.i.x.1.4r.n.86.h.z.2.4p.o.86.g.10.1.4o.p.87.f.11.2.4m.o.88.e.12.2.3.1.4i.n.8c.3.1.4.15.6.4i.h.8o.1.15.6.4j.h.9u.4.4k.i.9w.2.4k.d.2.2.8n.2.1.2.10.2.2.2.4l.d.8s.5.z.3.4o.1.1.c.1.1.8p.4.z.4.4o.1.1.c.8r.4.y.4.4q.c.9s.5.4p.e.9q.5.4r.e.9p.6.4r.b.9r.6.4r.c.9t.3.4u.b.en.e.em.d.en.c.5o.2.8y.b.5p.2.8y.a.eq.9.er.a.c.4.eb.8.es.1.1.4.1.3.es.1.1.6.et.9.et.6.1.2.5f9.3.eu.1.2.1.es.2.ex.3.6w.1.1c.1.6l.5.4r.9.1u.5.a.5.s.4.6j.4.4s.c.18.3.g.r.5.11.64.3.4n.m.4.3.o.2p.64.3.4k.12.f.2w.5v.1.3.6.42.3.8.18.c.38.5j.4.1.9.3y.9.2.19.a.3h.5d.5.1.9.2v.5.3.f.9.1o.8.3o.5a.5.1.a.2a.1.d.2r.6.40.4u.a.2.9.23.5.1.35.5.46.3n.7.11.3.4.9.22.7m.3l.7.d.2.u.c.1x.7p.2o.2.3.5.o.v.2.7.4.k.1v.7q.2b.1.3.1.5.1.d.a.h.1n.1y.7l.29.1a.5.3.5.1i.1y.7m.20.3d.1x.7o.23.36.1u.7w.1l.1.d.30.20.81.1m.3i.1r.86.1d.2.7.3b.17.7.d.8g.1a.5.6.38.16.a.b.8d.1z.2z.12.c.l.7y.26.30.d.4.2.3.9.e.o.7w.24.3a.s.2.m.85.1w.3s.x.8h.1x.3v.9.92.1t.3y.2.9c.1o.dg.h.2.2.2.2.9.s.dg.1.5.4.q.t.3ah');
+
+    function isLand(lat, lon) {
+      var i = (lon + 180) / 360 * mask.W | 0;
+      var j = (90 - lat) / 180 * mask.H | 0;
+      if (i < 0) i = 0; else if (i >= mask.W) i = mask.W - 1;
+      if (j < 0) j = 0; else if (j >= mask.H) j = mask.H - 1;
+      return mask.bits[j * mask.W + i] === 1;
+    }
+
+    /* --- dots on latitude rings, spacing corrected by cos(lat) --- */
+    var ux, uy, uz, N = 0;
+    (function build() {
+      var STEP = 1.0, xs = [], ys = [], zs = [];
+      for (var lat = -82; lat <= 82.001; lat += STEP) {
+        var cl = Math.cos(lat * RAD);
+        var count = Math.max(10, Math.round(360 * cl / STEP));
+        for (var k = 0; k < count; k++) {
+          var lon = -180 + k * 360 / count;
+          if (!isLand(lat, lon)) continue;
+          var la = lat * RAD, lo = lon * RAD;
+          xs.push(cl * Math.sin(lo));
+          ys.push(Math.sin(la));
+          zs.push(cl * Math.cos(lo));
+        }
+      }
+      N = xs.length;
+      ux = new Float32Array(xs); uy = new Float32Array(ys); uz = new Float32Array(zs);
+    })();
+
+    // marker unit vectors, same transform as the dots
+    MARKS.forEach(function (m) {
+      var la = m.lat * RAD, lo = m.lon * RAD, cl = Math.cos(la);
+      m.ux = cl * Math.sin(lo); m.uy = Math.sin(la); m.uz = cl * Math.cos(lo);
+    });
+
+    // the same results as real text, for anyone not seeing the canvas
+    if (listEl) {
+      listEl.innerHTML = MARKS.map(function (m) {
+        return '<li>' + m.name + ', ' + m.place + ' — ' + m.news + ' (' + m.cat + ', high confidence)</li>';
+      }).join('');
+    }
+
+    /* --- depth buckets: one fillStyle and one path each --- */
+    var NB = 6;
+    var bx = [], by = [], bn = new Int32Array(NB);
+    for (var q = 0; q < NB; q++) { bx.push(new Float32Array(N)); by.push(new Float32Array(N)); }
+    var BUCKET_ALPHA = [0.13, 0.20, 0.29, 0.39, 0.50, 0.62];
+    var BUCKET_R     = [0.95, 1.05, 1.16, 1.28, 1.42, 1.55];
+
+    var W = 0, H = 0, cx = 0, cyc = 0, R = 0, dpr = 1, viewW = 0, offX = 0, offY = 0, stageW = 0, stageH = 0;
+    var PITCH = -16 * RAD;                 // a little northern tilt, globe convention
+    var yaw = -1.9, spin = 0.0000524;      // radians/ms — one turn in ~2 minutes
+    var vel = 0, dragging = false, lastX = 0, lastT = 0, idleAt = 0;
+    var active = -1, tagAt = 0, t0 = 0;
+    var DWELL = 5000;
+
+    function size() {
+      var r = wrap.getBoundingClientRect();
+      if (!r.width) return;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = W * 0.5; cyc = H * 0.5; R = Math.min(W, H) * 0.5 - 2;
+      viewW = window.innerWidth;
+      // the globe box's offset inside the stage, cached here so the rAF loop
+      // never reads layout
+      var sr = stage ? stage.getBoundingClientRect() : r;
+      offX = r.left - sr.left; offY = r.top - sr.top;
+      stageW = sr.width; stageH = sr.height;
+    }
+
+    function project(x0, y0, z0, sy, cy2, sp, cp) {
+      var x1 = x0 * cy2 + z0 * sy;
+      var z1 = z0 * cy2 - x0 * sy;
+      var y2 = y0 * cp - z1 * sp;
+      var z2 = y0 * sp + z1 * cp;
+      return { x: cx + x1 * R, y: cyc - y2 * R, z: z2 };
+    }
+
+    function draw(now) {
+      ctx.clearRect(0, 0, W, H);
+
+      var sy = Math.sin(yaw), cy2 = Math.cos(yaw);
+      var sp = Math.sin(PITCH), cp = Math.cos(PITCH);
+
+      // the sphere's own presence on the cream ground: one soft aqua bloom
+      var g = ctx.createRadialGradient(cx - R * 0.22, cyc - R * 0.3, R * 0.05, cx, cyc, R);
+      g.addColorStop(0, 'rgba(0, 196, 181, 0.055)');
+      g.addColorStop(0.55, 'rgba(0, 196, 181, 0.02)');
+      g.addColorStop(1, 'rgba(4, 48, 43, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cyc, R, 0, TAU); ctx.fill();
+
+      ctx.strokeStyle = 'rgba(4, 48, 43, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cyc, R, 0, TAU); ctx.stroke();
+
+      // land dots, bucketed by depth
+      bn.fill(0);
+      for (var i = 0; i < N; i++) {
+        var x0 = ux[i], y0 = uy[i], z0 = uz[i];
+        var x1 = x0 * cy2 + z0 * sy;
+        var z1 = z0 * cy2 - x0 * sy;
+        var y2 = y0 * cp - z1 * sp;
+        var z2 = y0 * sp + z1 * cp;
+        if (z2 <= 0.015) continue;
+        var b = (z2 * NB) | 0; if (b > NB - 1) b = NB - 1;
+        var k = bn[b]++;
+        bx[b][k] = cx + x1 * R;
+        by[b][k] = cyc - y2 * R;
+      }
+      for (var b2 = 0; b2 < NB; b2++) {
+        var n = bn[b2]; if (!n) continue;
+        var rr = BUCKET_R[b2];
+        ctx.fillStyle = 'rgba(4, 48, 43, ' + BUCKET_ALPHA[b2] + ')';
+        ctx.beginPath();
+        for (var j = 0; j < n; j++) {
+          var px = bx[b2][j], py = by[b2][j];
+          ctx.moveTo(px + rr, py);
+          ctx.arc(px, py, rr, 0, TAU);
+        }
+        ctx.fill();
+      }
+
+      // markers, front to back
+      var best = -1, bestScore = -2;
+      for (var m = 0; m < MARKS.length; m++) {
+        var mk = MARKS[m];
+        var p = project(mk.ux, mk.uy, mk.uz, sy, cy2, sp, cp);
+        mk._x = p.x; mk._y = p.y; mk._z = p.z;
+        // score: front-facing, and above the bottom fade so a label can sit on it
+        var score = p.z - (p.y > H * 0.56 ? 1.6 : 0) - (mk._shownAt ? Math.max(0, 1 - (now - mk._shownAt) / 26000) * 0.55 : 0);
+        if (p.z > 0.42 && score > bestScore) { bestScore = score; best = m; }
+        if (p.z <= 0.02) continue;
+
+        var isOn = m === active;
+        var fade = Math.min(1, (p.z - 0.02) / 0.22);
+        if (isOn) {
+          var ph = reduced ? 0.45 : ((now - tagAt) % 2000) / 2000;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 5.5 + ph * 15, 0, TAU);
+          ctx.strokeStyle = 'rgba(0, 163, 150, ' + (0.5 * (1 - ph) * fade) + ')';
+          ctx.lineWidth = 1.5; ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, isOn ? 5.4 : 3.6, 0, TAU);
+        ctx.fillStyle = isOn ? 'rgba(0, 163, 150, ' + fade + ')' : 'rgba(0, 196, 181, ' + (0.72 * fade) + ')';
+        ctx.fill();
+        if (isOn) {
+          ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, TAU);
+          ctx.fillStyle = 'rgba(255,255,255,' + fade + ')'; ctx.fill();
+        }
+      }
+
+      // promote a new marker once the current one has had its turn
+      if (best >= 0 && (active < 0 || now - tagAt > DWELL)) {
+        if (best !== active) { active = best; tagAt = now; MARKS[best]._shownAt = now; showTag(MARKS[best]); }
+        else { tagAt = now; }
+      }
+      if (active >= 0) placeTag(MARKS[active]);
+    }
+
+    function showTag(mk) {
+      if (!tagEl) return;
+      tagEl.querySelector('.gtag__name').textContent = mk.name;
+      tagEl.querySelector('.gtag__place').textContent = mk.place;
+      tagEl.querySelector('.gtag__news').textContent = mk.news;
+      tagEl.querySelector('.gtag__cat').textContent = mk.cat;
+    }
+
+    function placeTag(mk) {
+      if (!tagEl) return;
+      var on = mk._z > 0.3 && mk._y < H * 0.62;
+      tagEl.classList.toggle('is-on', on);
+      if (!on) return;
+      if (viewW <= 1160) { tagEl.classList.add('is-pinned'); return; }
+      tagEl.classList.remove('is-pinned');
+      var tw = tagEl.offsetWidth || 268, th = tagEl.offsetHeight || 96;
+      var pad = 8;
+      // marker position in the stage's own coordinates
+      var mx = offX + mk._x, my = offY + mk._y;
+      // The card must never cross into the copy column, so its travel is
+      // bounded by the globe's own span rather than by the stage.
+      var gLeft = offX + 24, gRight = offX + W - 24;
+      var left = (Math.min(gRight, stageW) - mx) >= tw + 22 ? mx + 22 : mx - 22 - tw;
+      var hi = Math.max(gLeft, stageW - tw - pad);
+      left = Math.max(gLeft, Math.min(left, hi));
+      var top = Math.max(pad, Math.min(my - th * 0.5, stageH - th - pad));
+      tagEl.style.transform = 'translate(' + Math.round(left) + 'px,' + Math.round(top) + 'px)';
+    }
+
+    /* --- drag to spin, with inertia and an auto-rotate hand-back --- */
+    function down(e) {
+      dragging = true; wrap.classList.add('is-dragging');
+      if (stage) stage.classList.add('has-dragged');
+      lastX = e.clientX; lastT = performance.now(); vel = 0;
+      wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId);
+    }
+    function move(e) {
+      if (!dragging) return;
+      var now = performance.now(), dx = e.clientX - lastX, dt = Math.max(1, now - lastT);
+      var d = dx / Math.max(160, R) * 1.15;
+      yaw += d;
+      vel = d / dt;                                  // radians per ms, for the glide
+      lastX = e.clientX; lastT = now;
+    }
+    function up() {
+      if (!dragging) return;
+      dragging = false; wrap.classList.remove('is-dragging');
+      idleAt = performance.now();
+      vel = Math.max(-0.006, Math.min(0.006, vel));  // cap the fling
+    }
+    wrap.addEventListener('pointerdown', down);
+    wrap.addEventListener('pointermove', move);
+    wrap.addEventListener('pointerup', up);
+    wrap.addEventListener('pointercancel', up);
+    wrap.addEventListener('lostpointercapture', up);
+    wrap.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      yaw += (e.key === 'ArrowLeft' ? -1 : 1) * 0.22;
+      idleAt = performance.now();
+      if (stage) stage.classList.add('has-dragged');
+    });
+
+    /* --- loop, paused whenever the hero is off screen --- */
+    var raf = 0, running = false;
+    function frame(now) {
+      if (!running) return;
+      var dt = Math.min(48, now - (t0 || now)); t0 = now;
+
+      if (dragging) {
+        // the pointer owns the rotation
+      } else if (Math.abs(vel) > 0.000012) {
+        yaw += vel * dt;
+        vel *= Math.pow(0.9975, dt);                 // frame-rate independent decay
+      } else if (!reduced) {
+        // ease back into the idle spin rather than snapping to it
+        var since = now - idleAt;
+        yaw += spin * dt * (idleAt ? Math.min(1, since / 900) : 1);
+      }
+
+      draw(now);
+      raf = requestAnimationFrame(frame);
+    }
+    function start() { if (running) return; running = true; t0 = 0; raf = requestAnimationFrame(frame); }
+    function stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = 0; }
+
+    size();
+    var rt;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () { size(); draw(performance.now()); }, 140);
+    });
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) start(); else stop(); });
+      }, { threshold: 0.02 }).observe(wrap);
+    } else { start(); }
+    draw(performance.now());
   })();
 
   /* ---------- FAQ ---------- */

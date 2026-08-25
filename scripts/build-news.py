@@ -2,7 +2,8 @@
 """Build almaconnect-news.html from almaconnect-news.src.html.
 
 Same pipeline as build-home.py: replaces @png:<name> (assets/logo/<name>.png)
-and @svg:<name> (assets/logo/<name>.svg) tokens with base64 data URIs, and
+and @svg:<name> (assets/logo/<name>.svg) tokens with base64 data URIs,
+substitutes @txt:<name> (assets/data/<name>.txt) inline as raw text, and
 inlines almaconnect.css, so the published page is fully self-contained — the
 artifact host blocks external asset requests. The Google Fonts stylesheet is
 the one external request left, which the host does allow.
@@ -18,6 +19,17 @@ SRC = ROOT / "almaconnect-news.src.html"
 OUT = ROOT / "almaconnect-news.html"
 CSS = ROOT / "almaconnect.css"
 LOGO_DIR = ROOT / "assets" / "logo"
+DATA_DIR = ROOT / "assets" / "data"
+
+
+def raw_text(path):
+    if not path.exists():
+        sys.exit(f"missing data file: {path}")
+    text = path.read_text(encoding="utf-8").strip()
+    # it lands inside a JS string literal, so nothing may break out of it
+    if any(c in text for c in "'\"\\`<"):
+        sys.exit(f"unsafe characters for inlining: {path}")
+    return text
 
 
 def data_uri(path: Path, mime: str) -> str:
@@ -51,14 +63,17 @@ def main() -> None:
     html, svgs = re.subn(
         r"@svg:([\w-]+)",
         lambda m: data_uri(LOGO_DIR / f"{m.group(1)}.svg", "image/svg+xml"), html)
+    html, txts = re.subn(
+        r"@txt:([\w-]+)",
+        lambda m: raw_text(DATA_DIR / f"{m.group(1)}.txt"), html)
 
-    leftover = re.findall(r"@(?:img|png|svg|video):[\w-]+", html)
+    leftover = re.findall(r"@(?:img|png|svg|video|txt):[\w-]+", html)
     if leftover:
         sys.exit(f"unresolved asset tokens: {sorted(set(leftover))}")
 
     OUT.write_text(html, encoding="utf-8")
     print(f"built {OUT.name}: stylesheet inlined, {pngs} png, {svgs} svg, "
-          f"{OUT.stat().st_size / 1e6:.2f} MB")
+          f"{txts} data, {OUT.stat().st_size / 1e6:.2f} MB")
 
 
 if __name__ == "__main__":
