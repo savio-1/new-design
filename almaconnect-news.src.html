@@ -234,7 +234,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
    and bleeds off the bottom edge, masked into the cream ground. */
 .hero { position: relative; overflow: hidden; background: var(--ground); padding-top: var(--nav-h); }
 .hero__stage {
-  position: relative; min-height: clamp(520px, 70vh, 740px);
+  position: relative; min-height: clamp(620px, 84vh, 900px);
   display: grid; align-content: center;   /* the copy centres against the globe */
 }
 .hero__copy {
@@ -251,7 +251,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 /* .shine is an inline-block, so it never splits across lines — the copy
    before it wraps freely and the shimmering phrase lands whole on its
    own line. No <br> needed, and none that can fight a re-measure. */
-.hero h1 { max-width: 560px; text-wrap: pretty; }
+/* `pretty` re-balanced at some widths and stranded "and" on a line of its
+   own; `balance` distributes the lines evenly instead. The shimmer phrase
+   is held on one line so balance can never split the swept run. */
+.hero h1 { max-width: 560px; text-wrap: balance; }
+.hero h1 .shine { white-space: nowrap; }
 .hero__sub {
   margin: 28px 0 0;
   font-family: var(--font-body); font-size: 20px; line-height: 24px;
@@ -263,8 +267,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 /* ---- the globe ---- */
 .hero__globe {
   position: absolute; z-index: 1;
-  right: -8%; top: clamp(28px, 6vh, 76px);
-  width: min(760px, 62vw); aspect-ratio: 1 / 1;
+  right: -8%; top: clamp(20px, 4vh, 56px);
+  width: min(830px, 67vw); aspect-ratio: 1 / 1;
   touch-action: pan-y;               /* vertical scroll still belongs to the page */
   cursor: grab;
 }
@@ -275,7 +279,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
    the drag still reaches the globe underneath. */
 .hero__fade {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
-  height: clamp(130px, 30%, 260px);
+  height: clamp(88px, 17%, 168px);
   pointer-events: none;
   background: linear-gradient(to bottom,
     rgba(242, 239, 234, 0) 0%,
@@ -298,7 +302,11 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   box-shadow: 0 20px 44px rgba(4, 48, 43, 0.16);
   opacity: 0; translate: 0 8px; scale: 0.985;
-  transition: opacity 0.45s var(--ease), translate 0.45s var(--ease), scale 0.45s var(--ease);
+  /* symmetric ease so it eases in and eases out, rather than snapping in */
+  transition: opacity 0.34s cubic-bezier(0.42, 0, 0.58, 1),
+              translate 0.34s cubic-bezier(0.42, 0, 0.58, 1),
+              scale 0.34s cubic-bezier(0.42, 0, 0.58, 1);
+  will-change: transform, opacity;
   pointer-events: none;              /* the globe underneath keeps the drag */
 }
 .gtag.is-on { opacity: 1; translate: 0 0; scale: 1; }
@@ -339,19 +347,16 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 .gtag__place { font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; line-height: 1.35; color: var(--ink-45); }
 .gtag__news { margin: 11px 0 0; font-family: var(--font-body); font-size: 14px; line-height: 1.4; letter-spacing: -0.03em; color: var(--ink); }
 .gtag__foot { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
-.gtag__cat { font-family: var(--font-display); font-size: 14px; letter-spacing: -0.03em; color: var(--ink); background: rgba(255, 255, 255, 0.72); border-radius: var(--r-pill); padding: 3px 10px; }
+.gtag__cat {
+  display: inline-flex; align-items: center;
+  height: 24px; padding-inline: 11px;
+  font-family: var(--font-display); font-size: 14px; letter-spacing: -0.03em;
+  color: var(--ink); background: rgba(255, 255, 255, 0.78);
+  border-radius: var(--r-pill);
+}
 .gtag__conf { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-65); }
 .gtag__conf::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--on-mint); }
 
-/* a hint that the thing is grabbable, faded once the user has dragged */
-.hero__hint {
-  position: absolute; z-index: 4; right: 4px; bottom: 4px;
-  display: flex; align-items: center; gap: 7px;
-  font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em;
-  color: var(--ink-45);
-  opacity: 1; transition: opacity 0.5s var(--ease);
-}
-.hero__stage.has-dragged .hero__hint { opacity: 0; }
 
 @media (max-width: 1160px) {
   .hero__stage { min-height: 0; }
@@ -362,7 +367,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 @media (max-width: 620px) {
   .hero__copy { padding-bottom: calc(104vw + 44px); }
   .hero__globe { right: -22%; top: auto; bottom: 20px; width: 104vw; }
-  .hero__hint { display: none; }
 }
 
 /* the verified result card — used by the result-anatomy section */
@@ -382,7 +386,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 .rescard__route b { display: block; font-weight: 600; color: var(--ink); }
 
 /* ============================================================ TRUSTED */
-.trusted { background: var(--ground); padding: 8px 0 96px; }
+.trusted { background: var(--ground); padding: 104px 0 96px; }
 .trusted__head {
   text-align: center; margin: 0 auto 40px; max-width: 30ch;
   font-family: var(--font-display); font-size: 32px; font-weight: 350;
@@ -987,10 +991,6 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       <div class="gtag__foot"><span class="gtag__cat"></span><span class="gtag__conf">High confidence</span></div>
     </div>
 
-    <p class="hero__hint" aria-hidden="true">
-      <svg width="15" height="11" viewBox="0 0 18 12" fill="none" aria-hidden="true"><path d="M5 2.5 1.5 6 5 9.5M13 2.5 16.5 6 13 9.5M1.5 6h15" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Drag to spin
-    </p>
 
     <!-- the globe is a canvas, so the results it surfaces are also real text -->
     <ul class="sr-only" id="globeList"></ul>
@@ -2096,6 +2096,13 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
     /* --- the people the globe surfaces (illustrative, real coordinates) --- */
     var HUES = ['aqua', 'lilac', 'sky', 'peach'];
+    /* the marker matches the card its person appears in */
+    var HUE_RGB = {
+      aqua:  { core: '0, 150, 138',  glow: '0, 196, 181' },
+      lilac: { core: '124, 66, 173', glow: '155, 95, 208' },
+      sky:   { core: '47, 111, 191', glow: '74, 144, 226' },
+      peach: { core: '168, 90, 40',  glow: '196, 112, 60' }
+    };
     /* One portrait per person: the roster is capped at the number of
        distinct faces available, because the same face under two names
        reads as a bug. Faces are the project's existing stock placeholders
@@ -2197,7 +2204,14 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     var PITCH = -16 * RAD;                 // a little northern tilt, globe convention
     var yaw = -1.9, spin = 0.0000524;      // radians/ms — one turn in ~2 minutes
     var vel = 0, dragging = false, lastX = 0, lastT = 0, idleAt = 0;
-    var active = -1, tagAt = 0, t0 = 0, lastPing = 0;
+    var active = -1, tagAt = 0, t0 = 0, lastPing = 0, lastDt = 16;
+    /* Swapping card content mid-fade would look like a glitch, so a change
+       fades the card out, swaps, then fades it back in. */
+    var pending = -1, pendAt = 0, FADE = 340;
+    /* The card is repositioned every frame as its marker drifts. Writing
+       rounded pixels made that drift visibly step, so the position is
+       smoothed and written sub-pixel. */
+    var tagX = 0, tagY = 0, tagPlaced = false;
     var DWELL = 3000;
 
     function size() {
@@ -2327,7 +2341,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
           if (pAge < 1) {
             ctx.beginPath();
             ctx.arc(p.x, p.y, 3.5 + pAge * 11, 0, TAU);
-            ctx.strokeStyle = 'rgba(0, 196, 181, ' + (0.42 * (1 - pAge) * fade) + ')';
+            ctx.strokeStyle = 'rgba(' + HUE_RGB[mk.hue].glow + ', ' + (0.46 * (1 - pAge) * fade) + ')';
             ctx.lineWidth = 1.2; ctx.stroke();
           }
         }
@@ -2335,12 +2349,14 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
           var ph = reduced ? 0.45 : ((now - tagAt) % 2000) / 2000;
           ctx.beginPath();
           ctx.arc(p.x, p.y, 5.5 + ph * 15, 0, TAU);
-          ctx.strokeStyle = 'rgba(0, 163, 150, ' + (0.5 * (1 - ph) * fade) + ')';
+          ctx.strokeStyle = 'rgba(' + HUE_RGB[mk.hue].glow + ', ' + (0.55 * (1 - ph) * fade) + ')';
           ctx.lineWidth = 1.5; ctx.stroke();
         }
         ctx.beginPath();
         ctx.arc(p.x, p.y, isOn ? 5.4 : 3.6, 0, TAU);
-        ctx.fillStyle = isOn ? 'rgba(0, 163, 150, ' + fade + ')' : 'rgba(0, 196, 181, ' + (0.72 * fade) + ')';
+        ctx.fillStyle = isOn
+          ? 'rgba(' + HUE_RGB[mk.hue].core + ', ' + fade + ')'
+          : 'rgba(' + HUE_RGB[mk.hue].glow + ', ' + (0.75 * fade) + ')';
         ctx.fill();
         if (isOn) {
           ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, TAU);
@@ -2350,14 +2366,22 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
       // promote a new marker once the current one has had its turn
       if (best >= 0 && (active < 0 || now - tagAt > DWELL)) {
-        if (best !== active) {
-          active = best; tagAt = now; MARKS[best]._shownAt = now;
-          ripIdx = best; ripAt = now;              // the match lands
-          showTag(MARKS[best]);
+        if (best !== active && pending < 0) {
+          pending = best; pendAt = now;
+          if (tagEl) tagEl.classList.remove('is-on');     // ease out first
+        } else if (best === active) {
+          tagAt = now;
         }
-        else { tagAt = now; }
       }
-      if (active >= 0) placeTag(MARKS[active]);
+      if (pending >= 0 && now - pendAt >= FADE) {
+        active = pending; pending = -1;
+        tagAt = now; MARKS[active]._shownAt = now;
+        ripIdx = active; ripAt = now;                     // the match lands
+        showTag(MARKS[active]);
+        tagPlaced = false;                                // snap, do not fly
+      }
+      // while a swap is mid-fade the card must stay hidden
+      if (active >= 0) placeTag(MARKS[active], pending < 0);
     }
 
     function showTag(mk) {
@@ -2373,13 +2397,13 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         + (tagEl.classList.contains('is-pinned') ? ' is-pinned' : '');
     }
 
-    function placeTag(mk) {
+    function placeTag(mk, mayShow) {
       if (!tagEl) return;
-      var on = mk._z > 0.3 && mk._y < H * 0.62;
+      var on = mayShow && mk._z > 0.3 && mk._y < H * 0.62;
       tagEl.classList.toggle('is-on', on);
-      if (!on) return;
       if (viewW <= 1160) { tagEl.classList.add('is-pinned'); return; }
       tagEl.classList.remove('is-pinned');
+      if (!on && !tagPlaced) return;
       var tw = tagEl.offsetWidth || 292, th = tagEl.offsetHeight || 96;
       var pad = 8;
       // marker position in the stage's own coordinates
@@ -2391,7 +2415,15 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       var hi = Math.max(gLeft, stageW - tw - pad);
       left = Math.max(gLeft, Math.min(left, hi));
       var top = Math.max(pad, Math.min(my - th * 0.5, stageH - th - pad));
-      tagEl.style.transform = 'translate(' + Math.round(left) + 'px,' + Math.round(top) + 'px)';
+      // exponential smoothing, frame-rate independent: the marker drifts
+      // slowly, so this reads as the card gliding with it
+      if (!tagPlaced) { tagX = left; tagY = top; tagPlaced = true; }
+      else {
+        var k = 1 - Math.exp(-lastDt / 95);
+        tagX += (left - tagX) * k;
+        tagY += (top - tagY) * k;
+      }
+      tagEl.style.transform = 'translate(' + tagX.toFixed(2) + 'px,' + tagY.toFixed(2) + 'px)';
     }
 
     /* --- drag to spin, with inertia and an auto-rotate hand-back --- */
@@ -2432,7 +2464,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     var raf = 0, running = false;
     function frame(now) {
       if (!running) return;
-      var dt = Math.min(48, now - (t0 || now)); t0 = now;
+      var dt = Math.min(48, now - (t0 || now)); t0 = now; lastDt = dt || 16;
 
       if (dragging) {
         // the pointer owns the rotation
