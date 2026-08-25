@@ -3243,20 +3243,57 @@ function btSay(html, chips){
     m.className = 'bt-msg';
     m.innerHTML = `<svg class="av" width="20" height="20"><use href="#i-tiq"/></svg><span class="tx">${html}</span>`;
     b.appendChild(m);
-    if (chips && chips.length){
-      const c = document.createElement('div');
-      c.className = 'bt-chips';
-      chips.forEach(ch => {
-        const btn = document.createElement('button');
-        btn.className = 'bt-chip' + (ch.primary ? ' primary' : '');
-        btn.textContent = ch.t;
-        btn.addEventListener('click', () => { c.remove(); ch.cb(ch.t); });
-        c.appendChild(btn);
-      });
-      b.appendChild(c);
-    }
     btScroll();
+    /* type the reply out word by word; quick-reply chips only land once
+       the message has finished writing itself */
+    btStream($('.tx', m)).then(() => {
+      if (chips && chips.length){
+        const c = document.createElement('div');
+        c.className = 'bt-chips';
+        chips.forEach(ch => {
+          const btn = document.createElement('button');
+          btn.className = 'bt-chip' + (ch.primary ? ' primary' : '');
+          btn.textContent = ch.t;
+          btn.addEventListener('click', () => { c.remove(); ch.cb(ch.t); });
+          c.appendChild(btn);
+        });
+        b.appendChild(c);
+      }
+      btScroll();
+    });
   }, reduced ? 60 : 1400 + Math.random() * 700);
+}
+
+/* word-by-word reveal of a message that may contain markup —
+   text nodes are emptied then refilled in place, so bold/tokens keep
+   their styling as the words arrive */
+function btStream(el){
+  const nodes = [];
+  (function walk(n){
+    n.childNodes.forEach(c => {
+      if (c.nodeType === 3){ nodes.push([c, c.nodeValue]); c.nodeValue = ''; }
+      else walk(c);
+    });
+  })(el);
+  if (reduced){ nodes.forEach(([n, v]) => n.nodeValue = v); return Promise.resolve(); }
+  return new Promise(done => {
+    let i = 0, pos = 0;
+    (function tick(){
+      if (i >= nodes.length){ done(); return; }
+      const [node, full] = nodes[i];
+      let next = full.indexOf(' ', pos + 1);
+      if (next === -1) next = full.length;
+      pos = next < full.length ? next + 1 : full.length;
+      node.nodeValue = full.slice(0, pos);
+      const tail = full.slice(Math.max(0, pos - 2), pos);
+      let delay = 55 + Math.random() * 50;
+      if (/[.!?]/.test(tail)) delay = 190 + Math.random() * 110;
+      else if (/[,;:]/.test(tail)) delay = 110 + Math.random() * 60;
+      if (pos >= full.length){ node.nodeValue = full; i++; pos = 0; }
+      btScroll();
+      setTimeout(tick, delay);
+    })();
+  });
 }
 function btUser(text){
   const b = $('#btiqBody');
