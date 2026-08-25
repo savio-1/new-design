@@ -531,6 +531,15 @@ svg{display:block}
 .btn-primary:hover{background:#2ba6ff}
 .btn-primary:active{transform:scale(.96)}
 .btn-primary:disabled{background:var(--disabled-tonal-2);color:var(--text-disabled);cursor:default}
+.btn-primary{display:inline-flex;align-items:center;gap:7px}
+.btn-primary.testing{background:var(--card-bg-3);color:var(--text-secondary);pointer-events:none}
+.btn-primary.passed{background:#1d3b22;color:#7cb342;pointer-events:none}
+.mini-spin{
+  width:12px;height:12px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.2);border-top-color:#fff;
+  animation:spin .7s linear infinite;
+}
+.btn-primary.testing .mini-spin{border-color:#4a4a4a;border-top-color:#bdbdbd}
 
 /* ── step 2 · graphical setup overlay · Figma 783:12334 ──────────── */
 .builder{
@@ -734,7 +743,7 @@ svg{display:block}
 /* floating create CTA */
 .builder-create{
   position:absolute;right:16px;bottom:14px;z-index:5;
-  display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;
+  display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:8px;
   background:var(--blue-500);color:#fff;font-size:var(--fs-body-3);font-weight:500;
   box-shadow:0 10px 30px rgba(13,153,255,.3);
   transition:right .26s var(--spring),background .15s var(--ease),transform .15s var(--spring),opacity .2s var(--ease);
@@ -770,12 +779,9 @@ svg{display:block}
 .bt-msg.user .tx{
   background:var(--card-bg-3);border-radius:10px 10px 3px 10px;padding:7px 11px;color:#fff;max-width:85%;
 }
-.bt-typing{display:flex;gap:8px}
-.bt-typing .dots{display:flex;gap:3px;padding:8px 0}
-.bt-typing .dots i{width:5px;height:5px;border-radius:50%;background:var(--text-tertiary);animation:btDot 1s infinite}
-.bt-typing .dots i:nth-child(2){animation-delay:.15s}
-.bt-typing .dots i:nth-child(3){animation-delay:.3s}
-@keyframes btDot{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.bt-typing{display:flex;gap:8px;align-items:center}
+.bt-typing .av{flex:none;width:20px;height:20px}
+.bt-typing .shim{font-size:13px;letter-spacing:-.3px;font-weight:500}
 .bt-chips{display:flex;flex-wrap:wrap;gap:6px;padding-left:28px;animation:btIn .4s var(--spring)}
 .bt-chip{
   padding:6px 11px;border-radius:999px;border:1px solid var(--line-1);
@@ -967,6 +973,13 @@ svg{display:block}
   animation:shimmer 1.5s linear infinite;
 }
 @keyframes shimmer{to{background-position:-220% 50%}}
+/* bare shimmer modifier — same sweep, inherits the host's type styles */
+.shim{
+  background:linear-gradient(90deg,#5c5c5c 12%,#ffffff 34%,#a0a5f7 52%,#5c5c5c 76%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent !important;
+  animation:shimmer 1.5s linear infinite;
+}
 .dots3{display:inline-flex;gap:3px;align-items:center}
 .dots3 i{width:4px;height:4px;border-radius:50%;background:var(--text-tertiary);animation:bounce3 1.1s var(--ease) infinite}
 .dots3 i:nth-child(2){animation-delay:.14s}
@@ -1169,7 +1182,7 @@ svg{display:block}
 
 /* ── toast ───────────────────────────────────────────────────── */
 .toast{
-  position:absolute;left:50%;bottom:70px;translate:-50% 0;z-index:60;
+  position:absolute;left:50%;bottom:70px;translate:-50% 0;z-index:130; /* above the builder overlay so its feedback stays visible */
   display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:10px;
   background:#1f1f1f;border:1px solid var(--line-1);
   box-shadow:0 16px 44px rgba(0,0,0,.6);
@@ -2027,15 +2040,17 @@ async function submit(raw, key){
   const stream = $('.stream', m);
   scroll();
 
-  /* thinking */
+  /* thinking — shimmering label that walks through stages, like real inference */
   const think = document.createElement('div');
-  think.innerHTML = `<span class="thinking">Reading your canvas</span>
-                     <span class="dots3"><i></i><i></i><i></i></span>`;
+  think.innerHTML = `<span class="thinking">Reading your canvas</span>`;
   think.style.display = 'flex';
   think.style.alignItems = 'center';
-  think.style.gap = '8px';
   stream.appendChild(think);
-  await wait(reduced ? 80 : 700);
+  if (!reduced){
+    await wait(1100);
+    $('.thinking', think).textContent = 'Thinking…';
+    await wait(900);
+  } else await wait(80);
   think.remove();
 
   const sc = pickScenario(text, key);
@@ -2104,7 +2119,7 @@ function buildTrace(){
   t.className = 'trace';
   t.innerHTML = `<button class="trace-head">
                    <span class="spin"></span>
-                   <span class="lbl">Working…</span>
+                   <span class="lbl shim">Working…</span>
                    <span class="chev">${ico('chev-down', 14)}</span>
                  </button>
                  <div class="trace-steps"></div>`;
@@ -2139,6 +2154,7 @@ async function runSteps(trace, steps){
   }
   const total = Math.round(performance.now() - t0);
   $('.spin', trace).outerHTML = `<span class="tick" style="display:flex">${ico('check', 13)}</span>`;
+  $('.lbl', trace).classList.remove('shim');
   $('.lbl', trace).textContent = `${steps.length} steps · ${(total / 1000).toFixed(1)}s`;
   await wait(reduced ? 20 : 340);
   box.style.height = box.scrollHeight + 'px';
@@ -2163,11 +2179,16 @@ function typeInto(el, source){
     (function tick(){
       if (i >= nodes.length){ done(); return; }
       const [node, full] = nodes[i];
-      pos += 2 + Math.floor(Math.random() * 3);
+      pos += 1 + Math.floor(Math.random() * 2);
       node.nodeValue = full.slice(0, pos);
+      /* breathe at sentence ends so the stream reads like natural writing */
+      const lastCh = full[Math.min(pos, full.length) - 1];
+      let delay = 26;
+      if (/[.!?]/.test(lastCh)) delay = 200 + Math.random() * 140;
+      else if (/[,;:]/.test(lastCh)) delay = 90 + Math.random() * 60;
       if (pos >= full.length){ node.nodeValue = full; i++; pos = 0; }
       scroll();
-      setTimeout(tick, 16);
+      setTimeout(tick, delay);
     })();
   });
 }
@@ -2707,9 +2728,39 @@ function closeBuilder(){
   builderMode = null;
 }
 $('#builderX').addEventListener('click', closeBuilder);
+
+/* Test Agent — run through visible states instead of a blind click */
+let testingAgent = false;
 $('#testAgentBtn').addEventListener('click', () => {
-  toast(ico('check', 15, '#7cb342'), 'Test run passed', `${draft?.name || 'agent'} replied in 1.2s`);
+  if (testingAgent) return;
+  const btn = $('#testAgentBtn');
+  if (!draft || !draft.model){
+    nudgeNode('model', 'Choose a model first', 'the agent needs one to run');
+    return;
+  }
+  testingAgent = true;
+  btn.classList.add('testing');
+  btn.innerHTML = `<span class="mini-spin"></span>Testing…`;
+  setTimeout(() => {
+    btn.classList.remove('testing');
+    btn.classList.add('passed');
+    btn.innerHTML = `${ico('check', 14)}Passed · 1.2s`;
+    toast(ico('check', 15, '#7cb342'), 'Test run passed', `${draft.name || 'agent'} replied in 1.2s`);
+    setTimeout(() => {
+      btn.classList.remove('passed');
+      btn.textContent = 'Test Agent';
+      testingAgent = false;
+    }, 2400);
+  }, reduced ? 200 : 1600);
 });
+
+/* pulse a node + toast when a required piece is missing */
+function nudgeNode(type, title, note){
+  const node = $(`.bnode[data-node="${type}"]`, builderEl);
+  node.classList.remove('pulse'); void node.offsetWidth;
+  node.classList.add('pulse');
+  toast(ico('model', 15, '#a0a5f7'), title, note);
+}
 
 function resetBuilderNodes(){
   $$('.bnode', builderEl).forEach(n => {
@@ -2737,8 +2788,30 @@ function setAgentBasics(pulse){
   drawBuilderWires();
 }
 
+/* keep the agent card's vertical center on the middle row, so the
+   Instructions/Skills connectors run dead straight like in the Figma */
+function positionCenterCard(){
+  const bagent = $('#bagent');
+  const cRect = $('#builderCanvas').getBoundingClientRect();
+  const mids = ['instr', 'skills'].map(t => {
+    const r = $(`.bnode[data-node="${t}"] .bnode-card`).getBoundingClientRect();
+    return r.top - cRect.top + r.height / 2;
+  });
+  const rowMid = (mids[0] + mids[1]) / 2;
+  /* shift by the measured delta rather than recomputing from box math —
+     immune to the badge's inline line-box quirks */
+  const card = $('#bagentCard').getBoundingClientRect();
+  const curMid = card.top - cRect.top + card.height / 2;
+  const delta = rowMid - curMid;
+  if (Math.abs(delta) > 0.5){
+    const curTop = parseFloat(bagent.style.top) || 252;
+    bagent.style.top = Math.round(curTop + delta) + 'px';
+  }
+}
+
 /* connectors — measured from live geometry so they track card growth */
 function drawBuilderWires(){
+  positionCenterCard();
   const svg = $('#builderWires');
   const cRect = $('#builderCanvas').getBoundingClientRect();
   const center = $('#bagentCard').getBoundingClientRect();
@@ -2755,8 +2828,13 @@ function drawBuilderWires(){
     const x2 = fromLeftCol ? cx1 : left;
     const y2 = fromLeftCol ? cy : myY;
     const mx = (x1 + x2) / 2;
-    if (Math.abs(y1 - y2) < 4){ paths.push(`M${x1} ${y1} L${x2} ${y2}`); return; }
-    const r = Math.min(9, Math.abs(y2 - y1) / 2), sy = y2 > y1 ? 1 : -1;
+    /* near-level runs collapse to one straight horizontal — no mid jog */
+    if (Math.abs(y1 - y2) < 14){
+      const ym = (y1 + y2) / 2;
+      paths.push(`M${x1} ${ym} L${x2} ${ym}`);
+      return;
+    }
+    const r = Math.min(10, Math.abs(y2 - y1) / 2), sy = y2 > y1 ? 1 : -1;
     paths.push(`M${x1} ${y1} L${mx - r} ${y1} Q${mx} ${y1} ${mx} ${y1 + r * sy} ` +
                `L${mx} ${y2 - r * sy} Q${mx} ${y2} ${mx + r} ${y2} L${x2} ${y2}`);
   });
@@ -3070,6 +3148,11 @@ function renderBsidePanel(type){
 
 /* ── create the agent from the draft ─────────────────────────────── */
 function createAgentFromDraft(){
+  if (!draft.model){
+    nudgeNode('model', 'Choose a model first', 'Model is required to create the agent');
+    openBside('model');
+    return;
+  }
   const apps = [];
   if (draft.tools.includes('slack')) apps.push('slack');
   if (draft.tools.includes('gdocs') || !apps.length) apps.push('doc');
@@ -3139,13 +3222,22 @@ const TIQ_PRESETS = {
 let btStep = 'idle';
 
 function btScroll(){ const b = $('#btiqBody'); b.scrollTop = b.scrollHeight; }
+const BT_THINK_LABELS = ['Thinking…', 'Working on it…', 'Drafting…'];
 function btSay(html, chips){
   const b = $('#btiqBody');
   const typing = document.createElement('div');
   typing.className = 'bt-typing';
-  typing.innerHTML = `<svg class="av" width="20" height="20"><use href="#i-tiq"/></svg><span class="dots"><i></i><i></i><i></i></span>`;
+  typing.innerHTML = `<svg class="av" width="20" height="20"><use href="#i-tiq"/></svg><span class="shim">Thinking…</span>`;
   b.appendChild(typing); btScroll();
+  /* rotate the shimmer label so longer waits read as real work, not a stall */
+  let li = 0;
+  const cycle = setInterval(() => {
+    li = (li + 1) % BT_THINK_LABELS.length;
+    const lbl = $('.shim', typing);
+    if (lbl) lbl.textContent = BT_THINK_LABELS[li];
+  }, 1100);
   setTimeout(() => {
+    clearInterval(cycle);
     typing.remove();
     const m = document.createElement('div');
     m.className = 'bt-msg';
@@ -3164,7 +3256,7 @@ function btSay(html, chips){
       b.appendChild(c);
     }
     btScroll();
-  }, reduced ? 60 : 750 + Math.random() * 350);
+  }, reduced ? 60 : 1400 + Math.random() * 700);
 }
 function btUser(text){
   const b = $('#btiqBody');
