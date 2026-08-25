@@ -165,6 +165,7 @@ button, input, select, textarea, td, th {
    Sizes are the whole inventory. Do not invent steps between them.
      Geist        88 / 64 / 48 / 32 / 24 / 16 / 14
      Nunito Sans  24 / 20 / 18 / 16 / 14 / 12
+   88 is the homepage hero only; product pages open at 64 (.t-display-page).
    ============================================================ */
 
 .t-display,          /* 88 — homepage hero only */
@@ -190,6 +191,16 @@ button, input, select, textarea, td, th {
    with it — 32px H3 falling to 24px must also go 350 -> 400. */
 @media (max-width: 620px) {
   .t-h3 { font-size: 24px; line-height: 28px; font-weight: 400; }
+}
+
+/* Product-page H1. The 88px display step belongs to the homepage hero; a
+   product page opens one step down. Reuses the ladder's existing 64px
+   size and .t-num's ramp, so no new step enters the inventory. */
+.t-display-page {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 4.45vw, 64px);
+  line-height: 1.0; letter-spacing: -0.04em; font-weight: 350;
+  margin: 0;
 }
 
 .t-editorial { font-family: var(--font-body); font-size: 24px; line-height: 1.55; letter-spacing: -0.03em; font-weight: 400; }
@@ -1097,29 +1108,32 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
    surfacing on it. Copy sits top-left; the globe is anchored bottom-right
    and bleeds off the bottom edge, masked into the cream ground. */
 .hero { position: relative; overflow: hidden; background: var(--ground); padding-top: var(--nav-h); }
-.hero__stage { position: relative; min-height: clamp(600px, 80vh, 840px); }
+.hero__stage {
+  position: relative; min-height: clamp(520px, 70vh, 740px);
+  display: grid; align-content: center;   /* the copy centres against the globe */
+}
 .hero__copy {
   position: relative; z-index: 3;
-  padding-block: clamp(48px, 7vh, 96px) 0;
-  max-width: 704px;
+  padding-block: clamp(32px, 5vh, 64px) clamp(24px, 4vh, 56px);
+  max-width: 620px;
 }
 /* .shine is an inline-block, so it never splits across lines — the copy
    before it wraps freely and the shimmering phrase lands whole on its
    own line. No <br> needed, and none that can fight a re-measure. */
-.hero h1 { max-width: 704px; text-wrap: pretty; }
+.hero h1 { max-width: 560px; text-wrap: pretty; }
 .hero__sub {
   margin: 28px 0 0;
   font-family: var(--font-body); font-size: 20px; line-height: 24px;
   letter-spacing: -0.03em; font-weight: 400; color: var(--ink-80);
-  max-width: 496px;
+  max-width: 620px;
 }
 .hero__cta { margin-top: 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 
 /* ---- the globe ---- */
 .hero__globe {
   position: absolute; z-index: 1;
-  right: -11%; bottom: -24%;
-  width: min(760px, 62vw); aspect-ratio: 1 / 1;
+  right: -9%; bottom: -22%;
+  width: min(820px, 66vw); aspect-ratio: 1 / 1;
   /* the fade is a mask on the canvas itself, not an overlay: an overlay
      would sit above the canvas and swallow the drag */
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, rgba(0,0,0,0.5) 60%, transparent 74%);
@@ -1131,30 +1145,61 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 .hero__globe canvas { display: block; width: 100%; height: 100%; }
 .hero__globe:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 12px; }
 
-/* the label that rides the active marker — a result card in miniature */
+/* the label that rides the active marker — a result card in miniature.
+   Each person keeps a hue, so the card carries the same four-hue wash the
+   testimonial cards and the progress lines use. */
 .gtag {
   position: absolute; z-index: 4; top: 0; left: 0;
-  width: 268px; padding: 13px 15px;
-  background: rgba(255, 255, 255, 0.93);
+  width: 292px; padding: 14px 16px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--r-card);
+  background: var(--gwash, linear-gradient(150deg, #ffffff 0%, #f4fbfa 100%));
   -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  border: 1px solid var(--hairline); border-radius: var(--r-card);
-  box-shadow: 0 18px 40px rgba(4, 48, 43, 0.14);
-  opacity: 0; translate: 0 6px;
-  transition: opacity 0.4s var(--ease), translate 0.4s var(--ease);
+  box-shadow: 0 20px 44px rgba(4, 48, 43, 0.16);
+  opacity: 0; translate: 0 8px; scale: 0.985;
+  transition: opacity 0.45s var(--ease), translate 0.45s var(--ease), scale 0.45s var(--ease);
   pointer-events: none;              /* the globe underneath keeps the drag */
 }
-.gtag.is-on { opacity: 1; translate: 0 0; }
+.gtag.is-on { opacity: 1; translate: 0 0; scale: 1; }
 /* At and below the 1160px stacking breakpoint the globe sits behind the
    copy, so a card that tracks its marker lands on top of the CTA. Pinned to
    the foot of the stage it keeps the content without colliding. */
 .gtag.is-pinned { left: 0; top: auto; bottom: 10px; width: min(320px, 100%); transform: none !important; }
-.gtag__who { display: flex; align-items: baseline; gap: 8px; }
-.gtag__name { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink); }
-.gtag__place { font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-45); }
-.gtag__news { margin: 6px 0 0; font-family: var(--font-body); font-size: 14px; line-height: 1.4; letter-spacing: -0.03em; color: var(--ink-65); }
-.gtag__foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
-.gtag__cat { font-family: var(--font-display); font-size: 14px; letter-spacing: -0.03em; color: var(--on-aqua); background: var(--tint-aqua); border-radius: var(--r-pill); padding: 3px 9px; }
-.gtag__conf { font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-45); }
+.gtag--aqua  { --gwash: linear-gradient(150deg, #ffffff 0%, #ecfbf8 54%, #d3f2ec 100%); }
+.gtag--lilac { --gwash: linear-gradient(150deg, #ffffff 0%, #f9f4fe 54%, #e6d9f9 100%); }
+.gtag--sky   { --gwash: linear-gradient(150deg, #ffffff 0%, #f1f7fe 54%, #daeafc 100%); }
+.gtag--peach { --gwash: linear-gradient(150deg, #ffffff 0%, #fef3ec 54%, #fbe2d1 100%); }
+
+.gtag__head { display: flex; align-items: center; gap: 11px; }
+.gtag__ava {
+  position: relative; flex: none;
+  width: 42px; height: 42px; border-radius: 11px; overflow: hidden;
+  background: var(--gava, #dff5f2);
+  box-shadow: 0 2px 6px rgba(4, 48, 43, 0.12);
+}
+.gtag__ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* the monogram: crisp, centred, in the person's own hue */
+.gtag__ava i {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-style: normal;
+  font-size: 16px; font-weight: 400; letter-spacing: -0.03em;
+  color: var(--gink, var(--on-aqua));
+}
+.gtag__ava img:not([hidden]) + i { display: none; }
+.gtag--aqua  .gtag__ava { --gava: linear-gradient(145deg, #d3f4ef, #a5e5da); --gink: #05695c; }
+.gtag--lilac .gtag__ava { --gava: linear-gradient(145deg, #ece0fb, #cdb1f2); --gink: #6d3aa0; }
+.gtag--sky   .gtag__ava { --gava: linear-gradient(145deg, #dbeafd, #a8cbf7); --gink: #245da3; }
+.gtag--peach .gtag__ava { --gava: linear-gradient(145deg, #fde4d0, #f6c39e); --gink: #9c5526; }
+
+.gtag__who { display: flex; flex-direction: column; min-width: 0; }
+.gtag__name { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -0.03em; line-height: 1.25; color: var(--ink); }
+.gtag__place { font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; line-height: 1.35; color: var(--ink-45); }
+.gtag__news { margin: 11px 0 0; font-family: var(--font-body); font-size: 14px; line-height: 1.4; letter-spacing: -0.03em; color: var(--ink); }
+.gtag__foot { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
+.gtag__cat { font-family: var(--font-display); font-size: 14px; letter-spacing: -0.03em; color: var(--ink); background: rgba(255, 255, 255, 0.72); border-radius: var(--r-pill); padding: 3px 10px; }
+.gtag__conf { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em; color: var(--ink-65); }
+.gtag__conf::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--on-mint); }
 
 /* a hint that the thing is grabbable, faded once the user has dragged */
 .hero__hint {
@@ -1629,7 +1674,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
 /* ============================================================ RESPONSIVE */
 @media (max-width: 1160px) {
-  .hero__grid, .split, .split--wide, .define__grid, .problem__grid,
+  .split, .split--wide, .define__grid, .problem__grid,
   .pricing__grid, .faq__grid, .monitor__grid { grid-template-columns: 1fr; gap: 48px; }
   .duo__grid { grid-template-columns: 1fr; }
   .stats { grid-template-columns: 1fr 1fr; row-gap: 40px; }
@@ -1770,8 +1815,8 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 <section class="hero">
   <div class="container hero__stage" id="heroStage">
     <div class="hero__copy">
-      <h1 class="t-display">Prospect monitoring for advancement and <span class="shine" data-text="fundraising teams.">fundraising teams.</span></h1>
-      <p class="hero__sub">AlmaConnect News watches 400,000+ news and public-data sources for the people in your constituent database, verifies every match, and alerts the gift officer who owns the relationship — usually within 24 to 48 hours of publication.</p>
+      <h1 class="t-display-page">Prospect monitoring for advancement and <span class="shine" data-text="fundraising teams.">fundraising teams.</span></h1>
+      <p class="hero__sub">Verified alumni and donor news, within 24 to 48 hours.</p>
       <div class="hero__cta">
         <a class="btn btn--ink" href="#demo">Book a demo</a>
         <a class="link-arrow" href="#demo">See news about your own alumni <span class="arrow">→</span></a>
@@ -1787,7 +1832,15 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     </div>
 
     <div class="gtag" id="globeTag" aria-hidden="true">
-      <div class="gtag__who"><span class="gtag__name"></span><span class="gtag__place"></span></div>
+      <div class="gtag__head">
+        <!-- real <img> when a licensed portrait exists, otherwise the
+             gradient monogram below stands in -->
+        <span class="gtag__ava"><img alt="" hidden><i></i></span>
+        <span class="gtag__who">
+          <span class="gtag__name"></span>
+          <span class="gtag__place"></span>
+        </span>
+      </div>
       <p class="gtag__news"></p>
       <div class="gtag__foot"><span class="gtag__cat"></span><span class="gtag__conf">High confidence</span></div>
     </div>
@@ -2899,17 +2952,32 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     var RAD = Math.PI / 180, TAU = Math.PI * 2;
 
     /* --- the people the globe surfaces (illustrative, real coordinates) --- */
+    var HUES = ['aqua', 'lilac', 'sky', 'peach'];
     var MARKS = [
-      { lat: 45.52, lon: -122.68, name: 'Sarah Okafor',    place: 'Portland, US',  cat: 'Job changes',   news: 'Named chief executive of Meridian Health' },
-      { lat: 51.51, lon: -0.13,   name: 'Priya Raman',     place: 'London, UK',    cat: 'Board seats',   news: 'Appointed to the board of a FTSE 250 insurer' },
-      { lat: 1.35,  lon: 103.82,  name: 'Wei Lin Tan',     place: 'Singapore',     cat: 'Financial',     news: 'Form 4 filing shows a $4.1m insider sale' },
-      { lat: -1.29, lon: 36.82,   name: 'Amara Otieno',    place: 'Nairobi, KE',   cat: 'Philanthropy',  news: 'Endowed a scholarship fund at her old faculty' },
-      { lat: -23.55, lon: -46.63, name: 'Bruno Carvalho',  place: 'São Paulo, BR', cat: 'Company news',  news: 'Sold his logistics firm to a listed acquirer' },
-      { lat: 19.08, lon: 72.88,   name: 'Devika Nair',     place: 'Mumbai, IN',    cat: 'Awards',        news: 'Won a national award for materials research' },
-      { lat: 43.65, lon: -79.38,  name: 'Marc Lévesque',   place: 'Toronto, CA',   cat: 'Achievements',  news: 'Led the team behind a record clinical trial' },
-      { lat: -33.87, lon: 151.21, name: 'Holly Whitmore',  place: 'Sydney, AU',    cat: 'Job changes',   news: 'Promoted to managing partner at her firm' },
-      { lat: 52.52, lon: 13.40,   name: 'Jonas Brandt',    place: 'Berlin, DE',    cat: 'Event',         news: 'Keynoted a European climate-finance summit' }
+      { lat: 45.52,  lon: -122.68, name: 'Sarah Okafor',   place: 'Portland, US',    cat: 'Job changes',   news: 'Named chief executive of Meridian Health' },
+      { lat: 51.51,  lon: -0.13,   name: 'Priya Raman',    place: 'London, UK',      cat: 'Board seats',   news: 'Appointed to the board of a FTSE 250 insurer' },
+      { lat: 1.35,   lon: 103.82,  name: 'Wei Lin Tan',    place: 'Singapore',       cat: 'Financial',     news: 'Form 4 filing shows a $4.1m insider sale' },
+      { lat: -1.29,  lon: 36.82,   name: 'Amara Otieno',   place: 'Nairobi, KE',     cat: 'Philanthropy',  news: 'Endowed a scholarship fund at her old faculty' },
+      { lat: -23.55, lon: -46.63,  name: 'Bruno Carvalho', place: 'São Paulo, BR',   cat: 'Company news',  news: 'Sold his logistics firm to a listed acquirer' },
+      { lat: 19.08,  lon: 72.88,   name: 'Devika Nair',    place: 'Mumbai, IN',      cat: 'Awards',        news: 'Won a national award for materials research' },
+      { lat: 43.65,  lon: -79.38,  name: 'Marc Lévesque',  place: 'Toronto, CA',     cat: 'Achievements',  news: 'Led the team behind a record clinical trial' },
+      { lat: -33.87, lon: 151.21,  name: 'Holly Whitmore', place: 'Sydney, AU',      cat: 'Job changes',   news: 'Promoted to managing partner at her firm' },
+      { lat: 52.52,  lon: 13.40,   name: 'Jonas Brandt',   place: 'Berlin, DE',      cat: 'Event',         news: 'Keynoted a European climate-finance summit' },
+      { lat: 35.68,  lon: 139.69,  name: 'Kenji Mori',     place: 'Tokyo, JP',       cat: 'Company news',  news: 'His startup closed a Series C round' },
+      { lat: 45.46,  lon: 9.19,    name: 'Elena Rossi',    place: 'Milan, IT',       cat: 'Awards',        news: 'Named designer of the year by a trade body' },
+      { lat: 33.57,  lon: -7.59,   name: 'Fatima Zahra',   place: 'Casablanca, MA',  cat: 'Philanthropy',  news: 'Funded a new library wing at her old school' },
+      { lat: 19.43,  lon: -99.13,  name: 'Tomás Herrera',  place: 'Mexico City, MX', cat: 'Job changes',   news: 'Appointed dean of engineering' },
+      { lat: 6.52,   lon: 3.38,    name: 'Aisha Bello',    place: 'Lagos, NG',       cat: 'Board seats',   news: 'Joined the board of a development bank' },
+      { lat: 55.68,  lon: 12.57,   name: 'Lars Nielsen',   place: 'Copenhagen, DK',  cat: 'Financial',     news: 'Disclosed a stake in a listed shipping group' },
+      { lat: 49.28,  lon: -123.12, name: 'Grace Chen',     place: 'Vancouver, CA',   cat: 'Achievements',  news: 'Her lab published its results in Nature' },
+      { lat: 25.20,  lon: 55.27,   name: 'Ravi Menon',     place: 'Dubai, AE',       cat: 'Company news',  news: 'Took his fintech public on a local exchange' },
+      { lat: 38.72,  lon: -9.14,   name: 'Sofia Almeida',  place: 'Lisbon, PT',      cat: 'Event',         news: 'Chaired an international heritage council' }
     ];
+    MARKS.forEach(function (m, i) {
+      m.hue = HUES[i % HUES.length];
+      var w = m.name.split(' ');
+      m.mono = (w[0][0] + w[w.length - 1][0]).toUpperCase();
+    });
 
     /* --- land mask: "W,H,<base36 runs>" alternating water/land --- */
     var mask = (function (payload) {
@@ -2967,18 +3035,30 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     }
 
     /* --- depth buckets: one fillStyle and one path each --- */
-    var NB = 6;
-    var bx = [], by = [], bn = new Int32Array(NB);
-    for (var q = 0; q < NB; q++) { bx.push(new Float32Array(N)); by.push(new Float32Array(N)); }
-    var BUCKET_ALPHA = [0.13, 0.20, 0.29, 0.39, 0.50, 0.62];
-    var BUCKET_R     = [0.95, 1.05, 1.16, 1.28, 1.42, 1.55];
+    /* Six depth buckets of ink dots, plus three of accent dots for whatever
+       the scan or a ripple is lighting up. One fillStyle and one path per
+       bucket keeps a few thousand arcs cheap. */
+    var NB = 6, NA = 3, NT = NB + NA;
+    var bx = [], by = [], bn = new Int32Array(NT);
+    for (var q = 0; q < NT; q++) { bx.push(new Float32Array(N)); by.push(new Float32Array(N)); }
+    var BUCKET_ALPHA = [0.13, 0.20, 0.29, 0.39, 0.50, 0.62,  0.30, 0.50, 0.72];
+    var BUCKET_R     = [0.95, 1.05, 1.16, 1.28, 1.42, 1.55,  1.20, 1.40, 1.62];
+    var BUCKET_INK   = ['4, 48, 43', '4, 48, 43', '4, 48, 43', '4, 48, 43', '4, 48, 43', '4, 48, 43',
+                        '0, 196, 181', '0, 172, 159', '0, 148, 137'];
+
+    /* the scan: a soft band crossing the disc, then a pause — the page's
+       claim is that it reads 400,000+ sources every day, so the globe shows
+       itself sweeping */
+    var SCAN_CYCLE = 9000, SCAN_SWEEP = 0.62, SCAN_W = 0.17;
+    /* the ripple: when a match lands, a ring runs outward from that marker */
+    var ripIdx = -1, ripAt = 0, RIP_MS = 1500;
 
     var W = 0, H = 0, cx = 0, cyc = 0, R = 0, dpr = 1, viewW = 0, offX = 0, offY = 0, stageW = 0, stageH = 0;
     var PITCH = -16 * RAD;                 // a little northern tilt, globe convention
     var yaw = -1.9, spin = 0.0000524;      // radians/ms — one turn in ~2 minutes
     var vel = 0, dragging = false, lastX = 0, lastT = 0, idleAt = 0;
-    var active = -1, tagAt = 0, t0 = 0;
-    var DWELL = 5000;
+    var active = -1, tagAt = 0, t0 = 0, lastPing = 0;
+    var DWELL = 3000;
 
     function size() {
       var r = wrap.getBoundingClientRect();
@@ -3022,7 +3102,28 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(cx, cyc, R, 0, TAU); ctx.stroke();
 
-      // land dots, bucketed by depth
+      // where the scan band sits this frame, in normalised x
+      var phase = (now % SCAN_CYCLE) / SCAN_CYCLE;
+      var scanning = !reduced && phase < SCAN_SWEEP;
+      var scanX = scanning ? -1.25 + (phase / SCAN_SWEEP) * 2.5 : 9;
+
+      // the ripple's ring position, compared in cosine space so the inner
+      // loop needs no acos
+      var ripOn = false, ripCos = 0, ripVx = 0, ripVy = 0, ripVz = 0, ripFade = 0;
+      if (!reduced && ripIdx >= 0) {
+        var age = (now - ripAt) / RIP_MS;
+        if (age < 1) {
+          ripOn = true;
+          ripCos = Math.cos(age * 1.45);
+          ripFade = 1 - age;
+          var rm = MARKS[ripIdx];
+          ripVx = rm.ux * cy2 + rm.uz * sy;      // rotate with the globe
+          ripVz = rm.uz * cy2 - rm.ux * sy;
+          ripVy = rm.uy;
+        }
+      }
+
+      // land dots, bucketed by depth, or into the accent buckets when lit
       bn.fill(0);
       for (var i = 0; i < N; i++) {
         var x0 = ux[i], y0 = uy[i], z0 = uz[i];
@@ -3031,15 +3132,33 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         var y2 = y0 * cp - z1 * sp;
         var z2 = y0 * sp + z1 * cp;
         if (z2 <= 0.015) continue;
-        var b = (z2 * NB) | 0; if (b > NB - 1) b = NB - 1;
+
+        var lit = 0;
+        if (scanning) {
+          var d = (x1 - scanX) / SCAN_W;
+          if (d > -1 && d < 1) { d = 1 - (d < 0 ? -d : d); lit = d * d * z2; }
+        }
+        if (ripOn) {
+          // dot·marker in the rotated frame — the ring is an iso-angle band
+          var dd = x1 * ripVx + y0 * ripVy + z1 * ripVz - ripCos;
+          if (dd < 0) dd = -dd;
+          if (dd < 0.055) {
+            var rl = (1 - dd / 0.055) * ripFade * z2;
+            if (rl > lit) lit = rl;
+          }
+        }
+
+        var b;
+        if (lit > 0.16) { b = NB + (lit > 0.62 ? 2 : lit > 0.36 ? 1 : 0); }
+        else { b = (z2 * NB) | 0; if (b > NB - 1) b = NB - 1; }
         var k = bn[b]++;
         bx[b][k] = cx + x1 * R;
         by[b][k] = cyc - y2 * R;
       }
-      for (var b2 = 0; b2 < NB; b2++) {
+      for (var b2 = 0; b2 < NT; b2++) {
         var n = bn[b2]; if (!n) continue;
         var rr = BUCKET_R[b2];
-        ctx.fillStyle = 'rgba(4, 48, 43, ' + BUCKET_ALPHA[b2] + ')';
+        ctx.fillStyle = 'rgba(' + BUCKET_INK[b2] + ', ' + BUCKET_ALPHA[b2] + ')';
         ctx.beginPath();
         for (var j = 0; j < n; j++) {
           var px = bx[b2][j], py = by[b2][j];
@@ -3056,12 +3175,22 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         var p = project(mk.ux, mk.uy, mk.uz, sy, cy2, sp, cp);
         mk._x = p.x; mk._y = p.y; mk._z = p.z;
         // score: front-facing, and above the bottom fade so a label can sit on it
-        var score = p.z - (p.y > H * 0.56 ? 1.6 : 0) - (mk._shownAt ? Math.max(0, 1 - (now - mk._shownAt) / 26000) * 0.55 : 0);
+        var score = p.z - (p.y > H * 0.56 ? 1.6 : 0) - (mk._shownAt ? Math.max(0, 1 - (now - mk._shownAt) / 48000) * 1.25 : 0);
         if (p.z > 0.42 && score > bestScore) { bestScore = score; best = m; }
         if (p.z <= 0.02) continue;
 
         var isOn = m === active;
         var fade = Math.min(1, (p.z - 0.02) / 0.22);
+        // idle markers ping now and then: news keeps arriving everywhere
+        if (!reduced && !isOn && mk._pingAt) {
+          var pAge = (now - mk._pingAt) / 1100;
+          if (pAge < 1) {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3.5 + pAge * 11, 0, TAU);
+            ctx.strokeStyle = 'rgba(0, 196, 181, ' + (0.42 * (1 - pAge) * fade) + ')';
+            ctx.lineWidth = 1.2; ctx.stroke();
+          }
+        }
         if (isOn) {
           var ph = reduced ? 0.45 : ((now - tagAt) % 2000) / 2000;
           ctx.beginPath();
@@ -3081,7 +3210,11 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
       // promote a new marker once the current one has had its turn
       if (best >= 0 && (active < 0 || now - tagAt > DWELL)) {
-        if (best !== active) { active = best; tagAt = now; MARKS[best]._shownAt = now; showTag(MARKS[best]); }
+        if (best !== active) {
+          active = best; tagAt = now; MARKS[best]._shownAt = now;
+          ripIdx = best; ripAt = now;              // the match lands
+          showTag(MARKS[best]);
+        }
         else { tagAt = now; }
       }
       if (active >= 0) placeTag(MARKS[active]);
@@ -3093,6 +3226,11 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       tagEl.querySelector('.gtag__place').textContent = mk.place;
       tagEl.querySelector('.gtag__news').textContent = mk.news;
       tagEl.querySelector('.gtag__cat').textContent = mk.cat;
+      tagEl.querySelector('.gtag__ava i').textContent = mk.mono;
+      var img = tagEl.querySelector('.gtag__ava img');
+      if (mk.photo) { img.src = mk.photo; img.hidden = false; } else { img.hidden = true; img.removeAttribute('src'); }
+      tagEl.className = 'gtag gtag--' + mk.hue + (tagEl.classList.contains('is-on') ? ' is-on' : '')
+        + (tagEl.classList.contains('is-pinned') ? ' is-pinned' : '');
     }
 
     function placeTag(mk) {
@@ -3102,7 +3240,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       if (!on) return;
       if (viewW <= 1160) { tagEl.classList.add('is-pinned'); return; }
       tagEl.classList.remove('is-pinned');
-      var tw = tagEl.offsetWidth || 268, th = tagEl.offsetHeight || 96;
+      var tw = tagEl.offsetWidth || 292, th = tagEl.offsetHeight || 96;
       var pad = 8;
       // marker position in the stage's own coordinates
       var mx = offX + mk._x, my = offY + mk._y;
@@ -3165,6 +3303,17 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         // ease back into the idle spin rather than snapping to it
         var since = now - idleAt;
         yaw += spin * dt * (idleAt ? Math.min(1, since / 900) : 1);
+      }
+
+      // a ping on some other visible marker every so often, so the globe
+      // reads as news arriving continuously rather than one card at a time
+      if (!reduced && now - lastPing > 620) {
+        lastPing = now;
+        var pool = [];
+        for (var pi = 0; pi < MARKS.length; pi++) {
+          if (pi !== active && MARKS[pi]._z > 0.3) pool.push(MARKS[pi]);
+        }
+        if (pool.length) pool[(Math.random() * pool.length) | 0]._pingAt = now;
       }
 
       draw(now);
