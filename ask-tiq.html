@@ -433,36 +433,371 @@ svg{display:block}
 }
 .agent-empty{padding:32px 8px;text-align:center;color:var(--text-four);font-size:var(--fs-body-3)}
 
-/* create-agent inline form */
-.agent-form{padding:4px 12px 16px;display:flex;flex-direction:column;gap:12px}
-.agent-form[hidden],.agent-list[hidden],.agent-searchwrap[hidden]{display:none}
-.agent-form label{
-  display:block;margin-bottom:6px;font-size:var(--fs-caption);letter-spacing:var(--ls-caption);
-  color:var(--text-tertiary);font-weight:500;
-}
-.agent-form input,.agent-form textarea{
-  width:100%;background:var(--canvas-builder);border:1px solid var(--line-3);border-radius:10px;
-  padding:9px 12px;color:var(--text-primary);font:inherit;font-size:var(--fs-body-3);outline:none;
-  box-sizing:border-box;transition:border-color .15s var(--ease)
-}
-.agent-form input:focus,.agent-form textarea:focus{border-color:var(--blue-500)}
-.agent-form textarea{resize:vertical;min-height:76px;line-height:20px}
-.agent-form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:2px}
-.agent-form-cancel{
-  padding:8px 14px;border-radius:999px;color:var(--text-tertiary);font-size:var(--fs-body-3);font-weight:500;
-  border:1px solid var(--line-3);transition:border-color .15s var(--ease),color .15s var(--ease)
-}
-.agent-form-cancel:hover{border-color:var(--line-1);color:var(--text-secondary)}
-.agent-form-create{
-  padding:8px 16px;border-radius:999px;background:var(--blue-500);border:1px solid var(--blue-700);
-  color:#fff;font-size:var(--fs-body-3);font-weight:500;
-  transition:background .18s var(--ease),transform .18s var(--spring)
-}
-.agent-form-create:hover{background:#2ba6ff}
-.agent-form-create:active{transform:scale(.96)}
-
 /* canvas gets a soft dashed halo while an agent card is being dragged over it */
 .canvas.drag-over{outline:2px dashed rgba(13,153,255,.5);outline-offset:-10px}
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW AGENT CREATION FLOW  (Figma 783:12323 "New agent creation")
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── step 0 · chooser dropdown under "New agent" ─────────────────── */
+.agent-head{position:relative}
+.na-menu{
+  position:absolute;right:12px;top:44px;z-index:70;width:264px;
+  background:var(--card-bg-2);border:1px solid var(--line-3);border-radius:10px;
+  padding:4px;box-shadow:0 16px 40px rgba(0,0,0,.5);
+  opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;
+  transition:opacity .16s var(--ease),transform .2s var(--spring);
+}
+.na-menu.open{opacity:1;transform:none;pointer-events:auto}
+.na-i{
+  display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;text-align:left;
+  transition:background .15s var(--ease);
+}
+.na-i:hover{background:var(--card-bg-3)}
+.na-i .tile{
+  flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;
+  background:var(--canvas-builder);border:1px solid var(--line-3);
+}
+.na-i.tiq .tile{background:linear-gradient(135deg,#0d99ff22,#5860ed26);border-color:#292fa3}
+.na-i .nm{display:block;font-size:var(--fs-body-3);line-height:18px;letter-spacing:var(--ls-body-3);font-weight:500}
+.na-i .ds{display:block;font-size:11px;line-height:14px;color:var(--text-tertiary);margin-top:1px}
+
+/* ── shared dim layer ────────────────────────────────────────────── */
+.flow-dim{
+  position:absolute;inset:0;z-index:80;background:rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;transition:opacity .25s var(--ease);
+}
+.flow-dim.show{opacity:1;pointer-events:auto}
+
+/* ── step 1 (manual) · basics modal · Figma 780:248644 ───────────── */
+.na-modal{
+  position:absolute;left:50%;top:50%;z-index:85;width:476px;translate:-50% -50%;
+  background:var(--card-bg-2);border:1px solid var(--line-3);border-radius:14px;overflow:hidden;
+  box-shadow:0 32px 90px rgba(0,0,0,.6);
+  opacity:0;transform:scale(.96) translateY(8px);pointer-events:none;
+  transition:opacity .2s var(--ease),transform .28s var(--spring);
+}
+.na-modal.show{opacity:1;transform:none;pointer-events:auto}
+.na-modal-head{
+  display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line-3);
+  font-size:var(--fs-body-2);letter-spacing:var(--ls-body-2);font-weight:500;
+}
+.na-modal-head .x{margin-left:auto;display:flex;padding:4px;border-radius:6px;color:var(--text-tertiary)}
+.na-modal-head .x:hover{background:var(--card-bg-3);color:#fff}
+.na-modal-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+.na-field .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.na-field label{font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);font-weight:500}
+.na-field .req::after{content:" *";color:#dc3412}
+.na-field .eg{font-size:var(--fs-caption);color:var(--text-tertiary);cursor:pointer}
+.na-field .eg:hover{color:var(--text-secondary)}
+.na-field input,.na-field textarea{
+  width:100%;background:var(--card-bg-3);border:1px solid transparent;border-radius:8px;
+  padding:9px 12px;color:#fff;font:inherit;font-size:var(--fs-body-3);outline:none;
+  transition:border-color .15s var(--ease);
+}
+.na-field input:focus,.na-field textarea:focus{border-color:#007be5}
+.na-field textarea{resize:none;height:72px;line-height:20px}
+.na-field .help{margin-top:6px;font-size:var(--fs-caption);line-height:15px;color:var(--text-tertiary)}
+.na-subcard{
+  display:flex;align-items:flex-start;gap:12px;background:#3a3a3a;border-radius:10px;padding:12px 14px;
+}
+.na-subcard .t{font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);font-weight:500}
+.na-subcard .t::after{content:" *";color:#dc3412}
+.na-subcard .d{font-size:var(--fs-caption);line-height:15px;color:var(--text-secondary);margin-top:3px}
+.switch{
+  flex:none;width:36px;height:20px;border-radius:999px;background:var(--disabled-tonal-2);
+  position:relative;cursor:pointer;transition:background .2s var(--ease);margin-left:auto;
+}
+.switch::after{
+  content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:translate .2s var(--spring);
+}
+.switch.on{background:var(--blue-500)}
+.switch.on::after{translate:16px 0}
+.na-modal-foot{
+  display:flex;justify-content:flex-end;gap:8px;padding:14px 16px;border-top:1px solid var(--line-3);
+}
+.btn-tonal{
+  padding:8px 16px;border-radius:8px;background:var(--disabled-tonal-2);color:var(--text-secondary);
+  font-size:var(--fs-body-3);font-weight:500;transition:background .15s var(--ease),transform .15s var(--spring);
+}
+.btn-tonal:hover{background:#4d4d4d;color:#fff}
+.btn-tonal:active{transform:scale(.96)}
+.btn-primary{
+  padding:8px 18px;border-radius:8px;background:var(--blue-500);color:#fff;white-space:nowrap;
+  font-size:var(--fs-body-3);font-weight:500;transition:background .15s var(--ease),transform .15s var(--spring);
+}
+.btn-primary:hover{background:#2ba6ff}
+.btn-primary:active{transform:scale(.96)}
+.btn-primary:disabled{background:var(--disabled-tonal-2);color:var(--text-disabled);cursor:default}
+
+/* ── step 2 · graphical setup overlay · Figma 783:12334 ──────────── */
+.builder{
+  position:absolute;left:48px;right:48px;top:44px;bottom:52px;z-index:82;
+  display:flex;flex-direction:column;
+  background:var(--canvas-builder);border:1px solid var(--line-3);border-radius:12px;overflow:hidden;
+  box-shadow:0 40px 110px rgba(0,0,0,.65);
+  opacity:0;transform:scale(.97) translateY(12px);pointer-events:none;
+  transition:opacity .22s var(--ease),transform .3s var(--spring);
+}
+.builder.show{opacity:1;transform:none;pointer-events:auto}
+.builder-head{
+  flex:none;display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;
+  border-bottom:1px solid #1f1f1f;background:var(--canvas-builder);z-index:5;
+}
+.builder-head .ttl{font-size:var(--fs-body-2);letter-spacing:var(--ls-body-2);font-weight:500}
+.builder-head .spacer{flex:1}
+.builder-head .x{display:flex;padding:5px;border-radius:6px;color:var(--text-tertiary)}
+.builder-head .x:hover{background:var(--card-bg-2);color:#fff}
+.builder-canvas{
+  position:relative;flex:1;overflow:hidden;
+  background-image:radial-gradient(circle, var(--canvas-dots) 1.1px, transparent 1.2px);
+  background-size:16px 16px;background-position:6px 6px;
+}
+.builder-wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.builder-wires path{fill:none;stroke:#424242;stroke-width:1.5}
+
+/* mind-map nodes */
+.bnode{position:absolute;width:256px}
+.bnode-badge{
+  display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:6px;
+  border:1px solid;font-size:var(--fs-caption);letter-spacing:var(--ls-caption);font-weight:500;
+  margin-bottom:6px;position:relative;z-index:2;
+}
+.bnode-badge .req{color:#dc3412}
+.bb-model{background:#06082a;border-color:#292fa3;color:#a0a5f7}
+.bb-instr{background:#261200;border-color:#683509;color:#dd7c0e}
+.bb-ctx{background:#14280c;border-color:#214314;color:#85e0a3}
+.bb-tools{background:#160524;border-color:#4b0d87;color:#bb7fff}
+.bb-skills{background:#051b29;border-color:#175d73;color:#35caf0}
+.bb-guard{background:#200403;border-color:#660e0b;color:#dc3412}
+.bnode-card{
+  display:flex;align-items:center;gap:8px;min-height:40px;padding:8px 10px;
+  background:var(--card-bg-2);border:1px solid var(--stroke-card-2);border-radius:10px;
+  cursor:pointer;transition:border-color .18s var(--ease),box-shadow .18s var(--ease),transform .3s var(--spring);
+}
+.bnode-card:hover{border-color:var(--line-1)}
+.bnode.sel .bnode-card{border-color:var(--blue-500);box-shadow:0 0 0 1px var(--blue-500),0 0 22px rgba(13,153,255,.18)}
+.bnode-card .ph{flex:1;font-size:13px;letter-spacing:-.3px;color:var(--text-disabled);min-width:0}
+.bnode-card .val{
+  flex:1;font-size:13px;letter-spacing:-.3px;color:#fff;min-width:0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.bnode-card .val .tok{color:#bb7fff}
+.bnode-add{
+  flex:none;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;
+  background:var(--blue-500);color:#fff;transition:transform .18s var(--spring),background .15s var(--ease);
+}
+.bnode-card:hover .bnode-add{transform:scale(1.12)}
+.bnode.done .bnode-add{background:#1d3b22;color:#7cb342}
+.bnode-chips{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.bnode-chip{
+  display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:5px;
+  background:var(--card-bg-3);font-size:11px;letter-spacing:-.2px;color:var(--text-secondary);white-space:nowrap;
+}
+.bnode.pulse .bnode-card{animation:bnodePulse .9s var(--ease)}
+@keyframes bnodePulse{
+  0%{box-shadow:0 0 0 0 rgba(13,153,255,0)}
+  30%{box-shadow:0 0 0 4px rgba(13,153,255,.22);border-color:var(--blue-500)}
+  100%{box-shadow:0 0 0 0 rgba(13,153,255,0)}
+}
+
+/* center agent node */
+.bagent{position:absolute;width:250px}
+.bagent-badge{
+  display:inline-flex;align-items:center;gap:6px;max-width:250px;height:26px;padding:0 10px;border-radius:7px;
+  background:linear-gradient(135deg,#5860ed,#454de0);color:#fff;
+  font-size:var(--fs-caption);font-weight:500;letter-spacing:var(--ls-caption);
+  margin-bottom:6px;position:relative;z-index:2;white-space:nowrap;
+}
+.bagent-badge span{overflow:hidden;text-overflow:ellipsis}
+.bagent-card{
+  background:var(--card-bg-2);border:1px solid var(--stroke-card-2);border-radius:10px;padding:12px;
+  display:flex;flex-direction:column;gap:10px;cursor:pointer;
+  transition:border-color .18s var(--ease),box-shadow .18s var(--ease);
+}
+.bagent-card:hover{border-color:var(--line-1)}
+.bagent-card .fr .lb{font-size:11px;letter-spacing:-.2px;color:var(--text-tertiary);margin-bottom:2px}
+.bagent-card .fr{position:relative;padding-right:22px}
+.bagent-card .fr .tx{
+  font-size:12px;line-height:16px;letter-spacing:-.24px;color:var(--text-secondary);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.bagent-card .fr svg{position:absolute;right:0;top:2px;color:var(--blue-500)}
+.bagent.ghost .bagent-badge{background:var(--card-bg-3);color:var(--text-tertiary)}
+.bagent.ghost .bagent-card{border-style:dashed;cursor:default}
+.bagent.ghost .bagent-card .tx{color:var(--text-four)}
+.bagent.landed .bagent-card{animation:bnodePulse 1.1s var(--ease)}
+
+/* side panel (Tools / Task instructions / …) */
+.bside{
+  position:absolute;right:12px;top:10px;bottom:10px;z-index:6;width:340px;
+  display:flex;flex-direction:column;
+  background:var(--card-bg-5);border:1px solid var(--line-3);border-radius:12px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.45);
+  opacity:0;transform:translateX(16px);pointer-events:none;
+  transition:opacity .2s var(--ease),transform .26s var(--spring);
+}
+.bside.show{opacity:1;transform:none;pointer-events:auto}
+.bside-head{
+  flex:none;display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid #262626;
+  font-size:var(--fs-body-2);letter-spacing:var(--ls-body-2);font-weight:500;
+}
+.bside-head .back{display:flex;padding:3px;border-radius:6px;color:var(--text-tertiary);margin-right:-2px}
+.bside-head .back:hover{background:var(--card-bg-3);color:#fff}
+.bside-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;
+  scrollbar-width:thin;scrollbar-color:#3a3a3a transparent}
+.bside-foot{flex:none;padding:12px 16px 16px}
+.bf-label{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);font-weight:500;margin-bottom:6px}
+.bf-label .req::after{content:" *";color:#dc3412}
+.bf-label .eg{font-size:var(--fs-caption);color:var(--text-tertiary);font-weight:400;cursor:pointer}
+.bf-label .eg:hover{color:var(--text-secondary)}
+.bf-input,.bf-area{
+  width:100%;background:var(--card-bg-2);border:1px solid var(--stroke-type);border-radius:8px;
+  padding:9px 12px;color:#fff;font:inherit;font-size:13px;letter-spacing:-.3px;outline:none;
+  transition:border-color .15s var(--ease);
+}
+.bf-input:focus,.bf-area:focus{border-color:#007be5}
+.bf-area{resize:none;line-height:19px}
+.bf-help{font-size:var(--fs-caption);line-height:15px;color:var(--text-tertiary);margin-top:6px}
+.bf-card{background:var(--canvas-builder);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.bf-card .bt{font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);font-weight:500}
+.bf-card .bd{font-size:var(--fs-caption);line-height:16px;color:var(--text-tertiary)}
+.bf-card .bd .tok{color:#bb7fff}
+.btn-tonal-blue{
+  align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:7px;
+  background:#093077;color:#80caff;font-size:var(--fs-caption);font-weight:500;
+  transition:background .15s var(--ease),transform .15s var(--spring);
+}
+.btn-tonal-blue:hover{background:#0c3f9c}
+.btn-tonal-blue:active{transform:scale(.96)}
+.rich-bar{
+  display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--stroke-type);
+}
+.rich-bar button{
+  display:flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 4px;border-radius:5px;
+  color:var(--text-tertiary);font-size:12px;font-weight:600;
+}
+.rich-bar button:hover{background:var(--card-bg-3);color:#fff}
+.rich-bar .sep{width:1px;height:14px;background:var(--line-3);margin:0 4px}
+.rich-bar .size{font-size:12px;font-weight:400;color:var(--text-secondary);display:flex;align-items:center;gap:4px}
+.rich-wrap{border:1px solid var(--stroke-type);border-radius:8px;background:var(--card-bg-2);overflow:hidden;position:relative}
+.rich-wrap:focus-within{border-color:#007be5}
+.rich-wrap .bf-area{border:none;border-radius:0;min-height:150px;background:transparent}
+.param-pop{
+  position:absolute;right:10px;bottom:10px;background:var(--card-bg-3);border:1px solid var(--line-1);
+  border-radius:8px;padding:4px;box-shadow:0 10px 26px rgba(0,0,0,.4);display:none;flex-direction:column;
+}
+.param-pop.open{display:flex}
+.param-pop button{padding:5px 10px;border-radius:5px;font-size:12px;color:#bb7fff;text-align:left}
+.param-pop button:hover{background:var(--card-bg-2)}
+.tool-row{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;
+  transition:background .14s var(--ease);
+}
+.tool-row:hover{background:var(--card-bg-2)}
+.tool-row .tile{
+  flex:none;display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;color:#fff;
+}
+.tool-row .nm{flex:1;font-size:13px;letter-spacing:-.3px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool-row .kind{
+  flex:none;padding:2px 8px;border-radius:999px;border:1px solid var(--line-1);
+  font-size:11px;color:var(--text-secondary);
+}
+.tool-row .tick{flex:none;width:16px;color:#7cb342;opacity:0;transition:opacity .15s var(--ease)}
+.tool-row.on .tick{opacity:1}
+.tool-row.on{background:rgba(13,153,255,.08)}
+.viewall{align-self:center;display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-caption);color:var(--blue-500);padding:6px 10px;border-radius:6px}
+.viewall:hover{background:var(--card-bg-2)}
+.bf-searchwrap{position:relative}
+.bf-searchwrap .newtool{
+  position:absolute;right:5px;top:5px;padding:4px 10px;border-radius:6px;background:var(--blue-500);
+  color:#fff;font-size:11px;font-weight:500;
+}
+.bf-searchwrap .newtool:hover{background:#2ba6ff}
+.bf-searchwrap .bf-input{padding-right:86px}
+.slider-row{display:flex;align-items:center;gap:10px}
+.slider-row input[type=range]{flex:1;accent-color:var(--blue-500);height:4px}
+.slider-row .num{
+  width:52px;text-align:center;background:var(--card-bg-3);border:1px solid var(--stroke-type);border-radius:7px;
+  padding:6px 0;color:#fff;font:inherit;font-size:13px;outline:none;
+}
+.adv-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;letter-spacing:-.3px}
+.bside-save{
+  width:100%;padding:10px 0;border-radius:8px;background:var(--disabled-tonal-2);color:var(--text-disabled);
+  font-size:var(--fs-body-3);font-weight:500;transition:background .18s var(--ease),color .18s var(--ease);
+}
+.bside-save.ready{background:var(--blue-500);color:#fff;cursor:pointer}
+.bside-save.ready:hover{background:#2ba6ff}
+
+/* floating create CTA */
+.builder-create{
+  position:absolute;right:16px;bottom:14px;z-index:5;
+  display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;
+  background:var(--blue-500);color:#fff;font-size:var(--fs-body-3);font-weight:500;
+  box-shadow:0 10px 30px rgba(13,153,255,.3);
+  transition:right .26s var(--spring),background .15s var(--ease),transform .15s var(--spring),opacity .2s var(--ease);
+}
+.builder-create:hover{background:#2ba6ff}
+.builder-create:active{transform:scale(.96)}
+.builder.side-open .builder-create{right:368px}
+.builder-create[hidden]{display:none}
+
+/* ── Tiq conversational builder panel ────────────────────────────── */
+.btiq{
+  position:absolute;right:12px;top:10px;bottom:10px;z-index:6;width:340px;
+  display:flex;flex-direction:column;
+  background:var(--card-bg-5);border:1px solid var(--line-3);border-radius:12px;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.45);
+}
+.btiq[hidden]{display:none}
+.btiq-head{
+  flex:none;display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid #262626;
+  font-size:var(--fs-body-2);letter-spacing:var(--ls-body-2);font-weight:500;
+}
+.btiq-body{
+  flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;
+  scrollbar-width:thin;scrollbar-color:#3a3a3a transparent;
+}
+.bt-msg{display:flex;gap:8px;animation:btIn .4s var(--spring)}
+@keyframes btIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.bt-msg .av{flex:none;width:20px;height:20px;margin-top:1px}
+.bt-msg .tx{font-size:13px;line-height:19px;letter-spacing:-.3px;color:var(--text-secondary);min-width:0}
+.bt-msg .tx b{color:#fff;font-weight:500}
+.bt-msg .tx .tok{color:#bb7fff}
+.bt-msg.user{justify-content:flex-end}
+.bt-msg.user .tx{
+  background:var(--card-bg-3);border-radius:10px 10px 3px 10px;padding:7px 11px;color:#fff;max-width:85%;
+}
+.bt-typing{display:flex;gap:8px}
+.bt-typing .dots{display:flex;gap:3px;padding:8px 0}
+.bt-typing .dots i{width:5px;height:5px;border-radius:50%;background:var(--text-tertiary);animation:btDot 1s infinite}
+.bt-typing .dots i:nth-child(2){animation-delay:.15s}
+.bt-typing .dots i:nth-child(3){animation-delay:.3s}
+@keyframes btDot{0%,60%,100%{opacity:.3;transform:none}30%{opacity:1;transform:translateY(-3px)}}
+.bt-chips{display:flex;flex-wrap:wrap;gap:6px;padding-left:28px;animation:btIn .4s var(--spring)}
+.bt-chip{
+  padding:6px 11px;border-radius:999px;border:1px solid var(--line-1);
+  font-size:12px;letter-spacing:-.24px;color:var(--text-secondary);text-align:left;
+  transition:border-color .15s var(--ease),background .15s var(--ease),color .15s var(--ease);
+}
+.bt-chip:hover{border-color:var(--blue-500);background:rgba(13,153,255,.1);color:#fff}
+.bt-chip.primary{background:var(--blue-500);border-color:var(--blue-500);color:#fff;font-weight:500}
+.bt-chip.primary:hover{background:#2ba6ff}
+.btiq-foot{flex:none;display:flex;gap:8px;padding:12px;border-top:1px solid #262626}
+.btiq-foot input{
+  flex:1;background:var(--card-bg-2);border:1px solid var(--stroke-type);border-radius:8px;
+  padding:9px 12px;color:#fff;font:inherit;font-size:13px;outline:none;min-width:0;
+  transition:border-color .15s var(--ease);
+}
+.btiq-foot input:focus{border-color:#007be5}
+.btiq-send{
+  flex:none;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;
+  background:var(--blue-500);color:#fff;transition:background .15s var(--ease),transform .15s var(--spring);
+}
+.btiq-send:hover{background:#2ba6ff}
+.btiq-send:active{transform:scale(.92)}
 
 /* ══════════════════════════════════════════════════════════════════
    TIQ PANEL
@@ -904,6 +1239,9 @@ svg{display:block}
     <symbol id="i-tools" viewBox="0 0 16 16"><path d="M4.66667 6.66667H6.66667V4.66667L4.33333 2.33333C5.07975 1.97685 5.91833 1.86054 6.7336 2.00041C7.54886 2.14029 8.30072 2.52948 8.88562 3.11438C9.47052 3.69929 9.85971 4.45114 9.99959 5.2664C10.1395 6.08167 10.0232 6.92025 9.66667 7.66667L13.6667 11.6667C13.9319 11.9319 14.0809 12.2916 14.0809 12.6667C14.0809 13.0417 13.9319 13.4014 13.6667 13.6667C13.4014 13.9319 13.0417 14.0809 12.6667 14.0809C12.2916 14.0809 11.9319 13.9319 11.6667 13.6667L7.66667 9.66667C6.92025 10.0232 6.08167 10.1395 5.2664 9.99959C4.45114 9.85971 3.69929 9.47052 3.11438 8.88562C2.52948 8.30072 2.14029 7.54886 2.00041 6.7336C1.86054 5.91833 1.97685 5.07975 2.33333 4.33333L4.66667 6.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
     <symbol id="i-skill" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M9.33333 2V4.66667C9.33333 4.84348 9.40357 5.01305 9.5286 5.13807C9.65362 5.2631 9.82319 5.33333 10 5.33333H12.6667"/><path d="M8 14H4.66667C4.31304 14 3.97391 13.8595 3.72386 13.6095C3.47381 13.3594 3.33333 13.0203 3.33333 12.6667V3.33333C3.33333 2.97971 3.47381 2.64057 3.72386 2.39052C3.97391 2.14048 4.31304 2 4.66667 2H9.33333L12.6667 5.33333V7.66667"/><path d="M6 6H6.66667"/><path d="M6 8.66667H10"/><path d="M6 11.3333H8"/><path d="M12.6667 15C12.8035 14.4342 13.0937 13.917 13.5054 13.5054C13.917 13.0937 14.4342 12.8035 15 12.6667C14.4342 12.5298 13.917 12.2396 13.5054 11.8279C13.0937 11.4163 12.8035 10.8992 12.6667 10.3333C12.5298 10.8992 12.2396 11.4163 11.8279 11.8279C11.4163 12.2396 10.8992 12.5298 10.3333 12.6667C10.8992 12.8035 11.4163 13.0937 11.8279 13.5054C12.2396 13.917 12.5298 14.4342 12.6667 15Z"/></g></symbol>
     <symbol id="i-guard" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M8 2C9.55722 3.37772 11.5896 4.09504 13.6667 4C13.9691 5.02868 14.0616 6.10764 13.9387 7.17279C13.8159 8.23793 13.4802 9.26751 12.9516 10.2004C12.423 11.1332 11.7123 11.9503 10.8616 12.603C10.011 13.2557 9.03786 13.7308 8 14C6.96214 13.7308 5.98899 13.2557 5.13836 12.603C4.28774 11.9503 3.57701 11.1332 3.0484 10.2004C2.51979 9.26751 2.18409 8.23793 2.06125 7.17279C1.93841 6.10764 2.03094 5.02868 2.33333 4C4.41035 4.09504 6.44278 3.37772 8 2Z"/><path d="M8 2V14"/></g></symbol>
+    <symbol id="i-model" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="4.5" y="4.5" width="7" height="7" rx="1.6"/><path d="M6.5 4.5V2.5M9.5 4.5V2.5M6.5 13.5V11.5M9.5 13.5V11.5M4.5 6.5H2.5M4.5 9.5H2.5M13.5 6.5H11.5M13.5 9.5H11.5"/></g></symbol>
+    <symbol id="i-bulb" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M6 11.5C6 10.3 5.4 9.7 4.8 9C4.1 8.2 3.7 7.2 3.7 6.1C3.7 3.7 5.6 1.8 8 1.8C10.4 1.8 12.3 3.7 12.3 6.1C12.3 7.2 11.9 8.2 11.2 9C10.6 9.7 10 10.3 10 11.5"/><path d="M6.2 13.5H9.8"/><path d="M6 11.5H10"/></g></symbol>
+    <symbol id="i-instr" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M9.5 2H4.7C4.1 2 3.7 2.4 3.7 3V13C3.7 13.6 4.1 14 4.7 14H11.3C11.9 14 12.3 13.6 12.3 13V4.8L9.5 2Z"/><path d="M6.2 8.4L7.4 9.6L9.9 7.1"/><path d="M6.2 5.2H8.2"/></g></symbol>
 
     <!-- Add-node type icons · Figma 2:29202 (exact path data, colors applied via currentColor) -->
     <symbol id="i-nt-code" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M4.66667 5.33333L2 8L4.66667 10.6667"/><path d="M11.3333 5.33333L14 8L11.3333 10.6667"/><path d="M9.33333 2.66667L6.66667 13.3333"/></g></symbol>
@@ -1143,6 +1481,20 @@ svg{display:block}
         <span>Agent</span>
       </div>
       <button class="agent-newbtn" id="newAgentBtn"><svg width="16" height="16"><use href="#i-plus"/></svg>New agent</button>
+
+      <!-- step 0 · how do you want to create it? -->
+      <div class="na-menu" id="naMenu">
+        <button class="na-i tiq" data-create="tiq">
+          <span class="tile"><svg width="15" height="15" style="color:#80caff"><use href="#i-sparkle"/></svg></span>
+          <span><span class="nm">Create with Tiq</span>
+          <span class="ds">Describe it in a line — Tiq sets up the rest</span></span>
+        </button>
+        <button class="na-i" data-create="manual">
+          <span class="tile"><svg width="15" height="15" style="color:#9e9e9e"><use href="#i-tools"/></svg></span>
+          <span><span class="nm">Create manually</span>
+          <span class="ds">Configure each part of the agent yourself</span></span>
+        </button>
+      </div>
     </div>
 
     <div class="agent-searchwrap" id="agentSearchWrap">
@@ -1153,22 +1505,127 @@ svg{display:block}
     </div>
 
     <div class="agent-list" id="agentList"></div>
+  </section>
 
-    <!-- create-agent form, swapped in for the search+list while composing -->
-    <form class="agent-form" id="agentForm" hidden>
-      <div>
-        <label for="newAgentName">Name</label>
-        <input type="text" id="newAgentName" placeholder="e.g. Churn Risk Scorer" autocomplete="off">
+  <!-- ═══ NEW AGENT · dim + basics modal + graphical setup · Figma 783:12323 ═══ -->
+  <div class="flow-dim" id="flowDim"></div>
+
+  <!-- step 1 (manual) · basics · Figma 780:248644 -->
+  <section class="na-modal" id="naModal" aria-label="New agent">
+    <div class="na-modal-head">
+      <svg width="20" height="20" style="color:#44aaf3"><use href="#i-agent"/></svg>
+      New agent
+      <button class="x" id="naModalX"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="na-modal-body">
+      <div class="na-field">
+        <div class="row"><label for="naName">Agent name</label></div>
+        <input type="text" id="naName" placeholder="Policy compliance checker" autocomplete="off">
       </div>
-      <div>
-        <label for="newAgentDesc">Description</label>
-        <textarea id="newAgentDesc" placeholder="What does this agent do?"></textarea>
+      <div class="na-field">
+        <div class="row"><label class="req" for="naGoal">Goal</label><span class="eg" data-eg="goal">Example</span></div>
+        <input type="text" id="naGoal" placeholder="Define agent's goal" autocomplete="off">
+        <div class="help">Define the agent's goal in 1-2 lines</div>
       </div>
-      <div class="agent-form-actions">
-        <button type="button" class="agent-form-cancel" id="cancelAgentForm">Cancel</button>
-        <button type="submit" class="agent-form-create">Create agent</button>
+      <div class="na-field">
+        <div class="row"><label class="req" for="naBack">Backstory</label><span class="eg" data-eg="back">Example</span></div>
+        <textarea id="naBack" placeholder="Define agent's backstory"></textarea>
+        <div class="help">Define the agent's expertise, skills, and personality to guide its behaviour.</div>
       </div>
-    </form>
+      <div class="na-subcard">
+        <div>
+          <div class="t">Make this agent a sub-agent?</div>
+          <div class="d">When enabled, this will be used as a sub-agent under agent orchestrator</div>
+        </div>
+        <button class="switch" id="naSub" role="switch" aria-checked="false"></button>
+      </div>
+    </div>
+    <div class="na-modal-foot">
+      <button class="btn-tonal" id="naCancel">Cancel</button>
+      <button class="btn-primary" id="naSave" disabled>Save</button>
+    </div>
+  </section>
+
+  <!-- step 2 · graphical setup · Figma 783:12334 -->
+  <section class="builder" id="builder" aria-label="New agent setup">
+    <div class="builder-head">
+      <span class="ttl">New agent</span>
+      <span class="spacer"></span>
+      <button class="btn-primary" id="testAgentBtn">Test Agent</button>
+      <button class="x" id="builderX"><svg width="18" height="18"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="builder-canvas" id="builderCanvas">
+      <svg class="builder-wires" id="builderWires"></svg>
+
+      <!-- left column -->
+      <div class="bnode" data-node="model" style="left:141px;top:141px">
+        <span class="bnode-badge bb-model"><svg width="14" height="14"><use href="#i-model"/></svg>Model <span class="req">*</span></span>
+        <div class="bnode-card"><span class="ph">Choose the model</span>
+          <span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span></div>
+      </div>
+      <div class="bnode" data-node="instr" style="left:141px;top:266px">
+        <span class="bnode-badge bb-instr"><svg width="14" height="14"><use href="#i-instr"/></svg>Instructions</span>
+        <div class="bnode-card"><span class="ph">Write task specific instructions</span>
+          <span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span></div>
+      </div>
+      <div class="bnode" data-node="ctx" style="left:141px;top:391px">
+        <span class="bnode-badge bb-ctx"><svg width="14" height="14"><use href="#i-bulb"/></svg>Context</span>
+        <div class="bnode-card"><span class="ph">Add context to your assistant</span>
+          <span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span></div>
+      </div>
+
+      <!-- center agent -->
+      <div class="bagent ghost" id="bagent" style="left:441px;top:252px">
+        <span class="bagent-badge"><svg width="14" height="14"><use href="#i-agent"/></svg><span id="bagentName">New agent</span></span>
+        <div class="bagent-card" id="bagentCard">
+          <div class="fr"><div class="lb">Goal</div><div class="tx" id="bagentGoal">Tiq will draft your agent here</div>
+            <svg width="13" height="13"><use href="#i-edit"/></svg></div>
+          <div class="fr"><div class="lb">Backstory</div><div class="tx" id="bagentBack">—</div>
+            <svg width="13" height="13"><use href="#i-edit"/></svg></div>
+        </div>
+      </div>
+
+      <!-- right column -->
+      <div class="bnode" data-node="tools" style="left:733px;top:141px">
+        <span class="bnode-badge bb-tools"><svg width="14" height="14"><use href="#i-tools"/></svg>Tools</span>
+        <div class="bnode-card"><span class="ph">Connect actions to perform</span>
+          <span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span></div>
+      </div>
+      <div class="bnode" data-node="skills" style="left:733px;top:266px">
+        <span class="bnode-badge bb-skills"><svg width="14" height="14"><use href="#i-skill"/></svg>Skills</span>
+        <div class="bnode-card"><span class="ph">Add capabilities for specific tasks.</span>
+          <span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span></div>
+      </div>
+      <div class="bnode" data-node="guard" style="left:733px;top:391px">
+        <span class="bnode-badge bb-guard"><svg width="14" height="14"><use href="#i-guard"/></svg>Guardrails</span>
+        <div class="bnode-card"><span class="ph">Set boundaries on what it can say</span>
+          <span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span></div>
+      </div>
+
+      <!-- node side panel -->
+      <aside class="bside" id="bside">
+        <div class="bside-head" id="bsideHead"></div>
+        <div class="bside-body" id="bsideBody"></div>
+        <div class="bside-foot" id="bsideFoot"></div>
+      </aside>
+
+      <!-- Tiq conversational builder -->
+      <aside class="btiq" id="btiq" hidden>
+        <div class="btiq-head">
+          <svg width="20" height="20"><use href="#i-tiq"/></svg>
+          Build with Tiq
+        </div>
+        <div class="btiq-body" id="btiqBody"></div>
+        <div class="btiq-foot">
+          <input type="text" id="btiqInput" placeholder="Describe your agent…" autocomplete="off">
+          <button class="btiq-send" id="btiqSend"><svg width="15" height="15"><use href="#i-send"/></svg></button>
+        </div>
+      </aside>
+
+      <button class="builder-create" id="builderCreate" hidden>
+        <svg width="15" height="15"><use href="#i-check"/></svg>Create agent
+      </button>
+    </div>
   </section>
 
 </main>
@@ -1521,7 +1978,7 @@ function moveSel(dir){
    RESPONSE ENGINE
    ══════════════════════════════════════════════════════════════════ */
 
-const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc = s => s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const md  = s => esc(s)
   .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   .replace(/`(.+?)`/g, '<code>$1</code>')
@@ -1990,7 +2447,7 @@ function openAgentPanel(){
 }
 function closeAgentPanel(){
   frame.classList.remove('agent-open');
-  closeAgentForm();
+  naMenu.classList.remove('open');
 }
 $('#agentBack').addEventListener('click', closeAgentPanel);
 $('#agentSearch').addEventListener('input', e => renderAgentList(e.target.value));
@@ -2120,35 +2577,713 @@ $$('.pop-i', zoomMenu).forEach(btn => btn.addEventListener('click', () => {
   else if (btn.dataset.pct) setZoom(+btn.dataset.pct / 100);
 }));
 
-/* create-agent inline form */
-function closeAgentForm(){
-  $('#agentForm').hidden = true;
-  $('#agentSearchWrap').hidden = false;
-  $('#agentList').hidden = false;
-  $('#agentForm').reset();
+/* ══════════════════════════════════════════════════════════════════
+   NEW AGENT CREATION FLOW  (Figma 783:12323)
+   step 0  chooser →  Create with Tiq | Create manually
+   manual  basics modal → graphical setup canvas
+   tiq     graphical setup canvas + conversational co-pilot
+   ══════════════════════════════════════════════════════════════════ */
+
+const naMenu     = $('#naMenu');
+const naModal    = $('#naModal');
+const flowDim    = $('#flowDim');
+const builderEl  = $('#builder');
+const bsideEl    = $('#bside');
+const btiqEl     = $('#btiq');
+
+const MODEL_OPTS = [
+  { nm: 'Auto', ds: 'Tiq picks the right model per step' },
+  { nm: 'Fast', ds: 'Snappy edits and small changes' },
+  { nm: 'Deep', ds: 'Multi-step builds and research' },
+];
+const TOOL_OPTS = [
+  { id: 'quantum-sync', nm: 'Quantum Sync Module', kind: 'NL2SQL', icon: 'nt-collator', grad: ['#ffb02f', '#ffa025'] },
+  { id: 'visionlens',   nm: 'VisionLens Analytics', kind: 'Code',  icon: 'nt-code',     grad: ['#9ecc6a', '#79bb8d'] },
+  { id: 'client-cal',   nm: 'Client calendar',      kind: 'App',   icon: 'notes',       grad: ['#39aaff', '#2696ea'] },
+  { id: 'ecofleet',     nm: 'EcoFleet Manager',     kind: 'App',   icon: 'bolt',        grad: ['#59d1f1', '#2297b3'] },
+  { id: 'quantumcoder', nm: 'QuantumCoder',         kind: 'App',   icon: 'tools',       grad: ['#9ca1fc', '#caaffc'] },
+  { id: 'slack',        nm: 'Slack',                kind: 'App',   icon: 'slack',       grad: null },
+  { id: 'gdocs',        nm: 'Google Docs',          kind: 'App',   icon: 'doc',         grad: ['#c695fe', '#c267cd'] },
+  { id: 'sentiment',    nm: 'Sentiment API',        kind: 'Code',  icon: 'graph',       grad: ['#f26c98', '#fd3455'] },
+];
+const SKILL_OPTS = ['Sentiment analysis', 'Summarization', 'Entity extraction', 'Policy lookup', 'Report writing'];
+const GUARD_SUGGESTIONS = ['Stay on approved brand topics', 'Escalate legal or PII issues to a human'];
+
+const GOAL_EXAMPLE = 'Review every outbound social post for brand and policy compliance before it is published.';
+const BACK_EXAMPLE = 'You are a meticulous brand-compliance specialist with deep knowledge of our tone guidelines and regional ad regulations.';
+
+let draft = null, builderMode = null, bsideType = null;
+
+function newDraft(){
+  return { name: '', goal: '', backstory: '', sub: false,
+           model: '', instructions: '', params: [], expected: '', outParam: '',
+           maxIter: 20, planning: false,
+           tools: [], skills: [], context: '', guards: [] };
 }
-$('#newAgentBtn').addEventListener('click', () => {
-  $('#agentSearchWrap').hidden = true;
-  $('#agentList').hidden = true;
-  $('#agentForm').hidden = false;
-  $('#newAgentName').focus();
+
+/* ── step 0 · chooser ────────────────────────────────────────────── */
+$('#newAgentBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  naMenu.classList.toggle('open');
 });
-$('#cancelAgentForm').addEventListener('click', closeAgentForm);
-$('#agentForm').addEventListener('submit', e => {
-  e.preventDefault();
-  const name = $('#newAgentName').value.trim();
-  const desc = $('#newAgentDesc').value.trim();
-  if (!name) return;
-  AGENTS.unshift({
-    id: 'agent-' + Date.now(),
-    kind: 'single', grad: AGENT_GRADIENTS[AGENTS.length % AGENT_GRADIENTS.length],
-    title: name, sub: desc || 'No description yet.',
-    apps: ['doc'], counts: [['skill', 0]],
+document.addEventListener('click', e => {
+  if (!e.target.closest('.agent-newbtn, .na-menu')) naMenu.classList.remove('open');
+});
+$$('.na-i', naMenu).forEach(btn => btn.addEventListener('click', () => {
+  naMenu.classList.remove('open');
+  if (btn.dataset.create === 'manual') openNaModal();
+  else openBuilder('tiq');
+}));
+
+/* ── step 1 (manual) · basics modal ──────────────────────────────── */
+function openNaModal(){
+  draft = newDraft();
+  ['naName', 'naGoal', 'naBack'].forEach(id => $('#' + id).value = '');
+  $('#naSub').classList.remove('on');
+  $('#naSave').disabled = true;
+  flowDim.classList.add('show');
+  naModal.classList.add('show');
+  setTimeout(() => $('#naName').focus(), 180);
+}
+function closeNaModal(){
+  naModal.classList.remove('show');
+  if (!builderEl.classList.contains('show')) flowDim.classList.remove('show');
+}
+function naValidate(){
+  $('#naSave').disabled = !($('#naName').value.trim() && $('#naGoal').value.trim() && $('#naBack').value.trim());
+}
+['naName', 'naGoal', 'naBack'].forEach(id => $('#' + id).addEventListener('input', naValidate));
+$$('.na-field .eg', naModal).forEach(eg => eg.addEventListener('click', () => {
+  if (eg.dataset.eg === 'goal') $('#naGoal').value = GOAL_EXAMPLE;
+  else $('#naBack').value = BACK_EXAMPLE;
+  naValidate();
+}));
+$('#naSub').addEventListener('click', () => {
+  const on = $('#naSub').classList.toggle('on');
+  $('#naSub').setAttribute('aria-checked', on);
+});
+$('#naModalX').addEventListener('click', closeNaModal);
+$('#naCancel').addEventListener('click', closeNaModal);
+$('#naSave').addEventListener('click', () => {
+  draft.name = $('#naName').value.trim() || 'Untitled agent';
+  draft.goal = $('#naGoal').value.trim();
+  draft.backstory = $('#naBack').value.trim();
+  draft.sub = $('#naSub').classList.contains('on');
+  naModal.classList.remove('show');
+  openBuilder('manual');
+});
+
+/* ── step 2 · graphical setup canvas ─────────────────────────────── */
+function openBuilder(mode){
+  builderMode = mode;
+  if (mode === 'tiq') draft = newDraft();
+  flowDim.classList.add('show');
+  builderEl.classList.add('show');
+  resetBuilderNodes();
+
+  if (mode === 'manual'){
+    setAgentBasics(false);
+    btiqEl.hidden = true;
+    $('#builderCreate').hidden = false;
+  } else {
+    /* tiq mode: ghost center card until the conversation drafts it */
+    const bagent = $('#bagent');
+    bagent.classList.add('ghost');
+    $('#bagentName').textContent = 'New agent';
+    $('#bagentGoal').textContent = 'Tiq will draft your agent here';
+    $('#bagentBack').textContent = '—';
+    btiqEl.hidden = false;
+    $('#builderCreate').hidden = true;
+    startTiqBuild();
+  }
+  requestAnimationFrame(() => requestAnimationFrame(drawBuilderWires));
+}
+function closeBuilder(){
+  builderEl.classList.remove('show');
+  flowDim.classList.remove('show');
+  closeBside();
+  btiqEl.hidden = true;
+  $('#btiqBody').innerHTML = '';
+  builderMode = null;
+}
+$('#builderX').addEventListener('click', closeBuilder);
+$('#testAgentBtn').addEventListener('click', () => {
+  toast(ico('check', 15, '#7cb342'), 'Test run passed', `${draft?.name || 'agent'} replied in 1.2s`);
+});
+
+function resetBuilderNodes(){
+  $$('.bnode', builderEl).forEach(n => {
+    n.classList.remove('sel', 'done', 'pulse');
+    const card = $('.bnode-card', n);
+    card.innerHTML = `<span class="ph">${{
+      model: 'Choose the model', instr: 'Write task specific instructions',
+      ctx: 'Add context to your assistant', tools: 'Connect actions to perform',
+      skills: 'Add capabilities for specific tasks.', guard: 'Set boundaries on what it can say',
+    }[n.dataset.node]}</span><span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span>`;
   });
-  closeAgentForm();
-  renderAgentList($('#agentSearch').value);
-  toast(ico('check', 15, '#7cb342'), `${name} created`, 'now available in your agent library');
+  $('#bagent').classList.remove('landed');
+}
+
+function setAgentBasics(pulse){
+  const bagent = $('#bagent');
+  bagent.classList.remove('ghost');
+  $('#bagentName').textContent = draft.name;
+  $('#bagentGoal').textContent = draft.goal;
+  $('#bagentBack').textContent = draft.backstory;
+  if (pulse){
+    bagent.classList.remove('landed'); void bagent.offsetWidth;
+    bagent.classList.add('landed');
+  }
+  drawBuilderWires();
+}
+
+/* connectors — measured from live geometry so they track card growth */
+function drawBuilderWires(){
+  const svg = $('#builderWires');
+  const cRect = $('#builderCanvas').getBoundingClientRect();
+  const center = $('#bagentCard').getBoundingClientRect();
+  const cx1 = center.left - cRect.left, cx2 = center.right - cRect.left;
+  const cy = center.top - cRect.top + center.height / 2;
+  const paths = [];
+  $$('.bnode', builderEl).forEach(n => {
+    const card = $('.bnode-card', n).getBoundingClientRect();
+    const myY = card.top - cRect.top + card.height / 2;
+    const left = card.left - cRect.left, right = card.right - cRect.left;
+    const fromLeftCol = right < cx1;
+    const x1 = fromLeftCol ? right : cx2;
+    const y1 = fromLeftCol ? myY : cy;
+    const x2 = fromLeftCol ? cx1 : left;
+    const y2 = fromLeftCol ? cy : myY;
+    const mx = (x1 + x2) / 2;
+    if (Math.abs(y1 - y2) < 4){ paths.push(`M${x1} ${y1} L${x2} ${y2}`); return; }
+    const r = Math.min(9, Math.abs(y2 - y1) / 2), sy = y2 > y1 ? 1 : -1;
+    paths.push(`M${x1} ${y1} L${mx - r} ${y1} Q${mx} ${y1} ${mx} ${y1 + r * sy} ` +
+               `L${mx} ${y2 - r * sy} Q${mx} ${y2} ${mx + r} ${y2} L${x2} ${y2}`);
+  });
+  svg.innerHTML = paths.map(d => `<path d="${d}"/>`).join('');
+}
+
+/* highlight {tokens} inside canvas snippets */
+function tokHTML(text){
+  return esc(text).replace(/\{([a-z0-9_ -]+)\}/gi, '<span class="tok">{$1}</span>');
+}
+
+function fillNode(type){
+  const node = $(`.bnode[data-node="${type}"]`, builderEl);
+  const card = $('.bnode-card', node);
+  const add = `<span class="bnode-add"><svg width="12" height="12"><use href="#i-check"/></svg></span>`;
+  let body = '';
+  if (type === 'model')  body = `<span class="val">${esc(draft.model)}</span>`;
+  if (type === 'instr')  body = `<span class="val">${tokHTML(draft.instructions.slice(0, 110))}</span>`;
+  if (type === 'ctx')    body = `<span class="val">${esc(draft.context.slice(0, 90))}</span>`;
+  if (type === 'guard')  body = `<span class="val">${draft.guards.length === 1 ? esc(draft.guards[0]) : draft.guards.length + ' boundaries set'}</span>`;
+  if (type === 'tools' || type === 'skills'){
+    const items = type === 'tools' ? draft.tools.map(id => (TOOL_OPTS.find(t => t.id === id) || {}).nm || id) : draft.skills;
+    if (!items.length){ resetNode(type); return; }
+    const shown = items.slice(0, 2).map(t => `<span class="bnode-chip">${esc(t)}</span>`).join('');
+    const more = items.length > 2 ? `<span class="bnode-chip">+${items.length - 2}</span>` : '';
+    body = `<div class="bnode-chips">${shown}${more}</div>`;
+  }
+  const empty = (type === 'model' && !draft.model) || (type === 'instr' && !draft.instructions) ||
+                (type === 'ctx' && !draft.context) || (type === 'guard' && !draft.guards.length);
+  if (empty){ resetNode(type); return; }
+  card.innerHTML = body + add;
+  node.classList.add('done');
+  node.classList.remove('pulse'); void node.offsetWidth;
+  node.classList.add('pulse');
+  drawBuilderWires();
+}
+function resetNode(type){
+  const node = $(`.bnode[data-node="${type}"]`, builderEl);
+  node.classList.remove('done');
+  $('.bnode-card', node).innerHTML = `<span class="ph">${{
+    model: 'Choose the model', instr: 'Write task specific instructions',
+    ctx: 'Add context to your assistant', tools: 'Connect actions to perform',
+    skills: 'Add capabilities for specific tasks.', guard: 'Set boundaries on what it can say',
+  }[type]}</span><span class="bnode-add"><svg width="12" height="12"><use href="#i-plus"/></svg></span>`;
+  drawBuilderWires();
+}
+
+/* ── node side panels ────────────────────────────────────────────── */
+const BSIDE_META = {
+  model:  { title: 'Model',             icon: 'model', color: '#a0a5f7' },
+  instr:  { title: 'Task instructions', icon: 'instr', color: '#dd7c0e' },
+  ctx:    { title: 'Context',           icon: 'bulb',  color: '#85e0a3' },
+  tools:  { title: 'Tools',             icon: 'tools', color: '#bb7fff' },
+  skills: { title: 'Skills',            icon: 'skill', color: '#35caf0' },
+  guard:  { title: 'Guardrails',        icon: 'guard', color: '#dc3412' },
+  basics: { title: 'Agent details',     icon: 'agent', color: '#44aaf3' },
+};
+
+$$('.bnode', builderEl).forEach(n => $('.bnode-card', n).addEventListener('click', () => openBside(n.dataset.node)));
+$('#bagentCard').addEventListener('click', () => {
+  if (!$('#bagent').classList.contains('ghost')) openBside('basics');
 });
+
+function openBside(type){
+  bsideType = type;
+  $$('.bnode', builderEl).forEach(n => n.classList.toggle('sel', n.dataset.node === type));
+  const meta = BSIDE_META[type];
+  const backBtn = builderMode === 'tiq' ? `<button class="back" id="bsideBack" title="Back to Tiq"><svg width="15" height="15"><use href="#i-back"/></svg></button>` : '';
+  $('#bsideHead').innerHTML = `${backBtn}${ico(meta.icon, 18, meta.color)}<span>${meta.title}</span>`;
+  renderBsidePanel(type);
+  if (builderMode === 'tiq') btiqEl.hidden = true;
+  bsideEl.classList.add('show');
+  builderEl.classList.add('side-open');
+  const back = $('#bsideBack');
+  if (back) back.addEventListener('click', closeBside);
+}
+function closeBside(){
+  bsideEl.classList.remove('show');
+  builderEl.classList.remove('side-open');
+  $$('.bnode', builderEl).forEach(n => n.classList.remove('sel'));
+  bsideType = null;
+  if (builderMode === 'tiq') btiqEl.hidden = false;
+}
+
+function renderBsidePanel(type){
+  const body = $('#bsideBody'), foot = $('#bsideFoot');
+  foot.innerHTML = '';
+
+  if (type === 'model'){
+    body.innerHTML = `<div><div class="bf-label"><span class="req">Select model</span></div></div>` +
+      MODEL_OPTS.map(m => `
+        <button class="tool-row ${draft.model === m.nm ? 'on' : ''}" data-model="${m.nm}">
+          <span class="tile" style="background:linear-gradient(135deg,#5860ed,#454de0)">${ico('sparkle', 13)}</span>
+          <span class="nm">${m.nm}<span style="display:block;font-size:11px;color:var(--text-tertiary)">${m.ds}</span></span>
+          <span class="tick">${ico('check', 15)}</span>
+        </button>`).join('');
+    $$('.tool-row', body).forEach(r => r.addEventListener('click', () => {
+      draft.model = r.dataset.model;
+      $$('.tool-row', body).forEach(x => x.classList.toggle('on', x === r));
+      fillNode('model');
+    }));
+    foot.innerHTML = `<button class="bside-save ready" id="bsideDone">Done</button>`;
+  }
+
+  if (type === 'tools'){
+    body.innerHTML = `
+      <div>
+        <div class="bf-label"><span class="req">Select tools</span></div>
+        <div class="bf-searchwrap">
+          <input class="bf-input" id="toolSearch" placeholder="Search tools" autocomplete="off">
+          <button class="newtool">+New Tool</button>
+        </div>
+      </div>
+      <div id="toolList" style="display:flex;flex-direction:column;gap:2px"></div>
+      <button class="viewall" id="toolViewAll">${ico('expand', 13)}View all</button>`;
+    let showAll = false;
+    const renderTools = () => {
+      const q = $('#toolSearch').value.trim().toLowerCase();
+      let list = q ? TOOL_OPTS.filter(t => t.nm.toLowerCase().includes(q)) : TOOL_OPTS;
+      if (!showAll && !q) list = list.slice(0, 5);
+      $('#toolList').innerHTML = list.map(t => `
+        <button class="tool-row ${draft.tools.includes(t.id) ? 'on' : ''}" data-tool="${t.id}">
+          <span class="tile" style="background:${t.grad ? `linear-gradient(135deg,${t.grad[0]},${t.grad[1]})` : 'var(--card-bg-3)'}">${ico(t.icon, 14)}</span>
+          <span class="nm">${t.nm}</span><span class="kind">${t.kind}</span>
+          <span class="tick">${ico('check', 15)}</span>
+        </button>`).join('');
+      $$('.tool-row', $('#toolList')).forEach(r => r.addEventListener('click', () => {
+        const id = r.dataset.tool;
+        draft.tools.includes(id) ? draft.tools.splice(draft.tools.indexOf(id), 1) : draft.tools.push(id);
+        r.classList.toggle('on');
+        fillNode('tools');
+      }));
+    };
+    renderTools();
+    $('#toolSearch').addEventListener('input', renderTools);
+    $('#toolViewAll').addEventListener('click', () => { showAll = !showAll; renderTools(); });
+    $('.newtool', body).addEventListener('click', () => toast(ico('tools', 15, '#bb7fff'), 'New tool', 'the tool builder is coming soon'));
+    foot.innerHTML = `<button class="bside-save ready" id="bsideDone">Done</button>`;
+  }
+
+  if (type === 'skills'){
+    body.innerHTML = `<div><div class="bf-label"><span>Add skills</span></div></div>` +
+      SKILL_OPTS.map(s => `
+        <button class="tool-row ${draft.skills.includes(s) ? 'on' : ''}" data-skill="${esc(s)}">
+          <span class="tile" style="background:#051b29;border:1px solid #175d73">${ico('skill', 13, '#35caf0')}</span>
+          <span class="nm">${s}</span><span class="tick">${ico('check', 15)}</span>
+        </button>`).join('');
+    $$('.tool-row', body).forEach(r => r.addEventListener('click', () => {
+      const s = r.dataset.skill;
+      draft.skills.includes(s) ? draft.skills.splice(draft.skills.indexOf(s), 1) : draft.skills.push(s);
+      r.classList.toggle('on');
+      fillNode('skills');
+    }));
+    foot.innerHTML = `<button class="bside-save ready" id="bsideDone">Done</button>`;
+  }
+
+  if (type === 'guard'){
+    body.innerHTML = `<div><div class="bf-label"><span>Set boundaries</span></div></div>` +
+      GUARD_SUGGESTIONS.map(g => `
+        <button class="tool-row ${draft.guards.includes(g) ? 'on' : ''}" data-guard="${esc(g)}">
+          <span class="tile" style="background:#200403;border:1px solid #660e0b">${ico('guard', 13, '#dc3412')}</span>
+          <span class="nm" style="white-space:normal">${g}</span><span class="tick">${ico('check', 15)}</span>
+        </button>`).join('') +
+      `<div><div class="bf-label"><span>Custom rule</span></div>
+        <input class="bf-input" id="guardCustom" placeholder="e.g. Never quote prices" autocomplete="off">
+        <div class="bf-help">Press Enter to add</div></div>`;
+    $$('.tool-row', body).forEach(r => r.addEventListener('click', () => {
+      const g = r.dataset.guard;
+      draft.guards.includes(g) ? draft.guards.splice(draft.guards.indexOf(g), 1) : draft.guards.push(g);
+      r.classList.toggle('on');
+      fillNode('guard');
+    }));
+    $('#guardCustom').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.value.trim()){
+        draft.guards.push(e.target.value.trim());
+        e.target.value = '';
+        fillNode('guard');
+        toast(ico('guard', 15, '#dc3412'), 'Guardrail added', 'custom boundary saved');
+      }
+    });
+    foot.innerHTML = `<button class="bside-save ready" id="bsideDone">Done</button>`;
+  }
+
+  if (type === 'ctx'){
+    body.innerHTML = `
+      <div><div class="bf-label"><span>Context</span></div>
+        <textarea class="bf-area" id="ctxArea" style="min-height:140px" placeholder="Add context to your assistant">${esc(draft.context)}</textarea>
+        <div class="bf-help">Anything the agent should always know — links, docs, team conventions.</div></div>`;
+    foot.innerHTML = `<button class="bside-save ${draft.context ? 'ready' : ''}" id="bsideSave">Save</button>`;
+    $('#ctxArea').addEventListener('input', e => $('#bsideSave').classList.toggle('ready', !!e.target.value.trim()));
+    $('#bsideSave').addEventListener('click', () => {
+      if (!$('#bsideSave').classList.contains('ready')) return;
+      draft.context = $('#ctxArea').value.trim();
+      fillNode('ctx'); closeBside();
+    });
+  }
+
+  if (type === 'instr'){
+    body.innerHTML = `
+      <div class="bf-card">
+        <div class="bt">Input parameter</div>
+        <div class="bd">Add any placeholder you'll reference in the instructions, like <span class="tok">{topic}</span></div>
+        <div id="paramList" style="display:flex;flex-direction:column;gap:6px"></div>
+        <button class="btn-tonal-blue" id="addParam">${ico('plus', 12)}Add parameter</button>
+      </div>
+      <div>
+        <div class="bf-label"><span class="req">Instructions</span><span class="eg" id="instrEg">Example</span></div>
+        <div class="rich-wrap">
+          <div class="rich-bar">
+            <button style="font-weight:700">B</button><button style="font-style:italic">I</button>
+            <button style="text-decoration:underline">U</button><span class="sep"></span>
+            <button>≔</button><button>⋮≡</button><span class="sep"></span>
+            <span class="size">Medium ${ico('chev-down', 11)}</span>
+          </div>
+          <textarea class="bf-area" id="instrArea" placeholder="Write instructions — type { to insert a parameter">${esc(draft.instructions)}</textarea>
+          <div class="param-pop" id="paramPop"></div>
+        </div>
+        <div class="bf-help">Detailed instructions on what the agent should do. Include step-by-step guidance.</div>
+      </div>
+      <div>
+        <div class="bf-label"><span class="req">Expected output</span></div>
+        <input class="bf-input" id="expectedIn" placeholder="Define agent's output" value="${esc(draft.expected)}" autocomplete="off">
+        <div class="bf-help">Define the format and content of the agent's final output.</div>
+      </div>
+      <div class="bf-card">
+        <div class="bt">Output parameter <span style="color:#dc3412">*</span></div>
+        <div class="bd">Give a name to the output of the agent</div>
+        <input class="bf-input" id="outParamIn" placeholder="Output parameter name" value="${esc(draft.outParam)}" autocomplete="off">
+      </div>
+      <div class="bf-card">
+        <div class="bd" style="font-weight:500;color:var(--text-secondary)">Adv. options</div>
+        <div class="adv-row"><span>Max. iterations</span></div>
+        <div class="slider-row">
+          <input type="range" id="iterRange" min="1" max="20" value="${draft.maxIter}">
+          <input class="num" id="iterNum" value="${draft.maxIter}">
+        </div>
+        <div class="adv-row"><span>Include planning before executing</span>
+          <button class="switch ${draft.planning ? 'on' : ''}" id="planSwitch" role="switch"></button></div>
+      </div>`;
+    foot.innerHTML = `<button class="bside-save ${draft.instructions ? 'ready' : ''}" id="bsideSave">Save</button>`;
+
+    const renderParams = () => {
+      $('#paramList').innerHTML = draft.params.map((p, i) =>
+        `<input class="bf-input" data-pi="${i}" value="${esc(p)}" placeholder="Parameter name">`).join('');
+      $$('#paramList .bf-input').forEach(inp => inp.addEventListener('input', e => {
+        draft.params[+e.target.dataset.pi] = e.target.value.trim();
+      }));
+    };
+    renderParams();
+    $('#addParam').addEventListener('click', () => {
+      draft.params.push('');
+      renderParams();
+      const last = $$('#paramList .bf-input').pop(); if (last) last.focus();
+    });
+    $('#instrEg').addEventListener('click', () => {
+      if (!draft.params.length){ draft.params = ['topic', 'timeframe', 'format']; renderParams(); }
+      $('#instrArea').value = 'Research the latest developments in {topic} from the past {timeframe}.\n- Summarize the top 3 findings in {format}, keeping each point under 50 words.\n- Focus on sources relevant to the industry and skip anything older than the timeframe.';
+      $('#bsideSave').classList.add('ready');
+    });
+    /* "{" opens the parameter autocomplete */
+    $('#instrArea').addEventListener('input', e => {
+      $('#bsideSave').classList.toggle('ready', !!e.target.value.trim());
+      const pop = $('#paramPop');
+      const names = draft.params.filter(Boolean);
+      if (e.target.value.endsWith('{') && names.length){
+        pop.innerHTML = names.map(p => `<button data-p="${esc(p)}">{${esc(p)}}</button>`).join('');
+        pop.classList.add('open');
+        $$('button', pop).forEach(b => b.addEventListener('click', () => {
+          $('#instrArea').value += b.dataset.p + '}';
+          pop.classList.remove('open');
+          $('#instrArea').focus();
+        }));
+      } else pop.classList.remove('open');
+    });
+    $('#iterRange').addEventListener('input', e => { $('#iterNum').value = e.target.value; draft.maxIter = +e.target.value; });
+    $('#iterNum').addEventListener('input', e => {
+      const v = Math.max(1, Math.min(20, +e.target.value || 1));
+      $('#iterRange').value = v; draft.maxIter = v;
+    });
+    $('#planSwitch').addEventListener('click', () => draft.planning = $('#planSwitch').classList.toggle('on'));
+    $('#bsideSave').addEventListener('click', () => {
+      if (!$('#bsideSave').classList.contains('ready')) return;
+      draft.instructions = $('#instrArea').value.trim();
+      draft.expected = $('#expectedIn').value.trim();
+      draft.outParam = $('#outParamIn').value.trim();
+      draft.params = draft.params.filter(Boolean);
+      fillNode('instr'); closeBside();
+    });
+  }
+
+  if (type === 'basics'){
+    body.innerHTML = `
+      <div><div class="bf-label"><span>Agent name</span></div>
+        <input class="bf-input" id="edName" value="${esc(draft.name)}" autocomplete="off"></div>
+      <div><div class="bf-label"><span class="req">Goal</span></div>
+        <textarea class="bf-area" id="edGoal" style="min-height:64px">${esc(draft.goal)}</textarea></div>
+      <div><div class="bf-label"><span class="req">Backstory</span></div>
+        <textarea class="bf-area" id="edBack" style="min-height:96px">${esc(draft.backstory)}</textarea></div>`;
+    foot.innerHTML = `<button class="bside-save ready" id="bsideSave">Save</button>`;
+    $('#bsideSave').addEventListener('click', () => {
+      draft.name = $('#edName').value.trim() || draft.name;
+      draft.goal = $('#edGoal').value.trim() || draft.goal;
+      draft.backstory = $('#edBack').value.trim() || draft.backstory;
+      setAgentBasics(true); closeBside();
+    });
+  }
+
+  const done = $('#bsideDone');
+  if (done) done.addEventListener('click', closeBside);
+}
+
+/* ── create the agent from the draft ─────────────────────────────── */
+function createAgentFromDraft(){
+  const apps = [];
+  if (draft.tools.includes('slack')) apps.push('slack');
+  if (draft.tools.includes('gdocs') || !apps.length) apps.push('doc');
+  const counts = [];
+  if (draft.tools.length) counts.push(['tools', draft.tools.length]);
+  if (draft.skills.length) counts.push(['skill', draft.skills.length]);
+  if (draft.guards.length) counts.push(['guard', draft.guards.length]);
+  AGENTS.unshift({
+    id: 'agent-' + Date.now(), kind: 'single',
+    grad: AGENT_GRADIENTS[AGENTS.length % AGENT_GRADIENTS.length],
+    title: draft.name, sub: draft.goal || 'No description yet.',
+    apps, counts: counts.length ? counts : [['skill', 0]],
+  });
+  renderAgentList($('#agentSearch').value);
+  const name = draft.name;
+  closeBuilder();
+  toast(ico('check', 15, '#7cb342'), `${name} created`, 'now available in your agent library');
+}
+$('#builderCreate').addEventListener('click', createAgentFromDraft);
+
+/* ══════════════════════════════════════════════════════════════════
+   CREATE WITH TIQ — conversational builder
+   ══════════════════════════════════════════════════════════════════ */
+
+const TIQ_PRESETS = {
+  compliance: {
+    name: 'Social Post Compliance Reviewer',
+    goal: 'Review every outbound social post for brand and policy compliance before it is published.',
+    backstory: 'A meticulous brand-compliance specialist with deep knowledge of tone guidelines and regional ad regulations.',
+    params: ['post', 'channel', 'region'],
+    instructions: 'Review the {post} drafted for {channel}.\n- Check tone against brand guidelines and flag risky claims.\n- Verify compliance with {region} advertising regulations.\n- Return an approval verdict with inline fixes.',
+    expected: 'Verdict (approve / revise) with a fixed version of the post',
+    outParam: 'compliance_report',
+    tools: ['slack', 'gdocs', 'sentiment'],
+    skills: ['Sentiment analysis', 'Policy lookup'],
+    guards: GUARD_SUGGESTIONS,
+    context: 'Brand tone guide v3, regional ad-policy matrix, escalation rota.',
+  },
+  feedback: {
+    name: 'Customer Feedback Summarizer',
+    goal: 'Digest weekly customer feedback into themes, sentiment and top asks for the product team.',
+    backstory: 'A sharp research analyst who turns noisy review streams into crisp, actionable summaries.',
+    params: ['sources', 'timeframe', 'format'],
+    instructions: 'Collect feedback from {sources} over the past {timeframe}.\n- Cluster into themes with sentiment per theme.\n- Rank the top 5 asks by frequency and revenue impact.\n- Deliver in {format}.',
+    expected: 'A themed digest with sentiment scores and a ranked ask list',
+    outParam: 'feedback_digest',
+    tools: ['sentiment', 'gdocs', 'quantum-sync'],
+    skills: ['Sentiment analysis', 'Summarization'],
+    guards: ['Quote customers anonymously', 'Escalate legal or PII issues to a human'],
+    context: 'Feedback lands in #voc-inbox; product taxonomy sheet defines theme names.',
+  },
+  tickets: {
+    name: 'Support Ticket Triager',
+    goal: 'Classify inbound support tickets, set priority and route them to the right team in seconds.',
+    backstory: 'A calm, experienced support lead who has seen every kind of ticket and never misroutes one.',
+    params: ['ticket', 'severity_rules'],
+    instructions: 'Read the incoming {ticket}.\n- Classify by product area and severity per {severity_rules}.\n- Draft a first-response and route to the owning team.\n- Escalate P1s immediately.',
+    expected: 'Routed ticket with severity, owner and a drafted first response',
+    outParam: 'triage_result',
+    tools: ['slack', 'quantumcoder', 'client-cal'],
+    skills: ['Entity extraction', 'Summarization'],
+    guards: ['Never promise refunds', 'Escalate legal or PII issues to a human'],
+    context: 'Routing map lives in the support runbook; SLAs: P1 15m, P2 4h.',
+  },
+};
+
+let btStep = 'idle';
+
+function btScroll(){ const b = $('#btiqBody'); b.scrollTop = b.scrollHeight; }
+function btSay(html, chips){
+  const b = $('#btiqBody');
+  const typing = document.createElement('div');
+  typing.className = 'bt-typing';
+  typing.innerHTML = `<svg class="av" width="20" height="20"><use href="#i-tiq"/></svg><span class="dots"><i></i><i></i><i></i></span>`;
+  b.appendChild(typing); btScroll();
+  setTimeout(() => {
+    typing.remove();
+    const m = document.createElement('div');
+    m.className = 'bt-msg';
+    m.innerHTML = `<svg class="av" width="20" height="20"><use href="#i-tiq"/></svg><span class="tx">${html}</span>`;
+    b.appendChild(m);
+    if (chips && chips.length){
+      const c = document.createElement('div');
+      c.className = 'bt-chips';
+      chips.forEach(ch => {
+        const btn = document.createElement('button');
+        btn.className = 'bt-chip' + (ch.primary ? ' primary' : '');
+        btn.textContent = ch.t;
+        btn.addEventListener('click', () => { c.remove(); ch.cb(ch.t); });
+        c.appendChild(btn);
+      });
+      b.appendChild(c);
+    }
+    btScroll();
+  }, reduced ? 60 : 750 + Math.random() * 350);
+}
+function btUser(text){
+  const b = $('#btiqBody');
+  $$('.bt-chips', b).forEach(c => c.remove());
+  const m = document.createElement('div');
+  m.className = 'bt-msg user';
+  m.innerHTML = `<span class="tx">${esc(text)}</span>`;
+  b.appendChild(m); btScroll();
+}
+
+function startTiqBuild(){
+  $('#btiqBody').innerHTML = '';
+  $('#btiqInput').value = '';
+  $('#btiqInput').placeholder = 'Describe your agent…';
+  btStep = 'what';
+  btSay(`Let's spin up a new agent ⚡ In a line or two, what should it do?`, [
+    { t: 'Review social posts for compliance', cb: t => btAnswerWhat('compliance', t) },
+    { t: 'Summarize customer feedback weekly', cb: t => btAnswerWhat('feedback', t) },
+    { t: 'Triage inbound support tickets',     cb: t => btAnswerWhat('tickets', t) },
+  ]);
+}
+
+function presetFromText(text){
+  const words = text.trim().replace(/[.!?]+$/, '').split(/\s+/);
+  const name = words.slice(0, 4).map(w => w[0].toUpperCase() + w.slice(1)).join(' ') + (words.length < 2 ? ' Agent' : '');
+  return Object.assign({}, TIQ_PRESETS.feedback, {
+    name,
+    goal: 'The primary goal of this agent is to ' + text.trim().replace(/^./, c => c.toLowerCase()).replace(/[.!?]*$/, '.'),
+    backstory: 'A focused specialist agent, purpose-built for this workflow with the judgment to know when to loop in a human.',
+  });
+}
+
+let btPreset = null;
+function btAnswerWhat(key, text){
+  btUser(text);
+  btStep = 'busy';
+  btPreset = key ? TIQ_PRESETS[key] : presetFromText(text);
+  setTimeout(() => {
+    draft.name = btPreset.name;
+    draft.goal = btPreset.goal;
+    draft.backstory = btPreset.backstory;
+    setAgentBasics(true);
+    btStep = 'model';
+    $('#btiqInput').placeholder = 'Or type a model name…';
+    btSay(`Meet <b>${esc(draft.name)}</b> — I've drafted its goal and backstory. Click the card anytime to tweak.<br><br>Which model should power it?`, [
+      { t: 'Deep — recommended', primary: true, cb: () => btAnswerModel('Deep') },
+      { t: 'Fast', cb: () => btAnswerModel('Fast') },
+      { t: 'Auto', cb: () => btAnswerModel('Auto') },
+    ]);
+  }, reduced ? 100 : 1400);
+}
+
+function btAnswerModel(model){
+  btUser(model);
+  btStep = 'busy';
+  draft.model = model.replace(/ —.*/, '');
+  fillNode('model');
+  setTimeout(() => {
+    draft.params = btPreset.params.slice();
+    draft.instructions = btPreset.instructions;
+    draft.expected = btPreset.expected;
+    draft.outParam = btPreset.outParam;
+    fillNode('instr');
+    btStep = 'tools';
+    const toolNames = btPreset.tools.map(id => TOOL_OPTS.find(t => t.id === id).nm);
+    btSay(`Locked in. I also wrote its task instructions with input parameters ` +
+      btPreset.params.map(p => `<span class="tok">{${esc(p)}}</span>`).join(' ') +
+      ` and an expected output.<br><br>For tools, I'd connect <b>${toolNames.join('</b>, <b>')}</b> — want me to?`, [
+      { t: 'Add all 3', primary: true, cb: () => btAnswerTools(true) },
+      { t: 'Skip for now', cb: () => btAnswerTools(false) },
+    ]);
+  }, reduced ? 100 : 1100);
+}
+
+function btAnswerTools(add){
+  btUser(add ? 'Add all 3' : 'Skip for now');
+  btStep = 'busy';
+  if (add){ draft.tools = btPreset.tools.slice(); fillNode('tools'); }
+  setTimeout(() => {
+    btStep = 'guard';
+    btSay(`Last one — guardrails. I suggest:<br>· ${esc(btPreset.guards[0])}<br>· ${esc(btPreset.guards[1])}`, [
+      { t: 'Add both', primary: true, cb: () => btAnswerGuards(true) },
+      { t: 'Skip', cb: () => btAnswerGuards(false) },
+    ]);
+  }, reduced ? 100 : 900);
+}
+
+function btAnswerGuards(add){
+  btUser(add ? 'Add both' : 'Skip');
+  btStep = 'busy';
+  if (add){ draft.guards = btPreset.guards.slice(); fillNode('guard'); }
+  setTimeout(() => {
+    draft.skills = btPreset.skills.slice();
+    draft.context = btPreset.context;
+    fillNode('skills'); fillNode('ctx');
+    btStep = 'done';
+    btSay(`🎉 <b>${esc(draft.name)}</b> is ready — I also added ${draft.skills.length} skills and workspace context. Review any node on the canvas, or create it now.`, [
+      { t: 'Create agent', primary: true, cb: () => createAgentFromDraft() },
+      { t: 'Keep editing', cb: () => {
+          btUser('Keep editing');
+          $('#builderCreate').hidden = false;
+          btSay('Take your time — click any node to fine-tune it. Hit <b>Create agent</b> at the bottom right when you\'re happy.');
+        } },
+    ]);
+  }, reduced ? 100 : 1100);
+}
+
+function btHandleInput(){
+  const v = $('#btiqInput').value.trim();
+  if (!v) return;
+  $('#btiqInput').value = '';
+  if (btStep === 'what') btAnswerWhat(null, v);
+  else if (btStep === 'model') btAnswerModel(/fast/i.test(v) ? 'Fast' : /auto/i.test(v) ? 'Auto' : 'Deep');
+  else if (btStep === 'tools') btAnswerTools(!/skip|no/i.test(v));
+  else if (btStep === 'guard') btAnswerGuards(!/skip|no/i.test(v));
+  else if (btStep === 'done'){ btUser(v); btSay('Click <b>Create agent</b> when you\'re ready, or keep tweaking the nodes.'); }
+}
+$('#btiqSend').addEventListener('click', btHandleInput);
+$('#btiqInput').addEventListener('keydown', e => { if (e.key === 'Enter') btHandleInput(); });
 
 function pulseSave(){
   const s = $('#saveBtn');
@@ -2178,7 +3313,11 @@ document.addEventListener('keydown', e => {
     frame.classList.contains('panel-open') ? closePanel() : openPanel();
   }
   if (e.key === 'Escape'){
-    if (menu.classList.contains('open')) closeMenu();
+    if (bsideEl.classList.contains('show')) closeBside();
+    else if (builderEl.classList.contains('show')) closeBuilder();
+    else if (naModal.classList.contains('show')) closeNaModal();
+    else if (naMenu.classList.contains('open')) naMenu.classList.remove('open');
+    else if (menu.classList.contains('open')) closeMenu();
     else if (modelPop.classList.contains('open')) modelPop.classList.remove('open');
     else if (addNodeMenu.classList.contains('open')){
       addNodeMenu.classList.remove('open');
