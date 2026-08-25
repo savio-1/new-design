@@ -357,53 +357,161 @@ figure { margin: 0; }
 .stat__cap { margin: 0 0 14px; color: var(--ink-65); }
 .stat .t-num { color: var(--ink); }
 
-/* ============ 04 · STORY — year rows, tint-washed key phrases ============ */
+/* ============ 04 · STORY — scrubbing horizontal timeline ============
+   A measuring-tape strip: years laid on a fine tick ruler, one lit at
+   a time, its detail panel anchored directly beneath it. The track
+   translates so the ACTIVE year always lands on the same x — the
+   container's left edge — so the lit year, its tick and its panel
+   stack in one column under the section headline. Drag to scrub,
+   click a year, use the arrows, or the prev/next circles. */
 
 .story { padding: 0 0 136px; }
-.story__head { max-width: 640px; }
-.story__rows { margin-top: 56px; }
 
-.trow {
-  display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+.story__bar {
+  display: flex; align-items: flex-end; justify-content: space-between;
   gap: 32px;
-  padding: 30px 0;
-  border-top: 1px solid var(--hairline);
 }
-.trow:last-child { border-bottom: 1px solid var(--hairline); }
-.trow__year { margin: 0; color: var(--ink-45); padding-top: 5px; }
-.trow__body {
-  margin: 0;
-  max-width: 720px;
+.story__head { max-width: 640px; }
+
+.tl__nav { display: flex; gap: 10px; flex: none; padding-bottom: 6px; }
+.tl__btn {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease),
+              border-color 0.15s var(--ease), opacity 0.2s var(--ease);
+}
+.tl__btn:hover:not(:disabled) { background: var(--ink); color: #fff; border-color: var(--ink); }
+.tl__btn:disabled { opacity: 0.3; cursor: default; }
+.tl__btn svg { display: block; }
+
+/* the strip runs full-bleed, so years enter and leave past the edges */
+.tl { margin-top: 60px; }
+.tl__viewport {
+  overflow: hidden;
+  cursor: grab;
+  touch-action: pan-y;           /* vertical page scroll still belongs to the page */
+  /* fade the right edge so the strip dissolves rather than being cut */
+  -webkit-mask-image: linear-gradient(90deg, #000 0 88%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0 88%, transparent 100%);
+}
+.tl__viewport.is-dragging { cursor: grabbing; }
+
+.tl__track {
   position: relative;
-  padding-left: 24px;
-  color: var(--ink-80);
+  display: flex;
+  align-items: flex-start;
+  width: max-content;
+  /* the first year starts ON the anchor, so its resting translate is 0 */
+  padding-left: var(--tl-anchor, var(--page-margin));
+  padding-right: 100vw;          /* room for the last year to reach the anchor */
+  transition: transform 0.62s var(--ease);
 }
-/* the 2px ink rule draws itself top-down as each row lands (the rise
-   observer's .is-in doubles as the trigger) */
-.trow__body::before {
-  content: "";
-  position: absolute; left: 0; top: 3px; bottom: 3px;
-  width: 2px;
-  background: var(--ink);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 0.7s var(--ease) 0.12s;
+
+/* the fine tick ruler — spans the padding box, so it runs past the last year */
+.tl__ruler {
+  position: absolute;
+  left: 0; right: 0; bottom: 20px;
+  height: 14px;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--hairline) 0 1px, transparent 1px 9px);
 }
-.trow.is-in .trow__body::before { transform: scaleY(1); }
-/* timeline highlights keep the brand hue — a pale tint wash, not the
-   saturated keyword highlight. The wash arrives late, like a marker
-   run over the phrase after the row settles. */
+
+.tl__year {
+  position: relative;
+  flex: none;
+  width: 320px;
+  padding: 0 24px 0 0;
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: none; border: 0; cursor: pointer;
+  font: inherit; text-align: left;
+  -webkit-appearance: none; appearance: none;
+}
+/* fixed slot, numeral sitting on its baseline-ish bottom: the active
+   year scales up without moving anything below it */
+.tl__numslot { display: flex; align-items: flex-end; height: 62px; width: 100%; }
+.tl__num {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 64px; line-height: 0.95; letter-spacing: -0.04em;
+  font-weight: 350;
+  font-variant-numeric: tabular-nums;
+  /* --ink-65, not --ink-45: the years are content on a focusable
+     control, and --ink-45 measures 2.6:1 on this ground — under the
+     3:1 large-text bar. The ramp is 65% → 80% (hover) → full ink. */
+  color: var(--ink-65);
+  /* inactive renders at 48px — the next step down the ladder — via a
+     scale, so it animates on the compositor instead of reflowing */
+  transform: scale(0.75);
+  transform-origin: left bottom;
+  transition: color 0.45s var(--ease), transform 0.45s var(--ease);
+}
+.tl__phase {
+  display: block;
+  margin-top: 12px;
+  /* fixed two-line box, so every tick below starts on the same line */
+  min-height: 39px;
+  font-family: var(--font-body);
+  font-size: 14px; line-height: 1.4; letter-spacing: -0.03em;
+  color: var(--ink-65);
+  transition: color 0.45s var(--ease);
+}
+/* fixed-height slot: all ticks hang from one line whatever the label does */
+.tl__tickwrap { position: relative; display: block; width: 100%; height: 34px; margin-top: 28px; }
+.tl__tick {
+  position: absolute; top: 0; left: 0;
+  width: 2px; height: 22px;
+  background: var(--ink-45);
+  transition: height 0.45s var(--ease), background 0.45s var(--ease);
+}
+.tl__year:hover .tl__num,
+.tl__year:hover .tl__phase { color: var(--ink-80); }
+.tl__year:hover .tl__tick { background: var(--ink-65); }
+.tl__year[aria-selected="true"] .tl__num,
+.tl__year[aria-selected="true"] .tl__phase { color: var(--ink); }
+.tl__year[aria-selected="true"] .tl__num { transform: scale(1); }
+.tl__year[aria-selected="true"] .tl__tick { height: 34px; background: var(--accent); }
+
+/* the detail panel tracks the lit year, gliding under it on the same
+   curve as the strip */
+.tl__panels {
+  position: relative;
+  margin-top: 36px;
+  width: min(360px, calc(100vw - 2 * var(--page-margin)));
+  min-height: 268px;
+  transition: transform 0.62s var(--ease);
+}
+.tl__panel {
+  position: absolute; inset: 0;
+  padding-left: 22px;
+  border-left: 2px solid var(--accent);
+  opacity: 0; visibility: hidden;
+  translate: 0 10px;
+  transition: opacity 0.4s var(--ease), translate 0.4s var(--ease), visibility 0.4s;
+}
+.tl__panel.is-cur { opacity: 1; visibility: visible; translate: 0 0; }
+.tl__panel p { margin: 0; color: var(--ink-65); }
+.tl__shot {
+  margin-top: 18px;
+  width: 100%; height: 150px;
+  object-fit: cover; display: block;
+  border-radius: var(--r-card);
+  background: var(--panel);
+}
+/* the key phrase washes in as its panel takes the stage */
 .twash {
   background: linear-gradient(90deg, var(--accent-tint), var(--accent-tint)) no-repeat 0 0 / 0% 100%;
   padding: 1px 6px;
   border-radius: 5px;
-  transition: background-size 0.55s var(--ease) 0.55s;
+  transition: background-size 0.55s var(--ease) 0.2s;
 }
-.trow.is-in .twash { background-size: 100% 100%; }
-/* reduced motion: rows land pre-highlighted */
+.tl__panel.is-cur .twash { background-size: 100% 100%; }
+
 @media (prefers-reduced-motion: reduce) {
-  .trow__body::before { transform: scaleY(1); }
   .twash { background-size: 100% 100%; }
 }
 
@@ -578,22 +686,41 @@ figure { margin: 0; }
   .foot__cols { grid-template-columns: repeat(3, auto); gap: 40px 48px; justify-content: start; }
 }
 
+/* below this a centred link row leaves the side groups nothing —
+   same standdown as the homepage build */
+@media (max-width: 1000px) {
+  .nav__links, .nav__panelwrap { display: none; }
+  .nav__bar { grid-template-columns: 1fr auto; }
+}
+
 @media (max-width: 920px) {
+  .nav__bar { padding-inline: 20px; }
+  .nav__logo img { height: 26px; }
+  .ahero { padding-top: calc(var(--nav-h) + 64px); }
   .ahero__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .acard:nth-child(4), .acard:nth-child(5) { display: none; }
   .stats__grid { grid-template-columns: repeat(2, 1fr); }
   .stat:nth-child(3) { border-left: 0; }
   .stat:nth-child(n+3) { border-top: 1px solid var(--hairline); }
   .mission__grid { grid-template-columns: 1fr; }
-  .trow { grid-template-columns: 1fr; gap: 10px; }
 }
 
 @media (max-width: 620px) {
+  .nav__login { display: none; }
   .ahero__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .acard:nth-child(3) { display: none; }
   .team__grid { grid-template-columns: 1fr; }
   .values__grid { grid-template-columns: 1fr; }
   .foot__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* timeline drops a step down the ladder — 48px lit, 32px resting
+     (0.667 scale) — and the cells tighten so more than one year reads */
+  .story__bar { flex-direction: column; align-items: flex-start; gap: 20px; }
+  .tl__year { width: 200px; padding-right: 16px; }
+  .tl__numslot { height: 46px; }
+  .tl__num { font-size: 48px; transform: scale(0.6667); }
+  .tl__tickwrap { margin-top: 22px; }
+  .tl__panels { min-height: 250px; }
 }
 </style>
 
@@ -756,44 +883,99 @@ figure { margin: 0; }
   </section>
 
   <!-- ============ 04 · STORY ============ -->
-  <section class="story">
+  <section class="story" id="tl">
     <div class="container">
-      <h2 class="t-h2 story__head"><span class="shine shine--once"
-        data-text="How we got here">How we got here</span></h2>
+      <div class="story__bar" id="storyBar">
+        <h2 class="t-h2 story__head"><span class="shine shine--once"
+          data-text="How we got here">How we got here</span></h2>
 
-      <div class="story__rows">
-        <div class="trow rise">
-          <p class="t-label trow__year">2011</p>
-          <p class="t-lead trow__body">AlmaConnect starts as an <span class="twash">alumni
-            network</span> for a handful of campuses &mdash; a way for classmates to find
-            each other again after the group photo fades.</p>
+        <div class="tl__nav">
+          <button class="tl__btn" type="button" data-tl="prev" aria-label="Previous milestone">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M11 3.5 5.5 9l5.5 5.5" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button class="tl__btn" type="button" data-tl="next" aria-label="Next milestone">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M7 3.5 12.5 9 7 14.5" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
-        <div class="trow rise">
-          <p class="t-label trow__year">2014</p>
-          <p class="t-lead trow__body">The network grows up: <span class="twash">directories,
-            events and mentorship</span> for institutions on three continents.</p>
+      </div>
+    </div>
+
+    <div class="tl rise">
+      <div class="tl__viewport">
+        <div class="tl__track" role="tablist" aria-label="Company milestones">
+          <span class="tl__ruler" aria-hidden="true"></span>
+
+          <button class="tl__year" role="tab" id="tl-tab-0" aria-controls="tl-panel-0" aria-selected="true">
+            <span class="tl__numslot"><span class="tl__num">2011</span></span>
+            <span class="tl__phase">The first network</span>
+            <span class="tl__tickwrap" aria-hidden="true"><i class="tl__tick"></i></span>
+          </button>
+          <button class="tl__year" role="tab" id="tl-tab-1" aria-controls="tl-panel-1" aria-selected="false" tabindex="-1">
+            <span class="tl__numslot"><span class="tl__num">2014</span></span>
+            <span class="tl__phase">Three continents</span>
+            <span class="tl__tickwrap" aria-hidden="true"><i class="tl__tick"></i></span>
+          </button>
+          <button class="tl__year" role="tab" id="tl-tab-2" aria-controls="tl-panel-2" aria-selected="false" tabindex="-1">
+            <span class="tl__numslot"><span class="tl__num">2017</span></span>
+            <span class="tl__phase">News launches</span>
+            <span class="tl__tickwrap" aria-hidden="true"><i class="tl__tick"></i></span>
+          </button>
+          <button class="tl__year" role="tab" id="tl-tab-3" aria-controls="tl-panel-3" aria-selected="false" tabindex="-1">
+            <span class="tl__numslot"><span class="tl__num">2020</span></span>
+            <span class="tl__phase">Data Mine arrives</span>
+            <span class="tl__tickwrap" aria-hidden="true"><i class="tl__tick"></i></span>
+          </button>
+          <button class="tl__year" role="tab" id="tl-tab-4" aria-controls="tl-panel-4" aria-selected="false" tabindex="-1">
+            <span class="tl__numslot"><span class="tl__num">2023</span></span>
+            <span class="tl__phase">Companies join</span>
+            <span class="tl__tickwrap" aria-hidden="true"><i class="tl__tick"></i></span>
+          </button>
+          <button class="tl__year" role="tab" id="tl-tab-5" aria-controls="tl-panel-5" aria-selected="false" tabindex="-1">
+            <span class="tl__numslot"><span class="tl__num">Today</span></span>
+            <span class="tl__phase">500+ institutions</span>
+            <span class="tl__tickwrap" aria-hidden="true"><i class="tl__tick"></i></span>
+          </button>
         </div>
-        <div class="trow rise">
-          <p class="t-label trow__year">2017</p>
-          <p class="t-lead trow__body">We ship <span class="twash">AlmaConnect News</span>
-            &mdash; human-verified alerts when an alum makes the news, delivered within
+      </div>
+
+      <div class="tl__panels">
+        <div class="tl__panel is-cur" role="tabpanel" id="tl-panel-0" aria-labelledby="tl-tab-0" tabindex="0">
+          <p class="t-body">AlmaConnect starts as an <span class="twash">alumni network</span>
+            for a handful of campuses &mdash; a way for classmates to find each other again
+            after the group photo fades.</p>
+          <img class="tl__shot" src="@img:f2" alt="">
+        </div>
+        <div class="tl__panel" role="tabpanel" id="tl-panel-1" aria-labelledby="tl-tab-1" tabindex="0">
+          <p class="t-body">The network grows up: <span class="twash">directories, events and
+            mentorship</span> for institutions across three continents.</p>
+          <img class="tl__shot" src="@img:still8" alt="">
+        </div>
+        <div class="tl__panel" role="tabpanel" id="tl-panel-2" aria-labelledby="tl-tab-2" tabindex="0">
+          <p class="t-body">We ship <span class="twash">AlmaConnect News</span> &mdash;
+            human-verified alerts when an alum makes the news, delivered within
             24&ndash;48 hours.</p>
+          <img class="tl__shot" src="@img:still3" alt="">
         </div>
-        <div class="trow rise">
-          <p class="t-label trow__year">2020</p>
-          <p class="t-lead trow__body"><span class="twash">Data Mine</span> launches:
-            employment data matched to your constituent IDs, refreshed every quarter.</p>
+        <div class="tl__panel" role="tabpanel" id="tl-panel-3" aria-labelledby="tl-tab-3" tabindex="0">
+          <p class="t-body"><span class="twash">Data Mine</span> arrives: employment data
+            matched to your constituent IDs, refreshed every quarter.</p>
+          <img class="tl__shot" src="@img:still7" alt="">
         </div>
-        <div class="trow rise">
-          <p class="t-label trow__year">2023</p>
-          <p class="t-lead trow__body">Companies join in, running <span class="twash">former-employee
+        <div class="tl__panel" role="tabpanel" id="tl-panel-4" aria-labelledby="tl-tab-4" tabindex="0">
+          <p class="t-body">Corporates start running <span class="twash">former-employee
             networks</span> on the same rails their alma maters use.</p>
+          <img class="tl__shot" src="@img:still4" alt="">
         </div>
-        <div class="trow rise">
-          <p class="t-label trow__year">Today</p>
-          <p class="t-lead trow__body"><span class="twash">500+ institutions</span> keep
-            their communities close with AlmaConnect &mdash; and we&rsquo;re still checking
-            every match.</p>
+        <div class="tl__panel" role="tabpanel" id="tl-panel-5" aria-labelledby="tl-tab-5" tabindex="0">
+          <p class="t-body"><span class="twash">500+ institutions</span> keep their communities
+            close with AlmaConnect &mdash; and we&rsquo;re still checking every match.</p>
+          <img class="tl__shot" src="@img:f13" alt="">
         </div>
       </div>
     </div>
@@ -1230,6 +1412,172 @@ figure { margin: 0; }
       });
     }, { threshold: 0.6 });
     nums.forEach(function (el) { io.observe(el); });
+  })();
+
+  /* ============ story: scrubbing horizontal timeline ============
+     The track translates so the active year always lands on the same
+     x — the container's left edge, measured off the section header —
+     which is also where the detail panel sits, so the lit year, its
+     tick and its copy stack in one column. */
+  (function () {
+    var tl = document.getElementById('tl');
+    if (!tl) return;
+    var bar = document.getElementById('storyBar');
+    var vp = tl.querySelector('.tl__viewport');
+    var track = tl.querySelector('.tl__track');
+    var panelBox = tl.querySelector('.tl__panels');
+    var years = [].slice.call(tl.querySelectorAll('.tl__year'));
+    var panels = [].slice.call(tl.querySelectorAll('.tl__panel'));
+    var prevBtn = tl.querySelector('[data-tl="prev"]');
+    var nextBtn = tl.querySelector('[data-tl="next"]');
+    if (!years.length) return;
+
+    var idx = 0, anchor = 0, curTx = 0;
+
+    /* the anchor is measured, not assumed: it has to track the real
+       container edge across breakpoints and scrollbar changes */
+    function measure() {
+      anchor = Math.round(bar.getBoundingClientRect().left);
+      tl.style.setProperty('--tl-anchor', anchor + 'px');
+    }
+
+    /* how far left the strip may travel: enough to bring the last year
+       in with a gutter to spare, never so far that the years run out
+       and leave the viewport empty */
+    function minTx() {
+      var last = years[years.length - 1];
+      return Math.min(0, vp.clientWidth - (last.offsetLeft + last.offsetWidth) - anchor);
+    }
+
+    function restingTx(n) {
+      /* offsetLeft is relative to the positioned track and already
+         includes its left padding, which IS the anchor */
+      return Math.max(minTx(), Math.min(0, -(years[n].offsetLeft - anchor)));
+    }
+
+    /* once the strip is clamped the active year no longer sits on the
+       anchor, so the panel follows it instead of the other way round */
+    function placePanel() {
+      var x = years[idx].offsetLeft + curTx;
+      var limit = vp.clientWidth - panelBox.offsetWidth - 24;
+      panelBox.style.transform =
+        'translate3d(' + Math.max(0, Math.min(x, limit)) + 'px,0,0)';
+    }
+
+    function move(animate) {
+      curTx = restingTx(idx);
+      if (!animate) { track.style.transition = 'none'; panelBox.style.transition = 'none'; }
+      track.style.transform = 'translate3d(' + curTx + 'px,0,0)';
+      placePanel();
+      if (!animate) {
+        void track.offsetHeight;
+        track.style.transition = ''; panelBox.style.transition = '';
+      }
+    }
+
+    function setActive(n, opts) {
+      opts = opts || {};
+      idx = Math.max(0, Math.min(years.length - 1, n));
+      years.forEach(function (y, k) {
+        var on = k === idx;
+        y.setAttribute('aria-selected', String(on));
+        y.tabIndex = on ? 0 : -1;            /* roving tabindex */
+      });
+      panels.forEach(function (p, k) { p.classList.toggle('is-cur', k === idx); });
+      prevBtn.disabled = idx === 0;
+      nextBtn.disabled = idx === years.length - 1;
+      move(opts.animate !== false);
+      if (opts.focus) years[idx].focus();
+    }
+
+    /* --- pointer scrub: drag the strip, release to snap --- */
+    var SLOP = 4;                       /* px before a press becomes a drag */
+    var pending = false, dragging = false;
+    var startX = 0, startTx = 0, moved = 0, pid = null;
+
+    vp.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0) return;
+      pending = true; dragging = false; moved = 0;
+      startX = e.clientX; startTx = curTx; pid = e.pointerId;
+    });
+
+    vp.addEventListener('pointermove', function (e) {
+      if (!pending && !dragging) return;
+      var dx = e.clientX - startX;
+      if (Math.abs(dx) > moved) moved = Math.abs(dx);
+
+      if (pending) {
+        if (moved <= SLOP) return;
+        /* capture only once this is genuinely a drag: capturing on
+           pointerdown retargets the following click to the viewport,
+           which swallows every tap on a year */
+        pending = false; dragging = true;
+        vp.setPointerCapture(pid);
+        vp.classList.add('is-dragging');
+        track.style.transition = 'none';
+        panelBox.style.transition = 'none';
+      }
+
+      var tx = startTx + dx, min = minTx(), max = 0;
+      /* rubber-band past the ends rather than hard-stopping */
+      if (tx > max) tx = max + (tx - max) * 0.35;
+      if (tx < min) tx = min + (tx - min) * 0.35;
+      curTx = tx;
+      track.style.transform = 'translate3d(' + tx + 'px,0,0)';
+      placePanel();                       /* the panel rides with its year */
+    });
+
+    function endDrag() {
+      pending = false;
+      if (!dragging) return;
+      dragging = false;
+      vp.classList.remove('is-dragging');
+      track.style.transition = '';
+      panelBox.style.transition = '';
+      var best = 0, bestD = Infinity;
+      years.forEach(function (y, k) {
+        var d = Math.abs(restingTx(k) - curTx);
+        if (d < bestD) { bestD = d; best = k; }
+      });
+      setActive(best);
+    }
+    vp.addEventListener('pointerup', endDrag);
+    vp.addEventListener('pointercancel', endDrag);
+
+    /* --- click, buttons, keyboard --- */
+    years.forEach(function (y, k) {
+      y.addEventListener('click', function () {
+        if (moved > SLOP) return;            /* that was a scrub, not a pick */
+        setActive(k);
+      });
+    });
+    prevBtn.addEventListener('click', function () { setActive(idx - 1); });
+    nextBtn.addEventListener('click', function () { setActive(idx + 1); });
+
+    track.addEventListener('keydown', function (e) {
+      var n = null;
+      if (e.key === 'ArrowRight') n = idx + 1;
+      else if (e.key === 'ArrowLeft') n = idx - 1;
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = years.length - 1;
+      if (n === null) return;
+      e.preventDefault();
+      setActive(n, { focus: true });
+    });
+
+    /* --- keep the anchor true through layout changes --- */
+    var rt;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () { measure(); move(false); }, 120);
+    });
+
+    measure();
+    setActive(0, { animate: false });
+    /* the display face arriving can shift the header's box */
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { measure(); move(false); });
+    }
   })();
 })();
 </script>
