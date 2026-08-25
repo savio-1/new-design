@@ -2,7 +2,8 @@
 """Build almaconnect-news.html from almaconnect-news.src.html.
 
 Same pipeline as build-home.py: replaces @png:<name> (assets/logo/<name>.png)
-and @svg:<name> (assets/logo/<name>.svg) tokens with base64 data URIs,
+@svg:<name> (assets/logo/<name>.svg) and @img:<name>
+(assets/img/faces/<name>.jpg) tokens with base64 data URIs,
 substitutes @txt:<name> (assets/data/<name>.txt) inline as raw text, and
 inlines almaconnect.css, so the published page is fully self-contained — the
 artifact host blocks external asset requests. The Google Fonts stylesheet is
@@ -20,6 +21,7 @@ OUT = ROOT / "almaconnect-news.html"
 CSS = ROOT / "almaconnect.css"
 LOGO_DIR = ROOT / "assets" / "logo"
 DATA_DIR = ROOT / "assets" / "data"
+FACE_DIR = ROOT / "assets" / "img" / "faces"
 
 
 def raw_text(path):
@@ -63,6 +65,9 @@ def main() -> None:
     html, svgs = re.subn(
         r"@svg:([\w-]+)",
         lambda m: data_uri(LOGO_DIR / f"{m.group(1)}.svg", "image/svg+xml"), html)
+    html, imgs = re.subn(
+        r"@img:([\w-]+)",
+        lambda m: data_uri(FACE_DIR / f"{m.group(1)}.jpg", "image/jpeg"), html)
     html, txts = re.subn(
         r"@txt:([\w-]+)",
         lambda m: raw_text(DATA_DIR / f"{m.group(1)}.txt"), html)
@@ -73,7 +78,7 @@ def main() -> None:
 
     OUT.write_text(html, encoding="utf-8")
     print(f"built {OUT.name}: stylesheet inlined, {pngs} png, {svgs} svg, "
-          f"{txts} data, {OUT.stat().st_size / 1e6:.2f} MB")
+          f"{imgs} jpg, {txts} data, {OUT.stat().st_size / 1e6:.2f} MB")
 
 
 if __name__ == "__main__":
