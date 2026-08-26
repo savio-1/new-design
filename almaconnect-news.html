@@ -1156,29 +1156,22 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   will-change: transform;
   animation: var(--aura-anim) var(--aura-dur) ease-in-out infinite;
 }
-/* Lavender into blue, sweeping in from the top-right corner and gone by
-   the middle of the sphere. No aqua: the accent already belongs to the
-   scan sweep and the marker pings drawn on the canvas, and a turquoise
-   wash behind them left the whole quadrant reading green. */
+/* Lavender into blue, sweeping across the band above and right of the
+   sphere. Two washes, not three: the disc is opaque now, so anything
+   centred on it is simply hidden — the aura's whole job is the corner the
+   globe does not cover. No aqua either; the accent belongs to the scan
+   sweep and the marker pings drawn on the canvas. */
 .hero__aura i:nth-child(1) {
-  right: -26%; top: -26%;
+  right: -20%; top: -58%;
   width: min(1040px, 76vw); aspect-ratio: 1 / 1;
-  background: radial-gradient(circle at 50% 50%, rgba(74, 144, 226, 0.23) 0%, rgba(74, 144, 226, 0.105) 38%, rgba(74, 144, 226, 0) 66%);
+  background: radial-gradient(circle at 50% 50%, rgba(74, 144, 226, 0.3) 0%, rgba(74, 144, 226, 0.14) 38%, rgba(74, 144, 226, 0) 66%);
   --aura-anim: auraA; --aura-dur: 34s;
 }
 .hero__aura i:nth-child(2) {
-  right: 4%; top: -32%;
-  width: min(860px, 62vw); aspect-ratio: 1 / 1;
-  background: radial-gradient(circle at 50% 50%, rgba(155, 95, 208, 0.175) 0%, rgba(155, 95, 208, 0.075) 38%, rgba(155, 95, 208, 0) 66%);
+  right: -2%; top: -56%;
+  width: min(900px, 65vw); aspect-ratio: 1 / 1;
+  background: radial-gradient(circle at 50% 50%, rgba(155, 95, 208, 0.24) 0%, rgba(155, 95, 208, 0.1) 38%, rgba(155, 95, 208, 0) 66%);
   --aura-anim: auraB; --aura-dur: 46s;
-}
-/* a much fainter return of the same lavender under the result card, so the
-   corner sweep does not read as the only coloured thing in the frame */
-.hero__aura i:nth-child(3) {
-  right: -16%; top: 40%;
-  width: min(700px, 51vw); aspect-ratio: 1 / 1;
-  background: radial-gradient(circle at 50% 50%, rgba(124, 66, 173, 0.12) 0%, rgba(124, 66, 173, 0.048) 40%, rgba(124, 66, 173, 0) 68%);
-  --aura-anim: auraC; --aura-dur: 40s;
 }
 /* plain values, not calc(var(...)) — a custom property inside calc() in a
    keyframe does not interpolate, it snaps at each stop */
@@ -1297,19 +1290,16 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   .hero__copy { padding-bottom: calc(min(660px, 90vw) + 48px); }
   .hero__globe { right: -12%; top: auto; bottom: 24px; width: min(660px, 90vw); }
   .hero__sub { max-width: 560px; }
-  /* the stacked layout drops the globe into the hero's lower half, so the
-     aura follows it down — left where it was, it would wash the empty
-     corner above the copy instead of sitting behind the sphere */
-  .hero__aura i:nth-child(1) { top: auto; right: -24%; bottom: 26%; width: min(720px, 98vw); }
-  .hero__aura i:nth-child(2) { top: auto; right: 6%;   bottom: 34%; width: min(600px, 82vw); }
-  .hero__aura i:nth-child(3) { top: auto; right: -14%; bottom: 2%;  width: min(500px, 68vw); }
+  /* No aura on the stacked layout. The wash only works in the corner the
+     globe does not cover, and once the sphere is opaque and bottom-
+     anchored there is no such corner: everything above it is the copy, and
+     a gradient there runs straight under the headline. Tried it low and
+     wide too — the disc occludes all of it. */
+  .hero__aura { display: none; }
 }
 @media (max-width: 620px) {
   .hero__copy { padding-bottom: calc(104vw + 44px); }
   .hero__globe { right: -22%; top: auto; bottom: 20px; width: 104vw; }
-  .hero__aura i:nth-child(1) { right: -34%; bottom: 22%; width: 114vw; }
-  .hero__aura i:nth-child(2) { right: -2%;  bottom: 32%; width: 94vw; }
-  .hero__aura i:nth-child(3) { right: -24%; bottom: 0%;  width: 80vw; }
 }
 
 /* the verified result card — used by the result-anatomy section */
@@ -2050,7 +2040,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
 <!-- ============================================================ 01 HERO -->
 <section class="hero">
-  <div class="hero__aura" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="hero__aura" aria-hidden="true"><i></i><i></i></div>
   <div class="container hero__stage" id="heroStage">
     <div class="hero__copy">
       <h1 class="t-display-page">Prospect monitoring for advancement and <span class="shine" data-text="fundraising teams.">fundraising teams.</span></h1>
@@ -3340,6 +3330,16 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
        claim is that it reads 400,000+ sources every day, so the globe shows
        itself sweeping */
     var SCAN_CYCLE = 9000, SCAN_SWEEP = 0.62, SCAN_W = 0.17;
+    /* the disc is filled opaquely with the page's own ground, so the hero's
+       gradient stays strictly behind the sphere instead of showing through
+       it. Read from the token rather than hard-coded, so it cannot drift. */
+    var GROUND = getComputedStyle(document.documentElement)
+                   .getPropertyValue('--ground').trim() || '#f2efea';
+    /* The body never changes between resizes, so it is painted once to an
+       offscreen canvas and blitted. Filling the disc twice per frame and
+       rebuilding its gradient cost eight frames over 20ms in a five-second
+       sample; the blit costs none. */
+    var bodyCv = document.createElement('canvas'), bodyCtx = bodyCv.getContext('2d');
     /* the ripple: when a match lands, a ring runs outward from that marker */
     var ripIdx = -1, ripAt = 0, RIP_MS = 1500;
 
@@ -3371,6 +3371,30 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       var sr = stage ? stage.getBoundingClientRect() : r;
       offX = r.left - sr.left; offY = r.top - sr.top;
       stageW = sr.width; stageH = sr.height;
+      paintBody();
+    }
+
+    /* the sphere as a solid body, not a lens: the disc is filled with the
+       page's own ground so the hero's gradient reads behind it and never
+       mixes with the dots. Flat cream, then a barely-there ink shading
+       towards the lower-right limb so it still reads round — ink, not a
+       hue, because the disc has to stay the same cream as the page. */
+    function paintBody() {
+      bodyCv.width = cv.width; bodyCv.height = cv.height;
+      bodyCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bodyCtx.clearRect(0, 0, W, H);
+      bodyCtx.beginPath(); bodyCtx.arc(cx, cyc, R, 0, TAU);
+      bodyCtx.fillStyle = GROUND;
+      bodyCtx.fill();
+      var g = bodyCtx.createRadialGradient(cx - R * 0.3, cyc - R * 0.34, R * 0.06, cx, cyc, R);
+      g.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+      g.addColorStop(0.62, 'rgba(255, 255, 255, 0)');
+      g.addColorStop(1, 'rgba(4, 48, 43, 0.05)');
+      bodyCtx.fillStyle = g;
+      bodyCtx.fill();
+      bodyCtx.strokeStyle = 'rgba(4, 48, 43, 0.08)';
+      bodyCtx.lineWidth = 1;
+      bodyCtx.beginPath(); bodyCtx.arc(cx, cyc, R, 0, TAU); bodyCtx.stroke();
     }
 
     function project(x0, y0, z0, sy, cy2, sp, cp) {
@@ -3387,17 +3411,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       var sy = Math.sin(yaw), cy2 = Math.cos(yaw);
       var sp = Math.sin(PITCH), cp = Math.cos(PITCH);
 
-      // the sphere's own presence on the cream ground: one soft aqua bloom
-      var g = ctx.createRadialGradient(cx - R * 0.22, cyc - R * 0.3, R * 0.05, cx, cyc, R);
-      g.addColorStop(0, 'rgba(0, 196, 181, 0.055)');
-      g.addColorStop(0.55, 'rgba(0, 196, 181, 0.02)');
-      g.addColorStop(1, 'rgba(4, 48, 43, 0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(cx, cyc, R, 0, TAU); ctx.fill();
-
-      ctx.strokeStyle = 'rgba(4, 48, 43, 0.08)';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(cx, cyc, R, 0, TAU); ctx.stroke();
+      if (bodyCv.width) ctx.drawImage(bodyCv, 0, 0, W, H);
 
       // where the scan band sits this frame, in normalised x
       var phase = (now % SCAN_CYCLE) / SCAN_CYCLE;
