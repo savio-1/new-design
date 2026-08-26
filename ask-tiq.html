@@ -448,13 +448,13 @@ svg{display:block}
 /* delete — top-right of the node, on the badge row */
 .nt-del{
   position:absolute;z-index:22;display:flex;align-items:center;justify-content:center;
-  width:30px;height:30px;border-radius:9px;
-  background:var(--card-bg-5);border:1px solid rgba(220,52,18,.55);color:#dc3412;
+  width:24px;height:24px;border-radius:6px;
+  background:var(--card-bg-3);color:#dc3412;
   opacity:0;transform:scale(.9);pointer-events:none;
   transition:opacity .16s var(--ease),transform .22s var(--spring),background .15s var(--ease);
 }
 .nt-del.show{opacity:1;transform:none;pointer-events:auto}
-.nt-del:hover{background:rgba(220,52,18,.16)}
+.nt-del:hover{background:#3d3d3d}
 .nt-del:active{transform:scale(.92)}
 
 /* Ask Tiq — bottom-right of the node, gradient hairline */
@@ -485,9 +485,23 @@ svg{display:block}
 }
 .tiq-bar.show{opacity:1;transform:none;pointer-events:auto}
 
+/* header — auto-named chat, expand + close */
+.tb-head{display:flex;align-items:center;gap:9px;padding:12px 10px 8px 13px}
+.tb-head-ico{flex:none;width:18px;height:18px;color:var(--text-secondary)}
+.tb-title{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);font-weight:500;color:#fff;
+}
+.tb-hbtn{
+  flex:none;display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;
+  color:var(--text-tertiary);transition:background .15s var(--ease),color .15s var(--ease);
+}
+.tb-hbtn:hover{background:var(--card-bg-3);color:#fff}
+.tb-hbtn:active{transform:scale(.92)}
+
 /* answers stack above the input, so the prompt never drifts out of reach */
 .tb-out{
-  display:none;flex-direction:column;gap:14px;max-height:236px;overflow-y:auto;padding:12px 12px 0;
+  display:none;flex-direction:column;gap:14px;max-height:236px;overflow-y:auto;padding:2px 12px 0;
   scrollbar-width:thin;scrollbar-color:#3a3a3a transparent;
 }
 .tb-out::-webkit-scrollbar{width:7px}
@@ -537,7 +551,7 @@ svg{display:block}
 
 /* quick actions for the selected node, under the input */
 .tb-suggest{display:flex;flex-direction:column;padding:0 8px 8px}
-.tiq-bar.chatting .tb-suggest{display:none}
+.tiq-bar.thinking .tb-suggest{display:none}
 .tb-sg-label{
   padding:2px 6px 6px;font-size:var(--fs-caption);letter-spacing:var(--ls-caption);color:var(--text-four);
 }
@@ -1492,6 +1506,16 @@ svg{display:block}
 
       <!-- prompt bar · answers above, input pinned at the bottom -->
       <div class="tiq-bar" id="tiqBar">
+        <div class="tb-head">
+          <svg class="tb-head-ico"><use id="tbHeadIco" href="#i-agent"/></svg>
+          <span class="tb-title" id="tbTitle">Node</span>
+          <button class="tb-hbtn" id="tbExpand" title="Open in the Tiq panel" aria-label="Expand">
+            <svg width="15" height="15"><use href="#i-expand"/></svg>
+          </button>
+          <button class="tb-hbtn" id="tbClose" title="Close" aria-label="Close">
+            <svg width="15" height="15"><use href="#i-x"/></svg>
+          </button>
+        </div>
         <div class="tb-out" id="tbOut"></div>
         <div class="tb-row">
           <svg class="tb-logo"><use href="#i-tiq"/></svg>
@@ -2750,12 +2774,25 @@ const tiqBarEl = $('#tiqBar');
 let selNode = null;
 
 /* quick actions offered under the prompt, wired to what Tiq can actually do */
-const NODE_SUGGESTIONS = [
-  { icon: 'bulb',  t: 'Explain this step' },
-  { icon: 'tools', t: 'Add a tool' },
-  { icon: 'guard', t: 'Add a guardrail' },
-  { icon: 'graph', t: 'Check its output' },
-];
+const SG = {
+  explain: { icon: 'bulb',  t: 'Explain this step' },
+  tool:    { icon: 'tools', t: 'Add a tool' },
+  guard:   { icon: 'guard', t: 'Add a guardrail' },
+  output:  { icon: 'graph', t: 'Check its output' },
+  desc:    { icon: 'instr', t: 'Rewrite the description' },
+};
+const NODE_SUGGESTIONS = [SG.explain, SG.tool, SG.guard, SG.output];
+/* what to offer next, based on what Tiq just did */
+const FOLLOWUPS = {
+  rename:  [SG.desc, SG.guard],
+  desc:    [SG.tool, SG.explain],
+  add:     [SG.explain, SG.output],
+  explain: [SG.tool, SG.guard],
+  remove:  [SG.explain, SG.tool],
+  plan:    [SG.explain, SG.guard],
+};
+/* the conversation, kept so "expand" can replay it into the Tiq panel */
+let nodeChat = [];
 
 const anchorOf   = node => node.querySelector('.card-node, .node-start') || node;
 const nodeLabel  = node => {
@@ -2787,20 +2824,33 @@ function positionNodeUI(){
   const nw = n.offsetWidth, nh = n.offsetHeight;
   const badge = n.querySelector('.badge-agent, .badge-tool');
   const del = $('#ntDel'), ask = $('#ntAsk');
+  const dw = del.offsetWidth || 24, dh = del.offsetHeight || 24;
   if (badge){
     /* card nodes: sit on the badge row, flush with the card's right edge */
-    del.style.left = (nx + nw - 30) + 'px';
-    del.style.top  = (ny + (badge.offsetHeight - 30) / 2) + 'px';
+    del.style.left = (nx + nw - dw) + 'px';
+    del.style.top  = (ny + (badge.offsetHeight - dh) / 2) + 'px';
   } else {
     /* pill nodes are too short to host it — park it alongside instead */
     del.style.left = (nx + nw + 8) + 'px';
-    del.style.top  = (ny + (nh - 30) / 2) + 'px';
+    del.style.top  = (ny + (nh - dh) / 2) + 'px';
   }
   const askTop = ny + nh + 8;
   ask.style.left = (nx + nw - ask.offsetWidth) + 'px';
   ask.style.top  = askTop + 'px';
-  tiqBarEl.style.left = (nx + nw - tiqBarEl.offsetWidth) + 'px';
-  tiqBarEl.style.top  = (askTop + 40) + 'px';
+
+  /* the chat sits to the node's right, starting at the node's own top —
+     flipping to the left only when the visible canvas has no room */
+  const bw = tiqBarEl.offsetWidth || 360, bh = tiqBarEl.offsetHeight || 220;
+  const z = (typeof zoomLevel === 'number' && zoomLevel) || 1;
+  const viewR = (canvasEl.clientWidth  - panX) / z;
+  const viewB = (canvasEl.clientHeight - panY) / z;
+  const viewT = -panY / z;
+  let bx = nx + nw + 16;
+  if (bx + bw > viewR && nx - bw - 16 >= -panX / z) bx = nx - bw - 16;
+  let by = ny;
+  if (by + bh > viewB) by = Math.max(viewT + 8, viewB - bh - 8);
+  tiqBarEl.style.left = bx + 'px';
+  tiqBarEl.style.top  = by + 'px';
 }
 
 function selectNode(node){
@@ -2821,12 +2871,16 @@ function deselectNode(){
   closeTiqBar();
 }
 
+/* while the chat is open nothing on the canvas dismisses it — only its
+   own close button does */
+const chatOpen = () => tiqBarEl.classList.contains('show');
 stageEl.addEventListener('click', e => {
-  if (e.target.closest('.nt-del, .nt-ask, .tiq-bar')) return;
+  if (chatOpen() || e.target.closest('.nt-del, .nt-ask, .tiq-bar')) return;
   const node = e.target.closest('.node');
   if (node) selectNode(node);
 });
 canvasEl.addEventListener('click', e => {
+  if (chatOpen()) return;
   if (e.target.closest('.node, .nt-del, .nt-ask, .tiq-bar, .bottombar, .toast')) return;
   deselectNode();
 });
@@ -2850,16 +2904,27 @@ $('#ntDel').addEventListener('click', () => {
 });
 
 /* ── the prompt bar ──────────────────────────────────────────────── */
-function renderNodeSuggestions(){
+function renderNodeSuggestions(list, label){
   const host = $('#tbSuggest');
-  host.innerHTML = '<div class="tb-sg-label">For this node</div>' +
-    NODE_SUGGESTIONS.map((sg, i) =>
+  host.innerHTML = `<div class="tb-sg-label">${esc(label)}</div>` +
+    list.map((sg, i) =>
       `<button class="tb-sg${i ? '' : ' sel'}" data-q="${esc(sg.t)}">${ico(sg.icon, 16)}` +
       `<span>${esc(sg.t)}</span><span class="ret">↵</span></button>`).join('');
   $$('.tb-sg', host).forEach(b => b.addEventListener('click', () => {
     $('#tbIn').value = b.dataset.q;
     askTiqOnNode();
   }));
+}
+/* the icon the node wears, reused as the chat's header glyph */
+function nodeIconHref(node){
+  const u = node.querySelector('.badge-agent use, .badge-tool use, .node-start use');
+  return u ? u.getAttribute('href') : '#i-agent';
+}
+/* auto-name the chat from the first thing asked */
+function autoChatTitle(q){
+  const t = q.trim().replace(/[.!?]+$/, '');
+  const short = t.length > 34 ? t.slice(0, 33).replace(/\s+\S*$/, '') + '…' : t;
+  return short.charAt(0).toUpperCase() + short.slice(1);
 }
 /* keyboard walk through the quick actions */
 function moveSg(dir){
@@ -2872,21 +2937,64 @@ function moveSg(dir){
 
 function openTiqBar(){
   if (!selNode) return;
-  renderNodeSuggestions();
-  tiqBarEl.classList.remove('chatting');
+  nodeChat = [];
+  renderNodeSuggestions(NODE_SUGGESTIONS, 'For this node');
+  tiqBarEl.classList.remove('chatting', 'thinking');
   $('#tbOut').innerHTML = '';
   $('#tbIn').value = '';
   $('#tbSend').disabled = true;
+  $('#tbHeadIco').setAttribute('href', nodeIconHref(selNode));
+  $('#tbTitle').textContent = nodeLabel(selNode);
+  /* the chat takes over from the two node buttons while it is open */
+  $('#ntDel').classList.remove('show');
+  $('#ntAsk').classList.remove('show');
   positionNodeUI();
   tiqBarEl.classList.add('show');
+  requestAnimationFrame(positionNodeUI);   /* re-place once its height is real */
   setTimeout(() => $('#tbIn').focus(), reduced ? 0 : 120);
 }
-function closeTiqBar(){
-  tiqBarEl.classList.remove('show', 'chatting', 'focused');
+function closeTiqBar(restoreButtons){
+  tiqBarEl.classList.remove('show', 'chatting', 'thinking', 'focused');
   $('#tbOut').innerHTML = '';
   $('#tbIn').value = '';
   $('#tbSend').disabled = true;
+  nodeChat = [];
+  if (restoreButtons && selNode){
+    $('#ntDel').classList.toggle('show', !selNode.contains($('#startNode')));
+    $('#ntAsk').classList.add('show');
+  }
 }
+$('#tbClose').addEventListener('click', () => closeTiqBar(true));
+
+/* expand — replay this conversation in the Tiq panel and hand it over */
+$('#tbExpand').addEventListener('click', () => {
+  if (!nodeChat.length){
+    toast(ico('info', 15, '#8c8c8c'), 'Nothing to expand yet', 'ask Tiq something first');
+    return;
+  }
+  const turns = nodeChat.slice(), title = $('#tbTitle').textContent;
+  closeTiqBar(true);
+  deselectNode();
+  openPanel();
+  emptyEl.classList.add('gone');
+  thread.classList.remove('hidden');
+  turns.forEach(t => {
+    const u = document.createElement('div');
+    u.className = 'msg-user';
+    u.innerHTML = `<span>${md(t.q)}</span>`;
+    thread.appendChild(u);
+    const m = document.createElement('div');
+    m.className = 'msg-tiq';
+    m.innerHTML = `<svg class="avatar" width="22" height="22"><use href="#i-tiq"/></svg>
+      <div class="stream">
+        <div class="tb-thought" style="margin-bottom:6px">${esc(t.thought)}</div>
+        <div class="reply">${t.answer}</div>
+      </div>`;
+    thread.appendChild(m);
+  });
+  scroll();
+  toast(ico('expand', 15, '#44aaf3'), `${title} moved here`, 'keep the conversation going below');
+});
 $('#ntAsk').addEventListener('click', openTiqBar);
 $('#tbIn').addEventListener('focus', () => tiqBarEl.classList.add('focused'));
 $('#tbIn').addEventListener('blur',  () => tiqBarEl.classList.remove('focused'));
@@ -2948,17 +3056,18 @@ function applyNodeEdit(node, q){
     const name = rename[1].trim();
     setNodeTitle(node, name);
     rebuildWires();
-    return `Renamed it to <b>${esc(name)}</b>. What do you think?`;
+    /* the header names the chat, not the node — leave its auto-name alone */
+    return { intent: 'rename', answer: `Renamed it to <b>${esc(name)}</b>. What do you think?` };
   }
 
   if (/\b(description|subtitle|summary|blurb)\b/i.test(q)){
     const sub = node.querySelector('.card-sub');
     if (sub && quoted){
       sub.textContent = quoted;
-      return `Updated the description on <b>${esc(label)}</b>. What do you think?`;
+      return { intent: 'desc', answer: `Updated the description on <b>${esc(label)}</b>. What do you think?` };
     }
-    if (sub) return `Happy to rewrite the description — give me the wording in quotes and I'll drop it in.`;
-    return `<b>${esc(label)}</b> is a step node, so it has no description to edit.`;
+    if (sub) return { intent: 'desc', answer: `Happy to rewrite the description — give me the wording in quotes and I'll drop it in.` };
+    return { intent: 'desc', answer: `<b>${esc(label)}</b> is a step node, so it has no description to edit.` };
   }
 
   const add = q.match(/\b(?:add|connect|attach|wire|give|include)\b[^.]*?\b(tool|integration|skill|guardrail|guard|boundary|rule)\b/i);
@@ -2966,22 +3075,22 @@ function applyNodeEdit(node, q){
     const word = add[1].toLowerCase();
     const kind = /skill/.test(word) ? 'skill' : /guard|boundary|rule/.test(word) ? 'guard' : 'tools';
     const noun = kind === 'skill' ? 'skill' : kind === 'guard' ? 'guardrail' : 'tool';
-    if (bumpCount(node, kind)) return `Added the ${noun} to <b>${esc(label)}</b>. What do you think?`;
-    return `<b>${esc(label)}</b> is a step node — ${noun}s live on agent nodes. Want me to add one upstream instead?`;
+    if (bumpCount(node, kind)) return { intent: 'add', answer: `Added the ${noun} to <b>${esc(label)}</b>. What do you think?` };
+    return { intent: 'add', answer: `<b>${esc(label)}</b> is a step node — ${noun}s live on agent nodes. Want me to add one upstream instead?` };
   }
 
   if (/\b(delete|remove|drop|get rid)\b/i.test(q)){
-    return `You can remove <b>${esc(label)}</b> with the trash button just above — I'll rewire the flow around it straight after.`;
+    return { intent: 'remove', answer: `You can remove <b>${esc(label)}</b> with the trash button on its top-right — I'll rewire the flow around it straight after.` };
   }
 
   if (/\b(what|explain|why|how|does|purpose)\b/i.test(q)){
     const pos = flowNodes.filter(n => n.isConnected).indexOf(node) + 1;
-    return isCard
+    return { intent: 'explain', answer: isCard
       ? `<b>${esc(label)}</b> is step ${pos} — it runs on whatever the previous step emits and passes its output down the chain.`
-      : `<b>${esc(label)}</b> is step ${pos}, a control step that routes the run rather than producing output of its own.`;
+      : `<b>${esc(label)}</b> is step ${pos}, a control step that routes the run rather than producing output of its own.` };
   }
 
-  return `Got it — for <b>${esc(label)}</b> I'd ${esc(q.replace(/[.!?]+$/, '').toLowerCase())}, then re-run the step to check the output. Want me to apply it?`;
+  return { intent: 'plan', answer: `Got it — for <b>${esc(label)}</b> I'd ${esc(q.replace(/[.!?]+$/, '').toLowerCase())}, then re-run the step to check the output. Want me to apply it?` };
 }
 
 let tbBusy = false;
@@ -2993,7 +3102,8 @@ async function askTiqOnNode(){
   tbBusy = true;
   input.value = '';
   $('#tbSend').disabled = true;
-  tiqBarEl.classList.add('chatting');
+  if (!nodeChat.length) $('#tbTitle').textContent = autoChatTitle(q);
+  tiqBarEl.classList.add('chatting', 'thinking');
 
   const toBottom = () => out.scrollTop = out.scrollHeight;
   const turn = document.createElement('div');
@@ -3005,23 +3115,30 @@ async function askTiqOnNode(){
   const t0 = performance.now();
   if (!reduced){
     await wait(1500 + Math.random() * 700);
-    const lbl = $('.tb-thought', turn);
-    if (lbl) lbl.textContent = 'Working on it…';
+    const l = $('.tb-thought', turn);
+    if (l) l.textContent = 'Working on it…';
     await wait(1200 + Math.random() * 700);
   } else await wait(80);
 
   const secs = Math.max(1, Math.round((performance.now() - t0) / 1000));
-  const answer = applyNodeEdit(node, q);
+  const res = applyNodeEdit(node, q);
+  const thought = `Thought for ${secs}s`;
   const lbl = $('.tb-thought', turn);
   lbl.classList.remove('shim');
-  lbl.textContent = `Thought for ${secs}s`;
+  lbl.textContent = thought;
   const ansEl = document.createElement('div');
   ansEl.className = 'tb-answer';
-  ansEl.innerHTML = answer;
+  ansEl.innerHTML = res.answer;
   turn.appendChild(ansEl);
   toBottom();
   await btStream(ansEl, toBottom);
   toBottom();
+
+  nodeChat.push({ q, thought, answer: res.answer });
+  /* offer where to go next, under the prompt */
+  tiqBarEl.classList.remove('thinking');
+  renderNodeSuggestions(FOLLOWUPS[res.intent] || FOLLOWUPS.plan, 'Suggested follow-ups');
+  positionNodeUI();
   pulseSave();
   tbBusy = false;
 }
@@ -3881,6 +3998,8 @@ document.addEventListener('keydown', e => {
       addNodeBtn.classList.remove('open');
     } else if (zoomMenu.classList.contains('open')){
       zoomMenu.classList.remove('open');
+    } else if (tiqBarEl.classList.contains('show')){
+      closeTiqBar(true);
     } else if (selNode){
       deselectNode();
     } else if (frame.classList.contains('agent-open')){
