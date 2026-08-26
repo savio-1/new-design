@@ -2391,14 +2391,10 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       }
 
       // markers, front to back
-      var best = -1, bestScore = -2;
       for (var m = 0; m < MARKS.length; m++) {
         var mk = MARKS[m];
         var p = project(mk.ux, mk.uy, mk.uz, sy, cy2, sp, cp);
         mk._x = p.x; mk._y = p.y; mk._z = p.z;
-        // score: front-facing, and above the bottom fade so a label can sit on it
-        var score = p.z - (p.y > H * 0.56 ? 1.6 : 0) - (mk._shownAt ? Math.max(0, 1 - (now - mk._shownAt) / 48000) * 1.25 : 0);
-        if (p.z > 0.42 && score > bestScore) { bestScore = score; best = m; }
         if (p.z <= 0.02) continue;
 
         var isOn = m === active;
@@ -2432,24 +2428,54 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         }
       }
 
-      // promote a new marker once the current one has had its turn
-      if (best >= 0 && (active < 0 || now - tagAt > DWELL)) {
-        if (best !== active && pending < 0) {
-          pending = best; pendAt = now;
+      /* Advance in marker order rather than by score. Scoring let the
+         current marker keep winning — its own dwell was then reset every
+         frame and the card could sit on one person indefinitely. A
+         rotation always moves on, and it drops the active marker the
+         moment it drifts out of the card's usable area instead of waiting
+         out the dwell. */
+      var due = active < 0 || now - tagAt > DWELL || !canHost(MARKS[active]);
+      if (pending < 0 && due) {
+        var nxt = -1;
+        for (var q = 1; q <= MARKS.length; q++) {
+          var cand = (active + q) % MARKS.length;
+          if (cand !== active && canHost(MARKS[cand])) { nxt = cand; break; }
+        }
+        if (nxt < 0) {
+          // Nothing else can host it yet. Let the current card finish its
+          // dwell, then hide rather than hold: a stale card reads worse
+          // than an empty globe.
+          if (tagEl && (now - tagAt > DWELL * 1.4 || !canHost(MARKS[active]))) {
+            tagEl.classList.remove('is-on');
+          }
+        } else if (active < 0) {
+          active = nxt; tagAt = now; ripIdx = nxt; ripAt = now;
+          showTag(MARKS[nxt]); tagPlaced = false;
+        } else {
+          pending = nxt; pendAt = now;
           if (tagEl) tagEl.classList.remove('is-on');     // ease out first
-        } else if (best === active) {
-          tagAt = now;
         }
       }
       if (pending >= 0 && now - pendAt >= FADE) {
         active = pending; pending = -1;
-        tagAt = now; MARKS[active]._shownAt = now;
+        tagAt = now;
         ripIdx = active; ripAt = now;                     // the match lands
         showTag(MARKS[active]);
         tagPlaced = false;                                // snap, do not fly
       }
       // while a swap is mid-fade the card must stay hidden
-      if (active >= 0) placeTag(MARKS[active], pending < 0);
+      if (active >= 0) placeTag(MARKS[active], pending < 0 && canHost(MARKS[active]));
+    }
+
+    /* The card only has to be beside a marker on the near face. The band
+       used to stop at 0.55H to keep clear of the bottom fade, but the card
+       is a DOM node above that layer and is never faded — and the maths of
+       that gate excluded every marker below ~22S or above ~48N, so Sydney,
+       Sao Paulo, London and Berlin could never host it. Starving the
+       rotation is what parked the card on one person. placeTag clamps the
+       card into the stage, so this only needs to keep it near its marker. */
+    function canHost(mk) {
+      return mk._z > 0.32 && mk._y > 0 && mk._y < H * 0.7;
     }
 
     function showTag(mk) {
@@ -2467,7 +2493,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
     function placeTag(mk, mayShow) {
       if (!tagEl) return;
-      var on = mayShow && mk._z > 0.3 && mk._y < H * 0.62;
+      var on = mayShow;
       tagEl.classList.toggle('is-on', on);
       if (viewW <= 1160) { tagEl.classList.add('is-pinned'); return; }
       tagEl.classList.remove('is-pinned');
