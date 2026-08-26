@@ -388,9 +388,9 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 /* ============================================================ TRUSTED */
 .trusted { background: var(--ground); padding: 104px 0 96px; }
 .trusted__head {
-  text-align: center; margin: 0 auto 40px; max-width: 30ch;
-  font-family: var(--font-display); font-size: 32px; font-weight: 350;
-  letter-spacing: -0.03em; line-height: 1.3; color: var(--ink);
+  margin: 0 0 28px; max-width: 54ch;
+  font-family: var(--font-body); font-size: 18px; font-weight: 400;
+  letter-spacing: -0.03em; line-height: 1.5; color: var(--ink-65);
 }
 .trusted__grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 .tcell {
@@ -422,7 +422,6 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 .wm-ital  { font-family: Georgia, serif; font-style: italic; font-size: 15px; letter-spacing: normal; }
 .wm-sans  { font-weight: 800; font-size: 14px; letter-spacing: -0.01em; }
 .wm-light { font-weight: 300; font-size: 15px; letter-spacing: 0.06em; }
-.trusted__note { margin: 32px auto 0; text-align: center; max-width: 78ch; }
 /* a heading that only wraps a disclosure button must not carry the UA's
    1.17em/700 — it would put an off-ladder step in the type inventory */
 .acc__row h3, .faq__row h3 { font: inherit; margin: 0; }
@@ -1009,20 +1008,23 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
      institutions are the strongest signal in this market. -->
 <section class="trusted" aria-label="Customers">
   <div class="container">
-    <p class="trusted__head"><span class="shine shine--once" data-text="Prospect research teams use AlmaConnect News.">Prospect research teams use AlmaConnect News.</span></p>
-    <!-- Placeholder text wordmarks — replace with official institution SVGs before launch -->
-    <!-- Each cell owns its own names. Seven customers across six cells, so
-         exactly one cell rotates — a shared name would otherwise appear in
-         two cells at once, which reads as a bug rather than a rotation. -->
-    <div class="trusted__grid" id="trustedGrid" aria-hidden="true">
-      <div class="tcell" data-marks="Bryant University"></div>
-      <div class="tcell" data-marks="Willamette University"></div>
-      <div class="tcell" data-marks="Rose-Hulman"></div>
-      <div class="tcell" data-marks="San Diego State University"></div>
-      <div class="tcell" data-marks="Marquette"></div>
-      <div class="tcell" data-marks="University of Liverpool|World Wildlife Fund"></div>
+    <p class="trusted__head">Prospect research teams use AlmaConnect News.</p>
+    <!-- Placeholder text wordmarks — replace with official institution SVGs
+         before launch. Seven names cycle through six cells, so every cell
+         animates and no name can appear twice at once. The cells are
+         decorative; the sentence below carries the names as real text,
+         which the copy deck requires and which survives the switch to
+         image logos. -->
+    <div class="trusted__grid" id="trustedGrid" aria-hidden="true"
+         data-marks="Bryant University|Willamette University|Rose-Hulman|San Diego State University|Marquette|University of Liverpool|World Wildlife Fund">
+      <div class="tcell"></div>
+      <div class="tcell"></div>
+      <div class="tcell"></div>
+      <div class="tcell"></div>
+      <div class="tcell"></div>
+      <div class="tcell"></div>
     </div>
-    <p class="trusted__note t-sub t-twotone">Prospect research teams at <b>Bryant University</b>, <b>Willamette University</b>, <b>Rose-Hulman</b>, <b>San Diego State University</b>, <b>Marquette</b>, the <b>University of Liverpool</b> and the <b>World Wildlife Fund</b> use AlmaConnect News.</p>
+    <p class="sr-only">Prospect research teams at Bryant University, Willamette University, Rose-Hulman, San Diego State University, Marquette, the University of Liverpool and the World Wildlife Fund use AlmaConnect News.</p>
   </div>
 </section>
 
@@ -1888,34 +1890,64 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     els.forEach(function (el) { io.observe(el); });
   })();
 
-  /* ---------- trusted-by wall: each cell cycles its wordmarks ---------- */
+  /* ---------- trusted-by wall ------------------------------------------
+     Every cell fades its wordmark out upward and the next one in from
+     below, staggered across the row. Seven names over six cells means
+     cell i always shows names[(i + step) % 7], so no name is ever on
+     screen twice — which is what lets all six animate at once. */
   (function () {
     var grid = document.getElementById('trustedGrid');
     if (!grid) return;
-    var faces = ['wm-serif', 'wm-caps', 'wm-slab', 'wm-ital', 'wm-sans', 'wm-light'];
+    var names = (grid.dataset.marks || '').split('|').filter(Boolean);
     var cells = [].slice.call(grid.querySelectorAll('.tcell'));
+    if (!names.length || !cells.length) return;
+    // the face belongs to the name, not the slot, so a wordmark keeps its
+    // own look as it moves along the row
+    var faces = ['wm-serif', 'wm-caps', 'wm-slab', 'wm-ital', 'wm-sans', 'wm-light'];
 
-    cells.forEach(function (cell, ci) {
-      var marks = (cell.dataset.marks || '').split('|').filter(Boolean);
-      if (!marks.length) return;
-      var nodes = marks.map(function (m, mi) {
+    cells.forEach(function (cell) {
+      cell._n = [0, 1].map(function () {
         var s = document.createElement('span');
-        s.className = 'tcell__logo ' + faces[(ci + mi) % faces.length];
-        s.textContent = m;
+        s.className = 'tcell__logo';
         cell.appendChild(s);
         return s;
       });
-      nodes[0].classList.add('is-on');
-      if (reduced || nodes.length < 2) return;
-      var i = 0;
-      setInterval(function () {
-        var cur = nodes[i], nxt = nodes[(i + 1) % nodes.length];
-        cur.classList.remove('is-on'); cur.classList.add('is-out');
-        nxt.classList.remove('is-out'); nxt.classList.add('is-on');
-        setTimeout(function () { cur.classList.remove('is-out'); }, 600);
-        i = (i + 1) % nodes.length;
-      }, 3600 + ci * 420);
+      cell._i = 0;
     });
+
+    function paint(cell, ci, step, immediate) {
+      var ni = (ci + step) % names.length;
+      var incoming = cell._n[1 - cell._i];
+      var outgoing = cell._n[cell._i];
+      incoming.textContent = names[ni];
+      incoming.className = 'tcell__logo ' + faces[ni % faces.length];
+      if (immediate) {
+        incoming.classList.add('is-on');
+      } else {
+        outgoing.classList.remove('is-on');
+        outgoing.classList.add('is-out');
+        void incoming.offsetWidth;            // start from below, not mid-flight
+        incoming.classList.add('is-on');
+        setTimeout(function () { outgoing.classList.remove('is-out'); }, 620);
+      }
+      cell._i = 1 - cell._i;
+    }
+
+    cells.forEach(function (cell, ci) { paint(cell, ci, 0, true); });
+    if (reduced || names.length < 2) return;
+
+    var step = 0;
+    setInterval(function () {
+      step++;
+      // The wave runs right-to-left on purpose. Left-to-right, a cell
+      // advancing to names[i+step+1] would land on the name its right-hand
+      // neighbour still shows until its own turn — a visible duplicate
+      // mid-stagger. Advancing the rightmost first cannot collide.
+      cells.forEach(function (cell, ci) {
+        setTimeout(function () { paint(cell, ci, step, false); },
+                   (cells.length - 1 - ci) * 130);
+      });
+    }, 4200);
   })();
 
   /* ---------- problem paragraph: words light to ink in reading order ---------- */
