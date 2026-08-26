@@ -445,43 +445,74 @@ svg{display:block}
   box-shadow:0 0 0 1px var(--blue-500),0 0 26px rgba(13,153,255,.2);
 }
 
-/* floating toolbar above the selected node */
-.node-tools{
-  position:absolute;z-index:20;display:flex;align-items:center;gap:2px;padding:4px;
-  background:var(--card-bg-2);border:1px solid var(--line-3);border-radius:10px;
-  box-shadow:0 12px 32px rgba(0,0,0,.5);
-  opacity:0;transform:translateY(4px) scale(.96);transform-origin:0 100%;pointer-events:none;
-  transition:opacity .16s var(--ease),transform .22s var(--spring);
-}
-.node-tools.show{opacity:1;transform:none;pointer-events:auto}
-.nt-ask{
-  display:flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 7px;border-radius:7px;
-  font-size:var(--fs-caption);letter-spacing:var(--ls-caption);font-weight:500;color:var(--text-secondary);
-  transition:background .15s var(--ease),color .15s var(--ease);
-}
-.nt-ask:hover{background:rgba(13,153,255,.12);color:#fff}
-.nt-sep{width:1px;height:18px;background:var(--line-3);margin:0 2px}
+/* delete — top-right of the node, on the badge row */
 .nt-del{
-  display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:7px;
-  color:var(--text-tertiary);transition:background .15s var(--ease),color .15s var(--ease);
+  position:absolute;z-index:22;display:flex;align-items:center;justify-content:center;
+  width:30px;height:30px;border-radius:9px;
+  background:var(--card-bg-5);border:1px solid rgba(220,52,18,.55);color:#dc3412;
+  opacity:0;transform:scale(.9);pointer-events:none;
+  transition:opacity .16s var(--ease),transform .22s var(--spring),background .15s var(--ease);
 }
-.nt-del:hover{background:rgba(220,52,18,.14);color:#dc3412}
-.nt-del[hidden]{display:none}
+.nt-del.show{opacity:1;transform:none;pointer-events:auto}
+.nt-del:hover{background:rgba(220,52,18,.16)}
+.nt-del:active{transform:scale(.92)}
 
-/* the prompt bar itself — pill at rest, card once Tiq has answered */
+/* Ask Tiq — bottom-right of the node, gradient hairline */
+.nt-ask{
+  position:absolute;z-index:22;display:flex;align-items:center;gap:6px;height:30px;padding:0 12px 0 10px;
+  border-radius:9px;background:var(--card-bg-5);color:var(--text-secondary);
+  font-size:var(--fs-caption);letter-spacing:var(--ls-caption);font-weight:500;white-space:nowrap;
+  opacity:0;transform:translateY(-4px);pointer-events:none;
+  transition:opacity .16s var(--ease),transform .22s var(--spring),color .15s var(--ease);
+}
+.nt-ask::before{
+  content:"";position:absolute;inset:0;border-radius:9px;padding:1px;pointer-events:none;
+  background:linear-gradient(104deg,#0d99ff,#5860ed 34%,#f24822 66%,#ffca28 92%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+}
+.nt-ask.show{opacity:1;transform:none;pointer-events:auto}
+.nt-ask:hover{color:#fff}
+.nt-ask:active{transform:scale(.96)}
+
+/* ── the prompt bar · conversation above, input pinned at the bottom ── */
 .tiq-bar{
-  position:absolute;z-index:20;width:360px;
-  background:var(--card-bg-3);border-radius:22px;
-  box-shadow:0 16px 44px rgba(0,0,0,.55);
-  opacity:0;transform:translateY(-6px) scale(.97);transform-origin:0 0;pointer-events:none;
-  transition:opacity .18s var(--ease),transform .26s var(--spring),border-radius .25s var(--ease);
+  position:absolute;z-index:21;width:360px;display:flex;flex-direction:column;
+  background:var(--card-bg-2);border:1px solid var(--line-3);border-radius:14px;
+  box-shadow:0 20px 52px rgba(0,0,0,.6);
+  opacity:0;transform:translateY(-6px) scale(.98);transform-origin:100% 0;pointer-events:none;
+  transition:opacity .18s var(--ease),transform .26s var(--spring);
 }
 .tiq-bar.show{opacity:1;transform:none;pointer-events:auto}
-.tiq-bar.answered{border-radius:16px}
-.tb-row{position:relative;display:flex;align-items:center;gap:9px;padding:8px 8px 8px 14px}
-/* gradient ring, same conic sweep as the composer */
+
+/* answers stack above the input, so the prompt never drifts out of reach */
+.tb-out{
+  display:none;flex-direction:column;gap:14px;max-height:236px;overflow-y:auto;padding:12px 12px 0;
+  scrollbar-width:thin;scrollbar-color:#3a3a3a transparent;
+}
+.tb-out::-webkit-scrollbar{width:7px}
+.tb-out::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+.tiq-bar.chatting .tb-out{display:flex}
+.tb-turn{display:flex;flex-direction:column;gap:6px}
+.tb-q{
+  align-self:flex-end;max-width:88%;padding:6px 11px;border-radius:10px 10px 3px 10px;
+  background:var(--card-bg-3);color:#fff;font-size:13px;line-height:18px;letter-spacing:-.3px;
+}
+.tb-thought{
+  font-size:var(--fs-body-3);line-height:var(--lh-body-3);letter-spacing:var(--ls-body-3);font-weight:500;
+  color:var(--blue-500);
+}
+.tb-answer{
+  font-size:var(--fs-body-3);line-height:20px;letter-spacing:var(--ls-body-3);color:var(--text-primary);
+}
+.tb-answer b{font-weight:500}
+
+.tb-row{
+  position:relative;display:flex;align-items:center;gap:9px;margin:12px;padding:7px 7px 7px 12px;
+  background:var(--card-bg-3);border-radius:10px;
+}
 .tb-row::before{
-  content:"";position:absolute;inset:0;border-radius:22px;padding:1px;z-index:0;pointer-events:none;
+  content:"";position:absolute;inset:0;border-radius:10px;padding:1px;z-index:0;pointer-events:none;
   background:conic-gradient(from var(--ang), #0d99ff, #5860ed, #f24822, #ffca28, #ffffff, #0d99ff);
   -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite:xor;mask-composite:exclude;
@@ -489,7 +520,6 @@ svg{display:block}
   animation:spinAng 5s linear infinite;
 }
 .tiq-bar.focused .tb-row::before{opacity:1}
-.tiq-bar.answered .tb-row::before{border-radius:16px 16px 0 0}
 .tb-row > *{position:relative;z-index:1}
 .tb-logo{flex:none;width:20px;height:20px}
 .tb-in{
@@ -504,20 +534,22 @@ svg{display:block}
 .tb-send:hover{background:#000}
 .tb-send:active{transform:scale(.9)}
 .tb-send:disabled{background:rgba(255,255,255,.06);color:var(--text-disabled);cursor:default;transform:none}
-/* answer area, revealed under a hairline once Tiq replies */
-.tb-out{
-  display:none;flex-direction:column;gap:7px;
-  margin:0 14px;padding:12px 0 14px;border-top:1px solid rgba(255,255,255,.07);
+
+/* quick actions for the selected node, under the input */
+.tb-suggest{display:flex;flex-direction:column;padding:0 8px 8px}
+.tiq-bar.chatting .tb-suggest{display:none}
+.tb-sg-label{
+  padding:2px 6px 6px;font-size:var(--fs-caption);letter-spacing:var(--ls-caption);color:var(--text-four);
 }
-.tiq-bar.answered .tb-out{display:flex}
-.tb-thought{
-  font-size:var(--fs-body-3);line-height:var(--lh-body-3);letter-spacing:var(--ls-body-3);font-weight:500;
-  color:var(--blue-500);
+.tb-sg{
+  display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;text-align:left;
+  color:var(--text-secondary);font-size:13px;letter-spacing:-.3px;
+  transition:background .14s var(--ease),color .14s var(--ease);
 }
-.tb-answer{
-  font-size:var(--fs-body-3);line-height:20px;letter-spacing:var(--ls-body-3);color:var(--text-primary);
-}
-.tb-answer b{font-weight:500}
+.tb-sg svg{flex:none;color:var(--text-tertiary)}
+.tb-sg .ret{margin-left:auto;font-size:12px;color:var(--text-four);opacity:0}
+.tb-sg.sel,.tb-sg:hover{background:var(--card-bg-3);color:#fff}
+.tb-sg.sel .ret{opacity:1}
 
 /* ══════════════════════════════════════════════════════════════════
    NEW AGENT CREATION FLOW  (Figma 783:12323 "New agent creation")
@@ -1450,28 +1482,27 @@ svg{display:block}
       <!-- slot where Tiq drops what it builds -->
       <div id="builtSlot"></div>
 
-      <!-- per-node actions, shown on selection -->
-      <div class="node-tools" id="nodeTools">
-        <button class="nt-ask" id="ntAsk">
-          <svg width="18" height="18"><use href="#i-tiq"/></svg>Ask Tiq
-        </button>
-        <span class="nt-sep"></span>
-        <button class="nt-del" id="ntDel" title="Delete node" aria-label="Delete node">
-          <svg width="15" height="15"><use href="#i-trash"/></svg>
-        </button>
-      </div>
+      <!-- per-node actions: delete top-right, Ask Tiq bottom-right -->
+      <button class="nt-del" id="ntDel" title="Delete node" aria-label="Delete node">
+        <svg width="15" height="15"><use href="#i-trash"/></svg>
+      </button>
+      <button class="nt-ask" id="ntAsk">
+        <svg width="17" height="17"><use href="#i-tiq"/></svg>Ask Tiq
+      </button>
 
-      <!-- inline Ask Tiq prompt bar, anchored under the selected node -->
+      <!-- prompt bar · answers above, input pinned at the bottom -->
       <div class="tiq-bar" id="tiqBar">
+        <div class="tb-out" id="tbOut"></div>
         <div class="tb-row">
           <svg class="tb-logo"><use href="#i-tiq"/></svg>
-          <input class="tb-in" id="tbIn" placeholder="Describe what you need" autocomplete="off">
+          <input class="tb-in" id="tbIn" placeholder="Ask anything about this node" autocomplete="off">
           <button class="tb-send" id="tbSend" disabled aria-label="Send">
             <svg width="15" height="15"><use href="#i-arrow-r"/></svg>
           </button>
         </div>
-        <div class="tb-out" id="tbOut"></div>
+        <div class="tb-suggest" id="tbSuggest"></div>
       </div>
+    </div>
     </div>
 
   <!-- ═══ BOTTOM PANEL · Figma 40:96086 ═══ -->
@@ -2668,7 +2699,7 @@ function zoomToFit(){
 /* click-drag anywhere on the canvas to pan around */
 let panning = false, panPointerX = 0, panPointerY = 0, panBaseX = 0, panBaseY = 0;
 canvasEl.addEventListener('mousedown', e => {
-  if (e.button !== 0 || e.target.closest('.bottombar, .toast, .addnode-menu, .pop, .node, .node-tools, .tiq-bar')) return;
+  if (e.button !== 0 || e.target.closest('.bottombar, .toast, .addnode-menu, .pop, .node, .nt-del, .nt-ask, .tiq-bar')) return;
   panning = true;
   panPointerX = e.clientX; panPointerY = e.clientY;
   panBaseX = panX; panBaseY = panY;
@@ -2715,9 +2746,16 @@ $$('.pop-i', zoomMenu).forEach(btn => btn.addEventListener('click', () => {
    NODE SELECTION — delete + inline "Ask Tiq" prompt bar
    ══════════════════════════════════════════════════════════════════ */
 
-const nodeToolsEl = $('#nodeTools');
-const tiqBarEl    = $('#tiqBar');
+const tiqBarEl = $('#tiqBar');
 let selNode = null;
+
+/* quick actions offered under the prompt, wired to what Tiq can actually do */
+const NODE_SUGGESTIONS = [
+  { icon: 'bulb',  t: 'Explain this step' },
+  { icon: 'tools', t: 'Add a tool' },
+  { icon: 'guard', t: 'Add a guardrail' },
+  { icon: 'graph', t: 'Check its output' },
+];
 
 const anchorOf   = node => node.querySelector('.card-node, .node-start') || node;
 const nodeLabel  = node => {
@@ -2741,32 +2779,55 @@ function restackBuilt(){
   builtCount = built.length;
 }
 
+/* delete hugs the node's top-right, Ask Tiq its bottom-right, bar hangs below */
+function positionNodeUI(){
+  if (!selNode) return;
+  const n = selNode;
+  const nx = parseFloat(n.style.left) || 0, ny = parseFloat(n.style.top) || 0;
+  const nw = n.offsetWidth, nh = n.offsetHeight;
+  const badge = n.querySelector('.badge-agent, .badge-tool');
+  const del = $('#ntDel'), ask = $('#ntAsk');
+  if (badge){
+    /* card nodes: sit on the badge row, flush with the card's right edge */
+    del.style.left = (nx + nw - 30) + 'px';
+    del.style.top  = (ny + (badge.offsetHeight - 30) / 2) + 'px';
+  } else {
+    /* pill nodes are too short to host it — park it alongside instead */
+    del.style.left = (nx + nw + 8) + 'px';
+    del.style.top  = (ny + (nh - 30) / 2) + 'px';
+  }
+  const askTop = ny + nh + 8;
+  ask.style.left = (nx + nw - ask.offsetWidth) + 'px';
+  ask.style.top  = askTop + 'px';
+  tiqBarEl.style.left = (nx + nw - tiqBarEl.offsetWidth) + 'px';
+  tiqBarEl.style.top  = (askTop + 40) + 'px';
+}
+
 function selectNode(node){
   if (selNode === node) return;
   deselectNode();
   selNode = node;
   node.classList.add('selected');
-  const nx = parseFloat(node.style.left) || 0, ny = parseFloat(node.style.top) || 0;
-  nodeToolsEl.style.left = nx + 'px';
-  nodeToolsEl.style.top  = (ny - 40) + 'px';
+  positionNodeUI();
   /* Start is the flow's trigger — it can be asked about, but not removed */
-  $('#ntDel').hidden = node.contains($('#startNode'));
-  nodeToolsEl.classList.add('show');
+  $('#ntDel').classList.toggle('show', !node.contains($('#startNode')));
+  $('#ntAsk').classList.add('show');
 }
 function deselectNode(){
   if (selNode) selNode.classList.remove('selected');
   selNode = null;
-  nodeToolsEl.classList.remove('show');
+  $('#ntDel').classList.remove('show');
+  $('#ntAsk').classList.remove('show');
   closeTiqBar();
 }
 
 stageEl.addEventListener('click', e => {
-  if (e.target.closest('.node-tools, .tiq-bar')) return;
+  if (e.target.closest('.nt-del, .nt-ask, .tiq-bar')) return;
   const node = e.target.closest('.node');
   if (node) selectNode(node);
 });
 canvasEl.addEventListener('click', e => {
-  if (e.target.closest('.node, .node-tools, .tiq-bar, .bottombar, .toast')) return;
+  if (e.target.closest('.node, .nt-del, .nt-ask, .tiq-bar, .bottombar, .toast')) return;
   deselectNode();
 });
 
@@ -2789,20 +2850,39 @@ $('#ntDel').addEventListener('click', () => {
 });
 
 /* ── the prompt bar ──────────────────────────────────────────────── */
+function renderNodeSuggestions(){
+  const host = $('#tbSuggest');
+  host.innerHTML = '<div class="tb-sg-label">For this node</div>' +
+    NODE_SUGGESTIONS.map((sg, i) =>
+      `<button class="tb-sg${i ? '' : ' sel'}" data-q="${esc(sg.t)}">${ico(sg.icon, 16)}` +
+      `<span>${esc(sg.t)}</span><span class="ret">↵</span></button>`).join('');
+  $$('.tb-sg', host).forEach(b => b.addEventListener('click', () => {
+    $('#tbIn').value = b.dataset.q;
+    askTiqOnNode();
+  }));
+}
+/* keyboard walk through the quick actions */
+function moveSg(dir){
+  const items = $$('.tb-sg');
+  if (!items.length) return;
+  let i = items.findIndex(x => x.classList.contains('sel'));
+  i = (i + dir + items.length) % items.length;
+  items.forEach((x, k) => x.classList.toggle('sel', k === i));
+}
+
 function openTiqBar(){
   if (!selNode) return;
-  const nx = parseFloat(selNode.style.left) || 0, ny = parseFloat(selNode.style.top) || 0;
-  tiqBarEl.style.left = nx + 'px';
-  tiqBarEl.style.top  = (ny + selNode.offsetHeight + 12) + 'px';
-  tiqBarEl.classList.remove('answered');
+  renderNodeSuggestions();
+  tiqBarEl.classList.remove('chatting');
   $('#tbOut').innerHTML = '';
   $('#tbIn').value = '';
   $('#tbSend').disabled = true;
+  positionNodeUI();
   tiqBarEl.classList.add('show');
   setTimeout(() => $('#tbIn').focus(), reduced ? 0 : 120);
 }
 function closeTiqBar(){
-  tiqBarEl.classList.remove('show', 'answered', 'focused');
+  tiqBarEl.classList.remove('show', 'chatting', 'focused');
   $('#tbOut').innerHTML = '';
   $('#tbIn').value = '';
   $('#tbSend').disabled = true;
@@ -2812,7 +2892,18 @@ $('#tbIn').addEventListener('focus', () => tiqBarEl.classList.add('focused'));
 $('#tbIn').addEventListener('blur',  () => tiqBarEl.classList.remove('focused'));
 $('#tbIn').addEventListener('input', e => $('#tbSend').disabled = !e.target.value.trim());
 $('#tbIn').addEventListener('keydown', e => {
-  if (e.key === 'Enter'){ e.preventDefault(); askTiqOnNode(); }
+  const sgOpen = !tiqBarEl.classList.contains('chatting');
+  if (sgOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')){
+    e.preventDefault(); moveSg(e.key === 'ArrowDown' ? 1 : -1); return;
+  }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (!e.target.value.trim() && sgOpen){
+    const sel = $('.tb-sg.sel');
+    if (sel){ e.target.value = sel.dataset.q; askTiqOnNode(); }
+    return;
+  }
+  askTiqOnNode();
 });
 $('#tbSend').addEventListener('click', askTiqOnNode);
 
@@ -2902,24 +2993,35 @@ async function askTiqOnNode(){
   tbBusy = true;
   input.value = '';
   $('#tbSend').disabled = true;
-  input.blur();
+  tiqBarEl.classList.add('chatting');
 
-  tiqBarEl.classList.add('answered');
-  out.innerHTML = `<div class="tb-thought shim">Thinking…</div>`;
+  const toBottom = () => out.scrollTop = out.scrollHeight;
+  const turn = document.createElement('div');
+  turn.className = 'tb-turn';
+  turn.innerHTML = `<div class="tb-q">${esc(q)}</div><div class="tb-thought shim">Thinking…</div>`;
+  out.appendChild(turn);
+  toBottom();
+
   const t0 = performance.now();
   if (!reduced){
     await wait(1500 + Math.random() * 700);
-    const lbl = $('.tb-thought', out);
+    const lbl = $('.tb-thought', turn);
     if (lbl) lbl.textContent = 'Working on it…';
     await wait(1200 + Math.random() * 700);
   } else await wait(80);
 
   const secs = Math.max(1, Math.round((performance.now() - t0) / 1000));
   const answer = applyNodeEdit(node, q);
-  out.innerHTML = `<div class="tb-thought">Thought for ${secs}s</div><div class="tb-answer"></div>`;
-  const ansEl = $('.tb-answer', out);
+  const lbl = $('.tb-thought', turn);
+  lbl.classList.remove('shim');
+  lbl.textContent = `Thought for ${secs}s`;
+  const ansEl = document.createElement('div');
+  ansEl.className = 'tb-answer';
   ansEl.innerHTML = answer;
-  await btStream(ansEl);
+  turn.appendChild(ansEl);
+  toBottom();
+  await btStream(ansEl, toBottom);
+  toBottom();
   pulseSave();
   tbBusy = false;
 }
@@ -3593,7 +3695,7 @@ function btSay(html, chips){
 /* word-by-word reveal of a message that may contain markup —
    text nodes are emptied then refilled in place, so bold/tokens keep
    their styling as the words arrive */
-function btStream(el){
+function btStream(el, onTick){
   const nodes = [];
   (function walk(n){
     n.childNodes.forEach(c => {
@@ -3616,7 +3718,7 @@ function btStream(el){
       if (/[.!?]/.test(tail)) delay = 190 + Math.random() * 110;
       else if (/[,;:]/.test(tail)) delay = 110 + Math.random() * 60;
       if (pos >= full.length){ node.nodeValue = full; i++; pos = 0; }
-      btScroll();
+      (onTick || btScroll)();
       setTimeout(tick, delay);
     })();
   });
