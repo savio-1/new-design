@@ -563,8 +563,71 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 /* the dark accordion drives its progress bar with this */
 @keyframes hiwFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-/* ============================================================ RESULT ANATOMY */
-.anat { background: var(--surface); padding: 128px 0; }
+/* ============================================================ THE DARK BAND
+   "What arrives", "is it right" and "who receives it" used to be three
+   light sections. They are one dark band now: it pins for two viewport
+   heights and its three panels travel through horizontally, one after the
+   other. The timeline is DWELL / TRAVEL / DWELL / TRAVEL / DWELL rather
+   than a linear sweep, or a panel would never come to rest long enough to
+   read. Below 901px — and under reduced motion — the pin never engages and
+   the panels stack, which is why every rule that depends on pinning is
+   scoped to .is-pinned, a class the script adds only when it actually
+   pins. */
+/* the anchor lands flush: the band's own top IS the pin's top, so the
+   usual nav-clearing scroll-margin would drop the first panel (and the
+   rail) below the fold until the reader nudged the page */
+section.hband { position: relative; background: var(--deep); color: #fff; scroll-margin-top: 0; }
+.hband__pin { padding: 120px 0; }
+.hband.is-pinned { height: 300vh; }
+.hband.is-pinned .hband__pin {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  padding: calc(var(--nav-h) + 44px) 0 40px;
+}
+.hband__track { display: grid; gap: 112px; }
+.hband.is-pinned .hband__track {
+  display: flex; gap: 0; width: 300vw; flex: 1 1 auto; min-height: 0;
+  will-change: transform;
+}
+.hband.is-pinned .hpanel {
+  width: 100vw; flex: none; display: flex; align-items: center; min-height: 0;
+}
+.hpanel h2 { color: #fff; }
+.hpanel .t-twotone { color: var(--on-deep); }
+.hpanel .t-twotone b, .hpanel .t-twotone strong { color: #fff; }
+.hpanel .anat__label { color: rgba(255,255,255,0.5); }
+.hpanel .anat__label i { background: #fff; opacity: 0.45; }
+.hpanel .anat__label b { color: rgba(255,255,255,0.85); }
+/* the artwork panels stay light — they are the one bright thing on the
+   dark ground — so the band's white text colour must stop at their edge,
+   or anything inside them that inherits colour (a tier name, a row title)
+   renders white on white. They also can no longer take their own height,
+   or a short viewport would clip them out of the pin. */
+.hpanel .art { color: var(--ink); }
+/* the artwork panels stay light — they are the one bright thing on the
+   dark ground — but they can no longer take their own height, or a short
+   viewport would clip them out of the pin */
+.hband.is-pinned .hpanel .art { min-height: 0; height: min(468px, 60vh); padding: min(44px, 4.4vh); }
+
+/* the rail: where you are in the band, and a way to jump */
+.hband__rail { display: none; }
+.hband.is-pinned .hband__rail { display: block; flex: none; margin-top: 32px; }
+.hband__rail .container { display: flex; gap: 24px; }
+.hband__tick {
+  flex: 1 1 0; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  text-align: left; font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em;
+  color: rgba(255,255,255,0.56); transition: color 0.3s var(--ease);
+}
+.hband__tick.is-on { color: #fff; }
+.hband__tick span { display: block; padding-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hband__tick i { display: block; height: 2px; border-radius: 2px; background: rgba(255,255,255,0.18); overflow: hidden; }
+.hband__tick i b { display: block; height: 100%; border-radius: 2px; background: var(--tick); transform: scaleX(0); transform-origin: left center; }
+.hband__tick:nth-child(1) { --tick: var(--grad-aqua); }
+.hband__tick:nth-child(2) { --tick: var(--grad-lilac); }
+.hband__tick:nth-child(3) { --tick: var(--grad-sky); }
+
+/* ---- panel 1: what a result looks like ---- */
 .anat__labels { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 24px; }
 .anat__label { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-body); font-size: 14px; letter-spacing: -0.03em; color: var(--ink-45); }
 .anat__label i { width: 16px; height: 1px; background: var(--ink); opacity: 0.4; }
@@ -572,12 +635,8 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 /* older results peek out above, receding — a feed, not a lone card */
 .stackpeek { height: 10px; margin-inline: 14px; border-radius: 0 0 10px 10px; background: rgba(255,255,255,0.7); }
 .stackpeek + .stackpeek { margin-inline: 28px; background: rgba(255,255,255,0.45); }
-.cats { margin-top: 96px; padding-top: 48px; border-top: 1px solid var(--hairline); }
-.cats p { margin: 0; }
-.cats__list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 
-/* ============================================================ VERIFY + VOLUME */
-.verify { background: var(--ground); padding: 128px 0; }
+/* ---- panel 2: confidence tiers ---- */
 .tier { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 10px; padding: 14px 18px; box-shadow: 0 16px 34px rgba(4, 48, 43, 0.14); }
 .tier + .tier { margin-top: 10px; }
 .tier__name { font-family: var(--font-display); font-size: 16px; font-weight: 400; letter-spacing: -0.03em; min-width: 40px; }
@@ -592,28 +651,37 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 }
 .boundary::before, .boundary::after { content: ""; flex: 1; border-top: 1px dashed rgba(4,48,43,0.45); }
 
+/* ---- panel 3: routing ---- */
+.hub { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; }
+.hub__feed { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 16px 34px rgba(4,48,43,0.18); width: 190px; }
+.hub__list { display: flex; flex-direction: column; gap: 12px; position: relative; }
+.hub__list::before { content: ""; position: absolute; left: -16px; top: 14%; bottom: 14%; width: 1px; background: rgba(4,48,43,0.35); }
+.hub__row { position: relative; }
+.hub__row::before { content: ""; position: absolute; left: -16px; top: 50%; width: 16px; height: 1px; background: rgba(4,48,43,0.35); }
+
+/* ============================================================ THE DETAIL
+   What the three panels cannot carry inside one viewport — the volume
+   numbers, the 11 categories, the access levels — lands here, light again,
+   directly under the band. Nothing from the deck is dropped; it is only
+   moved out of a frame that cannot hold it. */
+.detail { background: var(--ground); padding: 128px 0; }
+/* the 48px step needs the section's own lead-in gap; the 32px h3 does not */
+.volume h2 { margin: 0 0 24px; }
+.volume h3 { margin: 0 0 12px; }
+.volume > p { margin: 0; max-width: 62ch; color: var(--ink-65); }
 /* stat band: the caption sits ABOVE the numeral, hairline rule per column,
    and each numeral shimmers on hover in its own support hue. Every slot
    holds an actual figure — a word set at 64px reads as a headline, not a
    stat, so prose belongs in the caption or the copy column. */
-.volume { margin-top: 104px; }
-.volume h3 { margin: 0 0 12px; }
-.volume > p { margin: 0; max-width: 62ch; color: var(--ink-65); }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 56px; }
 .stat { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 148px; padding: 0 24px 0 20px; border-left: 1px solid var(--hairline); }
 .stat__label { font-family: var(--font-body); font-size: 16px; line-height: 1.35; letter-spacing: -0.03em; color: var(--ink-65); }
 .stat__num { display: block; }
 .stat__num sub { font-family: var(--font-body); font-size: 20px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink-45); vertical-align: baseline; }
-
-/* ============================================================ ROUTING */
-.routing { background: var(--surface); padding: 128px 0; }
-.hub { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; }
-.hub__feed { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 16px 34px rgba(4,48,43,0.18); width: 168px; }
-.hub__list { display: flex; flex-direction: column; gap: 12px; position: relative; }
-.hub__list::before { content: ""; position: absolute; left: -16px; top: 14%; bottom: 14%; width: 1px; background: rgba(4,48,43,0.35); }
-.hub__row { position: relative; }
-.hub__row::before { content: ""; position: absolute; left: -16px; top: 50%; width: 16px; height: 1px; background: rgba(4,48,43,0.35); }
-.roles { margin: 72px 0 0; padding: 48px 0 0; border-top: 1px solid var(--hairline); display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+.cats { margin-top: 96px; padding-top: 48px; border-top: 1px solid var(--hairline); }
+.cats p { margin: 0; }
+.cats__list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.roles { margin: 96px 0 0; padding: 48px 0 0; border-top: 1px solid var(--hairline); display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
 .roles h3 { margin: 0 0 20px; }
 .rolelist { margin: 0; padding: 0; list-style: none; }
 .rolelist li { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--hairline); font-family: var(--font-body); font-size: 16px; line-height: 1.5; letter-spacing: -0.03em; color: var(--ink-65); }
@@ -866,8 +934,10 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .foot__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; }
 }
 @media (max-width: 920px) {
-  .sec, .problem, .hiw, .anat, .verify, .routing, .compare, .duo,
+  .sec, .problem, .hiw, .detail, .compare, .duo,
   .monitor, .tstm, .pricing, .faq { padding-block: 80px; }
+  .hband__pin { padding-block: 80px; }
+  .hband__track { gap: 80px; }
   .roles { grid-template-columns: 1fr; gap: 40px; }
   .close { padding: 120px 0 112px; }
 }
@@ -1228,114 +1298,170 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 06 WHAT A RESULT LOOKS LIKE -->
-<section class="anat" id="results" aria-labelledby="anat-h">
-  <div class="container">
-    <div class="split">
-      <div>
-        <h2 class="t-h2" id="anat-h"><span class="shine shine--once" data-text="Every result tells you who, what and why — before you click.">Every result tells you who, what and why — before you click.</span></h2>
-        <div class="stack">
-          <p class="t-body t-twotone"><b>Each result carries the publication, the headline, the single sentence from the article that actually concerns your prospect,</b> and the reason they were featured. Not the opening line of the story — the line about your person. Most of the time you can act on the card without opening the article.</p>
-          <p class="t-body t-twotone"><b>When six outlets carry the same story, you get one result,</b> with the other five listed underneath.</p>
-        </div>
-        <div class="anat__labels">
-          <span class="anat__label"><i></i><b>Category</b></span>
-          <span class="anat__label"><i></i><b>Confidence grade</b></span>
-          <span class="anat__label"><i></i><b>Publication</b></span>
-          <span class="anat__label"><i></i><b>The sentence about your person</b></span>
-          <span class="anat__label"><i></i><b>Your unique ID</b></span>
-          <span class="anat__label"><i></i><b>One result, six outlets</b></span>
-        </div>
-      </div>
+<!-- ============================================================ 06 THE DARK BAND
+     What arrives, whether it is right, and who receives it — three panels
+     travelling horizontally through one pinned dark frame. The panels
+     stack below 901px and under reduced motion; the script decides. -->
+<section class="hband" id="results" data-hband>
+  <div class="hband__pin">
+    <div class="hband__track">
 
-      <div class="art art--aqua rise">
-        <span class="art__wash" aria-hidden="true"></span>
-        <span class="art__grain" aria-hidden="true"></span>
-        <div class="art__stage" style="width:min(430px,100%);margin-inline:auto">
-          <article class="rescard">
-            <div class="rescard__tags">
-              <span class="pill">Job changes</span>
-              <span class="pill">High confidence</span>
+      <article class="hpanel" aria-labelledby="anat-h">
+        <div class="container">
+          <div class="split">
+            <div>
+              <h2 class="t-h2" id="anat-h"><span class="shine shine--once shine--dark" data-text="Every result tells you who, what and why — before you click.">Every result tells you who, what and why — before you click.</span></h2>
+              <div class="stack">
+                <p class="t-body t-twotone"><b>Each result carries the publication, the headline, the single sentence from the article that actually concerns your prospect,</b> and the reason they were featured. Not the opening line of the story — the line about your person. Most of the time you can act on the card without opening the article.</p>
+                <p class="t-body t-twotone"><b>When six outlets carry the same story, you get one result,</b> with the other five listed underneath.</p>
+              </div>
+              <div class="anat__labels">
+                <span class="anat__label"><i></i><b>Category</b></span>
+                <span class="anat__label"><i></i><b>Confidence grade</b></span>
+                <span class="anat__label"><i></i><b>Publication</b></span>
+                <span class="anat__label"><i></i><b>The sentence about your person</b></span>
+                <span class="anat__label"><i></i><b>Your unique ID</b></span>
+                <span class="anat__label"><i></i><b>One result, six outlets</b></span>
+              </div>
             </div>
-            <p class="rescard__src"><b>Portland Business Journal</b> · 14 hours ago</p>
-            <h3>Meridian Health names Sarah Okafor as its next chief executive</h3>
-            <p class="rescard__sent">&ldquo;…<mark>Okafor, who earned her MBA in 2004, has served as Meridian&rsquo;s chief operating officer since 2019</mark> and will assume the role in January…&rdquo;</p>
-            <div class="rescard__who">
-              <span class="mk__ava">SO</span>
-              <span class="mk__txt">
-                <span class="mk__who">Sarah Okafor</span>
-                <span class="mk__what">Your ID 88-04231</span>
-              </span>
-              <span class="rescard__route">+5 outlets <b>listed underneath</b></span>
+
+            <div class="art art--aqua">
+              <span class="art__wash" aria-hidden="true"></span>
+              <span class="art__grain" aria-hidden="true"></span>
+              <div class="art__stage" style="width:min(430px,100%);margin-inline:auto">
+                <article class="rescard">
+                  <div class="rescard__tags">
+                    <span class="pill">Job changes</span>
+                    <span class="pill">High confidence</span>
+                  </div>
+                  <p class="rescard__src"><b>Portland Business Journal</b> · 14 hours ago</p>
+                  <h3>Meridian Health names Sarah Okafor as its next chief executive</h3>
+                  <p class="rescard__sent">&ldquo;…<mark>Okafor, who earned her MBA in 2004, has served as Meridian&rsquo;s chief operating officer since 2019</mark> and will assume the role in January…&rdquo;</p>
+                  <div class="rescard__who">
+                    <span class="mk__ava">SO</span>
+                    <span class="mk__txt">
+                      <span class="mk__who">Sarah Okafor</span>
+                      <span class="mk__what">Your ID 88-04231</span>
+                    </span>
+                    <span class="rescard__route">+5 outlets <b>listed underneath</b></span>
+                  </div>
+                </article>
+                <div class="stackpeek" aria-hidden="true"></div>
+                <div class="stackpeek" aria-hidden="true"></div>
+              </div>
             </div>
-          </article>
-          <div class="stackpeek" aria-hidden="true"></div>
-          <div class="stackpeek" aria-hidden="true"></div>
+          </div>
         </div>
-      </div>
+      </article>
+
+      <article class="hpanel" aria-labelledby="verify-h">
+        <div class="container">
+          <div class="split">
+            <div>
+              <h2 class="t-h2" id="verify-h"><span class="shine shine--once shine--dark" data-text="Only verified matches reach your inbox or your CRM.">Only verified matches reach your inbox or your CRM.</span></h2>
+              <div class="stack">
+                <p class="t-body t-twotone"><b>Every result is graded high, mid or low confidence.</b> Only high-confidence results are emailed to your team or written to your CRM — matches where AlmaConnect News is more than 95% certain the person in the article is the person in your constituent database. Mid and low results stay in the platform, available when you want to look, invisible when you don&rsquo;t.</p>
+                <p class="t-body t-twotone"><b>Every verified result carries your own unique ID,</b> so nothing lands on the wrong record.</p>
+              </div>
+            </div>
+
+            <div class="art art--lilac">
+              <span class="art__wash" aria-hidden="true"></span>
+              <span class="art__grain" aria-hidden="true"></span>
+              <div class="art__stage" style="width:min(440px,100%);margin-inline:auto">
+                <div class="tier">
+                  <span class="tier__name">High</span>
+                  <span class="tier__desc">More than 95% certain it&rsquo;s your constituent</span>
+                  <span class="pill">Email + CRM</span>
+                </div>
+                <p class="boundary">Only high confidence leaves the platform</p>
+                <div class="tier tier--dim">
+                  <span class="tier__name">Mid</span>
+                  <span class="tier__desc">Probable — held for review</span>
+                  <span class="pill">In platform</span>
+                </div>
+                <div class="tier tier--dim">
+                  <span class="tier__name">Low</span>
+                  <span class="tier__desc">Possible — searchable when you want it</span>
+                  <span class="pill">In platform</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="hpanel" aria-labelledby="routing-h">
+        <div class="container">
+          <div class="split">
+            <div>
+              <h2 class="t-h2" id="routing-h"><span class="shine shine--once shine--dark" data-text="News reaches the gift officer who owns the relationship.">News reaches the gift officer who owns the relationship.</span></h2>
+              <div class="stack">
+                <p class="t-body t-twotone"><b>Assign prospects to gift officers and each one receives only their own portfolio,</b> at whatever frequency they choose. When portfolios change, upload the new assignments — nobody has to go and re-follow anyone. Teams running frequent moves management updates can refresh assignments nightly.</p>
+              </div>
+            </div>
+
+            <div class="art art--sky">
+              <span class="art__wash" aria-hidden="true"></span>
+              <span class="art__grain" aria-hidden="true"></span>
+              <div class="art__stage">
+                <div class="hub">
+                  <div class="hub__feed">
+                    <span class="mk__who">Verified results</span>
+                    <span class="mk__what">One feed, de-duplicated</span>
+                  </div>
+                  <div class="hub__list">
+                    <div class="hub__row mk">
+                      <div class="mk__row">
+                        <span class="mk__ava mk__ava--ink">MA</span>
+                        <span class="mk__txt"><span class="mk__who">Maria Alvarez</span><span class="mk__what">Major gifts · 212 prospects</span></span>
+                      </div>
+                    </div>
+                    <div class="hub__row mk">
+                      <div class="mk__row">
+                        <span class="mk__ava mk__ava--ink">JT</span>
+                        <span class="mk__txt"><span class="mk__who">James Tran</span><span class="mk__what">Planned giving · 148 prospects</span></span>
+                      </div>
+                    </div>
+                    <div class="hub__row mk">
+                      <div class="mk__row">
+                        <span class="mk__ava mk__ava--ink">RK</span>
+                        <span class="mk__txt"><span class="mk__who">Ruth Kim</span><span class="mk__what">Corporate relations · 96 orgs</span></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
     </div>
 
-    <div class="cats">
-      <p class="t-body t-twotone"><b>Every result is classified into one of 11 categories,</b> so you can filter to what your team acts on:</p>
-      <div class="cats__list">
-        <span class="pill">Job changes</span>
-        <span class="pill">Achievements</span>
-        <span class="pill">Awards</span>
-        <span class="pill">Philanthropy</span>
-        <span class="pill">Financial and stock transactions</span>
-        <span class="pill">Company news</span>
-        <span class="pill">Event participation</span>
-        <span class="pill">Personal news</span>
-        <span class="pill">Obituaries</span>
-        <span class="pill">Negative news</span>
-        <span class="pill">Board and leadership appointments</span>
+    <div class="hband__rail">
+      <div class="container">
+        <button class="hband__tick" type="button">
+          <span>What a result looks like</span><i><b></b></i>
+        </button>
+        <button class="hband__tick" type="button">
+          <span>How it is verified</span><i><b></b></i>
+        </button>
+        <button class="hband__tick" type="button">
+          <span>Who receives it</span><i><b></b></i>
+        </button>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ============================================================ 07 VERIFICATION & VOLUME
-     The two objections that kill this deal, handled together and
-     adjacent, before the comparison table. -->
-<section class="verify" aria-labelledby="verify-h">
+<!-- ============================================================ 07 THE DETAIL
+     The volume answer, the 11 categories and the access levels: everything
+     the three travelling panels cannot carry inside one viewport. -->
+<section class="detail" id="detail" aria-labelledby="detail-h">
   <div class="container">
-    <div class="split">
-      <div>
-        <h2 class="t-h2" id="verify-h"><span class="shine shine--once" data-text="Only verified matches reach your inbox or your CRM.">Only verified matches reach your inbox or your CRM.</span></h2>
-        <div class="stack">
-          <p class="t-body t-twotone"><b>Every result is graded high, mid or low confidence.</b> Only high-confidence results are emailed to your team or written to your CRM — matches where AlmaConnect News is more than 95% certain the person in the article is the person in your constituent database. Mid and low results stay in the platform, available when you want to look, invisible when you don&rsquo;t.</p>
-          <p class="t-body t-twotone"><b>Every verified result carries your own unique ID,</b> so nothing lands on the wrong record.</p>
-        </div>
-      </div>
-
-      <div class="art art--aqua rise">
-        <span class="art__wash" aria-hidden="true"></span>
-        <span class="art__grain" aria-hidden="true"></span>
-        <div class="art__stage" style="width:min(440px,100%);margin-inline:auto">
-          <div class="tier">
-            <span class="tier__name">High</span>
-            <span class="tier__desc">More than 95% certain it&rsquo;s your constituent</span>
-            <span class="pill">Email + CRM</span>
-          </div>
-          <p class="boundary">Only high confidence leaves the platform</p>
-          <div class="tier tier--dim">
-            <span class="tier__name">Mid</span>
-            <span class="tier__desc">Probable — held for review</span>
-            <span class="pill">In platform</span>
-          </div>
-          <div class="tier tier--dim">
-            <span class="tier__name">Low</span>
-            <span class="tier__desc">Possible — searchable when you want it</span>
-            <span class="pill">In platform</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- the volume answer: the objection that appeared in nearly every
-         transcript, answered with the numbers that settle it -->
     <div class="volume">
-      <h3 class="t-h3"><span class="shine shine--once" data-text="You will not drown in this.">You will not drown in this.</span></h3>
+      <h2 class="t-h2" id="detail-h"><span class="shine shine--once" data-text="You will not drown in this.">You will not drown in this.</span></h2>
       <p class="t-body t-twotone"><b>Flag anything still not relevant in plain English</b> — &ldquo;only significant news for this prospect&rdquo;, &ldquo;no self-authored articles&rdquo; — and AlmaConnect News adapts for the whole team.</p>
       <div class="stats">
         <div class="stat">
@@ -1356,51 +1482,21 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
         </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- ============================================================ 08 ROUTING & WORKFLOW -->
-<section class="routing" aria-labelledby="routing-h">
-  <div class="container">
-    <div class="split">
-      <div>
-        <h2 class="t-h2" id="routing-h"><span class="shine shine--once" data-text="News reaches the gift officer who owns the relationship.">News reaches the gift officer who owns the relationship.</span></h2>
-        <div class="stack">
-          <p class="t-body t-twotone"><b>Assign prospects to gift officers and each one receives only their own portfolio,</b> at whatever frequency they choose. When portfolios change, upload the new assignments — nobody has to go and re-follow anyone. Teams running frequent moves management updates can refresh assignments nightly.</p>
-        </div>
-      </div>
-
-      <div class="art art--sky rise">
-        <span class="art__wash" aria-hidden="true"></span>
-        <span class="art__grain" aria-hidden="true"></span>
-        <div class="art__stage">
-          <div class="hub">
-            <div class="hub__feed">
-              <span class="mk__who">Verified results</span>
-              <span class="mk__what">One feed, de-duplicated</span>
-            </div>
-            <div class="hub__list">
-              <div class="hub__row mk">
-                <div class="mk__row">
-                  <span class="mk__ava mk__ava--ink">MA</span>
-                  <span class="mk__txt"><span class="mk__who">Maria Alvarez</span><span class="mk__what">Major gifts · 212 prospects</span></span>
-                </div>
-              </div>
-              <div class="hub__row mk">
-                <div class="mk__row">
-                  <span class="mk__ava mk__ava--ink">JT</span>
-                  <span class="mk__txt"><span class="mk__who">James Tran</span><span class="mk__what">Planned giving · 148 prospects</span></span>
-                </div>
-              </div>
-              <div class="hub__row mk">
-                <div class="mk__row">
-                  <span class="mk__ava mk__ava--ink">RK</span>
-                  <span class="mk__txt"><span class="mk__who">Ruth Kim</span><span class="mk__what">Corporate relations · 96 orgs</span></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div class="cats">
+      <p class="t-body t-twotone"><b>Every result is classified into one of 11 categories,</b> so you can filter to what your team acts on:</p>
+      <div class="cats__list">
+        <span class="pill">Job changes</span>
+        <span class="pill">Achievements</span>
+        <span class="pill">Awards</span>
+        <span class="pill">Philanthropy</span>
+        <span class="pill">Financial and stock transactions</span>
+        <span class="pill">Company news</span>
+        <span class="pill">Event participation</span>
+        <span class="pill">Personal news</span>
+        <span class="pill">Obituaries</span>
+        <span class="pill">Negative news</span>
+        <span class="pill">Board and leadership appointments</span>
       </div>
     </div>
 
@@ -1421,7 +1517,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 09 VS GOOGLE ALERTS
+<!-- ============================================================ 08 VS GOOGLE ALERTS
      Must be a real HTML table, not an image: tables are among the
      most-extracted formats for AI answers. -->
 <section class="compare" id="compare" aria-labelledby="compare-h">
@@ -1456,7 +1552,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 10 CRM & INTEGRATIONS -->
+<!-- ============================================================ 09 CRM & INTEGRATIONS -->
 <section class="duo" id="integrations" aria-labelledby="duo-h">
   <div class="container">
     <div class="duo__head">
@@ -1499,7 +1595,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 11 WHAT WE MONITOR
+<!-- ============================================================ 10 WHAT WE MONITOR
      Publishing the limits is unusual and, with this audience,
      disproportionately trust-building. -->
 <section class="monitor" aria-labelledby="monitor-h">
@@ -1543,7 +1639,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 12 PROOF -->
+<!-- ============================================================ 11 PROOF -->
 <section class="tstm" id="customers" aria-labelledby="tstm-h">
   <div class="container">
     <div class="tstm__head">
@@ -1590,7 +1686,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 13 PRICING -->
+<!-- ============================================================ 12 PRICING -->
 <section class="pricing" id="pricing" aria-labelledby="pricing-h">
   <div class="container pricing__grid">
     <div>
@@ -1616,7 +1712,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 14 SECURITY -->
+<!-- ============================================================ 13 SECURITY -->
 <section class="security" aria-labelledby="security-h">
   <div class="container security__inner">
     <p class="security__certs" id="security-h">SOC 2 Type II<span class="sep">·</span>ISO 27001<span class="sep">·</span>GDPR<span class="sep">·</span>EU–US Data Privacy Framework<span class="sep">·</span>UK–US Data Bridge</p>
@@ -1625,7 +1721,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 15 FAQ
+<!-- ============================================================ 14 FAQ
      Visible on the page and shipped with FAQPage schema together. The
      first answer repeats the definition block verbatim — one canonical
      wording in prose, FAQ and schema is what teaches answer engines a
@@ -1681,7 +1777,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   </div>
 </section>
 
-<!-- ============================================================ 16 CLOSING CTA -->
+<!-- ============================================================ 15 CLOSING CTA -->
 <section class="close" id="demo" aria-labelledby="close-h">
   <div class="close__aurora" aria-hidden="true"></div>
   <div class="close__fade" aria-hidden="true"></div>
@@ -2601,6 +2697,139 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
       }, { threshold: 0.02 }).observe(wrap);
     } else { start(); }
     draw(performance.now());
+  })();
+
+  /* ---------- THE DARK BAND: three panels travelling horizontally ----------
+     The section is three viewports tall and its inner frame pins for the
+     middle two, so the vertical scroll the reader already has drives the
+     horizontal travel — no scroll hijacking, and the page still scrolls at
+     its own speed.
+
+     The mapping is deliberately not linear. A linear sweep never lets a
+     panel come to rest, so the timeline is DWELL / TRAVEL / DWELL / TRAVEL
+     / DWELL: two thirds of the scroll is spent holding a panel still and
+     one third moving between them, with the moves smoothstepped so they
+     start and end soft.
+
+     Nothing in the frame reads layout: the band's top and the pin's travel
+     are cached on resize, and only scrollY moves per frame. Below 901px and
+     under reduced motion the pin never engages — .is-pinned is never added
+     and the panels are a plain vertical stack. */
+  (function () {
+    var band = document.querySelector('[data-hband]');
+    if (!band) return;
+    var track = band.querySelector('.hband__track');
+    var panels = [].slice.call(band.querySelectorAll('.hpanel'));
+    var ticks = [].slice.call(band.querySelectorAll('.hband__tick'));
+    var N = panels.length;
+    if (!track || N < 2 || ticks.length !== N) return;
+
+    var DWELL = 0.24;                        /* share of the scroll a panel holds still for */
+    var TRAVEL = (1 - N * DWELL) / (N - 1);  /* what is left, split between the handovers */
+
+    var wide = window.matchMedia('(min-width: 901px)');
+    var pinned = false, top = 0, span = 1, vw = 0;
+    var queued = false, lastOff = -1;
+
+    /* progress 0..1 → panel offset 0..N-1, flat through each dwell */
+    function offsetAt(p) {
+      var x = p;
+      for (var i = 0; i < N; i++) {
+        if (x <= DWELL || i === N - 1) return i;
+        x -= DWELL;
+        if (x <= TRAVEL) {
+          var t = x / TRAVEL;
+          return i + t * t * (3 - 2 * t);
+        }
+        x -= TRAVEL;
+      }
+      return N - 1;
+    }
+
+    function clear() {
+      track.style.transform = '';
+      panels.forEach(function (el) { el.style.opacity = ''; });
+      ticks.forEach(function (b) {
+        b.classList.remove('is-on');
+        b.querySelector('i > b').style.transform = '';
+      });
+      lastOff = -1;
+    }
+
+    function measure() {
+      var on = wide.matches && !reduced;
+      if (on !== pinned) {
+        pinned = on;
+        band.classList.toggle('is-pinned', on);
+        if (!on) clear();
+      }
+      if (!pinned) return;
+      top = band.getBoundingClientRect().top + window.pageYOffset;
+      span = band.offsetHeight - window.innerHeight;
+      if (span < 1) span = 1;
+      vw = window.innerWidth;
+    }
+
+    function apply() {
+      queued = false;
+      if (!pinned) return;
+      var p = (window.pageYOffset - top) / span;
+      p = p < 0 ? 0 : p > 1 ? 1 : p;
+      var i;
+
+      /* the rail fills per third of the band, so it keeps moving through a
+         dwell — it tracks the scroll itself, not the eased travel, and so
+         it is written before the travel's no-op guard */
+      var seg = 1 / N;
+      var cur = Math.min(N - 1, Math.floor(p / seg));
+      for (i = 0; i < N; i++) {
+        var f = (p - i * seg) / seg;
+        f = f < 0 ? 0 : f > 1 ? 1 : f;
+        ticks[i].classList.toggle('is-on', i === cur);
+        ticks[i].querySelector('i > b').style.transform = 'scaleX(' + f.toFixed(4) + ')';
+      }
+
+      var off = offsetAt(p);
+      if (Math.abs(off - lastOff) < 0.0004) return;
+      lastOff = off;
+
+      track.style.transform = 'translate3d(' + (-off * vw).toFixed(2) + 'px,0,0)';
+
+      /* the panel leaving and the panel arriving cross-fade, so the
+         half-and-half moment mid-handover reads as a transition rather
+         than as two competing columns */
+      for (i = 0; i < N; i++) {
+        var d = Math.abs(off - i);
+        panels[i].style.opacity = d >= 1 ? '0' : Math.pow(1 - d, 0.55).toFixed(3);
+      }
+    }
+
+    function onScroll() {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(apply);
+    }
+
+    /* a tick jumps to the middle of that panel's dwell */
+    ticks.forEach(function (btn, i) {
+      btn.addEventListener('click', function () {
+        if (!pinned) { panels[i].scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+        var at = i * (DWELL + TRAVEL) + DWELL * 0.5;
+        window.scrollTo({ top: Math.round(top + span * at), behavior: 'smooth' });
+      });
+    });
+
+    measure();
+    apply();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    var rt;
+    window.addEventListener('resize', function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () { measure(); lastOff = -1; apply(); }, 140);
+    });
+    if (wide.addEventListener) {
+      wide.addEventListener('change', function () { measure(); lastOff = -1; apply(); });
+    }
   })();
 
   /* ---------- FAQ ---------- */
