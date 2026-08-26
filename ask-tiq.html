@@ -187,37 +187,45 @@ svg{display:block}
 }
 .node-start:hover{border-color:var(--line-2)}
 
-/* ── connection ports · drag out → in to wire two nodes together ── */
+/* ── connection ports · click one output, then click an input ── */
 .node-port{
-  position:absolute;left:50%;width:20px;height:20px;border-radius:50%;
-  transform:translateX(-50%);display:flex;align-items:center;justify-content:center;
-  background:var(--card-bg-3);border:1.5px solid var(--line-1);color:var(--text-tertiary);
+  position:absolute;left:50%;width:14px;height:14px;border-radius:50%;
+  transform:translateX(-50%);
+  background:#fff;border:2px solid var(--blue-500);
   opacity:0;pointer-events:none;z-index:16;
-  transition:opacity .16s var(--ease),background .14s var(--ease),border-color .14s var(--ease),color .14s var(--ease);
+  transition:opacity .16s var(--ease),background .14s var(--ease),box-shadow .14s var(--ease);
 }
-.node-port svg{width:11px;height:11px}
+/* the dot is deliberately small, so give it a generous invisible hit ring */
+.node-port::after{content:'';position:absolute;inset:-8px;border-radius:50%}
 /* both ports hang fully outside the node — output just under the bottom
    edge, input just above the top edge — so neither covers the card */
 .node-port-out{top:100%}
 .node-port-in{bottom:100%}
 /* hovering the node reveals its output port; the source stays lit for
-   the whole drag even once the cursor has moved off it */
+   the whole connection even once the cursor has moved off it */
 .node:hover .node-port-out,
 .node.port-source .node-port-out{opacity:1;pointer-events:auto}
-/* the input port only appears while a live connection is being
-   dragged over that node — it has nothing to show otherwise */
+/* the input port only appears while a connection is live and the cursor
+   is over that node — it has nothing to show otherwise */
 .node.port-target .node-port-in{opacity:1}
-/* now that the input circle sits above the node instead of on it, it has
-   to answer hit-tests itself during a drag or you'd aim at it and miss */
+/* the input circle sits above the node rather than on it, so it has to
+   answer hit-tests itself or you'd aim straight at it and miss */
 .canvas.connecting .node-port-in{pointer-events:auto}
+/* while a connection is live, only the source keeps its output dot —
+   every other node is a potential input, so that is all it offers */
+.canvas.connecting .node:not(.port-source) .node-port-out{opacity:0;pointer-events:none}
+/* hovering (or having clicked) a dot fills it blue inside a white ring */
+.node-port-out:hover,
+.node-port-in:hover,
+.node.port-source .node-port-out{
+  background:var(--blue-500);box-shadow:inset 0 0 0 2px #fff;
+}
 .node-port-out:hover,
 .node.port-source .node-port-out{
-  background:var(--blue-500);border-color:#fff;color:#fff;
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='16' cy='16' r='7' fill='none' stroke='rgba(255,255,255,.5)' stroke-width='1.3'/><circle cx='8' cy='8' r='7' fill='%230d99ff' stroke='white' stroke-width='1.3'/><path d='M8 4.5v7M4.5 8h7' stroke='white' stroke-width='1.5' stroke-linecap='round'/></svg>") 8 8, pointer;
 }
-.node.port-target .node-port-in{background:var(--blue-500);border-color:#fff;color:#fff}
-/* while actively dragging a connection, keep the same cursor over
-   anything on the canvas — not just the port it started from */
+/* while a connection is live, keep the same cursor over anything on the
+   canvas — not just the dot it started from */
 .canvas.connecting,.canvas.connecting *{
   cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26'><circle cx='16' cy='16' r='7' fill='none' stroke='rgba(255,255,255,.5)' stroke-width='1.3'/><circle cx='8' cy='8' r='7' fill='%230d99ff' stroke='white' stroke-width='1.3'/><path d='M8 4.5v7M4.5 8h7' stroke='white' stroke-width='1.5' stroke-linecap='round'/></svg>") 8 8, crosshair !important;
 }
@@ -1513,7 +1521,7 @@ svg{display:block}
       <div class="node" style="left:684px;top:113px">
         <div class="node-start" id="startNode">
           <svg width="16" height="16"><use href="#i-play"/></svg>Start
-          <span class="node-port node-port-out" title="Drag to connect"><svg><use href="#i-plus"/></svg></span>
+          <span class="node-port node-port-out" title="Click to connect"></span>
         </div>
       </div>
 
@@ -1534,7 +1542,7 @@ svg{display:block}
             <span class="count-badge"><svg width="16" height="16"><use href="#i-skill"/></svg>4</span>
             <span class="count-badge"><svg width="16" height="16"><use href="#i-guard"/></svg>1</span>
           </div>
-          <span class="node-port node-port-out" title="Drag to connect"><svg><use href="#i-plus"/></svg></span>
+          <span class="node-port node-port-out" title="Click to connect"></span>
         </div>
       </div>
 
@@ -2491,7 +2499,7 @@ function addToCanvas(spec){
         <div class="card-sub">${esc(spec.sub)}</div>
       </div>
       <div class="card-meta">${metaChipsHTML(spec.apps, spec.counts)}</div>
-      <span class="node-port node-port-out" title="Drag to connect">${ico('plus', 11)}</span>
+      <span class="node-port node-port-out" title="Click to connect"></span>
     </div>`;
   slot.appendChild(node);
   flowNodes.push(node);
@@ -2527,7 +2535,7 @@ function addTypedNode(type){
   node.style.left = '563px';
   node.style.top  = top + 'px';
   const outPort = type === 'end' ? '' :
-    `<span class="node-port node-port-out" title="Drag to connect">${ico('plus', 11)}</span>`;
+    `<span class="node-port node-port-out" title="Click to connect"></span>`;
   node.innerHTML = `<div class="node-start">
     <span class="node-port node-port-in" title="Connect here"></span>
     ${ico(t.icon, 16, t.color)}${esc(t.label)}
@@ -2847,11 +2855,11 @@ const nodeLabel  = node => {
 };
 
 /* ══════════════════════════════════════════════════════════════════
-   MANUAL CONNECTIONS — nothing wires itself. Drag from a node's
-   output port (bottom-center) to another node's input port
-   (top-center) to connect them; each port holds one wire, so
-   starting a new drag from — or dropping onto — an already-wired
-   port replaces that connection.
+   MANUAL CONNECTIONS — nothing wires itself. Click a node's output
+   dot (bottom-center), move freely with no button held, then click
+   another node to land the wire on its input dot (top-center). Each
+   dot holds one wire, so starting again from — or landing on — an
+   already-wired dot replaces that connection.
    ══════════════════════════════════════════════════════════════════ */
 const edges = []; // { from: node, to: node, path: SVGPathElement }
 const edgeFrom = node => edges.find(e => e.from === node);
@@ -2902,25 +2910,20 @@ function cancelConnecting(){
   canvasEl.classList.remove('connecting');
   connecting = null;
 }
-function finishConnecting(){
+function finishConnecting(target){
   if (!connecting) return;
-  const { fromNode, hoverNode } = connecting;
-  const validTarget = hoverNode && hoverNode !== fromNode && hoverNode.querySelector('.node-port-in');
+  const { fromNode } = connecting;
+  const toNode = target === undefined ? connecting.hoverNode : target;
+  const validTarget = toNode && toNode !== fromNode && toNode.querySelector('.node-port-in');
   cancelConnecting();
   if (validTarget){
-    setEdge(fromNode, hoverNode);
-    toast(ico('check', 15, '#7cb342'), 'Connected', `${nodeLabel(fromNode)} → ${nodeLabel(hoverNode)}`);
+    setEdge(fromNode, toNode);
+    toast(ico('check', 15, '#7cb342'), 'Connected', `${nodeLabel(fromNode)} → ${nodeLabel(toNode)}`);
     pulseSave();
   }
 }
 
-stageEl.addEventListener('mousedown', e => {
-  const port = e.target.closest('.node-port-out');
-  if (!port || connecting) return;
-  const node = port.closest('.node');
-  if (!node) return;
-  e.preventDefault();
-  e.stopPropagation();
+function startConnecting(node, clientX, clientY){
   const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   tempPath.setAttribute('class', 'wire-arrow wire-temp show');
   tempPath.setAttribute('marker-end', 'url(#chevronHeadBlue)');
@@ -2928,7 +2931,25 @@ stageEl.addEventListener('mousedown', e => {
   node.classList.add('port-source');
   canvasEl.classList.add('connecting');
   connecting = { fromNode: node, tempPath, hoverNode: null };
-  updateTempPath(e.clientX, e.clientY);
+  updateTempPath(clientX, clientY);
+}
+
+/* One click on an output dot arms the connection; the arrow then trails the
+   cursor with no button held, and a second click drops it on an input. Swallow
+   the mousedown so the canvas doesn't read the click as the start of a pan. */
+stageEl.addEventListener('mousedown', e => {
+  if (e.target.closest('.node-port-out') && !connecting){ e.preventDefault(); e.stopPropagation(); }
+}, true);
+stageEl.addEventListener('click', e => {
+  const port = e.target.closest('.node-port-out');
+  if (!port || connecting) return;
+  const node = port.closest('.node');
+  if (!node) return;
+  e.preventDefault();
+  /* immediate — the node-selection listener sits on this same element, and
+     clicking a dot is a wiring gesture, not a request to select the node */
+  e.stopImmediatePropagation();
+  startConnecting(node, e.clientX, e.clientY);
 });
 window.addEventListener('mousemove', e => {
   if (!connecting) return;
@@ -2937,7 +2958,21 @@ window.addEventListener('mousemove', e => {
   const node = el && el.closest && el.closest('.node');
   setHoverTarget(node && node !== connecting.fromNode ? node : null);
 });
-window.addEventListener('mouseup', () => finishConnecting());
+/* the second click lands the wire; anywhere off a node cancels it. Capture the
+   click before node-selection or canvas-deselect can act on it, and let a pan
+   drag through untouched — that is a drag, not a click. */
+let downPt = null;
+window.addEventListener('mousedown', e => { downPt = { x: e.clientX, y: e.clientY }; }, true);
+window.addEventListener('click', e => {
+  if (!connecting) return;
+  const dragged = downPt && Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 5;
+  if (dragged) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const node = el && el.closest && el.closest('.node');
+  finishConnecting(node && node !== connecting.fromNode ? node : null);
+}, true);
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && connecting) cancelConnecting();
 }, true);
@@ -2991,9 +3026,10 @@ function selectNode(node){
   selNode = node;
   node.classList.add('selected');
   positionNodeUI();
-  /* Start is the flow's trigger — it can be asked about, but not removed */
-  $('#ntDel').classList.toggle('show', !node.contains($('#startNode')));
-  $('#ntAsk').classList.add('show');
+  /* Start is the flow's trigger — nothing to delete and nothing to ask about */
+  const isStart = node.contains($('#startNode'));
+  $('#ntDel').classList.toggle('show', !isStart);
+  $('#ntAsk').classList.toggle('show', !isStart);
 }
 function deselectNode(){
   if (selNode) selNode.classList.remove('selected');
@@ -3007,7 +3043,7 @@ function deselectNode(){
    own close button does */
 const chatOpen = () => tiqBarEl.classList.contains('show');
 stageEl.addEventListener('click', e => {
-  if (chatOpen() || e.target.closest('.nt-del, .nt-ask, .tiq-bar')) return;
+  if (chatOpen() || e.target.closest('.nt-del, .nt-ask, .tiq-bar, .node-port')) return;
   const node = e.target.closest('.node');
   if (node) selectNode(node);
 });
@@ -3093,8 +3129,9 @@ function closeTiqBar(restoreButtons){
   $('#tbSend').disabled = true;
   nodeChat = [];
   if (restoreButtons && selNode){
-    $('#ntDel').classList.toggle('show', !selNode.contains($('#startNode')));
-    $('#ntAsk').classList.add('show');
+    const isStart = selNode.contains($('#startNode'));
+    $('#ntDel').classList.toggle('show', !isStart);
+    $('#ntAsk').classList.toggle('show', !isStart);
   }
 }
 $('#tbClose').addEventListener('click', () => closeTiqBar(true));
