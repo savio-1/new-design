@@ -1139,6 +1139,59 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 }
 .hero__cta { margin-top: 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 
+/* ---- the aura behind the globe ----
+   Three very wide radial washes in the support hues, drifting on long
+   out-of-phase loops. It sits at z-index 0 — above the hero's cream
+   ground, below the globe canvas at 1 — and takes no pointer events, so
+   the drag still reaches the sphere.
+
+   Deliberately no filter: blur(). A radial gradient with a wide
+   transparent falloff is already smooth, and blurring a layer this size
+   every frame costs far more than the softness is worth. Only transform
+   animates, which lets the compositor move a cached texture instead of
+   repainting the gradient. */
+.hero__aura { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.hero__aura i {
+  position: absolute; display: block;
+  will-change: transform;
+  animation: var(--aura-anim) var(--aura-dur) ease-in-out infinite;
+}
+.hero__aura i:nth-child(1) {
+  right: -12%; top: -4%;
+  width: min(880px, 64vw); aspect-ratio: 1 / 1;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 196, 181, 0.13) 0%, rgba(0, 196, 181, 0.055) 36%, rgba(0, 196, 181, 0) 62%);
+  --aura-anim: auraA; --aura-dur: 34s;
+}
+.hero__aura i:nth-child(2) {
+  right: -18%; top: 30%;
+  width: min(700px, 52vw); aspect-ratio: 1 / 1;
+  background: radial-gradient(circle at 50% 50%, rgba(155, 95, 208, 0.1) 0%, rgba(155, 95, 208, 0.042) 38%, rgba(155, 95, 208, 0) 64%);
+  --aura-anim: auraB; --aura-dur: 46s;
+}
+.hero__aura i:nth-child(3) {
+  right: 10%; top: 46%;
+  width: min(620px, 46vw); aspect-ratio: 1 / 1;
+  background: radial-gradient(circle at 50% 50%, rgba(74, 144, 226, 0.095) 0%, rgba(74, 144, 226, 0.038) 40%, rgba(74, 144, 226, 0) 66%);
+  --aura-anim: auraC; --aura-dur: 40s;
+}
+/* plain values, not calc(var(...)) — a custom property inside calc() in a
+   keyframe does not interpolate, it snaps at each stop */
+@keyframes auraA {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(-4%, 5%, 0) scale(1.09); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes auraB {
+  0%   { transform: translate3d(0, 0, 0) scale(1.05); }
+  50%  { transform: translate3d(-7%, -4%, 0) scale(1); }
+  100% { transform: translate3d(0, 0, 0) scale(1.05); }
+}
+@keyframes auraC {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  50%  { transform: translate3d(6%, -6%, 0) scale(1.12); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
 /* ---- the globe ---- */
 .hero__globe {
   position: absolute; z-index: 1;
@@ -1238,10 +1291,19 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   .hero__copy { padding-bottom: calc(min(660px, 90vw) + 48px); }
   .hero__globe { right: -12%; top: auto; bottom: 24px; width: min(660px, 90vw); }
   .hero__sub { max-width: 560px; }
+  /* the stacked layout drops the globe into the hero's lower half, so the
+     aura follows it down — left where it was, it would wash the empty
+     corner above the copy instead of sitting behind the sphere */
+  .hero__aura i:nth-child(1) { top: auto; right: -18%; bottom: 22%; width: min(700px, 96vw); }
+  .hero__aura i:nth-child(2) { top: auto; right: -26%; bottom: 0%;  width: min(560px, 78vw); }
+  .hero__aura i:nth-child(3) { top: auto; right: 16%;  bottom: 8%;  width: min(500px, 68vw); }
 }
 @media (max-width: 620px) {
   .hero__copy { padding-bottom: calc(104vw + 44px); }
   .hero__globe { right: -22%; top: auto; bottom: 20px; width: 104vw; }
+  .hero__aura i:nth-child(1) { right: -28%; bottom: 18%; width: 112vw; }
+  .hero__aura i:nth-child(2) { right: -36%; bottom: -2%; width: 92vw; }
+  .hero__aura i:nth-child(3) { right: 8%;   bottom: 6%;  width: 80vw; }
 }
 
 /* the verified result card — used by the result-anatomy section */
@@ -1868,6 +1930,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .problem__body .w, .problem__body .hl, .problem__body .chip { color: var(--ink); opacity: 1; }
   .tcell__logo.is-on { opacity: 0.62; transform: none; }
   .bar__body, .bar__detail { transition: none; }
+  .hero__aura i { animation: none; }
 }
 </style>
 
@@ -1981,6 +2044,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
 <!-- ============================================================ 01 HERO -->
 <section class="hero">
+  <div class="hero__aura" aria-hidden="true"><i></i><i></i><i></i></div>
   <div class="container hero__stage" id="heroStage">
     <div class="hero__copy">
       <h1 class="t-display-page">Prospect monitoring for advancement and <span class="shine" data-text="fundraising teams.">fundraising teams.</span></h1>
