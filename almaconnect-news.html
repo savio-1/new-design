@@ -1544,24 +1544,53 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
 .volume h2 { margin: 0 0 24px; }
 .volume h3 { margin: 0 0 12px; }
 .volume > p { margin: 0; max-width: 62ch; color: var(--ink-65); }
-/* stat band: the caption sits ABOVE the numeral, hairline rule per column,
-   and each numeral shimmers on hover in its own support hue. Every slot
-   holds an actual figure — a word set at 64px reads as a headline, not a
-   stat, so prose belongs in the caption or the copy column. */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 56px; }
-.stat { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 148px; padding: 0 24px 0 20px; border-left: 1px solid var(--hairline); }
-.stat__label { font-family: var(--font-body); font-size: 16px; line-height: 1.35; letter-spacing: -0.03em; color: var(--ink-65); }
-.stat__num { display: block; }
-.stat__num sub { font-family: var(--font-body); font-size: 20px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink-45); vertical-align: baseline; }
-.cats { margin-top: 96px; padding-top: 48px; border-top: 1px solid var(--hairline); }
-.cats p { margin: 0; }
-.cats__list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
-.roles { margin: 96px 0 0; padding: 48px 0 0; border-top: 1px solid var(--hairline); display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
-.roles h3 { margin: 0 0 20px; }
-.rolelist { margin: 0; padding: 0; list-style: none; }
-.rolelist li { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-top: 1px solid var(--hairline); font-family: var(--font-body); font-size: 16px; line-height: 1.5; letter-spacing: -0.03em; color: var(--ink-65); }
-.rolelist li:last-child { border-bottom: 1px solid var(--hairline); }
-.rolelist b { font-weight: 400; color: var(--ink); }
+
+/* the four figures as stacked tinted bars, one number to a row. The row at
+   rest carries the number and its caption; hovering (or tabbing to) a row
+   expands it and the detail underneath comes with it. Only one row is ever
+   open: the first rests open so the pattern is visible without a pointer,
+   and it yields the moment the pointer enters the stack.
+   --barcol keeps the numeral column and the detail's indent in step, so
+   the expanded text lines up under the caption rather than the number. */
+.bars { --barcol: 250px; --barpad: 36px; --bargap: 40px; margin-top: 56px; border-radius: var(--r-panel); overflow: hidden; }
+.bar { background: var(--tint); }
+.bar--aqua  { --tint: var(--tint-aqua); }
+.bar--lilac { --tint: var(--tint-lilac); }
+.bar--sky   { --tint: var(--tint-sky); }
+.bar--peach { --tint: var(--tint-peach); }
+/* the tints either side of the lilac/sky join are close enough to read as
+   one band without this */
+.bar + .bar { box-shadow: inset 0 1px 0 rgba(255,255,255,0.75); }
+.bar__head {
+  display: grid; grid-template-columns: var(--barcol) minmax(0, 1fr);
+  gap: var(--bargap); align-items: center;
+  width: 100%; padding: 26px var(--barpad); border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.bar__num { display: block; }
+.bar__num sub { font-family: var(--font-body); font-size: 20px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink-45); vertical-align: baseline; }
+/* 56ch at 18px lands on the same line length the 64ch detail gets at 16px,
+   so the caption and the text under it share one measure */
+.bar__label { font-family: var(--font-body); font-size: 18px; line-height: 1.4; letter-spacing: -0.03em; color: var(--ink); max-width: 56ch; }
+.bar__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s var(--ease); }
+.bar.is-open .bar__body { grid-template-rows: 1fr; }
+/* the indent lives on the wrapper, not the paragraph: a max-width on a
+   box carrying 326px of left padding measures the padding too, and the
+   line length collapses to half what it should be */
+.bar__inner { overflow: hidden; padding-inline: calc(var(--barpad) + var(--barcol) + var(--bargap)) var(--barpad); }
+.bar__detail {
+  /* the closing gap is a margin, not the wrapper's padding: padding on a
+     grid item is not clipped by the 0fr track and every closed row would
+     carry 30px of dead tint */
+  margin: 0 0 30px; max-width: 64ch;
+  font-family: var(--font-body); font-size: 16px; line-height: 1.5; letter-spacing: -0.03em;
+  /* ink-65 is the page's secondary body colour, but on these tints it
+     measured 4.45-4.52:1 — either side of the line. One step up clears it
+     on all four, and the caption takes full ink to keep the two apart. */
+  color: var(--ink-80);
+  opacity: 0; transition: opacity 0.28s var(--ease);
+}
+.bar.is-open .bar__detail { opacity: 1; transition-delay: 0.14s; }
 
 /* ============================================================ COMPARISON
    A real HTML table — never an image. This is a primary AI-extraction
@@ -1803,7 +1832,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .split, .split--wide, .define__grid, .problem__grid,
   .pricing__grid, .faq__grid, .monitor__grid { grid-template-columns: 1fr; gap: 48px; }
   .duo__grid { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: 1fr 1fr; row-gap: 40px; }
+  .bars { --barcol: 200px; --bargap: 28px; --barpad: 28px; }
   .trusted__grid { grid-template-columns: repeat(3, 1fr); }
   .foot__grid { grid-template-columns: 1fr; }
   .foot__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; }
@@ -1813,16 +1842,17 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .monitor, .tstm, .pricing, .faq { padding-block: 80px; }
   .hband__pin { padding-block: 80px; }
   .hband__track { gap: 80px; }
-  .roles { grid-template-columns: 1fr; gap: 40px; }
+  /* the caption drops under the number: below this width the two columns
+     leave the caption at four words a line */
+  .bars { --barcol: 100%; --bargap: 14px; }
+  .bar__head { grid-template-columns: minmax(0, 1fr); }
+  .bar__inner { padding-inline: var(--barpad); }
   .close { padding: 120px 0 112px; }
 }
 @media (max-width: 620px) {
-  .stats { grid-template-columns: 1fr; }
-  .stat { padding-left: 16px; }
   .trusted__grid { grid-template-columns: repeat(2, 1fr); }
   .problem__body p { font-size: 20px; }
   .define__body { font-size: 20px; }
-  .rolelist li { grid-template-columns: 1fr; gap: 4px; }
   .hiw__slide { padding: 32px 20px; min-height: 0; }
   /* the FAQ question stays on the Geist 24 step — the ladder has no 20 */
 }
@@ -1834,6 +1864,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .sat { animation: none; }
   .problem__body .w, .problem__body .hl, .problem__body .chip { color: var(--ink); opacity: 1; }
   .tcell__logo.is-on { opacity: 0.62; transform: none; }
+  .bar__body, .bar__detail { transition: none; }
 }
 </style>
 
@@ -2331,62 +2362,62 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 </section>
 
 <!-- ============================================================ 07 THE DETAIL
-     The volume answer, the 11 categories and the access levels: everything
-     the three travelling panels cannot carry inside one viewport. -->
+     The volume answer — the objection that appeared in nearly every
+     transcript — as four stacked bars, one figure to a row, each opening
+     to the detail behind the number. -->
 <section class="detail" id="detail" aria-labelledby="detail-h">
   <div class="container">
     <div class="volume">
       <h2 class="t-h2" id="detail-h"><span class="shine shine--once" data-text="You will not drown in this.">You will not drown in this.</span></h2>
       <p class="t-body t-twotone"><b>Flag anything still not relevant in plain English</b> — &ldquo;only significant news for this prospect&rdquo;, &ldquo;no self-authored articles&rdquo; — and AlmaConnect News adapts for the whole team.</p>
-      <div class="stats">
-        <div class="stat">
-          <span class="stat__label">High-confidence results a day, monitoring 200,000 constituents</span>
-          <span class="stat__num t-num shimmer-num shimmer-num--aqua" data-text="20–25">20–25</span>
+      <div class="bars" data-bars>
+        <div class="bar bar--aqua is-open">
+          <button class="bar__head" type="button" aria-expanded="true" aria-controls="bar-1">
+            <span class="bar__num t-num shimmer-num shimmer-num--aqua" data-text="20–25">20–25</span>
+            <span class="bar__label">High-confidence results a day, monitoring 200,000 constituents</span>
+          </button>
+          <div class="bar__body" id="bar-1">
+            <div class="bar__inner">
+              <p class="bar__detail">Only high-confidence matches are emailed to your team or written to your CRM. Mid and low results stay in the platform — available when you want to look, invisible when you don&rsquo;t.</p>
+            </div>
+          </div>
         </div>
-        <div class="stat">
-          <span class="stat__label">A day is what a team spends reviewing them</span>
-          <span class="stat__num t-num shimmer-num shimmer-num--lilac" data-text="15–30">15–30<sub> min</sub></span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">Certain it is your constituent, before anything is emailed or written to your CRM</span>
-          <span class="stat__num t-num shimmer-num shimmer-num--sky" data-text="95%+">95%+</span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">Categories every result is sorted into, so you can filter to what your team acts on</span>
-          <span class="stat__num t-num shimmer-num shimmer-num--peach" data-text="11">11</span>
-        </div>
-      </div>
-    </div>
 
-    <div class="cats">
-      <p class="t-body t-twotone"><b>Every result is classified into one of 11 categories,</b> so you can filter to what your team acts on:</p>
-      <div class="cats__list">
-        <span class="pill">Job changes</span>
-        <span class="pill">Achievements</span>
-        <span class="pill">Awards</span>
-        <span class="pill">Philanthropy</span>
-        <span class="pill">Financial and stock transactions</span>
-        <span class="pill">Company news</span>
-        <span class="pill">Event participation</span>
-        <span class="pill">Personal news</span>
-        <span class="pill">Obituaries</span>
-        <span class="pill">Negative news</span>
-        <span class="pill">Board and leadership appointments</span>
-      </div>
-    </div>
+        <div class="bar bar--lilac">
+          <button class="bar__head" type="button" aria-expanded="false" aria-controls="bar-2">
+            <span class="bar__num t-num shimmer-num shimmer-num--lilac" data-text="15–30">15–30<sub> min</sub></span>
+            <span class="bar__label">A day is what a team spends reviewing them</span>
+          </button>
+          <div class="bar__body" id="bar-2">
+            <div class="bar__inner">
+              <p class="bar__detail">Each result carries the one sentence from the article that actually concerns your prospect, so most of the time you can act on the card without opening the article at all.</p>
+            </div>
+          </div>
+        </div>
 
-    <div class="roles">
-      <div>
-        <h3 class="t-h3">Three access levels.</h3>
-        <ul class="rolelist">
-          <li><b>Admins</b><span>manage the account and control uploads and exports.</span></li>
-          <li><b>Regular users</b><span>work in the platform.</span></li>
-          <li><b>Passive users</b><span>campus partners and frontline fundraisers who will never log in — they receive their digest by email and see nothing else.</span></li>
-        </ul>
-      </div>
-      <div>
-        <h3 class="t-h3">Built for teams, not inboxes.</h3>
-        <p class="t-body t-twotone" style="margin-top:20px"><b>Mark a result reviewed and your colleagues see who handled it and when.</b> Comment to hand something over. Filter to what your team has not yet actioned. No two researchers working the same article.</p>
+        <div class="bar bar--sky">
+          <button class="bar__head" type="button" aria-expanded="false" aria-controls="bar-3">
+            <span class="bar__num t-num shimmer-num shimmer-num--sky" data-text="95%+">95%+</span>
+            <span class="bar__label">Certain it is your constituent, before anything is emailed or written to your CRM</span>
+          </button>
+          <div class="bar__body" id="bar-3">
+            <div class="bar__inner">
+              <p class="bar__detail">Certainty that the person in the article is the person in your constituent database. Every verified result carries your own unique ID, so nothing lands on the wrong record.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bar bar--peach">
+          <button class="bar__head" type="button" aria-expanded="false" aria-controls="bar-4">
+            <span class="bar__num t-num shimmer-num shimmer-num--peach" data-text="11">11</span>
+            <span class="bar__label">Categories every result is sorted into, so you can filter to what your team acts on</span>
+          </button>
+          <div class="bar__body" id="bar-4">
+            <div class="bar__inner">
+              <p class="bar__detail">Job changes, achievements, awards, philanthropy, financial and stock transactions, company news, event participation, personal news, obituaries, negative news, and board and leadership appointments.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -3705,6 +3736,41 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     if (wide.addEventListener) {
       wide.addEventListener('change', function () { measure(); lastOff = -1; apply(); });
     }
+  })();
+
+  /* ---------- the volume bars: one row open at a time ----------
+     Hover or tab to a row and it opens; the first rests open so the
+     pattern is visible before anything is touched, and it yields as soon
+     as the pointer enters the stack. Driven from JS rather than :hover
+     alone so aria-expanded tells the truth — a CSS-only version would
+     leave every row claiming to be collapsed. */
+  (function () {
+    var wrap = document.querySelector('[data-bars]');
+    if (!wrap) return;
+    var rows = [].slice.call(wrap.querySelectorAll('.bar'));
+    if (!rows.length) return;
+    var rest = rows.indexOf(wrap.querySelector('.bar.is-open'));
+    if (rest < 0) rest = 0;
+
+    function open(i) {
+      rows.forEach(function (row, n) {
+        var on = n === i;
+        row.classList.toggle('is-open', on);
+        row.querySelector('.bar__head').setAttribute('aria-expanded', String(on));
+      });
+    }
+
+    rows.forEach(function (row, i) {
+      row.addEventListener('mouseenter', function () { open(i); });
+      /* focusin, not :focus-visible: opening on click is the point here —
+         there is no auto-advance for a stray click to interrupt */
+      row.addEventListener('focusin', function () { open(i); });
+      row.querySelector('.bar__head').addEventListener('click', function () { open(i); });
+    });
+    wrap.addEventListener('mouseleave', function () {
+      if (!wrap.contains(document.activeElement)) open(rest);
+    });
+    open(rest);
   })();
 
   /* ---------- FAQ ---------- */
