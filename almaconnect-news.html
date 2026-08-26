@@ -1344,61 +1344,111 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 .tuck { margin-left: -6px; }
 
 /* ============================================================ HOW IT WORKS
-   Client reference layout: one large media panel centred with its
-   neighbours peeking, a segmented progress bar that fills over the dwell,
-   and the active step's copy below. All four step blocks live in one grid
-   cell so advancing never reflows the page. */
+   The homepage's card-accordion (.solution__cards): all four steps are on
+   screen at once, one is expanded, and hovering or focusing a card opens
+   it. Here it also advances on its own until the pointer takes over.
+   The row reserves the open card's height, so growing one never resizes
+   the section around it. */
 .hiw { background: var(--ground); padding: 128px 0 136px; }
-.hiw__head { text-align: center; margin: 0 auto 56px; }
-.hiw__head h2 { margin: 0 auto; max-width: 22ch; }
-.hiw__stage { position: relative; overflow: hidden; }
-.hiw__track { display: flex; gap: 16px; transition: transform 0.62s var(--ease); will-change: transform; }
-.hiw__slide {
-  flex: none; width: var(--slide-w, 860px);
-  min-height: 460px; padding: 48px 40px;
-  border-radius: var(--r-panel);
-  position: relative; overflow: hidden;
-  display: grid; align-content: center;
-  transition: opacity 0.5s var(--ease);
+.hiw__head { margin: 0 0 48px; }
+.hiw__head h2 { margin: 0; max-width: 22ch; }
+.hiw__row { display: flex; align-items: flex-end; gap: 16px; height: 470px; }
+
+.hiwc {
+  position: relative; flex: 1 1 0; min-width: 0;
+  height: 346px; padding: 26px;
+  border-radius: var(--r-panel); overflow: hidden;
+  display: flex; flex-direction: column;
+  cursor: pointer; text-align: left;
+  transition: flex-grow 0.55s var(--ease), height 0.55s var(--ease),
+              border-radius 0.35s var(--ease);
 }
-.hiw__slide[aria-hidden="true"] { opacity: 0.5; }
-.hiw__slide .art__stage { width: min(440px, 100%); margin-inline: auto; }
-/* progress: one segment per step, the active one filling over its dwell */
-.hiw__progress { display: flex; gap: 16px; margin-top: 24px; }
-.hiw__seg {
-  flex: 1; height: 2px; padding: 0; border: 0; cursor: pointer;
-  background: var(--hairline); position: relative; overflow: hidden;
-  /* a button resets color to the UA's black; nothing here paints with it,
-     but no element on the page should compute pure black */
-  color: inherit;
+.hiwc.is-open { flex-grow: 2.2; height: 470px; }
+.hiwc:hover { border-radius: 10px; }
+/* hue per step, matching the progress-line and marker palette */
+.hiwc--aqua  { --g-lift: #d9fbf6; --g-mid: #7fe8de; --g-deep: #00a89a; }
+.hiwc--lilac { --g-lift: #ece0fb; --g-mid: #cdb1f2; --g-deep: #7c46b8; }
+.hiwc--sky   { --g-lift: #dbeafd; --g-mid: #9ec9f5; --g-deep: #2f6fbf; }
+.hiwc--peach { --g-lift: #fde4d0; --g-mid: #f7bf95; --g-deep: #c96a24; }
+
+/* The wash runs the full card, so the copy needs a base to sit on: ink on
+   the deep end of these gradients measures about 2.3:1. A soft white veil
+   over the lower half keeps the gradient visible and the text legible. */
+.hiwc__veil {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 66%;
+  z-index: 0; pointer-events: none;
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.58) 24%,
+    rgba(255, 255, 255, 0.94) 48%,
+    rgba(255, 255, 255, 0.99) 68%,
+    #ffffff 100%);
 }
-.hiw__seg i { position: absolute; inset: 0; display: block; background: var(--load-grad, var(--grad-aqua)); transform: scaleX(0); transform-origin: left center; }
-.hiw__seg.is-done i { transform: scaleX(1); }
-.hiw__seg.is-active i { animation: hiwFill var(--dwell, 7s) linear forwards; }
-.hiw.is-paused .hiw__seg.is-active i { animation-play-state: paused; }
-.hiw__seg:nth-child(1) { --load-grad: var(--grad-aqua); }
-.hiw__seg:nth-child(2) { --load-grad: var(--grad-lilac); }
-.hiw__seg:nth-child(3) { --load-grad: var(--grad-sky); }
-.hiw__seg:nth-child(4) { --load-grad: var(--grad-peach); }
-@keyframes hiwFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-/* the step copy: stacked in one cell, only the active one visible */
-.hiw__steps { display: grid; margin-top: 44px; }
-.hiw__step {
-  grid-area: 1 / 1;
-  display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 20px;
-  align-items: start;
-  opacity: 0; visibility: hidden; translate: 0 6px;
-  transition: opacity 0.35s var(--ease), translate 0.4s var(--ease), visibility 0.35s;
+
+/* the artwork only exists when the card is open; collapsed it takes no space */
+.hiwc__art {
+  position: relative; z-index: 1;
+  height: 0; opacity: 0; overflow: hidden;
+  transition: height 0.55s var(--ease), opacity 0.3s ease;
 }
-.hiw__step.is-active { opacity: 1; visibility: visible; translate: 0 0; }
-.hiw__badge {
-  grid-row: 1 / span 2;
+.hiwc.is-open .hiwc__art {
+  height: 252px; opacity: 1;
+  transition: height 0.55s var(--ease), opacity 0.4s ease 0.15s;
+}
+.hiwc__art > * { width: min(430px, 100%); }
+
+/* copy pinned to the bottom, description above the title — the house order */
+.hiwc__text { position: relative; z-index: 1; margin-top: auto; }
+.hiwc.is-open .hiwc__text { padding-right: 58px; }   /* clear of the icon */
+.hiwc__desc {
+  margin: 0; max-width: 46ch;
+  font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  letter-spacing: -0.03em; color: var(--ink-80);
+  max-height: 0; opacity: 0; overflow: hidden;
+  transition: opacity 0.22s ease, max-height 0.4s var(--ease), margin 0.4s var(--ease);
+}
+.hiwc.is-open .hiwc__desc {
+  max-height: 160px; margin-bottom: 12px; opacity: 1;
+  transition: opacity 0.35s ease 0.18s, max-height 0.4s var(--ease), margin 0.4s var(--ease);
+}
+.hiwc__title { font: inherit; margin: 0; }
+.hiwc__btn {
+  display: block; width: 100%; padding: 0; border: 0; background: none;
+  text-align: left; cursor: pointer; color: var(--ink);
+  font-family: var(--font-display); font-size: 24px; font-weight: 400;
+  letter-spacing: -0.03em; line-height: 1.22;
+}
+.hiwc__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.hiwc__num {
+  display: block; margin-bottom: 8px;
+  font-family: var(--font-body); font-size: 14px; letter-spacing: -0.03em;
+  color: var(--ink-45);
+}
+.hiwc__icon {
+  position: absolute; right: 22px; bottom: 22px; z-index: 2;
   width: 44px; height: 44px; border-radius: 50%;
   background: var(--ink); color: #fff;
   display: grid; place-items: center;
+  opacity: 0; scale: 0.8;
+  transition: opacity 0.3s ease, scale 0.3s var(--ease);
 }
-.hiw__step h3 { margin: 4px 0 0; }
-.hiw__step p { margin: 12px 0 0; grid-column: 2; color: var(--ink-65); max-width: 62ch; }
+.hiwc.is-open .hiwc__icon { opacity: 1; scale: 1; transition-delay: 0.15s; }
+
+/* Below the row's usable width the cards stack and simply open: four
+   250px columns become four 85px slivers otherwise. */
+@media (max-width: 900px) {
+  .hiw__row { flex-direction: column; align-items: stretch; height: auto; gap: 14px; }
+  .hiwc, .hiwc.is-open { flex: none; height: auto; }
+  .hiwc__art { height: auto; opacity: 1; overflow: visible; margin-bottom: 22px; transition: none; }
+  .hiwc__art > * { width: 100%; }
+  .hiwc__desc { max-height: none; opacity: 1; margin-bottom: 12px; transition: none; }
+  .hiwc.is-open .hiwc__text, .hiwc__text { padding-right: 0; }
+  .hiwc__icon { display: none; }
+  .hiwc__veil { height: 78%; }
+}
+
+/* the dark accordion drives its progress bar with this */
+@keyframes hiwFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 /* ============================================================ RESULT ANATOMY */
 .anat { background: var(--surface); padding: 128px 0; }
@@ -1933,16 +1983,13 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     <div class="hiw__head">
       <h2 class="t-h2" id="hiw-h"><span class="shine shine--once" data-text="How AlmaConnect News works">How AlmaConnect News works</span></h2>
     </div>
-  </div>
-
-  <div class="container">
-    <div class="hiw__stage">
-      <div class="hiw__track" id="hiwTrack">
-
-        <div class="hiw__slide art art--aqua" role="group" aria-roledescription="slide" aria-label="Step 1 of 4">
-          <span class="art__wash" aria-hidden="true"></span>
-          <span class="art__grain" aria-hidden="true"></span>
-          <div class="art__stage">
+    <div class="hiw__row" id="hiwRow">
+      <div class="hiwc hiwc--aqua is-open" data-step="0">
+        <span class="art__wash" aria-hidden="true"></span>
+        <span class="art__grain" aria-hidden="true"></span>
+        <span class="hiwc__veil" aria-hidden="true"></span>
+        <div class="hiwc__art">
+          <div>
             <div class="mk">
               <div class="mk__row">
                 <span class="mk__ava mk__ava--ink">CSV</span>
@@ -1964,38 +2011,63 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
             </div>
           </div>
         </div>
-
-        <div class="hiw__slide art art--lilac" role="group" aria-roledescription="slide" aria-label="Step 2 of 4">
-          <span class="art__wash" aria-hidden="true"></span>
-          <span class="art__grain" aria-hidden="true"></span>
-          <div class="art__stage">
+        <div class="hiwc__text">
+          <p class="hiwc__desc">Names, your unique IDs, education and employment history. Alumni, parents, trustees, corporations, grant-making foundations — anything you want tracked. Upload a file or connect your CRM.</p>
+          <h3 class="hiwc__title">
+            <button class="hiwc__btn" type="button" aria-expanded="true">
+              <span class="hiwc__num">Step 1</span>You share your constituent database.
+            </button>
+          </h3>
+        </div>
+        <span class="hiwc__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+      <div class="hiwc hiwc--lilac" data-step="1">
+        <span class="art__wash" aria-hidden="true"></span>
+        <span class="art__grain" aria-hidden="true"></span>
+        <span class="hiwc__veil" aria-hidden="true"></span>
+        <div class="hiwc__art">
+          <div>
             <div class="mk">
               <div class="mk__row">
                 <span class="mk__ava">SO</span>
                 <span class="mk__txt"><span class="mk__who">Sarah Okafor</span><span class="mk__what">Your ID 88-04231 · MBA &rsquo;04 · Portland, OR</span></span>
               </div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
               <span class="gchip">Sarah Okafor <span class="gchip--mono">+ Meridian Health</span></span>
               <span class="gchip">Sarah Okafor <span class="gchip--mono">+ Portland</span></span>
               <span class="gchip">Sarah Okafor <span class="gchip--mono">+ class of 2004</span></span>
-              <span class="gchip">Sarah Okafor <span class="gchip--mono">+ spouse</span></span>
               <span class="gchip">S. Okafor <span class="gchip--mono">+ COO</span></span>
             </div>
           </div>
         </div>
-
-        <div class="hiw__slide art art--sky" role="group" aria-roledescription="slide" aria-label="Step 3 of 4">
-          <span class="art__wash" aria-hidden="true"></span>
-          <span class="art__grain" aria-hidden="true"></span>
-          <div class="art__stage">
+        <div class="hiwc__text">
+          <p class="hiwc__desc">Name plus employer. Name plus city. Name plus graduation year. Name plus spouse. Every combination your data supports, generated automatically — the search you would run by hand for one prospect, run continuously for all of them.</p>
+          <h3 class="hiwc__title">
+            <button class="hiwc__btn" type="button" aria-expanded="false">
+              <span class="hiwc__num">Step 2</span>AlmaConnect News builds search terms for each person.
+            </button>
+          </h3>
+        </div>
+        <span class="hiwc__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+      <div class="hiwc hiwc--sky" data-step="2">
+        <span class="art__wash" aria-hidden="true"></span>
+        <span class="art__grain" aria-hidden="true"></span>
+        <span class="hiwc__veil" aria-hidden="true"></span>
+        <div class="hiwc__art">
+          <div>
             <div class="mk">
               <div class="mk__row">
                 <span class="mk__ava mk__ava--ink">◎</span>
                 <span class="mk__txt"><span class="mk__who">Scanning 400,000+ sources</span><span class="mk__what">Every day, every constituent</span></span>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
               <span class="gchip">National titles</span>
               <span class="gchip">Local &amp; regional press</span>
               <span class="gchip">Trade &amp; industry</span>
@@ -2005,11 +2077,24 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
             </div>
           </div>
         </div>
-
-        <div class="hiw__slide art art--peach" role="group" aria-roledescription="slide" aria-label="Step 4 of 4">
-          <span class="art__wash" aria-hidden="true"></span>
-          <span class="art__grain" aria-hidden="true"></span>
-          <div class="art__stage">
+        <div class="hiwc__text">
+          <p class="hiwc__desc">National, local, international and industry publications, plus obituaries and public financial filings. Each potential match is checked against the context of the article before it is scored.</p>
+          <h3 class="hiwc__title">
+            <button class="hiwc__btn" type="button" aria-expanded="false">
+              <span class="hiwc__num">Step 3</span>Those terms run against 400,000+ sources, every day.
+            </button>
+          </h3>
+        </div>
+        <span class="hiwc__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+      <div class="hiwc hiwc--peach" data-step="3">
+        <span class="art__wash" aria-hidden="true"></span>
+        <span class="art__grain" aria-hidden="true"></span>
+        <span class="hiwc__veil" aria-hidden="true"></span>
+        <div class="hiwc__art">
+          <div>
             <div class="mk">
               <div class="mk__row">
                 <span class="mk__ava">SO</span>
@@ -2026,37 +2111,17 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
             </div>
           </div>
         </div>
-
-      </div>
-    </div>
-
-    <div class="hiw__progress" role="tablist" aria-label="How it works, four steps">
-      <button class="hiw__seg is-active" type="button" data-step="0" role="tab" aria-selected="true" aria-label="Step 1: You share your constituent database"><i></i></button>
-      <button class="hiw__seg" type="button" data-step="1" role="tab" aria-selected="false" aria-label="Step 2: AlmaConnect News builds search terms for each person"><i></i></button>
-      <button class="hiw__seg" type="button" data-step="2" role="tab" aria-selected="false" aria-label="Step 3: Those terms run against 400,000+ sources, every day"><i></i></button>
-      <button class="hiw__seg" type="button" data-step="3" role="tab" aria-selected="false" aria-label="Step 4: Verified results reach the right person"><i></i></button>
-    </div>
-
-    <div class="hiw__steps">
-      <div class="hiw__step is-active">
-        <span class="hiw__badge" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <h3 class="t-h3">1. You share your constituent database.</h3>
-        <p class="t-body">Names, your unique IDs, education and employment history. Alumni, parents, trustees, corporations, grant-making foundations — anything you want tracked. Upload a file or connect your CRM.</p>
-      </div>
-      <div class="hiw__step">
-        <span class="hiw__badge" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <h3 class="t-h3">2. AlmaConnect News builds search terms for each person.</h3>
-        <p class="t-body">Name plus employer. Name plus city. Name plus graduation year. Name plus spouse. Every combination your data supports, generated automatically — the search you would run by hand for one prospect, run continuously for all of them.</p>
-      </div>
-      <div class="hiw__step">
-        <span class="hiw__badge" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <h3 class="t-h3">3. Those terms run against 400,000+ sources, every day.</h3>
-        <p class="t-body">National, local, international and industry publications, plus obituaries and public financial filings. Each potential match is checked against the context of the article before it is scored.</p>
-      </div>
-      <div class="hiw__step">
-        <span class="hiw__badge" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-        <h3 class="t-h3">4. Verified results reach the right person.</h3>
-        <p class="t-body">Results are graded by confidence, sorted into 11 categories, de-duplicated across outlets, and routed to the gift officer who owns that prospect — by email digest, in the platform, or written to your CRM.</p>
+        <div class="hiwc__text">
+          <p class="hiwc__desc">Results are graded by confidence, sorted into 11 categories, de-duplicated across outlets, and routed to the gift officer who owns that prospect — by email digest, in the platform, or written to your CRM.</p>
+          <h3 class="hiwc__title">
+            <button class="hiwc__btn" type="button" aria-expanded="false">
+              <span class="hiwc__num">Step 4</span>Verified results reach the right person.
+            </button>
+          </h3>
+        </div>
+        <span class="hiwc__icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12L12 4M12 4H6M12 4v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
       </div>
     </div>
   </div>
@@ -2866,67 +2931,56 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
     window.addEventListener('resize', light);
   })();
 
-  /* ---------- how it works: media carousel + segmented progress ---------- */
+  /* ---------- how it works: card accordion ------------------------------
+     Same mechanic as the homepage's .solution__cards — hover, focus or
+     click opens a card — with an auto-advance on top so the section
+     demonstrates itself. The pointer always wins: entering the row stops
+     the cycle, leaving it starts again. */
   (function () {
-    var hiw = document.querySelector('.hiw');
-    var track = document.getElementById('hiwTrack');
-    if (!hiw || !track) return;
-    var slides = [].slice.call(track.children);
-    var segs = [].slice.call(hiw.querySelectorAll('.hiw__seg'));
-    var steps = [].slice.call(hiw.querySelectorAll('.hiw__step'));
-    var N = slides.length, idx = 0, timer = null, paused = false;
-    var DWELL = 7000;
-    hiw.style.setProperty('--dwell', DWELL + 'ms');
+    var row = document.getElementById('hiwRow');
+    if (!row) return;
+    var cards = [].slice.call(row.querySelectorAll('.hiwc'));
+    if (!cards.length) return;
+    var i = 0, timer = null, held = false;
+    var DWELL = 4200;
+    var stacked = window.matchMedia('(max-width: 900px)');
 
-    function layout() {
-      var stage = hiw.querySelector('.hiw__stage').clientWidth;
-      var w = Math.min(860, Math.round(stage * 0.84));
-      hiw.style.setProperty('--slide-w', w + 'px');
-      track.style.transform = 'translateX(' + ((stage - w) / 2 - idx * (w + 16)) + 'px)';
-      slides.forEach(function (s, i) { s.setAttribute('aria-hidden', i === idx ? 'false' : 'true'); });
-      segs.forEach(function (s, i) {
-        s.classList.toggle('is-active', i === idx);
-        s.classList.toggle('is-done', i < idx);
-        s.setAttribute('aria-selected', i === idx ? 'true' : 'false');
-        if (i === idx) {   // restart the fill
-          var bar = s.querySelector('i');
-          bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = '';
-        }
+    function open(n) {
+      i = (n + cards.length) % cards.length;
+      cards.forEach(function (c, k) {
+        var on = k === i;
+        c.classList.toggle('is-open', on);
+        c.querySelector('.hiwc__btn').setAttribute('aria-expanded', String(on));
       });
-      steps.forEach(function (s, i) { s.classList.toggle('is-active', i === idx); });
     }
-
-    function go(i) { idx = (i + N) % N; layout(); }
-
     function start() {
-      if (reduced || paused) return;
+      if (reduced || held || stacked.matches) return;   // stacked: all cards are open
       clearInterval(timer);
-      timer = setInterval(function () { go(idx + 1); }, DWELL);
+      timer = setInterval(function () { open(i + 1); }, DWELL);
     }
     function stop() { clearInterval(timer); }
 
-    segs.forEach(function (s) {
-      s.addEventListener('click', function () { go(+s.dataset.step); start(); });
+    cards.forEach(function (card, k) {
+      card.addEventListener('mouseenter', function () { open(k); });
+      card.addEventListener('click', function () { held = false; open(k); start(); });
+      // focus opens the card, but only a keyboard focus should hold the
+      // cycle: focusin fires on a plain mouse click too
+      card.querySelector('.hiwc__btn').addEventListener('focus', function (e) {
+        open(k);
+        if (e.target.matches(':focus-visible')) { held = true; stop(); }
+      });
+      card.querySelector('.hiwc__btn').addEventListener('blur', function () { held = false; start(); });
     });
 
-    /* Never pause on focusin — it fires on a plain mouse click, so clicking
-       a segment would kill the cycle. Pause on :focus-visible only, and
-       clear the pause on click. */
-    hiw.addEventListener('focusin', function (e) {
-      if (e.target.matches && e.target.matches(':focus-visible')) { paused = true; hiw.classList.add('is-paused'); stop(); }
-    });
-    hiw.addEventListener('focusout', function () { paused = false; hiw.classList.remove('is-paused'); start(); });
-    hiw.addEventListener('click', function () { paused = false; hiw.classList.remove('is-paused'); });
+    // the pointer takes over while it is inside the row
+    row.addEventListener('mouseenter', stop);
+    row.addEventListener('mouseleave', function () { if (!held) start(); });
 
-    window.addEventListener('resize', layout);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
-    layout();
-
-    // only run the cycle while the section is on screen
+    open(0);
     if ('IntersectionObserver' in window) {
-      new IntersectionObserver(function (entries) {
-        entries.forEach(function (e) { if (e.isIntersecting) { start(); } else { stop(); } });
-      }, { threshold: 0.25 }).observe(hiw);
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) start(); else stop(); });
+      }, { threshold: 0.25 }).observe(row);
     } else { start(); }
   })();
 
