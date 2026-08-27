@@ -40,7 +40,9 @@
       radial-gradient(1100px 850px at 50% 42%, rgba(255,255,255,.025), rgba(0,0,0,0) 62%);
     background-size:26px 26px, 100% 100%;
     background-position:-3px -3px, 0 0;}
-  svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
+  /* the graph canvas only — scoped by id so it can't capture UI icons and
+     stretch them to fill their buttons */
+  #svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
 
   /* default: dotted grey relation lines */
   .edge{fill:none;stroke:#4d5158;stroke-linecap:round;stroke-width:1.6;
@@ -86,21 +88,27 @@
   /* ---------- chrome ---------- */
   .panel{background:rgba(28,28,28,.82);backdrop-filter:blur(9px);border:1px solid var(--panel-br);border-radius:11px;}
   .topbar{position:fixed;z-index:5;top:16px;left:16px;display:flex;align-items:center;gap:10px}
-  .brand{display:flex;align-items:center;gap:9px;padding:8px 12px;}
-  .brand .dot{width:16px;height:16px;border-radius:5px;background:linear-gradient(135deg,var(--orange),var(--orange-d))}
-  .brand b{color:var(--text);font-size:13px;font-weight:600;letter-spacing:-.01em}
-  .brand span{color:var(--text-dimmer);font-size:12px}
+  .brand{display:flex;align-items:center;gap:10px;padding:8px 13px;}
+  .brand .dot{width:16px;height:16px;border-radius:5px;flex:0 0 16px;
+    background:linear-gradient(135deg,var(--orange),var(--orange-d))}
+  .brand .b-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .brand b{color:var(--text);font-size:13px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+  .brand span{color:var(--text-dimmer);font-size:11.5px;line-height:1.3;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .crumbs{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 6px;max-width:60vw;overflow:hidden}
   .crumbs button{all:unset;cursor:pointer;color:var(--text-dimmer);font-size:12px;padding:4px 8px;border-radius:7px;white-space:nowrap}
   .crumbs button:hover{background:#2a2a2a;color:var(--text-dim)}
   .crumbs .sep{color:#4a4a4a;font-size:11px}
   .crumbs .cur{color:#fff;background:#2a2a2a;border:1px solid var(--panel-br2)}
 
-  .fullscr{position:fixed;z-index:5;top:16px;right:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim)}
+  .fullscr{position:fixed;z-index:5;top:16px;right:16px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim)}
   .fullscr:hover{color:#fff;border-color:var(--panel-br2)}
+  .fullscr svg{width:24px;height:24px;flex:0 0 24px}
 
   /* left sidebar: every entity, searchable, with its relationship count */
-  .sidebar{position:fixed;z-index:5;top:66px;left:16px;bottom:16px;width:280px;
+  /* top is recomputed from the real top-bar height (see layoutSidebar) so the
+     20px gap survives the header changing size; this is just the fallback */
+  .sidebar{position:fixed;z-index:5;top:86px;left:16px;bottom:16px;width:280px;
     display:flex;flex-direction:column;overflow:hidden;
     transition:width .22s ease, bottom .22s ease;}
   /* collapsed: panel shrinks to just the search row, tucked to the left edge */
@@ -112,7 +120,7 @@
   /* the global `svg{position:absolute;inset:0}` rule (for the graph canvas)
      would otherwise pin this icon to the panel's corner instead of sitting
      it inline in the search row */
-  .sidebar .s-search svg{position:static;width:14px;height:14px;flex:0 0 14px;opacity:.5}
+  .sidebar .s-search svg{width:14px;height:14px;flex:0 0 14px;opacity:.5}
   .sidebar .s-search input{all:unset;color:var(--text);font-size:12.5px;flex:1 1 auto;min-width:0;
     font-family:var(--font)}
   .sidebar .s-search input::placeholder{color:var(--text-dimmer)}
@@ -120,7 +128,7 @@
     width:22px;height:22px;border-radius:6px;cursor:pointer;color:var(--text-dimmer);
     transition:color .15s,background .15s}
   .s-toggle:hover{background:#2a2a2a;color:#fff}
-  .s-toggle svg{position:static;width:13px;height:13px;opacity:1;transition:transform .22s ease}
+  .s-toggle svg{width:13px;height:13px;opacity:1;transition:transform .22s ease}
   .sidebar.collapsed .s-toggle svg{transform:rotate(180deg)}
   .sidebar .s-count{padding:9px 13px 5px;color:var(--text-dimmer);font-size:10.5px;font-weight:600;
     text-transform:uppercase;letter-spacing:.05em;flex:0 0 auto}
@@ -196,12 +204,12 @@
   </div>
 
   <div class="topbar">
-    <div class="brand panel"><span class="dot"></span><b>Ontology</b><span id="stat">— explore</span></div>
+    <div class="brand panel"><span class="dot"></span><span class="b-text"><b>Cogentiq Sales</b><span id="stat"></span></span></div>
     <div class="crumbs panel" id="crumbs"></div>
   </div>
 
-  <div class="fullscr panel" id="fullscr" title="Fullscreen">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+  <div class="fullscr panel" id="fullscr" title="Fullscreen" role="button" tabindex="0" aria-label="Enter fullscreen">
+    <svg id="fsIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M15 3h6v6M10 21H4v-6M21 3l-8 8M3 21l8-8"/></svg>
   </div>
 
   <div class="sidebar panel">
@@ -503,6 +511,9 @@ const LINKS = [
 // reads as a legible fan; Forecast Deviation's 5 relationships also span
 // four type classes, showing the ontology's variety straight away
 const START = "Forecast Deviation";
+// shown under the product name in the top bar — one line on what this
+// ontology actually covers
+const SUBTITLE = "How demand signals, forecasts and inventory connect across CPG retail planning";
 /* ===================================================================== */
 
 // colors + labels pulled directly from the ontology's nodeClasses (T-Box)
@@ -808,7 +819,9 @@ function applyDim(){
 }
 function setHover(id){
   hoverId=id;
-  document.getElementById('stat').textContent = id ? '— '+ (relCount(id)) : '— explore';
+  // the subtitle slot carries the ontology's description at rest, and yields
+  // to the hovered entity's relationship count while one is hovered
+  document.getElementById('stat').textContent = id ? relCount(id) : SUBTITLE;
   applyDim();
   // definition card
   if(id && byId[id].def){
@@ -879,10 +892,23 @@ stage.addEventListener('wheel',e=>{
 document.getElementById('zin').onclick=()=>zoomBy(1.2);
 document.getElementById('zout').onclick=()=>zoomBy(1/1.2);
 function zoomBy(f){const nk=Math.min(2.4,Math.max(0.35,cam.k*f));const wx=(W/2-cam.x)/cam.k,wy=(H/2-cam.y)/cam.k;cam.k=nk;cam.x=W/2-wx*nk;cam.y=H/2-wy*nk;applyCam();}
-document.getElementById('fullscr').onclick=()=>{
+const fullscrBtn=document.getElementById('fullscr'), fsIcon=document.getElementById('fsIcon');
+const FS_EXPAND='M15 3h6v6M10 21H4v-6M21 3l-8 8M3 21l8-8';
+const FS_SHRINK='M20 9h-5V4M4 15h5v5M15 9l6-6M9 15l-6 6';
+function toggleFullscreen(){
   if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
   else document.exitFullscreen?.();
-};
+}
+fullscrBtn.onclick=toggleFullscreen;
+fullscrBtn.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleFullscreen(); } };
+// mirror the real fullscreen state — it can also change via Esc or F11,
+// so drive the icon off the event rather than the click
+document.addEventListener('fullscreenchange',()=>{
+  const on=!!document.fullscreenElement;
+  fsIcon.querySelector('path').setAttribute('d', on?FS_SHRINK:FS_EXPAND);
+  fullscrBtn.title = on?'Exit fullscreen':'Fullscreen';
+  fullscrBtn.setAttribute('aria-label', on?'Exit fullscreen':'Enter fullscreen');
+});
 
 // ---- simulation ----------------------------------------------------------
 function tick(){
@@ -1091,17 +1117,27 @@ entSearch.addEventListener('input',e=>{
 renderEntityList();
 
 // ---- resize --------------------------------------------------------------
-addEventListener('resize',()=>{W=innerWidth;H=innerHeight;});
+addEventListener('resize',()=>{W=innerWidth;H=innerHeight;layoutSidebar();});
 
 // ---- go ------------------------------------------------------------------
+// keep a fixed gap under the top bar, whatever height its content gives it
+const SIDEBAR_GAP=20;
+function layoutSidebar(){
+  const bar=document.querySelector('.topbar');
+  if(bar) sidebarEl.style.top=(bar.getBoundingClientRect().bottom+SIDEBAR_GAP)+'px';
+}
+
 applyCam();
+document.getElementById('stat').textContent=SUBTITLE;
+layoutSidebar();
 setFocus(START,false);
 tick();
 
 // text widths are measured with canvas before the Geist webfont may have
 // finished loading; once it's actually ready, rebuild so every chip/capsule
 // hugs its real (Geist-metric) text width instead of a fallback-font guess.
-document.fonts.ready.then(()=>{ setFocus(focusId,false); });
+// the webfont also changes the top bar's height, so re-measure the gap here too
+document.fonts.ready.then(()=>{ setFocus(focusId,false); layoutSidebar(); });
 </script>
 </body>
 </html>
