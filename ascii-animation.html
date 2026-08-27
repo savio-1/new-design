@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ASCII Field Studio — Glyph Shape Animation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ui-panel:rgba(255,255,255,.88);
+    --ui-ink:#0f1420;
+    --ui-muted:#6b7280;
+    --ui-faint:#9aa2b1;
+    --ui-line:#e4e7ee;
+    --ui-soft:#f4f6fa;
+    --ui-accent:#1a4fe0;
+    --radius:14px;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--ui-ink);
+    background:#f7f7f5;
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  #stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+  /* ---------- brand / caption ---------- */
+  .brand{
+    position:fixed;left:32px;top:30px;z-index:3;max-width:330px;
+    mix-blend-mode:normal;pointer-events:none;
+  }
+  .brand__eyebrow{
+    font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ui-accent);display:block;margin-bottom:12px;
+  }
+  .brand__title{
+    margin:0;font-size:clamp(30px,4.4vw,52px);line-height:.98;font-weight:600;
+    letter-spacing:-.03em;color:var(--ui-ink);
+  }
+  .brand__note{
+    margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--ui-muted);max-width:26ch;
+  }
+  .brand__hint{
+    margin:16px 0 0;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ui-faint);
+  }
+  body.is-dark .brand__title{color:#f4f7fb}
+  body.is-dark .brand__note{color:rgba(244,247,251,.62)}
+  body.is-dark .brand__hint{color:rgba(244,247,251,.38)}
+
+  /* ---------- panel ---------- */
+  .panel{
+    position:fixed;top:20px;right:20px;bottom:20px;width:334px;z-index:6;
+    display:flex;flex-direction:column;
+    background:var(--ui-panel);
+    -webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);
+    border:1px solid var(--ui-line);border-radius:var(--radius);
+    box-shadow:0 20px 60px rgba(15,20,32,.12);
+    transition:transform .42s cubic-bezier(.16,1,.3,1),opacity .3s ease;
+  }
+  .panel.is-hidden{transform:translateX(calc(100% + 28px));opacity:0;pointer-events:none}
+  .panel__head{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+    padding:16px 16px 14px;border-bottom:1px solid var(--ui-line);
+  }
+  .panel__eyebrow{
+    display:block;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ui-faint);margin-bottom:5px;
+  }
+  .panel__head strong{font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .panel__body{padding:4px 16px 16px;overflow-y:auto;flex:1;scrollbar-width:thin}
+  .panel__body::-webkit-scrollbar{width:8px}
+  .panel__body::-webkit-scrollbar-thumb{background:#dce0e8;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  .panel__foot{
+    display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--ui-line);
+  }
+
+  .group{padding:16px 0 4px;border-bottom:1px solid var(--ui-line)}
+  .group:last-child{border-bottom:0}
+  .group__title{
+    display:flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--ui-faint);margin:0 0 12px;
+  }
+  .group__title::after{content:"";flex:1;height:1px;background:var(--ui-line)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+    padding:7px 9px;border-radius:999px;border:1px solid var(--ui-line);background:#fff;color:var(--ui-muted);
+    cursor:pointer;transition:all .18s ease;line-height:1;
+  }
+  .chip:hover{border-color:#c8cede;color:var(--ui-ink)}
+  .chip.is-on{background:var(--ui-accent);border-color:var(--ui-accent);color:#fff}
+  .chip--glyph{font-size:13px;min-width:34px;text-align:center;letter-spacing:0;padding:6px 8px}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 4px}
+  .row__label{font-size:11.5px;font-weight:500;color:var(--ui-muted)}
+  .row__value{font-family:var(--mono);font-size:10px;color:var(--ui-ink);background:var(--ui-soft);
+    padding:3px 6px;border-radius:6px;min-width:44px;text-align:center}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;margin:0 0 6px;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--ui-line);border-radius:3px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;
+    border:2px solid var(--ui-accent);margin-top:-5.5px;box-shadow:0 1px 4px rgba(15,20,32,.2)
+  }
+  input[type=range]::-moz-range-track{height:3px;background:var(--ui-line);border-radius:3px}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border:2px solid var(--ui-accent);border-radius:50%;background:#fff}
+
+  .swatch{display:flex;align-items:center;gap:9px;margin:9px 0}
+  .swatch input[type=color]{
+    -webkit-appearance:none;appearance:none;width:30px;height:30px;padding:0;border:1px solid var(--ui-line);
+    border-radius:9px;background:none;cursor:pointer;flex:none;
+  }
+  .swatch input[type=color]::-webkit-color-swatch-wrapper{padding:3px}
+  .swatch input[type=color]::-webkit-color-swatch{border:none;border-radius:6px}
+  .swatch__label{font-size:11.5px;color:var(--ui-muted);flex:1}
+  .swatch__hex{font-family:var(--mono);font-size:10px;color:var(--ui-faint);text-transform:uppercase}
+
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0;cursor:pointer}
+  .toggle span{font-size:11.5px;color:var(--ui-muted)}
+  .toggle input{position:absolute;opacity:0;pointer-events:none}
+  .track{
+    width:34px;height:19px;border-radius:999px;background:#dfe3ec;position:relative;flex:none;transition:background .2s ease;
+  }
+  .track::after{
+    content:"";position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(15,20,32,.25);transition:transform .2s cubic-bezier(.16,1,.3,1);
+  }
+  .toggle input:checked + .track{background:var(--ui-accent)}
+  .toggle input:checked + .track::after{transform:translateX(15px)}
+
+  .field{
+    width:100%;font-family:var(--mono);font-size:12px;color:var(--ui-ink);background:#fff;
+    border:1px solid var(--ui-line);border-radius:9px;padding:9px 10px;margin:8px 0 4px;
+  }
+  .field:focus{outline:none;border-color:var(--ui-accent)}
+  .filebtn{
+    display:block;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    border:1px dashed #c8cede;border-radius:9px;padding:11px;color:var(--ui-muted);cursor:pointer;margin:8px 0 4px;
+  }
+  .filebtn:hover{border-color:var(--ui-accent);color:var(--ui-accent)}
+  .filebtn input{display:none}
+
+  .btn{
+    flex:1;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+    padding:11px 8px;border-radius:10px;border:1px solid var(--ui-line);background:#fff;color:var(--ui-ink);
+    cursor:pointer;transition:all .18s ease;
+  }
+  .btn:hover{border-color:#c8cede;background:var(--ui-soft)}
+  .btn--solid{background:var(--ui-accent);border-color:var(--ui-accent);color:#fff}
+  .btn--solid:hover{background:var(--ui-accent);filter:brightness(1.07)}
+  .btnrow{display:flex;gap:8px;margin:10px 0 4px}
+  .iconbtn{
+    width:26px;height:26px;flex:none;border-radius:8px;border:1px solid var(--ui-line);background:#fff;
+    color:var(--ui-muted);cursor:pointer;font-size:12px;line-height:1;display:grid;place-items:center;
+  }
+  .iconbtn:hover{color:var(--ui-ink);border-color:#c8cede}
+  .hint{font-family:var(--mono);font-size:9.5px;line-height:1.5;letter-spacing:.03em;color:var(--ui-faint);margin:8px 0 2px}
+  .hide{display:none !important}
+
+  .fab{
+    position:fixed;right:20px;bottom:20px;z-index:5;
+    font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+    padding:13px 18px;border-radius:999px;border:1px solid var(--ui-line);background:#fff;color:var(--ui-ink);
+    box-shadow:0 12px 34px rgba(15,20,32,.14);cursor:pointer;opacity:0;transform:translateY(10px);
+    pointer-events:none;transition:all .3s ease;
+  }
+  .fab.is-on{opacity:1;transform:none;pointer-events:auto}
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:9;
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--ui-ink);color:#fff;padding:10px 16px;border-radius:999px;
+    opacity:0;pointer-events:none;transition:all .28s ease;
+  }
+  .toast.is-on{opacity:1;transform:translate(-50%,0)}
+
+  @media (max-width:900px){
+    .brand{left:20px;top:18px;max-width:60%}
+    .brand__note,.brand__hint{display:none}
+    .panel{top:auto;right:12px;left:12px;bottom:12px;width:auto;max-height:62vh}
+    .panel.is-hidden{transform:translateY(calc(100% + 24px))}
+    .fab{right:12px;bottom:12px}
+  }
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <header class="brand">
+    <span class="brand__eyebrow">ASCII motion study</span>
+    <h1 class="brand__title">Glyph<br />Field</h1>
+    <p class="brand__note">Shapes rendered from a living grid of characters — tune the form, the element and the palette.</p>
+    <p class="brand__hint">Space · pause &nbsp; R · randomize &nbsp; H · hide panel</p>
+  </header>
+
+  <button class="fab" id="fab">Controls</button>
+  <div class="toast" id="toast">Copied</div>
+
+  <aside class="panel" id="panel">
+    <div class="panel__head">
+      <div>
+        <span class="panel__eyebrow">Control panel</span>
+        <strong>ASCII Studio</strong>
+      </div>
+      <button class="iconbtn" id="hide" title="Hide panel (H)">&#10005;</button>
+    </div>
+
+    <div class="panel__body">
+
+      <!-- ============ SHAPE ============ -->
+      <section class="group">
+        <h2 class="group__title">Shape</h2>
+        <div class="chips" id="shape-chips"></div>
+
+        <div id="shape-text-wrap" class="hide">
+          <input class="field" id="shape-text" type="text" value="A" maxlength="12" placeholder="Type letters, numbers…" />
+        </div>
+
+        <div id="shape-image-wrap" class="hide">
+          <label class="filebtn">Upload image / SVG<input id="shape-image" type="file" accept="image/*" /></label>
+          <label class="toggle"><span>Invert image mask</span>
+            <input type="checkbox" id="t-imginvert" /><span class="track"></span></label>
+        </div>
+
+        <div id="shape-draw-wrap" class="hide">
+          <p class="hint">Drag on the canvas to paint your own shape. Hold Alt to erase.</p>
+          <div class="row"><span class="row__label">Brush size</span><span class="row__value" id="r-brush-out"></span></div>
+          <input type="range" id="r-brush" min="1" max="10" step="1" />
+          <div class="btnrow"><button class="btn" id="draw-clear">Clear canvas</button></div>
+        </div>
+
+        <div class="row"><span class="row__label">Scale</span><span class="row__value" id="r-scale-out"></span></div>
+        <input type="range" id="r-scale" min="0.25" max="1.15" step="0.01" />
+
+        <div class="row"><span class="row__label">Rotation</span><span class="row__value" id="r-rot-out"></span></div>
+        <input type="range" id="r-rot" min="-180" max="180" step="1" />
+
+        <div class="row" style="margin-bottom:8px"><span class="row__label">Layout</span></div>
+        <div class="chips" id="layout-chips"></div>
+
+        <label class="toggle" style="margin-top:14px"><span>Auto-morph shapes</span>
+          <input type="checkbox" id="t-morph" /><span class="track"></span></label>
+        <div class="row"><span class="row__label">Hold each</span><span class="row__value" id="r-morph-out"></span></div>
+        <input type="range" id="r-morph" min="1.5" max="16" step="0.5" />
+      </section>
+
+      <!-- ============ ELEMENTS ============ -->
+      <section class="group">
+        <h2 class="group__title">Elements</h2>
+        <div class="chips chips--glyph" id="glyph-chips"></div>
+
+        <div id="glyph-custom-wrap" class="hide">
+          <input class="field" id="glyph-custom" type="text" value="◐◓◑◒" maxlength="24" placeholder="Any characters…" />
+        </div>
+
+        <div class="row"><span class="row__label">Cell size</span><span class="row__value" id="r-cell-out"></span></div>
+        <input type="range" id="r-cell" min="7" max="34" step="1" />
+
+        <div class="row"><span class="row__label">Element size</span><span class="row__value" id="r-glyph-out"></span></div>
+        <input type="range" id="r-glyph" min="0.4" max="2.8" step="0.02" />
+
+        <div class="row"><span class="row__label">Jitter</span><span class="row__value" id="r-jitter-out"></span></div>
+        <input type="range" id="r-jitter" min="0" max="1" step="0.02" />
+
+        <label class="toggle"><span>Spin elements</span>
+          <input type="checkbox" id="t-spin" /><span class="track"></span></label>
+        <label class="toggle"><span>Cycle through set</span>
+          <input type="checkbox" id="t-cycle" /><span class="track"></span></label>
+        <label class="toggle"><span>Bold weight</span>
+          <input type="checkbox" id="t-bold" checked /><span class="track"></span></label>
+      </section>
+
+      <!-- ============ COLOUR ============ -->
+      <section class="group">
+        <h2 class="group__title">Colour</h2>
+        <div class="chips" id="palette-chips"></div>
+
+        <div class="swatch">
+          <input type="color" id="c-accent" />
+          <span class="swatch__label">Accent</span><span class="swatch__hex" id="c-accent-hex"></span>
+        </div>
+        <div class="swatch">
+          <input type="color" id="c-accent2" />
+          <span class="swatch__label">Mid tone</span><span class="swatch__hex" id="c-accent2-hex"></span>
+        </div>
+        <div class="swatch">
+          <input type="color" id="c-base" />
+          <span class="swatch__label">Base</span><span class="swatch__hex" id="c-base-hex"></span>
+        </div>
+        <div class="swatch">
+          <input type="color" id="c-bg" />
+          <span class="swatch__label">Background</span><span class="swatch__hex" id="c-bg-hex"></span>
+        </div>
+
+        <div class="row"><span class="row__label">Accent density</span><span class="row__value" id="r-accent-out"></span></div>
+        <input type="range" id="r-accent" min="0" max="1" step="0.01" />
+
+        <div class="row"><span class="row__label">Mid tone density</span><span class="row__value" id="r-accent2-out"></span></div>
+        <input type="range" id="r-accent2" min="0" max="0.7" step="0.01" />
+
+        <label class="toggle"><span>Accent hugs the edge</span>
+          <input type="checkbox" id="t-edge" /><span class="track"></span></label>
+      </section>
+
+      <!-- ============ MOTION ============ -->
+      <section class="group">
+        <h2 class="group__title">Motion</h2>
+        <div class="chips" id="motion-chips"></div>
+
+        <div class="row"><span class="row__label">Speed</span><span class="row__value" id="r-speed-out"></span></div>
+        <input type="range" id="r-speed" min="0" max="3" step="0.05" />
+
+        <div class="row"><span class="row__label">Field scale</span><span class="row__value" id="r-noise-out"></span></div>
+        <input type="range" id="r-noise" min="0.02" max="0.4" step="0.005" />
+
+        <div class="row"><span class="row__label">Grain</span><span class="row__value" id="r-soft-out"></span></div>
+        <input type="range" id="r-soft" min="0" max="1" step="0.02" />
+
+        <label class="toggle"><span>Pointer reacts</span>
+          <input type="checkbox" id="t-pointer" checked /><span class="track"></span></label>
+      </section>
+
+      <!-- ============ EXPORT ============ -->
+      <section class="group">
+        <h2 class="group__title">Export</h2>
+        <div class="btnrow">
+          <button class="btn" id="save-png">Save PNG</button>
+          <button class="btn" id="copy-txt">Copy ASCII</button>
+        </div>
+        <div class="btnrow"><button class="btn" id="reset">Reset all</button></div>
+      </section>
+    </div>
+
+    <div class="panel__foot">
+      <button class="btn btn--solid" id="playpause">Pause</button>
+      <button class="btn" id="randomize">Randomize</button>
+    </div>
+  </aside>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     1. Presets
+     ============================================================ */
+
+  var PALETTES = [
+    { id: 'uniqode', name: 'Blueprint', accent: '#1a4fe0', accent2: '#7ea2f5', base: '#c7d8f8', bg: '#f7f7f5' },
+    { id: 'indigo',  name: 'Indigo',    accent: '#4865ff', accent2: '#a2baff', base: '#dce4fb', bg: '#f8f3eb' },
+    { id: 'teal',    name: 'Teal',      accent: '#00c4b5', accent2: '#7fe3da', base: '#cfeeea', bg: '#f6fbf9' },
+    { id: 'ember',   name: 'Ember',     accent: '#ff6d39', accent2: '#ffab84', base: '#ffe0d1', bg: '#fff8f2' },
+    { id: 'bloom',   name: 'Bloom',     accent: '#c026a9', accent2: '#f098d7', base: '#fbdcf1', bg: '#fff7fc' },
+    { id: 'forest',  name: 'Forest',    accent: '#227a2c', accent2: '#7cbd85', base: '#d3e8d5', bg: '#f4f8f2' },
+    { id: 'mono',    name: 'Mono',      accent: '#111111', accent2: '#7a7a7a', base: '#d6d6d4', bg: '#f4f4f2' },
+    { id: 'night',   name: 'Night',     accent: '#5cf2c4', accent2: '#3a7fd5', base: '#233240', bg: '#0b0f14' }
+  ];
+
+  var GLYPH_SETS = [
+    { id: 'cross',  label: '✕', chars: ['✕'] },
+    { id: 'heavy',  label: '✖', chars: ['✖'] },
+    { id: 'times',  label: '×', chars: ['×'] },
+    { id: 'plus',   label: '+',      chars: ['+'] },
+    { id: 'dot',    label: '●', chars: ['●'] },
+    { id: 'circle', label: '○', chars: ['○'] },
+    { id: 'square', label: '■', chars: ['■'] },
+    { id: 'diamond',label: '◆', chars: ['◆'] },
+    { id: 'tri',    label: '▲', chars: ['▲'] },
+    { id: 'star',   label: '✳', chars: ['✳'] },
+    { id: 'hash',   label: '#',      chars: ['#'] },
+    { id: 'blocks', label: '░▒', chars: ['░', '▒', '▓', '█'] },
+    { id: 'digits', label: '123',    chars: '0123456789'.split('') },
+    { id: 'letters',label: 'ABC',    chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('') },
+    { id: 'binary', label: '01',     chars: ['0', '1'] },
+    { id: 'ramp',   label: '.:*#',   chars: ['.', ':', '+', '*', '#', '@'] },
+    { id: 'custom', label: 'Custom', chars: null }
+  ];
+
+  var MOTIONS = [
+    { id: 'shimmer', name: 'Shimmer' },
+    { id: 'wave',    name: 'Wave' },
+    { id: 'ripple',  name: 'Ripple' },
+    { id: 'orbit',   name: 'Orbit' },
+    { id: 'rain',    name: 'Rain' },
+    { id: 'static',  name: 'Still' }
+  ];
+
+  var LAYOUTS = [
+    { id: 'single', name: 'Single' },
+    { id: 'pair',   name: 'Pair' },
+    { id: 'tile',   name: 'Tile' }
+  ];
+
+  /* ---- shape library: drawn centred on the origin, `s` = box size ---- */
+
+  function poly(ctx, pts) {
+    ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      if (i === 0) ctx.moveTo(pts[i][0], pts[i][1]);
+      else ctx.lineTo(pts[i][0], pts[i][1]);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  function polar(ctx, s, rFn) {
+    ctx.beginPath();
+    var steps = 240;
+    for (var i = 0; i <= steps; i++) {
+      var a = (i / steps) * Math.PI * 2;
+      var r = rFn(a) * s;
+      var x = Math.cos(a) * r, y = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  function cut(ctx, fn) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    fn();
+    ctx.restore();
+  }
+  function rect(ctx, s, u0, v0, u1, v1) {
+    ctx.fillRect((u0 - 0.5) * s, (v0 - 0.5) * s, (u1 - u0) * s, (v1 - v0) * s);
+  }
+  function disc(ctx, s, u, v, r) {
+    ctx.beginPath();
+    ctx.arc((u - 0.5) * s, (v - 0.5) * s, r * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function ellip(ctx, s, u, v, rx, ry) {
+    ctx.beginPath();
+    ctx.ellipse((u - 0.5) * s, (v - 0.5) * s, rx * s, ry * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  var SHAPES = [
+    { id: 'key', name: 'Key', geo: true, draw: function (ctx, s) {
+        ellip(ctx, s, 0.5, 0.29, 0.29, 0.255);
+        rect(ctx, s, 0.415, 0.30, 0.585, 0.975);
+        rect(ctx, s, 0.275, 0.70, 0.42, 0.775);
+        rect(ctx, s, 0.235, 0.845, 0.42, 0.915);
+        cut(ctx, function () { disc(ctx, s, 0.44, 0.185, 0.072); });
+      } },
+    { id: 'plus', name: 'Plus', geo: true, draw: function (ctx, s) {
+        rect(ctx, s, 0.36, 0.05, 0.64, 0.95);
+        rect(ctx, s, 0.05, 0.36, 0.95, 0.64);
+      } },
+    { id: 'circle', name: 'Disc', geo: true, draw: function (ctx, s) {
+        disc(ctx, s, 0.5, 0.5, 0.47);
+      } },
+    { id: 'ring', name: 'Ring', geo: true, draw: function (ctx, s) {
+        disc(ctx, s, 0.5, 0.5, 0.47);
+        cut(ctx, function () { disc(ctx, s, 0.5, 0.5, 0.255); });
+      } },
+    { id: 'star', name: 'Star', geo: true, draw: function (ctx, s) {
+        var pts = [], i, a, r;
+        for (i = 0; i < 10; i++) {
+          a = -Math.PI / 2 + (i * Math.PI) / 5;
+          r = (i % 2 ? 0.205 : 0.48) * s;
+          pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+        }
+        poly(ctx, pts);
+      } },
+    { id: 'heart', name: 'Heart', geo: true, draw: function (ctx, s) {
+        polar(ctx, s, function (a) {
+          var t = a - Math.PI / 2;
+          var x = 16 * Math.pow(Math.sin(t), 3);
+          var y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+          return Math.sqrt(x * x + y * y) / 34;
+        });
+      } },
+    { id: 'arrow', name: 'Arrow', geo: true, draw: function (ctx, s) {
+        var h = function (u, v) { return [(u - 0.5) * s, (v - 0.5) * s]; };
+        poly(ctx, [h(0.5, 0.04), h(0.96, 0.5), h(0.72, 0.5), h(0.72, 0.96), h(0.28, 0.96), h(0.28, 0.5), h(0.04, 0.5)]);
+      } },
+    { id: 'hex', name: 'Hex', geo: true, draw: function (ctx, s) {
+        var pts = [], i, a;
+        for (i = 0; i < 6; i++) {
+          a = -Math.PI / 2 + (i * Math.PI) / 3;
+          pts.push([Math.cos(a) * 0.47 * s, Math.sin(a) * 0.47 * s]);
+        }
+        poly(ctx, pts);
+      } },
+    { id: 'drop', name: 'Drop', geo: true, draw: function (ctx, s) {
+        var h = function (u, v) { return [(u - 0.5) * s, (v - 0.5) * s]; };
+        ctx.beginPath();
+        ctx.moveTo.apply(ctx, h(0.5, 0.03));
+        ctx.bezierCurveTo.apply(ctx, h(0.5, 0.03).concat(h(0.98, 0.52), h(0.79, 0.79)));
+        ctx.bezierCurveTo.apply(ctx, h(0.63, 1.02).concat(h(0.37, 1.02), h(0.21, 0.79)));
+        ctx.bezierCurveTo.apply(ctx, h(0.02, 0.52).concat(h(0.5, 0.03), h(0.5, 0.03)));
+        ctx.closePath();
+        ctx.fill();
+      } },
+    { id: 'flower', name: 'Bloom', geo: true, draw: function (ctx, s) {
+        polar(ctx, s, function (a) { return 0.30 + 0.16 * Math.sin(6 * a); });
+        disc(ctx, s, 0.5, 0.5, 0.16);
+      } },
+    { id: 'blob', name: 'Blob', geo: true, draw: function (ctx, s) {
+        polar(ctx, s, function (a) {
+          return 0.36 + 0.07 * Math.sin(3 * a + 0.7) + 0.045 * Math.sin(5 * a + 2.2) + 0.03 * Math.sin(7 * a + 4.1);
+        });
+      } },
+    { id: 'spiral', name: 'Spiral', geo: true, draw: function (ctx, s) {
+        ctx.save();
+        ctx.lineWidth = 0.085 * s;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = ctx.fillStyle;
+        ctx.beginPath();
+        var turns = 3.1, steps = 420, i, a, r;
+        for (i = 0; i <= steps; i++) {
+          a = (i / steps) * Math.PI * 2 * turns;
+          r = (0.045 + (i / steps) * 0.42) * s;
+          var x = Math.cos(a) * r, y = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      } },
+    { id: 'text',  name: 'Text',  geo: false, draw: null },
+    { id: 'image', name: 'Image', geo: false, draw: null },
+    { id: 'draw',  name: 'Draw',  geo: false, draw: null }
+  ];
+
+  function shapeById(id) {
+    for (var i = 0; i < SHAPES.length; i++) if (SHAPES[i].id === id) return SHAPES[i];
+    return SHAPES[0];
+  }
+  function glyphSetById(id) {
+    for (var i = 0; i < GLYPH_SETS.length; i++) if (GLYPH_SETS[i].id === id) return GLYPH_SETS[i];
+    return GLYPH_SETS[0];
+  }
+
+  /* ============================================================
+     2. State
+     ============================================================ */
+
+  var DEFAULTS = {
+    shape: 'key', layout: 'pair', shapeScale: 0.72, shapeRot: 0,
+    shapeText: 'A', imgInvert: false, brush: 4,
+    autoMorph: false, morphEvery: 6,
+    glyphSet: 'heavy', glyphCustom: '◐◓◑◒',
+    cell: 16, glyphScale: 1.62, jitter: 0, spin: false, cycle: false, bold: true,
+    palette: 'uniqode', accent: '#1a4fe0', accent2: '#7ea2f5', base: '#c7d8f8', bg: '#f7f7f5',
+    accentMix: 0.30, accent2Mix: 0.16, edgeAccent: true,
+    motion: 'shimmer', speed: 0.75, noiseScale: 0.115, grain: 0.35, pointer: true
+  };
+  var state = {};
+  for (var k in DEFAULTS) state[k] = DEFAULTS[k];
+
+  /* ============================================================
+     3. Canvas plumbing
+     ============================================================ */
+
+  var stage = document.getElementById('stage');
+  var ctx = stage.getContext('2d');
+
+  var maskCv = document.createElement('canvas');
+  var maskCtx = maskCv.getContext('2d', { willReadFrequently: true });
+
+  var drawCv = document.createElement('canvas');
+  drawCv.width = drawCv.height = 256;
+  var drawCtx = drawCv.getContext('2d');
+
+  var W = 0, H = 0, DPR = 1, cols = 0, rows = 0, cellPx = 15;
+  var maskFrom = null, maskTo = null, cellRand = null, cellRand2 = null;
+  var morphP = 1, morphTimer = 0, maskDirty = false;
+  var shapeImg = null;
+  var t = 0, playing = true, lastTs = 0, seedZ = 11.3;
+  var pointer = { x: -1, y: -1, on: false };
+  var buckets = null;
+
+  function hash(x, y, z) {
+    var h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(z | 0, 1442695041);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967295;
+  }
+  function smooth(a) { return a * a * (3 - 2 * a); }
+  function noise3(x, y, z) {
+    var xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    var xf = smooth(x - xi), yf = smooth(y - yi), zf = smooth(z - zi);
+    var c000 = hash(xi, yi, zi),         c100 = hash(xi + 1, yi, zi);
+    var c010 = hash(xi, yi + 1, zi),     c110 = hash(xi + 1, yi + 1, zi);
+    var c001 = hash(xi, yi, zi + 1),     c101 = hash(xi + 1, yi, zi + 1);
+    var c011 = hash(xi, yi + 1, zi + 1), c111 = hash(xi + 1, yi + 1, zi + 1);
+    var x00 = c000 + (c100 - c000) * xf, x10 = c010 + (c110 - c010) * xf;
+    var x01 = c001 + (c101 - c001) * xf, x11 = c011 + (c111 - c011) * xf;
+    var y0 = x00 + (x10 - x00) * yf, y1 = x01 + (x11 - x01) * yf;
+    return y0 + (y1 - y0) * zf;
+  }
+  function fbm(x, y, z) {
+    return noise3(x, y, z) * 0.65 + noise3(x * 2.13 + 5.2, y * 2.13 - 3.7, z * 1.7) * 0.35;
+  }
+
+  /* ---- instance boxes for the current layout ----
+     The stage spans the window, but the composition stays clear of the
+     control panel on wide screens so nothing important sits underneath it. */
+  function contentBox() {
+    var panel = document.getElementById('panel');
+    var open = !panel.classList.contains('is-hidden');
+    if (W > 900) {
+      var right = open ? 366 : 24;
+      var left = W >= 1180 ? 372 : 24;      // clear the headline column on wide screens
+      return { x: left, y: 24, w: Math.max(260, W - left - right), h: H - 48 };
+    }
+    var sheet = open ? Math.min(H * 0.7, panel.getBoundingClientRect().height + 18) : 0;
+    return { x: 16, y: 16, w: W - 32, h: Math.max(170, H - sheet - 34) };
+  }
+  function instances() {
+    var box = contentBox();
+    var base = Math.min(box.w, box.h) * state.shapeScale;
+    if (state.layout === 'pair') {
+      return [
+        { x: box.x + box.w * 0.30, y: box.y + box.h * 0.65, s: base * 0.78 },
+        { x: box.x + box.w * 0.70, y: box.y + box.h * 0.35, s: base * 0.98 }
+      ];
+    }
+    if (state.layout === 'tile') {
+      var out = [], i, j;
+      for (j = 0; j < 3; j++) for (i = 0; i < 3; i++) {
+        out.push({ x: box.x + box.w * (i + 0.5) / 3, y: box.y + box.h * (j + 0.5) / 3, s: base * 0.42 });
+      }
+      return out;
+    }
+    return [{ x: box.x + box.w * 0.5, y: box.y + box.h * 0.52, s: base }];
+  }
+
+  function buildMask(shapeId) {
+    var arr = new Float32Array(cols * rows);
+    if (!cols || !rows) return arr;
+    maskCv.width = cols; maskCv.height = rows;
+    maskCtx.setTransform(1, 0, 0, 1, 0, 0);
+    maskCtx.clearRect(0, 0, cols, rows);
+    maskCtx.fillStyle = '#000';
+
+    var sx = cols / W, sy = rows / H;
+    var shape = shapeById(shapeId);
+    var lum = false;
+
+    if (shapeId === 'draw') {
+      maskCtx.drawImage(drawCv, 0, 0, cols, rows);
+    } else {
+      var list = instances(), n;
+      for (n = 0; n < list.length; n++) {
+        var it = list[n];
+        maskCtx.save();
+        maskCtx.translate(it.x * sx, it.y * sy);
+        maskCtx.rotate((state.shapeRot * Math.PI) / 180);
+        maskCtx.scale(sx, sy);
+        var s = it.s;
+        if (shape.geo) {
+          shape.draw(maskCtx, s);
+        } else if (shapeId === 'text') {
+          var txt = (state.shapeText || 'A');
+          var fs = s * (txt.length > 1 ? 1.0 : 1.05);
+          maskCtx.font = '700 ' + fs + 'px "Inter", "Helvetica Neue", sans-serif';
+          maskCtx.textAlign = 'center';
+          maskCtx.textBaseline = 'middle';
+          var wpx = maskCtx.measureText(txt).width || 1;
+          if (wpx > s) {
+            fs = fs * (s / wpx);
+            maskCtx.font = '700 ' + fs + 'px "Inter", "Helvetica Neue", sans-serif';
+          }
+          maskCtx.fillText(txt, 0, fs * 0.04);
+        } else if (shapeId === 'image' && shapeImg) {
+          lum = true;
+          var iw = shapeImg.naturalWidth || shapeImg.width;
+          var ih = shapeImg.naturalHeight || shapeImg.height;
+          var f = Math.min(s / iw, s / ih);
+          maskCtx.drawImage(shapeImg, -iw * f / 2, -ih * f / 2, iw * f, ih * f);
+        }
+        maskCtx.restore();
+      }
+    }
+
+    var data = maskCtx.getImageData(0, 0, cols, rows).data;
+    var i, p, a;
+    for (i = 0; i < cols * rows; i++) {
+      p = i * 4;
+      a = data[p + 3] / 255;
+      if (lum) {
+        var l = (data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114) / 255;
+        arr[i] = a * (state.imgInvert ? l : 1 - l);
+      } else {
+        arr[i] = a;
+      }
+    }
+    return arr;
+  }
+
+  function rebuildMask(instant) {
+    if (!cols || !rows) return;
+    var next = buildMask(state.shape);
+    if (instant || !maskTo || maskTo.length !== next.length) {
+      maskFrom = next; maskTo = next; morphP = 1;
+    } else {
+      maskFrom = effectiveMask();
+      maskTo = next; morphP = 0;
+    }
+    morphTimer = 0;
+  }
+
+  function effectiveMask() {
+    if (morphP >= 1 || !maskFrom) return maskTo;
+    var out = new Float32Array(maskTo.length), i;
+    for (i = 0; i < out.length; i++) out[i] = morphP > cellRand[i] ? maskTo[i] : maskFrom[i];
+    return out;
+  }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    stage.width = Math.round(W * DPR);
+    stage.height = Math.round(H * DPR);
+    stage.style.width = W + 'px';
+    stage.style.height = H + 'px';
+
+    cellPx = state.cell;
+    cols = Math.max(4, Math.ceil(W / cellPx));
+    rows = Math.max(4, Math.ceil(H / cellPx));
+    // keep the grid inside a sane budget
+    while (cols * rows > 26000) { cellPx += 1; cols = Math.ceil(W / cellPx); rows = Math.ceil(H / cellPx); }
+
+    var n = cols * rows, i;
+    cellRand = new Float32Array(n);
+    cellRand2 = new Float32Array(n);
+    for (i = 0; i < n; i++) {
+      cellRand[i] = hash(i % cols, Math.floor(i / cols), 7);
+      cellRand2[i] = hash(i % cols, Math.floor(i / cols), 91);
+    }
+    buckets = [makeBucket(n), makeBucket(n), makeBucket(n)];
+    rebuildMask(true);
+  }
+  function makeBucket(n) {
+    return { xs: new Float32Array(n), ys: new Float32Array(n), gs: new Uint16Array(n), rs: new Float32Array(n), n: 0 };
+  }
+
+  /* ============================================================
+     4. Render
+     ============================================================ */
+
+  function currentGlyphs() {
+    var set = glyphSetById(state.glyphSet);
+    if (set.id === 'custom') {
+      var s = (state.glyphCustom || '●').replace(/\s/g, '');
+      return s.length ? s.split('') : ['●'];
+    }
+    return set.chars;
+  }
+
+  function render(capture) {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = state.bg;
+    ctx.fillRect(0, 0, W, H);
+    if (!cols || !rows || !maskTo) return;
+
+    var glyphs = currentGlyphs();
+    var gLen = glyphs.length;
+    var fontPx = cellPx * state.glyphScale;
+    ctx.font = (state.bold ? '700 ' : '400 ') + fontPx.toFixed(2) + 'px "IBM Plex Mono","Segoe UI Symbol","Apple Symbols",monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    var ns = state.noiseScale;
+    var mode = state.motion;
+    var mid = state.accent2Mix;
+    var mix = state.accentMix;
+    var grain = state.grain;
+    var jit = state.jitter * cellPx * 0.45;
+    var ccx = cols / 2, ccy = rows / 2;
+    var pcx = pointer.on ? pointer.x / cellPx : -999;
+    var pcy = pointer.on ? pointer.y / cellPx : -999;
+    var pr = Math.max(6, 170 / cellPx);
+    var cyc = state.cycle ? Math.floor(t * 4) : 0;
+    var morphing = morphP < 1 && maskFrom;
+
+    buckets[0].n = buckets[1].n = buckets[2].n = 0;
+    var cap = null;
+    if (capture) { cap = new Array(cols * rows); for (var z = 0; z < cap.length; z++) cap[z] = ' '; }
+
+    var r, c, i, m, v, d, ang, tone, b, gi, rnd, rnd2;
+    for (r = 0; r < rows; r++) {
+      for (c = 0; c < cols; c++) {
+        i = r * cols + c;
+        rnd = cellRand[i];
+        m = morphing ? (morphP > rnd ? maskTo[i] : maskFrom[i]) : maskTo[i];
+        if (m < 0.34) continue;
+
+        rnd2 = cellRand2[i];
+        var nx = c * ns, ny = r * ns;
+
+        if (mode === 'shimmer') {
+          v = fbm(nx, ny, t * 0.42 + seedZ);
+        } else if (mode === 'wave') {
+          v = 0.5 + 0.5 * Math.sin(nx * 2.1 + ny * 1.15 - t * 1.7);
+          v = v * 0.74 + fbm(nx, ny, seedZ) * 0.26;
+        } else if (mode === 'ripple') {
+          d = Math.sqrt((c - ccx) * (c - ccx) + (r - ccy) * (r - ccy));
+          v = 0.5 + 0.5 * Math.sin(d * ns * 3.1 - t * 2.4);
+          v = v * 0.82 + fbm(nx, ny, seedZ) * 0.18;
+        } else if (mode === 'orbit') {
+          d = Math.sqrt((c - ccx) * (c - ccx) + (r - ccy) * (r - ccy));
+          ang = Math.atan2(r - ccy, c - ccx);
+          v = 0.5 + 0.5 * Math.sin(ang * 3 + d * ns * 1.6 - t * 1.6);
+          v = v * 0.8 + fbm(nx, ny, seedZ) * 0.2;
+        } else if (mode === 'rain') {
+          v = fbm(nx, ny * 0.55 - t * 1.5, seedZ);
+        } else {
+          v = fbm(nx, ny, seedZ);
+        }
+
+        if (grain > 0) v += (rnd2 - 0.5) * grain * 0.55;
+
+        if (state.edgeAccent && m < 0.9) v -= (0.9 - m) * 0.55;
+
+        if (pointer.on && state.pointer) {
+          var dx = c - pcx, dy = r - pcy;
+          var dd = (dx * dx + dy * dy) / (pr * pr);
+          if (dd < 4) v -= 0.85 * Math.exp(-dd * 1.6);
+        }
+
+        tone = v < mix ? 0 : (v < mix + mid ? 1 : 2);
+        b = buckets[tone];
+        gi = gLen === 1 ? 0 : (Math.floor(rnd2 * 977) + cyc) % gLen;
+        b.xs[b.n] = c * cellPx + cellPx * 0.5 + (jit ? (rnd - 0.5) * jit : 0);
+        b.ys[b.n] = r * cellPx + cellPx * 0.5 + (jit ? (rnd2 - 0.5) * jit : 0);
+        b.gs[b.n] = gi;
+        b.rs[b.n] = state.spin ? (t * (0.6 + rnd * 1.6) + rnd2 * 6.28) : 0;
+        b.n++;
+        if (cap) cap[i] = glyphs[gi];
+      }
+    }
+
+    if (cap) {
+      var lines = [], rr, cc, line;
+      for (rr = 0; rr < rows; rr++) {
+        line = '';
+        for (cc = 0; cc < cols; cc++) line += cap[rr * cols + cc];
+        lines.push(line.replace(/\s+$/, ''));
+      }
+      while (lines.length && lines[0] === '') lines.shift();
+      while (lines.length && lines[lines.length - 1] === '') lines.pop();
+      lastAscii = lines.join('\n');
+    }
+
+    var colors = [state.accent, state.accent2, state.base];
+    var order = [2, 1, 0];
+    for (var oi = 0; oi < 3; oi++) {
+      var tn = order[oi], bk = buckets[tn];
+      if (!bk.n) continue;
+      ctx.fillStyle = colors[tn];
+      if (state.spin) {
+        for (var q = 0; q < bk.n; q++) {
+          ctx.save();
+          ctx.translate(bk.xs[q], bk.ys[q]);
+          ctx.rotate(bk.rs[q]);
+          ctx.fillText(glyphs[bk.gs[q]], 0, 0);
+          ctx.restore();
+        }
+      } else {
+        for (var p2 = 0; p2 < bk.n; p2++) {
+          ctx.fillText(glyphs[bk.gs[p2]], bk.xs[p2], bk.ys[p2]);
+        }
+      }
+    }
+  }
+
+  function nextMorphShape() {
+    var geo = SHAPES.filter(function (s) { return s.geo; });
+    var idx = 0, i;
+    for (i = 0; i < geo.length; i++) if (geo[i].id === state.shape) idx = i;
+    var next = geo[(idx + 1) % geo.length].id;
+    state.shape = next;
+    syncShapeChips();
+    rebuildMask(false);
+  }
+
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    var dt = Math.min(0.05, (ts - lastTs) / 1000);
+    lastTs = ts;
+    if (playing) t += dt * Math.max(0.0001, state.speed);
+    if (morphP < 1) morphP = Math.min(1, morphP + dt / 1.15);
+    if (state.autoMorph && playing) {
+      morphTimer += dt;
+      if (morphTimer > state.morphEvery) { morphTimer = 0; nextMorphShape(); }
+    }
+    if (maskDirty) { maskDirty = false; maskTo = buildMask(state.shape); maskFrom = maskTo; morphP = 1; }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  /* ============================================================
+     5. Control panel wiring
+     ============================================================ */
+
+  var $ = function (id) { return document.getElementById(id); };
+  var syncers = [];
+  var lastAscii = '';
+
+  function chipRow(host, items, key, onPick, glyphStyle) {
+    host.innerHTML = '';
+    items.forEach(function (it) {
+      var b = document.createElement('button');
+      b.className = 'chip' + (glyphStyle ? ' chip--glyph' : '');
+      b.textContent = it.label || it.name;
+      b.dataset.val = it.id;
+      b.addEventListener('click', function () {
+        state[key] = it.id;
+        syncChips(host, key);
+        onPick(it.id);
+      });
+      host.appendChild(b);
+    });
+    syncers.push(function () { syncChips(host, key); });
+  }
+  function syncChips(host, key) {
+    Array.prototype.forEach.call(host.children, function (b) {
+      b.classList.toggle('is-on', b.dataset.val === state[key]);
+    });
+  }
+  function syncShapeChips() { syncChips($('shape-chips'), 'shape'); syncConditionals(); }
+
+  function bindRange(id, key, fmt, onChange) {
+    var el = $(id), out = $(id + '-out');
+    el.addEventListener('input', function () {
+      state[key] = parseFloat(el.value);
+      out.textContent = fmt(state[key]);
+      if (onChange) onChange();
+    });
+    var apply = function () { el.value = state[key]; out.textContent = fmt(state[key]); };
+    syncers.push(apply);
+    return apply;
+  }
+  function bindToggle(id, key, onChange) {
+    var el = $(id);
+    el.addEventListener('change', function () {
+      state[key] = el.checked;
+      if (onChange) onChange();
+    });
+    syncers.push(function () { el.checked = !!state[key]; });
+  }
+  function bindColor(id, key) {
+    var el = $(id), hex = $(id + '-hex');
+    el.addEventListener('input', function () {
+      state[key] = el.value;
+      hex.textContent = el.value;
+      applyUiAccent();
+    });
+    syncers.push(function () { el.value = state[key]; hex.textContent = state[key]; });
+  }
+
+  function pct(v) { return Math.round(v * 100) + '%'; }
+  function applyUiAccent() {
+    document.documentElement.style.setProperty('--ui-accent', state.accent);
+    var c = state.bg.replace('#', '');
+    if (c.length === 3) c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+    var r = parseInt(c.substr(0, 2), 16), g = parseInt(c.substr(2, 2), 16), b = parseInt(c.substr(4, 2), 16);
+    var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    document.body.classList.toggle('is-dark', lum < 0.5);
+  }
+  function syncConditionals() {
+    $('shape-text-wrap').classList.toggle('hide', state.shape !== 'text');
+    $('shape-image-wrap').classList.toggle('hide', state.shape !== 'image');
+    $('shape-draw-wrap').classList.toggle('hide', state.shape !== 'draw');
+    $('glyph-custom-wrap').classList.toggle('hide', state.glyphSet !== 'custom');
+  }
+  function syncAll() {
+    syncers.forEach(function (f) { f(); });
+    $('shape-text').value = state.shapeText;
+    $('glyph-custom').value = state.glyphCustom;
+    syncConditionals();
+    applyUiAccent();
+  }
+
+  /* ---- chips ---- */
+  chipRow($('shape-chips'), SHAPES, 'shape', function () { syncConditionals(); rebuildMask(false); }, false);
+  chipRow($('layout-chips'), LAYOUTS, 'layout', function () { rebuildMask(true); }, false);
+  chipRow($('glyph-chips'), GLYPH_SETS, 'glyphSet', function () { syncConditionals(); }, true);
+  chipRow($('motion-chips'), MOTIONS, 'motion', function () {}, false);
+  chipRow($('palette-chips'), PALETTES, 'palette', function (id) {
+    var p = PALETTES.filter(function (x) { return x.id === id; })[0];
+    state.accent = p.accent; state.accent2 = p.accent2; state.base = p.base; state.bg = p.bg;
+    syncAll();
+  }, false);
+
+  /* ---- ranges ---- */
+  bindRange('r-scale', 'shapeScale', pct, function () { rebuildMask(true); });
+  bindRange('r-rot', 'shapeRot', function (v) { return Math.round(v) + '°'; }, function () { rebuildMask(true); });
+  bindRange('r-morph', 'morphEvery', function (v) { return v.toFixed(1) + 's'; });
+  bindRange('r-brush', 'brush', function (v) { return Math.round(v) + ''; });
+  bindRange('r-cell', 'cell', function (v) { return Math.round(v) + 'px'; }, function () { resize(); });
+  bindRange('r-glyph', 'glyphScale', pct);
+  bindRange('r-jitter', 'jitter', pct);
+  bindRange('r-accent', 'accentMix', pct);
+  bindRange('r-accent2', 'accent2Mix', pct);
+  bindRange('r-speed', 'speed', function (v) { return v.toFixed(2) + '×'; });
+  bindRange('r-noise', 'noiseScale', function (v) { return v.toFixed(3); });
+  bindRange('r-soft', 'grain', pct);
+
+  /* ---- toggles ---- */
+  bindToggle('t-morph', 'autoMorph', function () { morphTimer = 0; });
+  bindToggle('t-imginvert', 'imgInvert', function () { rebuildMask(true); });
+  bindToggle('t-spin', 'spin');
+  bindToggle('t-cycle', 'cycle');
+  bindToggle('t-bold', 'bold');
+  bindToggle('t-edge', 'edgeAccent');
+  bindToggle('t-pointer', 'pointer');
+
+  /* ---- colours ---- */
+  bindColor('c-accent', 'accent');
+  bindColor('c-accent2', 'accent2');
+  bindColor('c-base', 'base');
+  bindColor('c-bg', 'bg');
+
+  /* ---- text / custom inputs ---- */
+  $('shape-text').addEventListener('input', function () {
+    state.shapeText = this.value || 'A';
+    rebuildMask(true);
+  });
+  $('glyph-custom').addEventListener('input', function () { state.glyphCustom = this.value; });
+
+  /* ---- image upload ---- */
+  $('shape-image').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var url = URL.createObjectURL(f);
+    var img = new Image();
+    img.onload = function () {
+      shapeImg = img;
+      state.shape = 'image';
+      syncShapeChips();
+      rebuildMask(false);
+      toast('Image loaded');
+    };
+    img.onerror = function () { toast('Could not read file'); };
+    img.src = url;
+  });
+
+  /* ---- draw mode ---- */
+  var painting = false, lastPaint = null;
+  function paintAt(x, y, erase) {
+    var px = (x / W) * 256, py = (y / H) * 256;
+    var rad = state.brush * 4.4;
+    drawCtx.save();
+    drawCtx.globalCompositeOperation = erase ? 'destination-out' : 'source-over';
+    drawCtx.strokeStyle = '#000';
+    drawCtx.fillStyle = '#000';
+    drawCtx.lineWidth = rad * 2;
+    drawCtx.lineCap = 'round';
+    drawCtx.lineJoin = 'round';
+    if (lastPaint) {
+      drawCtx.beginPath();
+      drawCtx.moveTo(lastPaint[0], lastPaint[1]);
+      drawCtx.lineTo(px, py);
+      drawCtx.stroke();
+    } else {
+      drawCtx.beginPath();
+      drawCtx.arc(px, py, rad, 0, Math.PI * 2);
+      drawCtx.fill();
+    }
+    drawCtx.restore();
+    lastPaint = [px, py];
+    maskDirty = true;
+  }
+  $('draw-clear').addEventListener('click', function () {
+    drawCtx.clearRect(0, 0, 256, 256);
+    maskDirty = true;
+  });
+
+  /* ---- pointer ---- */
+  stage.addEventListener('pointermove', function (e) {
+    pointer.x = e.clientX; pointer.y = e.clientY; pointer.on = true;
+    if (painting && state.shape === 'draw') paintAt(e.clientX, e.clientY, e.altKey);
+  });
+  stage.addEventListener('pointerdown', function (e) {
+    pointer.x = e.clientX; pointer.y = e.clientY; pointer.on = true;
+    if (state.shape === 'draw') {
+      painting = true; lastPaint = null;
+      stage.setPointerCapture(e.pointerId);
+      paintAt(e.clientX, e.clientY, e.altKey);
+    }
+  });
+  window.addEventListener('pointerup', function () { painting = false; lastPaint = null; });
+  stage.addEventListener('pointerleave', function () { pointer.on = false; });
+
+  /* ---- panel show / hide ---- */
+  function setPanel(open) {
+    $('panel').classList.toggle('is-hidden', !open);
+    $('fab').classList.toggle('is-on', !open);
+    rebuildMask(true);
+  }
+  $('hide').addEventListener('click', function () { setPanel(false); });
+  $('fab').addEventListener('click', function () { setPanel(true); });
+
+  /* ---- footer actions ---- */
+  $('playpause').addEventListener('click', function () {
+    playing = !playing;
+    this.textContent = playing ? 'Pause' : 'Play';
+  });
+  $('randomize').addEventListener('click', randomize);
+  $('reset').addEventListener('click', function () {
+    for (var key in DEFAULTS) state[key] = DEFAULTS[key];
+    syncAll(); resize(); toast('Reset');
+  });
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function randomize() {
+    var geo = SHAPES.filter(function (s) { return s.geo; }).map(function (s) { return s.id; });
+    var sets = GLYPH_SETS.filter(function (s) { return s.id !== 'custom'; }).map(function (s) { return s.id; });
+    state.shape = pick(geo);
+    state.glyphSet = pick(sets);
+    state.layout = pick(['single', 'pair', 'tile']);
+    state.motion = pick(MOTIONS.map(function (m) { return m.id; }));
+    var p = pick(PALETTES);
+    state.palette = p.id;
+    state.accent = p.accent; state.accent2 = p.accent2; state.base = p.base; state.bg = p.bg;
+    state.accentMix = 0.16 + Math.random() * 0.34;
+    state.accent2Mix = Math.random() * 0.38;
+    state.noiseScale = 0.05 + Math.random() * 0.2;
+    state.cell = 10 + Math.round(Math.random() * 12);
+    state.shapeScale = 0.5 + Math.random() * 0.5;
+    state.grain = Math.random() * 0.6;
+    state.edgeAccent = Math.random() > 0.4;
+    state.speed = 0.4 + Math.random() * 1.1;
+    syncAll(); resize();
+  }
+
+  /* ---- export ---- */
+  $('save-png').addEventListener('click', function () {
+    render();
+    var a = document.createElement('a');
+    a.download = 'ascii-field-' + state.shape + '.png';
+    a.href = stage.toDataURL('image/png');
+    a.click();
+    toast('PNG saved');
+  });
+  $('copy-txt').addEventListener('click', function () {
+    render(true);
+    var txt = lastAscii;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () { toast('ASCII copied'); },
+        function () { fallbackCopy(txt); });
+    } else { fallbackCopy(txt); }
+  });
+  function fallbackCopy(txt) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('ASCII copied'); }
+    catch (e) { toast('Copy failed'); }
+    document.body.removeChild(ta);
+  }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('is-on'); }, 1500);
+  }
+
+  /* ---- keyboard ---- */
+  window.addEventListener('keydown', function (e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      playing = !playing;
+      $('playpause').textContent = playing ? 'Pause' : 'Play';
+    } else if (e.key === 'r' || e.key === 'R') {
+      randomize();
+    } else if (e.key === 'h' || e.key === 'H') {
+      setPanel($('panel').classList.contains('is-hidden'));
+    }
+  });
+
+  /* ---- boot ---- */
+  var rTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(rTimer);
+    rTimer = setTimeout(resize, 140);
+  });
+
+  // small screens get a finer grid and a fuller composition
+  if (window.innerWidth < 760) {
+    DEFAULTS.cell = 10; DEFAULTS.shapeScale = 0.92; DEFAULTS.layout = 'single';
+    state.cell = 10; state.shapeScale = 0.92; state.layout = 'single';
+  }
+
+  syncAll();
+  resize();
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { rebuildMask(true); });
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
