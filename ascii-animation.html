@@ -168,6 +168,9 @@
   .iconbtn:hover{color:var(--ui-ink);border-color:#c8cede}
   .hint{font-family:var(--mono);font-size:9.5px;line-height:1.5;letter-spacing:.03em;color:var(--ui-faint);margin:8px 0 2px}
   .hide{display:none !important}
+  .chip:focus-visible,.btn:focus-visible,.iconbtn:focus-visible,.field:focus-visible,
+  .filebtn:focus-within,input[type=range]:focus-visible,input[type=color]:focus-visible,
+  .toggle input:focus-visible + .track{outline:2px solid var(--ui-accent);outline-offset:2px}
 
   .fab{
     position:fixed;right:20px;bottom:20px;z-index:5;
@@ -337,6 +340,9 @@
         <h2 class="group__title">Export</h2>
         <div class="btnrow">
           <button class="btn" id="save-png">Save PNG</button>
+          <button class="btn" id="save-txt">Save TXT</button>
+        </div>
+        <div class="btnrow">
           <button class="btn" id="copy-txt">Copy ASCII</button>
         </div>
         <div class="btnrow"><button class="btn" id="reset">Reset all</button></div>
@@ -1139,14 +1145,36 @@
     syncAll(); resize();
   }
 
-  /* ---- export ---- */
+  /* ---- export ----
+     Opened as a file this saves through a plain link; published as a
+     claude.ai artifact the page has no download permission of its own, so
+     it hands the file to the viewer through the downloads capability. */
+  var downloads = null;
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('downloads').then(function (d) { downloads = d; }, function () { downloads = null; });
+  }
+  function offerFile(filename, blob) {
+    if (downloads) {
+      downloads.save({ filename: filename, data: blob }).then(
+        function () { toast('Saved'); },
+        function (err) { toast(err && err.code === 'declined' ? 'Save cancelled' : 'Save unavailable'); }
+      );
+      return;
+    }
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.download = filename;
+    a.href = url;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    toast('Saved');
+  }
   $('save-png').addEventListener('click', function () {
     render();
-    var a = document.createElement('a');
-    a.download = 'ascii-field-' + state.shape + '.png';
-    a.href = stage.toDataURL('image/png');
-    a.click();
-    toast('PNG saved');
+    stage.toBlob(function (blob) {
+      if (blob) offerFile('glyph-field-' + state.shape + '.png', blob);
+      else toast('Export failed');
+    }, 'image/png');
   });
   $('copy-txt').addEventListener('click', function () {
     render(true);
@@ -1155,6 +1183,10 @@
       navigator.clipboard.writeText(txt).then(function () { toast('ASCII copied'); },
         function () { fallbackCopy(txt); });
     } else { fallbackCopy(txt); }
+  });
+  $('save-txt').addEventListener('click', function () {
+    render(true);
+    offerFile('glyph-field-' + state.shape + '.txt', new Blob([lastAscii], { type: 'text/plain' }));
   });
   function fallbackCopy(txt) {
     var ta = document.createElement('textarea');
@@ -1201,6 +1233,12 @@
   if (window.innerWidth < 760) {
     DEFAULTS.cell = 10; DEFAULTS.shapeScale = 0.92; DEFAULTS.layout = 'single';
     state.cell = 10; state.shapeScale = 0.92; state.layout = 'single';
+  }
+
+  // viewers who ask for less motion get the composition, held still
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    playing = false;
+    $('playpause').textContent = 'Play';
   }
 
   syncAll();
