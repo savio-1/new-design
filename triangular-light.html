@@ -6,7 +6,7 @@
 <title>Prism Fan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root{
     --bg:#f6f4f5;
@@ -19,7 +19,6 @@
     --knob:#15161c;
     --accent:#22cdf0;
     --sans:'Instrument Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
-    --serif:'Instrument Serif',Georgia,'Times New Roman',serif;
     --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
   }
   body[data-scene="dark"]{
@@ -43,35 +42,6 @@
     transition:background-color .5s ease,color .5s ease;
   }
   #stage{position:fixed;inset:0;display:block;width:100%;height:100%}
-
-  /* ---------- headline ---------- */
-  .headline{
-    position:fixed;inset:0;z-index:3;
-    display:flex;padding:6vmin 7vmin;
-    pointer-events:none;user-select:none;
-  }
-  .headline[data-place="left"]  {align-items:center;justify-content:flex-start}
-  .headline[data-place="right"] {align-items:center;justify-content:flex-end}
-  .headline[data-place="top"]   {align-items:flex-start;justify-content:center}
-  .headline[data-place="bottom"]{align-items:flex-end;justify-content:center}
-  .headline.off{display:none}
-  .headline h1{
-    font-size:clamp(17px,2.7vw,40px);
-    font-weight:400;
-    letter-spacing:-.018em;
-    line-height:1.12;
-    max-width:min(30ch,40vw);
-    text-wrap:balance;
-    color:var(--ink);
-  }
-  .headline[data-place="top"] h1,.headline[data-place="bottom"] h1{max-width:min(30ch,80vw);text-align:center}
-  .headline h1 em{font-family:var(--serif);font-style:italic;font-weight:400}
-
-  .credit{
-    position:fixed;bottom:22px;left:26px;z-index:3;
-    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--ink-soft);pointer-events:none;user-select:none;
-  }
 
   /* ---------- control panel ---------- */
   .panel{
@@ -105,12 +75,20 @@
   .icon-btn svg{display:block}
 
   .group{display:flex;flex-direction:column;gap:9px}
-  .group > .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
+  .group > .lbl,.grp-head .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
+  .grp-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .mini-btn{
+    font-family:var(--sans);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink-soft);background:transparent;border:1px solid var(--hair);
+    border-radius:6px;padding:4px 8px;cursor:pointer;
+    transition:color .15s,border-color .15s;
+  }
+  .mini-btn:hover{color:var(--ink);border-color:var(--hair-2)}
 
   /* palette swatches */
-  .pal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px 7px}
+  .pal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px 6px}
   .pal{
-    position:relative;height:34px;border-radius:7px;cursor:pointer;
+    position:relative;height:28px;border-radius:6px;cursor:pointer;
     border:1px solid var(--hair);padding:0;
     outline:1.5px solid transparent;outline-offset:2px;
     transition:outline-color .15s,transform .12s;
@@ -225,9 +203,6 @@
     .panel{left:10px;right:10px;top:auto;bottom:10px;width:auto;max-height:54vh;border-radius:16px}
     .panel.hidden{transform:translateY(calc(100% + 20px))}
     .show-btn{top:auto;bottom:16px;right:14px}
-    .headline{padding:9vmin 7vmin;align-items:flex-start!important;justify-content:flex-start!important}
-    .headline h1{max-width:none!important;text-align:left!important}
-    .credit{display:none}
   }
 </style>
 </head>
@@ -238,12 +213,6 @@
 <div class="fallback">
   <p>This animation needs WebGL, which your browser has turned off or can&rsquo;t reach.<br>Enable hardware acceleration and reload to see it.</p>
 </div>
-
-<div class="headline" id="headline" data-place="left">
-  <h1 id="headlineText">Welcome to a <em>vivid</em> new world</h1>
-</div>
-
-<p class="credit">Prism Fan &mdash; refraction study</p>
 
 <aside class="panel" id="panel" aria-label="Animation controls">
   <div class="p-head">
@@ -260,7 +229,10 @@
   </div>
 
   <div class="group">
-    <span class="lbl">Gradient</span>
+    <div class="grp-head">
+      <span class="lbl">Gradient</span>
+      <button class="mini-btn" id="randBtn" type="button" title="Random gradient">Random</button>
+    </div>
     <div class="pal-grid" id="palGrid" role="group" aria-label="Gradient presets"></div>
     <div class="swatch-row">
       <span class="t">Custom gradient</span>
@@ -330,8 +302,6 @@
   <div class="group">
     <span class="lbl">Scene</span>
     <div class="seg two" id="sceneSeg" role="group" aria-label="Background"></div>
-    <input type="text" id="hlText" value="Welcome to a *vivid* new world" aria-label="Headline text" spellcheck="false">
-    <p class="note">Wrap a word in *asterisks* to set it in italic serif. Clear the field to hide the headline.</p>
   </div>
 </aside>
 
@@ -349,21 +319,45 @@
      reference clip: cyan / pale / orange / amber / magenta / pink.
      ============================================================ */
   const PALETTES = [
+    // Each entry is a six-stop cyclic ramp. Stops 0/2/4 are the saturated
+    // hues the wedges land on; 1/3/5 are the pale partners that let the
+    // seams between wedges read as light rather than mud.
     { name: "Vivid",   stops: ["#22cdf0","#a8ecf7","#ffa24d","#ffc86e","#ff4b85","#ff93c9"] },
     { name: "Ember",   stops: ["#ffd166","#fff0c7","#ff8a3d","#ff5252","#c42a6b","#ffb3a7"] },
     { name: "Lagoon",  stops: ["#00d4c8","#cff7f3","#3b9dff","#6c63ff","#00e5a0","#b9e8ff"] },
     { name: "Orchid",  stops: ["#b44dff","#ebd6ff","#ff5ec4","#7c4dff","#ff9af0","#e0c3ff"] },
+
     { name: "Citrus",  stops: ["#ffe94d","#fffbd6","#7be04a","#ffb03a","#ff6f3c","#e8ffb0"] },
+    { name: "Sunset",  stops: ["#ff7a4d","#ffdcc4","#ffc24d","#ff5f8f","#8b3dff","#ffb8d6"] },
+    { name: "Cosmos",  stops: ["#4a3dff","#cfd0ff","#a12eff","#ff2e9b","#ff7ad1","#ded0ff"] },
+    { name: "Spectrum",stops: ["#ff3d6e","#ffb03a","#ffe94d","#4ce07a","#2ac6f0","#a24dff"], cycle: true },
+
+    { name: "Sorbet",  stops: ["#ff9ec7","#ffe6f0","#ffc48a","#ffe3b0","#b79cff","#e5dcff"] },
+    { name: "Neon",    stops: ["#39ff88","#d6ffe8","#00e5ff","#b0f6ff","#ff2ecb","#ffb3ee"] },
+    { name: "Arctic",  stops: ["#7fd4ff","#eaf7ff","#b7c8e8","#dfe8f7","#4f7fd6","#cfe0ff"] },
+    { name: "Bloom",   stops: ["#ff6f91","#ffd9e2","#ffab76","#ffe0c2","#d94f8c","#ffc2d6"] },
+
+    { name: "Jade",    stops: ["#00c98a","#ccf5e6","#6fd44f","#c9edb8","#0f8f7a","#b3e6dd"] },
+    { name: "Copper",  stops: ["#c96a2e","#f6dfc9","#e59a4d","#f2c98f","#8f3d24","#e8bfa8"] },
+    { name: "Peacock", stops: ["#0e8f9e","#c6eef2","#1f5fd6","#17b8a6","#d8a12e","#bfe6e0"] },
+    { name: "Candy",   stops: ["#ff5fa8","#ffd6e8","#58c8ff","#bfe9ff","#ffe14d","#fff3b8"] },
+
+    { name: "Dusk",    stops: ["#8f6fb5","#e4d9ee","#d98fa8","#f0d4dd","#e0a24d","#f2ddba"] },
+    { name: "Aurora",  stops: ["#45f0a0","#cffbe6","#2ac6f0","#b3ecfa","#9a5cff","#ddc9ff"] },
+    { name: "Saffron", stops: ["#f5a623","#fbe6bf","#e8542f","#f7b39a","#b03a5b","#f2c4cf"] },
+    { name: "Iris",    stops: ["#7f8cff","#dce0ff","#b07fff","#e2d0ff","#ff8fc4","#ffd4e6"] },
+
+    { name: "Moss",    stops: ["#6b8f3d","#dfeec4","#3d6b52","#a8c98f","#c9b04d","#eee2b0"] },
+    { name: "Ultra",   stops: ["#3a1cff","#c9c2ff","#7a1cff","#c48fff","#ff1c9c","#ffb0dd"] },
     { name: "Ink",     stops: ["#22355c","#dde3ee","#4a6fa5","#8fa9c9","#2e4b7a","#c7d3e4"] },
     { name: "Mono",    stops: ["#2b2d36","#f2f2f4","#7c8090","#b9bcc7","#4a4d59","#dcdee5"] },
-    { name: "Spectrum",stops: ["#ff3d6e","#ffb03a","#ffe94d","#4ce07a","#2ac6f0","#a24dff"], cycle: true },
   ];
 
   const DIRS = [
-    { name: "Right", deg: 0,   place: "left"   },
-    { name: "Down",  deg: 90,  place: "top"    },
-    { name: "Left",  deg: 180, place: "right"  },
-    { name: "Up",    deg: 270, place: "bottom" },
+    { name: "Right", deg: 0   },
+    { name: "Down",  deg: 90  },
+    { name: "Left",  deg: 180 },
+    { name: "Up",    deg: 270 },
   ];
 
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -620,6 +614,22 @@
     const c = A.map((v, i) => Math.round((v + (B[i] - v) * t) * 255));
     return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
   };
+  function hslHex(h, sat, li) {
+    h = ((h % 360) + 360) % 360;
+    const c = (1 - Math.abs(2 * li - 1)) * sat;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = li - c / 2;
+    let r, g, b;
+    if (h < 60)       [r, g, b] = [c, x, 0];
+    else if (h < 120) [r, g, b] = [x, c, 0];
+    else if (h < 180) [r, g, b] = [0, c, x];
+    else if (h < 240) [r, g, b] = [0, x, c];
+    else if (h < 300) [r, g, b] = [x, 0, c];
+    else              [r, g, b] = [c, 0, x];
+    return "#" + [r, g, b].map(v =>
+      Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+  }
+
   function accentHex() { return state.stops[0]; }
   function applyAccent() {
     document.documentElement.style.setProperty("--accent", accentHex());
@@ -636,7 +646,10 @@
     // origin: canvas centre, nudged very slightly forward along the beam
     const rad = state.shownAngle * Math.PI / 180;
     const dx = Math.cos(rad), dy = -Math.sin(rad);         // screen y is down; GL y is up
-    gl.uniform2f(U.uOrigin, W * 0.5 + dx * H * 0.062, H * 0.5 + dy * H * 0.062);
+    // With no headline to leave room for, set the apex about a quarter of the
+    // way along the beam axis so the fan spans most of the frame.
+    const along = Math.abs(dx) * W + Math.abs(dy) * H;
+    gl.uniform2f(U.uOrigin, W * 0.5 - dx * along * 0.22, H * 0.5 - dy * along * 0.22);
     gl.uniform2f(U.uDir, dx, dy);
 
     gl.uniform1f(U.uSpread, state.spreadDeg * Math.PI / 180);
@@ -719,6 +732,25 @@
   }
   ["cA","cB","cC"].forEach(id => $(id).addEventListener("input", customPalette));
 
+  // Three hues spaced around the wheel, each with a pale partner — the same
+  // saturated/pale alternation the presets use, so seams still read as light.
+  $("randBtn").addEventListener("click", () => {
+    const h0 = Math.random() * 360;
+    const span = 55 + Math.random() * 115;
+    const hues = [h0, h0 + span, h0 + span * 1.85];
+    const stops = [];
+    hues.forEach(h => {
+      stops.push(hslHex(h, 0.72 + Math.random() * 0.26, 0.52 + Math.random() * 0.14));
+      stops.push(hslHex(h + 14, 0.45 + Math.random() * 0.35, 0.83 + Math.random() * 0.09));
+    });
+    state.stops = stops;
+    state.cycle = false;
+    state.palIndex = -1;
+    palBtns.forEach(b => b.setAttribute("aria-pressed", "false"));
+    $("cA").value = stops[0]; $("cB").value = stops[2]; $("cC").value = stops[4];
+    applyAccent(); redraw();
+  });
+
   /* ---------------- orientation UI ---------------- */
   const dirSeg = $("dirSeg");
   const dirBtns = DIRS.map(d => {
@@ -741,13 +773,6 @@
     setFill($("angle"));
     $("angleV").textContent = deg + "°";
     dirBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(DIRS[k].deg === deg)));
-    // keep the headline out of the beams' way
-    let best = DIRS[0], bestD = 999;
-    DIRS.forEach(d => {
-      const dd = Math.abs(((deg - d.deg + 540) % 360) - 180);
-      if (dd < bestD) { bestD = dd; best = d; }
-    });
-    $("headline").dataset.place = best.place;
   }
 
   /* ---------------- sliders ---------------- */
@@ -800,18 +825,6 @@
     return b;
   });
 
-  const hlWrap = $("headline"), hlEl = $("headlineText");
-  function setHeadline(raw) {
-    const txt = raw.trim();
-    hlWrap.classList.toggle("off", txt === "");
-    if (!txt) return;
-    // *word* -> italic serif; everything else escaped
-    const esc = s => s.replace(/[&<>"]/g, ch => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[ch]));
-    hlEl.innerHTML = txt.split(/\*([^*]+)\*/).map((part, i) =>
-      i % 2 ? `<em>${esc(part)}</em>` : esc(part)).join("");
-  }
-  $("hlText").addEventListener("input", e => setHeadline(e.target.value));
-
   /* ---------------- play / pause, panel ---------------- */
   function setRunning(run) {
     state.running = run;
@@ -838,7 +851,6 @@
 
   /* ---------------- boot ---------------- */
   applyAccent();
-  setHeadline($("hlText").value);
   syncAngleUI();
   state.shownAngle = state.angleDeg;
   resize();
