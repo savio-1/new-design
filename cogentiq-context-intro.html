@@ -10,16 +10,12 @@
 <style>
   :root{
     --ink-night:#080c1a;
-    --night-2:#0d1226;
     --cobalt:#2f6bf0;
     --cobalt-deep:#1d4fd7;
-    --iris:#7a5af8;
-    --lav-1:#e4def7;
-    --lav-2:#cfc9f2;
     --white:#ffffff;
     --ink:#1b2140;
     --cap-dark:rgba(236,240,255,.92);
-    --T:23; /* master timeline seconds */
+    --T:20; /* master timeline seconds */
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{height:100%}
@@ -41,26 +37,41 @@
     background:
       radial-gradient(120% 90% at 50% 42%, #10162e 0%, var(--ink-night) 58%, #05070f 100%);
   }
-  .bg-lav{
-    background:
-      radial-gradient(110% 90% at 50% 40%, #f4f1fc 0%, var(--lav-1) 48%, var(--lav-2) 100%);
+
+  /* animated mesh-gradient light world */
+  .bg-mesh{
+    background:linear-gradient(165deg, #f1eefc 0%, #e9e6fa 55%, #e2e4fb 100%);
     opacity:0;
-    animation:fadeIn .55s cubic-bezier(.4,0,.2,1) 7.6s both;
+    animation:fadeIn .5s cubic-bezier(.4,0,.2,1) 7.55s both;
+    overflow:hidden;
   }
+  .blob{
+    position:absolute;left:var(--x);top:var(--y);
+    width:var(--sz);height:var(--sz);border-radius:50%;
+    background:radial-gradient(circle, var(--c) 0%, transparent 68%);
+    filter:blur(46px);
+    opacity:var(--o,.75);
+    animation:blobDrift var(--t,14s) ease-in-out 0s infinite alternate;
+  }
+  @keyframes blobDrift{
+    from{transform:translate(0,0) scale(1)}
+    to  {transform:translate(var(--dx,30px),var(--dy,-36px)) scale(1.12)}
+  }
+
   .bg-sky{
     background:
       linear-gradient(158deg, #5d7cf0 0%, #7a8bf3 26%, #9aa6f6 48%, #c9cdf8 74%, #ecebfb 100%);
     opacity:0;
-    animation:fadeIn 2.4s cubic-bezier(.45,0,.2,1) 16.7s both;
+    animation:fadeIn 2.2s cubic-bezier(.45,0,.2,1) 14.6s both;
   }
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
-  /* faint dot texture on light scenes, like the hero banner */
+  /* faint dot texture on the final gradient, like the hero banner */
   .bg-dots{
     background-image:radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.4px);
     background-size:26px 26px;
     opacity:0;
-    animation:fadeInDots 2.4s ease 17.3s both;
+    animation:fadeInDots 2.2s ease 15.2s both;
     mix-blend-mode:overlay;
   }
   @keyframes fadeInDots{from{opacity:0}to{opacity:.5}}
@@ -82,7 +93,7 @@
   /* ================= DARK WORLD (scene 1-3) ================= */
   .scene-dark{
     position:absolute;inset:0;z-index:2;
-    animation:sceneDarkOut .5s ease 7.55s both;
+    animation:sceneDarkOut .45s ease 7.5s both;
   }
   @keyframes sceneDarkOut{from{opacity:1}to{opacity:0}}
 
@@ -149,7 +160,7 @@
     100%{opacity:0;transform:translate(var(--mx,0px),var(--my,0px)) rotate(0deg) scale(.05);filter:blur(4px)}
   }
 
-  /* pulse rings before the bloom */
+  /* pulse rings */
   .ring{
     position:absolute;left:50%;top:50%;
     width:120px;height:120px;border-radius:50%;
@@ -167,7 +178,7 @@
   /* ================= HERO ORB (persists) ================= */
   .orb-anchor{
     position:absolute;left:50%;top:50%;z-index:10;
-    animation:orbMove 23s linear 0s both;
+    animation:orbMove 20s linear 0s both;
   }
   .orb{
     position:relative;width:172px;height:172px;margin:-86px 0 0 -86px;
@@ -180,7 +191,7 @@
       0 0 130px 34px rgba(64,140,255,.28);
     animation:
       orbCharge 1.5s ease-in 6.1s forwards,
-      orbDarkOut .45s ease 7.62s forwards;
+      orbDarkOut .45s ease 7.6s forwards;
   }
   /* glow builds as the data pours in */
   @keyframes orbCharge{
@@ -197,31 +208,40 @@
       0 24px 60px -12px rgba(47,80,215,.45),
       0 0 90px 18px rgba(122,140,248,.35);
     opacity:0;
-    animation:fadeIn .5s ease 7.72s both;
+    animation:
+      fadeIn .45s ease 7.65s both,
+      orbPowerUp 1.3s cubic-bezier(.3,.1,.3,1) 13.9s forwards;
+  }
+  /* the context layer powers up once all artifacts are absorbed */
+  @keyframes orbPowerUp{
+    to{box-shadow:
+      0 24px 70px -10px rgba(47,80,215,.55),
+      0 0 140px 34px rgba(130,150,250,.6)}
   }
   /* soft halo behind orb in light world */
   .orb-halo{
     position:absolute;inset:-46%;border-radius:50%;
     background:radial-gradient(circle, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 62%);
     opacity:0;
-    animation:fadeIn 1.2s ease 8s both;
+    animation:fadeIn 1s ease 7.9s both;
   }
   @keyframes orbMove{
-    0%     {transform:translate(0,15vh) scale(.42)}   /* 0s    low, small    */
-    13%    {transform:translate(0,7vh)  scale(.55)}   /* 3s                  */
-    24%    {transform:translate(0,2vh)  scale(.62)}   /* 5.5s                */
-    26.5%  {transform:translate(0,0)    scale(.7)}    /* 6.1s  centered      */
-    31%    {transform:translate(0,0)    scale(.82)}   /* 7.1s  charging      */
-    33.5%  {transform:translate(0,0)    scale(1.35)}  /* 7.7s  bloom swell   */
-    37.5%  {transform:translate(0,1vh)  scale(1)}     /* 8.6s  light world   */
-    56.5%  {transform:translate(0,1vh)  scale(1)}     /* 13s                 */
-    59%    {transform:translate(0,1vh)  scale(1.045)} /* absorb breaths      */
-    61.5%  {transform:translate(0,1vh)  scale(1.005)}
-    64%    {transform:translate(0,1vh)  scale(1.055)}
-    66.5%  {transform:translate(0,1vh)  scale(1.01)}
-    69%    {transform:translate(0,1vh)  scale(1.06)}  /* 15.9s               */
-    78%    {transform:translate(0,5vh)  scale(.98)}   /* 18s   settle low    */
-    100%   {transform:translate(0,6vh)  scale(1)}     /* 23s   hold          */
+    0%     {transform:translate(0,15vh) scale(.42)}   /* 0s    low, small     */
+    15%    {transform:translate(0,7vh)  scale(.55)}   /* 3s                   */
+    27.5%  {transform:translate(0,2vh)  scale(.62)}   /* 5.5s                 */
+    30.5%  {transform:translate(0,0)    scale(.7)}    /* 6.1s  centered       */
+    35.5%  {transform:translate(0,0)    scale(.82)}   /* 7.1s  charging       */
+    38.5%  {transform:translate(0,0)    scale(1.35)}  /* 7.7s  bloom swell    */
+    41.5%  {transform:translate(0,1vh)  scale(1)}     /* 8.3s  light world    */
+    57%    {transform:translate(0,1vh)  scale(1)}     /* 11.4s                */
+    59.5%  {transform:translate(0,1vh)  scale(1.04)}  /* absorb breaths       */
+    62%    {transform:translate(0,1vh)  scale(1.005)}
+    64.5%  {transform:translate(0,1vh)  scale(1.05)}
+    67%    {transform:translate(0,1vh)  scale(1.01)}
+    70%    {transform:translate(0,1vh)  scale(1.08)}  /* 14s   power-up       */
+    73%    {transform:translate(0,1vh)  scale(1.02)}
+    80%    {transform:translate(0,5vh)  scale(.98)}   /* 16s   settle low     */
+    100%   {transform:translate(0,6vh)  scale(1)}     /* 20s   hold           */
   }
 
   /* absorption ring in light world */
@@ -241,7 +261,7 @@
     filter:blur(var(--bl,10px));
     opacity:0;
     animation:
-      bokehIn 2.4s ease var(--d) both,
+      bokehIn 2.2s ease var(--d) both,
       bokehFloat 16s ease-in-out calc(var(--d)) infinite alternate;
   }
   @keyframes bokehIn{from{opacity:0}to{opacity:var(--o,.8)}}
@@ -250,75 +270,55 @@
     to{translate:var(--dx,0px) var(--dy,-26px)}
   }
 
-  /* -------- artifact chips -------- */
+  /* -------- artifact chips: enter, orbit the sphere, spiral in -------- */
+  .chips-orbit{
+    position:absolute;inset:0;
+    animation:orbitSpin 3.4s cubic-bezier(.42,.05,.3,.95) 10.1s forwards;
+  }
+  @keyframes orbitSpin{
+    from{transform:rotate(0deg)}
+    to  {transform:rotate(280deg)}
+  }
   .chip{
     position:absolute;left:50%;top:50%;
-    margin-left:var(--ox);margin-top:var(--oy);
-    display:flex;flex-direction:column;align-items:center;gap:10px;
-    transform:translate(-50%,-50%);
+    width:0;height:0;
+  }
+  .chip-pos{
+    transform:translate(var(--ox),var(--oy));
+    animation:chipConverge 1.55s cubic-bezier(.55,.05,.5,.9) var(--dc) both;
+  }
+  /* spiral into the sphere: orbit keeps spinning while radius collapses */
+  @keyframes chipConverge{
+    0%  {transform:translate(var(--ox),var(--oy)) scale(1);opacity:1}
+    75% {opacity:1}
+    100%{transform:translate(0,0) scale(.08);opacity:0}
+  }
+  .chip-rot{
+    animation:counterSpin 3.4s cubic-bezier(.42,.05,.3,.95) 10.1s forwards;
+  }
+  @keyframes counterSpin{
+    from{transform:rotate(0deg)}
+    to  {transform:rotate(-280deg)}
   }
   .chip-inner{
-    display:flex;flex-direction:column;align-items:center;gap:10px;
-    animation:
-      chipIn 1.3s cubic-bezier(.22,.9,.3,1) var(--din) both,
-      chipAbsorb 1.25s cubic-bezier(.6,-0.02,.7,.4) var(--dout) forwards;
+    display:flex;flex-direction:column;align-items:center;gap:9px;
+    transform:translate(-50%,-50%);
+    animation:chipIn .9s cubic-bezier(.22,.9,.3,1) var(--din) both;
   }
   .tile{
-    width:74px;height:74px;border-radius:22px;
+    width:70px;height:70px;border-radius:21px;
     background:var(--white);
     box-shadow:0 14px 34px -10px rgba(38,52,130,.28), 0 2px 6px rgba(38,52,130,.10);
     display:flex;align-items:center;justify-content:center;
   }
-  .tile svg{width:32px;height:32px;stroke-width:1.9}
+  .tile svg{width:30px;height:30px;stroke-width:1.9}
   .chip-label{
-    font-size:15px;font-weight:500;letter-spacing:.01em;color:var(--ink);
+    font-size:14px;font-weight:500;letter-spacing:.01em;color:var(--ink);white-space:nowrap;
     text-shadow:0 1px 0 rgba(255,255,255,.5);
   }
   @keyframes chipIn{
-    from{opacity:0;transform:translate(var(--fx),var(--fy)) scale(.7);filter:blur(8px)}
-    to  {opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}
-  }
-  @keyframes chipAbsorb{
-    0%  {opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}
-    70% {opacity:.9;filter:blur(1px)}
-    100%{opacity:0;transform:translate(var(--ax),var(--ay)) scale(.12);filter:blur(4px)}
-  }
-
-  /* -------- floating UI accents in final shot -------- */
-  .ui-card{
-    position:absolute;left:50%;top:50%;
-    background:var(--white);
-    border-radius:14px;
-    box-shadow:0 18px 40px -12px rgba(38,52,130,.32);
-    color:var(--ink);
-    opacity:0;
-    display:flex;align-items:center;gap:10px;
-    font-size:14px;font-weight:500;
-    animation:
-      uiIn 1.2s cubic-bezier(.22,.9,.3,1) var(--d) both,
-      uiFloat 7s ease-in-out calc(var(--d) + 1.2s) infinite alternate;
-  }
-  @keyframes uiIn{
-    from{opacity:0;transform:translate(var(--ox),calc(var(--oy) + 26px)) scale(.9);filter:blur(6px)}
-    to  {opacity:1;transform:translate(var(--ox),var(--oy)) scale(1);filter:blur(0)}
-  }
-  @keyframes uiFloat{
-    from{margin-top:0}
-    to{margin-top:-10px}
-  }
-  .bundle-card{padding:12px 18px 12px 12px}
-  .bundle-ic{
-    width:34px;height:34px;border-radius:10px;flex:none;
-    background:linear-gradient(135deg,#28b1f0 0%, #2f6bf0 55%, #4f46e5 100%);
-    display:flex;align-items:center;justify-content:center;
-  }
-  .bundle-ic svg{width:18px;height:18px}
-  .bundle-t small{display:block;font-weight:400;font-size:12px;color:#7c86ad;margin-top:1px}
-  .assist-pill{
-    padding:11px 18px;border-radius:999px;
-    background:var(--cobalt);color:#fff;
-    box-shadow:0 14px 30px -8px rgba(47,80,215,.5);
-    font-weight:500;
+    from{opacity:0;transform:translate(calc(-50% + var(--fx)),calc(-50% + var(--fy))) scale(.7);filter:blur(8px)}
+    to  {opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0)}
   }
 
   /* ================= CAPTIONS ================= */
@@ -336,7 +336,7 @@
   }
   .cap.dark-cap{color:var(--cap-dark)}
   .cap.light-cap{color:var(--ink)}
-  .cap.big{font-weight:500;font-size:clamp(26px,3.2vw,42px);letter-spacing:-.01em}
+  .cap.big{font-weight:500;font-size:clamp(26px,3.2vw,42px);letter-spacing:-.01em;top:22%}
   @keyframes capCycle{
     0%  {opacity:0;transform:translateX(-50%) translateY(14px)}
     16% {opacity:1;transform:translateX(-50%) translateY(0)}
@@ -356,7 +356,7 @@
     letter-spacing:.24em;text-transform:uppercase;
     color:rgba(255,255,255,.85);
     opacity:0;
-    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 18.3s both;
+    animation:lockIn 1.3s cubic-bezier(.22,.9,.3,1) 15.9s both;
   }
   .lockup h1{
     margin-top:14px;
@@ -365,14 +365,14 @@
     text-wrap:balance;
     text-shadow:0 4px 30px rgba(35,50,140,.35);
     opacity:0;
-    animation:lockIn 1.5s cubic-bezier(.22,.9,.3,1) 18.7s both;
+    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 16.2s both;
   }
   .lockup p{
     margin-top:12px;
     font-size:clamp(15px,1.5vw,20px);font-weight:300;
     color:rgba(255,255,255,.92);
     opacity:0;
-    animation:lockIn 1.5s cubic-bezier(.22,.9,.3,1) 19.2s both;
+    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 16.6s both;
   }
   @keyframes lockIn{
     from{opacity:0;transform:translateY(18px);filter:blur(6px)}
@@ -405,7 +405,13 @@
 
   <!-- backgrounds -->
   <div class="bg bg-night"></div>
-  <div class="bg bg-lav"></div>
+  <div class="bg bg-mesh">
+    <div class="blob" style="--x:-14%;--y:-18%;--sz:58vmin;--c:#8fa8f8;--o:.8; --t:13s;--dx:40px; --dy:30px"></div>
+    <div class="blob" style="--x:66%; --y:-22%;--sz:56vmin;--c:#c39df6;--o:.7; --t:15s;--dx:-36px;--dy:34px"></div>
+    <div class="blob" style="--x:64%; --y:52%; --sz:52vmin;--c:#f6b8d4;--o:.6; --t:12s;--dx:-30px;--dy:-38px"></div>
+    <div class="blob" style="--x:-12%;--y:48%; --sz:56vmin;--c:#9fd8f2;--o:.65;--t:16s;--dx:38px; --dy:-30px"></div>
+    <div class="blob" style="--x:30%; --y:70%; --sz:44vmin;--c:#b9aef8;--o:.5; --t:14s;--dx:-26px;--dy:-24px"></div>
+  </div>
   <div class="bg bg-sky"></div>
   <div class="bg bg-dots"></div>
 
@@ -446,64 +452,81 @@
   <!-- ============ LIGHT WORLD ============ -->
   <div class="scene-light">
     <!-- soft bokeh -->
-    <div class="bokeh" style="--x:-6%;--y:-12%;--sz:34vmin;--c1:rgba(255,255,255,.85);--c2:rgba(255,255,255,0);--d:8.4s;--o:.8;--bl:6px;--dx:20px;--dy:-30px"></div>
-    <div class="bokeh" style="--x:78%;--y:-8%; --sz:30vmin;--c1:rgba(198,206,255,.9);--c2:rgba(198,206,255,0);--d:8.8s;--o:.7;--bl:8px;--dx:-24px;--dy:22px"></div>
-    <div class="bokeh" style="--x:70%;--y:64%; --sz:38vmin;--c1:rgba(255,255,255,.7); --c2:rgba(255,255,255,0);--d:9.2s;--o:.65;--bl:10px;--dx:-18px;--dy:-26px"></div>
-    <div class="bokeh" style="--x:-8%;--y:60%; --sz:32vmin;--c1:rgba(233,222,250,.9); --c2:rgba(233,222,250,0);--d:9s;--o:.7;--bl:8px;--dx:26px;--dy:-18px"></div>
+    <div class="bokeh" style="--x:-6%;--y:-12%;--sz:34vmin;--c1:rgba(255,255,255,.85);--c2:rgba(255,255,255,0);--d:7.9s;--o:.8;--bl:6px;--dx:20px;--dy:-30px"></div>
+    <div class="bokeh" style="--x:78%;--y:-8%; --sz:30vmin;--c1:rgba(198,206,255,.9);--c2:rgba(198,206,255,0);--d:8.2s;--o:.7;--bl:8px;--dx:-24px;--dy:22px"></div>
+    <div class="bokeh" style="--x:70%;--y:64%; --sz:38vmin;--c1:rgba(255,255,255,.7); --c2:rgba(255,255,255,0);--d:8.5s;--o:.65;--bl:10px;--dx:-18px;--dy:-26px"></div>
+    <div class="bokeh" style="--x:-8%;--y:60%; --sz:32vmin;--c1:rgba(233,222,250,.9); --c2:rgba(233,222,250,0);--d:8.35s;--o:.7;--bl:8px;--dx:26px;--dy:-18px"></div>
     <!-- small accent spheres, final shot -->
-    <div class="bokeh" style="--x:16%;--y:20%;--sz:8vmin; --c1:#f3b98e;--c2:#e8935c;--d:17.2s;--o:.85;--bl:5px;--dx:12px;--dy:-20px"></div>
-    <div class="bokeh" style="--x:80%;--y:74%;--sz:9vmin; --c1:#f2a6c8;--c2:#e078ad;--d:17.6s;--o:.8;--bl:7px;--dx:-14px;--dy:-24px"></div>
-    <div class="bokeh" style="--x:8%; --y:76%;--sz:6vmin; --c1:#9cd7f0;--c2:#5aa6dd;--d:18s;--o:.8;--bl:5px;--dx:16px;--dy:-16px"></div>
+    <div class="bokeh" style="--x:16%;--y:20%;--sz:8vmin; --c1:#f3b98e;--c2:#e8935c;--d:15.4s;--o:.85;--bl:5px;--dx:12px;--dy:-20px"></div>
+    <div class="bokeh" style="--x:80%;--y:74%;--sz:9vmin; --c1:#f2a6c8;--c2:#e078ad;--d:15.8s;--o:.8;--bl:7px;--dx:-14px;--dy:-24px"></div>
+    <div class="bokeh" style="--x:8%; --y:76%;--sz:6vmin; --c1:#9cd7f0;--c2:#5aa6dd;--d:16.2s;--o:.8;--bl:5px;--dx:16px;--dy:-16px"></div>
 
-    <!-- absorption ring -->
-    <div class="ring ring-light" style="--d:15.7s"></div>
+    <!-- absorption ring: fires as the last artifact lands -->
+    <div class="ring ring-light" style="--d:13.9s"></div>
 
-    <!-- artifact chips -->
-    <div class="chip" style="--ox:-320px;--oy:-140px">
-      <div class="chip-inner" style="--din:9.3s;  --dout:13.4s; --fx:-140px;--fy:-70px;--ax:320px;--ay:140px">
-        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2.5 2.5 0 0 1 2.5-2.5H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div>
-        <span class="chip-label">Glossary</span>
+    <!-- artifact chips: fly in, orbit the sphere, spiral into it -->
+    <div class="chips-orbit">
+      <div class="chip">
+        <div class="chip-pos" style="--ox:-300px;--oy:-135px;--dc:11.5s">
+          <div class="chip-rot">
+            <div class="chip-inner" style="--din:8.45s;--fx:-130px;--fy:-65px">
+              <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2.5 2.5 0 0 1 2.5-2.5H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div>
+              <span class="chip-label">Glossary</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-pos" style="--ox:-345px;--oy:60px;--dc:11.68s">
+          <div class="chip-rot">
+            <div class="chip-inner" style="--din:8.65s;--fx:-150px;--fy:30px">
+              <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
+              <span class="chip-label">Ontology</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-pos" style="--ox:-170px;--oy:200px;--dc:11.86s">
+          <div class="chip-rot">
+            <div class="chip-inner" style="--din:8.85s;--fx:-75px;--fy:105px">
+              <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#0eb5a3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+              <span class="chip-label">Data binding</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-pos" style="--ox:170px;--oy:200px;--dc:12.04s">
+          <div class="chip-rot">
+            <div class="chip-inner" style="--din:9.05s;--fx:75px;--fy:105px">
+              <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#e0356f" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+              <span class="chip-label">Tool binding</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-pos" style="--ox:345px;--oy:60px;--dc:12.22s">
+          <div class="chip-rot">
+            <div class="chip-inner" style="--din:9.25s;--fx:150px;--fy:30px">
+              <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+              <span class="chip-label">Prompts</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-pos" style="--ox:300px;--oy:-135px;--dc:12.4s">
+          <div class="chip-rot">
+            <div class="chip-inner" style="--din:9.45s;--fx:130px;--fy:-65px">
+              <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#57a83e" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+              <span class="chip-label">Policies</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="chip" style="--ox:-370px;--oy:60px">
-      <div class="chip-inner" style="--din:9.65s; --dout:13.65s;--fx:-160px;--fy:30px;--ax:370px;--ay:-60px">
-        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
-        <span class="chip-label">Ontology</span>
-      </div>
-    </div>
-    <div class="chip" style="--ox:-180px;--oy:210px">
-      <div class="chip-inner" style="--din:10s;   --dout:13.9s; --fx:-80px;--fy:110px;--ax:180px;--ay:-210px">
-        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#0eb5a3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
-        <span class="chip-label">Data binding</span>
-      </div>
-    </div>
-    <div class="chip" style="--ox:180px;--oy:210px">
-      <div class="chip-inner" style="--din:10.35s;--dout:14.15s;--fx:80px;--fy:110px;--ax:-180px;--ay:-210px">
-        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#e0356f" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
-        <span class="chip-label">Tool binding</span>
-      </div>
-    </div>
-    <div class="chip" style="--ox:370px;--oy:60px">
-      <div class="chip-inner" style="--din:10.7s; --dout:14.4s; --fx:160px;--fy:30px;--ax:-370px;--ay:-60px">
-        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
-        <span class="chip-label">Prompts</span>
-      </div>
-    </div>
-    <div class="chip" style="--ox:320px;--oy:-140px">
-      <div class="chip-inner" style="--din:11.05s;--dout:14.65s;--fx:140px;--fy:-70px;--ax:-320px;--ay:140px">
-        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#57a83e" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-        <span class="chip-label">Policies</span>
-      </div>
-    </div>
-
-    <!-- bundle-ready chip after absorption -->
-    <div class="ui-card bundle-card" style="--ox:-330px;--oy:-30px;--d:16.1s">
-      <div class="bundle-ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg></div>
-      <div class="bundle-t">Context bundle<small>6 artifacts · ready</small></div>
-    </div>
-
-    <!-- add-to-assistant pill, final shot -->
-    <div class="ui-card assist-pill" style="--ox:180px;--oy:120px;--d:19.7s">Add to assistant&nbsp;&nbsp;→</div>
   </div>
 
   <!-- ============ HERO ORB ============ -->
@@ -520,8 +543,8 @@
     <div class="cap dark-cap"  style="--d:.6s;  --len:2.9s">Your enterprise data lives everywhere</div>
     <div class="cap dark-cap"  style="--d:3.4s; --len:2.6s">scattered, siloed, out of context</div>
     <div class="cap dark-cap"  style="--d:6.05s;--len:1.8s">It&rsquo;s time AI understood your business</div>
-    <div class="cap light-cap big" style="--d:9.1s; --len:3.6s">Meet Cogentiq Context</div>
-    <div class="cap light-cap" style="--d:13.2s;--len:3.5s">everything AI needs to know, in one place</div>
+    <div class="cap light-cap big" style="--d:8.2s; --len:3s">Meet Cogentiq Context</div>
+    <div class="cap light-cap" style="--d:12.3s;--len:2.9s">everything AI needs to know, in one place</div>
   </div>
 
   <!-- final lockup -->
@@ -559,7 +582,7 @@
   function armReplay(){
     clearTimeout(timer);
     replay.classList.remove('show');
-    timer = setTimeout(function(){ replay.classList.add('show'); }, 22500);
+    timer = setTimeout(function(){ replay.classList.add('show'); }, 19800);
   }
 
   replay.addEventListener('click', function(){
