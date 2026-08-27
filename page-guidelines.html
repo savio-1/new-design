@@ -126,6 +126,7 @@
   --orange-300: #fcd19c; --orange-600: #fc9e24; --orange-800: #dd7c0e;
   --green-300: #aff4c6;  --green-500: #14ae5c;  --green-600: #009951;
   --cyan-400:  #75d7f0;
+  --flag-sheen: rgba(255, 255, 255, .30);
 
   /* ── Type ───────────────────────────────────────────────────── */
   --font-geist:      "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -227,6 +228,7 @@
   --shadow-rail:    8px 0 28px rgba(18, 18, 18, .14);
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
   --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
+  --flag-sheen: rgba(13, 153, 255, .28);
   --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
 
   --logo-openai: #121212;
@@ -872,6 +874,7 @@ body.cq { margin: 0; }
 }
 .cq-rail-flag {
   display: none;
+  position: relative; overflow: hidden;
   flex: none; height: 18px; padding: 0 7px; border-radius: 9px;
   align-items: center;
   background: var(--backgrounds-badge-blue);
@@ -879,6 +882,22 @@ body.cq { margin: 0; }
   color: var(--text-coloured-blue);
   font: 500 11px/1 var(--font-geist); letter-spacing: -0.11px;
 }
+/* A glint crossing the pill every few seconds, with a long hold between
+   passes. Constant motion in a nav panel nags; one periodic pass reads as
+   emphasis and then gets out of the way. The tint is per-theme because a
+   white glint is invisible on the near-white light badge. */
+.cq-rail-flag::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 32%, var(--flag-sheen) 50%, transparent 68%);
+  transform: translateX(-100%);
+  animation: cq-flag-sheen 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cq-flag-sheen {
+  0%, 58% { transform: translateX(-100%); }
+  100%    { transform: translateX(200%); }
+}
+
 .cq-rail-group.is-locked .cq-rail-dot  { display: block; }
 .cq-rail-group.is-locked .cq-rail-flag { display: inline-flex; }
 .cq-rail:not(.is-open) .cq-rail-flag { display: none; }
@@ -1640,7 +1659,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="pg-rule"><dt>Creating one</dt><dd>The primary action opens a modal, not a new page. Two steps where configuration is involved: what it is, then how it runs. The test pane only appears once there is something to test.</dd></div>
           <div class="pg-rule"><dt>Empty states</dt><dd>Filters that match nothing say so in the content area and leave the chrome alone. Never blank the filters bar — the way back is the count and the controls.</dd></div>
           <div class="pg-rule"><dt>The platform panel</dt><dd>Every module page carries it. Two states of one component — crunched at <code>68px</code>, opened at <code>240px</code>. It opens on hover and lays itself <em>over</em> the page: the shell holds a constant <code>68px</code> gutter, so nothing behind it reflows. A hover is not worth relaying out a page for, and content that shifts under the cursor is content you then have to find again. A module never restyles it, and never ships a third width. The item for the module's own section carries <code>.is-active</code>, and the panel opens on that section with every other category collapsed — one open at a time, at either width.</dd></div>
-          <div class="pg-rule"><dt>Offerings sold separately</dt><dd>Give one its own top-level row in the panel, never a slot inside another category — a top-level row is the only one the one-open-category rule can never hide. Off-plan it still shows, with a <code>.cq-rail-flag</code> pill when opened and a <code>.cq-rail-dot</code> on its tile when crunched. Keep the tile at full colour: greying it out reads "not for you", and the crunched panel is the default, so a highlight that lives in the label row is one nobody sees.</dd></div>
+          <div class="pg-rule"><dt>Offerings sold separately</dt><dd>Give one its own top-level row in the panel, never a slot inside another category — a top-level row is the only one the one-open-category rule can never hide. Off-plan it still shows, with a <code>.cq-rail-flag</code> pill when opened and a <code>.cq-rail-dot</code> on its tile when crunched. Keep the tile at full colour: greying it out reads "not for you", and the crunched panel is the default, so a highlight that lives in the label row is one nobody sees. The pill carries a slow sheen — one pass every few seconds, never continuous motion. Hovering the row opens a preview beside the panel: media, then what it does, then the CTA. Open it on a dwell rather than a click; nobody clicks a thing they have not been sold yet, and hold the panel open while the preview is up so its buttons stay reachable.</dd></div>
           <div class="pg-rule"><dt>Docking Tiq</dt><dd>Tiq opens as a floating bar beside whatever it belongs to, and can be docked to the right edge at the same <code>360px</code> width. Docking shifts the page — <code>padding-right</code> on the shell, and the detail panel's <code>right</code> — rather than covering it; the whole point of the taller surface is reading the answers against the content. Undock and close both put every offset back.</dd></div>
         </dl>
       </section>
