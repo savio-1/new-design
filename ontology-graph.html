@@ -101,12 +101,27 @@
 
   /* left sidebar: every entity, searchable, with its relationship count */
   .sidebar{position:fixed;z-index:5;top:66px;left:16px;bottom:16px;width:280px;
-    display:flex;flex-direction:column;overflow:hidden;}
+    display:flex;flex-direction:column;overflow:hidden;
+    transition:width .22s ease, bottom .22s ease;}
+  /* collapsed: panel shrinks to just the search row, tucked to the left edge */
+  .sidebar.collapsed{bottom:auto;width:214px;}
+  .sidebar.collapsed .s-count,.sidebar.collapsed .s-list{display:none}
+  .sidebar.collapsed .s-search{border-bottom:none}
   .sidebar .s-search{display:flex;align-items:center;gap:8px;padding:11px 13px;
     border-bottom:1px solid var(--panel-br);flex:0 0 auto;}
-  .sidebar .s-search svg{width:14px;height:14px;flex:0 0 14px;opacity:.5}
-  .sidebar .s-search input{all:unset;color:var(--text);font-size:12.5px;width:100%;font-family:var(--font)}
+  /* the global `svg{position:absolute;inset:0}` rule (for the graph canvas)
+     would otherwise pin this icon to the panel's corner instead of sitting
+     it inline in the search row */
+  .sidebar .s-search svg{position:static;width:14px;height:14px;flex:0 0 14px;opacity:.5}
+  .sidebar .s-search input{all:unset;color:var(--text);font-size:12.5px;flex:1 1 auto;min-width:0;
+    font-family:var(--font)}
   .sidebar .s-search input::placeholder{color:var(--text-dimmer)}
+  .s-toggle{all:unset;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    width:22px;height:22px;border-radius:6px;cursor:pointer;color:var(--text-dimmer);
+    transition:color .15s,background .15s}
+  .s-toggle:hover{background:#2a2a2a;color:#fff}
+  .s-toggle svg{position:static;width:13px;height:13px;opacity:1;transition:transform .22s ease}
+  .sidebar.collapsed .s-toggle svg{transform:rotate(180deg)}
   .sidebar .s-count{padding:9px 13px 5px;color:var(--text-dimmer);font-size:10.5px;font-weight:600;
     text-transform:uppercase;letter-spacing:.05em;flex:0 0 auto}
   .sidebar .s-list{overflow-y:auto;flex:1 1 auto;padding:2px 7px 10px;}
@@ -193,6 +208,9 @@
     <div class="s-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="#8b929c" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="entSearch" placeholder="Search entities…" autocomplete="off" />
+      <button class="s-toggle" id="entToggle" title="Collapse list" aria-label="Collapse entity list" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6"/></svg>
+      </button>
     </div>
     <div class="s-count" id="entCount"></div>
     <div class="s-list" id="entList"></div>
@@ -1215,7 +1233,21 @@ function renderEntityList(filter){
 function updateSidebarActive(){
   entList.querySelectorAll('.s-row').forEach(r=>{ r.classList.toggle('cur', r.dataset.id===focusId); });
 }
-document.getElementById('entSearch').addEventListener('input',e=>renderEntityList(e.target.value));
+const entSearch=document.getElementById('entSearch');
+const sidebarEl=document.querySelector('.sidebar');
+const entToggle=document.getElementById('entToggle');
+function setSidebarCollapsed(collapsed){
+  sidebarEl.classList.toggle('collapsed', collapsed);
+  entToggle.title = collapsed ? 'Expand list' : 'Collapse list';
+  entToggle.setAttribute('aria-label', collapsed ? 'Expand entity list' : 'Collapse entity list');
+  entToggle.setAttribute('aria-expanded', String(!collapsed));
+}
+entToggle.onclick=()=>setSidebarCollapsed(!sidebarEl.classList.contains('collapsed'));
+entSearch.addEventListener('input',e=>{
+  renderEntityList(e.target.value);
+  // typing is a request to see matches — reopen the list if it was collapsed
+  if(e.target.value.trim()) setSidebarCollapsed(false);
+});
 renderEntityList();
 
 // ---- resize --------------------------------------------------------------
