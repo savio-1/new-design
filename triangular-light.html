@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism Trace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#05060b;
+    --panel:rgba(13,16,23,.82);
+    --panel-solid:#0d1017;
+    --text:#e9ebf4;
+    --muted:#8b90a4;
+    --line:rgba(255,255,255,.09);
+    --line-strong:rgba(255,255,255,.16);
+    --accent:#59d8ff; /* updated live from the active gradient */
+    --display:'Michroma',ui-sans-serif,sans-serif;
+    --ui:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--ui);
+    overflow:hidden;
+  }
+  #stage{position:fixed;inset:0;display:block;width:100%;height:100%}
+
+  /* ---------- nameplate ---------- */
+  .nameplate{
+    position:fixed;top:28px;left:32px;z-index:5;
+    user-select:none;pointer-events:none;
+  }
+  .nameplate h1{
+    font-family:var(--display);
+    font-size:15px;font-weight:400;
+    letter-spacing:.42em;text-transform:uppercase;
+    color:var(--text);
+  }
+  .nameplate p{
+    margin-top:8px;
+    font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);
+  }
+
+  /* ---------- control panel ---------- */
+  .panel{
+    position:fixed;top:24px;right:24px;z-index:10;
+    width:300px;max-height:calc(100vh - 48px);
+    overflow-y:auto;overscroll-behavior:contain;
+    background:var(--panel);
+    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px 18px 20px;
+    display:flex;flex-direction:column;gap:20px;
+    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;
+    transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .3s ease;
+  }
+  .panel.hidden{transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none}
+
+  .panel-head{display:flex;align-items:center;justify-content:space-between}
+  .panel-head .label{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+  .head-btns{display:flex;gap:6px}
+
+  .icon-btn{
+    width:28px;height:28px;border-radius:8px;
+    display:grid;place-items:center;
+    background:transparent;border:1px solid var(--line);
+    color:var(--muted);cursor:pointer;
+    transition:color .15s,border-color .15s,background .15s;
+  }
+  .icon-btn:hover{color:var(--text);border-color:var(--line-strong);background:rgba(255,255,255,.04)}
+  .icon-btn svg{display:block}
+
+  .section{display:flex;flex-direction:column;gap:10px}
+  .section > .label{
+    font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--muted);
+  }
+
+  /* gradient swatches */
+  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:24px 8px}
+  .swatch{
+    position:relative;height:40px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line);
+    outline:2px solid transparent;outline-offset:2px;
+    transition:outline-color .15s,transform .12s;
+  }
+  .swatch:hover{transform:translateY(-1px)}
+  .swatch[aria-pressed="true"]{outline-color:var(--accent)}
+  .swatch .name{
+    position:absolute;left:0;right:0;bottom:-15px;
+    font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;
+  }
+  .swatches{margin-bottom:16px}
+
+  .custom-row{display:flex;align-items:center;gap:10px}
+  .custom-row .label-inline{font-size:12px;color:var(--muted);flex:1}
+  input[type=color]{
+    -webkit-appearance:none;appearance:none;
+    width:34px;height:26px;border-radius:7px;border:1px solid var(--line-strong);
+    background:none;cursor:pointer;padding:0;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
+  input[type=color]::-moz-color-swatch{border:none;border-radius:5px}
+
+  /* orientation */
+  .orient-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .orient-btn{
+    height:42px;border-radius:9px;cursor:pointer;
+    background:rgba(255,255,255,.03);border:1px solid var(--line);
+    display:grid;place-items:center;color:var(--muted);
+    transition:color .15s,border-color .15s,background .15s;
+  }
+  .orient-btn:hover{color:var(--text);border-color:var(--line-strong)}
+  .orient-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:rgba(255,255,255,.05)}
+  .orient-btn svg{display:block}
+
+  /* sliders */
+  .ctl{display:flex;flex-direction:column;gap:6px}
+  .ctl-top{display:flex;justify-content:space-between;align-items:baseline}
+  .ctl-top .ctl-name{font-size:12.5px;font-weight:500;color:var(--text)}
+  .ctl-top .ctl-val{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:100%;height:22px;background:transparent;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:3px;border-radius:2px;
+    background:linear-gradient(to right,var(--accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;
+    background:var(--text);border:none;
+    margin-top:-5.5px;
+    box-shadow:0 0 0 3px rgba(0,0,0,.35);
+  }
+  input[type=range]::-moz-range-track{
+    height:3px;border-radius:2px;background:rgba(255,255,255,.12);
+  }
+  input[type=range]::-moz-range-progress{height:3px;border-radius:2px;background:var(--accent)}
+  input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;border-radius:50%;
+    background:var(--text);border:none;
+    box-shadow:0 0 0 3px rgba(0,0,0,.35);
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
+  .swatch:focus-visible,.orient-btn:focus-visible,.icon-btn:focus-visible,.toggle:focus-visible,.show-btn:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;
+  }
+
+  /* toggle */
+  .toggle-row{display:flex;align-items:center;justify-content:space-between}
+  .toggle-row .ctl-name{font-size:12.5px;font-weight:500}
+  .toggle{
+    width:38px;height:22px;border-radius:11px;cursor:pointer;position:relative;
+    background:rgba(255,255,255,.1);border:1px solid var(--line);
+    transition:background .2s,border-color .2s;
+  }
+  .toggle::after{
+    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:var(--text);transition:transform .2s;
+  }
+  .toggle[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+  .toggle[aria-pressed="true"]::after{transform:translateX(16px);background:#05060b}
+
+  .divider{height:1px;background:var(--line)}
+
+  /* floating show-panel button (when panel hidden) */
+  .show-btn{
+    position:fixed;top:24px;right:24px;z-index:9;
+    height:36px;padding:0 14px;border-radius:10px;
+    display:flex;align-items:center;gap:8px;
+    background:var(--panel);
+    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+    border:1px solid var(--line);color:var(--muted);
+    font-family:var(--ui);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    cursor:pointer;opacity:0;pointer-events:none;transition:opacity .3s ease,color .15s;
+  }
+  .show-btn.visible{opacity:1;pointer-events:auto}
+  .show-btn:hover{color:var(--text)}
+
+  .hint{
+    position:fixed;bottom:20px;left:0;right:0;z-index:4;
+    text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:rgba(139,144,164,.55);user-select:none;pointer-events:none;
+  }
+
+  @media (max-width:640px){
+    .panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-height:52vh;border-radius:18px}
+    .panel.hidden{transform:translateY(calc(100% + 24px))}
+    .show-btn{top:auto;bottom:20px;right:16px}
+    .nameplate{top:18px;left:18px}
+    .hint{display:none}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stage" aria-label="Animated triangle traced by a moving gradient light"></canvas>
+
+<header class="nameplate">
+  <h1>Prism Trace</h1>
+  <p>Triangular light study</p>
+</header>
+
+<aside class="panel" id="panel" aria-label="Animation controls">
+  <div class="panel-head">
+    <span class="label">Controls</span>
+    <div class="head-btns">
+      <button class="icon-btn" id="playBtn" title="Pause / play" aria-label="Pause or play animation">
+        <svg id="pauseIcon" width="11" height="12" viewBox="0 0 11 12" fill="currentColor"><rect x="1" width="3" height="12" rx="1"/><rect x="7" width="3" height="12" rx="1"/></svg>
+        <svg id="playIcon" width="11" height="12" viewBox="0 0 11 12" fill="currentColor" style="display:none"><path d="M1.5.7a1 1 0 0 1 1.52-.86l8 5.3a1 1 0 0 1 0 1.7l-8 5.3A1 1 0 0 1 1.5 11.3z"/></svg>
+      </button>
+      <button class="icon-btn" id="hideBtn" title="Hide panel" aria-label="Hide control panel">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="section">
+    <span class="label">Gradient</span>
+    <div class="swatches" id="swatches" role="group" aria-label="Gradient presets"></div>
+    <div class="custom-row">
+      <span class="label-inline">Custom gradient</span>
+      <input type="color" id="customA" value="#59d8ff" aria-label="Custom gradient start color">
+      <input type="color" id="customB" value="#b44dff" aria-label="Custom gradient end color">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <span class="label">Orientation</span>
+    <div class="orient-grid" id="orientGrid" role="group" aria-label="Triangle orientation"></div>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Rotation</span><span class="ctl-val" id="rotVal">0&deg;</span></div>
+      <input type="range" id="rotation" min="0" max="360" step="1" value="0" aria-label="Rotation angle">
+    </div>
+    <div class="toggle-row">
+      <span class="ctl-name">Auto-rotate</span>
+      <button class="toggle" id="autoRotate" aria-pressed="false" aria-label="Toggle auto-rotate"></button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <span class="label">Motion</span>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Speed</span><span class="ctl-val" id="speedVal">1.0&times;</span></div>
+      <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1" aria-label="Light speed">
+    </div>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Trail length</span><span class="ctl-val" id="trailVal">55%</span></div>
+      <input type="range" id="trail" min="10" max="100" step="1" value="55" aria-label="Trail length">
+    </div>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Light runners</span><span class="ctl-val" id="runnersVal">1</span></div>
+      <input type="range" id="runners" min="1" max="3" step="1" value="1" aria-label="Number of light runners">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <span class="label">Light</span>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Glow</span><span class="ctl-val" id="glowVal">70%</span></div>
+      <input type="range" id="glow" min="0" max="100" step="1" value="70" aria-label="Glow intensity">
+    </div>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Beam width</span><span class="ctl-val" id="widthVal">4.0</span></div>
+      <input type="range" id="beamWidth" min="1" max="10" step="0.5" value="4" aria-label="Beam width">
+    </div>
+    <div class="ctl">
+      <div class="ctl-top"><span class="ctl-name">Size</span><span class="ctl-val" id="sizeVal">60%</span></div>
+      <input type="range" id="size" min="20" max="90" step="1" value="60" aria-label="Triangle size">
+    </div>
+  </div>
+</aside>
+
+<button class="show-btn" id="showBtn" aria-label="Show control panel">
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 3h8M2 6h8M2 9h8"/></svg>
+  Controls
+</button>
+
+<p class="hint">Press H to hide the panel &middot; Space to pause</p>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------------- gradient presets ---------------- */
+  const PRESETS = [
+    { name: "Aurora",   stops: ["#3ff2c8", "#4aa8ff", "#b44dff"] },
+    { name: "Sunset",   stops: ["#ffd166", "#ff5e7e", "#c04cff"] },
+    { name: "Glacier",  stops: ["#e0fbff", "#59d8ff", "#2a6bff"] },
+    { name: "Magma",    stops: ["#fff3b0", "#ff8c42", "#ff2d55"] },
+    { name: "Violet",   stops: ["#ff9ff5", "#b44dff", "#5b2bff"] },
+    { name: "Emerald",  stops: ["#eaffd0", "#5dfc9e", "#00b3a4"] },
+    { name: "Pure",     stops: ["#ffffff", "#c9d2ff", "#8a96c8"] },
+    { name: "Spectrum", stops: null, cycle: true }, // hue cycles over time
+  ];
+
+  const ORIENTATIONS = [
+    { name: "Up",    angle: 0   },
+    { name: "Right", angle: 90  },
+    { name: "Down",  angle: 180 },
+    { name: "Left",  angle: 270 },
+  ];
+
+  const state = {
+    presetIndex: 0,
+    stops: PRESETS[0].stops,
+    cycle: false,
+    rotationDeg: 0,       // slider value / snapped orientation
+    displayRot: 0,        // animated (eased) rotation, radians
+    autoRotate: false,
+    speed: 1,
+    trail: 0.55,          // fraction of perimeter
+    runners: 1,
+    glow: 0.7,
+    beamWidth: 4,
+    size: 0.6,            // fraction of min(viewport)/2
+    running: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+  };
+
+  /* ---------------- color helpers ---------------- */
+  const hexToRgb = h => {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rgbStr = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+
+  // sample a multi-stop gradient at u in [0,1]
+  function sampleStops(stops, u) {
+    u = Math.min(1, Math.max(0, u));
+    const seg = (stops.length - 1) * u;
+    const i = Math.min(stops.length - 2, seg | 0);
+    const t = seg - i;
+    const a = hexToRgb(stops[i]), b = hexToRgb(stops[i + 1]);
+    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+  }
+
+  function hslToRgb(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l - c / 2;
+    let r, g, b;
+    if (h < 60)       [r, g, b] = [c, x, 0];
+    else if (h < 120) [r, g, b] = [x, c, 0];
+    else if (h < 180) [r, g, b] = [0, c, x];
+    else if (h < 240) [r, g, b] = [0, x, c];
+    else if (h < 300) [r, g, b] = [x, 0, c];
+    else              [r, g, b] = [c, 0, x];
+    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+  }
+
+  // color along the trail: u = 0 at the head, 1 at the tail
+  function trailColor(u, timeSec) {
+    if (state.cycle) return hslToRgb(timeSec * 40 + u * 240, 0.95, 0.62);
+    return sampleStops(state.stops, u);
+  }
+
+  function accentColor() {
+    const c = state.cycle ? hslToRgb(180, 0.95, 0.62) : sampleStops(state.stops, 0.35);
+    return rgbStr(c);
+  }
+  function applyAccent() {
+    document.documentElement.style.setProperty("--accent", accentColor());
+  }
+
+  /* ---------------- canvas setup ---------------- */
+  const canvas = document.getElementById("stage");
+  const ctx = canvas.getContext("2d");
+  // low-res offscreen layer: upscaling it back gives a cheap, smooth bloom
+  const glowCanvas = document.createElement("canvas");
+  const gctx = glowCanvas.getContext("2d");
+  const GLOW_SCALE = 5;
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    glowCanvas.width = Math.max(2, Math.round(W / GLOW_SCALE));
+    glowCanvas.height = Math.max(2, Math.round(H / GLOW_SCALE));
+    if (!state.running) draw(perf());
+  }
+  addEventListener("resize", resize);
+
+  /* ---------------- triangle geometry ---------------- */
+  // Equilateral triangle, apex pointing up at rotation 0.
+  function vertices(rotRad) {
+    const cx = W / 2, cy = H / 2;
+    const R = (Math.min(W, H) / 2) * state.size;
+    const v = [];
+    for (let k = 0; k < 3; k++) {
+      const a = rotRad - Math.PI / 2 + (k * 2 * Math.PI) / 3;
+      v.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]);
+    }
+    return v;
+  }
+
+  // point on the perimeter at t in [0,1)
+  function pointAt(v, t) {
+    t = ((t % 1) + 1) % 1;
+    const s = t * 3;
+    const e = Math.min(2, s | 0);
+    const f = s - e;
+    const a = v[e], b = v[(e + 1) % 3];
+    return [lerp(a[0], b[0], f), lerp(a[1], b[1], f)];
+  }
+
+  /* ---------------- drawing ---------------- */
+  let head = 0;            // head position along perimeter [0,1)
+  let lastT = null;
+  const perf = () => performance.now();
+
+  let lastDrawMs = null;
+
+  function draw(nowMs) {
+    const timeSec = nowMs / 1000;
+    const dtDraw = lastDrawMs == null ? 1 / 60 : Math.min(0.1, (nowMs - lastDrawMs) / 1000);
+    lastDrawMs = nowMs;
+    ctx.clearRect(0, 0, W, H);
+
+    // ground: subtle vignette so the black has depth
+    const vg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
+    vg.addColorStop(0, "#090b13");
+    vg.addColorStop(1, "#04050a");
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+
+    // ease displayed rotation toward the target (time-based, frame-rate independent)
+    const target = (state.rotationDeg * Math.PI) / 180;
+    let d = target - state.displayRot;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    state.displayRot += d * Math.min(1, dtDraw * 6);
+    if (state.autoRotate) {
+      state.rotationDeg = (state.rotationDeg + 8 * state.speed * dtDraw) % 360;
+      syncRotationUI();
+    }
+
+    const v = vertices(state.displayRot);
+    const glow = state.glow;
+
+    // ambient bloom at the centroid
+    const mid = trailColor(0.5, timeSec);
+    const cg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.min(W, H) * 0.62);
+    cg.addColorStop(0, rgbStr(mid, 0.10 * glow));
+    cg.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, W, H);
+
+    // faint resting outline of the triangle
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.05 * glow})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(v[0][0], v[0][1]);
+    ctx.lineTo(v[1][0], v[1][1]);
+    ctx.lineTo(v[2][0], v[2][1]);
+    ctx.closePath();
+    ctx.stroke();
+
+    // light runners.
+    // Bloom: the trail is drawn wide on a 1/5-resolution offscreen canvas and
+    // upscaled back — bilinear smoothing turns it into a soft halo far cheaper
+    // (and smoother) than per-segment shadowBlur.
+    const SEG = Math.round(70 + 110 * state.trail);
+    const gs = glowCanvas.width / W;
+    gctx.clearRect(0, 0, glowCanvas.width, glowCanvas.height);
+    gctx.globalCompositeOperation = "lighter";
+    gctx.lineCap = "round";
+
+    for (let r = 0; r < state.runners; r++) {
+      const hd = head + r / state.runners;
+      for (let i = 0; i < SEG; i++) {
+        const u0 = i / SEG, u1 = (i + 1) / SEG;
+        const p0 = pointAt(v, hd - u0 * state.trail);
+        const p1 = pointAt(v, hd - u1 * state.trail);
+        const fade = Math.pow(1 - u0, 1.6);
+        const col = trailColor(u0, timeSec);
+        gctx.strokeStyle = rgbStr(col, 0.5 * fade);
+        gctx.lineWidth = Math.max(1.2, state.beamWidth * (2 + 4 * glow) * (1.7 - u0) * gs);
+        gctx.beginPath();
+        gctx.moveTo(p0[0] * gs, p0[1] * gs);
+        gctx.lineTo(p1[0] * gs, p1[1] * gs);
+        gctx.stroke();
+      }
+    }
+
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.45 + 0.55 * glow;
+    ctx.drawImage(glowCanvas, 0, 0, W, H);
+    ctx.globalAlpha = 1;
+
+    // crisp beam + hot core on the main canvas — butt caps so segment joints
+    // don't double-brighten under "lighter"
+    ctx.lineCap = "butt";
+    for (let r = 0; r < state.runners; r++) {
+      const hd = head + r / state.runners;
+      for (let i = 0; i < SEG; i++) {
+        const u0 = i / SEG, u1 = (i + 1) / SEG;
+        const p0 = pointAt(v, hd - u0 * state.trail);
+        const p1 = pointAt(v, hd - (u1 + 0.001) * state.trail);
+        const fade = Math.pow(1 - u0, 1.6);
+        const col = trailColor(u0, timeSec);
+
+        ctx.strokeStyle = rgbStr(col, 0.55 * fade);
+        ctx.lineWidth = state.beamWidth * (1.5 - 0.9 * u0);
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+
+        const core = [lerp(col[0], 255, 0.6 * fade), lerp(col[1], 255, 0.6 * fade), lerp(col[2], 255, 0.6 * fade)];
+        ctx.strokeStyle = rgbStr(core, 0.9 * fade);
+        ctx.lineWidth = Math.max(0.7, state.beamWidth * 0.45 * (1.3 - u0));
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+      }
+
+      // head flare
+      const hp = pointAt(v, hd);
+      const hc = trailColor(0, timeSec);
+      const fr = 22 + 42 * glow;
+      const fg = ctx.createRadialGradient(hp[0], hp[1], 0, hp[0], hp[1], fr);
+      fg.addColorStop(0, "rgba(255,255,255,.95)");
+      fg.addColorStop(0.25, rgbStr(hc, 0.8));
+      fg.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.arc(hp[0], hp[1], fr, 0, 7); ctx.fill();
+    }
+
+    // vertex sparks: pulse when a runner head passes near a corner
+    for (let k = 0; k < 3; k++) {
+      let near = 0;
+      for (let r = 0; r < state.runners; r++) {
+        const hd = ((head + r / state.runners) % 1 + 1) % 1;
+        let dd = Math.abs(hd - k / 3); dd = Math.min(dd, 1 - dd);
+        near = Math.max(near, Math.max(0, 1 - dd * 14));
+      }
+      if (near > 0.01) {
+        const c = trailColor(0.15, timeSec);
+        const g = ctx.createRadialGradient(v[k][0], v[k][1], 0, v[k][0], v[k][1], 14 + 26 * near * glow);
+        g.addColorStop(0, rgbStr(c, 0.65 * near));
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(v[k][0], v[k][1], 14 + 26 * near * glow, 0, 7); ctx.fill();
+      }
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  function frame(nowMs) {
+    if (lastT == null) lastT = nowMs;
+    const dt = Math.min(0.05, (nowMs - lastT) / 1000);
+    lastT = nowMs;
+    head = ((head + dt * 0.14 * state.speed) % 1 + 1) % 1;
+    draw(nowMs);
+    if (state.running) requestAnimationFrame(frame);
+  }
+
+  /* ---------------- UI wiring ---------------- */
+  const $ = id => document.getElementById(id);
+
+  // gradient swatches
+  const swatchWrap = $("swatches");
+  const swatchBtns = PRESETS.map((p, i) => {
+    const b = document.createElement("button");
+    b.className = "swatch";
+    b.type = "button";
+    b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+    b.setAttribute("aria-label", `${p.name} gradient`);
+    b.style.background = p.cycle
+      ? "linear-gradient(135deg,#ff4d6d,#ffd166,#5dfc9e,#59d8ff,#b44dff)"
+      : `linear-gradient(135deg,${p.stops.join(",")})`;
+    const n = document.createElement("span");
+    n.className = "name"; n.textContent = p.name;
+    b.appendChild(n);
+    b.addEventListener("click", () => selectPreset(i));
+    swatchWrap.appendChild(b);
+    return b;
+  });
+
+  function selectPreset(i) {
+    state.presetIndex = i;
+    state.cycle = !!PRESETS[i].cycle;
+    if (!state.cycle) state.stops = PRESETS[i].stops;
+    swatchBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
+    applyAccent();
+    redrawIfPaused();
+  }
+
+  function useCustom() {
+    state.presetIndex = -1;
+    state.cycle = false;
+    state.stops = [$("customA").value, $("customB").value];
+    swatchBtns.forEach(b => b.setAttribute("aria-pressed", "false"));
+    applyAccent();
+    redrawIfPaused();
+  }
+  $("customA").addEventListener("input", useCustom);
+  $("customB").addEventListener("input", useCustom);
+
+  // orientation buttons — triangle glyph rotated to match
+  const orientGrid = $("orientGrid");
+  const orientBtns = ORIENTATIONS.map(o => {
+    const b = document.createElement("button");
+    b.className = "orient-btn";
+    b.type = "button";
+    b.setAttribute("aria-pressed", o.angle === 0 ? "true" : "false");
+    b.setAttribute("aria-label", `Point ${o.name.toLowerCase()}`);
+    b.title = `Point ${o.name.toLowerCase()}`;
+    b.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(${o.angle}deg)">
+      <path d="M8 2.2 14 13H2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+    b.addEventListener("click", () => {
+      state.rotationDeg = o.angle;
+      syncRotationUI();
+      redrawIfPaused();
+    });
+    orientGrid.appendChild(b);
+    return b;
+  });
+
+  function syncRotationUI() {
+    const deg = Math.round(state.rotationDeg) % 360;
+    $("rotation").value = deg;
+    setFill($("rotation"));
+    $("rotVal").textContent = deg + "°";
+    orientBtns.forEach((b, k) =>
+      b.setAttribute("aria-pressed", String(ORIENTATIONS[k].angle === deg)));
+  }
+
+  // slider fill (webkit track needs a CSS var)
+  function setFill(el) {
+    const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
+    el.style.setProperty("--fill", pct + "%");
+  }
+
+  function bindRange(id, valId, apply, fmt) {
+    const el = $(id);
+    const out = $(valId);
+    const update = () => {
+      setFill(el);
+      out.textContent = fmt(parseFloat(el.value));
+      apply(parseFloat(el.value));
+      redrawIfPaused();
+    };
+    el.addEventListener("input", update);
+    setFill(el);
+  }
+
+  bindRange("rotation", "rotVal", v => { state.rotationDeg = v; syncRotationUI(); }, v => Math.round(v) + "°");
+  bindRange("speed", "speedVal", v => state.speed = v, v => v.toFixed(1) + "×");
+  bindRange("trail", "trailVal", v => state.trail = v / 100, v => Math.round(v) + "%");
+  bindRange("runners", "runnersVal", v => state.runners = v, v => String(v));
+  bindRange("glow", "glowVal", v => state.glow = v / 100, v => Math.round(v) + "%");
+  bindRange("beamWidth", "widthVal", v => state.beamWidth = v, v => v.toFixed(1));
+  bindRange("size", "sizeVal", v => state.size = v / 100, v => Math.round(v) + "%");
+
+  // auto-rotate toggle
+  $("autoRotate").addEventListener("click", e => {
+    state.autoRotate = !state.autoRotate;
+    e.currentTarget.setAttribute("aria-pressed", String(state.autoRotate));
+  });
+
+  // play / pause
+  function setRunning(run) {
+    state.running = run;
+    $("pauseIcon").style.display = run ? "block" : "none";
+    $("playIcon").style.display = run ? "none" : "block";
+    if (run) { lastT = null; requestAnimationFrame(frame); }
+  }
+  $("playBtn").addEventListener("click", () => setRunning(!state.running));
+
+  function redrawIfPaused() { if (!state.running) draw(perf()); }
+
+  // panel hide / show
+  const panel = $("panel"), showBtn = $("showBtn");
+  function setPanel(visible) {
+    panel.classList.toggle("hidden", !visible);
+    showBtn.classList.toggle("visible", !visible);
+  }
+  $("hideBtn").addEventListener("click", () => setPanel(false));
+  showBtn.addEventListener("click", () => setPanel(true));
+
+  addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.key === " ") { e.preventDefault(); setRunning(!state.running); }
+    if (e.key.toLowerCase() === "h") setPanel(panel.classList.contains("hidden"));
+  });
+
+  /* ---------------- boot ---------------- */
+  applyAccent();
+  resize();
+  if (state.running) {
+    requestAnimationFrame(frame);
+  } else {
+    // reduced motion: render one composed frame, leave play available
+    setRunning(false);
+    draw(perf());
+  }
+})();
+</script>
+</body>
+</html>
