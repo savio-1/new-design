@@ -1425,17 +1425,111 @@
     .docs-empty.is-on { display: flex; }
     .docs-empty b { color: var(--text-secondary); font-weight: 500; }
 
-    /* ── Detail panel additions ─────────────────────────────────── */
-    .panel-doc-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .panel-doc-name { min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+    /* ══════════════════════════════════════════════════════════════
+       DOC VIEWER — the modal a document opens into. Preview on the
+       left, the doc's own details on the right. Built on the chrome's
+       .modal-scrim / .modal / .mm-head / .mm-foot shell so it reads
+       as the same modal the rest of the product uses.
+       ══════════════════════════════════════════════════════════════ */
+    .modal--dv {
+      width: 1100px;
+      height: min(84vh, 720px);
+    }
+    /* The chrome's head is a fixed 48px for one line of text; this one
+       carries a name over its filename. */
+    .modal--dv .mm-head { height: auto; min-height: 56px; }
+
+    .dv-head-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .dv-head-meta { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .dv-head-name {
+      color: var(--text-primary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     /* Filename — the machine identifier under the human name, in the
        mono voice the product reserves for identifiers. */
-    .panel-doc-file {
+    .dv-head-file {
       color: var(--text-teritiary);
       font: 400 12px/16px var(--font-geist-mono); letter-spacing: -0.24px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .panel-actions .btn-ghost { height: 32px; }
+
+    .dv-body { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+
+    /* Preview pane — sunken ground with the document floated on it. */
+    .dv-preview {
+      flex: 1 1 auto; min-width: 0;
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--backgrounds-page-bg-4);
+      display: flex; justify-content: center; align-items: flex-start;
+    }
+    .dv-preview::-webkit-scrollbar { width: 10px; }
+    .dv-preview::-webkit-scrollbar-thumb {
+      background: var(--strokes-type-default);
+      border: 3px solid transparent; background-clip: content-box; border-radius: 8px;
+    }
+
+    /* Details pane. */
+    .dv-side {
+      width: 340px; flex: none;
+      display: flex; flex-direction: column;
+      border-left: 1px solid var(--strokes-line-1);
+      background: var(--backgrounds-page-bg-2);
+    }
+    .dv-side__scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+    .dv-sec {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--strokes-line-1);
+    }
+    .dv-sec:last-child { border-bottom: 0; }
+    .dv-hint { color: var(--text-teritiary); }
+    /* The chrome's textarea is sized for the model modal's long prompt;
+       three lines is enough here, and the saving keeps every details
+       row above the fold on a 720px modal. */
+    .dv-side .control.is-textarea { height: 88px; }
+    .dv-side .control.is-textarea textarea { height: 62px; }
+    .dv-side .row { padding: 7px 0; }
+
+    /* Action stack, pinned under the details. Star reads filled when
+       on; delete is the one destructive action, so it stays quiet
+       until hovered and asks again before it acts. */
+    .dv-actions {
+      flex: none;
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--strokes-line-1);
+    }
+    .dv-act {
+      width: 100%; height: 36px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; border-radius: 8px;
+      border: 1px solid var(--strokes-line-3);
+      background: var(--backgrounds-card-bg-5);
+      color: var(--text-secondary);
+      text-align: left;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
+    }
+    .dv-act:hover { border-color: var(--strokes-line-1); color: var(--text-primary); }
+    .dv-act .ic { flex: none; }
+    .dv-act.is-on {
+      background: var(--backgrounds-button-tonal-1);
+      border-color: var(--strokes-colour-blue);
+      color: var(--text-button-tonal-1);
+    }
+    .dv-act--danger { color: var(--text-teritiary); }
+    .dv-act--danger:hover {
+      border-color: var(--red-500);
+      color: var(--red-500);
+    }
+    .dv-act--danger.is-confirm {
+      background: var(--red-500);
+      border-color: var(--red-500);
+      color: #fff;
+    }
+
+    /* Outline action — a step back that must read as available without
+       being the loudest thing on screen. Same surface as .dropdown. */
     .btn-ghost {
       display: flex; align-items: center; justify-content: center; gap: 4px;
       height: 32px; padding: 6px 12px; border-radius: 8px;
@@ -1446,9 +1540,185 @@
       transition: border-color .15s ease, color .15s ease;
     }
     .btn-ghost:hover { border-color: var(--strokes-line-1); color: var(--text-primary); }
-    .row .v.with-avatar { display: flex; align-items: center; gap: 6px; }
+
+    /* The chrome styles a disabled .btn-wide but not a disabled
+       .btn-primary, so a blocked Save still read as available. */
+    .btn-primary:disabled {
+      background: var(--backgrounds-disabled-tonal-2);
+      color: var(--text-disabled-tonal-2);
+      cursor: not-allowed;
+      filter: none;
+    }
+
+    .mm-foot--dv { justify-content: space-between; }
+    .dv-foot-note { color: var(--text-teritiary); }
+    .dv-foot-actions { display: flex; align-items: center; gap: 12px; }
+
+    /* ── Document previews ───────────────────────────────────────
+       Paper is an illustration constant, like the folder art: a real
+       page is paper-coloured in either theme, and these values are
+       the same ones the folder's sheets use so the two agree. */
+    .dv-doc {
+      --paper:      #f7f7f7;
+      --paper-edge: #dedede;
+      --paper-rule: #e4e4e4;
+      --paper-line: #d4d4d4;
+      --paper-ink:  #2f2f2f;
+      --paper-sub:  #6b6b6b;
+      width: 100%; max-width: 580px;
+    }
+    .dv-page {
+      width: 100%;
+      padding: 40px 44px;
+      border-radius: 6px;
+      background: var(--paper);
+      border: 1px solid var(--paper-edge);
+      box-shadow: var(--shadow-modal);
+      color: var(--paper-ink);
+    }
+    .dv-page + .dv-page { margin-top: 16px; }
+    .dv-page__title {
+      margin: 0 0 4px;
+      font: 500 20px/26px var(--font-geist); letter-spacing: -0.6px;
+      color: var(--paper-ink);
+    }
+    .dv-page__kicker {
+      margin: 0 0 18px;
+      font: 400 11px/16px var(--font-geist-mono); letter-spacing: .2px;
+      color: var(--paper-sub);
+      text-transform: uppercase;
+    }
+    .dv-page__rule { height: 1px; background: var(--paper-rule); margin: 18px 0; }
+    .dv-page p {
+      margin: 0 0 10px;
+      font: 400 12.5px/20px var(--font-geist); letter-spacing: -0.1px;
+      color: var(--paper-sub);
+    }
+    .dv-page h3 {
+      margin: 16px 0 8px;
+      font: 500 13px/18px var(--font-geist); letter-spacing: -0.2px;
+      color: var(--paper-ink);
+    }
+    .dv-lines { display: flex; flex-direction: column; gap: 7px; }
+    .dv-line { height: 7px; border-radius: 3px; background: var(--paper-line); }
+
+    /* Spreadsheet */
+    .dv-sheet {
+      width: 100%; overflow: hidden;
+      border-radius: 6px;
+      background: var(--paper);
+      border: 1px solid var(--paper-edge);
+      box-shadow: var(--shadow-modal);
+    }
+    .dv-sheet__tab {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      background: #ebebeb;
+      border-bottom: 1px solid var(--paper-edge);
+      font: 500 11px/16px var(--font-geist); letter-spacing: -0.1px;
+      color: var(--paper-sub);
+    }
+    .dv-grid { width: 100%; border-collapse: collapse; }
+    .dv-grid th, .dv-grid td {
+      padding: 7px 10px;
+      border-right: 1px solid var(--paper-rule);
+      border-bottom: 1px solid var(--paper-rule);
+      font: 400 11.5px/16px var(--font-geist);
+      color: var(--paper-sub);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .dv-grid th {
+      background: #efefef;
+      font-weight: 500;
+      color: var(--paper-ink);
+    }
+    .dv-grid td.num { text-align: right; font-variant-numeric: tabular-nums; color: var(--paper-ink); }
+    .dv-grid tr:last-child td { border-bottom: 0; }
+    .dv-grid th:last-child, .dv-grid td:last-child { border-right: 0; }
+
+    /* Slide */
+    .dv-slide {
+      width: 100%; aspect-ratio: 16 / 9;
+      padding: 32px 36px;
+      border-radius: 6px;
+      background: var(--paper);
+      border: 1px solid var(--paper-edge);
+      box-shadow: var(--shadow-modal);
+      display: flex; flex-direction: column;
+    }
+    .dv-slide__title {
+      margin: 0 0 6px;
+      font: 500 22px/28px var(--font-geist); letter-spacing: -0.7px;
+      color: var(--paper-ink);
+    }
+    .dv-slide__sub { margin: 0 0 20px; font: 400 12px/18px var(--font-geist); color: var(--paper-sub); }
+    .dv-bars { flex: 1 1 auto; display: flex; align-items: flex-end; gap: 14px; padding-bottom: 4px; }
+    .dv-bar { flex: 1 1 0; border-radius: 3px 3px 0 0; background: var(--blue-500); }
+    .dv-bar:nth-child(2) { background: var(--indigo-500); }
+    .dv-bar:nth-child(3) { background: var(--green-500); }
+    .dv-bar:nth-child(4) { background: var(--blue-300); }
+    .dv-bar:nth-child(5) { background: var(--purple-500); }
+    .dv-strip { margin-top: 14px; display: flex; gap: 10px; }
+    .dv-thumb {
+      flex: 1 1 0; aspect-ratio: 16 / 9;
+      border-radius: 4px;
+      background: var(--paper);
+      border: 1px solid var(--paper-edge);
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 8px;
+    }
+    .dv-thumb span { height: 4px; border-radius: 2px; background: var(--paper-line); }
+    .dv-thumb span:first-child { width: 60%; background: var(--paper-sub); }
+    .dv-thumb.is-current { border-color: var(--strokes-card-selected); box-shadow: 0 0 0 1px var(--strokes-card-selected); }
+
+    /* Image */
+    .dv-image {
+      width: 100%; aspect-ratio: 4 / 3;
+      border-radius: 6px; overflow: hidden;
+      border: 1px solid var(--paper-edge);
+      box-shadow: var(--shadow-modal);
+      background:
+        linear-gradient(225deg, var(--blue-600) 0%, var(--indigo-500) 46%, var(--purple-500) 100%);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+    }
+    .dv-image__mark {
+      width: 96px; height: 96px; border-radius: 24px;
+      background: rgba(255, 255, 255, .16);
+      border: 1px solid rgba(255, 255, 255, .28);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Markdown */
+    .dv-md { font: 400 12.5px/20px var(--font-geist); color: var(--paper-sub); }
+    .dv-md__fm {
+      margin: 0 0 14px; padding: 10px 12px;
+      border-radius: 5px;
+      background: #ececec;
+      border: 1px solid var(--paper-edge);
+      font: 400 11px/17px var(--font-geist-mono); letter-spacing: -0.1px;
+      color: var(--paper-sub);
+      white-space: pre-wrap;
+    }
+    .dv-md ul { margin: 0 0 10px; padding-left: 18px; }
+    .dv-md li { margin: 3px 0; }
+    .dv-md code {
+      padding: 1px 5px; border-radius: 4px;
+      background: #ececec; border: 1px solid var(--paper-edge);
+      font: 400 11px/16px var(--font-geist-mono);
+      color: var(--paper-ink);
+    }
+
+    .row .v.with-avatar { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
     .row .v .folder-link { color: var(--text-coloured-blue); cursor: pointer; }
     .row .v .folder-link:hover { text-decoration: underline; }
+
+    @media (max-width: 1000px) {
+      .modal--dv { width: 100%; height: min(90vh, 760px); }
+      .dv-body { flex-direction: column; overflow-y: auto; }
+      .dv-side { width: 100%; border-left: 0; border-top: 1px solid var(--strokes-line-1); }
+    }
   </style>
 
 
@@ -1733,47 +2003,83 @@
 </div>
 
 
-<!-- ══ Doc detail panel ═════════════════════════════════════════ -->
-<aside class="panel" id="panel" aria-label="Document details" aria-hidden="true">
-  <div class="panel-head">
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="panel-tags-row" style="justify-content:flex-end">
-        <button class="panel-close" id="panelClose" aria-label="Close details">
-          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
-        </button>
+<!-- ══ Doc viewer ═══════════════════════════════════════════════
+     A document opens into a modal: the file previewed on the left,
+     its own details and actions on the right. Values in the details
+     pane are drafts — Save commits them, closing discards. -->
+<div class="modal-scrim" id="dvScrim" role="dialog" aria-modal="true" aria-labelledby="dvName" aria-hidden="true">
+  <div class="modal modal--dv" id="dvModal">
+
+    <div class="mm-head">
+      <div class="dv-head-left">
+        <svg class="ic dfile" width="26" height="32" viewBox="0 0 32 40" aria-hidden="true"><use id="dvIcon" href="#df-pdf"/></svg>
+        <span class="dv-head-meta">
+          <span class="dv-head-name t-body1-med" id="dvName">—</span>
+          <span class="dv-head-file" id="dvFile">—</span>
+        </span>
       </div>
-      <div class="panel-title-block">
-        <div class="panel-doc-title">
-          <svg class="ic dfile" id="panelTile" width="27" height="34" viewBox="0 0 32 40" aria-hidden="true"><use id="panelTileIcon" href="#df-pdf"/></svg>
-          <span style="min-width:0;display:flex;flex-direction:column;gap:1px">
-            <span class="panel-doc-name t-subhead2-med" id="panelTitle">—</span>
-            <span class="panel-doc-file" id="panelFile">—</span>
-          </span>
+      <button class="icon-btn-32" id="dvClose" aria-label="Close preview">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-close20"/></svg>
+      </button>
+    </div>
+
+    <div class="dv-body">
+      <div class="dv-preview" id="dvPreview"></div>
+
+      <aside class="dv-side" aria-label="File details">
+        <div class="dv-side__scroll">
+          <section class="dv-sec">
+            <label class="field">
+              <span class="field-label t-body2-reg">Name</span>
+              <span class="control">
+                <input id="dvNameInput" class="t-body2-reg" type="text" aria-label="File name" />
+              </span>
+            </label>
+            <label class="field">
+              <span class="field-label-row">
+                <span class="field-label t-body2-reg">Description</span>
+                <span class="dv-hint t-caption1-reg">Optional</span>
+              </span>
+              <span class="control is-textarea">
+                <textarea id="dvDescInput" class="t-body2-reg" rows="3"
+                  placeholder="Say what this document is, so people and agents pick the right one."></textarea>
+              </span>
+            </label>
+          </section>
+
+          <section class="dv-sec">
+            <p class="section-header t-caption1-med">DETAILS</p>
+            <div class="rows" id="dvRows"></div>
+          </section>
         </div>
-        <p class="panel-desc t-body2-reg" id="panelDesc"></p>
-      </div>
+
+        <div class="dv-actions">
+          <button class="dv-act t-body2-reg" id="dvStar">
+            <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use id="dvStarIcon" href="#dc-star"/></svg>
+            <span id="dvStarLabel">Star this file</span>
+          </button>
+          <button class="dv-act t-body2-reg" id="dvDownload">
+            <svg class="ic" width="16" height="16" viewBox="0 0 20 20"><use href="#dc-download"/></svg>
+            Download
+          </button>
+          <button class="dv-act dv-act--danger t-body2-reg" id="dvDelete">
+            <svg class="ic" width="16" height="16" viewBox="0 0 20 20"><use href="#ic-rowdelete"/></svg>
+            <span id="dvDeleteLabel">Delete file</span>
+          </button>
+        </div>
+      </aside>
     </div>
 
-    <div class="panel-actions">
-      <button class="btn-primary t-body2-med" id="panelDownload">
-        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#dc-download"/></svg>
-        Download
-      </button>
-      <button class="btn-tonal t-body2-med" id="panelStar">
-        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use id="panelStarIcon" href="#dc-star"/></svg>
-        <span id="panelStarLabel">Star</span>
-      </button>
-      <button class="icon-btn-32" aria-label="More actions">
-        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-optionsv"/></svg>
-      </button>
+    <div class="mm-foot mm-foot--dv">
+      <span class="dv-foot-note t-caption1-reg" id="dvNote">Preview only</span>
+      <span class="dv-foot-actions">
+        <button class="btn-ghost t-body2-med" id="dvCancel">Cancel</button>
+        <button class="btn-primary t-body2-med" id="dvSave" disabled>Save changes</button>
+      </span>
     </div>
+
   </div>
-
-  <section class="panel-section">
-    <p class="section-header t-caption1-med">DETAILS</p>
-    <div class="rows" id="panelRows"></div>
-  </section>
-</aside>
+</div>
 
 
 
@@ -2050,7 +2356,7 @@ function render() {
 function setNav(nav) {
   state.nav = nav;
   state.folder = null;
-  if (state.selected !== null) closePanel(false);
+  if (draft.id !== null) closeViewer();
   document.querySelectorAll('.docs-side .side-item').forEach(el =>
     el.classList.toggle('is-active', el.dataset.nav === nav));
   render();
@@ -2068,47 +2374,222 @@ function openFolder(fid) {
 function toggleStar(id) {
   state.starred.has(id) ? state.starred.delete(id) : state.starred.add(id);
   render();
-  if (state.selected === id) renderPanelStar();
+  if (draft.id === id) renderViewerStar();
 }
 
-/* ── Detail panel ───────────────────────────────────────────────── */
-function renderPanelStar() {
-  const on = state.starred.has(state.selected);
-  $('panelStarIcon').setAttribute('href', on ? '#dc-star-fill' : '#dc-star');
-  $('panelStarLabel').textContent = on ? 'Starred' : 'Star';
+/* ── Doc viewer ──────────────────────────────────────────────────
+   A document opens into a modal: a preview of the file on the left,
+   its details on the right. Name and description are edited as a
+   draft — Save commits to the doc, closing throws the draft away. */
+const draft = { id: null, name: '', desc: '' };
+
+/* Previews are drawn, not fetched: one faux document per family, using
+   the doc's own name and description so what is on screen is this
+   file rather than a generic placeholder. */
+const lines = (widths) =>
+  `<span class="dv-lines">${widths.map(w => `<span class="dv-line" style="width:${w}%"></span>`).join('')}</span>`;
+
+function pagePreview(d, pages) {
+  const body = d.desc
+    ? `<p>${esc(d.desc)}</p>`
+    : `<p>${esc(d.name)} — ${esc(TYPES[d.type].label)}, ${esc(d.size)}, added by ${esc(PEOPLE[d.by].name)}.</p>`;
+  return `
+    <div class="dv-page">
+      <p class="dv-page__kicker">${esc(folderById(d.folder).name)}</p>
+      <h2 class="dv-page__title">${esc(d.name)}</h2>
+      ${body}
+      ${lines([100, 96, 99, 72])}
+      <h3>Summary</h3>
+      ${lines([98, 100, 91])}
+      <span class="dv-page__rule"></span>
+      <h3>Detail</h3>
+      ${lines([100, 94, 100, 97, 64])}
+    </div>
+    ${pages > 1 ? `<div class="dv-page">${lines([46, 100, 97, 100, 88, 100, 93, 70])}</div>` : ''}`;
 }
 
-function openPanel(id) {
+function sheetPreview(d) {
+  const cols = ['Vendor', 'Category', 'Month', 'Amount'];
+  const rows = [
+    ['Northwind Cloud', 'Infrastructure', 'Jun 2026', '48,210'],
+    ['Beacon Analytics', 'Software',       'Jun 2026', '12,400'],
+    ['Harbor Legal',     'Services',       'Jun 2026', '31,875'],
+    ['Northwind Cloud',  'Infrastructure', 'Jul 2026', '49,060'],
+    ['Meridian Travel',  'Travel',         'Jul 2026',  '8,930'],
+    ['Beacon Analytics', 'Software',       'Jul 2026', '12,400'],
+    ['Harbor Legal',     'Services',       'Aug 2026', '27,540'],
+  ];
+  return `
+    <div class="dv-sheet">
+      <div class="dv-sheet__tab">
+        <svg class="ic" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><use href="#dc-xls"/></svg>
+        ${esc(d.name)}
+      </div>
+      <table class="dv-grid">
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${rows.map(r => `<tr>${r.map((c, i) =>
+            `<td${i === 3 ? ' class="num"' : ''}>${c}</td>`).join('')}</tr>`).join('')}
+          <tr>${['Total', '', '', '190,415'].map((c, i) =>
+            `<td${i === 3 ? ' class="num"' : ''}>${c}</td>`).join('')}</tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function slidePreview(d) {
+  return `
+    <div class="dv-doc" style="max-width:640px">
+      <div class="dv-slide">
+        <h2 class="dv-slide__title">${esc(d.name)}</h2>
+        <p class="dv-slide__sub">${esc(d.desc || folderById(d.folder).name)}</p>
+        <span class="dv-bars">
+          <span class="dv-bar" style="height:42%"></span>
+          <span class="dv-bar" style="height:64%"></span>
+          <span class="dv-bar" style="height:52%"></span>
+          <span class="dv-bar" style="height:81%"></span>
+          <span class="dv-bar" style="height:70%"></span>
+        </span>
+      </div>
+      <div class="dv-strip">
+        <span class="dv-thumb is-current"><span></span><span></span><span style="width:70%"></span></span>
+        <span class="dv-thumb"><span></span><span style="width:80%"></span><span style="width:55%"></span></span>
+        <span class="dv-thumb"><span></span><span style="width:64%"></span><span style="width:88%"></span></span>
+        <span class="dv-thumb"><span></span><span style="width:92%"></span><span style="width:48%"></span></span>
+      </div>
+    </div>`;
+}
+
+function imgPreview(d) {
+  return `
+    <div class="dv-image">
+      <span class="dv-image__mark">
+        <svg width="40" height="40" viewBox="0 0 16 16" aria-hidden="true"><use href="#dc-img"/></svg>
+      </span>
+    </div>`;
+}
+
+function mdDocPreview(d) {
+  return `
+    <div class="dv-page">
+      <div class="dv-md">
+        <pre class="dv-md__fm">title: ${esc(d.name)}
+owner: ${esc(PEOPLE[d.by].name)}
+status: current</pre>
+        <h2 class="dv-page__title">${esc(d.name)}</h2>
+        ${d.desc ? `<p>${esc(d.desc)}</p>` : ''}
+        <h3>Scope</h3>
+        <ul>
+          <li>What this covers, and what it deliberately leaves out</li>
+          <li>Which systems the change touches — <code>${esc(d.file)}</code></li>
+          <li>How success is measured once it ships</li>
+        </ul>
+        <h3>Open questions</h3>
+        ${lines([100, 92, 100, 68])}
+      </div>
+    </div>`;
+}
+
+function renderPreview(d) {
+  const pane = $('dvPreview');
+  let inner, note;
+  if (d.type === 'xls' || d.type === 'csv') { inner = sheetPreview(d); note = 'Sheet 1 of 3'; }
+  else if (d.type === 'ppt')                { inner = slidePreview(d); note = 'Slide 1 of 24'; }
+  else if (d.type === 'img')                { inner = imgPreview(d);   note = `${esc(TYPES[d.type].label)} · 2400 × 1800`; }
+  else if (d.type === 'md')                 { inner = mdDocPreview(d); note = 'Page 1 of 1'; }
+  else                                      { inner = pagePreview(d, 2); note = 'Page 1 of 12'; }
+
+  const wide = d.type === 'ppt';
+  pane.innerHTML = wide ? inner : `<div class="dv-doc">${inner}</div>`;
+  pane.scrollTop = 0;
+  $('dvNote').textContent = 'Preview only · ' + note;
+}
+
+function renderViewerStar() {
+  const on = state.starred.has(draft.id);
+  $('dvStarIcon').setAttribute('href', on ? '#dc-star-fill' : '#dc-star');
+  $('dvStarLabel').textContent = on ? 'Starred' : 'Star this file';
+  $('dvStar').classList.toggle('is-on', on);
+}
+
+/* Delete asks once more before it acts — the confirm lives in the
+   button rather than in a second dialog stacked on this one. */
+function resetDelete() {
+  $('dvDelete').classList.remove('is-confirm');
+  $('dvDeleteLabel').textContent = 'Delete file';
+}
+
+function renderViewerDirty() {
+  const d = DOCS.find(x => x.id === draft.id);
+  if (!d) return;
+  const dirty = draft.name.trim() !== d.name || draft.desc.trim() !== (d.desc || '');
+  $('dvSave').disabled = !dirty || !draft.name.trim();
+}
+
+function openViewer(id) {
   const d = DOCS.find(x => x.id === id);
+  if (!d) return;
   const f = folderById(d.folder);
-  $('panelTileIcon').setAttribute('href', '#df-' + d.type);
-  $('panelTitle').textContent = d.name;
-  $('panelFile').textContent = d.file;
-  $('panelDesc').textContent = d.desc || '';
-  $('panelDesc').hidden = !d.desc;
-  $('panelRows').innerHTML = `
-    <div class="row"><span class="k t-caption1-med">Type</span><span class="v t-body2-reg">${esc(TYPES[d.type].label)}</span></div>
+
+  draft.id = id;
+  draft.name = d.name;
+  draft.desc = d.desc || '';
+
+  $('dvIcon').setAttribute('href', '#df-' + d.type);
+  $('dvName').textContent = d.name;
+  $('dvFile').textContent = d.file;
+  $('dvNameInput').value = draft.name;
+  $('dvDescInput').value = draft.desc;
+  $('dvRows').innerHTML = `
     <div class="row"><span class="k t-caption1-med">Size</span><span class="v t-body2-reg">${esc(d.size)}</span></div>
+    <div class="row"><span class="k t-caption1-med">Type</span><span class="v t-body2-reg">${esc(TYPES[d.type].label)}</span></div>
     <div class="row"><span class="k t-caption1-med">Folder</span>
       <span class="v t-body2-reg"><span class="folder-link" role="button" tabindex="0" data-open-folder="${f.id}">${esc(f.name)}</span></span></div>
     <div class="row"><span class="k t-caption1-med">Added by</span>
       <span class="v t-body2-reg with-avatar">${avatarHTML(d.by)}${esc(PEOPLE[d.by].name)}</span></div>
     <div class="row"><span class="k t-caption1-med">Added</span><span class="v t-body2-reg">${esc(fmtDate(d.addedAt))}</span></div>`;
-  renderPanelStar();
-  $('panel').classList.add('is-open');
-  $('panel').setAttribute('aria-hidden', 'false');
+
+  renderPreview(d);
+  renderViewerStar();
+  renderViewerDirty();
+  resetDelete();
+
+  $('dvScrim').classList.add('is-open');
+  $('dvScrim').setAttribute('aria-hidden', 'false');
 }
-function closePanel(rerender = true) {
+
+function closeViewer() {
+  draft.id = null;
   state.selected = null;
-  $('panel').classList.remove('is-open');
-  $('panel').setAttribute('aria-hidden', 'true');
-  if (rerender) render();
+  $('dvScrim').classList.remove('is-open');
+  $('dvScrim').setAttribute('aria-hidden', 'true');
+  resetDelete();
+  render();
 }
+
+function saveViewer() {
+  const d = DOCS.find(x => x.id === draft.id);
+  if (!d || !draft.name.trim()) return;
+  d.name = draft.name.trim();
+  d.desc = draft.desc.trim() || undefined;
+  $('dvName').textContent = d.name;
+  renderPreview(d);
+  renderViewerDirty();
+  render();
+}
+
+function deleteDoc(id) {
+  const i = DOCS.findIndex(x => x.id === id);
+  if (i === -1) return;
+  DOCS.splice(i, 1);
+  state.starred.delete(id);
+  closeViewer();
+}
+
 function toggleSelect(id) {
-  if (state.selected === id) { closePanel(); return; }
   state.selected = id;
   render();
-  openPanel(id);
+  openViewer(id);
 }
 
 /* ── Filter popovers ────────────────────────────────────────────── */
@@ -2200,26 +2681,41 @@ $('titleRow').addEventListener('click', e => {
   if (e.target.closest('#crumbUp')) { state.folder = null; render(); }
 });
 
-$('panelRows').addEventListener('click', e => {
+$('dvRows').addEventListener('click', e => {
   const link = e.target.closest('[data-open-folder]'); if (!link) return;
-  closePanel(false);
-  openFolder(link.dataset.openFolder);
+  const fid = link.dataset.openFolder;
+  closeViewer();
+  openFolder(fid);
 });
-$('panelStar').addEventListener('click', () => { if (state.selected) toggleStar(state.selected); });
-$('panelClose').addEventListener('click', () => closePanel());
+$('dvNameInput').addEventListener('input', e => {
+  draft.name = e.target.value; renderViewerDirty(); resetDelete();
+});
+$('dvDescInput').addEventListener('input', e => {
+  draft.desc = e.target.value; renderViewerDirty(); resetDelete();
+});
+$('dvStar').addEventListener('click', () => { if (draft.id) toggleStar(draft.id); });
+$('dvDownload').addEventListener('click', resetDelete);
+$('dvDelete').addEventListener('click', () => {
+  const btn = $('dvDelete');
+  if (!btn.classList.contains('is-confirm')) {
+    btn.classList.add('is-confirm');
+    $('dvDeleteLabel').textContent = 'Click again to delete';
+    return;
+  }
+  deleteDoc(draft.id);
+});
+$('dvSave').addEventListener('click', saveViewer);
+$('dvCancel').addEventListener('click', closeViewer);
+$('dvClose').addEventListener('click', closeViewer);
+/* Clicking the scrim closes; clicking inside the modal must not. */
+$('dvScrim').addEventListener('click', e => { if (e.target === $('dvScrim')) closeViewer(); });
 
-/* One outside-click handler: dropdowns always close, the panel closes
-   unless the click landed on a card, a filter or the panel itself. */
-document.addEventListener('click', e => {
-  closePops();
-  if (state.selected === null) return;
-  if (e.target.closest('.doc-card, #panel, .filter-group, .docs-side')) return;
-  closePanel();
-});
+/* One outside-click handler for the page: the dropdowns always close. */
+document.addEventListener('click', closePops);
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   closePops();
-  if (state.selected !== null) closePanel();
+  if (draft.id !== null) closeViewer();
 });
 
 /* ── Theme ──────────────────────────────────────────────────────── */
