@@ -1,7 +1,7 @@
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cogentiq Builder — Skills</title>
-  <meta name="description" content="Every skill the workspace agents can use, in one grid." />
+  <meta name="description" content="Every skill the workspace agents can use, with its files and doc previews." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1135,14 +1135,13 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 12px;
-      margin-top: 16px;
     }
 
     /* ── Skill card ──────────────────────────────────────────────
        Same fixed shell as every Cogentiq card (page-bg-2, 16px pad,
        12px radius, shadow-card, hover/selected strokes) with a new
-       stacked anatomy: logo tile and menu up top, name and a
-       two-line description in the middle, and a creator strip
+       stacked anatomy: logo tile and menu up top, the skill id and a
+       two-line description in the middle, and the creator's avatar
        under a hairline at the foot. ─────────────────────────────── */
     .skill-card {
       display: flex; flex-direction: column; align-items: stretch; gap: 8px;
@@ -1168,6 +1167,7 @@
       border: 1px solid transparent;
       color: var(--text-secondary);
     }
+    .skill-logo--sm { width: 32px; height: 32px; border-radius: 6px; }
     /* Tone comes from the same badge tokens the rest of the product
        uses, so the tile reads in both themes without new colours. */
     .skill-logo[data-tone="blue"]        { background: var(--backgrounds-badge-blue);        border-color: var(--strokes-colour-blue);        color: var(--text-coloured-blue); }
@@ -1176,15 +1176,13 @@
     .skill-logo[data-tone="indigo"]      { background: var(--backgrounds-badge-indigo);      border-color: var(--strokes-colour-indigo);      color: var(--text-coloured-indigo); }
     .skill-logo[data-tone="light-green"] { background: var(--backgrounds-badge-light-green); border-color: var(--strokes-colour-light-green); color: var(--text-coloured-light-green); }
 
-    .skill-card .icon-btn-24 {
-      width: 24px; height: 24px; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      color: var(--text-teritiary);
-      transition: background .15s ease, color .15s ease;
+    /* Skill ids are identifiers, so they set in the mono face —
+       the same voice as model ids and tags across the product. */
+    .skill-card__name {
+      color: var(--text-primary);
+      font: 400 14px/20px var(--font-geist-mono); letter-spacing: -0.28px;
+      padding-top: 2px;
     }
-    .skill-card .icon-btn-24:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
-
-    .skill-card__name { color: var(--text-primary); padding-top: 2px; }
     .skill-card__desc {
       font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px;
       color: var(--text-teritiary);
@@ -1200,7 +1198,6 @@
       display: flex; align-items: center; gap: 6px;
       margin-top: 4px; padding-top: 10px;
       border-top: 1px solid var(--strokes-line-3);
-      color: var(--text-teritiary);
     }
     .skill-avatar {
       width: 20px; height: 20px; flex: none; border-radius: 50%;
@@ -1209,7 +1206,6 @@
       color: #fff;
       font: 400 10px/1 var(--font-geist); letter-spacing: -0.1px;
     }
-    .skill-card__by { color: var(--text-secondary); }
 
     /* Empty state — content area only; the chrome stays put. */
     .skills-empty {
@@ -1219,6 +1215,71 @@
     }
     .skills-empty.is-on { display: flex; }
     .skills-empty b { color: var(--text-secondary); font-weight: 500; }
+
+    /* ── Detail panel additions — file list + markdown preview ──── */
+    .file-rows { display: flex; flex-direction: column; gap: 2px; }
+    .file-row {
+      width: 100%;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      text-align: left;
+      transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .file-row:hover { background: var(--backgrounds-card-bg-4); }
+    .file-row.is-active {
+      background: var(--backgrounds-table-select);
+      border-color: var(--strokes-colour-blue);
+      color: var(--text-coloured-blue);
+    }
+    .file-row .fic { flex: none; color: var(--text-teritiary); }
+    .file-row.is-active .fic { color: var(--text-coloured-blue); }
+    .file-row .fname {
+      flex: 1 1 auto; min-width: 0;
+      font: 400 12px/16px var(--font-geist-mono); letter-spacing: -0.24px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .file-row .fsize { flex: none; color: var(--text-teritiary); }
+
+    .md-preview {
+      width: 100%;
+      max-height: 280px; overflow-y: auto;
+      padding: 12px 14px;
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 8px;
+      background: var(--backgrounds-page-bg-1);
+      color: var(--text-secondary);
+      font: 400 12px/18px var(--font-geist); letter-spacing: -0.24px;
+    }
+    .md-preview::-webkit-scrollbar { width: 10px; }
+    .md-preview::-webkit-scrollbar-thumb { background: var(--strokes-type-default); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }
+    .md-fm {
+      margin: 0 0 10px; padding: 8px 10px;
+      border: 1px solid var(--strokes-line-3); border-radius: 6px;
+      background: var(--backgrounds-page-bg-3);
+      font: 400 11px/16px var(--font-geist-mono); letter-spacing: -0.11px;
+      color: var(--text-teritiary);
+      white-space: pre-wrap;
+    }
+    .md-preview h1, .md-preview h2 {
+      margin: 12px 0 4px;
+      color: var(--text-primary);
+      font: 500 13px/18px var(--font-geist); letter-spacing: -0.26px;
+    }
+    .md-preview h1:first-child, .md-preview h2:first-child { margin-top: 0; }
+    .md-preview p { margin: 0 0 8px; }
+    .md-preview ul { margin: 0 0 8px; padding-left: 18px; }
+    .md-preview li { margin: 2px 0; }
+    .md-preview code {
+      font: 400 11px/16px var(--font-geist-mono); letter-spacing: -0.11px;
+      color: var(--text-primary);
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 4px;
+      padding: 0 4px;
+    }
+    .md-preview strong { color: var(--text-primary); font-weight: 500; }
   </style>
 
 
@@ -1237,6 +1298,7 @@
   <symbol id="sk-send" viewBox="0 0 20 20" fill="none"><path d="M17.1 2.9 9.2 10.8M17.1 2.9l-5 14.2-2.9-6.3-6.3-2.9 14.2-5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="sk-people" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="6.7" r="2.7" stroke="currentColor" stroke-width="1.5"/><path d="M2.9 16.2c.5-2.5 2.4-4 4.6-4s4.1 1.5 4.6 4M13.2 4.4a2.7 2.7 0 0 1 0 4.7M14.5 12.4c1.4.5 2.4 1.8 2.7 3.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
   <symbol id="sk-translate" viewBox="0 0 20 20" fill="none"><path d="M2.9 4.6h8M6.9 2.9v1.7M9.2 4.6c-.6 3.2-2.7 6-6 7.5M5 7.1c1.2 2.4 3.2 4.2 5.8 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="m10.4 17.1 3.3-8.3 3.4 8.3M11.5 14.6h4.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="sk-file" viewBox="0 0 16 16" fill="none"><path d="M9.3 2.3H5c-.7 0-1.3.6-1.3 1.3v8.8c0 .7.6 1.3 1.3 1.3h6c.7 0 1.3-.6 1.3-1.3V5.3l-3-3Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9.2 2.5v3h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
 <div class="app">
@@ -1318,9 +1380,6 @@
 
       <div class="main-section">
 
-        <!-- Sidebar -->
-        <nav class="sidebar" id="agentNav" aria-label="Agents"></nav>
-
         <!-- Skills -->
         <section class="skills">
           <div class="filters-bar">
@@ -1341,36 +1400,10 @@
           </div>
 
           <div class="model-scroll">
-            <div class="filter-row">
-              <div class="filter-left">
-                <div class="filter-group">
-                  <button class="dropdown t-body2-reg" id="typeDropdown" aria-expanded="false">
-                    <span>Type</span>
-                    <span class="badge t-caption1-reg" id="typeCount">0</span>
-                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
-                  </button>
-                  <div class="tag-pop" id="typePop">
-                    <div class="tag-pop-list" id="typePopList"></div>
-                  </div>
-                </div>
-
-                <div class="filter-group">
-                  <button class="dropdown t-body2-reg" id="peopleDropdown" aria-expanded="false">
-                    <span>Created by</span>
-                    <span class="badge t-caption1-reg" id="peopleCount">0</span>
-                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
-                  </button>
-                  <div class="tag-pop" id="peoplePop">
-                    <div class="tag-pop-list" id="peoplePopList"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div class="skills-grid" id="skillsGrid"></div>
             <div class="skills-empty t-body2-reg" id="skillsEmpty">
               <b>No skills match</b>
-              <span>Clear the search or filters to see the full list.</span>
+              <span>Clear the search to see the full list.</span>
             </div>
           </div>
         </section>
@@ -1380,69 +1413,168 @@
   </div>
 </div>
 
+
+<!-- ══ Skill detail panel ═══════════════════════════════════════ -->
+<aside class="panel" id="panel" aria-label="Skill details" aria-hidden="true">
+  <div class="panel-head">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="panel-tags-row">
+        <div class="panel-tags" id="panelTags"></div>
+        <button class="panel-close" id="panelClose" aria-label="Close details">
+          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
+        </button>
+      </div>
+      <div class="panel-title-block">
+        <div class="panel-title-row">
+          <span class="skill-logo skill-logo--sm" id="panelLogo"></span>
+          <span class="panel-title" id="panelTitle" style="font:400 18px/24px var(--font-geist-mono);letter-spacing:-0.36px">web-search</span>
+        </div>
+        <p class="panel-desc t-body2-reg" id="panelDesc"></p>
+      </div>
+    </div>
+
+    <div class="panel-actions">
+      <button class="btn-primary t-body2-med" id="panelPublish">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>
+        Publish to marketplace
+      </button>
+      <button class="btn-tonal t-body2-med" id="panelEdit">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-editpen"/></svg>
+        Edit skill
+      </button>
+      <button class="icon-btn-32" aria-label="More actions">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-optionsv"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <section class="panel-section">
+    <p class="section-header t-caption1-med">FILES</p>
+    <div class="file-rows" id="panelFiles"></div>
+  </section>
+
+  <section class="panel-section">
+    <p class="section-header t-caption1-med" id="panelPreviewLabel">PREVIEW · SKILL.md</p>
+    <div class="md-preview" id="panelPreview"></div>
+  </section>
+
+  <section class="panel-section">
+    <div class="rows">
+      <div class="row"><span class="k t-caption1-med">Version</span><span class="v t-body2-reg" id="panelVersion"></span></div>
+      <div class="row"><span class="k t-caption1-med">Used by</span><span class="v t-body2-reg" id="panelAgent"></span></div>
+      <div class="row"><span class="k t-caption1-med">Last updated</span><span class="v t-body2-reg" id="panelUpdated"></span></div>
+      <div class="row">
+        <span class="k t-caption1-med">Status</span>
+        <span class="status-pill">
+          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-online"/></svg>
+          <span class="t-caption1-med">Active</span>
+        </span>
+      </div>
+    </div>
+  </section>
+</aside>
+
+
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const root = document.documentElement;
 
 /* ── Data ─────────────────────────────────────────────────────────
-   agent → the sidebar filter · type → the Type dropdown and the
-   logo-tile tone · by → creator (initials + a palette-ramp colour). */
+   Skill names are ids (kebab-case) · type drives the logo tone and
+   the panel badge · by → creator avatar only (initials + ramp). */
 const PEOPLE = {
-  sc: { name: 'Sophia Chen',    initials: 'SC', ramp: 'var(--indigo-500)' },
-  am: { name: 'Arjun Mehta',    initials: 'AM', ramp: 'var(--blue-500)' },
-  pn: { name: 'Priya Nair',     initials: 'PN', ramp: 'var(--green-600)' },
-  dk: { name: 'Daniel Kim',     initials: 'DK', ramp: 'var(--purple-500)' },
-  mr: { name: 'Maya Rodriguez', initials: 'MR', ramp: 'var(--orange-600)' },
+  sc: { initials: 'SC', ramp: 'var(--indigo-500)' },
+  am: { initials: 'AM', ramp: 'var(--blue-500)' },
+  pn: { initials: 'PN', ramp: 'var(--green-600)' },
+  dk: { initials: 'DK', ramp: 'var(--purple-500)' },
+  mr: { initials: 'MR', ramp: 'var(--orange-600)' },
 };
 const TYPE_TONE = { Retrieval: 'blue', Generation: 'indigo', Action: 'light-green', Data: 'cyan' };
-const TYPES = Object.keys(TYPE_TONE);
-
-const AGENTS = [
-  { id: 'all',      name: 'All skills',    icon: 'ic-pp_toolsskills' },
-  { id: 'research', name: 'Research agent', icon: 'ic-pp_agent' },
-  { id: 'data',     name: 'Data agent',     icon: 'ic-pp_agent' },
-  { id: 'support',  name: 'Support agent',  icon: 'ic-pp_agent' },
-  { id: 'ops',      name: 'Ops agent',      icon: 'ic-pp_agent' },
-  { id: 'sales',    name: 'Sales agent',    icon: 'ic-pp_agent' },
-];
 
 const SKILLS = [
-  { name: 'Web search',          desc: 'Queries the open web and returns ranked, de-duplicated results with source links.',        icon: 'sk-globe',     agent: 'research', type: 'Retrieval',  by: 'sc' },
-  { name: 'Document summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       icon: 'sk-doc',       agent: 'research', type: 'Generation', by: 'am' },
-  { name: 'Citation finder',     desc: 'Traces every claim in a draft back to a verifiable source and flags the ones it can’t.', icon: 'sk-quote', agent: 'research', type: 'Retrieval',  by: 'pn' },
-  { name: 'SQL runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   icon: 'sk-db',        agent: 'data',     type: 'Data',       by: 'am' },
-  { name: 'Chart builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      icon: 'sk-chart',     agent: 'data',     type: 'Generation', by: 'sc' },
-  { name: 'Data cleaner',        desc: 'Normalizes messy columns — dates, currencies, casing — before anything downstream runs.', icon: 'sk-broom', agent: 'data', type: 'Data',    by: 'dk' },
-  { name: 'Email drafting',      desc: 'Drafts replies in the team’s voice and tone, ready to review before anything sends.', icon: 'sk-mail',      agent: 'support',  type: 'Generation', by: 'mr' },
-  { name: 'Ticket triage',       desc: 'Labels, routes and prioritizes incoming tickets from their content and history.',          icon: 'sk-tag',       agent: 'support',  type: 'Action',     by: 'pn' },
-  { name: 'Policy lookup',       desc: 'Answers from the latest policy docs only, and cites the exact clause it used.',            icon: 'sk-shield',    agent: 'support',  type: 'Retrieval',  by: 'dk' },
-  { name: 'Meeting scheduler',   desc: 'Finds a slot that works across calendars and time zones, then sends the invites.',         icon: 'sk-cal',       agent: 'ops',      type: 'Action',     by: 'mr' },
-  { name: 'Slack notifier',      desc: 'Posts run summaries and alerts to the right channel with the right mentions.',             icon: 'sk-send',      agent: 'ops',      type: 'Action',     by: 'sc' },
-  { name: 'CRM lookup',          desc: 'Pulls a live account snapshot — owner, stage, open deals — straight from the CRM.', icon: 'sk-people', agent: 'sales',  type: 'Retrieval',  by: 'am' },
-  { name: 'Pitch translator',    desc: 'Localizes outreach into the prospect’s language without losing the product terms.',   icon: 'sk-translate', agent: 'sales',    type: 'Generation', by: 'pn' },
+  { name: 'web-search',          desc: 'Queries the open web and returns ranked, de-duplicated results with source links.',        icon: 'sk-globe',     agent: 'Research agent', type: 'Retrieval',  by: 'sc', version: 'v1.4.0', updated: 'Aug 21, 2026' },
+  { name: 'document-summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       icon: 'sk-doc',       agent: 'Research agent', type: 'Generation', by: 'am', version: 'v2.1.0', updated: 'Aug 18, 2026' },
+  { name: 'citation-finder',     desc: 'Traces every claim in a draft back to a verifiable source and flags the ones it can’t.', icon: 'sk-quote', agent: 'Research agent', type: 'Retrieval',  by: 'pn', version: 'v1.0.2', updated: 'Aug 11, 2026' },
+  { name: 'sql-runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   icon: 'sk-db',        agent: 'Data agent',     type: 'Data',       by: 'am', version: 'v3.0.1', updated: 'Aug 24, 2026' },
+  { name: 'chart-builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      icon: 'sk-chart',     agent: 'Data agent',     type: 'Generation', by: 'sc', version: 'v1.7.0', updated: 'Aug 14, 2026' },
+  { name: 'data-cleaner',        desc: 'Normalizes messy columns — dates, currencies, casing — before anything downstream runs.', icon: 'sk-broom', agent: 'Data agent', type: 'Data',    by: 'dk', version: 'v1.2.3', updated: 'Jul 30, 2026' },
+  { name: 'email-drafting',      desc: 'Drafts replies in the team’s voice and tone, ready to review before anything sends.', icon: 'sk-mail',      agent: 'Support agent',  type: 'Generation', by: 'mr', version: 'v2.3.0', updated: 'Aug 22, 2026' },
+  { name: 'ticket-triage',       desc: 'Labels, routes and prioritizes incoming tickets from their content and history.',          icon: 'sk-tag',       agent: 'Support agent',  type: 'Action',     by: 'pn', version: 'v1.9.1', updated: 'Aug 19, 2026' },
+  { name: 'policy-lookup',       desc: 'Answers from the latest policy docs only, and cites the exact clause it used.',            icon: 'sk-shield',    agent: 'Support agent',  type: 'Retrieval',  by: 'dk', version: 'v1.1.0', updated: 'Aug 06, 2026' },
+  { name: 'meeting-scheduler',   desc: 'Finds a slot that works across calendars and time zones, then sends the invites.',         icon: 'sk-cal',       agent: 'Ops agent',      type: 'Action',     by: 'mr', version: 'v1.5.2', updated: 'Aug 25, 2026' },
+  { name: 'slack-notifier',      desc: 'Posts run summaries and alerts to the right channel with the right mentions.',             icon: 'sk-send',      agent: 'Ops agent',      type: 'Action',     by: 'sc', version: 'v1.3.0', updated: 'Aug 09, 2026' },
+  { name: 'crm-lookup',          desc: 'Pulls a live account snapshot — owner, stage, open deals — straight from the CRM.', icon: 'sk-people', agent: 'Sales agent',  type: 'Retrieval',  by: 'am', version: 'v1.0.5', updated: 'Aug 15, 2026' },
+  { name: 'pitch-translator',    desc: 'Localizes outreach into the prospect’s language without losing the product terms.',   icon: 'sk-translate', agent: 'Sales agent',    type: 'Generation', by: 'pn', version: 'v1.2.0', updated: 'Aug 03, 2026' },
 ];
 
-const state = { agent: 'all', search: '', types: new Set(), people: new Set(), selected: null };
+/* Every skill folder carries the same four docs. Contents are
+   templated off the skill so each preview reads real. */
+function docsFor(s) {
+  return [
+    { file: 'SKILL.md', size: '2.4 KB', md:
+`---
+name: ${s.name}
+description: ${s.desc}
+version: ${s.version}
+---
+## When to use
+Use ${'`'}${s.name}${'`'} when the ${s.agent.toLowerCase()} needs this capability: ${s.desc.charAt(0).toLowerCase() + s.desc.slice(1)}
 
-/* ── Sidebar ──────────────────────────────────────────────────── */
-function renderNav() {
-  $('agentNav').innerHTML = AGENTS.map(a => `
-    <button class="side-item t-body2-reg${a.id === state.agent ? ' is-active' : ''}" data-agent="${a.id}">
-      <span class="prov" style="width:16px;height:16px"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#${a.icon}"/></svg></span>
-      <span class="lbl">${esc(a.name)}</span>
-      <span class="t-caption1-reg" style="flex:none">${a.id === 'all' ? SKILLS.length : SKILLS.filter(s => s.agent === a.id).length}</span>
-    </button>`).join('');
+## How it works
+- Validates the request against the skill's input contract
+- Runs the ${s.type.toLowerCase()} step with workspace credentials
+- Returns a structured result the agent can cite
+
+## Guardrails
+- Read-only against production systems
+- Every output carries its source for review` },
+    { file: 'reference.md', size: '3.1 KB', md:
+`# ${s.name} reference
+
+## Inputs
+- ${'`'}query${'`'} — what the agent is asking for (**required**)
+- ${'`'}limit${'`'} — max results to return, default ${'`'}10${'`'}
+- ${'`'}format${'`'} — ${'`'}json${'`'} or ${'`'}markdown${'`'}
+
+## Output
+A structured payload with ${'`'}results[]${'`'}, ${'`'}sources[]${'`'} and a one-line ${'`'}summary${'`'}.
+
+## Errors
+- ${'`'}NO_ACCESS${'`'} — the workspace connection is missing a scope
+- ${'`'}EMPTY${'`'} — nothing matched; the agent should rephrase` },
+    { file: 'examples.md', size: '1.8 KB', md:
+`# Examples
+
+## Typical call
+${'`'}${s.name}(query="quarterly revenue by region", limit=5)${'`'}
+
+The ${s.agent.toLowerCase()} passes the user's ask straight through and cites the returned sources.
+
+## With formatting
+${'`'}${s.name}(query="…", format="markdown")${'`'}
+
+Returns a ready-to-paste block for reports and replies.` },
+    { file: 'evaluation.md', size: '1.2 KB', md:
+`# Evaluation
+
+## Checks before publishing
+- **Accuracy** — 25 golden queries, ≥ 95% pass
+- **Latency** — p95 under 4s on the shared runner
+- **Safety** — no writes, no PII in logs
+
+## Last run
+${s.updated} · all checks passing on ${s.version}` },
+  ];
 }
+
+const state = { search: '', selected: null, file: 0 };
 
 /* ── Cards ────────────────────────────────────────────────────── */
 function filtered() {
   const q = state.search.trim().toLowerCase();
   return SKILLS.map((s, i) => ({ s, i })).filter(({ s }) =>
-    (state.agent === 'all' || s.agent === state.agent) &&
-    (!state.types.size || state.types.has(s.type)) &&
-    (!state.people.size || state.people.has(s.by)) &&
-    (!q || s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q)));
+    !q || s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q));
 }
 
 function cardHTML({ s, i }) {
@@ -1457,11 +1589,10 @@ function cardHTML({ s, i }) {
         <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-optionsh"/></svg>
       </span>
     </span>
-    <span class="skill-card__name t-body1-med">${esc(s.name)}</span>
+    <span class="skill-card__name">${esc(s.name)}</span>
     <span class="skill-card__desc">${esc(s.desc)}</span>
     <span class="skill-card__foot">
-      <span class="skill-avatar" style="background:${p.ramp}">${p.initials}</span>
-      <span class="skill-card__by t-caption1-reg">${esc(p.name)}</span>
+      <span class="skill-avatar" style="background:${p.ramp}" aria-label="Creator">${p.initials}</span>
     </span>
   </button>`;
 }
@@ -1471,73 +1602,100 @@ function renderGrid() {
   $('skillsGrid').innerHTML = list.map(cardHTML).join('');
   $('skillCount').textContent = list.length;
   $('skillsEmpty').classList.toggle('is-on', !list.length);
-  const active = AGENTS.find(a => a.id === state.agent);
-  $('pageTitle').textContent = state.agent === 'all' ? 'All skills' : active.name + ' skills';
 }
 
-/* ── Filter popovers ──────────────────────────────────────────── */
-function checkOpt(label, value, picked) {
-  return `
-    <button class="tag-opt${picked ? ' is-checked' : ''}" data-value="${esc(value)}">
-      <span class="box"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9L9.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      <span class="lbl">${esc(label)}</span>
-    </button>`;
+/* ── Markdown preview ─────────────────────────────────────────────
+   A tiny renderer for the docs above: frontmatter, #/## headings,
+   bullet lists, `code`, **bold**, paragraphs. */
+function inline(s) {
+  return esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
-function renderPops() {
-  $('typePopList').innerHTML = TYPES.map(t => checkOpt(t, t, state.types.has(t))).join('');
-  $('peoplePopList').innerHTML = Object.entries(PEOPLE).map(([id, p]) => checkOpt(p.name, id, state.people.has(id))).join('');
-  $('typeCount').textContent = state.types.size;
-  $('typeDropdown').classList.toggle('has-count', state.types.size > 0);
-  $('peopleCount').textContent = state.people.size;
-  $('peopleDropdown').classList.toggle('has-count', state.people.size > 0);
+function mdToHTML(md) {
+  let out = '', body = md;
+  if (body.startsWith('---\n')) {
+    const end = body.indexOf('\n---', 4);
+    out += `<pre class="md-fm">${esc(body.slice(4, end))}</pre>`;
+    body = body.slice(end + 4);
+  }
+  let list = null;
+  const flush = () => { if (list) { out += `<ul>${list}</ul>`; list = null; } };
+  body.trim().split('\n').forEach(line => {
+    const t = line.trim();
+    if (!t) { flush(); return; }
+    if (t.startsWith('## ')) { flush(); out += `<h2>${inline(t.slice(3))}</h2>`; }
+    else if (t.startsWith('# ')) { flush(); out += `<h1>${inline(t.slice(2))}</h1>`; }
+    else if (t.startsWith('- ')) { list = (list || '') + `<li>${inline(t.slice(2))}</li>`; }
+    else { flush(); out += `<p>${inline(t)}</p>`; }
+  });
+  flush();
+  return out;
 }
 
-function closePops(except) {
-  ['typePop', 'peoplePop'].forEach(id => {
-    if (id === except) return;
-    $(id).classList.remove('is-open');
-    const btn = $(id.replace('Pop', 'Dropdown'));
-    btn.classList.remove('is-open'); btn.setAttribute('aria-expanded', 'false');
-  });
+/* ── Detail panel ─────────────────────────────────────────────── */
+function renderPanelFiles(s) {
+  const docs = docsFor(s);
+  $('panelFiles').innerHTML = docs.map((d, j) => `
+    <button class="file-row${state.file === j ? ' is-active' : ''}" data-file="${j}">
+      <svg class="ic fic" width="16" height="16" viewBox="0 0 16 16"><use href="#sk-file"/></svg>
+      <span class="fname">${esc(d.file)}</span>
+      <span class="fsize t-caption1-reg">${esc(d.size)}</span>
+    </button>`).join('');
+  const doc = docs[state.file];
+  $('panelPreviewLabel').textContent = 'PREVIEW · ' + doc.file;
+  $('panelPreview').innerHTML = mdToHTML(doc.md);
+  $('panelPreview').scrollTop = 0;
 }
-[['typeDropdown', 'typePop'], ['peopleDropdown', 'peoplePop']].forEach(([btnId, popId]) => {
-  $(btnId).addEventListener('click', e => {
-    e.stopPropagation();
-    closePops(popId);
-    const open = $(popId).classList.toggle('is-open');
-    $(btnId).classList.toggle('is-open', open);
-    $(btnId).setAttribute('aria-expanded', String(open));
-  });
-  $(popId).addEventListener('click', e => e.stopPropagation());
+
+function openPanel(i) {
+  const s = SKILLS[i];
+  state.file = 0;
+  $('panelTags').innerHTML = `
+    <span class="tag-badge" data-tone="${TYPE_TONE[s.type]}">${esc(s.type)}</span>
+    <span class="tag-model">${esc(s.agent)}</span>`;
+  $('panelLogo').dataset.tone = TYPE_TONE[s.type];
+  $('panelLogo').innerHTML = `<svg class="ic" width="18" height="18" viewBox="0 0 20 20"><use href="#${s.icon}"/></svg>`;
+  $('panelTitle').textContent = s.name;
+  $('panelDesc').textContent = s.desc;
+  $('panelVersion').textContent = s.version;
+  $('panelAgent').textContent = s.agent;
+  $('panelUpdated').textContent = s.updated;
+  renderPanelFiles(s);
+  $('panel').classList.add('is-open');
+  $('panel').setAttribute('aria-hidden', 'false');
+}
+function closePanel() {
+  state.selected = null;
+  $('panel').classList.remove('is-open');
+  $('panel').setAttribute('aria-hidden', 'true');
+  renderGrid();
+}
+
+$('panelFiles').addEventListener('click', e => {
+  const row = e.target.closest('[data-file]'); if (!row) return;
+  state.file = Number(row.dataset.file);
+  if (state.selected !== null) renderPanelFiles(SKILLS[state.selected]);
 });
-$('typePopList').addEventListener('click', e => {
-  const opt = e.target.closest('[data-value]'); if (!opt) return;
-  const v = opt.dataset.value;
-  state.types.has(v) ? state.types.delete(v) : state.types.add(v);
-  renderPops(); renderGrid();
+$('panelClose').addEventListener('click', closePanel);
+$('panel').addEventListener('click', e => e.stopPropagation());
+document.addEventListener('click', e => {
+  if (state.selected === null) return;
+  if (e.target.closest('.skill-card')) return;
+  closePanel();
 });
-$('peoplePopList').addEventListener('click', e => {
-  const opt = e.target.closest('[data-value]'); if (!opt) return;
-  const v = opt.dataset.value;
-  state.people.has(v) ? state.people.delete(v) : state.people.add(v);
-  renderPops(); renderGrid();
-});
-document.addEventListener('click', () => closePops());
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closePops(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.selected !== null) closePanel(); });
 
 /* ── Wiring ───────────────────────────────────────────────────── */
-$('agentNav').addEventListener('click', e => {
-  const item = e.target.closest('[data-agent]'); if (!item) return;
-  state.agent = item.dataset.agent; state.selected = null;
-  renderNav(); renderGrid();
-});
 $('skillSearch').addEventListener('input', e => { state.search = e.target.value; renderGrid(); });
 $('skillsGrid').addEventListener('click', e => {
   if (e.target.closest('[data-menu]')) { e.stopPropagation(); return; }
   const card = e.target.closest('[data-index]'); if (!card) return;
   const i = Number(card.dataset.index);
-  state.selected = state.selected === i ? null : i;
+  if (state.selected === i) { closePanel(); return; }
+  state.selected = i;
   renderGrid();
+  openPanel(i);
 });
 
 /* ── Theme ────────────────────────────────────────────────────── */
@@ -1557,5 +1715,5 @@ let stored = null;
 try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
 applyMode(stored === 'light' ? 'light' : 'dark');
 
-renderNav(); renderPops(); renderGrid();
+renderGrid();
 </script>
