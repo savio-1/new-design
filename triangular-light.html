@@ -3,716 +3,851 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prism Trace</title>
+<title>Prism Fan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
   :root{
-    --bg:#05060b;
-    --panel:rgba(13,16,23,.82);
-    --panel-solid:#0d1017;
-    --text:#e9ebf4;
-    --muted:#8b90a4;
-    --line:rgba(255,255,255,.09);
-    --line-strong:rgba(255,255,255,.16);
-    --accent:#59d8ff; /* updated live from the active gradient */
-    --display:'Michroma',ui-sans-serif,sans-serif;
-    --ui:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;
+    --bg:#f6f4f5;
+    --ink:#15161c;
+    --ink-soft:#6d6f7a;
+    --surface:rgba(255,255,255,.74);
+    --hair:rgba(20,22,30,.10);
+    --hair-2:rgba(20,22,30,.18);
+    --track:rgba(20,22,30,.13);
+    --knob:#15161c;
+    --accent:#22cdf0;
+    --sans:'Instrument Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    --serif:'Instrument Serif',Georgia,'Times New Roman',serif;
     --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
   }
+  body[data-scene="dark"]{
+    --bg:#0a0b0f;
+    --ink:#eceef4;
+    --ink-soft:#8f93a3;
+    --surface:rgba(17,19,25,.72);
+    --hair:rgba(255,255,255,.11);
+    --hair-2:rgba(255,255,255,.2);
+    --track:rgba(255,255,255,.15);
+    --knob:#eceef4;
+  }
+
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
     background:var(--bg);
-    color:var(--text);
-    font-family:var(--ui);
+    color:var(--ink);
+    font-family:var(--sans);
     overflow:hidden;
+    transition:background-color .5s ease,color .5s ease;
   }
   #stage{position:fixed;inset:0;display:block;width:100%;height:100%}
 
-  /* ---------- nameplate ---------- */
-  .nameplate{
-    position:fixed;top:28px;left:32px;z-index:5;
-    user-select:none;pointer-events:none;
+  /* ---------- headline ---------- */
+  .headline{
+    position:fixed;inset:0;z-index:3;
+    display:flex;padding:6vmin 7vmin;
+    pointer-events:none;user-select:none;
   }
-  .nameplate h1{
-    font-family:var(--display);
-    font-size:15px;font-weight:400;
-    letter-spacing:.42em;text-transform:uppercase;
-    color:var(--text);
+  .headline[data-place="left"]  {align-items:center;justify-content:flex-start}
+  .headline[data-place="right"] {align-items:center;justify-content:flex-end}
+  .headline[data-place="top"]   {align-items:flex-start;justify-content:center}
+  .headline[data-place="bottom"]{align-items:flex-end;justify-content:center}
+  .headline.off{display:none}
+  .headline h1{
+    font-size:clamp(17px,2.7vw,40px);
+    font-weight:400;
+    letter-spacing:-.018em;
+    line-height:1.12;
+    max-width:min(30ch,40vw);
+    text-wrap:balance;
+    color:var(--ink);
   }
-  .nameplate p{
-    margin-top:8px;
-    font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--muted);
+  .headline[data-place="top"] h1,.headline[data-place="bottom"] h1{max-width:min(30ch,80vw);text-align:center}
+  .headline h1 em{font-family:var(--serif);font-style:italic;font-weight:400}
+
+  .credit{
+    position:fixed;bottom:22px;left:26px;z-index:3;
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-soft);pointer-events:none;user-select:none;
   }
 
   /* ---------- control panel ---------- */
   .panel{
-    position:fixed;top:24px;right:24px;z-index:10;
-    width:300px;max-height:calc(100vh - 48px);
+    position:fixed;top:20px;right:20px;z-index:10;
+    width:308px;max-height:calc(100vh - 40px);
     overflow-y:auto;overscroll-behavior:contain;
-    background:var(--panel);
-    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:18px 18px 20px;
-    display:flex;flex-direction:column;gap:20px;
-    scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent;
-    transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .3s ease;
+    background:var(--surface);
+    -webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);
+    border:1px solid var(--hair);
+    border-radius:14px;
+    padding:16px 16px 18px;
+    display:flex;flex-direction:column;gap:18px;
+    box-shadow:0 18px 50px -28px rgba(15,18,30,.35);
+    scrollbar-width:thin;scrollbar-color:var(--hair-2) transparent;
+    transition:transform .38s cubic-bezier(.4,0,.2,1),opacity .3s ease,background-color .5s ease,border-color .5s ease;
   }
-  .panel.hidden{transform:translateX(calc(100% + 40px));opacity:0;pointer-events:none}
+  .panel.hidden{transform:translateX(calc(100% + 34px));opacity:0;pointer-events:none}
 
-  .panel-head{display:flex;align-items:center;justify-content:space-between}
-  .panel-head .label{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
-  .head-btns{display:flex;gap:6px}
+  .p-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .p-head .title{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft)}
+  .p-head .btns{display:flex;gap:6px}
 
   .icon-btn{
-    width:28px;height:28px;border-radius:8px;
+    width:27px;height:27px;border-radius:7px;
     display:grid;place-items:center;
-    background:transparent;border:1px solid var(--line);
-    color:var(--muted);cursor:pointer;
+    background:transparent;border:1px solid var(--hair);
+    color:var(--ink-soft);cursor:pointer;
     transition:color .15s,border-color .15s,background .15s;
   }
-  .icon-btn:hover{color:var(--text);border-color:var(--line-strong);background:rgba(255,255,255,.04)}
+  .icon-btn:hover{color:var(--ink);border-color:var(--hair-2)}
   .icon-btn svg{display:block}
 
-  .section{display:flex;flex-direction:column;gap:10px}
-  .section > .label{
-    font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
-    color:var(--muted);
-  }
+  .group{display:flex;flex-direction:column;gap:9px}
+  .group > .lbl{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft)}
 
-  /* gradient swatches */
-  .swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:24px 8px}
-  .swatch{
-    position:relative;height:40px;border-radius:9px;cursor:pointer;
-    border:1px solid var(--line);
-    outline:2px solid transparent;outline-offset:2px;
+  /* palette swatches */
+  .pal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px 7px}
+  .pal{
+    position:relative;height:34px;border-radius:7px;cursor:pointer;
+    border:1px solid var(--hair);padding:0;
+    outline:1.5px solid transparent;outline-offset:2px;
     transition:outline-color .15s,transform .12s;
   }
-  .swatch:hover{transform:translateY(-1px)}
-  .swatch[aria-pressed="true"]{outline-color:var(--accent)}
-  .swatch .name{
-    position:absolute;left:0;right:0;bottom:-15px;
-    font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
-    color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;
+  .pal:hover{transform:translateY(-1px)}
+  .pal[aria-pressed="true"]{outline-color:var(--accent)}
+  .pal .nm{
+    position:absolute;left:-4px;right:-4px;bottom:-15px;
+    font-size:8px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-soft);text-align:center;white-space:nowrap;overflow:hidden;
   }
-  .swatches{margin-bottom:16px}
+  .pal-grid{margin-bottom:12px}
 
-  .custom-row{display:flex;align-items:center;gap:10px}
-  .custom-row .label-inline{font-size:12px;color:var(--muted);flex:1}
+  .swatch-row{display:flex;align-items:center;gap:8px}
+  .swatch-row .t{font-size:12px;color:var(--ink-soft);flex:1}
   input[type=color]{
     -webkit-appearance:none;appearance:none;
-    width:34px;height:26px;border-radius:7px;border:1px solid var(--line-strong);
+    width:30px;height:24px;border-radius:6px;border:1px solid var(--hair-2);
     background:none;cursor:pointer;padding:0;
   }
   input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
-  input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
-  input[type=color]::-moz-color-swatch{border:none;border-radius:5px}
+  input[type=color]::-webkit-color-swatch{border:none;border-radius:4px}
+  input[type=color]::-moz-color-swatch{border:none;border-radius:4px}
 
-  /* orientation */
-  .orient-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-  .orient-btn{
-    height:42px;border-radius:9px;cursor:pointer;
-    background:rgba(255,255,255,.03);border:1px solid var(--line);
-    display:grid;place-items:center;color:var(--muted);
+  /* segmented buttons */
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .seg-btn{
+    height:38px;border-radius:8px;cursor:pointer;padding:0;
+    background:transparent;border:1px solid var(--hair);
+    display:grid;place-items:center;color:var(--ink-soft);
+    font-family:var(--sans);font-size:11px;
     transition:color .15s,border-color .15s,background .15s;
   }
-  .orient-btn:hover{color:var(--text);border-color:var(--line-strong)}
-  .orient-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:rgba(255,255,255,.05)}
-  .orient-btn svg{display:block}
+  .seg-btn:hover{color:var(--ink);border-color:var(--hair-2)}
+  .seg-btn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+  .seg-btn svg{display:block}
+  .seg.two{grid-template-columns:repeat(2,1fr)}
 
   /* sliders */
-  .ctl{display:flex;flex-direction:column;gap:6px}
-  .ctl-top{display:flex;justify-content:space-between;align-items:baseline}
-  .ctl-top .ctl-name{font-size:12.5px;font-weight:500;color:var(--text)}
-  .ctl-top .ctl-val{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .ctl{display:flex;flex-direction:column;gap:4px}
+  .ctl-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ctl-top .n{font-size:12.5px;color:var(--ink)}
+  .ctl-top .v{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
   input[type=range]{
     -webkit-appearance:none;appearance:none;
-    width:100%;height:22px;background:transparent;cursor:pointer;
+    width:100%;height:20px;background:transparent;cursor:pointer;display:block;
   }
   input[type=range]::-webkit-slider-runnable-track{
-    height:3px;border-radius:2px;
-    background:linear-gradient(to right,var(--accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));
+    height:2px;border-radius:2px;
+    background:linear-gradient(to right,var(--accent) var(--fill,50%),var(--track) var(--fill,50%));
   }
   input[type=range]::-webkit-slider-thumb{
     -webkit-appearance:none;appearance:none;
-    width:14px;height:14px;border-radius:50%;
-    background:var(--text);border:none;
-    margin-top:-5.5px;
-    box-shadow:0 0 0 3px rgba(0,0,0,.35);
+    width:12px;height:12px;border-radius:50%;
+    background:var(--knob);border:none;margin-top:-5px;
   }
-  input[type=range]::-moz-range-track{
-    height:3px;border-radius:2px;background:rgba(255,255,255,.12);
-  }
-  input[type=range]::-moz-range-progress{height:3px;border-radius:2px;background:var(--accent)}
-  input[type=range]::-moz-range-thumb{
-    width:14px;height:14px;border-radius:50%;
-    background:var(--text);border:none;
-    box-shadow:0 0 0 3px rgba(0,0,0,.35);
-  }
-  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
-  .swatch:focus-visible,.orient-btn:focus-visible,.icon-btn:focus-visible,.toggle:focus-visible,.show-btn:focus-visible{
-    outline:2px solid var(--accent);outline-offset:2px;
-  }
+  input[type=range]::-moz-range-track{height:2px;border-radius:2px;background:var(--track)}
+  input[type=range]::-moz-range-progress{height:2px;border-radius:2px;background:var(--accent)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--knob);border:none}
 
   /* toggle */
-  .toggle-row{display:flex;align-items:center;justify-content:space-between}
-  .toggle-row .ctl-name{font-size:12.5px;font-weight:500}
-  .toggle{
-    width:38px;height:22px;border-radius:11px;cursor:pointer;position:relative;
-    background:rgba(255,255,255,.1);border:1px solid var(--line);
+  .tog-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .tog-row .n{font-size:12.5px;color:var(--ink)}
+  .tog{
+    width:36px;height:20px;border-radius:10px;cursor:pointer;position:relative;flex:none;
+    background:var(--track);border:1px solid var(--hair);padding:0;
     transition:background .2s,border-color .2s;
   }
-  .toggle::after{
-    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
-    background:var(--text);transition:transform .2s;
+  .tog::after{
+    content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:var(--knob);transition:transform .2s,background .2s;
   }
-  .toggle[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
-  .toggle[aria-pressed="true"]::after{transform:translateX(16px);background:#05060b}
+  .tog[aria-pressed="true"]{background:var(--accent);border-color:var(--accent)}
+  .tog[aria-pressed="true"]::after{transform:translateX(16px);background:#fff}
 
-  .divider{height:1px;background:var(--line)}
+  input[type=text]{
+    width:100%;font-family:var(--sans);font-size:12.5px;color:var(--ink);
+    background:transparent;border:1px solid var(--hair);border-radius:7px;
+    padding:7px 9px;
+  }
+  input[type=text]:focus{outline:none;border-color:var(--accent)}
+  .note{font-size:10.5px;color:var(--ink-soft);line-height:1.45}
 
-  /* floating show-panel button (when panel hidden) */
+  .rule{height:1px;background:var(--hair)}
+
   .show-btn{
-    position:fixed;top:24px;right:24px;z-index:9;
-    height:36px;padding:0 14px;border-radius:10px;
+    position:fixed;top:20px;right:20px;z-index:9;
+    height:34px;padding:0 13px;border-radius:9px;
     display:flex;align-items:center;gap:8px;
-    background:var(--panel);
-    -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
-    border:1px solid var(--line);color:var(--muted);
-    font-family:var(--ui);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    background:var(--surface);
+    -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+    border:1px solid var(--hair);color:var(--ink-soft);
+    font-family:var(--sans);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
     cursor:pointer;opacity:0;pointer-events:none;transition:opacity .3s ease,color .15s;
   }
   .show-btn.visible{opacity:1;pointer-events:auto}
-  .show-btn:hover{color:var(--text)}
+  .show-btn:hover{color:var(--ink)}
 
-  .hint{
-    position:fixed;bottom:20px;left:0;right:0;z-index:4;
-    text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-    color:rgba(139,144,164,.55);user-select:none;pointer-events:none;
+  .pal:focus-visible,.seg-btn:focus-visible,.icon-btn:focus-visible,.tog:focus-visible,
+  .show-btn:focus-visible,input[type=range]:focus-visible,input[type=color]:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;
   }
 
-  @media (max-width:640px){
-    .panel{left:12px;right:12px;top:auto;bottom:12px;width:auto;max-height:52vh;border-radius:18px}
-    .panel.hidden{transform:translateY(calc(100% + 24px))}
-    .show-btn{top:auto;bottom:20px;right:16px}
-    .nameplate{top:18px;left:18px}
-    .hint{display:none}
+  .fallback{
+    position:fixed;inset:0;z-index:2;display:none;place-items:center;
+    padding:8vmin;text-align:center;color:var(--ink-soft);font-size:14px;line-height:1.6;
+  }
+  body.no-webgl .fallback{display:grid}
+  body.no-webgl #stage{display:none}
+
+  @media (max-width:680px){
+    .panel{left:10px;right:10px;top:auto;bottom:10px;width:auto;max-height:54vh;border-radius:16px}
+    .panel.hidden{transform:translateY(calc(100% + 20px))}
+    .show-btn{top:auto;bottom:16px;right:14px}
+    .headline{padding:9vmin 7vmin;align-items:flex-start!important;justify-content:flex-start!important}
+    .headline h1{max-width:none!important;text-align:left!important}
+    .credit{display:none}
   }
 </style>
 </head>
-<body>
+<body data-scene="light">
 
-<canvas id="stage" aria-label="Animated triangle traced by a moving gradient light"></canvas>
+<canvas id="stage" aria-label="Animated prism refracting triangular beams of light"></canvas>
 
-<header class="nameplate">
-  <h1>Prism Trace</h1>
-  <p>Triangular light study</p>
-</header>
+<div class="fallback">
+  <p>This animation needs WebGL, which your browser has turned off or can&rsquo;t reach.<br>Enable hardware acceleration and reload to see it.</p>
+</div>
+
+<div class="headline" id="headline" data-place="left">
+  <h1 id="headlineText">Welcome to a <em>vivid</em> new world</h1>
+</div>
+
+<p class="credit">Prism Fan &mdash; refraction study</p>
 
 <aside class="panel" id="panel" aria-label="Animation controls">
-  <div class="panel-head">
-    <span class="label">Controls</span>
-    <div class="head-btns">
+  <div class="p-head">
+    <span class="title">Controls</span>
+    <div class="btns">
       <button class="icon-btn" id="playBtn" title="Pause / play" aria-label="Pause or play animation">
-        <svg id="pauseIcon" width="11" height="12" viewBox="0 0 11 12" fill="currentColor"><rect x="1" width="3" height="12" rx="1"/><rect x="7" width="3" height="12" rx="1"/></svg>
-        <svg id="playIcon" width="11" height="12" viewBox="0 0 11 12" fill="currentColor" style="display:none"><path d="M1.5.7a1 1 0 0 1 1.52-.86l8 5.3a1 1 0 0 1 0 1.7l-8 5.3A1 1 0 0 1 1.5 11.3z"/></svg>
+        <svg id="pauseIcon" width="10" height="11" viewBox="0 0 10 11" fill="currentColor"><rect x="1" width="2.6" height="11" rx="1"/><rect x="6.4" width="2.6" height="11" rx="1"/></svg>
+        <svg id="playIcon" width="10" height="11" viewBox="0 0 10 11" fill="currentColor" style="display:none"><path d="M1 .9a.9.9 0 0 1 1.37-.77l7.2 4.6a.9.9 0 0 1 0 1.54l-7.2 4.6A.9.9 0 0 1 1 10.1z"/></svg>
       </button>
       <button class="icon-btn" id="hideBtn" title="Hide panel" aria-label="Hide control panel">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 2l8 8M10 2l-8 8"/></svg>
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.8 1.8l7.4 7.4M9.2 1.8l-7.4 7.4"/></svg>
       </button>
     </div>
   </div>
 
-  <div class="section">
-    <span class="label">Gradient</span>
-    <div class="swatches" id="swatches" role="group" aria-label="Gradient presets"></div>
-    <div class="custom-row">
-      <span class="label-inline">Custom gradient</span>
-      <input type="color" id="customA" value="#59d8ff" aria-label="Custom gradient start color">
-      <input type="color" id="customB" value="#b44dff" aria-label="Custom gradient end color">
+  <div class="group">
+    <span class="lbl">Gradient</span>
+    <div class="pal-grid" id="palGrid" role="group" aria-label="Gradient presets"></div>
+    <div class="swatch-row">
+      <span class="t">Custom gradient</span>
+      <input type="color" id="cA" value="#22cdf0" aria-label="Custom color one">
+      <input type="color" id="cB" value="#ffa24d" aria-label="Custom color two">
+      <input type="color" id="cC" value="#ff4b85" aria-label="Custom color three">
     </div>
   </div>
 
-  <div class="divider"></div>
+  <div class="rule"></div>
 
-  <div class="section">
-    <span class="label">Orientation</span>
-    <div class="orient-grid" id="orientGrid" role="group" aria-label="Triangle orientation"></div>
+  <div class="group">
+    <span class="lbl">Orientation</span>
+    <div class="seg" id="dirSeg" role="group" aria-label="Beam direction"></div>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Rotation</span><span class="ctl-val" id="rotVal">0&deg;</span></div>
-      <input type="range" id="rotation" min="0" max="360" step="1" value="0" aria-label="Rotation angle">
+      <div class="ctl-top"><span class="n">Angle</span><span class="v" id="angleV">0&deg;</span></div>
+      <input type="range" id="angle" min="0" max="360" step="1" value="0" aria-label="Beam angle">
     </div>
-    <div class="toggle-row">
-      <span class="ctl-name">Auto-rotate</span>
-      <button class="toggle" id="autoRotate" aria-pressed="false" aria-label="Toggle auto-rotate"></button>
+    <div class="tog-row">
+      <span class="n">Auto-orbit</span>
+      <button class="tog" id="orbit" aria-pressed="false" aria-label="Toggle auto-orbit"></button>
     </div>
   </div>
 
-  <div class="divider"></div>
+  <div class="rule"></div>
 
-  <div class="section">
-    <span class="label">Motion</span>
+  <div class="group">
+    <span class="lbl">Fan</span>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Speed</span><span class="ctl-val" id="speedVal">1.0&times;</span></div>
-      <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1" aria-label="Light speed">
+      <div class="ctl-top"><span class="n">Spread</span><span class="v" id="spreadV">39&deg;</span></div>
+      <input type="range" id="spread" min="12" max="75" step="1" value="39" aria-label="Fan spread angle">
     </div>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Trail length</span><span class="ctl-val" id="trailVal">55%</span></div>
-      <input type="range" id="trail" min="10" max="100" step="1" value="55" aria-label="Trail length">
+      <div class="ctl-top"><span class="n">Beams</span><span class="v" id="beamsV">3</span></div>
+      <input type="range" id="beams" min="2" max="8" step="1" value="3" aria-label="Number of beams">
     </div>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Light runners</span><span class="ctl-val" id="runnersVal">1</span></div>
-      <input type="range" id="runners" min="1" max="3" step="1" value="1" aria-label="Number of light runners">
+      <div class="ctl-top"><span class="n">Sweep speed</span><span class="v" id="sweepV">1.00&times;</span></div>
+      <input type="range" id="sweep" min="0" max="2.5" step="0.05" value="1" aria-label="Sweep speed">
     </div>
   </div>
 
-  <div class="divider"></div>
+  <div class="rule"></div>
 
-  <div class="section">
-    <span class="label">Light</span>
+  <div class="group">
+    <span class="lbl">Optics</span>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Glow</span><span class="ctl-val" id="glowVal">70%</span></div>
-      <input type="range" id="glow" min="0" max="100" step="1" value="70" aria-label="Glow intensity">
+      <div class="ctl-top"><span class="n">Refraction</span><span class="v" id="warpV">0.75</span></div>
+      <input type="range" id="warp" min="0" max="1.6" step="0.02" value="0.75" aria-label="Refraction warp">
     </div>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Beam width</span><span class="ctl-val" id="widthVal">4.0</span></div>
-      <input type="range" id="beamWidth" min="1" max="10" step="0.5" value="4" aria-label="Beam width">
+      <div class="ctl-top"><span class="n">Wavefront</span><span class="v" id="waveV">0.85</span></div>
+      <input type="range" id="wave" min="0" max="1.6" step="0.02" value="0.85" aria-label="Wavefront strength">
     </div>
     <div class="ctl">
-      <div class="ctl-top"><span class="ctl-name">Size</span><span class="ctl-val" id="sizeVal">60%</span></div>
-      <input type="range" id="size" min="20" max="90" step="1" value="60" aria-label="Triangle size">
+      <div class="ctl-top"><span class="n">Grain</span><span class="v" id="grainV">6.0%</span></div>
+      <input type="range" id="grain" min="0" max="14" step="0.5" value="6" aria-label="Grain amount">
     </div>
+    <div class="ctl">
+      <div class="ctl-top"><span class="n">Prism size</span><span class="v" id="prismV">1.00&times;</span></div>
+      <input type="range" id="prism" min="0" max="2" step="0.05" value="1" aria-label="Prism size">
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="group">
+    <span class="lbl">Scene</span>
+    <div class="seg two" id="sceneSeg" role="group" aria-label="Background"></div>
+    <input type="text" id="hlText" value="Welcome to a *vivid* new world" aria-label="Headline text" spellcheck="false">
+    <p class="note">Wrap a word in *asterisks* to set it in italic serif. Clear the field to hide the headline.</p>
   </div>
 </aside>
 
 <button class="show-btn" id="showBtn" aria-label="Show control panel">
-  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 3h8M2 6h8M2 9h8"/></svg>
+  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.6 2.6h7.8M1.6 5.5h7.8M1.6 8.4h7.8"/></svg>
   Controls
 </button>
-
-<p class="hint">Press H to hide the panel &middot; Space to pause</p>
 
 <script>
 (() => {
   "use strict";
 
-  /* ---------------- gradient presets ---------------- */
-  const PRESETS = [
-    { name: "Aurora",   stops: ["#3ff2c8", "#4aa8ff", "#b44dff"] },
-    { name: "Sunset",   stops: ["#ffd166", "#ff5e7e", "#c04cff"] },
-    { name: "Glacier",  stops: ["#e0fbff", "#59d8ff", "#2a6bff"] },
-    { name: "Magma",    stops: ["#fff3b0", "#ff8c42", "#ff2d55"] },
-    { name: "Violet",   stops: ["#ff9ff5", "#b44dff", "#5b2bff"] },
-    { name: "Emerald",  stops: ["#eaffd0", "#5dfc9e", "#00b3a4"] },
-    { name: "Pure",     stops: ["#ffffff", "#c9d2ff", "#8a96c8"] },
-    { name: "Spectrum", stops: null, cycle: true }, // hue cycles over time
+  /* ============================================================
+     Palettes — six cyclic stops each. "Vivid" is sampled from the
+     reference clip: cyan / pale / orange / amber / magenta / pink.
+     ============================================================ */
+  const PALETTES = [
+    { name: "Vivid",   stops: ["#22cdf0","#a8ecf7","#ffa24d","#ffc86e","#ff4b85","#ff93c9"] },
+    { name: "Ember",   stops: ["#ffd166","#fff0c7","#ff8a3d","#ff5252","#c42a6b","#ffb3a7"] },
+    { name: "Lagoon",  stops: ["#00d4c8","#cff7f3","#3b9dff","#6c63ff","#00e5a0","#b9e8ff"] },
+    { name: "Orchid",  stops: ["#b44dff","#ebd6ff","#ff5ec4","#7c4dff","#ff9af0","#e0c3ff"] },
+    { name: "Citrus",  stops: ["#ffe94d","#fffbd6","#7be04a","#ffb03a","#ff6f3c","#e8ffb0"] },
+    { name: "Ink",     stops: ["#22355c","#dde3ee","#4a6fa5","#8fa9c9","#2e4b7a","#c7d3e4"] },
+    { name: "Mono",    stops: ["#2b2d36","#f2f2f4","#7c8090","#b9bcc7","#4a4d59","#dcdee5"] },
+    { name: "Spectrum",stops: ["#ff3d6e","#ffb03a","#ffe94d","#4ce07a","#2ac6f0","#a24dff"], cycle: true },
   ];
 
-  const ORIENTATIONS = [
-    { name: "Up",    angle: 0   },
-    { name: "Right", angle: 90  },
-    { name: "Down",  angle: 180 },
-    { name: "Left",  angle: 270 },
+  const DIRS = [
+    { name: "Right", deg: 0,   place: "left"   },
+    { name: "Down",  deg: 90,  place: "top"    },
+    { name: "Left",  deg: 180, place: "right"  },
+    { name: "Up",    deg: 270, place: "bottom" },
   ];
+
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const state = {
-    presetIndex: 0,
-    stops: PRESETS[0].stops,
+    palIndex: 0,
+    stops: PALETTES[0].stops.slice(),
     cycle: false,
-    rotationDeg: 0,       // slider value / snapped orientation
-    displayRot: 0,        // animated (eased) rotation, radians
-    autoRotate: false,
-    speed: 1,
-    trail: 0.55,          // fraction of perimeter
-    runners: 1,
-    glow: 0.7,
-    beamWidth: 4,
-    size: 0.6,            // fraction of min(viewport)/2
-    running: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+    angleDeg: 0,
+    shownAngle: 0,
+    orbit: false,
+    spreadDeg: 39,
+    beams: 3,
+    sweep: 1,
+    warp: 0.75,
+    wave: 0.85,
+    grain: 0.06,
+    prism: 1,
+    scene: "light",
+    running: !reduce,
   };
+
+  /* ---------------- shaders ---------------- */
+  const VERT = `
+    attribute vec2 aPos;
+    void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }
+  `;
+
+  const FRAG = `
+    #extension GL_OES_standard_derivatives : enable
+    precision highp float;
+
+    uniform vec2  uRes;
+    uniform float uT;
+    uniform vec2  uOrigin;     // fan origin, GL pixel coords
+    uniform vec2  uDir;        // unit fan direction
+    uniform float uSpread;     // half-angle, radians
+    uniform float uBeams;
+    uniform float uSweep;
+    uniform float uWarp;
+    uniform float uWave;
+    uniform float uGrain;
+    uniform float uPrism;
+    uniform float uCycle;
+    uniform vec3  uPal[6];
+    uniform vec3  uBg;
+
+    // Cyclic six-stop ramp with linear (triangular-weight) interpolation.
+    vec3 pal(float x){
+      x = fract(x) * 6.0;
+      vec3 acc = vec3(0.0);
+      for (int i = 0; i < 6; i++){
+        float d = abs(x - float(i));
+        d = min(d, 6.0 - d);
+        acc += uPal[i] * max(0.0, 1.0 - d);
+      }
+      return acc;
+    }
+
+    float hash21(vec2 p){
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+
+    // One wedge: its angular falloff at this point, and its colour.
+    void beamAt(int i, float d, float aw, out float lobe, out vec3 c){
+      float fi   = float(i);
+      float nb   = max(uBeams, 1.0);
+      float ph   = fi * 2.3999632;
+      float slot = (fi + 0.5) / nb * 2.0 - 1.0;
+      float ca   = uSpread * (slot * 0.95 + 0.26 * sin(uT * 0.23 * uSweep + ph));
+      float w    = max(uSpread * (1.75 / nb) * (0.78 + 0.58 * sin(uT * 0.29 * uSweep + ph * 1.6)), 0.010);
+      // a defined seam near the apex, dissolving into haze further out
+      float soft = mix(0.24, 0.90, smoothstep(0.06, 0.92, d));
+      lobe = 1.0 - smoothstep(1.0 - soft, 1.0 + soft, abs(aw - ca) / w);
+      c    = pal(fi / nb + uCycle * uT * 0.028);
+    }
+
+    // Concave four-pointed star (superellipse with exponent < 1).
+    float starMask(vec2 q, float rx, float ry, float k){
+      vec2 n = abs(q) / vec2(rx, ry);
+      float v = pow(n.x, k) + pow(n.y, k);
+      float e = max(fwidth(v), 0.004) * 1.2;
+      return 1.0 - smoothstep(1.0 - e, 1.0 + e, v);
+    }
+
+    void main(){
+      vec2 frag = gl_FragCoord.xy;
+      float H = max(uRes.y, 1.0);
+
+      // world -> fan space: +x along the beam direction, y across it
+      vec2 rel = (frag - uOrigin) / H;
+      vec2 perp = vec2(-uDir.y, uDir.x);
+      vec2 p = vec2(dot(rel, uDir), dot(rel, perp));
+
+      float d = length(p);
+      float a = atan(p.y, p.x);
+
+      /* ---- refraction: bend the angular field with radius so the
+              wedge boundaries bow into arcs instead of straight rays ---- */
+      float grow = smoothstep(0.0, 0.32, d);
+      float aw = a
+        + uWarp * 0.085 * sin(d * 2.15 - uT * 0.62) * grow
+        + uWarp * 0.028 * sin(d * 5.10 + uT * 0.41 + 1.7) * grow;
+
+      /* ---- the fan: N soft wedges sweeping around the origin.
+              Wedges are lights, so they combine by screen, not by average:
+              where cyan meets magenta the reference goes white, not grey. ---- */
+      float amax = 0.0;
+      for (int i = 0; i < 8; i++){
+        if (float(i) >= uBeams) break;
+        float lb; vec3 cc;
+        beamAt(i, d, aw, lb, cc);
+        amax = max(amax, lb);
+      }
+
+      vec3 col = vec3(0.0);
+      for (int i = 0; i < 8; i++){
+        if (float(i) >= uBeams) break;
+        float lb; vec3 cc;
+        beamAt(i, d, aw, lb, cc);
+        float wn = pow(lb / max(amax, 1e-4), 2.6);   // the strongest wedge keeps its hue;
+                                                     // neighbours only whiten the seam
+        col = 1.0 - (1.0 - col) * (1.0 - cc * wn);
+      }
+
+      float alpha = pow(clamp(amax * 1.35, 0.0, 1.0), 0.62);
+
+      // soft fan edges, and a white-hot core right at the prism tip
+      alpha *= 1.0 - smoothstep(uSpread * 1.0, uSpread * 1.55, abs(aw));
+      alpha *= smoothstep(0.004, 0.048, d);
+
+      // crisp narrow facet rays close in, dissolving outward
+      float inner = 1.0 - smoothstep(0.10, 0.52, d);
+      float fine  = 0.5 + 0.5 * sin(aw * 15.0 - uT * 0.7);
+      alpha *= mix(1.0, 0.66 + 0.48 * fine, 0.30 * inner);
+
+      // breathing wavefront arc that bleaches the beams as it passes
+      float R    = 0.42 + 0.30 * sin(uT * 0.21);
+      float ring = exp(-pow((d - R) / 0.10, 2.0));
+      alpha *= 1.0 - uWave * 0.30 * ring;
+      col    = mix(col, vec3(1.0), uWave * 0.22 * ring);
+
+      // let the far reaches lift back toward the ground
+      alpha *= 1.0 - 0.05 * smoothstep(1.2, 2.4, d);
+
+      alpha += (hash21(floor(frag / 1.5)) - 0.5) * uGrain;
+      alpha  = clamp(alpha, 0.0, 1.0);
+
+      vec3 outc = mix(uBg, col, alpha);
+
+      /* ---- the prism: three nested concave stars, tip at the origin ---- */
+      if (uPrism > 0.001){
+        float pulse = 0.78 + 0.30 * sin(uT * 0.47);
+        float s = uPrism;
+
+        // main body
+        float rx = 0.052 * s * pulse, ry = 0.090 * s;
+        float m1 = starMask(p - vec2(-rx, 0.0), rx, ry, 0.70);
+        // inner blade, offset back
+        float rx2 = 0.030 * s * (1.6 - pulse * 0.7), ry2 = 0.064 * s;
+        float m2 = starMask(p - vec2(-rx - 0.022 * s, 0.0), rx2, ry2, 0.60);
+        // exit facet at the tip
+        float rx3 = 0.017 * s, ry3 = 0.032 * s * pulse;
+        float m3 = starMask(p - vec2(-rx3, 0.0), rx3, ry3, 0.62);
+
+        float u1  = clamp((p.x + 2.0 * rx) / max(2.0 * rx, 1e-4), 0.0, 1.0);
+        float cyc = uCycle * uT * 0.028;
+        vec3 pA = pal(0.0000 + cyc);      // leading facet
+        vec3 pB = pal(0.6667 + cyc);      // body
+        vec3 pC = pal(0.1667 + cyc);      // inner highlight
+        vec3 pD = pal(0.3333 + cyc);      // exit facet
+
+        outc = mix(outc, mix(pA, pB, smoothstep(0.30, 0.92, u1)), m1 * 0.97);
+        outc = mix(outc, mix(pC, pB, u1), m2 * 0.62);
+        outc = mix(outc, pD, m3 * 0.88);
+      }
+
+      gl_FragColor = vec4(outc, 1.0);
+    }
+  `;
+
+  /* ---------------- GL setup ---------------- */
+  const canvas = document.getElementById("stage");
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: false, powerPreference: "high-performance" })
+          || canvas.getContext("experimental-webgl", { antialias: false, alpha: false });
+
+  if (!gl) {
+    document.body.classList.add("no-webgl");
+    return;
+  }
+
+  gl.getExtension("OES_standard_derivatives");
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      return null;
+    }
+    return s;
+  }
+
+  const vs = compile(gl.VERTEX_SHADER, VERT);
+  const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+  if (!vs || !fs) { document.body.classList.add("no-webgl"); return; }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(prog));
+    document.body.classList.add("no-webgl");
+    return;
+  }
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, "aPos");
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  ["uRes","uT","uOrigin","uDir","uSpread","uBeams","uSweep","uWarp","uWave",
+   "uGrain","uPrism","uCycle","uBg"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+  const uPal = [];
+  for (let i = 0; i < 6; i++) uPal.push(gl.getUniformLocation(prog, `uPal[${i}]`));
+
+  let W = 0, H = 0;
+
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 1.75);
+    let w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
+    const MAX = 4.4e6;                       // keep the fragment load sane on huge displays
+    if (w * h > MAX) { const k = Math.sqrt(MAX / (w * h)); w = Math.round(w * k); h = Math.round(h * k); }
+    W = w; H = h;
+    canvas.width = w; canvas.height = h;
+    gl.viewport(0, 0, w, h);
+    if (!state.running) render(clock);
+  }
+  addEventListener("resize", resize);
 
   /* ---------------- color helpers ---------------- */
   const hexToRgb = h => {
     const n = parseInt(h.slice(1), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
   };
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const rgbStr = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
-
-  // sample a multi-stop gradient at u in [0,1]
-  function sampleStops(stops, u) {
-    u = Math.min(1, Math.max(0, u));
-    const seg = (stops.length - 1) * u;
-    const i = Math.min(stops.length - 2, seg | 0);
-    const t = seg - i;
-    const a = hexToRgb(stops[i]), b = hexToRgb(stops[i + 1]);
-    return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-  }
-
-  function hslToRgb(h, s, l) {
-    h = ((h % 360) + 360) % 360;
-    const c = (1 - Math.abs(2 * l - 1)) * s;
-    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-    const m = l - c / 2;
-    let r, g, b;
-    if (h < 60)       [r, g, b] = [c, x, 0];
-    else if (h < 120) [r, g, b] = [x, c, 0];
-    else if (h < 180) [r, g, b] = [0, c, x];
-    else if (h < 240) [r, g, b] = [0, x, c];
-    else if (h < 300) [r, g, b] = [x, 0, c];
-    else              [r, g, b] = [c, 0, x];
-    return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
-  }
-
-  // color along the trail: u = 0 at the head, 1 at the tail
-  function trailColor(u, timeSec) {
-    if (state.cycle) return hslToRgb(timeSec * 40 + u * 240, 0.95, 0.62);
-    return sampleStops(state.stops, u);
-  }
-
-  function accentColor() {
-    const c = state.cycle ? hslToRgb(180, 0.95, 0.62) : sampleStops(state.stops, 0.35);
-    return rgbStr(c);
-  }
+  const mixHex = (a, b, t) => {
+    const A = hexToRgb(a), B = hexToRgb(b);
+    const c = A.map((v, i) => Math.round((v + (B[i] - v) * t) * 255));
+    return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+  };
+  function accentHex() { return state.stops[0]; }
   function applyAccent() {
-    document.documentElement.style.setProperty("--accent", accentColor());
+    document.documentElement.style.setProperty("--accent", accentHex());
   }
 
-  /* ---------------- canvas setup ---------------- */
-  const canvas = document.getElementById("stage");
-  const ctx = canvas.getContext("2d");
-  // low-res offscreen layer: upscaling it back gives a cheap, smooth bloom
-  const glowCanvas = document.createElement("canvas");
-  const gctx = glowCanvas.getContext("2d");
-  const GLOW_SCALE = 5;
-  let W = 0, H = 0, DPR = 1;
+  /* ---------------- render ---------------- */
+  let clock = 0;          // animation time in seconds (advances only while running)
+  let lastMs = null;
 
-  function resize() {
-    DPR = Math.min(devicePixelRatio || 1, 2);
-    W = innerWidth; H = innerHeight;
-    canvas.width = W * DPR;
-    canvas.height = H * DPR;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    glowCanvas.width = Math.max(2, Math.round(W / GLOW_SCALE));
-    glowCanvas.height = Math.max(2, Math.round(H / GLOW_SCALE));
-    if (!state.running) draw(perf());
-  }
-  addEventListener("resize", resize);
+  function render(t) {
+    gl.uniform2f(U.uRes, W, H);
+    gl.uniform1f(U.uT, t);
 
-  /* ---------------- triangle geometry ---------------- */
-  // Equilateral triangle, apex pointing up at rotation 0.
-  function vertices(rotRad) {
-    const cx = W / 2, cy = H / 2;
-    const R = (Math.min(W, H) / 2) * state.size;
-    const v = [];
-    for (let k = 0; k < 3; k++) {
-      const a = rotRad - Math.PI / 2 + (k * 2 * Math.PI) / 3;
-      v.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]);
+    // origin: canvas centre, nudged very slightly forward along the beam
+    const rad = state.shownAngle * Math.PI / 180;
+    const dx = Math.cos(rad), dy = -Math.sin(rad);         // screen y is down; GL y is up
+    gl.uniform2f(U.uOrigin, W * 0.5 + dx * H * 0.062, H * 0.5 + dy * H * 0.062);
+    gl.uniform2f(U.uDir, dx, dy);
+
+    gl.uniform1f(U.uSpread, state.spreadDeg * Math.PI / 180);
+    gl.uniform1f(U.uBeams, state.beams);
+    gl.uniform1f(U.uSweep, state.sweep);
+    gl.uniform1f(U.uWarp, state.warp);
+    gl.uniform1f(U.uWave, state.wave);
+    gl.uniform1f(U.uGrain, state.grain);
+    gl.uniform1f(U.uPrism, state.prism);
+    gl.uniform1f(U.uCycle, state.cycle ? 1 : 0);
+
+    const bg = state.scene === "dark" ? [0.039, 0.043, 0.059] : [0.965, 0.957, 0.961];
+    gl.uniform3f(U.uBg, bg[0], bg[1], bg[2]);
+
+    for (let i = 0; i < 6; i++) {
+      const c = hexToRgb(state.stops[i]);
+      gl.uniform3f(uPal[i], c[0], c[1], c[2]);
     }
-    return v;
-  }
 
-  // point on the perimeter at t in [0,1)
-  function pointAt(v, t) {
-    t = ((t % 1) + 1) % 1;
-    const s = t * 3;
-    const e = Math.min(2, s | 0);
-    const f = s - e;
-    const a = v[e], b = v[(e + 1) % 3];
-    return [lerp(a[0], b[0], f), lerp(a[1], b[1], f)];
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
-  /* ---------------- drawing ---------------- */
-  let head = 0;            // head position along perimeter [0,1)
-  let lastT = null;
-  const perf = () => performance.now();
+  function frame(ms) {
+    if (lastMs == null) lastMs = ms;
+    const dt = Math.min(0.05, (ms - lastMs) / 1000);
+    lastMs = ms;
+    clock += dt;
 
-  let lastDrawMs = null;
-
-  function draw(nowMs) {
-    const timeSec = nowMs / 1000;
-    const dtDraw = lastDrawMs == null ? 1 / 60 : Math.min(0.1, (nowMs - lastDrawMs) / 1000);
-    lastDrawMs = nowMs;
-    ctx.clearRect(0, 0, W, H);
-
-    // ground: subtle vignette so the black has depth
-    const vg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.75);
-    vg.addColorStop(0, "#090b13");
-    vg.addColorStop(1, "#04050a");
-    ctx.fillStyle = vg;
-    ctx.fillRect(0, 0, W, H);
-
-    // ease displayed rotation toward the target (time-based, frame-rate independent)
-    const target = (state.rotationDeg * Math.PI) / 180;
-    let d = target - state.displayRot;
-    d = Math.atan2(Math.sin(d), Math.cos(d));
-    state.displayRot += d * Math.min(1, dtDraw * 6);
-    if (state.autoRotate) {
-      state.rotationDeg = (state.rotationDeg + 8 * state.speed * dtDraw) % 360;
-      syncRotationUI();
+    if (state.orbit) {
+      state.angleDeg = (state.angleDeg + 7 * dt * Math.max(state.sweep, 0.15)) % 360;
+      syncAngleUI();
     }
+    // ease the shown angle toward the target, the short way round
+    let diff = ((state.angleDeg - state.shownAngle + 540) % 360) - 180;
+    state.shownAngle = (state.shownAngle + diff * Math.min(1, dt * 5) + 360) % 360;
 
-    const v = vertices(state.displayRot);
-    const glow = state.glow;
-
-    // ambient bloom at the centroid
-    const mid = trailColor(0.5, timeSec);
-    const cg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.min(W, H) * 0.62);
-    cg.addColorStop(0, rgbStr(mid, 0.10 * glow));
-    cg.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = cg;
-    ctx.fillRect(0, 0, W, H);
-
-    // faint resting outline of the triangle
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = `rgba(255,255,255,${0.05 + 0.05 * glow})`;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(v[0][0], v[0][1]);
-    ctx.lineTo(v[1][0], v[1][1]);
-    ctx.lineTo(v[2][0], v[2][1]);
-    ctx.closePath();
-    ctx.stroke();
-
-    // light runners.
-    // Bloom: the trail is drawn wide on a 1/5-resolution offscreen canvas and
-    // upscaled back — bilinear smoothing turns it into a soft halo far cheaper
-    // (and smoother) than per-segment shadowBlur.
-    const SEG = Math.round(70 + 110 * state.trail);
-    const gs = glowCanvas.width / W;
-    gctx.clearRect(0, 0, glowCanvas.width, glowCanvas.height);
-    gctx.globalCompositeOperation = "lighter";
-    gctx.lineCap = "round";
-
-    for (let r = 0; r < state.runners; r++) {
-      const hd = head + r / state.runners;
-      for (let i = 0; i < SEG; i++) {
-        const u0 = i / SEG, u1 = (i + 1) / SEG;
-        const p0 = pointAt(v, hd - u0 * state.trail);
-        const p1 = pointAt(v, hd - u1 * state.trail);
-        const fade = Math.pow(1 - u0, 1.6);
-        const col = trailColor(u0, timeSec);
-        gctx.strokeStyle = rgbStr(col, 0.5 * fade);
-        gctx.lineWidth = Math.max(1.2, state.beamWidth * (2 + 4 * glow) * (1.7 - u0) * gs);
-        gctx.beginPath();
-        gctx.moveTo(p0[0] * gs, p0[1] * gs);
-        gctx.lineTo(p1[0] * gs, p1[1] * gs);
-        gctx.stroke();
-      }
-    }
-
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.45 + 0.55 * glow;
-    ctx.drawImage(glowCanvas, 0, 0, W, H);
-    ctx.globalAlpha = 1;
-
-    // crisp beam + hot core on the main canvas — butt caps so segment joints
-    // don't double-brighten under "lighter"
-    ctx.lineCap = "butt";
-    for (let r = 0; r < state.runners; r++) {
-      const hd = head + r / state.runners;
-      for (let i = 0; i < SEG; i++) {
-        const u0 = i / SEG, u1 = (i + 1) / SEG;
-        const p0 = pointAt(v, hd - u0 * state.trail);
-        const p1 = pointAt(v, hd - (u1 + 0.001) * state.trail);
-        const fade = Math.pow(1 - u0, 1.6);
-        const col = trailColor(u0, timeSec);
-
-        ctx.strokeStyle = rgbStr(col, 0.55 * fade);
-        ctx.lineWidth = state.beamWidth * (1.5 - 0.9 * u0);
-        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
-
-        const core = [lerp(col[0], 255, 0.6 * fade), lerp(col[1], 255, 0.6 * fade), lerp(col[2], 255, 0.6 * fade)];
-        ctx.strokeStyle = rgbStr(core, 0.9 * fade);
-        ctx.lineWidth = Math.max(0.7, state.beamWidth * 0.45 * (1.3 - u0));
-        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
-      }
-
-      // head flare
-      const hp = pointAt(v, hd);
-      const hc = trailColor(0, timeSec);
-      const fr = 22 + 42 * glow;
-      const fg = ctx.createRadialGradient(hp[0], hp[1], 0, hp[0], hp[1], fr);
-      fg.addColorStop(0, "rgba(255,255,255,.95)");
-      fg.addColorStop(0.25, rgbStr(hc, 0.8));
-      fg.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = fg;
-      ctx.beginPath(); ctx.arc(hp[0], hp[1], fr, 0, 7); ctx.fill();
-    }
-
-    // vertex sparks: pulse when a runner head passes near a corner
-    for (let k = 0; k < 3; k++) {
-      let near = 0;
-      for (let r = 0; r < state.runners; r++) {
-        const hd = ((head + r / state.runners) % 1 + 1) % 1;
-        let dd = Math.abs(hd - k / 3); dd = Math.min(dd, 1 - dd);
-        near = Math.max(near, Math.max(0, 1 - dd * 14));
-      }
-      if (near > 0.01) {
-        const c = trailColor(0.15, timeSec);
-        const g = ctx.createRadialGradient(v[k][0], v[k][1], 0, v[k][0], v[k][1], 14 + 26 * near * glow);
-        g.addColorStop(0, rgbStr(c, 0.65 * near));
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(v[k][0], v[k][1], 14 + 26 * near * glow, 0, 7); ctx.fill();
-      }
-    }
-
-    ctx.globalCompositeOperation = "source-over";
-  }
-
-  function frame(nowMs) {
-    if (lastT == null) lastT = nowMs;
-    const dt = Math.min(0.05, (nowMs - lastT) / 1000);
-    lastT = nowMs;
-    head = ((head + dt * 0.14 * state.speed) % 1 + 1) % 1;
-    draw(nowMs);
+    render(clock);
     if (state.running) requestAnimationFrame(frame);
   }
 
-  /* ---------------- UI wiring ---------------- */
   const $ = id => document.getElementById(id);
+  const redraw = () => { if (!state.running) render(clock); };
 
-  // gradient swatches
-  const swatchWrap = $("swatches");
-  const swatchBtns = PRESETS.map((p, i) => {
+  /* ---------------- palette UI ---------------- */
+  const conic = stops =>
+    `conic-gradient(from .25turn, ${stops.map((c, i) => `${c} ${Math.round(i * 100 / 6)}%`).join(",")}, ${stops[0]} 100%)`;
+
+  const palGrid = $("palGrid");
+  const palBtns = PALETTES.map((p, i) => {
     const b = document.createElement("button");
-    b.className = "swatch";
-    b.type = "button";
+    b.className = "pal"; b.type = "button";
     b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
     b.setAttribute("aria-label", `${p.name} gradient`);
-    b.style.background = p.cycle
-      ? "linear-gradient(135deg,#ff4d6d,#ffd166,#5dfc9e,#59d8ff,#b44dff)"
-      : `linear-gradient(135deg,${p.stops.join(",")})`;
+    b.style.background = conic(p.stops);
     const n = document.createElement("span");
-    n.className = "name"; n.textContent = p.name;
+    n.className = "nm"; n.textContent = p.name;
     b.appendChild(n);
-    b.addEventListener("click", () => selectPreset(i));
-    swatchWrap.appendChild(b);
+    b.addEventListener("click", () => pickPalette(i));
+    palGrid.appendChild(b);
     return b;
   });
 
-  function selectPreset(i) {
-    state.presetIndex = i;
-    state.cycle = !!PRESETS[i].cycle;
-    if (!state.cycle) state.stops = PRESETS[i].stops;
-    swatchBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
-    applyAccent();
-    redrawIfPaused();
+  function pickPalette(i) {
+    state.palIndex = i;
+    state.stops = PALETTES[i].stops.slice();
+    state.cycle = !!PALETTES[i].cycle;
+    palBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(k === i)));
+    applyAccent(); redraw();
   }
 
-  function useCustom() {
-    state.presetIndex = -1;
+  function customPalette() {
+    const a = $("cA").value, b = $("cB").value, c = $("cC").value;
+    // three picked colors, each followed by a pale blend — mirrors the
+    // colour/highlight alternation that gives the fan its white gaps
+    state.stops = [a, mixHex(a, "#ffffff", 0.62), b, mixHex(b, c, 0.5), c, mixHex(c, a, 0.5)];
     state.cycle = false;
-    state.stops = [$("customA").value, $("customB").value];
-    swatchBtns.forEach(b => b.setAttribute("aria-pressed", "false"));
-    applyAccent();
-    redrawIfPaused();
+    state.palIndex = -1;
+    palBtns.forEach(b2 => b2.setAttribute("aria-pressed", "false"));
+    applyAccent(); redraw();
   }
-  $("customA").addEventListener("input", useCustom);
-  $("customB").addEventListener("input", useCustom);
+  ["cA","cB","cC"].forEach(id => $(id).addEventListener("input", customPalette));
 
-  // orientation buttons — triangle glyph rotated to match
-  const orientGrid = $("orientGrid");
-  const orientBtns = ORIENTATIONS.map(o => {
+  /* ---------------- orientation UI ---------------- */
+  const dirSeg = $("dirSeg");
+  const dirBtns = DIRS.map(d => {
     const b = document.createElement("button");
-    b.className = "orient-btn";
-    b.type = "button";
-    b.setAttribute("aria-pressed", o.angle === 0 ? "true" : "false");
-    b.setAttribute("aria-label", `Point ${o.name.toLowerCase()}`);
-    b.title = `Point ${o.name.toLowerCase()}`;
-    b.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(${o.angle}deg)">
-      <path d="M8 2.2 14 13H2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
-    b.addEventListener("click", () => {
-      state.rotationDeg = o.angle;
-      syncRotationUI();
-      redrawIfPaused();
-    });
-    orientGrid.appendChild(b);
+    b.className = "seg-btn"; b.type = "button";
+    b.setAttribute("aria-pressed", d.deg === 0 ? "true" : "false");
+    b.setAttribute("aria-label", `Beams point ${d.name.toLowerCase()}`);
+    b.title = `Beams point ${d.name.toLowerCase()}`;
+    // a wedge glyph, rotated to the direction it fires
+    b.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(${d.deg}deg)">
+      <path d="M14 8 L3 2.4 L3 13.6 Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    b.addEventListener("click", () => { state.angleDeg = d.deg; syncAngleUI(); redraw(); });
+    dirSeg.appendChild(b);
     return b;
   });
 
-  function syncRotationUI() {
-    const deg = Math.round(state.rotationDeg) % 360;
-    $("rotation").value = deg;
-    setFill($("rotation"));
-    $("rotVal").textContent = deg + "°";
-    orientBtns.forEach((b, k) =>
-      b.setAttribute("aria-pressed", String(ORIENTATIONS[k].angle === deg)));
+  function syncAngleUI() {
+    const deg = Math.round(state.angleDeg) % 360;
+    $("angle").value = deg;
+    setFill($("angle"));
+    $("angleV").textContent = deg + "°";
+    dirBtns.forEach((b, k) => b.setAttribute("aria-pressed", String(DIRS[k].deg === deg)));
+    // keep the headline out of the beams' way
+    let best = DIRS[0], bestD = 999;
+    DIRS.forEach(d => {
+      const dd = Math.abs(((deg - d.deg + 540) % 360) - 180);
+      if (dd < bestD) { bestD = dd; best = d; }
+    });
+    $("headline").dataset.place = best.place;
   }
 
-  // slider fill (webkit track needs a CSS var)
+  /* ---------------- sliders ---------------- */
   function setFill(el) {
     const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
     el.style.setProperty("--fill", pct + "%");
   }
 
-  function bindRange(id, valId, apply, fmt) {
-    const el = $(id);
-    const out = $(valId);
-    const update = () => {
+  function bind(id, valId, apply, fmt) {
+    const el = $(id), out = $(valId);
+    const run = () => {
+      const v = parseFloat(el.value);
       setFill(el);
-      out.textContent = fmt(parseFloat(el.value));
-      apply(parseFloat(el.value));
-      redrawIfPaused();
+      out.textContent = fmt(v);
+      apply(v);
+      redraw();
     };
-    el.addEventListener("input", update);
+    el.addEventListener("input", run);
     setFill(el);
   }
 
-  bindRange("rotation", "rotVal", v => { state.rotationDeg = v; syncRotationUI(); }, v => Math.round(v) + "°");
-  bindRange("speed", "speedVal", v => state.speed = v, v => v.toFixed(1) + "×");
-  bindRange("trail", "trailVal", v => state.trail = v / 100, v => Math.round(v) + "%");
-  bindRange("runners", "runnersVal", v => state.runners = v, v => String(v));
-  bindRange("glow", "glowVal", v => state.glow = v / 100, v => Math.round(v) + "%");
-  bindRange("beamWidth", "widthVal", v => state.beamWidth = v, v => v.toFixed(1));
-  bindRange("size", "sizeVal", v => state.size = v / 100, v => Math.round(v) + "%");
+  bind("angle",  "angleV",  v => { state.angleDeg = v; syncAngleUI(); }, v => Math.round(v) + "°");
+  bind("spread", "spreadV", v => state.spreadDeg = v, v => Math.round(v) + "°");
+  bind("beams",  "beamsV",  v => state.beams = v,     v => String(v));
+  bind("sweep",  "sweepV",  v => state.sweep = v,     v => v.toFixed(2) + "×");
+  bind("warp",   "warpV",   v => state.warp = v,      v => v.toFixed(2));
+  bind("wave",   "waveV",   v => state.wave = v,      v => v.toFixed(2));
+  bind("grain",  "grainV",  v => state.grain = v/100, v => v.toFixed(1) + "%");
+  bind("prism",  "prismV",  v => state.prism = v,     v => v.toFixed(2) + "×");
 
-  // auto-rotate toggle
-  $("autoRotate").addEventListener("click", e => {
-    state.autoRotate = !state.autoRotate;
-    e.currentTarget.setAttribute("aria-pressed", String(state.autoRotate));
+  $("orbit").addEventListener("click", e => {
+    state.orbit = !state.orbit;
+    e.currentTarget.setAttribute("aria-pressed", String(state.orbit));
   });
 
-  // play / pause
+  /* ---------------- scene ---------------- */
+  const sceneSeg = $("sceneSeg");
+  const sceneBtns = ["Light", "Dark"].map(name => {
+    const b = document.createElement("button");
+    b.className = "seg-btn"; b.type = "button";
+    b.textContent = name;
+    b.setAttribute("aria-pressed", String(name.toLowerCase() === state.scene));
+    b.addEventListener("click", () => {
+      state.scene = name.toLowerCase();
+      document.body.dataset.scene = state.scene;
+      sceneBtns.forEach(o => o.setAttribute("aria-pressed", String(o.textContent.toLowerCase() === state.scene)));
+      redraw();
+    });
+    sceneSeg.appendChild(b);
+    return b;
+  });
+
+  const hlWrap = $("headline"), hlEl = $("headlineText");
+  function setHeadline(raw) {
+    const txt = raw.trim();
+    hlWrap.classList.toggle("off", txt === "");
+    if (!txt) return;
+    // *word* -> italic serif; everything else escaped
+    const esc = s => s.replace(/[&<>"]/g, ch => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[ch]));
+    hlEl.innerHTML = txt.split(/\*([^*]+)\*/).map((part, i) =>
+      i % 2 ? `<em>${esc(part)}</em>` : esc(part)).join("");
+  }
+  $("hlText").addEventListener("input", e => setHeadline(e.target.value));
+
+  /* ---------------- play / pause, panel ---------------- */
   function setRunning(run) {
     state.running = run;
     $("pauseIcon").style.display = run ? "block" : "none";
     $("playIcon").style.display = run ? "none" : "block";
-    if (run) { lastT = null; requestAnimationFrame(frame); }
+    if (run) { lastMs = null; requestAnimationFrame(frame); }
   }
   $("playBtn").addEventListener("click", () => setRunning(!state.running));
 
-  function redrawIfPaused() { if (!state.running) draw(perf()); }
-
-  // panel hide / show
   const panel = $("panel"), showBtn = $("showBtn");
-  function setPanel(visible) {
-    panel.classList.toggle("hidden", !visible);
-    showBtn.classList.toggle("visible", !visible);
+  function setPanel(vis) {
+    panel.classList.toggle("hidden", !vis);
+    showBtn.classList.toggle("visible", !vis);
   }
   $("hideBtn").addEventListener("click", () => setPanel(false));
   showBtn.addEventListener("click", () => setPanel(true));
 
   addEventListener("keydown", e => {
-    if (e.target.tagName === "INPUT") return;
+    const tag = e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
     if (e.key === " ") { e.preventDefault(); setRunning(!state.running); }
     if (e.key.toLowerCase() === "h") setPanel(panel.classList.contains("hidden"));
   });
 
   /* ---------------- boot ---------------- */
   applyAccent();
+  setHeadline($("hlText").value);
+  syncAngleUI();
+  state.shownAngle = state.angleDeg;
   resize();
   if (state.running) {
     requestAnimationFrame(frame);
   } else {
-    // reduced motion: render one composed frame, leave play available
+    clock = 6;                 // a composed still rather than frame zero
     setRunning(false);
-    draw(perf());
+    render(clock);
   }
 })();
 </script>
