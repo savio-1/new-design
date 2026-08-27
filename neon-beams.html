@@ -1,0 +1,1001 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neon Gradient Beams — Light Studio</title>
+<style>
+  :root{
+    --panel: rgba(16,16,20,.72);
+    --panel-solid:#0e0e12;
+    --line: rgba(255,255,255,.10);
+    --line-2: rgba(255,255,255,.06);
+    --txt: #f2f2f5;
+    --dim: rgba(242,242,245,.55);
+    --dimmer: rgba(242,242,245,.35);
+    --accent: #ff2d95;
+    --accent-2:#5ce1ff;
+    --r: 12px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:#050506; color:var(--txt);
+    font:13px/1.45 ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    overflow:hidden; -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- stage ---------- */
+  #stage{
+    position:fixed; inset:0; display:grid; place-items:center;
+    padding:0; transition:padding .25s ease;
+  }
+  #stage.padded{ padding: 24px 372px 24px 24px; }
+  #frame{
+    position:relative; height:100%; width:100%;
+    background:#000; overflow:hidden;
+    box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 40px 120px -40px rgba(0,0,0,.9);
+  }
+  #frame.boxed{ border-radius:14px; }
+  canvas{ display:block; width:100%; height:100%; touch-action:none; cursor:grab }
+  canvas:active{ cursor:grabbing }
+
+  #hint{
+    position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
+    padding:7px 12px; border-radius:999px; background:rgba(0,0,0,.5);
+    border:1px solid var(--line); color:var(--dim); font-size:11.5px;
+    letter-spacing:.02em; pointer-events:none; backdrop-filter:blur(8px);
+    transition:opacity .6s ease; white-space:nowrap;
+  }
+  #hint.gone{opacity:0}
+
+  #fps{
+    position:absolute; top:12px; left:12px; font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--dimmer); pointer-events:none; letter-spacing:.04em;
+  }
+
+  /* ---------- panel ---------- */
+  #panel{
+    position:fixed; top:0; right:0; height:100%; width:348px;
+    background:var(--panel); backdrop-filter:blur(22px) saturate(140%);
+    border-left:1px solid var(--line);
+    display:flex; flex-direction:column; z-index:10;
+    transition:transform .28s cubic-bezier(.4,0,.2,1);
+  }
+  #panel.hidden{ transform:translateX(100%) }
+
+  .phead{
+    padding:14px 14px 12px; border-bottom:1px solid var(--line-2);
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .titlerow{display:flex; align-items:center; gap:9px}
+  .dot{width:9px;height:9px;border-radius:50%;
+    background:conic-gradient(from 0deg,#ff2d95,#ff8a2b,#ffe45e,#7ad7ff,#5b7cff,#b45bff,#ff2d95);
+    box-shadow:0 0 12px 1px rgba(255,120,220,.65)}
+  .titlerow h1{margin:0; font-size:13px; font-weight:650; letter-spacing:.03em; flex:1}
+  .titlerow .sub{color:var(--dimmer); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase}
+
+  .btnrow{display:flex; gap:6px; flex-wrap:wrap}
+  button, select{
+    font:inherit; font-size:11.5px; color:var(--txt);
+    background:rgba(255,255,255,.06); border:1px solid var(--line);
+    border-radius:8px; padding:6px 9px; cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  button:hover, select:hover{background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.2)}
+  button.primary{background:rgba(255,45,149,.16); border-color:rgba(255,45,149,.45)}
+  button.primary:hover{background:rgba(255,45,149,.26)}
+  select{padding:6px 6px}
+  .grow{flex:1}
+
+  #scroller{overflow-y:auto; overflow-x:hidden; padding:6px 0 60px; scrollbar-width:thin;
+    scrollbar-color:rgba(255,255,255,.18) transparent}
+  #scroller::-webkit-scrollbar{width:9px}
+  #scroller::-webkit-scrollbar-thumb{background:rgba(255,255,255,.16); border-radius:9px; border:3px solid transparent; background-clip:content-box}
+
+  details{border-bottom:1px solid var(--line-2)}
+  details>summary{
+    list-style:none; cursor:pointer; padding:11px 14px;
+    font-size:10.5px; font-weight:650; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--dim); display:flex; align-items:center; gap:8px; user-select:none;
+  }
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::before{
+    content:""; width:5px;height:5px;border-right:1.4px solid currentColor;border-bottom:1.4px solid currentColor;
+    transform:rotate(-45deg); transition:transform .18s ease; opacity:.8;
+  }
+  details[open]>summary::before{transform:rotate(45deg)}
+  details>summary:hover{color:var(--txt)}
+  .body{padding:2px 14px 14px}
+
+  .ctl{margin:0 0 11px}
+  .ctl .lab{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:5px}
+  .ctl .lab span:first-child{font-size:11.5px; color:rgba(242,242,245,.82)}
+  .ctl .lab .val{font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--dimmer)}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:16px; background:transparent; margin:0; cursor:ew-resize;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:3px; border-radius:3px;
+    background:linear-gradient(90deg, rgba(255,255,255,.42) 0%, rgba(255,255,255,.42) var(--p,50%), rgba(255,255,255,.10) var(--p,50%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:13px;height:13px;border-radius:50%;
+    background:#fff; margin-top:-5px; box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 0 10px rgba(255,255,255,.35)}
+  input[type=range]::-moz-range-track{height:3px;border-radius:3px;background:rgba(255,255,255,.14)}
+  input[type=range]::-moz-range-progress{height:3px;border-radius:3px;background:rgba(255,255,255,.42)}
+  input[type=range]::-moz-range-thumb{width:13px;height:13px;border:none;border-radius:50%;background:#fff}
+
+  .seg{display:flex; gap:4px; flex-wrap:wrap}
+  .seg button{flex:1; min-width:0; padding:6px 4px; font-size:11px}
+  .seg button.on{background:rgba(92,225,255,.18); border-color:rgba(92,225,255,.5)}
+
+  .switch{display:flex; align-items:center; justify-content:space-between; margin:0 0 11px; font-size:11.5px}
+  .switch .tog{width:38px;height:21px;border-radius:99px;background:rgba(255,255,255,.12);
+    border:1px solid var(--line); position:relative; cursor:pointer; transition:background .18s ease; flex:0 0 auto}
+  .switch .tog::after{content:""; position:absolute; top:2px; left:2px; width:15px;height:15px;border-radius:50%;
+    background:#fff; transition:transform .18s ease}
+  .switch .tog.on{background:rgba(255,45,149,.55); border-color:rgba(255,45,149,.7)}
+  .switch .tog.on::after{transform:translateX(17px)}
+
+  /* colors */
+  #swatches{display:flex; flex-wrap:wrap; gap:7px; margin:2px 0 10px}
+  .sw{position:relative; width:34px;height:34px;border-radius:9px; overflow:hidden;
+    box-shadow:0 0 0 1px rgba(255,255,255,.18), 0 4px 12px rgba(0,0,0,.4)}
+  .sw input{position:absolute; inset:-8px; width:150%; height:150%; border:none; padding:0; background:none; cursor:pointer}
+  .sw .x{position:absolute; top:-1px; right:-1px; width:14px;height:14px; border-radius:0 9px 0 6px;
+    background:rgba(0,0,0,.62); color:#fff; font-size:10px; line-height:13px; text-align:center; cursor:pointer; opacity:0; transition:opacity .15s}
+  .sw:hover .x{opacity:1}
+  .sw.add{display:grid; place-items:center; background:rgba(255,255,255,.06); cursor:pointer;
+    box-shadow:0 0 0 1px var(--line); color:var(--dim); font-size:17px}
+  .chips{display:flex; flex-direction:column; gap:5px}
+  .chip{display:flex; align-items:center; gap:8px; padding:4px; border-radius:8px; border:1px solid transparent; cursor:pointer}
+  .chip:hover{border-color:var(--line); background:rgba(255,255,255,.04)}
+  .chip .bar{flex:1; height:16px; border-radius:5px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+  .chip .nm{font-size:11px; color:var(--dim); width:96px; flex:0 0 auto}
+
+  .note{color:var(--dimmer); font-size:10.5px; line-height:1.5; margin:2px 0 10px}
+  kbd{font:10px/1 ui-monospace,Menlo,monospace; background:rgba(255,255,255,.10); border:1px solid var(--line);
+    border-radius:4px; padding:2px 4px}
+
+  #show{ position:fixed; top:14px; right:14px; z-index:11; display:none; }
+
+  #err{position:fixed; inset:0; display:none; place-items:center; padding:32px; text-align:center; color:var(--dim); z-index:99; background:#050506}
+
+  @media (max-width: 820px){
+    #panel{width:100%; height:56%; top:auto; bottom:0; border-left:none; border-top:1px solid var(--line);
+      border-radius:16px 16px 0 0}
+    #panel.hidden{transform:translateY(100%)}
+    #stage.padded{padding:0 0 56% 0}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div id="frame">
+    <canvas id="c"></canvas>
+    <div id="fps"></div>
+    <div id="hint">drag the light to move its source · <b>space</b> play/pause · <b>h</b> hide panel</div>
+  </div>
+</div>
+
+<button id="show">Controls</button>
+
+<aside id="panel">
+  <div class="phead">
+    <div class="titlerow">
+      <div class="dot"></div>
+      <h1>Neon Gradient Beams</h1>
+      <div class="sub" id="fpsTag"></div>
+    </div>
+    <div class="btnrow">
+      <button id="play" class="primary" style="width:74px">Pause</button>
+      <select id="presetSel" class="grow" title="Scene preset">
+        <option value="">Scene preset…</option>
+      </select>
+      <select id="frameSel" title="Frame aspect">
+        <option value="fill">Fill</option>
+        <option value="0.5625">9:16</option>
+        <option value="0.8">4:5</option>
+        <option value="1">1:1</option>
+        <option value="1.7777">16:9</option>
+      </select>
+    </div>
+    <div class="btnrow">
+      <button id="rand" class="grow">Randomize</button>
+      <button id="reset" class="grow">Reset</button>
+      <button id="png" class="grow">PNG</button>
+      <button id="copy" class="grow">Copy JSON</button>
+      <button id="hide" title="Hide panel (h)">✕</button>
+    </div>
+  </div>
+
+  <div id="scroller"></div>
+</aside>
+
+<div id="err">
+  <div>
+    <h2 style="color:#fff;font-weight:600">WebGL2 unavailable</h2>
+    <p>This animation needs WebGL2 (HDR render targets + bloom). Try a current Chrome, Edge, Firefox or Safari 15+.</p>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Neon Gradient Beams — an HDR beam-fan renderer with a live control panel
+   Pipeline: beam shader → RGBA16F target → 4-level bloom chain → ACES composite
+   ===================================================================== */
+
+/* ---------------------------------------------------------------- config */
+
+const PALETTES = {
+  'Neon Pop':   ['#ff2d95','#ff3b3b','#ff8a2b','#ffe45e','#ffffff','#7ad7ff','#5b7cff','#b45bff'],
+  'Vapor':      ['#f9007f','#ff9ce3','#ffffff','#00e5ff','#3a0ca3'],
+  'Aurora':     ['#00ffc8','#7cff6b','#ffffff','#3ba7ff','#8a5bff'],
+  'Sunset':     ['#ff004c','#ff6a00','#ffd400','#ffffff','#ff2d95'],
+  'Ice':        ['#8ff6ff','#ffffff','#4b8bff','#b7a5ff'],
+  'Candy':      ['#ff5ecb','#ffffff','#ffd1f0','#7b5cff','#5ce1ff'],
+  'Ember':      ['#2b0a12','#ff2b4a','#ff8a2b','#ffffff','#ffd400','#ff2b4a'],
+  'Chrome':     ['#ffffff','#9fb4ff','#1a1a2e','#ffffff','#ffb9e6']
+};
+
+/* every slider / switch in the panel */
+const GROUPS = [
+  { name:'Motion', open:true, items:[
+    ['speed',     'Flow speed',        -4, 4, .01],
+    ['flow',      'Flow direction',     0, 360, 1, '°'],
+    ['freqA',     'Waves along beam',   0, 8, .01],
+    ['freqB',     'Waves across fan',   0, 8, .01],
+    ['beamOff',   'Per-beam offset',   -1, 1, .001],
+    ['wobble',    'Wobble',             0, 1, .01],
+    ['wobFreq',   'Wobble scale',       0, 8, .05]
+  ]},
+  { name:'Geometry', open:true, items:[
+    ['beams',     'Beam count',         1, 24, 1],
+    ['div',       'Divergence',         0.5, 80, .1, '°'],
+    ['rot',       'Orientation',      -180, 180, 1, '°'],
+    ['scale',     'Size',               .2, 3, .01],
+    ['len',       'Beam length',        .2, 4, .01],
+    ['originX',   'Source X',           -1, 1, .002],
+    ['originY',   'Source Y',           -1, 1.5, .002],
+    ['gap',       'Gap between beams',   0, .7, .002],
+    ['taper',     'Taper',             -1, 1, .01],
+    ['softPx',    'Edge softness',       0, .02, .0002],
+    ['edge',      'Edge line',           0, 3, .01],
+    ['edgeW',     'Edge line width',  .0003, .006, .0001],
+    ['startFade', 'Fade at source',      0, .5, .002],
+    ['tipFade',   'Fade at tip',         0, 1, .01],
+    ['falloff',   'Distance falloff',    0, 2, .01],
+    ['emSize',    'Emitter size',      .02, .4, .002]
+  ]},
+  { name:'Light & colour', open:true, items:[
+    ['bright',    'Brightness',          0, 5, .01],
+    ['hot',       'Hotspot bloom-out',   0, 1, .01],
+    ['sat',       'Saturation',          0, 2, .01],
+    ['hue',       'Hue shift',        -180, 180, 1, '°'],
+    ['blend',     'Gradient blend',    .04, 1, .01],
+    ['haze',      'Atmospheric haze',    0, 2, .01],
+    ['hazeW',     'Haze spread',        .1, 4, .01]
+  ]},
+  { name:'Post & output', open:false, items:[
+    ['bloom',     'Bloom strength',      0, 4, .01],
+    ['bloomR',    'Bloom radius',        0, 1, .01],
+    ['exposure',  'Exposure',           .2, 3, .01],
+    ['contrast',  'Contrast',           .5, 2, .01],
+    ['vign',      'Vignette',            0, 1, .01],
+    ['grain',     'Grain',               0, .1, .001],
+    ['quality',   'Render scale',       .4, 1.5, .05]
+  ]}
+];
+
+const DEFAULTS = {
+  speed:.32, flow:0, freqA:1.25, freqB:.7, beamOff:.2, wobble:.1, wobFreq:2.2,
+  beams:5, div:17, rot:0, scale:1, len:1.7, originX:0, originY:.46,
+  gap:.045, taper:0, softPx:.0016, edge:.85, edgeW:.0011, startFade:.025, tipFade:.06, falloff:.35,
+  emSize:.085, emitter:true,
+  bright:.8, hot:.38, sat:1.12, hue:0, blend:1, haze:.34, hazeW:1.2,
+  bloom:1.05, bloomR:.55, exposure:.95, contrast:1.05, vign:.32, grain:.012, quality:1,
+  bg:'#000000', colors: PALETTES['Neon Pop'].slice()
+};
+
+const SCENES = {
+  'Pinterest frame': {},
+  'Wide fan': { beams:9, div:34, len:2.1, gap:.035, freqA:2.4, freqB:1.1, beamOff:.07, bloom:1.7, hot:.7 },
+  'Single blade': { beams:1, div:7, gap:0, freqA:2.6, wobble:.3, edge:1.4, bloom:2, hot:.8, len:1.8 },
+  'Horizon': { rot:90, originX:-.9, originY:0, beams:7, div:22, len:2.4, hazeW:1.6, haze:.6 },
+  'Kaleido': { beams:20, div:70, len:2.2, gap:.12, originY:.1, freqB:2.4, beamOff:.05, bloom:1.3, hot:.5, rot:0 },
+  'Slow drift': { speed:.12, freqA:1.1, freqB:.3, wobble:.05, blend:1, haze:.55, bloom:1.9, beams:4, div:11 },
+  'Hard bands': { blend:.1, freqA:3.2, speed:.6, hot:.35, bloom:1.1, edge:1.6, gap:.08 }
+};
+
+/* ---------------------------------------------------------------- state */
+
+const P = Object.assign({}, DEFAULTS, { colors: DEFAULTS.colors.slice() });
+let playing = true, phase = 0, tGlobal = 0;
+
+/* ---------------------------------------------------------------- webgl */
+
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', { antialias:false, alpha:false, preserveDrawingBuffer:true, powerPreference:'high-performance' });
+if (!gl) { document.getElementById('err').style.display = 'grid'; }
+
+const VERT = `#version 300 es
+void main(){
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const SCENE_FS = `#version 300 es
+precision highp float;
+out vec4 outCol;
+
+uniform vec2  uRes;
+uniform float uTime, uPhase;
+
+uniform float uBeams, uDiv, uRot, uGap, uSoftPx, uLen, uScale, uTaper;
+uniform vec2  uOrigin;
+uniform float uEdge, uEdgeW, uStartFade, uTipFade, uFalloff;
+uniform float uEmitter, uEmSize;
+
+uniform float uFlow, uFreqA, uFreqB, uBeamOff, uWobble, uWobFreq;
+uniform float uBright, uSat, uHue, uBlend, uHot, uHaze, uHazeW;
+
+uniform int   uCount;
+uniform vec3  uCols[8];
+uniform vec3  uBg;
+
+const float PI = 3.14159265359;
+
+vec3 toLin(vec3 c){ return pow(max(c, 0.0), vec3(2.2)); }
+
+vec3 hueRot(vec3 c, float a){
+  const vec3 k = vec3(0.57735026919);
+  float ca = cos(a), sa = sin(a);
+  return c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca);
+}
+
+vec3 palette(float t){
+  int n = max(uCount, 1);
+  float f = fract(t) * float(n);
+  int i0 = int(floor(f));
+  i0 = i0 >= n ? n - 1 : i0;
+  int i1 = (i0 + 1) % n;
+  float k = f - floor(f);
+  float s = max(uBlend, 0.02);
+  k = clamp((k - 0.5) / s + 0.5, 0.0, 1.0);
+  k = k * k * (3.0 - 2.0 * k);
+  vec3 c = mix(toLin(uCols[i0]), toLin(uCols[i1]), k);
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = mix(vec3(l), c, uSat);
+  c = max(hueRot(c, uHue), 0.0);
+  return c;
+}
+
+void main(){
+  vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;   // y up, centre origin
+  vec3 col = toLin(uBg);
+
+  float cr = cos(uRot), sr = sin(uRot);
+  vec2 d = p - uOrigin;
+  vec2 q = vec2(d.x * cr + d.y * sr, -d.x * sr + d.y * cr);  // rotate by -uRot
+  float sc = max(uScale, 0.02);
+  float u = -q.y / sc;      // distance along the beam axis
+  float w =  q.x / sc;      // lateral offset
+
+  if (u > 0.0) {
+    float H  = max(uDiv, 0.0008);                         // half fan angle
+    float an = atan(w, u) / H;                            // -1..1 inside the fan
+    float s  = u / max(uLen, 0.02);                       // 0..1 along the beam
+    float fN = max(uBeams, 1.0);
+
+    float slot  = 2.0 * H / fN;
+    float bposf = (an * 0.5 + 0.5) * fN;
+    float bi    = floor(bposf);
+    float bt    = (bposf - bi) * 2.0 - 1.0;               // -1..1 inside one beam slot
+    float inFan = step(abs(an), 1.0);
+
+    float fill  = clamp((1.0 - uGap) * (1.0 + uTaper * (s - 0.5)), 0.02, 1.3);
+
+    /* signed screen-space distance from the beam edge (arc length ≈ dAngle * u) */
+    float dIn   = (fill - abs(bt)) * slot * 0.5 * u * sc;
+    float soft  = max(uSoftPx, 0.00015);
+    float mask  = smoothstep(-soft, soft, dIn) * inFan;
+
+    float capA  = smoothstep(0.0, max(uStartFade, 0.0004), s);
+    float capB  = 1.0 - smoothstep(1.0 - clamp(uTipFade, 0.0, 0.999), 1.0, s);
+    float atten = 1.0 / (1.0 + uFalloff * u * u);
+    mask *= capA * capB;
+
+    /* the travelling gradient coordinate */
+    float cf = cos(uFlow), sf = sin(uFlow);
+    float g  = (s * uFreqA) * cf + (an * uFreqB) * sf + uPhase + bi * uBeamOff;
+    g += uWobble * sin(s * uWobFreq * PI - uPhase * 1.3 + bi * 1.7);
+
+    vec3  c   = palette(g);
+    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+    vec3  hdr = c * (1.0 + uHot * pow(clamp(lum, 0.0, 1.0), 2.0) * 4.5) * atten;
+
+    col += hdr * mask * uBright;
+
+    /* crisp white rails along both beam borders */
+    float dEdge = abs(abs(bt) - fill) * slot * 0.5 * u * sc;
+    float lw    = max(uEdgeW, 0.0002);
+    float line  = exp(-pow(dEdge / lw, 2.0)) * inFan * capA * capB;
+    vec3  lineC = mix(vec3(1.0), c / max(lum, 0.001) * 0.6, 0.35);
+    col += lineC * line * uEdge * uBright * atten;
+
+    /* atmospheric haze: light spilling into the surrounding air */
+    float hz = uHaze * exp(-pow(abs(an) / max(uHazeW, 0.05), 2.0))
+                     * atten * (1.0 - smoothstep(0.75, 1.7, s));
+    col += c * hz * uBright * capA;
+  }
+
+  /* emitter housing at the apex */
+  if (uEmitter > 0.5) {
+    float h  = uEmSize;
+    float hw = h * 0.62;
+    vec2  dd = abs(vec2(w, u + h * 0.5)) - vec2(hw, h * 0.5);
+    float sd = (length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0)) * sc;
+    float bw = max(uEdgeW * 1.3, 0.0007);
+    vec3 ec = palette(uPhase);
+    ec = mix(vec3(dot(ec, vec3(0.2126, 0.7152, 0.0722))), ec, 0.45);
+    col += vec3(1.0) * exp(-pow(sd / bw, 2.0)) * 1.7 * uBright;
+    col += ec * smoothstep(0.0, -bw * 3.0, sd) * 0.16 * uBright;
+  }
+
+  outCol = vec4(col, 1.0);
+}`;
+
+const BLUR_FS = `#version 300 es
+precision highp float;
+out vec4 outCol;
+uniform sampler2D uTex;
+uniform vec2 uRes;     // output size
+uniform vec2 uTexel;   // 1 / input size
+uniform vec2 uDir;
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes;
+  vec2 o1 = uTexel * uDir * 1.38461538;
+  vec2 o2 = uTexel * uDir * 3.23076923;
+  vec3 c = texture(uTex, uv).rgb * 0.22702703;
+  c += (texture(uTex, uv + o1).rgb + texture(uTex, uv - o1).rgb) * 0.31621622;
+  c += (texture(uTex, uv + o2).rgb + texture(uTex, uv - o2).rgb) * 0.07027027;
+  outCol = vec4(c, 1.0);
+}`;
+
+const COMP_FS = `#version 300 es
+precision highp float;
+out vec4 outCol;
+uniform sampler2D uScene, uB0, uB1, uB2, uB3;
+uniform vec2  uRes;
+uniform vec4  uBW;
+uniform float uBloom, uExposure, uContrast, uVign, uGrain, uTime;
+
+vec3 aces(vec3 x){
+  const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+  return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes;
+  vec3 c = texture(uScene, uv).rgb;
+  vec3 b = texture(uB0, uv).rgb * uBW.x
+         + texture(uB1, uv).rgb * uBW.y
+         + texture(uB2, uv).rgb * uBW.z
+         + texture(uB3, uv).rgb * uBW.w;
+  c += b * uBloom;
+  c *= uExposure;
+  c  = aces(c);
+  c  = pow(c, vec3(1.0 / 2.2));
+  c  = (c - 0.5) * uContrast + 0.5;
+
+  float r = length((uv - 0.5) * vec2(uRes.x / uRes.y, 1.0)) * 1.35;
+  c *= mix(1.0, smoothstep(1.25, 0.15, r), uVign);
+  c += (hash(uv * uRes + fract(uTime) * 91.7) - 0.5) * uGrain;
+
+  outCol = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+
+let sceneProg, blurProg, compProg, vao, fmt, sceneFBO, levels = [], W = 1, H = 1;
+
+function compile(type, src){
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src); gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(sh), src);
+    throw new Error('shader compile failed');
+  }
+  return sh;
+}
+function program(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(p)); throw new Error('link failed'); }
+  p._loc = {};
+  p.u = name => (name in p._loc ? p._loc[name] : (p._loc[name] = gl.getUniformLocation(p, name)));
+  return p;
+}
+
+function makeFBO(w, h){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, fmt.internal, w, h, 0, gl.RGBA, fmt.type, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { tex, fbo, w, h };
+}
+function dropFBO(f){ if (f) { gl.deleteTexture(f.tex); gl.deleteFramebuffer(f.fbo); } }
+
+const LEVELS = 4;
+
+function initGL(){
+  const float16 = gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float');
+  fmt = float16 ? { internal: gl.RGBA16F, type: gl.HALF_FLOAT } : { internal: gl.RGBA8, type: gl.UNSIGNED_BYTE };
+  vao = gl.createVertexArray(); gl.bindVertexArray(vao);
+  sceneProg = program(SCENE_FS);
+  blurProg  = program(BLUR_FS);
+  compProg  = program(COMP_FS);
+}
+
+function resize(){
+  const rect = canvas.getBoundingClientRect();
+  const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+  const maxPix = 4.2e6;
+  let w = Math.max(2, Math.round(rect.width  * dpr * P.quality));
+  let h = Math.max(2, Math.round(rect.height * dpr * P.quality));
+  const over = (w * h) / maxPix;
+  if (over > 1) { const k = Math.sqrt(over); w = Math.round(w / k); h = Math.round(h / k); }
+  if (w === W && h === H) return;
+  W = w; H = h;
+  canvas.width = W; canvas.height = H;
+
+  dropFBO(sceneFBO); sceneFBO = makeFBO(W, H);
+  levels.forEach(l => { dropFBO(l.a); dropFBO(l.b); });
+  levels = [];
+  let lw = W, lh = H;
+  for (let i = 0; i < LEVELS; i++) {
+    lw = Math.max(2, lw >> 1); lh = Math.max(2, lh >> 1);
+    levels.push({ a: makeFBO(lw, lh), b: makeFBO(lw, lh), w: lw, h: lh });
+  }
+}
+
+function drawQuad(){ gl.drawArrays(gl.TRIANGLES, 0, 3); }
+
+function hexToRGB(hex){
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex || '') ;
+  if (!m) return [1, 1, 1];
+  return [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255];
+}
+
+const colBuf = new Float32Array(24);
+
+function renderScene(){
+  const p = sceneProg;
+  gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, sceneFBO.fbo);
+  gl.viewport(0, 0, W, H);
+
+  gl.uniform2f(p.u('uRes'), W, H);
+  gl.uniform1f(p.u('uTime'), tGlobal);
+  gl.uniform1f(p.u('uPhase'), phase);
+
+  gl.uniform1f(p.u('uBeams'), Math.round(P.beams));
+  gl.uniform1f(p.u('uDiv'), P.div * Math.PI / 180);
+  gl.uniform1f(p.u('uRot'), P.rot * Math.PI / 180);
+  gl.uniform1f(p.u('uGap'), P.gap);
+  gl.uniform1f(p.u('uSoftPx'), P.softPx);
+  gl.uniform1f(p.u('uLen'), P.len);
+  gl.uniform1f(p.u('uScale'), P.scale);
+  gl.uniform1f(p.u('uTaper'), P.taper);
+  gl.uniform2f(p.u('uOrigin'), P.originX, P.originY);
+  gl.uniform1f(p.u('uEdge'), P.edge);
+  gl.uniform1f(p.u('uEdgeW'), P.edgeW);
+  gl.uniform1f(p.u('uStartFade'), P.startFade);
+  gl.uniform1f(p.u('uTipFade'), P.tipFade);
+  gl.uniform1f(p.u('uFalloff'), P.falloff);
+  gl.uniform1f(p.u('uEmitter'), P.emitter ? 1 : 0);
+  gl.uniform1f(p.u('uEmSize'), P.emSize);
+
+  gl.uniform1f(p.u('uFlow'), P.flow * Math.PI / 180);
+  gl.uniform1f(p.u('uFreqA'), P.freqA);
+  gl.uniform1f(p.u('uFreqB'), P.freqB);
+  gl.uniform1f(p.u('uBeamOff'), P.beamOff);
+  gl.uniform1f(p.u('uWobble'), P.wobble);
+  gl.uniform1f(p.u('uWobFreq'), P.wobFreq);
+
+  gl.uniform1f(p.u('uBright'), P.bright);
+  gl.uniform1f(p.u('uSat'), P.sat);
+  gl.uniform1f(p.u('uHue'), P.hue * Math.PI / 180);
+  gl.uniform1f(p.u('uBlend'), P.blend);
+  gl.uniform1f(p.u('uHot'), P.hot);
+  gl.uniform1f(p.u('uHaze'), P.haze);
+  gl.uniform1f(p.u('uHazeW'), P.hazeW);
+
+  const n = Math.min(P.colors.length, 8);
+  for (let i = 0; i < n; i++) { const c = hexToRGB(P.colors[i]); colBuf[i*3] = c[0]; colBuf[i*3+1] = c[1]; colBuf[i*3+2] = c[2]; }
+  gl.uniform1i(p.u('uCount'), Math.max(n, 1));
+  gl.uniform3fv(p.u('uCols'), colBuf);
+  const bg = hexToRGB(P.bg);
+  gl.uniform3f(p.u('uBg'), bg[0], bg[1], bg[2]);
+
+  drawQuad();
+}
+
+function blur(srcTex, srcW, srcH, dst, dx, dy){
+  const p = blurProg;
+  gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+  gl.viewport(0, 0, dst.w, dst.h);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  gl.uniform1i(p.u('uTex'), 0);
+  gl.uniform2f(p.u('uRes'), dst.w, dst.h);
+  gl.uniform2f(p.u('uTexel'), 1 / srcW, 1 / srcH);
+  gl.uniform2f(p.u('uDir'), dx, dy);
+  drawQuad();
+}
+
+function renderBloom(){
+  let srcTex = sceneFBO.tex, sw = W, sh = H;
+  for (let i = 0; i < LEVELS; i++) {
+    const l = levels[i];
+    blur(srcTex, sw, sh, l.a, 1, 0);
+    blur(l.a.tex, l.w, l.h, l.b, 0, 1);
+    srcTex = l.b.tex; sw = l.w; sh = l.h;
+  }
+}
+
+function bloomWeights(){
+  const r = P.bloomR;
+  const k = 0.22 + r * 1.05;
+  const w = [1, Math.pow(k, 1), Math.pow(k, 2), Math.pow(k, 3)];
+  const s = w[0] + w[1] + w[2] + w[3];
+  return w.map(v => (v / s) * 2.0);
+}
+
+function composite(){
+  const p = compProg;
+  gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, W, H);
+  const texes = [sceneFBO.tex, levels[0].b.tex, levels[1].b.tex, levels[2].b.tex, levels[3].b.tex];
+  const names = ['uScene', 'uB0', 'uB1', 'uB2', 'uB3'];
+  for (let i = 0; i < texes.length; i++) {
+    gl.activeTexture(gl.TEXTURE0 + i);
+    gl.bindTexture(gl.TEXTURE_2D, texes[i]);
+    gl.uniform1i(p.u(names[i]), i);
+  }
+  const bw = bloomWeights();
+  gl.uniform2f(p.u('uRes'), W, H);
+  gl.uniform4f(p.u('uBW'), bw[0], bw[1], bw[2], bw[3]);
+  gl.uniform1f(p.u('uBloom'), P.bloom);
+  gl.uniform1f(p.u('uExposure'), P.exposure);
+  gl.uniform1f(p.u('uContrast'), P.contrast);
+  gl.uniform1f(p.u('uVign'), P.vign);
+  gl.uniform1f(p.u('uGrain'), P.grain);
+  gl.uniform1f(p.u('uTime'), tGlobal);
+  drawQuad();
+}
+
+let last = performance.now(), fpsAcc = 0, fpsN = 0;
+const fpsEl = document.getElementById('fpsTag');
+
+function frame(now){
+  const dt = Math.min((now - last) / 1000, 1 / 15); last = now;
+  tGlobal += dt;
+  if (playing) phase += dt * P.speed;
+
+  resize();
+  gl.bindVertexArray(vao);
+  renderScene();
+  renderBloom();
+  composite();
+
+  fpsAcc += dt; fpsN++;
+  if (fpsAcc > 0.5) { fpsEl.textContent = Math.round(fpsN / fpsAcc) + ' fps'; fpsAcc = 0; fpsN = 0; }
+  requestAnimationFrame(frame);
+}
+
+/* ---------------------------------------------------------------- panel */
+
+const scroller = document.getElementById('scroller');
+const sliders = {};
+
+function fmtVal(key, v, unit){
+  if (key === 'beams') return String(Math.round(v));
+  const a = Math.abs(v);
+  let s = a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : a >= 1 ? v.toFixed(2) : v.toFixed(4).replace(/0+$/, '').replace(/\.$/, '.0');
+  return s + (unit || '');
+}
+
+function buildPanel(){
+  const frag = document.createDocumentFragment();
+
+  /* ---- colours section first: it is the thing people reach for ---- */
+  const dCol = document.createElement('details'); dCol.open = true;
+  dCol.innerHTML = '<summary>Colours</summary><div class="body">' +
+    '<div id="swatches"></div>' +
+    '<div class="note">Click a swatch to recolour · <b>+</b> adds a stop · hover ✕ to remove. The gradient cycles through the stops in order.</div>' +
+    '<div class="chips" id="chips"></div>' +
+    '<div class="ctl" style="margin-top:12px"><div class="lab"><span>Background</span></div>' +
+    '<input type="color" id="bgCol" value="' + P.bg + '" style="width:100%;height:28px;border:1px solid var(--line);border-radius:8px;background:transparent;padding:0;cursor:pointer"></div>' +
+    '</div>';
+  frag.appendChild(dCol);
+
+  GROUPS.forEach(g => {
+    const d = document.createElement('details'); d.open = g.open;
+    const body = document.createElement('div'); body.className = 'body';
+    const sum = document.createElement('summary'); sum.textContent = g.name;
+    d.appendChild(sum); d.appendChild(body);
+
+    if (g.name === 'Motion') body.appendChild(flowPresets());
+
+    g.items.forEach(([key, label, min, max, step, unit]) => {
+      const ctl = document.createElement('div'); ctl.className = 'ctl';
+      const lab = document.createElement('div'); lab.className = 'lab';
+      const l1 = document.createElement('span'); l1.textContent = label;
+      const l2 = document.createElement('span'); l2.className = 'val';
+      const inp = document.createElement('input');
+      inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = P[key];
+      const sync = () => {
+        l2.textContent = fmtVal(key, +inp.value, unit);
+        inp.style.setProperty('--p', ((inp.value - min) / (max - min) * 100) + '%');
+      };
+      inp.addEventListener('input', () => { P[key] = +inp.value; sync(); if (key === 'quality') { W = H = -1; } });
+      inp.addEventListener('dblclick', () => { inp.value = DEFAULTS[key]; P[key] = DEFAULTS[key]; sync(); });
+      sync();
+      sliders[key] = { inp, sync };
+      lab.appendChild(l1); lab.appendChild(l2);
+      ctl.appendChild(lab); ctl.appendChild(inp);
+      body.appendChild(ctl);
+    });
+
+    if (g.name === 'Geometry') body.appendChild(toggle('emitter', 'Show emitter housing'));
+    frag.appendChild(d);
+  });
+
+  const dKeys = document.createElement('details');
+  dKeys.innerHTML = '<summary>Shortcuts</summary><div class="body"><div class="note">' +
+    '<kbd>space</kbd> play / pause · <kbd>h</kbd> hide panel · <kbd>r</kbd> randomize · ' +
+    '<kbd>s</kbd> save PNG · <kbd>0</kbd> reset · drag the canvas to move the light source · ' +
+    'double-click any slider to restore its default.</div></div>';
+  frag.appendChild(dKeys);
+
+  scroller.appendChild(frag);
+  drawSwatches(); drawChips();
+
+  document.getElementById('bgCol').addEventListener('input', e => { P.bg = e.target.value; });
+}
+
+function flowPresets(){
+  const wrap = document.createElement('div'); wrap.className = 'ctl';
+  const lab = document.createElement('div'); lab.className = 'lab';
+  lab.innerHTML = '<span>Movement direction</span>';
+  const seg = document.createElement('div'); seg.className = 'seg';
+  const opts = [
+    ['Down',  { flow:0,   speed: Math.abs(P.speed) || .35 }],
+    ['Up',    { flow:0,   speed:-(Math.abs(P.speed) || .35) }],
+    ['Right', { flow:90,  speed: Math.abs(P.speed) || .35 }],
+    ['Left',  { flow:90,  speed:-(Math.abs(P.speed) || .35) }],
+    ['Diag',  { flow:45,  speed: Math.abs(P.speed) || .35 }]
+  ];
+  opts.forEach(([name, patch]) => {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.addEventListener('click', () => {
+      const sp = Math.abs(P.speed) || .35;
+      const q = Object.assign({}, patch);
+      q.speed = q.speed < 0 ? -sp : sp;
+      apply(q);
+      b.classList.add('on');
+    });
+    seg.appendChild(b);
+  });
+  wrap.appendChild(lab); wrap.appendChild(seg);
+  return wrap;
+}
+
+function toggle(key, label){
+  const row = document.createElement('div'); row.className = 'switch';
+  const t = document.createElement('span'); t.textContent = label;
+  const s = document.createElement('div'); s.className = 'tog' + (P[key] ? ' on' : '');
+  s.addEventListener('click', () => { P[key] = !P[key]; s.classList.toggle('on', !!P[key]); });
+  row.appendChild(t); row.appendChild(s);
+  row._sync = () => s.classList.toggle('on', !!P[key]);
+  return row;
+}
+
+function drawSwatches(){
+  const box = document.getElementById('swatches');
+  box.innerHTML = '';
+  P.colors.forEach((hex, i) => {
+    const d = document.createElement('div'); d.className = 'sw'; d.style.background = hex;
+    const inp = document.createElement('input'); inp.type = 'color'; inp.value = hex;
+    inp.addEventListener('input', e => { P.colors[i] = e.target.value; d.style.background = e.target.value; });
+    d.appendChild(inp);
+    if (P.colors.length > 2) {
+      const x = document.createElement('div'); x.className = 'x'; x.textContent = '✕';
+      x.addEventListener('click', ev => { ev.stopPropagation(); P.colors.splice(i, 1); drawSwatches(); });
+      d.appendChild(x);
+    }
+    box.appendChild(d);
+  });
+  if (P.colors.length < 8) {
+    const a = document.createElement('div'); a.className = 'sw add'; a.textContent = '+';
+    a.addEventListener('click', () => { P.colors.push('#ffffff'); drawSwatches(); });
+    box.appendChild(a);
+  }
+}
+
+function drawChips(){
+  const box = document.getElementById('chips');
+  box.innerHTML = '';
+  Object.entries(PALETTES).forEach(([name, cols]) => {
+    const c = document.createElement('div'); c.className = 'chip';
+    const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = name;
+    const bar = document.createElement('div'); bar.className = 'bar';
+    bar.style.background = 'linear-gradient(90deg,' + cols.concat([cols[0]]).join(',') + ')';
+    c.appendChild(nm); c.appendChild(bar);
+    c.addEventListener('click', () => { P.colors = cols.slice(); drawSwatches(); });
+    box.appendChild(c);
+  });
+}
+
+function apply(patch){
+  Object.entries(patch).forEach(([k, v]) => {
+    if (!(k in P)) return;
+    if (k === 'colors') { P.colors = v.slice(); drawSwatches(); return; }
+    P[k] = v;
+    if (sliders[k]) { sliders[k].inp.value = v; sliders[k].sync(); }
+  });
+  document.querySelectorAll('.switch').forEach(r => r._sync && r._sync());
+  if ('flow' in patch || 'speed' in patch) {
+    document.querySelectorAll('.seg button').forEach(b => b.classList.remove('on'));
+  }
+  const bgc = document.getElementById('bgCol'); if (bgc) bgc.value = P.bg;
+  W = H = -1;
+}
+
+/* ---------------------------------------------------------------- chrome */
+
+const panel = document.getElementById('panel');
+const stage = document.getElementById('stage');
+const frameEl = document.getElementById('frame');
+
+function setPanel(open){
+  panel.classList.toggle('hidden', !open);
+  document.getElementById('show').style.display = open ? 'none' : 'block';
+  stage.classList.toggle('padded', open && document.getElementById('frameSel').value !== 'fill');
+  W = H = -1;
+}
+document.getElementById('hide').addEventListener('click', () => setPanel(false));
+document.getElementById('show').addEventListener('click', () => setPanel(true));
+
+const playBtn = document.getElementById('play');
+function setPlaying(v){ playing = v; playBtn.textContent = v ? 'Pause' : 'Play'; }
+playBtn.addEventListener('click', () => setPlaying(!playing));
+
+const frameSel = document.getElementById('frameSel');
+frameSel.addEventListener('change', () => {
+  const v = frameSel.value;
+  if (v === 'fill') {
+    frameEl.style.aspectRatio = ''; frameEl.style.width = '100%'; frameEl.style.height = '100%';
+    frameEl.classList.remove('boxed'); stage.classList.remove('padded');
+  } else {
+    frameEl.style.aspectRatio = v; frameEl.style.width = 'auto'; frameEl.style.height = 'auto';
+    frameEl.style.maxWidth = '100%'; frameEl.style.maxHeight = '100%';
+    frameEl.classList.add('boxed');
+    stage.classList.toggle('padded', !panel.classList.contains('hidden'));
+  }
+  W = H = -1;
+});
+
+const presetSel = document.getElementById('presetSel');
+Object.keys(SCENES).forEach(k => {
+  const o = document.createElement('option'); o.value = k; o.textContent = k; presetSel.appendChild(o);
+});
+presetSel.addEventListener('change', () => {
+  const k = presetSel.value; if (!k) return;
+  apply(Object.assign({}, DEFAULTS, SCENES[k], { colors: (SCENES[k].colors || DEFAULTS.colors).slice() }));
+});
+
+document.getElementById('reset').addEventListener('click', () => {
+  presetSel.value = '';
+  apply(Object.assign({}, DEFAULTS, { colors: DEFAULTS.colors.slice() }));
+});
+
+function rnd(a, b){ return a + Math.random() * (b - a); }
+function pick(a){ return a[Math.floor(Math.random() * a.length)]; }
+
+document.getElementById('rand').addEventListener('click', () => {
+  const names = Object.keys(PALETTES);
+  apply({
+    colors: PALETTES[pick(names)],
+    beams: Math.round(rnd(1, 14)),
+    div: rnd(6, 46),
+    rot: pick([0, 0, 0, rnd(-25, 25), rnd(-180, 180)]),
+    len: rnd(1.1, 2.6),
+    gap: rnd(0, .16),
+    taper: rnd(-.3, .5),
+    flow: pick([0, 0, 90, rnd(0, 360)]),
+    speed: pick([-1, 1]) * rnd(.15, 1.1),
+    freqA: rnd(.8, 3.4),
+    freqB: rnd(0, 1.8),
+    beamOff: rnd(-.3, .3),
+    wobble: rnd(0, .35),
+    hot: rnd(.35, .85),
+    haze: rnd(.2, .8),
+    hazeW: rnd(.7, 2),
+    bloom: rnd(1, 2.2),
+    bloomR: rnd(.35, .85),
+    blend: pick([1, 1, rnd(.1, .6)]),
+    hue: rnd(-25, 25),
+    edge: rnd(.4, 1.6)
+  });
+});
+
+document.getElementById('png').addEventListener('click', () => {
+  renderScene(); renderBloom(); composite();
+  const a = document.createElement('a');
+  a.download = 'neon-beams-' + Math.round(performance.now()) + '.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+document.getElementById('copy').addEventListener('click', async () => {
+  const out = {}; Object.keys(DEFAULTS).forEach(k => out[k] = P[k]);
+  const txt = JSON.stringify(out, null, 2);
+  const btn = document.getElementById('copy');
+  try { await navigator.clipboard.writeText(txt); btn.textContent = 'Copied'; }
+  catch (e) { console.log(txt); btn.textContent = 'In console'; }
+  setTimeout(() => btn.textContent = 'Copy JSON', 1200);
+});
+
+/* drag the light source */
+const hint = document.getElementById('hint');
+let dragging = false;
+canvas.addEventListener('pointerdown', e => {
+  dragging = true; canvas.setPointerCapture(e.pointerId);
+  hint.classList.add('gone');
+});
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const r = canvas.getBoundingClientRect();
+  const x = ((e.clientX - r.left) - r.width / 2) / r.height;
+  const y = -(((e.clientY - r.top) - r.height / 2) / r.height);
+  apply({ originX: Math.max(-1, Math.min(1, x)), originY: Math.max(-1, Math.min(1.5, y)) });
+});
+canvas.addEventListener('pointerup', () => dragging = false);
+canvas.addEventListener('pointercancel', () => dragging = false);
+setTimeout(() => hint.classList.add('gone'), 6500);
+
+window.addEventListener('keydown', e => {
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); setPlaying(!playing); }
+  else if (k === 'h') setPanel(panel.classList.contains('hidden'));
+  else if (k === 'r') document.getElementById('rand').click();
+  else if (k === 's') document.getElementById('png').click();
+  else if (k === '0') document.getElementById('reset').click();
+});
+
+window.addEventListener('resize', () => { W = H = -1; });
+
+/* ---------------------------------------------------------------- boot */
+if (gl) {
+  initGL();
+  buildPanel();
+  setPanel(true);
+  resize();
+  requestAnimationFrame(t => { last = t; frame(t); });
+}
+</script>
+</body>
+</html>
