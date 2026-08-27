@@ -1219,6 +1219,20 @@
       display: flex; align-items: center; justify-content: flex-end; gap: 6px;
     }
 
+    /* Provenance badge — marks a skill that ships from Cogentiq rather
+       than being authored in the workspace. Blue badge tokens, but the
+       sans face: this is a brand label, not an identifier. */
+    .skill-badge {
+      flex: none; height: 18px;
+      display: inline-flex; align-items: center;
+      padding: 0 6px; border-radius: 6px;
+      background: var(--backgrounds-badge-blue);
+      border: 1px solid var(--strokes-colour-blue);
+      color: var(--text-coloured-blue);
+      font: 500 11px/1 var(--font-geist); letter-spacing: -0.11px;
+      white-space: nowrap;
+    }
+
     /* .btn-tonal/.btn-primary set their own display, which outranks the
        [hidden] attribute — restore it so hiding an action works. */
     .btn-tonal[hidden], .btn-primary[hidden] { display: none; }
@@ -1235,8 +1249,10 @@
     .t-skill-cell { gap: 8px; }
     .t-skill-cell .cq-skill-ic { flex: none; color: var(--text-teritiary); }
     .t-skill-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .t-skill-line { min-width: 0; display: flex; align-items: center; gap: 8px; }
     /* Same mono Medium voice as the card, at the row's smaller size. */
     .t-skill-name {
+      min-width: 0;
       color: var(--text-primary);
       font: 500 14px/20px var(--font-geist-mono); letter-spacing: -0.28px;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1264,9 +1280,11 @@
     .panel-logo { display: flex; align-items: center; justify-content: center; color: var(--text-teritiary); }
     /* The skill id keeps its mono Medium voice at the panel's heading size. */
     .panel-skill-name {
+      min-width: 0;
       color: var(--text-primary);
       font: 500 18px/24px var(--font-geist-mono); letter-spacing: -0.72px;
     }
+    .panel-title-row { min-width: 0; }
 
     /* File list + markdown preview */
     .file-rows { display: flex; flex-direction: column; gap: 2px; }
@@ -1541,6 +1559,7 @@
             <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-skill"/></svg>
           </span>
           <span class="panel-skill-name" id="panelTitle">web-search</span>
+          <span id="panelBadge"></span>
         </div>
         <p class="panel-desc t-body2-reg" id="panelDesc"></p>
       </div>
@@ -1606,10 +1625,10 @@ const fmtDate = d =>
   d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ', ' + d.getFullYear();
 
 const SKILLS = [
-  { name: 'web-search',          desc: 'Queries the open web and returns ranked, de-duplicated results with source links.',        agent: 'Research agent', type: 'Retrieval',  by: 'sc', version: 'v1.4.0' },
-  { name: 'document-summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       agent: 'Research agent', type: 'Generation', by: 'am', version: 'v2.1.0' },
+  { official: true, name: 'web-search',          desc: 'Queries the open web and returns ranked, de-duplicated results with source links.',        agent: 'Research agent', type: 'Retrieval',  by: 'sc', version: 'v1.4.0' },
+  { official: true, name: 'document-summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       agent: 'Research agent', type: 'Generation', by: 'am', version: 'v2.1.0' },
   { name: 'citation-finder',     desc: 'Traces every claim in a draft back to a verifiable source and flags the ones it can’t.', agent: 'Research agent', type: 'Retrieval',  by: 'pn', version: 'v1.0.2' },
-  { name: 'sql-runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   agent: 'Data agent',     type: 'Data',       by: 'am', version: 'v3.0.1' },
+  { official: true, name: 'sql-runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   agent: 'Data agent',     type: 'Data',       by: 'am', version: 'v3.0.1' },
   { name: 'chart-builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      agent: 'Data agent',     type: 'Generation', by: 'sc', version: 'v1.7.0' },
   { name: 'data-cleaner',        desc: 'Normalizes messy columns — dates, currencies, casing — before anything downstream runs.', agent: 'Data agent', type: 'Data',       by: 'dk', version: 'v1.2.3' },
   { name: 'email-drafting',      desc: 'Drafts replies in the team’s voice and tone, ready to review before anything sends.', agent: 'Support agent',  type: 'Generation', by: 'mr', version: 'v2.3.0' },
@@ -1727,6 +1746,9 @@ function filterList(list) {
 }
 const visibleSkills = () => filterList(activeList());
 
+/* Shown wherever a skill is identified, so its origin travels with it. */
+const badgeHTML = s => s.official ? `<span class="skill-badge">Cogentiq skill</span>` : '';
+
 const avatarHTML = s =>
   `<span class="avatar" aria-label="Creator"><svg viewBox="0 0 20 20"><use href="#ic-avatarA"/></svg><span>${esc(PEOPLE[s.by].initial)}</span></span>`;
 
@@ -1737,6 +1759,7 @@ function cardHTML({ s, i }) {
     <span class="skill-card__head">
       <svg class="cq-skill-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-skill"/></svg>
       <span class="skill-card__name" data-name="${esc(s.name)}">${esc(s.name)}</span>
+      ${badgeHTML(s)}
     </span>
     <span class="skill-card__body">
       <span class="skill-card__desc">${esc(s.desc)}</span>
@@ -1809,7 +1832,10 @@ function rowHTML({ s, i }) {
     <span class="t-cell t-skill-cell">
       <svg class="cq-skill-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-skill"/></svg>
       <span class="t-skill-info">
-        <span class="t-skill-name">${esc(s.name)}</span>
+        <span class="t-skill-line">
+          <span class="t-skill-name">${esc(s.name)}</span>
+          ${badgeHTML(s)}
+        </span>
         <span class="desc t-caption1-reg">${esc(s.desc)}</span>
       </span>
     </span>
@@ -1924,6 +1950,7 @@ function openPanel(i) {
     : `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>Publish to marketplace`;
   $('panelEdit').hidden = fromMarket;
   $('panelTitle').textContent = s.name;
+  $('panelBadge').innerHTML = badgeHTML(s);
   $('panelDesc').textContent = s.desc;
   renderPanelFiles(s);
   $('panel').classList.add('is-open');
