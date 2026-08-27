@@ -1233,9 +1233,29 @@
       white-space: nowrap;
     }
 
-    /* .btn-tonal/.btn-primary set their own display, which outranks the
-       [hidden] attribute — restore it so hiding an action works. */
-    .btn-tonal[hidden], .btn-primary[hidden] { display: none; }
+    /* The chrome's .status-pill is display:flex, so as a block child it
+       stretched the full panel width. A flex wrapper makes it hug its
+       label; the [hidden] guard is needed because this sets display too. */
+    .panel-status { display: flex; }
+    .panel-status[hidden] { display: none; }
+
+    /* Outline action — for a step back like un-publishing, which must
+       read as available without being the loudest thing on screen. Same
+       surface treatment as the system's .dropdown control. */
+    .btn-ghost {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      height: 32px; padding: 6px 12px; border-radius: 8px;
+      background: var(--backgrounds-card-bg-5);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      transition: border-color .15s ease, color .15s ease;
+    }
+    .btn-ghost:hover { border-color: var(--strokes-line-1); color: var(--text-primary); }
+
+    /* These classes set their own display, which outranks the [hidden]
+       attribute — restore it so hiding an action works. */
+    .btn-tonal[hidden], .btn-primary[hidden], .btn-ghost[hidden] { display: none; }
 
     /* Source tabs — the chrome's .seg-control, with a muted count. */
     .seg-count { color: var(--text-teritiary); }
@@ -1563,6 +1583,13 @@
         </div>
         <p class="panel-desc t-body2-reg" id="panelDesc"></p>
       </div>
+
+      <div class="panel-status" id="panelStatus" hidden>
+        <span class="status-pill">
+          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-online"/></svg>
+          <span class="t-caption1-med">Published to marketplace</span>
+        </span>
+      </div>
     </div>
 
     <div class="panel-actions">
@@ -1629,10 +1656,10 @@ const SKILLS = [
   { official: true, name: 'document-summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       agent: 'Research agent', type: 'Generation', by: 'am', version: 'v2.1.0' },
   { name: 'citation-finder',     desc: 'Traces every claim in a draft back to a verifiable source and flags the ones it can’t.', agent: 'Research agent', type: 'Retrieval',  by: 'pn', version: 'v1.0.2' },
   { official: true, name: 'sql-runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   agent: 'Data agent',     type: 'Data',       by: 'am', version: 'v3.0.1' },
-  { name: 'chart-builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      agent: 'Data agent',     type: 'Generation', by: 'sc', version: 'v1.7.0' },
+  { published: true, name: 'chart-builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      agent: 'Data agent',     type: 'Generation', by: 'sc', version: 'v1.7.0' },
   { name: 'data-cleaner',        desc: 'Normalizes messy columns — dates, currencies, casing — before anything downstream runs.', agent: 'Data agent', type: 'Data',       by: 'dk', version: 'v1.2.3' },
   { name: 'email-drafting',      desc: 'Drafts replies in the team’s voice and tone, ready to review before anything sends.', agent: 'Support agent',  type: 'Generation', by: 'mr', version: 'v2.3.0' },
-  { name: 'ticket-triage',       desc: 'Labels, routes and prioritizes incoming tickets from their content and history.',          agent: 'Support agent',  type: 'Action',     by: 'pn', version: 'v1.9.1' },
+  { published: true, name: 'ticket-triage',       desc: 'Labels, routes and prioritizes incoming tickets from their content and history.',          agent: 'Support agent',  type: 'Action',     by: 'pn', version: 'v1.9.1' },
   { name: 'policy-lookup',       desc: 'Answers from the latest policy docs only, and cites the exact clause it used.',            agent: 'Support agent',  type: 'Retrieval',  by: 'dk', version: 'v1.1.0' },
   { name: 'meeting-scheduler',   desc: 'Finds a slot that works across calendars and time zones, then sends the invites.',         agent: 'Ops agent',      type: 'Action',     by: 'mr', version: 'v1.5.2' },
   { name: 'slack-notifier',      desc: 'Posts run summaries and alerts to the right channel with the right mentions.',             agent: 'Ops agent',      type: 'Action',     by: 'sc', version: 'v1.3.0' },
@@ -1943,11 +1970,25 @@ function openPanel(i) {
   const fromMarket = state.tab === 'marketplace';
   state.file = 0;
 
-  /* A marketplace skill isn't yours to edit or to publish onward — the
-     offer is to bring it into the workspace. */
-  $('panelPublish').innerHTML = fromMarket
-    ? `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>Add to workspace`
-    : `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>Publish to marketplace`;
+  /* Three states for the leading action. A marketplace skill isn't yours
+     to edit or publish onward, so the offer is to bring it in. One of
+     your own that is already listed shows that as status, and the action
+     becomes the way back out — outlined, not primary, since un-listing
+     should never be the loudest thing in the panel. */
+  const published = !fromMarket && !!s.published;
+  const publishBtn = $('panelPublish');
+
+  if (fromMarket) {
+    publishBtn.className = 'btn-primary t-body2-med';
+    publishBtn.innerHTML = `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>Add to workspace`;
+  } else if (published) {
+    publishBtn.className = 'btn-ghost t-body2-med';
+    publishBtn.innerHTML = 'Remove from marketplace';
+  } else {
+    publishBtn.className = 'btn-primary t-body2-med';
+    publishBtn.innerHTML = `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>Publish to marketplace`;
+  }
+  $('panelStatus').hidden = !published;
   $('panelEdit').hidden = fromMarket;
   $('panelTitle').textContent = s.name;
   $('panelBadge').innerHTML = badgeHTML(s);
