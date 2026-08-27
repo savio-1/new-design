@@ -94,6 +94,7 @@
       --shadow-bar:     drop-shadow(0 1px 1px rgba(18, 18, 18, .12));
       --shadow-card:    drop-shadow(0 1px 1.5px rgba(18, 18, 18, .16));
       --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .2);
+      --shadow-rail:    8px 0 28px rgba(0, 0, 0, .38);
       --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(0, 0, 0, .12), 0 2px 16px rgba(33, 33, 33, .16);
       /* The Tiq bar floats over the panel it belongs to, so it needs to
          separate from a surface that is already dark. A shadow tuned for
@@ -200,6 +201,7 @@
       --shadow-bar:     drop-shadow(0 1px 1px rgba(18, 18, 18, .06));
       --shadow-card:    drop-shadow(0 1px 1.5px rgba(18, 18, 18, .08));
       --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
+      --shadow-rail:    8px 0 28px rgba(18, 18, 18, .14);
       --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
       --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
       --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
@@ -249,7 +251,10 @@
     /* ══════════════════════════════════════════════════════════════
        APP SHELL   (Figma frame "Models" · 1440 × 820)
        ══════════════════════════════════════════════════════════════ */
-    .app { display: flex; height: 100vh; background: var(--backgrounds-page-bg-1); }
+    .app {
+      display: flex; height: 100vh; padding-left: var(--rail-w);
+      background: var(--backgrounds-page-bg-1);
+    }
 
     /* ── Platform panel (left rail) ─────────────────────────────
        Two variants of one component: crunched at 68px and opened at
@@ -258,15 +263,20 @@
        row is `justify-content: center` with 8px padding, which puts the
        icon at x=10 in a 36px box and at x=8 once a label flexes beside
        it: exactly the two positions the component specifies. ───────── */
+    /* Fixed, and the page keeps a constant 68px gutter for it, so opening
+       the panel lays it over the content instead of reflowing the whole
+       page for a hover. Above the scrim so it stays reachable while the
+       detail panel is open, below the Tiq bar. */
     .rail {
-      width: var(--rail-w); flex: none;
+      position: fixed; left: 0; top: 0; bottom: 0; z-index: 80;
+      width: var(--rail-w);
       background: var(--backgrounds-page-bg-1);
       display: flex; flex-direction: column; align-items: stretch; gap: 16px;
       padding: 8px 16px;
       overflow-x: hidden; overflow-y: auto;
-      transition: width .3s cubic-bezier(.4, 0, .2, 1);
+      transition: width .26s cubic-bezier(.4, 0, .2, 1), box-shadow .26s ease;
     }
-    .rail.is-open { width: var(--rail-w-open); }
+    .rail.is-open { width: var(--rail-w-open); box-shadow: var(--shadow-rail); }
     .rail::-webkit-scrollbar { width: 0; }
 
     /* Labels are laid out at their real width the whole time and clipped
@@ -298,14 +308,6 @@
       font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px;
       color: var(--text-primary);
     }
-    /* Crunched, the panel has no control of its own in the component, so
-       the logo carries it: hovering swaps the mark for the panel glyph,
-       mirrored to read as "open" rather than "close". */
-    .rail-logo-open { display: none; transform: scaleX(-1); }
-    .rail.is-open .rail-brand { cursor: default; }
-    .rail:not(.is-open) .rail-brand:hover .rail-logo-mark { display: none; }
-    .rail:not(.is-open) .rail-brand:hover .rail-logo-open { display: block; }
-    .rail:not(.is-open) .rail-brand:hover .rail-logo { background: var(--backgrounds-card-bg-4); }
     .rail-collapse {
       flex: none; width: 20px; height: 20px;
       display: flex; align-items: center; justify-content: center;
@@ -1415,13 +1417,12 @@
   <!-- ══ Platform panel ══════════════════════════════════════════ -->
   <aside class="rail" aria-label="Platform">
     <div class="rail-head">
-      <button class="rail-brand" id="railBrand" type="button" aria-label="Expand platform panel">
+      <div class="rail-brand">
         <span class="rail-logo">
-          <svg class="ic rail-logo-mark" width="20" height="17.5" viewBox="0 0 20 17.5"><use href="#ic-logoonly"/></svg>
-          <svg class="ic rail-logo-open" width="18" height="18" viewBox="0 0 20 20"><use href="#ic-pp_closepanel"/></svg>
+          <svg class="ic" width="20" height="17.5" viewBox="0 0 20 17.5"><use href="#ic-logoonly"/></svg>
         </span>
         <span class="rail-lbl rail-wordmark">cogentiq</span>
-      </button>
+      </div>
       <button class="rail-collapse" id="railCollapse" type="button" aria-label="Collapse platform panel">
         <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-pp_closepanel"/></svg>
       </button>
@@ -3114,19 +3115,34 @@ $('askIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.prevent
    Platform panel — one component, two widths. Groups keep their own
    expanded state at either width, so crunching does not lose it.
    ═══════════════════════════════════════════════════════════════ */
+const railEl = document.querySelector('.rail');
+
+/* The panel opens on hover and lays itself over the page, so nothing
+   reflows behind it — the page's 68px gutter is constant. The delays keep
+   a cursor crossing the rail on its way somewhere else from flashing it
+   open; opening is quicker than closing, so an accidental overshoot on
+   the way back in does not shut it. */
 function setRailOpen(on) {
-  const rail = document.querySelector('.rail');
-  rail.classList.toggle('is-open', on);
-  $('railBrand').setAttribute('aria-label', on ? 'Platform panel' : 'Expand platform panel');
-  /* The bar floats against surfaces the rail just moved. */
-  positionTiqBar();
-  positionAskBar();
+  railEl.classList.toggle('is-open', on);
 }
 
-$('railCollapse').addEventListener('click', () => setRailOpen(false));
-$('railBrand').addEventListener('click', () => {
-  /* Opened, the brand is just the brand — collapsing is the header control's job. */
-  if (!document.querySelector('.rail').classList.contains('is-open')) setRailOpen(true);
+let railPeekTimer = null;
+function railPeek(on) {
+  clearTimeout(railPeekTimer);
+  railPeekTimer = setTimeout(() => setRailOpen(on), on ? 120 : 220);
+}
+
+railEl.addEventListener('mouseenter', () => railPeek(true));
+railEl.addEventListener('mouseleave', () => railPeek(false));
+/* Hover is not the only way in — tabbing into the panel opens it too. */
+railEl.addEventListener('focusin', () => { clearTimeout(railPeekTimer); setRailOpen(true); });
+railEl.addEventListener('focusout', e => {
+  if (!railEl.contains(e.relatedTarget)) railPeek(false);
+});
+/* Dismisses the peek without having to move the pointer off the panel. */
+$('railCollapse').addEventListener('click', () => {
+  clearTimeout(railPeekTimer);
+  setRailOpen(false);
 });
 /* One category open at a time. Opening an item — or a group header —
    collapses the rest, so the panel only ever shows the section you are

@@ -103,6 +103,7 @@
   --shadow-tab:     0 1px 2px rgba(33, 33, 33, .2);
   --shadow-modal:   0 4px 12px rgba(33, 33, 33, .16);
   --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .2);
+  --shadow-rail:    8px 0 28px rgba(0, 0, 0, .38);
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(0, 0, 0, .12), 0 2px 16px rgba(33, 33, 33, .16);
   /* For a surface that floats over another panel. A shadow tuned for white
      ground all but vanishes on a dark one, so this is deliberately heavier
@@ -222,6 +223,7 @@
   --shadow-tab:     0 1px 2px rgba(33, 33, 33, .12);
   --shadow-modal:   0 4px 12px rgba(33, 33, 33, .12);
   --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
+  --shadow-rail:    8px 0 28px rgba(18, 18, 18, .14);
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
   --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
   --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
@@ -637,7 +639,11 @@ body.cq { margin: 0; }
    The frame every module page shares. Widths and surfaces here are
    fixed across modules — see the page guidelines for what may vary.
    ══════════════════════════════════════════════════════════════════ */
-.cq-page { display: flex; height: 100vh; background: var(--backgrounds-page-bg-1); }
+/* The gutter is constant because .cq-rail overlays rather than pushes. */
+.cq-page {
+  display: flex; height: 100vh; padding-left: var(--rail-w);
+  background: var(--backgrounds-page-bg-1);
+}
 
 .cq-page__rail {
   width: var(--rail-w); flex: none;
@@ -782,14 +788,20 @@ body.cq { margin: 0; }
    A group's expanded state is independent of the width, so crunching the
    panel never loses it. */
 .cq-rail {
-  width: var(--rail-w); flex: none;
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: 80;
+  width: var(--rail-w);
   background: var(--backgrounds-page-bg-1);
   display: flex; flex-direction: column; align-items: stretch; gap: 16px;
   padding: 8px 16px;
   overflow-x: hidden; overflow-y: auto;
-  transition: width .3s cubic-bezier(.4, 0, .2, 1);
+  transition: width .26s cubic-bezier(.4, 0, .2, 1), box-shadow .26s ease;
 }
-.cq-rail.is-open { width: var(--rail-w-open); }
+/* The panel opens on hover and lays itself over the page. The shell keeps a
+   constant --rail-w gutter (see .cq-page), so nothing reflows behind it:
+   a hover is not worth relaying out a whole page for, and content that
+   shifts under the cursor is content you then have to find again. Fixed and
+   above the scrim, so it stays reachable while a detail panel is open. */
+.cq-rail.is-open { width: var(--rail-w-open); box-shadow: var(--shadow-rail); }
 .cq-rail__label {
   flex: 1 1 auto; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
