@@ -1135,7 +1135,9 @@
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 12px;
+      margin-top: 16px;
     }
+    .skills-grid[hidden] { display: none; }
 
     /* ── Skill card ──────────────────────────────────────────────
        Figma: Cogentiq · Builder › "Model Card 7" (node 2818:497285).
@@ -1203,6 +1205,27 @@
       width: 100%; height: 24px;
       display: flex; align-items: center; justify-content: flex-end; gap: 6px;
     }
+
+    /* ── Table view ──────────────────────────────────────────────
+       Columns are this screen's business; the row shell, header and
+       selected state come from the chrome. ─────────────────────────── */
+    .skills-table {
+      --t-cols: minmax(300px, 1.6fr) 140px 100px 110px minmax(130px, 1fr) 92px;
+    }
+    .t-skill-cell { gap: 8px; }
+    .t-skill-cell .cq-skill-ic { flex: none; color: var(--text-teritiary); }
+    .t-skill-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    /* Same mono Medium voice as the card, at the row's smaller size. */
+    .t-skill-name {
+      color: var(--text-primary);
+      font: 500 14px/20px var(--font-geist-mono); letter-spacing: -0.28px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .t-skill-info .desc {
+      color: var(--text-teritiary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .t-files-cell, .t-updated-cell { color: var(--text-teritiary); }
 
     /* Empty state — content area only; the chrome stays put. */
     .skills-empty {
@@ -1414,10 +1437,57 @@
           </div>
 
           <div class="model-scroll">
+            <div class="filter-row">
+              <div class="filter-left">
+                <div class="filter-group">
+                  <button class="dropdown t-body2-reg" id="peopleDropdown" aria-expanded="false">
+                    <span>Created by</span>
+                    <span class="badge t-caption1-reg" id="peopleCount">0</span>
+                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
+                  </button>
+                  <div class="tag-pop" id="peoplePop">
+                    <div class="tag-pop-list" id="peoplePopList"></div>
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <button class="dropdown t-body2-reg" id="dateDropdown" aria-expanded="false">
+                    <span id="dateLabel">Any time</span>
+                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
+                  </button>
+                  <div class="tag-pop" id="datePop">
+                    <div class="tag-pop-list" id="datePopList"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="seg-view" role="group" aria-label="View">
+                <button class="is-active" id="viewGridBtn" title="Card view" aria-label="Card view" aria-pressed="true">
+                  <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-gridview"/></svg>
+                </button>
+                <button id="viewTableBtn" title="Table view" aria-label="Table view" aria-pressed="false">
+                  <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-listview"/></svg>
+                </button>
+              </div>
+            </div>
+
             <div class="skills-grid" id="skillsGrid"></div>
+
+            <div class="table-area skills-table" id="tableArea" hidden>
+              <div class="t-head">
+                <span class="t-caption1-med">Skill</span>
+                <span class="t-caption1-med">Type</span>
+                <span class="t-caption1-med">Files</span>
+                <span class="t-caption1-med">Created by</span>
+                <span class="t-caption1-med">Last updated</span>
+                <span class="t-caption1-med">Actions</span>
+              </div>
+              <div id="tableBody"></div>
+            </div>
+
             <div class="skills-empty t-body2-reg" id="skillsEmpty">
               <b>No skills match</b>
-              <span>Clear the search to see the full list.</span>
+              <span>Clear the search or filters to see the full list.</span>
             </div>
           </div>
         </section>
@@ -1484,24 +1554,51 @@ const root = document.documentElement;
 
 /* ── Data ─────────────────────────────────────────────────────────
    Skill names are ids (kebab-case) · type shows as the panel badge ·
-   initial is the letter on the creator avatar (no name, per Figma). */
+   by → creator. Names appear only in the "Created by" filter, which
+   needs them to be usable; cards and rows show the avatar alone. */
+const PEOPLE = {
+  sc: { name: 'Sophia Chen',    initial: 'S' },
+  am: { name: 'Arjun Mehta',    initial: 'A' },
+  pn: { name: 'Priya Nair',     initial: 'P' },
+  dk: { name: 'Daniel Kim',     initial: 'D' },
+  mr: { name: 'Maya Rodriguez', initial: 'M' },
+};
 const TYPE_TONE = { Retrieval: 'blue', Generation: 'indigo', Action: 'light-green', Data: 'cyan' };
 
-const SKILLS = [
-  { name: 'web-search',          desc: 'Queries the open web and returns ranked, de-duplicated results with source links.',        agent: 'Research agent', type: 'Retrieval',  initial: 'S', version: 'v1.4.0', updated: 'Aug 21, 2026' },
-  { name: 'document-summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       agent: 'Research agent', type: 'Generation', initial: 'A', version: 'v2.1.0', updated: 'Aug 18, 2026' },
-  { name: 'citation-finder',     desc: 'Traces every claim in a draft back to a verifiable source and flags the ones it can’t.', agent: 'Research agent', type: 'Retrieval',  initial: 'P', version: 'v1.0.2', updated: 'Aug 11, 2026' },
-  { name: 'sql-runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   agent: 'Data agent',     type: 'Data',       initial: 'A', version: 'v3.0.1', updated: 'Aug 24, 2026' },
-  { name: 'chart-builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      agent: 'Data agent',     type: 'Generation', initial: 'S', version: 'v1.7.0', updated: 'Aug 14, 2026' },
-  { name: 'data-cleaner',        desc: 'Normalizes messy columns — dates, currencies, casing — before anything downstream runs.', agent: 'Data agent', type: 'Data',    initial: 'D', version: 'v1.2.3', updated: 'Jul 30, 2026' },
-  { name: 'email-drafting',      desc: 'Drafts replies in the team’s voice and tone, ready to review before anything sends.', agent: 'Support agent',  type: 'Generation', initial: 'M', version: 'v2.3.0', updated: 'Aug 22, 2026' },
-  { name: 'ticket-triage',       desc: 'Labels, routes and prioritizes incoming tickets from their content and history.',          agent: 'Support agent',  type: 'Action',     initial: 'P', version: 'v1.9.1', updated: 'Aug 19, 2026' },
-  { name: 'policy-lookup',       desc: 'Answers from the latest policy docs only, and cites the exact clause it used.',            agent: 'Support agent',  type: 'Retrieval',  initial: 'D', version: 'v1.1.0', updated: 'Aug 06, 2026' },
-  { name: 'meeting-scheduler',   desc: 'Finds a slot that works across calendars and time zones, then sends the invites.',         agent: 'Ops agent',      type: 'Action',     initial: 'M', version: 'v1.5.2', updated: 'Aug 25, 2026' },
-  { name: 'slack-notifier',      desc: 'Posts run summaries and alerts to the right channel with the right mentions.',             agent: 'Ops agent',      type: 'Action',     initial: 'S', version: 'v1.3.0', updated: 'Aug 09, 2026' },
-  { name: 'crm-lookup',          desc: 'Pulls a live account snapshot — owner, stage, open deals — straight from the CRM.', agent: 'Sales agent',  type: 'Retrieval',  initial: 'A', version: 'v1.0.5', updated: 'Aug 15, 2026' },
-  { name: 'pitch-translator',    desc: 'Localizes outreach into the prospect’s language without losing the product terms.',   agent: 'Sales agent',    type: 'Generation', initial: 'P', version: 'v1.2.0', updated: 'Aug 03, 2026' },
+const DATE_RANGES = [
+  { id: 'any', label: 'Any time',       days: null },
+  { id: '7',   label: 'Last 7 days',    days: 7 },
+  { id: '30',  label: 'Last 30 days',   days: 30 },
+  { id: '90',  label: 'Last 3 months',  days: 90 },
+  { id: '365', label: 'Last 12 months', days: 365 },
 ];
+
+const fmtDate = d =>
+  d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ', ' + d.getFullYear();
+
+const SKILLS = [
+  { name: 'web-search',          desc: 'Queries the open web and returns ranked, de-duplicated results with source links.',        agent: 'Research agent', type: 'Retrieval',  by: 'sc', version: 'v1.4.0' },
+  { name: 'document-summarizer', desc: 'Condenses PDFs, docs and long threads into short briefs that keep the key numbers.',       agent: 'Research agent', type: 'Generation', by: 'am', version: 'v2.1.0' },
+  { name: 'citation-finder',     desc: 'Traces every claim in a draft back to a verifiable source and flags the ones it can’t.', agent: 'Research agent', type: 'Retrieval',  by: 'pn', version: 'v1.0.2' },
+  { name: 'sql-runner',          desc: 'Writes and executes read-only SQL against the warehouse, with a guardrailed row limit.',   agent: 'Data agent',     type: 'Data',       by: 'am', version: 'v3.0.1' },
+  { name: 'chart-builder',       desc: 'Turns query results into presentation-ready charts that follow the workspace theme.',      agent: 'Data agent',     type: 'Generation', by: 'sc', version: 'v1.7.0' },
+  { name: 'data-cleaner',        desc: 'Normalizes messy columns — dates, currencies, casing — before anything downstream runs.', agent: 'Data agent', type: 'Data',       by: 'dk', version: 'v1.2.3' },
+  { name: 'email-drafting',      desc: 'Drafts replies in the team’s voice and tone, ready to review before anything sends.', agent: 'Support agent',  type: 'Generation', by: 'mr', version: 'v2.3.0' },
+  { name: 'ticket-triage',       desc: 'Labels, routes and prioritizes incoming tickets from their content and history.',          agent: 'Support agent',  type: 'Action',     by: 'pn', version: 'v1.9.1' },
+  { name: 'policy-lookup',       desc: 'Answers from the latest policy docs only, and cites the exact clause it used.',            agent: 'Support agent',  type: 'Retrieval',  by: 'dk', version: 'v1.1.0' },
+  { name: 'meeting-scheduler',   desc: 'Finds a slot that works across calendars and time zones, then sends the invites.',         agent: 'Ops agent',      type: 'Action',     by: 'mr', version: 'v1.5.2' },
+  { name: 'slack-notifier',      desc: 'Posts run summaries and alerts to the right channel with the right mentions.',             agent: 'Ops agent',      type: 'Action',     by: 'sc', version: 'v1.3.0' },
+  { name: 'crm-lookup',          desc: 'Pulls a live account snapshot — owner, stage, open deals — straight from the CRM.', agent: 'Sales agent',   type: 'Retrieval',  by: 'am', version: 'v1.0.5' },
+  { name: 'pitch-translator',    desc: 'Localizes outreach into the prospect’s language without losing the product terms.',   agent: 'Sales agent',    type: 'Generation', by: 'pn', version: 'v1.2.0' },
+];
+
+/* Stable last-updated dates spread back across the past year, so the
+   range filter and the table column agree with each other. */
+SKILLS.forEach((s, i) => {
+  const d = new Date();
+  d.setDate(d.getDate() - (i * 26 + (i % 4) * 5));
+  s.updatedAt = d;
+});
 
 /* Every skill folder carries the same four docs. Contents are
    templated off the skill so each preview reads real. */
@@ -1559,19 +1656,32 @@ Returns a ready-to-paste block for reports and replies.` },
 - **Safety** — no writes, no PII in logs
 
 ## Last run
-${s.updated} · all checks passing on ${s.version}` },
+${fmtDate(s.updatedAt)} · all checks passing on ${s.version}` },
   ];
 }
+const DOC_COUNT = 4;
 
-const state = { search: '', selected: null, file: 0 };
+const state = { search: '', people: new Set(), range: 'any', view: 'grid', selected: null, file: 0 };
 
-/* ── Cards ────────────────────────────────────────────────────── */
-function filtered() {
+/* ── Filtering ────────────────────────────────────────────────────
+   Both views read this one list, so switching mid-filter loses nothing. */
+function visibleSkills() {
   const q = state.search.trim().toLowerCase();
-  return SKILLS.map((s, i) => ({ s, i })).filter(({ s }) =>
-    !q || s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q));
+  const range = DATE_RANGES.find(r => r.id === state.range);
+  const floor = range && range.days ? Date.now() - range.days * 86400000 : null;
+
+  return SKILLS.map((s, i) => ({ s, i })).filter(({ s }) => {
+    if (q && !`${s.name} ${s.desc} ${s.type}`.toLowerCase().includes(q)) return false;
+    if (state.people.size && !state.people.has(s.by)) return false;
+    if (floor !== null && s.updatedAt.getTime() < floor) return false;
+    return true;
+  });
 }
 
+const avatarHTML = s =>
+  `<span class="avatar" aria-label="Creator"><svg viewBox="0 0 20 20"><use href="#ic-avatarA"/></svg><span>${esc(PEOPLE[s.by].initial)}</span></span>`;
+
+/* ── Card view ────────────────────────────────────────────────── */
 function cardHTML({ s, i }) {
   return `
   <button class="skill-card${state.selected === i ? ' is-selected' : ''}" data-index="${i}" aria-pressed="${state.selected === i}">
@@ -1582,9 +1692,7 @@ function cardHTML({ s, i }) {
     <span class="skill-card__body">
       <span class="skill-card__desc">${esc(s.desc)}</span>
       <span class="skill-card__props">
-        <span class="avatar" aria-label="Creator">
-          <svg viewBox="0 0 20 20"><use href="#ic-avatarA"/></svg><span>${esc(s.initial)}</span>
-        </span>
+        ${avatarHTML(s)}
         <span class="icon-btn-24" role="button" title="Skill options" aria-label="Options for ${esc(s.name)}" data-menu="${i}">
           <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-optionsh"/></svg>
         </span>
@@ -1593,11 +1701,53 @@ function cardHTML({ s, i }) {
   </button>`;
 }
 
-function renderGrid() {
-  const list = filtered();
+/* ── Table view ───────────────────────────────────────────────── */
+function rowHTML({ s, i }) {
+  return `
+  <div class="t-row${state.selected === i ? ' is-selected' : ''}" data-index="${i}" role="button" tabindex="0" aria-label="${esc(s.name)}">
+    <span class="t-cell t-skill-cell">
+      <svg class="cq-skill-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-skill"/></svg>
+      <span class="t-skill-info">
+        <span class="t-skill-name">${esc(s.name)}</span>
+        <span class="desc t-caption1-reg">${esc(s.desc)}</span>
+      </span>
+    </span>
+    <span class="t-cell"><span class="tag-badge" data-tone="${TYPE_TONE[s.type]}">${esc(s.type)}</span></span>
+    <span class="t-cell t-files-cell t-body2-reg">${DOC_COUNT} files</span>
+    <span class="t-cell">${avatarHTML(s)}</span>
+    <span class="t-cell t-updated-cell t-body2-reg">${esc(fmtDate(s.updatedAt))}</span>
+    <span class="t-cell t-actions-cell">
+      <button class="icon-btn-32" data-edit="${i}" aria-label="Edit ${esc(s.name)}">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-rowedit"/></svg>
+      </button>
+      <button class="icon-btn-32" data-delete="${i}" aria-label="Delete ${esc(s.name)}">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-rowdelete"/></svg>
+      </button>
+    </span>
+  </div>`;
+}
+
+function render() {
+  const list = visibleSkills();
   $('skillsGrid').innerHTML = list.map(cardHTML).join('');
+  $('tableBody').innerHTML = list.length
+    ? list.map(rowHTML).join('')
+    : `<p class="t-empty t-body2-reg">No skills match these filters.</p>`;
   $('skillCount').textContent = list.length;
-  $('skillsEmpty').classList.toggle('is-on', !list.length);
+
+  const empty = !list.length;
+  $('skillsEmpty').classList.toggle('is-on', empty && state.view === 'grid');
+  $('skillsGrid').hidden = state.view !== 'grid' || empty;
+  $('tableArea').hidden = state.view !== 'table';
+}
+
+function setView(view) {
+  state.view = view;
+  $('viewGridBtn').classList.toggle('is-active', view === 'grid');
+  $('viewTableBtn').classList.toggle('is-active', view === 'table');
+  $('viewGridBtn').setAttribute('aria-pressed', String(view === 'grid'));
+  $('viewTableBtn').setAttribute('aria-pressed', String(view === 'table'));
+  render();
 }
 
 /* ── Markdown preview ─────────────────────────────────────────────
@@ -1660,8 +1810,88 @@ function closePanel() {
   state.selected = null;
   $('panel').classList.remove('is-open');
   $('panel').setAttribute('aria-hidden', 'true');
-  renderGrid();
+  render();
 }
+function toggleSelect(i) {
+  if (state.selected === i) { closePanel(); return; }
+  state.selected = i;
+  render();
+  openPanel(i);
+}
+
+/* ── Filter popovers ──────────────────────────────────────────── */
+function renderPeoplePop() {
+  $('peoplePopList').innerHTML = Object.entries(PEOPLE).map(([id, p]) => `
+    <button class="tag-opt t-body2-reg${state.people.has(id) ? ' is-checked' : ''}" data-person="${id}">
+      <span class="box"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5L5 9L9.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="lbl">${esc(p.name)}</span>
+    </button>`).join('');
+  $('peopleCount').textContent = state.people.size;
+  $('peopleDropdown').classList.toggle('has-count', state.people.size > 0);
+}
+function renderDatePop() {
+  $('datePopList').innerHTML = DATE_RANGES.map(r => `
+    <button class="tag-opt t-body2-reg${state.range === r.id ? ' is-picked' : ''}" data-range="${r.id}">
+      <span class="lbl">${esc(r.label)}</span>
+      <svg class="ic tick" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-check"/></svg>
+    </button>`).join('');
+  $('dateLabel').textContent = DATE_RANGES.find(r => r.id === state.range).label;
+}
+
+function closePops(except) {
+  ['peoplePop', 'datePop'].forEach(id => {
+    if (id === except) return;
+    $(id).classList.remove('is-open');
+    const btn = $(id.replace('Pop', 'Dropdown'));
+    btn.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+}
+[['peopleDropdown', 'peoplePop'], ['dateDropdown', 'datePop']].forEach(([btnId, popId]) => {
+  $(btnId).addEventListener('click', e => {
+    e.stopPropagation();
+    closePops(popId);
+    const open = $(popId).classList.toggle('is-open');
+    $(btnId).classList.toggle('is-open', open);
+    $(btnId).setAttribute('aria-expanded', String(open));
+  });
+});
+/* Created by is multi-select, so keep its popover open while ticking. */
+$('peoplePop').addEventListener('click', e => e.stopPropagation());
+$('peoplePopList').addEventListener('click', e => {
+  const opt = e.target.closest('[data-person]'); if (!opt) return;
+  const v = opt.dataset.person;
+  state.people.has(v) ? state.people.delete(v) : state.people.add(v);
+  renderPeoplePop(); render();
+});
+$('datePopList').addEventListener('click', e => {
+  const opt = e.target.closest('[data-range]'); if (!opt) return;
+  state.range = opt.dataset.range;
+  renderDatePop(); render();
+  closePops();
+});
+
+/* ── Wiring ───────────────────────────────────────────────────── */
+$('viewGridBtn').addEventListener('click', () => setView('grid'));
+$('viewTableBtn').addEventListener('click', () => setView('table'));
+$('skillSearch').addEventListener('input', e => { state.search = e.target.value; render(); });
+
+$('skillsGrid').addEventListener('click', e => {
+  if (e.target.closest('[data-menu]')) { e.stopPropagation(); return; }
+  const card = e.target.closest('[data-index]'); if (!card) return;
+  toggleSelect(Number(card.dataset.index));
+});
+$('tableBody').addEventListener('click', e => {
+  if (e.target.closest('[data-edit],[data-delete]')) { e.stopPropagation(); return; }
+  const row = e.target.closest('[data-index]'); if (!row) return;
+  toggleSelect(Number(row.dataset.index));
+});
+$('tableBody').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('[data-index]'); if (!row) return;
+  e.preventDefault();
+  toggleSelect(Number(row.dataset.index));
+});
 
 $('panelFiles').addEventListener('click', e => {
   const row = e.target.closest('[data-file]'); if (!row) return;
@@ -1669,24 +1899,19 @@ $('panelFiles').addEventListener('click', e => {
   if (state.selected !== null) renderPanelFiles(SKILLS[state.selected]);
 });
 $('panelClose').addEventListener('click', closePanel);
-$('panel').addEventListener('click', e => e.stopPropagation());
+
+/* One outside-click handler: dropdowns always close, the panel closes
+   unless the click landed on an item, a filter or the panel itself. */
 document.addEventListener('click', e => {
+  closePops();
   if (state.selected === null) return;
-  if (e.target.closest('.skill-card')) return;
+  if (e.target.closest('.skill-card, .t-row, #panel, .filter-group, .seg-view')) return;
   closePanel();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.selected !== null) closePanel(); });
-
-/* ── Wiring ───────────────────────────────────────────────────── */
-$('skillSearch').addEventListener('input', e => { state.search = e.target.value; renderGrid(); });
-$('skillsGrid').addEventListener('click', e => {
-  if (e.target.closest('[data-menu]')) { e.stopPropagation(); return; }
-  const card = e.target.closest('[data-index]'); if (!card) return;
-  const i = Number(card.dataset.index);
-  if (state.selected === i) { closePanel(); return; }
-  state.selected = i;
-  renderGrid();
-  openPanel(i);
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  closePops();
+  if (state.selected !== null) closePanel();
 });
 
 /* ── Theme ────────────────────────────────────────────────────── */
@@ -1706,5 +1931,7 @@ let stored = null;
 try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
 applyMode(stored === 'light' ? 'light' : 'dark');
 
-renderGrid();
+renderPeoplePop();
+renderDatePop();
+render();
 </script>
