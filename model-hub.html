@@ -95,6 +95,11 @@
       --shadow-card:    drop-shadow(0 1px 1.5px rgba(18, 18, 18, .16));
       --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .2);
       --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(0, 0, 0, .12), 0 2px 16px rgba(33, 33, 33, .16);
+      /* The Tiq bar floats over the panel it belongs to, so it needs to
+         separate from a surface that is already dark. A shadow tuned for
+         white ground all but disappears here; this one is deliberately
+         heavier than --shadow-pop. */
+      --shadow-tiq:     0 2px 6px rgba(0, 0, 0, .40), 0 14px 32px rgba(0, 0, 0, .52), 0 28px 64px rgba(0, 0, 0, .40);
       --shadow-tab:     0 1px 2px rgba(33, 33, 33, .2);
 
       --backgrounds-type-default-bg-1: #323232;
@@ -186,6 +191,7 @@
       --shadow-card:    drop-shadow(0 1px 1.5px rgba(18, 18, 18, .08));
       --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
       --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
+      --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
       --shadow-tab:     0 1px 2px rgba(33, 33, 33, .12);
 
       --backgrounds-type-default-bg-1: #f5f5f5;
@@ -954,7 +960,11 @@
        in-field variant is. Same treatment, so Tiq reads as one thing
        wherever it appears. */
     .tiq-btn--action {
-      position: static; height: 32px; padding: 0 12px; gap: 6px;
+      /* relative, NOT static: the base .tiq-btn is absolute so it can pin
+         inside a field, and its ::before stroke is inset:0 against it. Going
+         static hands that ::before to the nearest positioned ancestor — the
+         panel — and paints the gradient around the whole panel instead. */
+      position: relative; height: 32px; padding: 0 12px; gap: 6px;
       border-radius: 8px;
       justify-content: center;
       font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
@@ -970,7 +980,7 @@
       background: var(--backgrounds-card-bg-2);
       border: 1px solid var(--strokes-line-3);
       border-radius: 14px;
-      box-shadow: var(--shadow-pop);
+      box-shadow: var(--shadow-tiq);
       opacity: 0; transform: translateY(-4px) scale(.98);
       transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1);
     }
@@ -1004,6 +1014,34 @@
       font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
     }
     .tb-in::placeholder { color: var(--text-teritiary); }
+
+    /* The first time a Tiq bar opens, its placeholder sweeps the brand
+       gradient once — the same colours as the stroke, so the bar reads as
+       Tiq before you have taken in a word of it. After that it is an
+       ordinary placeholder: a shimmer on every open would be noise.
+
+       It rides on a ghost span rather than ::placeholder, because
+       background-clip: text is not reliable on a placeholder pseudo. */
+    .tb-field { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+    .tb-ghost {
+      display: none;
+      position: absolute; inset: 0; align-items: center;
+      pointer-events: none; white-space: nowrap; overflow: hidden;
+      font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+      background-image: linear-gradient(100deg,
+        #0d99ff 0%, #5860ed 16%, #f24822 32%, #ffca28 46%, #ffffff 58%, #5860ed 78%, #0d99ff 100%);
+      background-size: 260% 100%;
+      -webkit-background-clip: text; background-clip: text;
+      color: transparent;
+      animation: tiqShimmer 1.25s ease-in-out 2 both;
+    }
+    .tb-row.is-shimmer .tb-ghost { display: flex; }
+    /* The real placeholder would show through the sweep. */
+    .tb-row.is-shimmer .tb-in::placeholder { color: transparent; }
+    @keyframes tiqShimmer {
+      from { background-position: 130% 0; }
+      to   { background-position: -30% 0; }
+    }
     .tb-send {
       flex: none;
       display: flex; align-items: center; justify-content: center;
@@ -1079,7 +1117,7 @@
     @keyframes tiqPulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 
     @media (prefers-reduced-motion: reduce) {
-      .tiq-btn::before, .tb-row::before, .tb-dot { animation: none; }
+      .tiq-btn::before, .tb-row::before, .tb-dot, .tb-ghost { animation: none; }
     }
 
     /* Extra arguments */
@@ -1510,8 +1548,11 @@
   <div class="tiq-bar" id="tiqBar" role="dialog" aria-label="Write with Tiq">
     <div class="tb-row">
       <svg class="tb-logo" viewBox="0 0 24 24"><use href="#ic-tiq"/></svg>
-      <input class="tb-in" id="tbIn" type="text" autocomplete="off"
-             placeholder="Describe the model in your own words" aria-label="Describe the model in your own words" />
+      <span class="tb-field">
+        <input class="tb-in" id="tbIn" type="text" autocomplete="off"
+               placeholder="Describe the model in your own words" aria-label="Describe the model in your own words" />
+        <span class="tb-ghost" id="tbGhost" aria-hidden="true"></span>
+      </span>
       <button class="tb-send" id="tbSend" aria-label="Ask Tiq" disabled>
         <svg class="ic" width="15" height="15" viewBox="0 0 16 16"><use href="#ic-arrowright"/></svg>
       </button>
@@ -1612,8 +1653,11 @@
 <div class="tiq-bar" id="askBar" role="dialog" aria-label="Ask Tiq about this model">
   <div class="tb-row">
     <svg class="tb-logo" viewBox="0 0 24 24"><use href="#ic-tiq"/></svg>
-    <input class="tb-in" id="askIn" type="text" autocomplete="off"
-           placeholder="Ask about this model" aria-label="Ask Tiq about this model" />
+    <span class="tb-field">
+      <input class="tb-in" id="askIn" type="text" autocomplete="off"
+             placeholder="Ask about this model" aria-label="Ask Tiq about this model" />
+      <span class="tb-ghost" id="askGhost" aria-hidden="true"></span>
+    </span>
     <button class="tb-send" id="askSend" aria-label="Ask Tiq" disabled>
       <svg class="ic" width="15" height="15" viewBox="0 0 16 16"><use href="#ic-arrowright"/></svg>
     </button>
@@ -2396,6 +2440,21 @@ function placeTiqBar(bar, owner, anchor) {
   bar.style.top = `${Math.round(top)}px`;
 }
 
+/* Runs the gradient sweep across a bar's placeholder, once per bar for
+   the life of the page — see .tb-ghost. Typing cuts it short, since a
+   flourish that talks over the user is just in the way. */
+const tiqShimmered = new Set();
+function shimmerOnce(key, rowSel, ghostId, inputId) {
+  if (tiqShimmered.has(key) || reducedMotion()) return;
+  tiqShimmered.add(key);
+  const row = document.querySelector(rowSel), ghost = $(ghostId), input = $(inputId);
+  ghost.textContent = input.placeholder;
+  row.classList.add('is-shimmer');
+  const stop = () => row.classList.remove('is-shimmer');
+  ghost.addEventListener('animationend', stop, { once: true });
+  input.addEventListener('input', stop, { once: true });
+}
+
 function positionTiqBar() {
   placeTiqBar($('tiqBar'),
     document.querySelector('.modal').getBoundingClientRect(),
@@ -2427,6 +2486,7 @@ function openTiqBar() {
   $('tbIn').value = '';
   $('tbSend').disabled = true;
   positionTiqBar();
+  shimmerOnce('write', '#tiqBar .tb-row', 'tbGhost', 'tbIn');
   requestAnimationFrame(() => bar.classList.add('is-shown'));
   $('tbIn').focus();
 }
@@ -2691,6 +2751,7 @@ function openAskBar() {
   $('askTiqBtn').classList.add('is-on');
   $('askTiqBtn').setAttribute('aria-expanded', 'true');
   positionAskBar();
+  shimmerOnce('ask', '#askBar .tb-row', 'askGhost', 'askIn');
   requestAnimationFrame(() => bar.classList.add('is-shown'));
   $('askIn').focus();
 }

@@ -104,6 +104,10 @@
   --shadow-modal:   0 4px 12px rgba(33, 33, 33, .16);
   --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .2);
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(0, 0, 0, .12), 0 2px 16px rgba(33, 33, 33, .16);
+  /* For a surface that floats over another panel. A shadow tuned for white
+     ground all but vanishes on a dark one, so this is deliberately heavier
+     than --shadow-pop — it is what gives the Tiq bar its hierarchy. */
+  --shadow-tiq:     0 2px 6px rgba(0, 0, 0, .40), 0 14px 32px rgba(0, 0, 0, .52), 0 28px 64px rgba(0, 0, 0, .40);
 
   /* The exported OpenAI mark is one shape, so it inverts per theme. */
   --logo-openai: #ffffff;
@@ -211,6 +215,7 @@
   --shadow-modal:   0 4px 12px rgba(33, 33, 33, .12);
   --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
+  --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
 
   --logo-openai: #121212;
 }
@@ -899,6 +904,9 @@ body.cq { margin: 0; }
    wherever Tiq is one option among several — a detail panel's actions,
    a toolbar — so Tiq reads as one thing across the product. */
 .cq-tiq-btn--action {
+  /* Leave position alone. The ::before stroke is inset:0 against this
+     button; making it static hands the pseudo to the nearest positioned
+     ancestor and paints the gradient around that whole surface instead. */
   height: 32px; padding: 0 12px; gap: 6px;
   border-radius: var(--radius-md);
   justify-content: center;
@@ -912,7 +920,7 @@ body.cq { margin: 0; }
   background: var(--backgrounds-card-bg-2);
   border: 1px solid var(--strokes-line-3);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-pop);
+  box-shadow: var(--shadow-tiq);
 }
 .cq-tiq-row {
   position: relative;
@@ -938,6 +946,33 @@ body.cq { margin: 0; }
   font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
 }
 .cq-tiq-row input::placeholder { color: var(--text-teritiary); }
+
+/* First-open flourish: the placeholder sweeps the brand gradient once, so
+   the bar reads as Tiq before a word of it is taken in. Run it once per
+   bar per page — on every open it is noise — and cut it short when the
+   user types. Add .is-shimmer to the row to start it.
+
+   It rides on a ghost span, not ::placeholder, because background-clip:
+   text is not reliable on a placeholder pseudo. */
+.cq-tiq-field { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
+.cq-tiq-ghost {
+  display: none;
+  position: absolute; inset: 0; align-items: center;
+  pointer-events: none; white-space: nowrap; overflow: hidden;
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+  background-image: linear-gradient(100deg,
+    #0d99ff 0%, #5860ed 16%, #f24822 32%, #ffca28 46%, #ffffff 58%, #5860ed 78%, #0d99ff 100%);
+  background-size: 260% 100%;
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  animation: cq-tiq-shimmer 1.25s ease-in-out 2 both;
+}
+.cq-tiq-row.is-shimmer .cq-tiq-ghost { display: flex; }
+.cq-tiq-row.is-shimmer input::placeholder { color: transparent; }
+@keyframes cq-tiq-shimmer {
+  from { background-position: 130% 0; }
+  to   { background-position: -30% 0; }
+}
 .cq-tiq-send {
   flex: none;
   display: flex; align-items: center; justify-content: center;
