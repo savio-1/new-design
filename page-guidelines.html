@@ -139,6 +139,7 @@
   --rail-w:    68px;
   --sidebar-w: 240px;
   --panel-w:   420px;
+  --tiq-dock-w: 360px;
   --card-h:    120px;
 }
 
@@ -969,6 +970,70 @@ body.cq { margin: 0; }
 }
 .cq-tiq-row.is-shimmer .cq-tiq-ghost { display: flex; }
 .cq-tiq-row.is-shimmer input::placeholder { color: transparent; }
+
+/* Bar header — the controls that own the bar: collapse/dock, and close. */
+.cq-tiq-head {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 10px 0 14px;
+  color: var(--text-primary);
+}
+.cq-tiq-head__title { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.cq-tiq-head__sub {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-teritiary);
+}
+.cq-tiq-head__sub::before { content: "\00b7"; margin-right: 6px; }
+.cq-tiq-icon {
+  width: 24px; height: 24px; flex: none; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-teritiary);
+  transition: background .14s ease, color .14s ease;
+}
+.cq-tiq-icon:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+
+/* Docked — the bar becomes a full-height panel on the right, and the page
+   slides over rather than being covered (see the page guidelines for the
+   shell's side of that contract). Width is unchanged from the floating bar,
+   so the surface stays recognisably the same thing: only its height and
+   position move.
+
+   The DOM does not change between the two states. Only `order` does, which
+   puts the prompt at the bottom of a tall panel and lets the answers take
+   the space above it. */
+.cq-tiq-bar--docked {
+  position: fixed; top: 8px; bottom: 8px; right: 8px; left: auto;
+  width: var(--tiq-dock-w); height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+}
+.cq-tiq-bar--docked .cq-tiq-head {
+  padding: 12px 10px 12px 14px;
+  border-bottom: 1px solid var(--strokes-line-3);
+}
+.cq-tiq-bar--docked .cq-tiq-empty   { order: 1; }
+.cq-tiq-bar--docked .cq-tiq-answer  { order: 2; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-top: 14px; }
+.cq-tiq-bar--docked .cq-tiq-suggest { order: 3; }
+.cq-tiq-bar--docked .cq-tiq-row     { order: 5; margin-bottom: 12px; }
+
+/* Docked only: a tall panel needs something in it before the first ask. */
+.cq-tiq-empty { display: none; }
+.cq-tiq-bar--docked .cq-tiq-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1 1 auto; gap: 6px; padding: 24px 24px 16px; text-align: center;
+}
+.cq-tiq-empty__title { color: var(--text-primary); }
+.cq-tiq-empty__sub { color: var(--text-teritiary); max-width: 240px; }
+
+/* One thread, two readings: docked shows the whole exchange, the floating
+   bar has room for the latest answer only. Same markup either way. */
+.cq-tiq-qa + .cq-tiq-qa { margin-top: 14px; }
+.cq-tiq-q {
+  margin-bottom: 8px; color: var(--text-primary);
+  font: 500 13px/18px var(--font-geist); letter-spacing: -0.3px;
+}
+.cq-tiq-bar:not(.cq-tiq-bar--docked) .cq-tiq-q { display: none; }
+.cq-tiq-bar:not(.cq-tiq-bar--docked) .cq-tiq-qa:not(:last-child) { display: none; }
 @keyframes cq-tiq-shimmer {
   from { background-position: 130% 0; }
   to   { background-position: -30% 0; }
@@ -1461,6 +1526,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="pg-rule"><dt>Panel contents</dt><dd>Tags, title, description, actions, then <code>.cq-kv</code> rows under a <code>.cq-section-label</code>. Sections are the module's; the row shape is not.</dd></div>
           <div class="pg-rule"><dt>Creating one</dt><dd>The primary action opens a modal, not a new page. Two steps where configuration is involved: what it is, then how it runs. The test pane only appears once there is something to test.</dd></div>
           <div class="pg-rule"><dt>Empty states</dt><dd>Filters that match nothing say so in the content area and leave the chrome alone. Never blank the filters bar — the way back is the count and the controls.</dd></div>
+          <div class="pg-rule"><dt>Docking Tiq</dt><dd>Tiq opens as a floating bar beside whatever it belongs to, and can be docked to the right edge at the same <code>360px</code> width. Docking shifts the page — <code>padding-right</code> on the shell, and the detail panel's <code>right</code> — rather than covering it; the whole point of the taller surface is reading the answers against the content. Undock and close both put every offset back.</dd></div>
         </dl>
       </section>
 
