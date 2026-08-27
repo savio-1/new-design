@@ -1206,6 +1206,13 @@
       display: flex; align-items: center; justify-content: flex-end; gap: 6px;
     }
 
+    /* .btn-tonal/.btn-primary set their own display, which outranks the
+       [hidden] attribute — restore it so hiding an action works. */
+    .btn-tonal[hidden], .btn-primary[hidden] { display: none; }
+
+    /* Source tabs — the chrome's .seg-control, with a muted count. */
+    .seg-count { color: var(--text-teritiary); }
+
     /* ── Table view ──────────────────────────────────────────────
        Columns are this screen's business; the row shell, header and
        selected state come from the chrome. ─────────────────────────── */
@@ -1421,8 +1428,14 @@
         <section class="skills">
           <div class="filters-bar">
             <div class="title-row">
-              <h1 class="t-subhead1-med" style="margin:0" id="pageTitle">All skills</h1>
-              <span class="count-pill t-caption1-reg" id="skillCount">13</span>
+              <div class="seg-control" role="tablist" aria-label="Skill source">
+                <button class="t-body2-med is-active" role="tab" aria-selected="true" id="tabWorkspace" data-tab="workspace">
+                  In workspace <span class="seg-count">(<span id="skillCount">13</span>)</span>
+                </button>
+                <button class="t-body2-med" role="tab" aria-selected="false" id="tabMarketplace" data-tab="marketplace">
+                  Marketplace
+                </button>
+              </div>
             </div>
             <div class="bar-actions">
               <label class="search-field">
@@ -1561,6 +1574,9 @@ const PEOPLE = {
   pn: { name: 'Priya Nair',     initial: 'P' },
   dk: { name: 'Daniel Kim',     initial: 'D' },
   mr: { name: 'Maya Rodriguez', initial: 'M' },
+  rk: { name: 'Ravi Krishnan',  initial: 'R' },
+  lw: { name: 'Lena Weber',     initial: 'L' },
+  ty: { name: 'Tomas Ylinen',   initial: 'T' },
 };
 const TYPE_TONE = { Retrieval: 'blue', Generation: 'indigo', Action: 'light-green', Data: 'cyan' };
 
@@ -1591,13 +1607,30 @@ const SKILLS = [
   { name: 'pitch-translator',    desc: 'Localizes outreach into the prospect’s language without losing the product terms.',   agent: 'Sales agent',    type: 'Generation', by: 'pn', version: 'v1.2.0' },
 ];
 
+/* Skills published to the org marketplace — the other side of a
+   workspace skill's "Publish to marketplace" action. Not installed
+   here, so the panel offers to add them rather than to edit them. */
+const MARKETPLACE = [
+  { name: 'invoice-parser',     desc: 'Reads line items, totals and tax off a scanned invoice into a typed record.',           agent: 'Finance agent',  type: 'Data',       by: 'rk', version: 'v2.0.0' },
+  { name: 'contract-reviewer',  desc: 'Flags non-standard clauses against the playbook and drafts the redline note.',          agent: 'Legal agent',    type: 'Retrieval',  by: 'lw', version: 'v1.6.1' },
+  { name: 'churn-predictor',    desc: 'Scores accounts on churn risk from usage, tickets and renewal history.',                agent: 'Sales agent',    type: 'Data',       by: 'rk', version: 'v3.2.0' },
+  { name: 'brand-voice-check',  desc: 'Rewrites copy to the brand guide and calls out anything off-tone.',                     agent: 'Support agent',  type: 'Generation', by: 'ty', version: 'v1.1.4' },
+  { name: 'competitor-watch',   desc: 'Tracks named competitors for pricing, launches and headcount moves each week.',         agent: 'Research agent', type: 'Retrieval',  by: 'lw', version: 'v1.0.9' },
+  { name: 'expense-auditor',    desc: 'Checks submitted expenses against policy and routes only the exceptions.',              agent: 'Finance agent',  type: 'Action',     by: 'ty', version: 'v2.4.0' },
+  { name: 'transcript-notes',   desc: 'Turns a call recording into decisions, owners and dated follow-ups.',                   agent: 'Ops agent',      type: 'Generation', by: 'rk', version: 'v1.8.2' },
+  { name: 'pii-redactor',       desc: 'Strips names, emails and account numbers before anything leaves the workspace.',        agent: 'Ops agent',      type: 'Action',     by: 'lw', version: 'v4.0.1' },
+  { name: 'survey-clusterer',   desc: 'Groups open-text survey answers into themes and sizes each one.',                       agent: 'Research agent', type: 'Data',       by: 'ty', version: 'v1.3.0' },
+];
+
+const COLLECTIONS = { workspace: SKILLS, marketplace: MARKETPLACE };
+
 /* Stable last-updated dates spread back across the past year, so the
    range filter and the table column agree with each other. */
-SKILLS.forEach((s, i) => {
+Object.values(COLLECTIONS).forEach(list => list.forEach((s, i) => {
   const d = new Date();
   d.setDate(d.getDate() - (i * 26 + (i % 4) * 5));
   s.updatedAt = d;
-});
+}));
 
 /* Every skill folder carries the same four docs. Contents are
    templated off the skill so each preview reads real. */
@@ -1660,22 +1693,25 @@ ${fmtDate(s.updatedAt)} · all checks passing on ${s.version}` },
 }
 const DOC_COUNT = 4;
 
-const state = { search: '', people: new Set(), range: 'any', view: 'grid', selected: null, file: 0 };
+const state = { tab: 'workspace', search: '', people: new Set(), range: 'any', view: 'grid', selected: null, file: 0 };
+
+const activeList = () => COLLECTIONS[state.tab];
 
 /* ── Filtering ────────────────────────────────────────────────────
    Both views read this one list, so switching mid-filter loses nothing. */
-function visibleSkills() {
+function filterList(list) {
   const q = state.search.trim().toLowerCase();
   const range = DATE_RANGES.find(r => r.id === state.range);
   const floor = range && range.days ? Date.now() - range.days * 86400000 : null;
 
-  return SKILLS.map((s, i) => ({ s, i })).filter(({ s }) => {
+  return list.map((s, i) => ({ s, i })).filter(({ s }) => {
     if (q && !`${s.name} ${s.desc} ${s.type}`.toLowerCase().includes(q)) return false;
     if (state.people.size && !state.people.has(s.by)) return false;
     if (floor !== null && s.updatedAt.getTime() < floor) return false;
     return true;
   });
 }
+const visibleSkills = () => filterList(activeList());
 
 const avatarHTML = s =>
   `<span class="avatar" aria-label="Creator"><svg viewBox="0 0 20 20"><use href="#ic-avatarA"/></svg><span>${esc(PEOPLE[s.by].initial)}</span></span>`;
@@ -1734,12 +1770,26 @@ function render() {
   $('tableBody').innerHTML = list.length
     ? list.map(rowHTML).join('')
     : `<p class="t-empty t-body2-reg">No skills match these filters.</p>`;
-  $('skillCount').textContent = list.length;
+  $('skillCount').textContent = filterList(SKILLS).length;
 
   const empty = !list.length;
   $('skillsEmpty').classList.toggle('is-on', empty && state.view === 'grid');
   $('skillsGrid').hidden = state.view !== 'grid' || empty;
   $('tableArea').hidden = state.view !== 'table';
+}
+
+function setTab(tab) {
+  if (state.tab === tab) return;
+  state.tab = tab;
+  if (state.selected !== null) closePanel();   /* indices are per-list */
+  ['workspace', 'marketplace'].forEach(id => {
+    const btn = $(id === 'workspace' ? 'tabWorkspace' : 'tabMarketplace');
+    btn.classList.toggle('is-active', id === tab);
+    btn.setAttribute('aria-selected', String(id === tab));
+  });
+  /* Creating a skill belongs to the workspace, not to the marketplace. */
+  $('newSkillBtn').hidden = tab !== 'workspace';
+  render();
 }
 
 function setView(view) {
@@ -1796,8 +1846,16 @@ function renderPanelFiles(s) {
 }
 
 function openPanel(i) {
-  const s = SKILLS[i];
+  const s = activeList()[i];
+  const fromMarket = state.tab === 'marketplace';
   state.file = 0;
+
+  /* A marketplace skill isn't yours to edit or to publish onward — the
+     offer is to bring it into the workspace. */
+  $('panelPublish').innerHTML = fromMarket
+    ? `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>Add to workspace`
+    : `<svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>Publish to marketplace`;
+  $('panelEdit').hidden = fromMarket;
   $('panelTags').innerHTML = `
     <span class="tag-badge" data-tone="${TYPE_TONE[s.type]}">${esc(s.type)}</span>
     <span class="tag-model">${esc(s.agent)}</span>`;
@@ -1873,6 +1931,8 @@ $('datePopList').addEventListener('click', e => {
 });
 
 /* ── Wiring ───────────────────────────────────────────────────── */
+$('tabWorkspace').addEventListener('click', () => setTab('workspace'));
+$('tabMarketplace').addEventListener('click', () => setTab('marketplace'));
 $('viewGridBtn').addEventListener('click', () => setView('grid'));
 $('viewTableBtn').addEventListener('click', () => setView('table'));
 $('skillSearch').addEventListener('input', e => { state.search = e.target.value; render(); });
@@ -1897,7 +1957,7 @@ $('tableBody').addEventListener('keydown', e => {
 $('panelFiles').addEventListener('click', e => {
   const row = e.target.closest('[data-file]'); if (!row) return;
   state.file = Number(row.dataset.file);
-  if (state.selected !== null) renderPanelFiles(SKILLS[state.selected]);
+  if (state.selected !== null) renderPanelFiles(activeList()[state.selected]);
 });
 $('panelClose').addEventListener('click', closePanel);
 
@@ -1906,7 +1966,7 @@ $('panelClose').addEventListener('click', closePanel);
 document.addEventListener('click', e => {
   closePops();
   if (state.selected === null) return;
-  if (e.target.closest('.skill-card, .t-row, #panel, .filter-group, .seg-view')) return;
+  if (e.target.closest('.skill-card, .t-row, #panel, .filter-group, .seg-view, .seg-control')) return;
   closePanel();
 });
 document.addEventListener('keydown', e => {
