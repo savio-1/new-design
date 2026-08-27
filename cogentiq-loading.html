@@ -284,6 +284,14 @@
   @keyframes shine{from{background-position:200% 0}to{background-position:-100% 0}}
   .grp-note{padding-inline:24px;font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
 
+  /* definition rows expand on click to reveal the definition */
+  .row-toggle{cursor:pointer;transition:background .15s ease,border-color .15s ease}
+  .row-toggle:hover{background:var(--bg-card-2);border-color:var(--line-1)}
+  .row-fold{display:grid;grid-template-rows:0fr;opacity:0;
+    transition:grid-template-rows .3s var(--ease),opacity .25s ease}
+  .row-fold.open{grid-template-rows:1fr;opacity:1}
+  .row-fold>div{overflow:hidden}
+
   /* ---------- collapsing (crunch) ---------- */
   .sec-fold{display:grid;grid-template-rows:1fr;
     transition:grid-template-rows .45s var(--ease),opacity .4s var(--ease)}
@@ -419,10 +427,12 @@ const GROUPS = [
     activities:['Searching for relevant definitions'],
     note:'Found 3 definitions that match',
     rows:[
-      { icon:'bookrow14', name:'Annual Recurring Revenue', chev:'chev12',
-        desc:'Revenue retained from existing customers including expansion' },
-      { icon:'bookrow14', name:'Customer Churn Rate', chev:'chevr12' },
-      { icon:'bookrow14', name:'Net Revenue Retention', chev:'chevr12', badge:'Low relavance' },
+      { icon:'bookrow14', name:'Annual Recurring Revenue', open:true,
+        def:'Revenue retained from existing customers including expansion' },
+      { icon:'bookrow14', name:'Customer Churn Rate',
+        def:'Percentage of customers who cancel within a period' },
+      { icon:'bookrow14', name:'Net Revenue Retention', badge:'Low relavance',
+        def:'Recurring revenue kept after churn, downgrades and expansion' },
     ]},
   { icon:'ontology', iconSize:16, label:'How some terms are related',
     activities:['Now looking for relations between the terms','Searching for the relations'],
@@ -488,7 +498,6 @@ const ANSWER = "I reviewed the claim against your policy rules and found two ite
    TIMELINE RUNNER
    ══════════════════════════════════════════════════════════ */
 const WORD_MS = 55;    // same cadence as the streaming-text component
-const HOLD_MS = 4200;
 
 const thread   = document.getElementById('thread');
 const scroller = document.getElementById('scroller');
@@ -645,6 +654,26 @@ async function buildGroup(host, g, mine) {
     }
     if (r.tag) el('span', 'row-tag', top).textContent = r.tag;
     if (r.desc) el('div', 'row-desc', main).textContent = r.desc;
+    if (r.def) {
+      row.classList.add('row-toggle');
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      row.setAttribute('aria-expanded', String(!!r.open));
+      const c = el('span', 'row-chev', top);
+      c.innerHTML = svg(r.open ? 'chev12' : 'chevr12', 12);
+      const foldWrap = el('div', 'row-fold' + (r.open ? ' open' : ''), main);
+      const inner = el('div', '', foldWrap);
+      el('div', 'row-desc', inner).textContent = r.def;
+      const toggle = () => {
+        const open = foldWrap.classList.toggle('open');
+        c.innerHTML = svg(open ? 'chev12' : 'chevr12', 12);
+        row.setAttribute('aria-expanded', String(open));
+      };
+      row.addEventListener('click', toggle);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    }
     follow();
     await wait(240);
 
@@ -866,12 +895,9 @@ async function play() {
   await streamWords(abody, ANSWER, mine);
   if (stale(mine)) return;
 
-  /* settled */
+  /* settled for good — the Replay button restarts on demand */
   document.getElementById('elapsed').classList.remove('is-working');
   elapsedT.textContent = 'Finished in 3.2 sec';
-  await wait(HOLD_MS);
-  if (stale(mine)) return;
-  play();
 }
 
 document.getElementById('replay').addEventListener('click', () => play());
