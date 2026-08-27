@@ -35,34 +35,13 @@
   .bg{position:absolute;inset:0}
   .bg-night{
     background:
-      radial-gradient(120% 90% at 50% 42%, #10162e 0%, var(--ink-night) 58%, #05070f 100%);
+      radial-gradient(120% 90% at 50% 44%, #131a33 0%, var(--ink-night) 60%, #05070f 100%);
   }
-
-  /* animated mesh-gradient light world */
-  .bg-mesh{
-    background:linear-gradient(160deg, #dbe7fd 0%, #dfd9fa 42%, #d3e2fc 100%);
-    opacity:0;
-    animation:fadeIn .5s cubic-bezier(.4,0,.2,1) 7.55s both;
-    overflow:hidden;
-  }
-  .blob{
-    position:absolute;left:var(--x);top:var(--y);
-    width:var(--sz);height:var(--sz);border-radius:50%;
-    background:radial-gradient(circle, var(--c) 0%, transparent 70%);
-    filter:blur(38px);
-    opacity:var(--o,.85);
-    animation:blobDrift var(--t,14s) ease-in-out 0s infinite alternate;
-  }
-  @keyframes blobDrift{
-    from{transform:translate(0,0) scale(1)}
-    to  {transform:translate(var(--dx,30px),var(--dy,-36px)) scale(1.12)}
-  }
-
   .bg-sky{
     background:
       linear-gradient(158deg, #5d7cf0 0%, #7a8bf3 26%, #9aa6f6 48%, #c9cdf8 74%, #ecebfb 100%);
     opacity:0;
-    animation:fadeIn 2.2s cubic-bezier(.45,0,.2,1) 14.6s both;
+    animation:fadeIn .8s cubic-bezier(.45,0,.2,1) 14.45s both;
   }
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
@@ -71,17 +50,17 @@
     background-image:radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.4px);
     background-size:26px 26px;
     opacity:0;
-    animation:fadeInDots 2.2s ease 15.2s both;
+    animation:fadeInDots 1.6s ease 15s both;
     mix-blend-mode:overlay;
   }
   @keyframes fadeInDots{from{opacity:0}to{opacity:.5}}
 
-  /* ---------------- white bloom flash: fast in, fast out ---------------- */
+  /* ------- white bloom flash into the final reveal: fast in, fast out ------- */
   .flash{
     position:absolute;inset:0;z-index:40;pointer-events:none;
     background:radial-gradient(circle at 50% 48%, #fff 0%, #fff 46%, rgba(255,255,255,0) 82%);
     opacity:0;
-    animation:flash .85s cubic-bezier(.35,0,.3,1) 7.4s both;
+    animation:flash .85s cubic-bezier(.35,0,.3,1) 14.15s both;
   }
   @keyframes flash{
     0%{opacity:0}
@@ -90,14 +69,10 @@
     100%{opacity:0}
   }
 
-  /* ================= DARK WORLD (scene 1-3) ================= */
-  .scene-dark{
-    position:absolute;inset:0;z-index:2;
-    animation:sceneDarkOut .45s ease 7.5s both;
-  }
-  @keyframes sceneDarkOut{from{opacity:1}to{opacity:0}}
+  /* ================= DARK WORLD ================= */
+  .scene-dark{position:absolute;inset:0;z-index:2}
 
-  /* drifting source-orbs: appear quickly, wander gently, then converge */
+  /* drifting source-orbs: appear at different times, wander, then converge */
   .dot{
     position:absolute;left:var(--x);top:var(--y);
     width:var(--sz);height:var(--sz);border-radius:50%;
@@ -123,41 +98,132 @@
     100%{opacity:0;transform:translate(var(--mx,0px),var(--my,0px)) scale(.1)}
   }
 
-  /* clutter panels */
-  .panel{
+  /* -------- colorful UI fragments: the kinds of data an enterprise has -------- */
+  .frag{
     position:absolute;left:var(--x);top:var(--y);
-    width:var(--w);height:var(--h);
-    border-radius:10px;
-    background:linear-gradient(150deg, #1a2140 0%, #131832 55%, #0e1226 100%);
-    border:1px solid rgba(255,255,255,.05);
-    filter:blur(var(--bl,1.5px));
     opacity:0;
-    transform:rotate(var(--r,0deg)) scale(.92);
-    animation:panelIn 1.9s cubic-bezier(.22,.6,.3,1) var(--d) both,
-              panelMerge 1.35s cubic-bezier(.55,.02,.22,1) var(--dm2) forwards;
-    overflow:hidden;
+    filter:blur(var(--bl,0px));
+    animation:
+      fragIn 1s cubic-bezier(.22,.7,.3,1) var(--d) both,
+      fragDrift var(--wt,9s) ease-in-out calc(var(--d) + .4s) infinite,
+      fragMerge 1.2s cubic-bezier(.55,.02,.25,1) var(--dm,6.1s) forwards;
   }
-  .panel::before{ /* header bar */
-    content:"";position:absolute;left:9%;top:10%;width:44%;height:9%;
-    border-radius:99px;background:var(--bar,rgba(122,144,255,.28));
+  @keyframes fragIn{
+    from{opacity:0;transform:translateY(26px) scale(.9)}
+    to  {opacity:var(--o,1);transform:translateY(0) scale(1)}
   }
-  .panel::after{ /* content blocks */
-    content:"";position:absolute;left:9%;top:30%;width:82%;height:58%;
-    border-radius:6px;
+  @keyframes fragDrift{
+    0%  {translate:0 0}
+    50% {translate:var(--dx,12px) var(--dy,-14px)}
+    100%{translate:0 0}
+  }
+  @keyframes fragMerge{
+    0%  {opacity:var(--o,1);transform:scale(1)}
+    68% {opacity:.9}
+    100%{opacity:0;transform:translate(var(--mx,0px),var(--my,0px)) scale(.05)}
+  }
+
+  /* document card: white with grey text rows */
+  .f-doc{
+    width:var(--w,300px);height:var(--h,220px);border-radius:16px;
     background:
-      linear-gradient(rgba(255,255,255,.055), rgba(255,255,255,.055)) 0 0/58% 16% no-repeat,
-      linear-gradient(rgba(255,255,255,.045), rgba(255,255,255,.045)) 0 32%/78% 16% no-repeat,
-      linear-gradient(rgba(255,255,255,.035), rgba(255,255,255,.035)) 0 66%/44% 16% no-repeat;
+      linear-gradient(#d7d9e0,#d7d9e0) 9% 18%/58% 6% no-repeat,
+      linear-gradient(#dcdee5,#dcdee5) 9% 34%/78% 6% no-repeat,
+      linear-gradient(#dcdee5,#dcdee5) 9% 50%/66% 6% no-repeat,
+      linear-gradient(#d7d9e0,#d7d9e0) 9% 72%/34% 17% no-repeat,
+      linear-gradient(#d7d9e0,#d7d9e0) 52% 72%/34% 17% no-repeat,
+      #f4f5f8;
   }
-  @keyframes panelIn{
-    from{opacity:0;transform:rotate(var(--r,0deg)) scale(.85) translateY(26px)}
-    to{opacity:var(--o,.8);transform:rotate(var(--r,0deg)) scale(1) translateY(0)}
+  /* note card: white with a grey circle */
+  .f-note{
+    width:180px;height:150px;border-radius:16px;
+    background:
+      radial-gradient(circle at 50% 42%, #cfd2da 0%, #cfd2da 26%, transparent 27%),
+      #f2f3f6;
   }
-  /* documents sweep gently into the sphere */
-  @keyframes panelMerge{
-    0%  {opacity:var(--o,.8);transform:rotate(var(--r,0deg)) scale(1)}
-    70% {opacity:.85;filter:blur(2px)}
-    100%{opacity:0;transform:translate(var(--mx,0px),var(--my,0px)) rotate(0deg) scale(.05);filter:blur(4px)}
+  /* progress pill: blue dot + long bar */
+  .f-pill{
+    width:var(--w,320px);height:30px;border-radius:99px;
+    background:var(--c,#2478f0);
+  }
+  .f-pill::before{
+    content:"";position:absolute;left:-52px;top:0;
+    width:30px;height:30px;border-radius:50%;
+    background:var(--c,#2478f0);
+  }
+  /* solid color dot */
+  .f-dot{
+    width:var(--sz,52px);height:var(--sz,52px);border-radius:50%;
+    background:var(--c,#22a04b);
+  }
+  /* gradient square tile */
+  .f-sq{
+    width:var(--sz,92px);height:var(--sz,92px);border-radius:14px;
+    background:linear-gradient(135deg, var(--c1,#34c98e) 0%, var(--c2,#0d6e52) 100%);
+  }
+  /* blue app tile with white grid */
+  .f-grid{
+    width:88px;height:88px;border-radius:18px;
+    background:
+      linear-gradient(#fff,#fff) 22% 22%/22% 22% no-repeat,
+      linear-gradient(#fff,#fff) 78% 22%/22% 22% no-repeat,
+      linear-gradient(#fff,#fff) 22% 78%/22% 22% no-repeat,
+      linear-gradient(#fff,#fff) 78% 78%/22% 22% no-repeat,
+      linear-gradient(135deg,#5aa8f5 0%, #2f6bf0 100%);
+  }
+  /* checklist: outlined squares + lines */
+  .f-list{display:flex;flex-direction:column;gap:26px}
+  .f-list i{
+    display:block;width:34px;height:34px;
+    border:2.5px solid rgba(255,255,255,.26);border-radius:9px;
+    position:relative;
+  }
+  .f-list i::after{
+    content:"";position:absolute;left:58px;top:13px;
+    width:180px;height:6px;border-radius:99px;
+    background:rgba(255,255,255,.2);
+  }
+  /* doc viewer: white card with blue sidebar */
+  .f-viewer{
+    width:var(--w,340px);height:var(--h,260px);border-radius:18px;
+    background:
+      linear-gradient(#2f7de8,#2f7de8) 14% 50%/7% 72% no-repeat,
+      linear-gradient(#d8dae1,#d8dae1) 82% 22%/26% 22% no-repeat,
+      linear-gradient(#dcdee5,#dcdee5) 78% 58%/34% 7% no-repeat,
+      linear-gradient(#dcdee5,#dcdee5) 78% 76%/34% 7% no-repeat,
+      linear-gradient(90deg,#4a94ee 0%, #4a94ee 30%, #f2f3f6 30%, #f2f3f6 100%);
+  }
+  /* avatar circle */
+  .f-avatar{
+    width:96px;height:96px;border-radius:50%;
+    background:#6d28d9;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:500;font-size:30px;color:#efe7ff;letter-spacing:.02em;
+  }
+  /* video tile with play triangle */
+  .f-play{
+    width:150px;height:120px;border-radius:14px;
+    background:#12275e;
+  }
+  .f-play::after{
+    content:"";position:absolute;left:38%;top:32%;
+    border-left:34px solid #37c3e8;
+    border-top:22px solid transparent;
+    border-bottom:22px solid transparent;
+  }
+  /* grey list rows */
+  .f-rows{
+    width:250px;height:190px;
+    background:
+      linear-gradient(#3c4560,#3c4560) 0 4%/92% 20% no-repeat,
+      linear-gradient(#353e58,#353e58) 0 36%/76% 20% no-repeat,
+      linear-gradient(#39425c,#39425c) 0 68%/86% 20% no-repeat;
+  }
+  .f-rows,.f-rows *{border-radius:10px}
+  /* small colored square */
+  .f-chipSq{
+    width:var(--sz,22px);height:var(--sz,22px);border-radius:6px;
+    background:var(--c,#e879c8);
   }
 
   /* pulse rings */
@@ -175,7 +241,7 @@
     100%{opacity:0;transform:translate(-50%,-50%) scale(4.6)}
   }
 
-  /* ================= HERO ORB (persists) ================= */
+  /* ================= HERO ORB (formed from the data) ================= */
   .orb-anchor{
     position:absolute;left:50%;top:50%;z-index:10;
     animation:orbMove 20s linear 0s both;
@@ -189,15 +255,15 @@
     from{transform:scale(1)}
     to  {transform:scale(1.055)}
   }
-  /* pulsing aura around the sphere in the light world */
+  /* pulsing aura around the sphere once it has formed */
   .orb-glow{
     position:absolute;inset:-34%;border-radius:50%;
-    background:radial-gradient(circle, rgba(110,140,250,.6) 0%, rgba(150,130,250,.28) 46%, rgba(150,130,250,0) 72%);
+    background:radial-gradient(circle, rgba(96,168,255,.55) 0%, rgba(120,130,250,.25) 46%, rgba(120,130,250,0) 72%);
     filter:blur(12px);
     opacity:0;
     animation:
-      fadeIn .6s ease 7.7s both,
-      glowPulse 3.2s ease-in-out 8.3s infinite alternate;
+      fadeIn .7s ease 7.4s both,
+      glowPulse 3.2s ease-in-out 8s infinite alternate;
   }
   @keyframes glowPulse{
     from{transform:scale(1);   opacity:.7}
@@ -212,16 +278,23 @@
     opacity:0;
     animation:
       orbForm 1s cubic-bezier(.3,.4,.25,1) 6s forwards,
-      orbCharge 1.4s ease-in 6.2s forwards,
-      orbDarkOut .45s ease 7.6s forwards;
+      orbCharge 1.3s ease-in 6.2s forwards,
+      orbPowerDark 1.2s cubic-bezier(.3,.1,.3,1) 13.3s forwards,
+      orbDarkOut .45s ease 14.35s forwards;
   }
   /* the sphere only exists once the scattered data forms it */
   @keyframes orbForm{from{opacity:0}to{opacity:1}}
   /* glow builds as the data pours in */
   @keyframes orbCharge{
     to{box-shadow:
-      0 0 70px 16px rgba(150,205,255,.85),
-      0 0 230px 76px rgba(92,160,255,.5)}
+      0 0 60px 12px rgba(150,205,255,.7),
+      0 0 180px 55px rgba(92,160,255,.4)}
+  }
+  /* powers up as the artifacts are absorbed */
+  @keyframes orbPowerDark{
+    to{box-shadow:
+      0 0 80px 20px rgba(160,210,255,.9),
+      0 0 260px 90px rgba(100,165,255,.55)}
   }
   @keyframes orbDarkOut{from{opacity:1}to{opacity:0}}
   .orb-light{
@@ -229,54 +302,46 @@
       radial-gradient(circle at 26% 82%, rgba(244,178,232,.85) 0%, rgba(244,178,232,0) 46%),
       radial-gradient(circle at 32% 28%, #8fb4fb 0%, #4b82f5 46%, var(--cobalt-deep) 100%);
     box-shadow:
-      0 24px 60px -12px rgba(47,80,215,.45),
-      0 0 90px 18px rgba(122,140,248,.35);
+      0 24px 60px -12px rgba(47,80,215,.5),
+      0 0 110px 26px rgba(130,150,250,.5);
     opacity:0;
-    animation:
-      fadeIn .45s ease 7.65s both,
-      orbPowerUp 1.3s cubic-bezier(.3,.1,.3,1) 13.9s forwards;
+    animation:fadeIn .5s ease 14.45s both;
   }
-  /* the context layer powers up once all artifacts are absorbed */
-  @keyframes orbPowerUp{
-    to{box-shadow:
-      0 24px 70px -10px rgba(47,80,215,.55),
-      0 0 140px 34px rgba(130,150,250,.6)}
-  }
-  /* soft halo behind orb in light world */
+  /* soft halo behind orb in the final reveal */
   .orb-halo{
     position:absolute;inset:-46%;border-radius:50%;
     background:radial-gradient(circle, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 62%);
     opacity:0;
-    animation:fadeIn 1s ease 7.9s both;
+    animation:fadeIn 1s ease 14.6s both;
   }
   @keyframes orbMove{
     0%     {transform:translate(0,0)    scale(.3)}    /* hidden until formed  */
     30%    {transform:translate(0,0)    scale(.3)}    /* 6s   forming begins  */
     33%    {transform:translate(0,0)    scale(.62)}   /* 6.6s grows from data */
-    35.5%  {transform:translate(0,0)    scale(.82)}   /* 7.1s  charging       */
-    38.5%  {transform:translate(0,0)    scale(1.35)}  /* 7.7s  bloom swell    */
-    41.5%  {transform:translate(0,1vh)  scale(1)}     /* 8.3s  light world    */
-    57%    {transform:translate(0,1vh)  scale(1)}     /* 11.4s                */
-    59.5%  {transform:translate(0,1vh)  scale(1.04)}  /* absorb breaths       */
-    62%    {transform:translate(0,1vh)  scale(1.005)}
-    64.5%  {transform:translate(0,1vh)  scale(1.05)}
-    67%    {transform:translate(0,1vh)  scale(1.01)}
-    70%    {transform:translate(0,1vh)  scale(1.08)}  /* 14s   power-up       */
-    73%    {transform:translate(0,1vh)  scale(1.02)}
-    80%    {transform:translate(0,5vh)  scale(.98)}   /* 16s   settle low     */
-    100%   {transform:translate(0,6vh)  scale(1)}     /* 20s   hold           */
+    36%    {transform:translate(0,0)    scale(.8)}    /* 7.2s charging        */
+    40%    {transform:translate(0,1vh)  scale(.95)}   /* 8s                   */
+    44%    {transform:translate(0,1vh)  scale(1)}     /* 8.8s                 */
+    55%    {transform:translate(0,1vh)  scale(1)}     /* 11s                  */
+    58%    {transform:translate(0,1vh)  scale(1.04)}  /* absorb breaths       */
+    61%    {transform:translate(0,1vh)  scale(1.005)}
+    64%    {transform:translate(0,1vh)  scale(1.05)}
+    66.5%  {transform:translate(0,1vh)  scale(1.055)} /* 13.3s power-up       */
+    70%    {transform:translate(0,1vh)  scale(1.09)}
+    74%    {transform:translate(0,1vh)  scale(1.02)}
+    80%    {transform:translate(0,5vh)  scale(.98)}   /* 16s  settle low      */
+    100%   {transform:translate(0,6vh)  scale(1)}     /* 20s  hold            */
   }
 
-  /* absorption ring in light world */
+  /* absorption ring */
   .ring-light{
-    border-color:rgba(255,255,255,.75);
+    border-color:rgba(255,255,255,.7);
     animation-name:ringPulse;
   }
 
-  /* ================= LIGHT WORLD (scene 4-6) ================= */
+  /* ================= ARTIFACTS (still in the dark world) ================= */
   .scene-light{position:absolute;inset:0;z-index:3}
 
-  /* big soft bokeh spheres */
+  /* small accent spheres for the final reveal */
   .bokeh{
     position:absolute;left:var(--x);top:var(--y);
     width:var(--sz);height:var(--sz);border-radius:50%;
@@ -284,7 +349,7 @@
     filter:blur(var(--bl,10px));
     opacity:0;
     animation:
-      bokehIn 2.2s ease var(--d) both,
+      bokehIn 2s ease var(--d) both,
       bokehFloat 16s ease-in-out calc(var(--d)) infinite alternate;
   }
   @keyframes bokehIn{from{opacity:0}to{opacity:var(--o,.8)}}
@@ -296,7 +361,7 @@
   /* -------- artifact chips: enter, orbit the sphere, spiral in -------- */
   .chips-orbit{
     position:absolute;inset:0;
-    animation:orbitSpin 3.4s cubic-bezier(.42,.05,.3,.95) 10.1s forwards;
+    animation:orbitSpin 3.4s cubic-bezier(.42,.05,.3,.95) 9.7s forwards;
   }
   @keyframes orbitSpin{
     from{transform:rotate(0deg)}
@@ -317,7 +382,7 @@
     100%{transform:translate(0,0) scale(.08);opacity:0}
   }
   .chip-rot{
-    animation:counterSpin 3.4s cubic-bezier(.42,.05,.3,.95) 10.1s forwards;
+    animation:counterSpin 3.4s cubic-bezier(.42,.05,.3,.95) 9.7s forwards;
   }
   @keyframes counterSpin{
     from{transform:rotate(0deg)}
@@ -331,13 +396,13 @@
   .tile{
     width:70px;height:70px;border-radius:21px;
     background:var(--white);
-    box-shadow:0 14px 34px -10px rgba(38,52,130,.28), 0 2px 6px rgba(38,52,130,.10);
+    box-shadow:0 14px 34px -10px rgba(4,10,40,.6), 0 2px 6px rgba(4,10,40,.4);
     display:flex;align-items:center;justify-content:center;
   }
   .tile svg{width:30px;height:30px;stroke-width:1.9}
   .chip-label{
-    font-size:14px;font-weight:500;letter-spacing:.01em;color:var(--ink);white-space:nowrap;
-    text-shadow:0 1px 0 rgba(255,255,255,.5);
+    font-size:14px;font-weight:500;letter-spacing:.015em;color:#dfe6ff;
+    white-space:nowrap;
   }
   @keyframes chipIn{
     from{opacity:0;transform:translate(calc(-50% + var(--fx)),calc(-50% + var(--fy))) scale(.7);filter:blur(8px)}
@@ -358,8 +423,7 @@
     animation:capCycle var(--len) cubic-bezier(.3,.1,.3,1) var(--d) both;
   }
   .cap.dark-cap{color:var(--cap-dark)}
-  .cap.light-cap{color:var(--ink)}
-  .cap.big{font-weight:500;font-size:clamp(26px,3.2vw,42px);letter-spacing:-.01em;top:22%}
+  .cap.big{font-weight:500;font-size:clamp(26px,3.2vw,42px);letter-spacing:-.01em;top:20%}
   @keyframes capCycle{
     0%  {opacity:0;transform:translateX(-50%) translateY(14px)}
     16% {opacity:1;transform:translateX(-50%) translateY(0)}
@@ -379,7 +443,7 @@
     letter-spacing:.24em;text-transform:uppercase;
     color:rgba(255,255,255,.85);
     opacity:0;
-    animation:lockIn 1.3s cubic-bezier(.22,.9,.3,1) 15.9s both;
+    animation:lockIn 1.3s cubic-bezier(.22,.9,.3,1) 15s both;
   }
   .lockup h1{
     margin-top:14px;
@@ -388,14 +452,14 @@
     text-wrap:balance;
     text-shadow:0 4px 30px rgba(35,50,140,.35);
     opacity:0;
-    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 16.2s both;
+    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 15.35s both;
   }
   .lockup p{
     margin-top:12px;
     font-size:clamp(15px,1.5vw,20px);font-weight:300;
     color:rgba(255,255,255,.92);
     opacity:0;
-    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 16.6s both;
+    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 15.75s both;
   }
   @keyframes lockIn{
     from{opacity:0;transform:translateY(18px);filter:blur(6px)}
@@ -428,14 +492,6 @@
 
   <!-- backgrounds -->
   <div class="bg bg-night"></div>
-  <div class="bg bg-mesh">
-    <div class="blob" style="--x:-16%;--y:-20%;--sz:66vmin;--c:#6f95f6;--o:.9; --t:13s;--dx:44px; --dy:34px"></div>
-    <div class="blob" style="--x:62%; --y:-24%;--sz:64vmin;--c:#b287f4;--o:.85;--t:15s;--dx:-40px;--dy:38px"></div>
-    <div class="blob" style="--x:62%; --y:50%; --sz:58vmin;--c:#f490c0;--o:.75;--t:12s;--dx:-34px;--dy:-42px"></div>
-    <div class="blob" style="--x:-14%;--y:44%; --sz:64vmin;--c:#6fc6f0;--o:.85;--t:16s;--dx:42px; --dy:-34px"></div>
-    <div class="blob" style="--x:26%; --y:66%; --sz:52vmin;--c:#9d8ef7;--o:.7; --t:14s;--dx:-30px;--dy:-28px"></div>
-    <div class="blob" style="--x:34%; --y:-16%;--sz:46vmin;--c:#8fd0e8;--o:.6; --t:17s;--dx:28px; --dy:26px"></div>
-  </div>
   <div class="bg bg-sky"></div>
   <div class="bg bg-dots"></div>
 
@@ -465,43 +521,45 @@
     <div class="dot" style="--x:95%;--y:70%;--sz:20px;--c1:#8fa0ff;--c2:#3c3fb0;--d:1.9s;--dx:-22px;--dy:-20px;--wt:8s"></div>
     <div class="dot" style="--x:28%;--y:90%;--sz:24px;--c1:#78b8f2;--c2:#2d5cae;--d:2.45s;--dx:22px;--dy:-18px;--wt:10s"></div>
 
-    <!-- clutter panels (scene 2) -->
-    <div class="panel" style="--x:6%; --y:12%;--w:190px;--h:250px;--r:-8deg;--d:2.5s;--dm2:5.95s;--bl:2.5px;--o:.75;--bar:rgba(196,120,220,.3)"></div>
-    <div class="panel" style="--x:24%;--y:6%; --w:150px;--h:200px;--r:5deg; --d:2.9s;--dm2:6.15s;--bl:1.5px;--o:.85;--bar:rgba(220,190,120,.32)"></div>
-    <div class="panel" style="--x:66%;--y:9%; --w:210px;--h:150px;--r:7deg; --d:2.7s;--dm2:6.05s;--bl:2px;  --o:.7; --bar:rgba(110,200,220,.3)"></div>
-    <div class="panel" style="--x:84%;--y:26%;--w:150px;--h:190px;--r:-6deg;--d:3.2s;--dm2:6.3s; --bl:3px;  --o:.6; --bar:rgba(140,150,255,.3)"></div>
-    <div class="panel" style="--x:4%; --y:58%;--w:160px;--h:180px;--r:6deg; --d:3.4s;--dm2:6.4s; --bl:3px;  --o:.6; --bar:rgba(120,220,170,.28)"></div>
-    <div class="panel" style="--x:30%;--y:66%;--w:230px;--h:160px;--r:-4deg;--d:3.05s;--dm2:6.2s;--bl:2px;  --o:.75;--bar:rgba(160,140,255,.3)"></div>
-    <div class="panel" style="--x:62%;--y:64%;--w:180px;--h:200px;--r:5deg; --d:3.5s;--dm2:6.45s;--bl:2.5px;--o:.7; --bar:rgba(230,140,170,.28)"></div>
-    <div class="panel" style="--x:83%;--y:66%;--w:150px;--h:150px;--r:-9deg;--d:3.65s;--dm2:6.5s;--bl:3.5px;--o:.55;--bar:rgba(120,180,255,.28)"></div>
+    <!-- enterprise data fragments: docs, tasks, media, people, metrics -->
+    <div class="frag f-avatar" style="--x:2%;  --y:4%;  --d:3.3s; --dm:5.95s;--dx:14px; --dy:12px">AJ</div>
+    <div class="frag f-note"   style="--x:38%; --y:-6%; --d:3.5s; --dm:6.1s; --dx:-12px;--dy:14px;--bl:1px"></div>
+    <div class="frag f-sq"     style="--x:72%; --y:6%;  --d:3.45s;--dm:6.2s; --dx:12px; --dy:14px;--c1:#34c98e;--c2:#0d6e52;--sz:96px"></div>
+    <div class="frag f-rows"   style="--x:88%; --y:2%;  --d:3.7s; --dm:6.35s;--dx:-14px;--dy:10px;--bl:1.5px;--o:.9"></div>
+    <div class="frag f-pill"   style="--x:26%; --y:22%; --d:3.4s; --dm:6.05s;--dx:16px; --dy:-10px;--w:330px;--c:#2478f0"></div>
+    <div class="frag f-pill"   style="--x:66%; --y:36%; --d:3.9s; --dm:6.3s; --dx:-14px;--dy:12px;--w:170px;--c:#1998b8;--o:.9"></div>
+    <div class="frag f-dot"    style="--x:29%; --y:44%; --d:3.6s; --dm:6.15s;--dx:12px; --dy:14px;--c:#22a04b;--sz:56px"></div>
+    <div class="frag f-doc"    style="--x:-4%; --y:62%; --d:3.55s;--dm:6.25s;--dx:16px; --dy:-12px;--w:330px;--h:250px;--bl:1.5px;--o:.95"></div>
+    <div class="frag f-grid"   style="--x:52%; --y:74%; --d:3.75s;--dm:6.4s; --dx:-12px;--dy:-14px"></div>
+    <div class="frag f-list"   style="--x:62%; --y:60%; --d:3.85s;--dm:6.45s;--dx:14px; --dy:-10px"><i></i><i></i><i></i></div>
+    <div class="frag f-viewer" style="--x:82%; --y:56%; --d:3.65s;--dm:6.3s; --dx:-16px;--dy:-12px;--w:340px;--h:280px;--bl:1.5px;--o:.95"></div>
+    <div class="frag f-play"   style="--x:38%; --y:86%; --d:4s;   --dm:6.5s; --dx:12px; --dy:-14px;--bl:1px"></div>
+    <div class="frag f-chipSq" style="--x:84%; --y:10%; --d:4.1s; --dm:6.4s; --dx:-10px;--dy:12px;--c:#e879c8"></div>
+    <div class="frag f-chipSq" style="--x:85%; --y:22%; --d:4.2s; --dm:6.45s;--dx:-12px;--dy:10px;--c:#e8b53a;--sz:18px"></div>
+    <div class="frag f-chipSq" style="--x:2%;  --y:38%; --d:4.15s;--dm:6.35s;--dx:12px; --dy:12px;--c:#27b7a2;--sz:20px"></div>
 
-    <!-- pulse rings as the sphere charges -->
+    <!-- pulse rings as the sphere forms and charges -->
     <div class="ring" style="--d:6s"></div>
     <div class="ring" style="--d:6.55s"></div>
     <div class="ring" style="--d:7.05s"></div>
   </div>
 
-  <!-- ============ LIGHT WORLD ============ -->
+  <!-- ============ ARTIFACTS + FINAL ============ -->
   <div class="scene-light">
-    <!-- soft bokeh -->
-    <div class="bokeh" style="--x:-6%;--y:-12%;--sz:34vmin;--c1:rgba(255,255,255,.85);--c2:rgba(255,255,255,0);--d:7.9s;--o:.8;--bl:6px;--dx:20px;--dy:-30px"></div>
-    <div class="bokeh" style="--x:78%;--y:-8%; --sz:30vmin;--c1:rgba(198,206,255,.9);--c2:rgba(198,206,255,0);--d:8.2s;--o:.7;--bl:8px;--dx:-24px;--dy:22px"></div>
-    <div class="bokeh" style="--x:70%;--y:64%; --sz:38vmin;--c1:rgba(255,255,255,.7); --c2:rgba(255,255,255,0);--d:8.5s;--o:.65;--bl:10px;--dx:-18px;--dy:-26px"></div>
-    <div class="bokeh" style="--x:-8%;--y:60%; --sz:32vmin;--c1:rgba(233,222,250,.9); --c2:rgba(233,222,250,0);--d:8.35s;--o:.7;--bl:8px;--dx:26px;--dy:-18px"></div>
-    <!-- small accent spheres, final shot -->
-    <div class="bokeh" style="--x:16%;--y:20%;--sz:8vmin; --c1:#f3b98e;--c2:#e8935c;--d:15.4s;--o:.85;--bl:5px;--dx:12px;--dy:-20px"></div>
-    <div class="bokeh" style="--x:80%;--y:74%;--sz:9vmin; --c1:#f2a6c8;--c2:#e078ad;--d:15.8s;--o:.8;--bl:7px;--dx:-14px;--dy:-24px"></div>
-    <div class="bokeh" style="--x:8%; --y:76%;--sz:6vmin; --c1:#9cd7f0;--c2:#5aa6dd;--d:16.2s;--o:.8;--bl:5px;--dx:16px;--dy:-16px"></div>
+    <!-- small accent spheres, final reveal -->
+    <div class="bokeh" style="--x:16%;--y:20%;--sz:8vmin; --c1:#f3b98e;--c2:#e8935c;--d:15.2s;--o:.85;--bl:5px;--dx:12px;--dy:-20px"></div>
+    <div class="bokeh" style="--x:80%;--y:74%;--sz:9vmin; --c1:#f2a6c8;--c2:#e078ad;--d:15.6s;--o:.8;--bl:7px;--dx:-14px;--dy:-24px"></div>
+    <div class="bokeh" style="--x:8%; --y:76%;--sz:6vmin; --c1:#9cd7f0;--c2:#5aa6dd;--d:16s;--o:.8;--bl:5px;--dx:16px;--dy:-16px"></div>
 
     <!-- absorption ring: fires as the last artifact lands -->
-    <div class="ring ring-light" style="--d:13.9s"></div>
+    <div class="ring ring-light" style="--d:13.3s"></div>
 
     <!-- artifact chips: fly in, orbit the sphere, spiral into it -->
     <div class="chips-orbit">
       <div class="chip">
-        <div class="chip-pos" style="--ox:-300px;--oy:-135px;--dc:11.5s">
+        <div class="chip-pos" style="--ox:-300px;--oy:-135px;--dc:10.9s">
           <div class="chip-rot">
-            <div class="chip-inner" style="--din:8.45s;--fx:-130px;--fy:-65px">
+            <div class="chip-inner" style="--din:8.2s;--fx:-130px;--fy:-65px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2.5 2.5 0 0 1 2.5-2.5H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div>
               <span class="chip-label">Glossary</span>
             </div>
@@ -509,9 +567,9 @@
         </div>
       </div>
       <div class="chip">
-        <div class="chip-pos" style="--ox:-345px;--oy:60px;--dc:11.68s">
+        <div class="chip-pos" style="--ox:-345px;--oy:60px;--dc:11.07s">
           <div class="chip-rot">
-            <div class="chip-inner" style="--din:8.65s;--fx:-150px;--fy:30px">
+            <div class="chip-inner" style="--din:8.4s;--fx:-150px;--fy:30px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
               <span class="chip-label">Ontology</span>
             </div>
@@ -519,9 +577,9 @@
         </div>
       </div>
       <div class="chip">
-        <div class="chip-pos" style="--ox:-170px;--oy:200px;--dc:11.86s">
+        <div class="chip-pos" style="--ox:-170px;--oy:200px;--dc:11.24s">
           <div class="chip-rot">
-            <div class="chip-inner" style="--din:8.85s;--fx:-75px;--fy:105px">
+            <div class="chip-inner" style="--din:8.6s;--fx:-75px;--fy:105px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#0eb5a3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
               <span class="chip-label">Data binding</span>
             </div>
@@ -529,9 +587,9 @@
         </div>
       </div>
       <div class="chip">
-        <div class="chip-pos" style="--ox:170px;--oy:200px;--dc:12.04s">
+        <div class="chip-pos" style="--ox:170px;--oy:200px;--dc:11.41s">
           <div class="chip-rot">
-            <div class="chip-inner" style="--din:9.05s;--fx:75px;--fy:105px">
+            <div class="chip-inner" style="--din:8.8s;--fx:75px;--fy:105px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#e0356f" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
               <span class="chip-label">Tool binding</span>
             </div>
@@ -539,9 +597,9 @@
         </div>
       </div>
       <div class="chip">
-        <div class="chip-pos" style="--ox:345px;--oy:60px;--dc:12.22s">
+        <div class="chip-pos" style="--ox:345px;--oy:60px;--dc:11.58s">
           <div class="chip-rot">
-            <div class="chip-inner" style="--din:9.25s;--fx:150px;--fy:30px">
+            <div class="chip-inner" style="--din:9s;--fx:150px;--fy:30px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
               <span class="chip-label">Prompts</span>
             </div>
@@ -549,9 +607,9 @@
         </div>
       </div>
       <div class="chip">
-        <div class="chip-pos" style="--ox:300px;--oy:-135px;--dc:12.4s">
+        <div class="chip-pos" style="--ox:300px;--oy:-135px;--dc:11.75s">
           <div class="chip-rot">
-            <div class="chip-inner" style="--din:9.45s;--fx:130px;--fy:-65px">
+            <div class="chip-inner" style="--din:9.2s;--fx:130px;--fy:-65px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#57a83e" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
               <span class="chip-label">Policies</span>
             </div>
@@ -575,9 +633,9 @@
   <div class="caps">
     <div class="cap dark-cap"  style="--d:.6s;  --len:2.9s;--ctop:46%">Your enterprise data lives everywhere</div>
     <div class="cap dark-cap"  style="--d:3.4s; --len:2.6s;--ctop:46%">scattered, siloed, out of context</div>
-    <div class="cap dark-cap"  style="--d:6.05s;--len:1.8s;--ctop:28%">It&rsquo;s time AI understood your business</div>
-    <div class="cap light-cap big" style="--d:8.2s; --len:3s">Meet Cogentiq Context</div>
-    <div class="cap light-cap" style="--d:12.3s;--len:2.9s">everything AI needs to know, in one place</div>
+    <div class="cap dark-cap"  style="--d:6.05s;--len:1.8s;--ctop:26%">It&rsquo;s time AI understood your business</div>
+    <div class="cap dark-cap big" style="--d:7.9s; --len:3.1s">Meet Cogentiq Context</div>
+    <div class="cap dark-cap" style="--d:11.7s;--len:2.4s;--ctop:26%">everything AI needs to know, in one place</div>
   </div>
 
   <!-- final lockup -->
@@ -601,10 +659,10 @@
   var replay = document.getElementById('replay');
   var timer;
 
-  // aim every dot and panel at the sphere's position (viewport centre)
+  // aim every dot and fragment at the sphere's position (viewport centre)
   function aimAtCentre(){
     var cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-    document.querySelectorAll('.scene-dark .dot, .scene-dark .panel').forEach(function(el){
+    document.querySelectorAll('.scene-dark .dot, .scene-dark .frag').forEach(function(el){
       var mx = cx - (el.offsetLeft + el.offsetWidth / 2);
       var my = cy - (el.offsetTop  + el.offsetHeight / 2);
       el.style.setProperty('--mx', mx + 'px');
@@ -615,7 +673,7 @@
   function armReplay(){
     clearTimeout(timer);
     replay.classList.remove('show');
-    timer = setTimeout(function(){ replay.classList.add('show'); }, 19800);
+    timer = setTimeout(function(){ replay.classList.add('show'); }, 19500);
   }
 
   replay.addEventListener('click', function(){
