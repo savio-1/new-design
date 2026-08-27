@@ -284,6 +284,15 @@
   @keyframes shine{from{background-position:200% 0}to{background-position:-100% 0}}
   .grp-note{padding-inline:24px;font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
 
+  /* groups crunch to just their header; chevron rotates to point right */
+  .grp-fold{display:grid;grid-template-rows:0fr;opacity:0;
+    transition:grid-template-rows .35s var(--ease),opacity .3s ease}
+  .grp-fold.open{grid-template-rows:1fr;opacity:1}
+  .grp-fold>div{overflow:hidden;display:flex;flex-direction:column;gap:8px}
+  .sec-chev svg{transition:transform .25s var(--ease)}
+  .sec-chev.closed svg{transform:rotate(-90deg)}
+  .grp-head.clickable{cursor:pointer}
+
   /* definition rows expand on click to reveal the definition */
   .row-toggle{cursor:pointer;transition:background .15s ease,border-color .15s ease}
   .row-toggle:hover{background:var(--bg-card-2);border-color:var(--line-1)}
@@ -629,16 +638,18 @@ async function buildGroup(host, g, mine) {
   settle(line, g.icon, g.iconSize, 'grp-label', g.label);
   const chev = el('span', 'sec-chev pop', line);
   chev.innerHTML = svg('chev16', 16);
+  const fold = el('div', 'grp-fold open', grp);
+  const foldInner = el('div', '', fold);
   await wait(150);
 
   if (g.note) {
-    const note = el('div', 'grp-note', grp);
+    const note = el('div', 'grp-note', foldInner);
     await streamWords(note, g.note, mine);
     if (stale(mine)) return;
     await wait(250);
   }
 
-  const list = el('div', 'grp-list', grp);
+  const list = el('div', 'grp-list', foldInner);
   for (const r of g.rows) {
     if (stale(mine)) return;
     const row = el('div', 'row rise', list);
@@ -687,6 +698,13 @@ async function buildGroup(host, g, mine) {
       if (stale(mine)) return;
     }
   }
+
+  head.classList.add('clickable');
+  head.addEventListener('click', () => {
+    const open = !fold.classList.contains('open');
+    fold.classList.toggle('open', open);
+    chev.classList.toggle('closed', !open);
+  });
 }
 
 /* the ontology canvas: a crunched, inert preview of the graph app with the
@@ -873,6 +891,17 @@ async function play() {
   think.title.classList.remove('shimmer-blue');
   tdots.remove();
   think.title.textContent = 'Thought through the answer';
+  /* inside the reasoning everything starts crunched — headers only,
+     each expandable on click */
+  document.querySelectorAll('.grp-fold').forEach((f) => f.classList.remove('open'));
+  document.querySelectorAll('.grp-head .sec-chev').forEach((c) => c.classList.add('closed'));
+  document.querySelectorAll('.row-toggle').forEach((row) => {
+    row.querySelector('.row-fold')?.classList.remove('open');
+    row.setAttribute('aria-expanded', 'false');
+    const c = row.querySelector('.row-chev');
+    if (c) c.innerHTML = svg('chevr12', 12);
+  });
+  foldSection(code);
   traceWrap.classList.add('folded');
   const tog = el('button', 'reasoning-toggle appear');
   tog.innerHTML = `<span class="t-ico">${svg('summarylogo', 16)}</span>`
