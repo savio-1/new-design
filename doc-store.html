@@ -1168,10 +1168,40 @@
     }
     .docs-sec-head:first-child { margin-top: 16px; }
     .docs-sec-head .n { color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
-    .docs-sec-head::after {
-      content: ""; flex: 1 1 auto; height: 1px;
-      background: var(--strokes-line-3);
+
+    /* ── New — the bar's one primary action. The split intent lives in
+       a hover menu: Create new folder / Add new doc. The pop hangs off
+       the same surface recipe as the filter popovers; the transparent
+       padding bridges the 4px gap so the hover never drops crossing it. */
+    .cta-group { position: relative; }
+    .cta-pop {
+      position: absolute; top: 100%; right: 0; z-index: 40;
+      padding-top: 4px;
+      display: none;
     }
+    .cta-group:hover .cta-pop,
+    .cta-group:focus-within .cta-pop { display: block; }
+    .cta-pop__card {
+      width: 208px;
+      display: flex; flex-direction: column;
+      padding: 8px;
+      background: var(--backgrounds-card-bg-3);
+      border: 1px solid var(--strokes-card-default);
+      border-radius: 12px;
+      box-shadow: var(--shadow-pop);
+    }
+    .cta-opt {
+      width: 100%; height: 36px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 10px; border-radius: 8px;
+      color: var(--text-secondary);
+      text-align: left;
+      white-space: nowrap;
+      transition: background .15s ease, color .15s ease;
+    }
+    .cta-opt:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    .cta-opt .ic { color: var(--text-teritiary); }
+    .cta-opt:hover .ic { color: var(--text-secondary); }
 
     /* ── Type tile — the solid-colour mark that identifies a file.
        32px, radius 8, glyph in white; the fill is the only place a
@@ -1194,44 +1224,44 @@
     /* Folders share the tile shape so the two card kinds read as one
        family; the fill is the product blue. */
     .doc-tile[data-type="folder"] { background: var(--blue-600); }
+    /* Card-size tile — the 24px mark that leads a doc card. */
+    .doc-tile--sm { width: 24px; height: 24px; border-radius: 6px; }
 
-    /* ── Folder cards ─────────────────────────────────────────────
-       A folder drawn as a folder: back panel, sheets tucked inside,
-       front panel over them. Hovering the card eases the sheets up
-       out of the folder. The greys are illustration constants — like
-       the rail's gradient tiles they are theme-independent by design,
-       picked to read on both the dark and the light ground; the mini
-       tiles on the front carry the folder's actual top file types in
-       the same palette the doc tiles use. */
+    /* ── Folders ──────────────────────────────────────────────────
+       A folder drawn as a folder, sitting straight on the page —
+       no card around it. Back panel, sheets tucked inside, front
+       panel over them; hovering eases the sheets up out of the
+       folder. The greys are illustration constants — like the rail's
+       gradient tiles they are theme-independent by design, picked to
+       read on both grounds; the mini tiles on the front carry the
+       folder's actual top file types in the doc-tile palette. Name,
+       description and the count + adder sit under the folder. */
     .folder-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px 12px;
     }
     .folder-card {
       width: 100%;
-      display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
-      padding: 12px 12px 14px; border-radius: 12px;
-      background: var(--backgrounds-page-bg-2);
-      border: 1px solid transparent;
-      filter: var(--shadow-card);
-      text-align: left;
-      transition: border-color .15s ease;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 0;
+      background: none; border: 0;
+      text-align: center;
     }
-    .folder-card:hover { border-color: var(--strokes-line-1); }
 
     .folder-viz {
-      position: relative; width: 100%; height: 112px; flex: none;
-      border-radius: 8px; overflow: hidden;
-      background: var(--backgrounds-page-bg-3);
+      position: relative; width: 100%; height: 104px; flex: none;
+      margin-bottom: 8px;
     }
     .fv {
-      position: absolute; left: 50%; bottom: 14px;
-      width: 108px; height: 78px;
+      position: absolute; left: 50%; bottom: 0;
+      width: 112px; height: 82px;
       transform: translateX(-50%);
+      transition: transform .34s cubic-bezier(.22, .61, .36, 1);
     }
+    .folder-card:hover .fv { transform: translateX(-50%) translateY(-2px); }
     .fv-back {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 66px;
+      position: absolute; left: 0; right: 0; bottom: 0; height: 68px;
       border-radius: 8px;
       background: #626262;
     }
@@ -1261,7 +1291,7 @@
     .folder-card:hover .fv-sheet.s2 { transform: rotate(0deg)  translateY(-15px); }
     .folder-card:hover .fv-sheet.s3 { transform: rotate(8deg)  translateY(-10px); }
     .fv-front {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 46px;
+      position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
       border-radius: 7px 7px 8px 8px;
       background: linear-gradient(180deg, #838383 0%, #6a6a6a 100%);
       box-shadow: 0 -1px 0 rgba(255, 255, 255, .14) inset;
@@ -1285,28 +1315,25 @@
     .fv-mini[data-type="img"]  { background: var(--cyan-400); }
 
     .folder-card__name {
-      width: 100%; padding: 0 4px;
+      max-width: 100%; padding: 0 8px;
       color: var(--text-primary);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .folder-card__desc {
-      width: 100%; padding: 0 4px;
+      max-width: 100%; padding: 0 8px;
       font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
       letter-spacing: -0.24px;
       color: var(--text-teritiary);
-      min-height: 32px;                    /* two lines, so cards stay even */
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       transition: color .15s ease;
     }
     .folder-card:hover .folder-card__desc { color: var(--text-secondary); }
     .folder-card__foot {
-      width: 100%; padding: 0 4px;
-      display: flex; align-items: center; gap: 6px;
+      margin-top: 4px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
       color: var(--text-teritiary);
     }
     .folder-card__foot .dot { flex: none; }
-    .folder-card__foot .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .folder-card__foot .n { flex: none; font-variant-numeric: tabular-nums; }
 
     /* ── Doc cards — 3 per row at the standard content width.
@@ -1321,8 +1348,8 @@
 
     .doc-card {
       width: 100%;
-      display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
-      padding: 14px 16px 12px; border-radius: 12px;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+      padding: 14px 16px 10px; border-radius: 12px;
       background: var(--backgrounds-page-bg-2);
       border: 1px solid transparent;
       filter: var(--shadow-card);
@@ -1333,9 +1360,11 @@
     .doc-card.is-selected,
     .doc-card.is-selected:hover { border-color: var(--strokes-type-focus); }
 
-    .doc-card__row { width: 100%; display: flex; align-items: center; gap: 10px; }
+    /* Top row is the 24px mark alone, star opposite; the name gets its
+       own line under it. */
+    .doc-card__row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .doc-card__name {
-      flex: 1 1 auto; min-width: 0;
+      width: 100%;
       color: var(--text-primary);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
@@ -1361,20 +1390,17 @@
       font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
       letter-spacing: -0.24px;
       color: var(--text-teritiary);
-      min-height: 32px;                    /* two lines, so cards stay even */
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       transition: color .15s ease;
     }
     .doc-card:hover .doc-card__desc,
     .doc-card.is-selected .doc-card__desc { color: var(--text-secondary); }
 
+    /* Adder avatar and the row menu, tucked to the card's end. */
     .doc-card__foot {
       width: 100%;
-      display: flex; align-items: center; gap: 6px;
-      color: var(--text-teritiary);
+      display: flex; align-items: center; justify-content: flex-end; gap: 6px;
     }
-    .doc-card__foot .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* Empty state — content area only; the chrome stays put. */
     .docs-empty {
@@ -1572,14 +1598,25 @@
                 <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
                 <input id="docSearch" class="t-body2-reg" type="search" placeholder="Search docs" aria-label="Search docs" />
               </label>
-              <button class="btn-tonal t-body2-med" id="newFolderBtn">
-                <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>
-                New folder
-              </button>
-              <button class="btn-primary t-body2-med" id="addDocBtn">
-                <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>
-                Add doc
-              </button>
+              <div class="cta-group">
+                <button class="btn-primary t-body2-med" id="newBtn" aria-haspopup="menu" aria-expanded="false">
+                  <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>
+                  New
+                  <svg class="ic" width="16" height="16" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
+                </button>
+                <div class="cta-pop" id="newPop" role="menu" aria-label="Create">
+                  <div class="cta-pop__card">
+                    <button class="cta-opt t-body2-reg" role="menuitem" id="optNewFolder">
+                      <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#dc-folder"/></svg>
+                      Create new folder
+                    </button>
+                    <button class="cta-opt t-body2-reg" role="menuitem" id="optAddDoc">
+                      <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_file"/></svg>
+                      Add new doc
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1818,9 +1855,9 @@ function filterDocs(list) {
 }
 
 /* ── Card HTML ──────────────────────────────────────────────────── */
-const tileHTML = (type, extra) => `
+const tileHTML = (type, extra, glyphPx = 16) => `
   <span class="doc-tile${extra ? ' ' + extra : ''}" data-type="${type}">
-    <svg class="ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#${TYPES[type] ? TYPES[type].glyph : 'dc-folder'}"/></svg>
+    <svg class="ic" width="${glyphPx}" height="${glyphPx}" viewBox="0 0 16 16" aria-hidden="true"><use href="#${TYPES[type] ? TYPES[type].glyph : 'dc-folder'}"/></svg>
   </span>`;
 
 const avatarHTML = by =>
@@ -1831,18 +1868,20 @@ function docCardHTML(d) {
   return `
   <button class="doc-card${state.selected === d.id ? ' is-selected' : ''}" data-doc="${d.id}" aria-pressed="${state.selected === d.id}">
     <span class="doc-card__row">
-      ${tileHTML(d.type)}
-      <span class="doc-card__name t-body2-med">${esc(d.name)}</span>
+      ${tileHTML(d.type, 'doc-tile--sm', 13)}
       <span class="star-btn${starred ? ' is-starred' : ''}" role="button" data-star="${d.id}"
             aria-label="${starred ? 'Unstar' : 'Star'} ${esc(d.name)}" aria-pressed="${starred}">
         <svg class="ic st-off" width="16" height="16" viewBox="0 0 16 16"><use href="#dc-star"/></svg>
         <svg class="ic st-on" width="16" height="16" viewBox="0 0 16 16"><use href="#dc-star-fill"/></svg>
       </span>
     </span>
+    <span class="doc-card__name t-body2-med">${esc(d.name)}</span>
     <span class="doc-card__desc">${esc(d.desc)}</span>
     <span class="doc-card__foot">
-      ${avatarHTML(d.by)}
-      <span class="who t-caption1-reg">Added by ${esc(PEOPLE[d.by].name)}</span>
+      <span title="Added by ${esc(PEOPLE[d.by].name)}">${avatarHTML(d.by)}</span>
+      <span class="icon-btn-24" role="button" data-menu="${d.id}" aria-label="Options for ${esc(d.name)}">
+        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-optionsh"/></svg>
+      </span>
     </span>
   </button>`;
 }
@@ -1871,8 +1910,7 @@ function folderCardHTML(f) {
     <span class="folder-card__foot t-caption1-reg">
       <span class="n">${docs.length} doc${docs.length === 1 ? '' : 's'}</span>
       <span class="dot">·</span>
-      ${avatarHTML(f.by)}
-      <span class="who">${esc(PEOPLE[f.by].name)}</span>
+      <span title="Created by ${esc(PEOPLE[f.by].name)}">${avatarHTML(f.by)}</span>
     </span>
   </button>`;
 }
@@ -2092,6 +2130,7 @@ $('docSearch').addEventListener('input', e => { state.search = e.target.value; r
 $('docsBody').addEventListener('click', e => {
   const star = e.target.closest('[data-star]');
   if (star) { e.stopPropagation(); toggleStar(star.dataset.star); return; }
+  if (e.target.closest('[data-menu]')) { e.stopPropagation(); return; }
   const folder = e.target.closest('[data-folder]');
   if (folder) { openFolder(folder.dataset.folder); return; }
   const card = e.target.closest('[data-doc]');
