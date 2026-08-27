@@ -40,7 +40,9 @@
       radial-gradient(1100px 850px at 50% 42%, rgba(255,255,255,.025), rgba(0,0,0,0) 62%);
     background-size:26px 26px, 100% 100%;
     background-position:-3px -3px, 0 0;}
-  svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
+  /* the graph canvas only — scoped by id so it can't capture UI icons and
+     stretch them to fill their buttons */
+  #svg{position:absolute;inset:0;width:100%;height:100%;z-index:1;display:block}
 
   /* default: dotted grey relation lines */
   .edge{fill:none;stroke:#4d5158;stroke-linecap:round;stroke-width:1.6;
@@ -99,11 +101,14 @@
   .crumbs .sep{color:#4a4a4a;font-size:11px}
   .crumbs .cur{color:#fff;background:#2a2a2a;border:1px solid var(--panel-br2)}
 
-  .fullscr{position:fixed;z-index:5;top:16px;right:16px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim)}
+  .fullscr{position:fixed;z-index:5;top:16px;right:16px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-dim)}
   .fullscr:hover{color:#fff;border-color:var(--panel-br2)}
+  .fullscr svg{width:24px;height:24px;flex:0 0 24px}
 
   /* left sidebar: every entity, searchable, with its relationship count */
-  .sidebar{position:fixed;z-index:5;top:66px;left:16px;bottom:16px;width:280px;
+  /* top is recomputed from the real top-bar height (see layoutSidebar) so the
+     20px gap survives the header changing size; this is just the fallback */
+  .sidebar{position:fixed;z-index:5;top:86px;left:16px;bottom:16px;width:280px;
     display:flex;flex-direction:column;overflow:hidden;
     transition:width .22s ease, bottom .22s ease;}
   /* collapsed: panel shrinks to just the search row, tucked to the left edge */
@@ -115,7 +120,7 @@
   /* the global `svg{position:absolute;inset:0}` rule (for the graph canvas)
      would otherwise pin this icon to the panel's corner instead of sitting
      it inline in the search row */
-  .sidebar .s-search svg{position:static;width:14px;height:14px;flex:0 0 14px;opacity:.5}
+  .sidebar .s-search svg{width:14px;height:14px;flex:0 0 14px;opacity:.5}
   .sidebar .s-search input{all:unset;color:var(--text);font-size:12.5px;flex:1 1 auto;min-width:0;
     font-family:var(--font)}
   .sidebar .s-search input::placeholder{color:var(--text-dimmer)}
@@ -123,7 +128,7 @@
     width:22px;height:22px;border-radius:6px;cursor:pointer;color:var(--text-dimmer);
     transition:color .15s,background .15s}
   .s-toggle:hover{background:#2a2a2a;color:#fff}
-  .s-toggle svg{position:static;width:13px;height:13px;opacity:1;transition:transform .22s ease}
+  .s-toggle svg{width:13px;height:13px;opacity:1;transition:transform .22s ease}
   .sidebar.collapsed .s-toggle svg{transform:rotate(180deg)}
   .sidebar .s-count{padding:9px 13px 5px;color:var(--text-dimmer);font-size:10.5px;font-weight:600;
     text-transform:uppercase;letter-spacing:.05em;flex:0 0 auto}
@@ -1112,18 +1117,27 @@ entSearch.addEventListener('input',e=>{
 renderEntityList();
 
 // ---- resize --------------------------------------------------------------
-addEventListener('resize',()=>{W=innerWidth;H=innerHeight;});
+addEventListener('resize',()=>{W=innerWidth;H=innerHeight;layoutSidebar();});
 
 // ---- go ------------------------------------------------------------------
+// keep a fixed gap under the top bar, whatever height its content gives it
+const SIDEBAR_GAP=20;
+function layoutSidebar(){
+  const bar=document.querySelector('.topbar');
+  if(bar) sidebarEl.style.top=(bar.getBoundingClientRect().bottom+SIDEBAR_GAP)+'px';
+}
+
 applyCam();
 document.getElementById('stat').textContent=SUBTITLE;
+layoutSidebar();
 setFocus(START,false);
 tick();
 
 // text widths are measured with canvas before the Geist webfont may have
 // finished loading; once it's actually ready, rebuild so every chip/capsule
 // hugs its real (Geist-metric) text width instead of a fallback-font guess.
-document.fonts.ready.then(()=>{ setFocus(focusId,false); });
+// the webfont also changes the top bar's height, so re-measure the gap here too
+document.fonts.ready.then(()=>{ setFocus(focusId,false); layoutSidebar(); });
 </script>
 </body>
 </html>
