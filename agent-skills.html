@@ -1725,7 +1725,7 @@ function cardHTML({ s, i }) {
   <button class="skill-card${state.selected === i ? ' is-selected' : ''}" data-index="${i}" aria-pressed="${state.selected === i}">
     <span class="skill-card__head">
       <svg class="cq-skill-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-skill"/></svg>
-      <span class="skill-card__name">${esc(s.name)}</span>
+      <span class="skill-card__name" data-name="${esc(s.name)}">${esc(s.name)}</span>
     </span>
     <span class="skill-card__body">
       <span class="skill-card__desc">${esc(s.desc)}</span>
@@ -1737,6 +1737,58 @@ function cardHTML({ s, i }) {
       </span>
     </span>
   </button>`;
+}
+
+/* ── Skill-name hover effect ──────────────────────────────────────
+   Scrambles the part of the id after the first hyphen, locking one
+   character at a time left to right until the real name is back —
+   web-|search, brand-|voice-check. The name is set in Geist Mono, so
+   substituting characters costs no layout shift. Only letters and
+   digits scramble; hyphens hold their place. */
+const GLYPHS = 'abcdefghijklmnopqrstuvwxyz'.split('');
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)');
+const FRAME_MS = 1000 / 30;
+const DURATION_MS = 800;         /* the whole tail settles in this long,
+                                    however long the tail is */
+
+/* One card is hovered at a time, so a single timer covers the page. */
+let hyperTimer = null, hyperEl = null;
+
+function hyperStop(restore = true) {
+  if (hyperTimer) { clearInterval(hyperTimer); hyperTimer = null; }
+  if (hyperEl) {
+    if (restore && hyperEl.isConnected) hyperEl.textContent = hyperEl.dataset.name;
+    hyperEl = null;
+  }
+}
+
+function hyperStart(el) {
+  const full = el.dataset.name;
+  const cut = full.indexOf('-');
+  if (cut === -1 || REDUCED.matches) return;   /* nothing to scramble */
+
+  const head = full.slice(0, cut + 1);
+  const tail = full.slice(cut + 1);
+
+  hyperStop();
+  hyperEl = el;
+  let locked = 0;
+  /* Lock rate scales with the tail, so a long name is not slower. */
+  const perFrame = tail.length / (DURATION_MS / FRAME_MS);
+
+  const step = () => {
+    if (!el.isConnected) { hyperStop(false); return; }
+    el.textContent = head + [...tail].map((ch, i) =>
+      i < locked || !/[a-z0-9]/i.test(ch)
+        ? ch
+        : GLYPHS[Math.floor(Math.random() * GLYPHS.length)]
+    ).join('');
+    if (locked >= tail.length) { clearInterval(hyperTimer); hyperTimer = null; return; }
+    locked += perFrame;
+  };
+
+  hyperTimer = setInterval(step, FRAME_MS);
+  step();
 }
 
 /* ── Table view ───────────────────────────────────────────────── */
@@ -1768,6 +1820,7 @@ function rowHTML({ s, i }) {
 }
 
 function render() {
+  hyperStop(false);
   const list = visibleSkills();
   $('skillsGrid').innerHTML = list.map(cardHTML).join('');
   $('tableBody').innerHTML = list.length
@@ -1939,6 +1992,14 @@ $('tabMarketplace').addEventListener('click', () => setTab('marketplace'));
 $('viewGridBtn').addEventListener('click', () => setView('grid'));
 $('viewTableBtn').addEventListener('click', () => setView('table'));
 $('skillSearch').addEventListener('input', e => { state.search = e.target.value; render(); });
+
+$('skillsGrid').addEventListener('mouseover', e => {
+  const card = e.target.closest('.skill-card');
+  const name = card && card.querySelector('.skill-card__name');
+  if (!name || name === hyperEl) return;      /* ignore moves inside a card */
+  hyperStart(name);
+});
+$('skillsGrid').addEventListener('mouseleave', () => hyperStop());
 
 $('skillsGrid').addEventListener('click', e => {
   if (e.target.closest('[data-menu]')) { e.stopPropagation(); return; }
