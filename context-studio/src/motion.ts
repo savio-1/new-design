@@ -22,6 +22,31 @@ export const cubicInOut = (t: number) => {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 };
 
+export const cubicIn = (t: number) => {
+  const x = clamp01(t);
+  return x * x * x;
+};
+
+export const sineInOut = (t: number) => {
+  const x = clamp01(t);
+  return -(Math.cos(Math.PI * x) - 1) / 2;
+};
+
+// Piecewise keyframe track: [frame, value, easingToNext?][] — clamped ends.
+export type Track = Array<[number, number, ((t: number) => number)?]>;
+export const track = (f: number, keys: Track): number => {
+  if (f <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [f0, v0, ease] = keys[i];
+    const [f1, v1] = keys[i + 1];
+    if (f < f1) {
+      const t = (f - f0) / (f1 - f0);
+      return lerp(v0, v1, (ease ?? ((x: number) => x))(t));
+    }
+  }
+  return keys[keys.length - 1][1];
+};
+
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 // Reproducible jitter — successive renders must match (guardrail §10).

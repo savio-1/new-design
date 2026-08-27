@@ -12,6 +12,7 @@ import {B1Scatter} from './scenes/B1Scatter';
 import {B23BlocksCombine} from './scenes/B23BlocksCombine';
 import {B4Attach} from './scenes/B4Attach';
 import {B5Grounded} from './scenes/B5Grounded';
+import {Film as V4Film} from './v4/Film';
 
 const Main: React.FC = () => (
   <AbsoluteFill style={{background: C.ink}}>
@@ -54,6 +55,23 @@ export const RemotionRoot: React.FC = () => (
       id="Main11"
       component={Main}
       durationInFrames={720}
+      fps={60}
+      width={1080}
+      height={1080}
+    />
+    {/* Storyboard v4 — the sphere film (Option A, seven spheres) */}
+    <Composition
+      id="Main169"
+      component={V4Film}
+      durationInFrames={780}
+      fps={60}
+      width={1920}
+      height={1080}
+    />
+    <Composition
+      id="V4Square"
+      component={V4Film}
+      durationInFrames={780}
       fps={60}
       width={1080}
       height={1080}

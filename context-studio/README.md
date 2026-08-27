@@ -1,4 +1,17 @@
-# Cogentiq Context Studio — 12s launch animation
+# Cogentiq Context Studio — launch animations
+
+Two films live in this one Remotion project:
+
+- **Storyboard v2** (`Main23`, `Main11`) — the 12s mesh-gradient film on the
+  Cogentiq login-panel design system. Documented below.
+- **Storyboard v4** (`Main169`, `V4Square`) — the 13s sphere film: matte →
+  emissive → shaded spheres over a 2.5D camera rig with depth of field.
+  Documented in [README-v4.md](README-v4.md). Render with
+  `npx remotion render Main169 out/context-studio-v4-16x9.mp4 --codec=h264 --crf=15`.
+
+---
+
+# Storyboard v2 — 12s mesh-gradient film
 
 Remotion implementation of the [storyboard v2](#) — a 12-second, seamlessly
 looping launch film for Context Studio, built on the Cogentiq design system
