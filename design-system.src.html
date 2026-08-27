@@ -242,6 +242,23 @@ function readTokens() {
 }
 const TOKENS = readTokens();
 
+/* Counted from the stylesheet for the same reason the tokens are: a
+   number typed in by hand goes stale the first time the system grows,
+   and a reference page that misreports itself is worse than one that
+   doesn't count at all. State classes (.is-*) aren't components. */
+function countClasses() {
+  const names = new Set();
+  for (const sheet of document.styleSheets) {
+    let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+    if (!rules) continue;
+    for (const r of rules) {
+      if (r.type !== 1 || !r.selectorText) continue;
+      for (const m of r.selectorText.matchAll(/\.(cq-[A-Za-z0-9_-]+)/g)) names.add(m[1]);
+    }
+  }
+  return names.size;
+}
+
 const GROUPS = [
   ['Page &amp; card surfaces', k => /^--backgrounds-(page|card|table)/.test(k)],
   ['Control surfaces',         k => /^--backgrounds-(button|disabled|seg|checkbox|type|icon)/.test(k)],
@@ -285,7 +302,7 @@ function renderColour() {
 
   const themedCount = Object.keys(TOKENS.light).length;
   $('dsCounts').textContent =
-    `${Object.keys(TOKENS.dark).length} tokens · ${themedCount} themed · 82 component classes`;
+    `${Object.keys(TOKENS.dark).length} tokens · ${themedCount} themed · ${countClasses()} component classes`;
 }
 
 const TYPE = [
@@ -293,7 +310,7 @@ const TYPE = [
   ['cq-subhead2-med', 'Bard model',           '18 / 24 · medium'],
   ['cq-body1-med',    'Gemini Pro 1.5',       '16 / 24 · medium'],
   ['cq-body1-reg',    'Gemini Pro 1.5',       '16 / 24 · regular'],
-  ['cq-body2-med',    'Publish to Marketplace','14 / 20 · medium'],
+  ['cq-body2-med',    'Ask Tiq about this model','14 / 20 · medium'],
   ['cq-body2-reg',    'Central hub for managing all your LLM model integrations.', '14 / 20 · regular'],
   ['cq-caption-med',  'MODEL CONFIGURATION',  '12 / 16 · medium'],
   ['cq-caption-reg',  'Created by · Noah Smith','12 / 16 · regular'],
@@ -533,7 +550,31 @@ function renderTiq() {
                <button class="cq-tiq-sg"><svg class="cq-ic" width="16" height="16"><use href="#i-sparkle"/></svg>Make it shorter</button>
                <button class="cq-tiq-sg"><svg class="cq-ic" width="16" height="16"><use href="#i-sparkle"/></svg>Try another variation</button>
              </div>
-           </div>`, '.cq-tiq-bar  ·  .cq-tiq-sg', 'shown focused — the stroke lights on focus', true);
+           </div>`, '.cq-tiq-bar  ·  .cq-tiq-sg', 'shown focused — the stroke lights on focus', true) +
+    bench(`<button class="cq-tiq-btn cq-tiq-btn--action">
+             <svg width="16" height="16"><use href="#i-tiq"/></svg>Ask Tiq</button>`,
+          '.cq-tiq-btn--action', '32px — sits level with a primary button in an actions row', true) +
+    bench(`<div class="cq-tiq-bar">
+             <div class="cq-tiq-row">
+               <svg width="20" height="20" style="flex:none"><use href="#i-tiq"/></svg>
+               <input placeholder="Ask about this model" />
+               <button class="cq-tiq-send"><svg class="cq-ic" width="15" height="15"><use href="#i-arrow-r"/></svg></button>
+             </div>
+             <div class="cq-tiq-answer">
+               <p><strong>5 agents</strong> call this model in the workspace, split roughly
+                  like this over the last 30 days.</p>
+               <div class="cq-tiq-rows">
+                 <div class="cq-tiq-rows__row"><span class="k">Compliance reviewer</span><span class="v">29%</span></div>
+                 <div class="cq-tiq-rows__row"><span class="k">Renewal outreach</span><span class="v">22%</span></div>
+                 <div class="cq-tiq-rows__row"><span class="k">Ticket router</span><span class="v">20%</span></div>
+               </div>
+             </div>
+             <div class="cq-tiq-suggest">
+               <div class="cq-tiq-suggest__label cq-caption-reg">Ask something else</div>
+               <button class="cq-tiq-sg"><svg class="cq-ic" width="16" height="16"><use href="#i-sparkle"/></svg>How much does this model cost on average?</button>
+             </div>
+           </div>`, '.cq-tiq-answer  ·  .cq-tiq-rows',
+          'for Tiq surfaces that report back into the bar instead of writing into a field', true);
 }
 
 /* ── Index, built from the sections actually present ─────────────── */

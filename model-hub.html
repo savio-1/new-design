@@ -711,8 +711,8 @@
     .panel-desc { color: var(--text-teritiary); margin: 0; }
 
     .panel-actions { display: flex; align-items: center; gap: 12px; }
-    .panel-actions .btn-primary { height: 32px; padding: 6px 12px; }
-    .panel-actions .btn-tonal { flex: 1 1 auto; height: 32px; padding: 6px 12px; }
+    .panel-actions .btn-primary { flex: 1 1 0; height: 32px; padding: 6px 12px; }
+    .panel-actions .tiq-btn--action { flex: 1 1 0; }
     .panel-actions .icon-btn-32 { border-radius: 8px; }
 
     .panel-seg-wrap { width: 100%; flex: none; padding: 16px; }
@@ -949,6 +949,19 @@
     .tiq-btn.is-on { color: var(--text-primary); }
     .tiq-btn .tiq-mark { width: 13px; height: 13px; flex: none; }
 
+    /* The same gradient stroke at action-row scale — 32px so it sits level
+       with Edit, and static rather than pinned inside a field the way the
+       in-field variant is. Same treatment, so Tiq reads as one thing
+       wherever it appears. */
+    .tiq-btn--action {
+      position: static; height: 32px; padding: 0 12px; gap: 6px;
+      border-radius: 8px;
+      justify-content: center;
+      font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+    }
+    .tiq-btn--action::before { border-radius: 8px; }
+    .tiq-btn--action .tiq-mark { width: 16px; height: 16px; }
+
     /* Fixed, so the modal's scroll container and overflow can't clip it.
        Placed beside the description field by positionTiqBar(). */
     .tiq-bar {
@@ -1017,6 +1030,40 @@
     }
     .tb-sg:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
     .tb-sg .ic { flex: none; color: var(--text-teritiary); }
+
+    /* Answer block — only the Ask-Tiq bar uses it; the writer puts its
+       output in the description field instead. */
+    .tb-answer { display: none; padding: 0 14px 12px; }
+    .tb-answer.is-shown { display: block; }
+    .tiq-bar.is-busy .tb-answer { display: none; }
+    .tb-answer p {
+      margin: 0; color: var(--text-secondary);
+      font: 400 13px/19px var(--font-geist); letter-spacing: -0.3px;
+    }
+    .tb-answer p + p { margin-top: 8px; }
+    .tb-answer strong { color: var(--text-primary); font-weight: 500; }
+    .tb-ans-rows {
+      margin-top: 10px; display: flex; flex-direction: column;
+      border: 1px solid var(--strokes-line-3); border-radius: 8px;
+      overflow: hidden;
+    }
+    .tb-ans-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 7px 10px;
+      background: var(--backgrounds-card-bg-4);
+    }
+    .tb-ans-row + .tb-ans-row { border-top: 1px solid var(--strokes-line-3); }
+    .tb-ans-row .k {
+      min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--text-teritiary);
+      font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px;
+    }
+    .tb-ans-row .v {
+      flex: none; color: var(--text-primary);
+      font: 400 12px/16px var(--font-geist-mono);
+    }
+    /* Separates the answer from the follow-ups under it. */
+    .tb-answer.is-shown + .tb-suggest { border-top: 1px solid var(--strokes-line-3); padding-top: 8px; }
 
     /* Shown only while Tiq is writing into the field. */
     .tb-status {
@@ -1496,12 +1543,13 @@
 
     <div class="panel-actions">
       <button class="btn-primary t-body2-med">
-        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>
-        Publish to Marketplace
-      </button>
-      <button class="btn-tonal t-body2-med">
         <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-editpen"/></svg>
         Edit
+      </button>
+      <button class="tiq-btn tiq-btn--action" id="askTiqBtn" type="button"
+              aria-haspopup="dialog" aria-expanded="false">
+        <svg class="tiq-mark" viewBox="0 0 24 24"><use href="#ic-tiq"/></svg>
+        Ask Tiq
       </button>
       <button class="icon-btn-32" aria-label="More actions">
         <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-optionsv"/></svg>
@@ -1557,6 +1605,23 @@
     </div>
   </section>
 </aside>
+
+<!-- Ask Tiq — same shell as the description writer, but it answers about
+     the open model rather than writing into a field. Fixed, so the panel's
+     own scrolling can't clip it. -->
+<div class="tiq-bar" id="askBar" role="dialog" aria-label="Ask Tiq about this model">
+  <div class="tb-row">
+    <svg class="tb-logo" viewBox="0 0 24 24"><use href="#ic-tiq"/></svg>
+    <input class="tb-in" id="askIn" type="text" autocomplete="off"
+           placeholder="Ask about this model" aria-label="Ask Tiq about this model" />
+    <button class="tb-send" id="askSend" aria-label="Ask Tiq" disabled>
+      <svg class="ic" width="15" height="15" viewBox="0 0 16 16"><use href="#ic-arrowright"/></svg>
+    </button>
+  </div>
+  <div class="tb-status t-body2-med"><span class="tb-dot"></span><span id="askStatus">Looking…</span></div>
+  <div class="tb-answer" id="askAnswer" aria-live="polite"></div>
+  <div class="tb-suggest" id="askSuggest"></div>
+</div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════
@@ -1906,6 +1971,10 @@ function openPanel(i) {
   $('panelAuthor').textContent = m.author;
   $('panelAuthorInitial').textContent = m.initial;
 
+  /* Ask Tiq answers about one model, so a new selection starts it over
+     rather than leaving the previous model's answer on screen. */
+  closeAskBar();
+
   $('panel').classList.add('is-open');
   $('panel').setAttribute('aria-hidden', 'false');
   $('scrim').classList.add('is-open');
@@ -1914,6 +1983,7 @@ function openPanel(i) {
 
 function closePanel() {
   state.selected = null;
+  closeAskBar();
   $('panel').classList.remove('is-open');
   $('panel').setAttribute('aria-hidden', 'true');
   $('scrim').classList.remove('is-open');
@@ -2009,6 +2079,7 @@ document.addEventListener('click', closeTagPop);
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if ($('modalScrim').classList.contains('is-open')) { closeModal(); return; }
+  if ($('askBar').classList.contains('is-open')) { closeAskBar(); return; }
   closePanel();
   closeTagPop();
 });
@@ -2304,26 +2375,31 @@ let tiqBusy = false;
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* Places the bar beside the description field, flipping to whichever
-   side has room and clamping so it never runs off-screen. */
-function positionTiqBar() {
-  const bar = $('tiqBar');
+/* Both Tiq bars sit beside the surface that owns them — the modal for the
+   description writer, the detail panel for Ask Tiq — flipping to whichever
+   side has room and clamping so the bar never leaves the viewport. `anchor`
+   only sets where it starts vertically: the control the bar belongs to. */
+function placeTiqBar(bar, owner, anchor) {
   if (!bar.classList.contains('is-open')) return;
-  const field = $('fDesc').closest('.control').getBoundingClientRect();
-  const modal = document.querySelector('.modal').getBoundingClientRect();
   const gap = 12, edge = 12;
   const w = bar.offsetWidth, h = bar.offsetHeight;
 
-  let left = modal.right + gap;
-  if (left + w > window.innerWidth - edge) left = modal.left - w - gap;
-  if (left < edge) left = Math.min(Math.max(edge, field.left), window.innerWidth - w - edge);
+  let left = owner.right + gap;
+  if (left + w > window.innerWidth - edge) left = owner.left - w - gap;
+  if (left < edge) left = Math.min(Math.max(edge, anchor.left), window.innerWidth - w - edge);
 
-  let top = field.top;
+  let top = anchor.top;
   if (top + h > window.innerHeight - edge) top = window.innerHeight - edge - h;
   if (top < edge) top = edge;
 
   bar.style.left = `${Math.round(left)}px`;
   bar.style.top = `${Math.round(top)}px`;
+}
+
+function positionTiqBar() {
+  placeTiqBar($('tiqBar'),
+    document.querySelector('.modal').getBoundingClientRect(),
+    $('fDesc').closest('.control').getBoundingClientRect());
 }
 
 function renderTiqSuggestions() {
@@ -2437,6 +2513,239 @@ $('modalScrim').addEventListener('click', closeTiqBar);
 $('fDesc').addEventListener('input', () => { if (!tiqBusy) renderTiqSuggestions(); });
 window.addEventListener('resize', positionTiqBar);
 document.querySelector('.mm-left').addEventListener('scroll', positionTiqBar);
+
+
+/* ═══════════════════════════════════════════════════════════════
+   Ask Tiq — answers questions about the model open in the detail
+   panel. Same shell as the writer above; what differs is that it
+   reports rather than drafts.
+
+   Every figure comes from the model's own row via a seed derived from
+   it, so a model always answers the same way. Numbers that reshuffle
+   on each open read as noise instead of data.
+   ═══════════════════════════════════════════════════════════════ */
+const ASK_AGENTS = [
+  'Support triage', 'Deal desk assistant', 'Renewal outreach',
+  'Contract summariser', 'Onboarding guide', 'Content studio',
+  'Pipeline hygiene', 'Compliance reviewer', 'Customer 360 lookup',
+  'Ticket router', 'Campaign copy', 'Insights digest',
+];
+
+/* Cost per 1,000 calls, keyed on the vendor model actually configured —
+   so a mini model doesn't quote a frontier model's rate. */
+const ASK_UNIT_COST = {
+  'gpt-4.0': 0.42, 'gpt-4.0-mini': 0.06, 'gpt-4o': 0.29, 'o4-mini': 0.11,
+  'claude-sonnet': 0.38, 'claude-haiku': 0.05,
+  'gemini-1.5-pro': 0.31, 'gemini-1.20': 0.09,
+  'mistral-large': 0.24, 'phi-3-medium': 0.07, 'falcon-11b': 0.03,
+  'nimbus-router': 0.15,
+};
+
+const ASK_QUESTIONS = [
+  { id: 'agents',  label: 'Which agents are using this model?',      re: /agent|using|used by|consum|depend|who calls/ },
+  { id: 'cost',    label: 'How much does this model cost on average?', re: /cost|spend|price|pricing|bill|budget|expensive|cheap|\$/ },
+  { id: 'usage',   label: 'How has usage changed this month?',       re: /usage|volume|calls|traffic|month|trend|busy|growth/ },
+  { id: 'latency', label: 'How fast does it respond?',               re: /fast|latenc|speed|slow|respon|p95|quick/ },
+  { id: 'config',  label: 'What settings is it running with?',       re: /setting|config|temperature|token|top.?p|parameter|window/ },
+  { id: 'owner',   label: 'Who set this model up?',                  re: /who|owner|author|created|made|set.?up|built/ },
+];
+
+const askState = { index: null, asked: [] };
+let askBusy = false;
+
+/* A stable number per model, so its answers never drift between opens. */
+function askSeed(i) {
+  const m = MODELS[i];
+  const key = `${m.name}|${m.vendorModel}|${i}`;
+  let h = 7;
+  for (let k = 0; k < key.length; k++) h = (h * 31 + key.charCodeAt(k)) % 100000;
+  return h;
+}
+
+/* Shares that actually add to 100 — the rounding drift is absorbed by
+   the largest one rather than left to show as a 99% or 101% total. */
+function askShares(n, seed) {
+  const raw = Array.from({ length: n }, (_, k) => 20 + ((seed + k * 13) % 45));
+  const total = raw.reduce((a, b) => a + b, 0);
+  const pct = raw.map(v => Math.round(v / total * 100)).sort((a, b) => b - a);
+  pct[0] += 100 - pct.reduce((a, b) => a + b, 0);
+  return pct;
+}
+
+function modelFacts(i) {
+  const m = MODELS[i];
+  const seed = askSeed(i);
+  const count = 2 + seed % 4;
+  const agents = Array.from({ length: count },
+    (_, k) => ASK_AGENTS[(seed + k * 7) % ASK_AGENTS.length]);
+  const calls = 8 + seed % 54;                     // thousands of calls this month
+  const unit = ASK_UNIT_COST[m.vendorModel] ?? 0.12;
+  return {
+    m, agents, calls, unit,
+    shares:  askShares(count, seed),
+    spend:   calls * unit,                          // dollars this month
+    latency: 0.4 + (seed % 22) / 10,
+    trend:   (seed % 2 ? 1 : -1) * (3 + seed % 18), // percent against last month
+  };
+}
+
+const askMoney = n => n >= 100 ? `$${Math.round(n).toLocaleString()}` : `$${n.toFixed(2)}`;
+const askRows  = rows => `<div class="tb-ans-rows">` + rows.map(([k, v]) =>
+  `<div class="tb-ans-row"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('') + `</div>`;
+
+function answerFor(id, i) {
+  const f = modelFacts(i);
+  const name = esc(f.m.name);
+
+  if (id === 'agents') return `
+    <p><strong>${f.agents.length} agents</strong> call ${name} in this workspace,
+       split roughly like this over the last 30 days.</p>
+    ${askRows(f.agents.map((a, k) => [a, `${f.shares[k]}%`]))}`;
+
+  if (id === 'cost') return `
+    <p>${name} is running at about <strong>${askMoney(f.spend)} a month</strong> —
+       ${askMoney(f.unit)} per 1,000 calls on ${esc(f.m.vendorModel)}, at the
+       current volume.</p>
+    ${askRows([
+      ['Calls this month', `${f.calls}k`],
+      ['Rate per 1,000',   askMoney(f.unit)],
+      ['Month to date',    askMoney(f.spend)],
+    ])}`;
+
+  if (id === 'usage') {
+    const up = f.trend > 0;
+    return `
+      <p>Calls are <strong>${up ? 'up' : 'down'} ${Math.abs(f.trend)}%</strong>
+         against last month, at <strong>${f.calls}k</strong> so far.
+         ${up ? 'Most of the increase is coming from '
+              : 'The drop is mostly from '}${esc(f.agents[0])}.</p>
+      ${askRows([
+        ['This month', `${f.calls}k calls`],
+        ['Last month', `${Math.round(f.calls / (1 + f.trend / 100))}k calls`],
+        ['Change',     `${up ? '+' : '−'}${Math.abs(f.trend)}%`],
+      ])}`;
+  }
+
+  if (id === 'latency') return `
+    <p>Median response is <strong>${f.latency.toFixed(1)}s</strong>, with the
+       slowest 5% landing near ${(f.latency * 2.4).toFixed(1)}s. Longer prompts
+       sit at the top of that range.</p>
+    ${askRows([
+      ['Median',     `${f.latency.toFixed(1)}s`],
+      ['95th pct',   `${(f.latency * 2.4).toFixed(1)}s`],
+      ['Max tokens', f.m.tokens],
+    ])}`;
+
+  if (id === 'config') return `
+    <p>${name} runs on <strong>${esc(f.m.vendorModel)}</strong> via
+       ${esc(f.m.vendor)}. Anything an agent sends stays inside these limits.</p>
+    ${askRows([
+      ['Temperature', f.m.temp],
+      ['Max tokens',  f.m.tokens],
+      ['Top-P',       f.m.topP],
+    ])}`;
+
+  if (id === 'owner') return `
+    <p>${name} was set up by <strong>${esc(f.m.author)}</strong>, and is shared
+       with the ${f.agents.length} agents that call it. Configuration changes are
+       versioned, so any edit can be rolled back.</p>`;
+
+  /* Nothing matched — say what it can answer rather than inventing one. */
+  return `
+    <p>I don't have that for ${name} yet. I can tell you which agents call it,
+       what it costs, how usage is trending, how fast it responds, what settings
+       it runs with, and who set it up.</p>`;
+}
+
+function renderAskSuggestions() {
+  const rest = ASK_QUESTIONS.filter(q => !askState.asked.includes(q.id));
+  const items = (rest.length ? rest : ASK_QUESTIONS).slice(0, 3);
+  const label = askState.asked.length ? 'Ask something else' : 'Try one of these';
+  $('askSuggest').innerHTML =
+    `<div class="tb-sg-label t-caption1-reg">${label}</div>` +
+    items.map(q => `
+      <button class="tb-sg" type="button" data-q="${q.id}">
+        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-sparkle"/></svg>
+        ${esc(q.label)}
+      </button>`).join('');
+}
+
+function positionAskBar() {
+  placeTiqBar($('askBar'),
+    $('panel').getBoundingClientRect(),
+    $('askTiqBtn').getBoundingClientRect());
+}
+
+function openAskBar() {
+  if (state.selected === null) return;
+  const bar = $('askBar');
+  askState.index = state.selected;
+  askState.asked = [];
+  $('askAnswer').innerHTML = '';
+  $('askAnswer').classList.remove('is-shown');
+  $('askIn').value = '';
+  $('askSend').disabled = true;
+  renderAskSuggestions();
+  bar.classList.add('is-open');
+  bar.classList.remove('is-busy');
+  $('askTiqBtn').classList.add('is-on');
+  $('askTiqBtn').setAttribute('aria-expanded', 'true');
+  positionAskBar();
+  requestAnimationFrame(() => bar.classList.add('is-shown'));
+  $('askIn').focus();
+}
+
+function closeAskBar() {
+  $('askBar').classList.remove('is-open', 'is-shown', 'is-focused', 'is-busy');
+  $('askTiqBtn').classList.remove('is-on');
+  $('askTiqBtn').setAttribute('aria-expanded', 'false');
+}
+
+async function runAsk(id) {
+  if (askBusy || askState.index === null) return;
+  askBusy = true;
+  $('askSend').disabled = true;
+  $('askStatus').textContent = 'Looking…';
+  $('askBar').classList.add('is-busy');
+  positionAskBar();
+
+  await wait(reducedMotion() ? 40 : 480 + Math.random() * 320);
+
+  $('askAnswer').innerHTML = answerFor(id, askState.index);
+  $('askAnswer').classList.add('is-shown');
+  if (ASK_QUESTIONS.some(q => q.id === id) && !askState.asked.includes(id)) askState.asked.push(id);
+
+  $('askBar').classList.remove('is-busy');
+  renderAskSuggestions();
+  positionAskBar();
+  askBusy = false;
+}
+
+function askTiqQuestion() {
+  const q = $('askIn').value.trim();
+  if (!q || askBusy) return;
+  const hit = ASK_QUESTIONS.find(x => x.re.test(q.toLowerCase()));
+  $('askIn').value = '';
+  runAsk(hit ? hit.id : 'unknown');
+}
+
+$('askTiqBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  if ($('askBar').classList.contains('is-open')) closeAskBar(); else openAskBar();
+});
+$('askBar').addEventListener('click', e => {
+  e.stopPropagation();
+  const sg = e.target.closest('.tb-sg');
+  if (sg) runAsk(sg.dataset.q);
+});
+$('askIn').addEventListener('focus', () => $('askBar').classList.add('is-focused'));
+$('askIn').addEventListener('blur', () => $('askBar').classList.remove('is-focused'));
+$('askIn').addEventListener('input', e => { $('askSend').disabled = !e.target.value.trim(); });
+$('askIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); askTiqQuestion(); } });
+$('askSend').addEventListener('click', askTiqQuestion);
+document.addEventListener('click', closeAskBar);
+window.addEventListener('resize', positionAskBar);
+$('panel').addEventListener('scroll', positionAskBar);
 
 function sendTest() {
   const text = $('fTest').value.trim();
