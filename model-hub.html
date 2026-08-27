@@ -3128,13 +3128,44 @@ $('railBrand').addEventListener('click', () => {
   /* Opened, the brand is just the brand — collapsing is the header control's job. */
   if (!document.querySelector('.rail').classList.contains('is-open')) setRailOpen(true);
 });
+/* One category open at a time. Opening an item — or a group header —
+   collapses the rest, so the panel only ever shows the section you are
+   working in. That matters more at 68px, not less: crunched, the icons
+   carry no grouping of their own, so a short list is the only thing that
+   stays readable. Pass null to collapse everything. */
+function railExposeOnly(group) {
+  document.querySelectorAll('.rail-group[data-group]').forEach(g => {
+    /* A group with nothing under it is a label, not a disclosure. */
+    if (!g.querySelector('.rail-stack')) return;
+    g.querySelector('.rail-ghead').setAttribute('aria-expanded', String(g === group));
+  });
+}
+
 document.querySelectorAll('.rail-ghead').forEach(h => {
   h.addEventListener('click', () => {
-    /* A group with nothing under it is a label, not a disclosure. */
-    if (!h.nextElementSibling || !h.nextElementSibling.classList.contains('rail-stack')) return;
-    h.setAttribute('aria-expanded', h.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+    const group = h.closest('.rail-group');
+    if (!group.querySelector('.rail-stack')) return;
+    railExposeOnly(h.getAttribute('aria-expanded') === 'true' ? null : group);
   });
 });
+
+document.querySelectorAll('.rail-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.rail-btn.is-active').forEach(x => {
+      x.classList.remove('is-active');
+      x.removeAttribute('aria-current');
+    });
+    b.classList.add('is-active');
+    b.setAttribute('aria-current', 'page');
+    /* Home sits outside every category, so it collapses all of them. */
+    railExposeOnly(b.closest('.rail-group'));
+  });
+});
+
+/* Open on the section this page belongs to, whichever item is marked
+   active — the panel should never need a click to show you where you are. */
+const railActive = document.querySelector('.rail-btn.is-active');
+railExposeOnly(railActive ? railActive.closest('.rail-group') : null);
 
 $('askSend').addEventListener('click', askTiqQuestion);
 $('askClose').addEventListener('click', closeAskBar);
