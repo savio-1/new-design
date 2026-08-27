@@ -1224,8 +1224,13 @@
     /* Folders share the tile shape so the two card kinds read as one
        family; the fill is the product blue. */
     .doc-tile[data-type="folder"] { background: var(--blue-600); }
-    /* Card-size tile — the 24px mark that leads a doc card. */
-    .doc-tile--sm { width: 24px; height: 24px; border-radius: 6px; }
+    /* Card-size tile — the 16px mark that leads a doc card. */
+    .doc-tile--sm { width: 16px; height: 16px; border-radius: 5px; }
+
+    /* The chrome's avatar centres its initial optically off — the
+       caption line-height and tracking push a lone glyph low and
+       left. A single-letter box wants no tracking and a 1:1 line. */
+    .avatar span { line-height: 1; letter-spacing: 0; }
 
     /* ── Folders ──────────────────────────────────────────────────
        A folder drawn as a folder, sitting straight on the page —
@@ -1239,27 +1244,30 @@
     .folder-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 20px 12px;
+      gap: 12px;
     }
     .folder-card {
       width: 100%;
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      padding: 0;
+      display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+      padding: 12px; border-radius: 12px;
       background: none; border: 0;
-      text-align: center;
+      text-align: left;
+      transition: background .15s ease;
     }
+    /* Hovering draws the box around the folder — the system's hover
+       fill — rather than the folder carrying a card of its own. */
+    .folder-card:hover { background: var(--backgrounds-card-bg-4); }
 
     .folder-viz {
-      position: relative; width: 100%; height: 104px; flex: none;
-      margin-bottom: 8px;
+      position: relative; width: 100%; height: 96px; flex: none;
+      margin-bottom: 10px;
     }
     .fv {
-      position: absolute; left: 50%; bottom: 0;
+      position: absolute; left: 0; bottom: 0;
       width: 112px; height: 82px;
-      transform: translateX(-50%);
       transition: transform .34s cubic-bezier(.22, .61, .36, 1);
     }
-    .folder-card:hover .fv { transform: translateX(-50%) translateY(-2px); }
+    .folder-card:hover .fv { transform: translateY(-2px); }
     .fv-back {
       position: absolute; left: 0; right: 0; bottom: 0; height: 68px;
       border-radius: 8px;
@@ -1296,16 +1304,26 @@
       background: linear-gradient(180deg, #838383 0%, #6a6a6a 100%);
       box-shadow: 0 -1px 0 rgba(255, 255, 255, .14) inset;
     }
+    /* Type marks stack like an avatar pile — each one partly under
+       the next, ringed in the front panel's grey so the overlap reads
+       as separate chips. */
     .fv-front .fv-minis {
       position: absolute; left: 8px; bottom: 8px;
-      display: flex; gap: 4px;
+      display: flex;
     }
     .fv-mini {
       width: 16px; height: 16px; border-radius: 4px;
       display: flex; align-items: center; justify-content: center;
       color: #fff;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+      box-shadow: 0 0 0 2px #6e6e6e;
     }
+    .fv-mini + .fv-mini { margin-left: -5px; }
+
+    /* Who created the folder — pinned to the folder art itself. */
+    .fv-avatar {
+      position: absolute; right: 8px; bottom: 8px;
+    }
+    .fv-avatar .avatar { box-shadow: 0 0 0 2px #6e6e6e; }
     .fv-mini[data-type="pdf"]  { background: var(--orange-800); }
     .fv-mini[data-type="doc"]  { background: var(--blue-500); }
     .fv-mini[data-type="xls"],
@@ -1315,12 +1333,12 @@
     .fv-mini[data-type="img"]  { background: var(--cyan-400); }
 
     .folder-card__name {
-      max-width: 100%; padding: 0 8px;
+      max-width: 100%;
       color: var(--text-primary);
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .folder-card__desc {
-      max-width: 100%; padding: 0 8px;
+      max-width: 100%;
       font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
       letter-spacing: -0.24px;
       color: var(--text-teritiary);
@@ -1329,11 +1347,10 @@
     }
     .folder-card:hover .folder-card__desc { color: var(--text-secondary); }
     .folder-card__foot {
-      margin-top: 4px;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin-top: 2px;
+      display: flex; align-items: center; gap: 6px;
       color: var(--text-teritiary);
     }
-    .folder-card__foot .dot { flex: none; }
     .folder-card__foot .n { flex: none; font-variant-numeric: tabular-nums; }
 
     /* ── Doc cards — 3 per row at the standard content width.
@@ -1868,7 +1885,7 @@ function docCardHTML(d) {
   return `
   <button class="doc-card${state.selected === d.id ? ' is-selected' : ''}" data-doc="${d.id}" aria-pressed="${state.selected === d.id}">
     <span class="doc-card__row">
-      ${tileHTML(d.type, 'doc-tile--sm', 13)}
+      ${tileHTML(d.type, 'doc-tile--sm', 10)}
       <span class="star-btn${starred ? ' is-starred' : ''}" role="button" data-star="${d.id}"
             aria-label="${starred ? 'Unstar' : 'Star'} ${esc(d.name)}" aria-pressed="${starred}">
         <svg class="ic st-off" width="16" height="16" viewBox="0 0 16 16"><use href="#dc-star"/></svg>
@@ -1896,21 +1913,20 @@ function folderCardHTML(f) {
       </span>`).join('');
   return `
   <button class="folder-card" data-folder="${f.id}" aria-label="Open ${esc(f.name)}">
-    <span class="folder-viz" aria-hidden="true">
+    <span class="folder-viz">
       <span class="fv">
         <span class="fv-back"></span>
         <span class="fv-sheet s1"></span>
         <span class="fv-sheet s2"></span>
         <span class="fv-sheet s3"></span>
         <span class="fv-front"><span class="fv-minis">${minis}</span></span>
+        <span class="fv-avatar" title="Created by ${esc(PEOPLE[f.by].name)}">${avatarHTML(f.by)}</span>
       </span>
     </span>
     <span class="folder-card__name t-body2-med">${esc(f.name)}</span>
     <span class="folder-card__desc">${esc(f.desc)}</span>
     <span class="folder-card__foot t-caption1-reg">
       <span class="n">${docs.length} doc${docs.length === 1 ? '' : 's'}</span>
-      <span class="dot">·</span>
-      <span title="Created by ${esc(PEOPLE[f.by].name)}">${avatarHTML(f.by)}</span>
     </span>
   </button>`;
 }
