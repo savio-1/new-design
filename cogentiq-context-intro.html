@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cogentiq Context Intro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap">
+<style>
+  :root{
+    --ink-night:#080c1a;
+    --night-2:#0d1226;
+    --cobalt:#2f6bf0;
+    --cobalt-deep:#1d4fd7;
+    --iris:#7a5af8;
+    --lav-1:#e4def7;
+    --lav-2:#cfc9f2;
+    --sky-1:#7ea4f2;
+    --sky-2:#b9c4f7;
+    --sky-3:#e8ddf6;
+    --white:#ffffff;
+    --ink:#1b2140;
+    --cap-dark:rgba(236,240,255,.92);
+    --T:27; /* master timeline seconds */
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--ink-night);
+    font-family:"Geist",-apple-system,"Helvetica Neue",Arial,sans-serif;
+    overflow:hidden;
+    color:var(--cap-dark);
+  }
+
+  .stage{
+    position:fixed;inset:0;
+    overflow:hidden;
+  }
+
+  /* ---------------- background layers ---------------- */
+  .bg{position:absolute;inset:0}
+  .bg-night{
+    background:
+      radial-gradient(120% 90% at 50% 42%, #10162e 0%, var(--ink-night) 58%, #05070f 100%);
+  }
+  .bg-lav{
+    background:
+      radial-gradient(110% 90% at 50% 40%, #f4f1fc 0%, var(--lav-1) 48%, var(--lav-2) 100%);
+    opacity:0;
+    animation:fadeIn .9s cubic-bezier(.4,0,.2,1) 11.75s both;
+  }
+  .bg-sky{
+    background:
+      linear-gradient(158deg, #5d7cf0 0%, #7a8bf3 26%, #9aa6f6 48%, #c9cdf8 74%, #ecebfb 100%);
+    opacity:0;
+    animation:fadeIn 2.6s cubic-bezier(.45,0,.2,1) 20.6s both;
+  }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+  /* faint dot texture on light scenes, like the hero banner */
+  .bg-dots{
+    background-image:radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.4px);
+    background-size:26px 26px;
+    opacity:0;
+    animation:fadeInDots 2.6s ease 21.2s both;
+    mix-blend-mode:overlay;
+  }
+  @keyframes fadeInDots{from{opacity:0}to{opacity:.5}}
+
+  /* ---------------- white bloom flash ---------------- */
+  .flash{
+    position:absolute;inset:0;z-index:40;pointer-events:none;
+    background:radial-gradient(circle at 50% 48%, #fff 0%, #fff 42%, rgba(255,255,255,0) 78%);
+    opacity:0;
+    animation:flash 1.5s cubic-bezier(.3,0,.25,1) 11.35s both;
+  }
+  @keyframes flash{
+    0%{opacity:0}
+    38%{opacity:1}
+    58%{opacity:1}
+    100%{opacity:0}
+  }
+
+  /* ================= DARK WORLD (scene 1-3) ================= */
+  .scene-dark{
+    position:absolute;inset:0;z-index:2;
+    animation:sceneDarkOut .8s ease 11.5s both;
+  }
+  @keyframes sceneDarkOut{from{opacity:1}to{opacity:0}}
+
+  /* drifting lattice of source-orbs */
+  .dot{
+    position:absolute;left:var(--x);top:var(--y);
+    width:var(--sz);height:var(--sz);border-radius:50%;
+    background:radial-gradient(circle at 32% 28%, var(--c1) 0%, var(--c2) 68%, #0a0f22 100%);
+    opacity:0;
+    animation:
+      dotIn 1.6s cubic-bezier(.25,.6,.3,1) var(--d) both,
+      dotDrift 12s ease-in-out calc(var(--d) + .4s) infinite alternate;
+  }
+  @keyframes dotIn{from{opacity:0;transform:scale(.4)}to{opacity:var(--o,.85);transform:scale(1)}}
+  @keyframes dotDrift{
+    from{translate:0 0}
+    to{translate:var(--dx,10px) var(--dy,-14px)}
+  }
+
+  /* clutter panels */
+  .panel{
+    position:absolute;left:var(--x);top:var(--y);
+    width:var(--w);height:var(--h);
+    border-radius:10px;
+    background:linear-gradient(150deg, #1a2140 0%, #131832 55%, #0e1226 100%);
+    border:1px solid rgba(255,255,255,.05);
+    filter:blur(var(--bl,1.5px));
+    opacity:0;
+    transform:rotate(var(--r,0deg)) scale(.92);
+    animation:panelIn 2.4s cubic-bezier(.22,.6,.3,1) var(--d) both,
+              panelDrift 9s ease-in-out calc(var(--d) + .5s) infinite alternate;
+    overflow:hidden;
+  }
+  .panel::before{ /* header bar */
+    content:"";position:absolute;left:9%;top:10%;width:44%;height:9%;
+    border-radius:99px;background:var(--bar,rgba(122,144,255,.28));
+  }
+  .panel::after{ /* content blocks */
+    content:"";position:absolute;left:9%;top:30%;width:82%;height:58%;
+    border-radius:6px;
+    background:
+      linear-gradient(rgba(255,255,255,.055), rgba(255,255,255,.055)) 0 0/58% 16% no-repeat,
+      linear-gradient(rgba(255,255,255,.045), rgba(255,255,255,.045)) 0 32%/78% 16% no-repeat,
+      linear-gradient(rgba(255,255,255,.035), rgba(255,255,255,.035)) 0 66%/44% 16% no-repeat;
+  }
+  @keyframes panelIn{
+    from{opacity:0;transform:rotate(var(--r,0deg)) scale(.85) translateY(26px)}
+    to{opacity:var(--o,.8);transform:rotate(var(--r,0deg)) scale(1) translateY(0)}
+  }
+  @keyframes panelDrift{
+    from{margin-top:0}
+    to{margin-top:var(--dm,-12px)}
+  }
+
+  /* pulse rings before the bloom */
+  .ring{
+    position:absolute;left:50%;top:50%;
+    width:120px;height:120px;border-radius:50%;
+    border:1px solid rgba(190,215,255,.4);
+    transform:translate(-50%,-50%) scale(.3);
+    opacity:0;
+    animation:ringPulse 2.4s cubic-bezier(.2,.55,.35,1) var(--d) both;
+  }
+  @keyframes ringPulse{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}
+    18%{opacity:.55}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(4.6)}
+  }
+
+  /* ================= HERO ORB (persists) ================= */
+  .orb-anchor{
+    position:absolute;left:50%;top:50%;z-index:10;
+    animation:orbMove 27s linear 0s both;
+  }
+  .orb{
+    position:relative;width:172px;height:172px;margin:-86px 0 0 -86px;
+  }
+  .orb-core{position:absolute;inset:0;border-radius:50%}
+  .orb-dark{
+    background:radial-gradient(circle at 34% 30%, #d9f4ff 0%, #7cc9ff 34%, #2f8bff 72%, #1a55c9 100%);
+    box-shadow:
+      0 0 42px 6px rgba(96,180,255,.55),
+      0 0 130px 34px rgba(64,140,255,.28);
+    animation:orbDarkOut .7s ease 11.55s both;
+  }
+  @keyframes orbDarkOut{from{opacity:1}to{opacity:0}}
+  .orb-light{
+    background:
+      radial-gradient(circle at 26% 82%, rgba(244,178,232,.85) 0%, rgba(244,178,232,0) 46%),
+      radial-gradient(circle at 32% 28%, #8fb4fb 0%, #4b82f5 46%, var(--cobalt-deep) 100%);
+    box-shadow:
+      0 24px 60px -12px rgba(47,80,215,.45),
+      0 0 90px 18px rgba(122,140,248,.35);
+    opacity:0;
+    animation:fadeIn .7s ease 11.85s both;
+  }
+  /* soft halo behind orb in light world */
+  .orb-halo{
+    position:absolute;inset:-46%;border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.5) 0%, rgba(255,255,255,0) 62%);
+    opacity:0;
+    animation:fadeIn 1.4s ease 12.1s both;
+  }
+  @keyframes orbMove{
+    0%     {transform:translate(0,15vh) scale(.42)}   /* 0s  low, small     */
+    11%    {transform:translate(0,7vh)  scale(.55)}   /* 3s                 */
+    30%    {transform:translate(0,2vh)  scale(.62)}   /* 8.1s               */
+    37%    {transform:translate(0,0)    scale(.72)}   /* 10s  centered      */
+    42.5%  {transform:translate(0,0)    scale(1.35)}  /* 11.5s bloom swell  */
+    46%    {transform:translate(0,1vh)  scale(1)}     /* 12.4s light world  */
+    63%    {transform:translate(0,1vh)  scale(1)}     /* 17s                */
+    66%    {transform:translate(0,1vh)  scale(1.045)} /* absorb breaths     */
+    69%    {transform:translate(0,1vh)  scale(1.005)}
+    72%    {transform:translate(0,1vh)  scale(1.055)}
+    75%    {transform:translate(0,1vh)  scale(1.01)}
+    79%    {transform:translate(0,1vh)  scale(1.06)}  /* 21.3s              */
+    88%    {transform:translate(0,5vh) scale(.98)}
+    100%   {transform:translate(0,6vh)  scale(1)}     /* 27s hold           */
+  }
+
+  /* absorption ring in light world */
+  .ring-light{
+    border-color:rgba(255,255,255,.75);
+    animation-name:ringPulse;
+  }
+
+  /* ================= LIGHT WORLD (scene 4-6) ================= */
+  .scene-light{position:absolute;inset:0;z-index:3}
+
+  /* big soft bokeh spheres */
+  .bokeh{
+    position:absolute;left:var(--x);top:var(--y);
+    width:var(--sz);height:var(--sz);border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, var(--c1) 0%, var(--c2) 78%);
+    filter:blur(var(--bl,10px));
+    opacity:0;
+    animation:
+      bokehIn 2.8s ease var(--d) both,
+      bokehFloat 16s ease-in-out calc(var(--d)) infinite alternate;
+  }
+  @keyframes bokehIn{from{opacity:0}to{opacity:var(--o,.8)}}
+  @keyframes bokehFloat{
+    from{translate:0 0}
+    to{translate:var(--dx,0px) var(--dy,-26px)}
+  }
+
+  /* -------- artifact chips -------- */
+  .chip{
+    position:absolute;left:50%;top:50%;
+    margin-left:var(--ox);margin-top:var(--oy);
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    transform:translate(-50%,-50%);
+  }
+  .chip-inner{
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    animation:
+      chipIn 1.3s cubic-bezier(.22,.9,.3,1) var(--din) both,
+      chipAbsorb 1.25s cubic-bezier(.6,-0.02,.7,.4) var(--dout) forwards;
+  }
+  .tile{
+    width:74px;height:74px;border-radius:22px;
+    background:var(--white);
+    box-shadow:0 14px 34px -10px rgba(38,52,130,.28), 0 2px 6px rgba(38,52,130,.10);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .tile svg{width:32px;height:32px;stroke-width:1.9}
+  .chip-label{
+    font-size:15px;font-weight:500;letter-spacing:.01em;color:var(--ink);
+    text-shadow:0 1px 0 rgba(255,255,255,.5);
+  }
+  @keyframes chipIn{
+    from{opacity:0;transform:translate(var(--fx),var(--fy)) scale(.7);filter:blur(8px)}
+    to  {opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}
+  }
+  @keyframes chipAbsorb{
+    0%  {opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}
+    70% {opacity:.9;filter:blur(1px)}
+    100%{opacity:0;transform:translate(var(--ax),var(--ay)) scale(.12);filter:blur(4px)}
+  }
+
+  /* -------- floating UI accents in final shot -------- */
+  .ui-card{
+    position:absolute;left:50%;top:50%;
+    background:var(--white);
+    border-radius:14px;
+    box-shadow:0 18px 40px -12px rgba(38,52,130,.32);
+    color:var(--ink);
+    opacity:0;
+    display:flex;align-items:center;gap:10px;
+    font-size:14px;font-weight:500;
+    animation:
+      uiIn 1.2s cubic-bezier(.22,.9,.3,1) var(--d) both,
+      uiFloat 7s ease-in-out calc(var(--d) + 1.2s) infinite alternate;
+  }
+  @keyframes uiIn{
+    from{opacity:0;transform:translate(var(--ox),calc(var(--oy) + 26px)) scale(.9);filter:blur(6px)}
+    to  {opacity:1;transform:translate(var(--ox),var(--oy)) scale(1);filter:blur(0)}
+  }
+  @keyframes uiFloat{
+    from{margin-top:0}
+    to{margin-top:-10px}
+  }
+  .bundle-card{padding:12px 18px 12px 12px}
+  .bundle-ic{
+    width:34px;height:34px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,#28b1f0 0%, #2f6bf0 55%, #4f46e5 100%);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .bundle-ic svg{width:18px;height:18px}
+  .bundle-t small{display:block;font-weight:400;font-size:12px;color:#7c86ad;margin-top:1px}
+  .assist-pill{
+    padding:11px 18px;border-radius:999px;
+    background:var(--cobalt);color:#fff;
+    box-shadow:0 14px 30px -8px rgba(47,80,215,.5);
+    font-weight:500;
+  }
+
+  /* ================= CAPTIONS ================= */
+  .caps{position:absolute;inset:0;z-index:20;pointer-events:none}
+  .cap{
+    position:absolute;left:50%;top:33%;
+    transform:translateX(-50%);
+    width:100%;
+    text-align:center;
+    font-weight:300;
+    font-size:clamp(19px,2.3vw,30px);
+    letter-spacing:.005em;
+    opacity:0;
+    animation:capCycle var(--len) cubic-bezier(.3,.1,.3,1) var(--d) both;
+  }
+  .cap.dark-cap{color:var(--cap-dark)}
+  .cap.light-cap{color:var(--ink)}
+  .cap.big{font-weight:500;font-size:clamp(26px,3.2vw,42px);letter-spacing:-.01em}
+  @keyframes capCycle{
+    0%  {opacity:0;transform:translateX(-50%) translateY(14px)}
+    16% {opacity:1;transform:translateX(-50%) translateY(0)}
+    82% {opacity:1;transform:translateX(-50%) translateY(0)}
+    100%{opacity:0;transform:translateX(-50%) translateY(-8px)}
+  }
+
+  /* final lockup */
+  .lockup{
+    position:absolute;left:50%;top:26%;z-index:20;
+    transform:translateX(-50%);
+    text-align:center;color:var(--white);
+    width:100%;
+  }
+  .lockup .eyebrow{
+    font-size:clamp(12px,1vw,14px);font-weight:500;
+    letter-spacing:.24em;text-transform:uppercase;
+    color:rgba(255,255,255,.85);
+    opacity:0;
+    animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 22.2s both;
+  }
+  .lockup h1{
+    margin-top:14px;
+    font-size:clamp(34px,4.6vw,62px);
+    font-weight:600;letter-spacing:-.022em;
+    text-wrap:balance;
+    text-shadow:0 4px 30px rgba(35,50,140,.35);
+    opacity:0;
+    animation:lockIn 1.5s cubic-bezier(.22,.9,.3,1) 22.6s both;
+  }
+  .lockup p{
+    margin-top:12px;
+    font-size:clamp(15px,1.5vw,20px);font-weight:300;
+    color:rgba(255,255,255,.92);
+    opacity:0;
+    animation:lockIn 1.5s cubic-bezier(.22,.9,.3,1) 23.1s both;
+  }
+  @keyframes lockIn{
+    from{opacity:0;transform:translateY(18px);filter:blur(6px)}
+    to  {opacity:1;transform:translateY(0);filter:blur(0)}
+  }
+
+  /* ================= replay ================= */
+  .replay{
+    position:absolute;right:26px;bottom:24px;z-index:50;
+    width:44px;height:44px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.55);
+    background:rgba(255,255,255,.16);
+    backdrop-filter:blur(6px);
+    color:#fff;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;pointer-events:none;
+    transition:opacity .6s ease, transform .2s ease;
+  }
+  .replay.show{opacity:1;pointer-events:auto}
+  .replay:hover{transform:scale(1.08)}
+  .replay svg{width:20px;height:20px}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01s !important;animation-delay:0s !important;animation-iteration-count:1 !important}
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+
+  <!-- backgrounds -->
+  <div class="bg bg-night"></div>
+  <div class="bg bg-lav"></div>
+  <div class="bg bg-sky"></div>
+  <div class="bg bg-dots"></div>
+
+  <!-- ============ DARK WORLD ============ -->
+  <div class="scene-dark">
+    <!-- lattice of scattered source orbs -->
+    <div class="dot" style="--x:14%;--y:16%;--sz:26px;--c1:#8f7bff;--c2:#4a3bbd;--d:.5s;--dx:14px;--dy:-10px"></div>
+    <div class="dot" style="--x:33%;--y:11%;--sz:20px;--c1:#a06bff;--c2:#5b2fb8;--d:.8s;--dx:-10px;--dy:12px"></div>
+    <div class="dot" style="--x:56%;--y:14%;--sz:30px;--c1:#6f8bff;--c2:#2f4bd0;--d:.65s;--dx:12px;--dy:10px"></div>
+    <div class="dot" style="--x:76%;--y:10%;--sz:22px;--c1:#5a5aff;--c2:#3327a8;--d:1s;--dx:-14px;--dy:-8px"></div>
+    <div class="dot" style="--x:90%;--y:20%;--sz:26px;--c1:#7d6bf2;--c2:#3d2fa8;--d:1.2s;--dx:-10px;--dy:14px"></div>
+    <div class="dot" style="--x:8%;--y:44%;--sz:18px;--c1:#4f9bff;--c2:#2451c9;--d:1.05s;--dx:16px;--dy:6px"></div>
+    <div class="dot" style="--x:26%;--y:38%;--sz:28px;--c1:#79c4e8;--c2:#2f6ac0;--d:.7s;--dx:-8px;--dy:-14px"></div>
+    <div class="dot" style="--x:73%;--y:40%;--sz:22px;--c1:#8db4e0;--c2:#40549e;--d:.9s;--dx:10px;--dy:-12px"></div>
+    <div class="dot" style="--x:88%;--y:52%;--sz:26px;--c1:#3fc4b4;--c2:#1f6f80;--d:1.3s;--dx:-12px;--dy:10px"></div>
+    <div class="dot" style="--x:18%;--y:72%;--sz:30px;--c1:#9ecdf2;--c2:#3d6bbd;--d:1.15s;--dx:12px;--dy:-10px"></div>
+    <div class="dot" style="--x:40%;--y:80%;--sz:20px;--c1:#6ad4c8;--c2:#22707e;--d:1.4s;--dx:-10px;--dy:-12px"></div>
+    <div class="dot" style="--x:63%;--y:76%;--sz:24px;--c1:#7e8ef5;--c2:#3838ad;--d:.95s;--dx:14px;--dy:8px"></div>
+    <div class="dot" style="--x:82%;--y:82%;--sz:28px;--c1:#4fb0d8;--c2:#245e93;--d:1.5s;--dx:-14px;--dy:-8px"></div>
+    <div class="dot" style="--x:5%;--y:88%;--sz:22px;--c1:#8f7bff;--c2:#41339e;--d:1.6s;--dx:10px;--dy:-14px"></div>
+
+    <!-- clutter panels (scene 2) -->
+    <div class="panel" style="--x:6%; --y:12%;--w:190px;--h:250px;--r:-8deg;--d:4.6s;--bl:2.5px;--o:.75;--bar:rgba(196,120,220,.3);--dm:-14px"></div>
+    <div class="panel" style="--x:24%;--y:6%; --w:150px;--h:200px;--r:5deg; --d:5s;  --bl:1.5px;--o:.85;--bar:rgba(220,190,120,.32);--dm:-9px"></div>
+    <div class="panel" style="--x:66%;--y:9%; --w:210px;--h:150px;--r:7deg; --d:4.8s;--bl:2px;  --o:.7; --bar:rgba(110,200,220,.3);--dm:-16px"></div>
+    <div class="panel" style="--x:84%;--y:26%;--w:150px;--h:190px;--r:-6deg;--d:5.3s;--bl:3px;  --o:.6; --bar:rgba(140,150,255,.3);--dm:-8px"></div>
+    <div class="panel" style="--x:4%; --y:58%;--w:160px;--h:180px;--r:6deg; --d:5.5s;--bl:3px;  --o:.6; --bar:rgba(120,220,170,.28);--dm:-12px"></div>
+    <div class="panel" style="--x:30%;--y:66%;--w:230px;--h:160px;--r:-4deg;--d:5.15s;--bl:2px; --o:.75;--bar:rgba(160,140,255,.3);--dm:-15px"></div>
+    <div class="panel" style="--x:62%;--y:64%;--w:180px;--h:200px;--r:5deg; --d:5.6s;--bl:2.5px;--o:.7; --bar:rgba(230,140,170,.28);--dm:-10px"></div>
+    <div class="panel" style="--x:83%;--y:66%;--w:150px;--h:150px;--r:-9deg;--d:5.8s;--bl:3.5px;--o:.55;--bar:rgba(120,180,255,.28);--dm:-13px"></div>
+
+    <!-- pulse rings leading into the bloom -->
+    <div class="ring" style="--d:9.3s"></div>
+    <div class="ring" style="--d:10s"></div>
+    <div class="ring" style="--d:10.7s"></div>
+  </div>
+
+  <!-- ============ LIGHT WORLD ============ -->
+  <div class="scene-light">
+    <!-- soft bokeh -->
+    <div class="bokeh" style="--x:-6%;--y:-12%;--sz:34vmin;--c1:rgba(255,255,255,.85);--c2:rgba(255,255,255,0);--d:12.4s;--o:.8;--bl:6px;--dx:20px;--dy:-30px"></div>
+    <div class="bokeh" style="--x:78%;--y:-8%; --sz:30vmin;--c1:rgba(198,206,255,.9);--c2:rgba(198,206,255,0);--d:12.8s;--o:.7;--bl:8px;--dx:-24px;--dy:22px"></div>
+    <div class="bokeh" style="--x:70%;--y:64%; --sz:38vmin;--c1:rgba(255,255,255,.7); --c2:rgba(255,255,255,0);--d:13.2s;--o:.65;--bl:10px;--dx:-18px;--dy:-26px"></div>
+    <div class="bokeh" style="--x:-8%;--y:60%; --sz:32vmin;--c1:rgba(233,222,250,.9); --c2:rgba(233,222,250,0);--d:13s;--o:.7;--bl:8px;--dx:26px;--dy:-18px"></div>
+    <!-- small accent spheres, final shot -->
+    <div class="bokeh" style="--x:16%;--y:20%;--sz:8vmin; --c1:#f3b98e;--c2:#e8935c;--d:21.4s;--o:.85;--bl:5px;--dx:12px;--dy:-20px"></div>
+    <div class="bokeh" style="--x:80%;--y:74%;--sz:9vmin; --c1:#f2a6c8;--c2:#e078ad;--d:21.8s;--o:.8;--bl:7px;--dx:-14px;--dy:-24px"></div>
+    <div class="bokeh" style="--x:8%; --y:76%;--sz:6vmin; --c1:#9cd7f0;--c2:#5aa6dd;--d:22.2s;--o:.8;--bl:5px;--dx:16px;--dy:-16px"></div>
+
+    <!-- absorption ring -->
+    <div class="ring ring-light" style="--d:19.6s"></div>
+
+    <!-- artifact chips -->
+    <div class="chip" style="--ox:-320px;--oy:-140px">
+      <div class="chip-inner" style="--din:13s;   --dout:17.3s;--fx:-140px;--fy:-70px;--ax:320px;--ay:140px">
+        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2.5 2.5 0 0 1 2.5-2.5H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div>
+        <span class="chip-label">Glossary</span>
+      </div>
+    </div>
+    <div class="chip" style="--ox:-370px;--oy:60px">
+      <div class="chip-inner" style="--din:13.35s;--dout:17.55s;--fx:-160px;--fy:30px;--ax:370px;--ay:-60px">
+        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
+        <span class="chip-label">Ontology</span>
+      </div>
+    </div>
+    <div class="chip" style="--ox:-180px;--oy:210px">
+      <div class="chip-inner" style="--din:13.7s; --dout:17.8s;--fx:-80px;--fy:110px;--ax:180px;--ay:-210px">
+        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#0eb5a3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
+        <span class="chip-label">Data binding</span>
+      </div>
+    </div>
+    <div class="chip" style="--ox:180px;--oy:210px">
+      <div class="chip-inner" style="--din:14.05s;--dout:18.05s;--fx:80px;--fy:110px;--ax:-180px;--ay:-210px">
+        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#e0356f" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+        <span class="chip-label">Tool binding</span>
+      </div>
+    </div>
+    <div class="chip" style="--ox:370px;--oy:60px">
+      <div class="chip-inner" style="--din:14.4s; --dout:18.3s;--fx:160px;--fy:30px;--ax:-370px;--ay:-60px">
+        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+        <span class="chip-label">Prompts</span>
+      </div>
+    </div>
+    <div class="chip" style="--ox:320px;--oy:-140px">
+      <div class="chip-inner" style="--din:14.75s;--dout:18.55s;--fx:140px;--fy:-70px;--ax:-320px;--ay:140px">
+        <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#57a83e" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <span class="chip-label">Policies</span>
+      </div>
+    </div>
+
+    <!-- bundle-ready chip after absorption -->
+    <div class="ui-card bundle-card" style="--ox:-330px;--oy:-30px;--d:20s">
+      <div class="bundle-ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg></div>
+      <div class="bundle-t">Context bundle<small>6 artifacts · ready</small></div>
+    </div>
+
+    <!-- add-to-assistant pill, final shot -->
+    <div class="ui-card assist-pill" style="--ox:180px;--oy:120px;--d:23.6s">Add to assistant&nbsp;&nbsp;→</div>
+  </div>
+
+  <!-- ============ HERO ORB ============ -->
+  <div class="orb-anchor">
+    <div class="orb">
+      <div class="orb-halo"></div>
+      <div class="orb-core orb-light"></div>
+      <div class="orb-core orb-dark"></div>
+    </div>
+  </div>
+
+  <!-- ============ CAPTIONS ============ -->
+  <div class="caps">
+    <div class="cap dark-cap"  style="--d:.9s;  --len:3.6s">Your enterprise data lives everywhere</div>
+    <div class="cap dark-cap"  style="--d:5.1s; --len:3.5s">scattered, siloed, out of context</div>
+    <div class="cap dark-cap"  style="--d:9.1s; --len:2.6s">It&rsquo;s time AI understood your business</div>
+    <div class="cap light-cap big" style="--d:12.9s;--len:3.8s">Meet Cogentiq Context</div>
+    <div class="cap light-cap" style="--d:17.1s;--len:3.7s">everything AI needs to know, in one place</div>
+  </div>
+
+  <!-- final lockup -->
+  <div class="lockup">
+    <div class="eyebrow">Cogentiq Context</div>
+    <h1>The Enterprise AI Context Layer</h1>
+    <p>Business-aware knowledge for accurate, autonomous AI.</p>
+  </div>
+
+  <!-- bloom flash -->
+  <div class="flash"></div>
+
+  <!-- replay -->
+  <button class="replay" id="replay" aria-label="Replay animation">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg>
+  </button>
+</div>
+
+<script>
+(function(){
+  var replay = document.getElementById('replay');
+  var stage  = document.getElementById('stage');
+  var timer;
+
+  function armReplay(){
+    clearTimeout(timer);
+    replay.classList.remove('show');
+    timer = setTimeout(function(){ replay.classList.add('show'); }, 26500);
+  }
+
+  replay.addEventListener('click', function(){
+    // restart every animation from zero
+    document.getAnimations().forEach(function(a){ a.cancel(); a.play(); });
+    armReplay();
+  });
+
+  armReplay();
+})();
+</script>
+</body>
+</html>
