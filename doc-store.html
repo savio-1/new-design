@@ -1487,7 +1487,7 @@
       overflow-wrap: anywhere;
     }
     .dv-pencil {
-      width: 24px; height: 24px; flex: none; border-radius: 6px;
+      width: 20px; height: 20px; flex: none; border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
       color: var(--text-teritiary);
       opacity: 0;
@@ -1508,28 +1508,46 @@
     .dv-meta { margin: 6px 0 0; color: var(--text-teritiary); }
     .dv-divider { height: 1px; background: var(--strokes-line-1); margin: 16px 0; }
 
-    .dv-block { display: flex; flex-direction: column; gap: 8px; }
+    .dv-block { display: flex; flex-direction: column; gap: 6px; }
+    /* The row is exactly its label's line, so the 6px gap below is the
+       whole gap — the 20px pencil sits inside that line. */
     .dv-block__head {
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      min-height: 24px;
+      min-height: 20px;
     }
     .dv-block__label { color: var(--text-primary); }
 
-    /* Description at rest — a filled, unpressable box, so it reads as
-       the file's own text rather than an empty input. */
-    .dv-read {
+    /* Description — one box in both states. At rest it is a read-only
+       field that reads as the file's own text; the pencil unlocks that
+       same box in place and highlights it, so nothing moves. It grows
+       with its content, so the two states are always the same size. */
+    .dv-desc {
+      width: 100%; min-height: 64px;
       padding: 12px; border-radius: 8px;
       background: var(--backgrounds-type-default-bg-1);
       border: 1px solid var(--strokes-line-3);
       color: var(--text-secondary);
+      resize: none; overflow: hidden;
+      transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
     }
-    .dv-read.is-empty { color: var(--text-teritiary); }
+    .dv-desc::placeholder { color: var(--text-teritiary); }
+    .dv-desc:read-only { cursor: default; }
+    .dv-block.is-editing .dv-desc {
+      background: var(--backgrounds-type-default-bg-2);
+      border-color: var(--strokes-type-focus);
+      box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
+      color: var(--text-primary);
+    }
 
-    /* Edit mode — the same box as a field, with its own commit. */
-    .dv-edit { display: none; flex-direction: column; gap: 8px; }
-    .dv-block.is-editing .dv-read { display: none; }
+    /* The commit row only exists while a field is open. */
+    .dv-edit { display: none; flex-direction: column; gap: 6px; }
     .dv-block.is-editing .dv-edit { display: flex; }
-    .dv-edit__row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .dv-edit__row {
+      display: none;
+      align-items: center; justify-content: flex-end; gap: 8px;
+      padding-top: 2px;
+    }
+    .dv-block.is-editing .dv-edit__row { display: flex; }
 
     .dv-rows { margin-top: 16px; display: flex; flex-direction: column; }
     .dv-side .row { padding: 9px 0; }
@@ -1542,11 +1560,11 @@
       display: flex; align-items: center; gap: 8px;
       padding: 12px 20px 16px;
     }
-    .dv-foot .btn-primary { flex: 1 1 auto; height: 44px; border-radius: 10px; }
+    .dv-foot .btn-primary { flex: 1 1 auto; height: 36px; border-radius: 8px; }
     .dv-sq {
-      width: 44px; height: 44px; flex: none;
+      width: 36px; height: 36px; flex: none;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 10px;
+      border-radius: 8px;
       background: var(--backgrounds-card-bg-5);
       border: 1px solid var(--strokes-type-default);
       color: var(--text-teritiary);
@@ -2051,7 +2069,7 @@
             <div class="dv-title-row">
               <h2 class="dv-title t-subhead1-med" id="dvName">—</h2>
               <button class="dv-pencil" id="dvNameEdit" aria-label="Rename file">
-                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#dc-pencil"/></svg>
+                <svg class="ic" width="14" height="14" viewBox="0 0 16 16"><use href="#dc-pencil"/></svg>
               </button>
             </div>
             <div class="dv-edit">
@@ -2074,20 +2092,16 @@
             <div class="dv-block__head">
               <span class="dv-block__label t-body2-med">Description</span>
               <button class="dv-pencil" id="dvDescEdit" aria-label="Edit description">
-                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#dc-pencil"/></svg>
+                <svg class="ic" width="14" height="14" viewBox="0 0 16 16"><use href="#dc-pencil"/></svg>
               </button>
             </div>
-            <p class="dv-read t-body2-reg" id="dvDescRead"></p>
-            <div class="dv-edit">
-              <span class="control is-textarea">
-                <textarea id="dvDescInput" class="t-body2-reg" aria-label="Description"
-                  placeholder="Say what this document is, so people and agents pick the right one."></textarea>
-              </span>
-              <span class="dv-edit__row">
-                <button class="btn-ghost t-body2-med" data-cancel="desc">Cancel</button>
-                <button class="btn-primary t-body2-med" data-save="desc">Save</button>
-              </span>
-            </div>
+            <textarea id="dvDescInput" class="dv-desc t-body2-reg" rows="1" readonly tabindex="-1"
+              aria-label="Description"
+              placeholder="No description yet — add one so people and agents pick the right file."></textarea>
+            <span class="dv-edit__row">
+              <button class="btn-ghost t-body2-med" data-cancel="desc">Cancel</button>
+              <button class="btn-primary t-body2-med" data-save="desc">Save</button>
+            </span>
           </div>
 
           <div class="dv-rows rows" id="dvRows"></div>
@@ -2100,10 +2114,10 @@
             Download
           </button>
           <button class="dv-sq dv-sq--danger" id="dvDelete" aria-label="Delete file">
-            <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-rowdelete"/></svg>
+            <svg class="ic" width="18" height="18" viewBox="0 0 20 20"><use href="#ic-rowdelete"/></svg>
           </button>
           <button class="dv-sq" id="dvStar" aria-label="Star this file" aria-pressed="false">
-            <svg class="ic" width="18" height="18" viewBox="0 0 16 16"><use id="dvStarIcon" href="#dc-star"/></svg>
+            <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use id="dvStarIcon" href="#dc-star"/></svg>
           </button>
         </div>
       </aside>
@@ -2551,11 +2565,27 @@ function resetDelete() {
   $('dvWarn').classList.remove('is-on');
 }
 
+/* The description box is one element in both states, so it has to size
+   itself to its content — otherwise unlocking it would change its
+   height and the box would appear to move. */
+function autosizeDesc() {
+  const el = $('dvDescInput');
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 /* Name and description read as text until their pencil is used; one
    field is open at a time, and Cancel puts the stored value back. */
 function closeEdits() {
   $('dvNameBlock').classList.remove('is-editing');
   $('dvDescBlock').classList.remove('is-editing');
+  /* Re-lock the box and drop any uncommitted typing. */
+  const d = DOCS.find(x => x.id === draft.id);
+  const el = $('dvDescInput');
+  el.readOnly = true;
+  el.tabIndex = -1;
+  if (d) el.value = d.desc || '';
+  autosizeDesc();
 }
 
 function startEdit(which) {
@@ -2569,9 +2599,14 @@ function startEdit(which) {
     $('dvNameInput').focus();
     $('dvNameInput').select();
   } else {
-    $('dvDescInput').value = d.desc || '';
+    const el = $('dvDescInput');
+    el.value = d.desc || '';
+    el.readOnly = false;
+    el.removeAttribute('tabindex');
     $('dvDescBlock').classList.add('is-editing');
-    $('dvDescInput').focus();
+    autosizeDesc();
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
   }
 }
 
@@ -2585,7 +2620,7 @@ function commitEdit(which) {
   } else {
     d.desc = $('dvDescInput').value.trim() || undefined;
   }
-  closeEdits();
+  closeEdits();   /* re-locks the box and reseeds it from the doc */
   renderViewerFields(d);
   renderPreview(d);
   render();
@@ -2600,9 +2635,11 @@ function renderViewerFields(d) {
   $('dvMeta').textContent =
     `${TYPES[d.type].label} · ${d.size} · Added ${fmtDate(d.addedAt)}`;
 
-  const read = $('dvDescRead');
-  read.textContent = d.desc || 'No description yet — add one so people and agents pick the right file.';
-  read.classList.toggle('is-empty', !d.desc);
+  const desc = $('dvDescInput');
+  desc.value = d.desc || '';
+  desc.readOnly = true;
+  desc.tabIndex = -1;
+  autosizeDesc();
 
   $('dvRows').innerHTML = `
     <div class="row"><span class="k t-caption1-med">Added by</span>
@@ -2745,6 +2782,7 @@ $('dvRows').addEventListener('click', e => {
   closeViewer();
   openFolder(fid);
 });
+$('dvDescInput').addEventListener('input', autosizeDesc);
 $('dvNameEdit').addEventListener('click', () => startEdit('name'));
 $('dvDescEdit').addEventListener('click', () => startEdit('desc'));
 $('dvModal').addEventListener('click', e => {
