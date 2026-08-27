@@ -591,6 +591,33 @@ svg{display:block}
   font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);
 }
 .tb-in::placeholder{color:var(--text-tertiary)}
+/* on open, the placeholder sweeps once through the same colours as the row's
+   stroke and settles into the ordinary grey. ::placeholder can't carry a
+   background-clip gradient, so an overlay span wearing the identical type
+   plays the sweep and the real placeholder is held transparent underneath —
+   :placeholder-shown drops the overlay the instant anything is typed. */
+.tb-row .tb-ph{
+  position:absolute;left:41px;top:50%;transform:translateY(-50%);
+  pointer-events:none;white-space:nowrap;z-index:1;
+  font-size:var(--fs-body-3);letter-spacing:var(--ls-body-3);
+  /* sized 3x the text so the colours occupy the middle third: at 100% the
+     text sits in the trailing grey, at 0% in the leading grey, and the band
+     crosses it in between — so the sweep both starts and ends plain grey */
+  background:linear-gradient(90deg,
+    var(--text-tertiary) 0 33%,
+    #0d99ff 40%,#5860ed 46%,#f24822 52%,#ffca28 58%,#ffffff 62%,
+    var(--text-tertiary) 67% 100%);
+  background-size:300% 100%;background-repeat:no-repeat;background-position:100% 50%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  opacity:0;
+}
+.tiq-bar.ph-intro .tb-in:placeholder-shown::placeholder{color:transparent}
+/* linear, so the band crosses at an even pace — and held back briefly so it
+   starts once the bar has finished appearing rather than during its fade-in */
+.tiq-bar.ph-intro .tb-in:placeholder-shown ~ .tb-ph{
+  opacity:1;animation:phSweep 1.5s linear .18s forwards;
+}
+@keyframes phSweep{from{background-position:100% 50%}to{background-position:0% 50%}}
 .tb-send{
   flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;
   background:#0e0e0e;color:#fff;transition:background .16s var(--ease),transform .16s var(--spring),color .16s var(--ease);
@@ -1577,6 +1604,7 @@ svg{display:block}
         <div class="tb-row">
           <svg class="tb-logo"><use href="#i-tiq"/></svg>
           <input class="tb-in" id="tbIn" placeholder="Ask anything about this node" autocomplete="off">
+          <span class="tb-ph" aria-hidden="true">Ask anything about this node</span>
           <button class="tb-send" id="tbSend" disabled aria-label="Send">
             <svg width="15" height="15"><use href="#i-arrow-r"/></svg>
           </button>
@@ -3123,11 +3151,18 @@ function openTiqBar(){
   $('#ntAsk').classList.remove('show');
   positionNodeUI();
   tiqBarEl.classList.add('show');
+  /* replay the placeholder sweep on every open — drop the class and force a
+     reflow first, or re-adding it wouldn't restart the animation */
+  tiqBarEl.classList.remove('ph-intro');
+  if (!reduced){
+    void tiqBarEl.offsetWidth;
+    tiqBarEl.classList.add('ph-intro');
+  }
   requestAnimationFrame(positionNodeUI);   /* re-place once its height is real */
   setTimeout(() => $('#tbIn').focus(), reduced ? 0 : 120);
 }
 function closeTiqBar(restoreButtons){
-  tiqBarEl.classList.remove('show', 'chatting', 'tb-busy', 'focused');
+  tiqBarEl.classList.remove('show', 'chatting', 'tb-busy', 'focused', 'ph-intro');
   $('#tbOut').innerHTML = '';
   $('#tbIn').value = '';
   $('#tbSend').disabled = true;
@@ -3170,6 +3205,9 @@ $('#tbExpand').addEventListener('click', () => {
   toast(ico('expand', 15, '#44aaf3'), `${title} moved here`, 'keep the conversation going below');
 });
 $('#ntAsk').addEventListener('click', openTiqBar);
+/* once the sweep finishes, hand back to the real placeholder — the overlay
+   ends on the same grey, so the swap doesn't show */
+$('.tb-ph').addEventListener('animationend', () => tiqBarEl.classList.remove('ph-intro'));
 $('#tbIn').addEventListener('focus', () => tiqBarEl.classList.add('focused'));
 $('#tbIn').addEventListener('blur',  () => tiqBarEl.classList.remove('focused'));
 $('#tbIn').addEventListener('input', e => $('#tbSend').disabled = !e.target.value.trim());
