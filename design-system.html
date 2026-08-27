@@ -107,6 +107,12 @@
   /* For a surface that floats over another panel. A shadow tuned for white
      ground all but vanishes on a dark one, so this is deliberately heavier
      than --shadow-pop — it is what gives the Tiq bar its hierarchy. */
+  /* Carries the Marketplace pill past where its fixed-size art reaches: the
+     art is drawn for the 36px tile, so at 208px the right end runs out.
+     Transparent under the art, so the crunched tile is untouched. Light is
+     sampled from the component (Figma names the fill Gradient/blue but
+     returns no value); dark is derived in the art's own family. */
+  --gradient-blue-wash: linear-gradient(90deg, rgba(62, 99, 116, 0) 46%, rgba(62, 99, 116, 1) 86%);
   --shadow-tiq:     0 2px 6px rgba(0, 0, 0, .40), 0 14px 32px rgba(0, 0, 0, .52), 0 28px 64px rgba(0, 0, 0, .40);
 
   /* The exported OpenAI mark is one shape, so it inverts per theme. */
@@ -137,6 +143,7 @@
 
   /* ── Layout constants ───────────────────────────────────────── */
   --rail-w:    68px;
+  --rail-w-open: 240px;
   --sidebar-w: 240px;
   --panel-w:   420px;
   --tiq-dock-w: 360px;
@@ -216,6 +223,7 @@
   --shadow-modal:   0 4px 12px rgba(33, 33, 33, .12);
   --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
+  --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
   --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
 
   --logo-openai: #121212;
@@ -763,18 +771,73 @@ body.cq { margin: 0; }
 }
 .cq-nav-item.is-active:hover { background: var(--backgrounds-table-select); }
 
-/* Rail — the 68px icon column. */
+/* Platform panel — two variants of one component: crunched at 68px and
+   opened at 240px. Content width is the only real difference, 36px vs
+   208px, so the same rules drive both and the labels simply appear.
+
+   Every row is `justify-content: center` with 8px padding: that puts the
+   icon at x=10 in a 36px box and at x=8 once a label flexes beside it —
+   exactly the two positions the component specifies, from one rule.
+
+   A group's expanded state is independent of the width, so crunching the
+   panel never loses it. */
+.cq-rail {
+  width: var(--rail-w); flex: none;
+  background: var(--backgrounds-page-bg-1);
+  display: flex; flex-direction: column; align-items: stretch; gap: 16px;
+  padding: 8px 16px;
+  overflow-x: hidden; overflow-y: auto;
+  transition: width .3s cubic-bezier(.4, 0, .2, 1);
+}
+.cq-rail.is-open { width: var(--rail-w-open); }
+.cq-rail__label {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+  color: var(--text-primary);
+}
+.cq-rail:not(.is-open) .cq-rail__label { display: none; }
+.cq-rail__group { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+.cq-rail__stack { display: flex; flex-direction: column; align-items: stretch; }
+/* Zero-height in the component, stroke drawn above it — a 1px box here
+   adds a row and pushes everything below out of the 16px rhythm. */
+.cq-rail__rule { position: relative; width: 100%; height: 0; flex: none; }
+.cq-rail__rule::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+  background: var(--strokes-line-1);
+}
+
 .cq-rail-btn {
-  width: 36px; height: 36px; border-radius: var(--radius-md);
-  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 36px; flex: none;
+  border-radius: var(--radius-md); padding: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   color: var(--strokes-icon-default);
   transition: background .15s ease, color .15s ease;
 }
+.cq-rail-btn > svg { flex: none; }
 .cq-rail-btn:hover { background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
 .cq-rail-btn.is-active {
   background: var(--backgrounds-button-tonal-1);
+  /* Figma strokes sit inside the box, so the padding absorbs the border and
+     the icon stays on the same 8px line as every other item. */
   border: 1px solid var(--strokes-card-selected);
+  padding: 7px;
+  color: var(--text-coloured-blue);
 }
+.cq-rail-btn.is-active .cq-rail__label { color: var(--text-coloured-blue); font-weight: 500; }
+
+.cq-rail-ghead {
+  width: 100%; height: 24px; flex: none;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.cq-rail-ghead .cq-rail__label { font-weight: 500; }
+.cq-rail-chev {
+  flex: none; color: var(--text-teritiary);
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+}
+.cq-rail-ghead[aria-expanded="true"] .cq-rail-chev { transform: rotate(180deg); }
+.cq-rail:not(.is-open) .cq-rail-chev { display: none; }
+.cq-rail-ghead[aria-expanded="false"] + .cq-rail__stack { display: none; }
 /* Gradient product tiles. Ramps are theme-independent by design. */
 .cq-rail-tile {
   width: 24px; height: 24px; border-radius: var(--radius-sm); overflow: hidden;
