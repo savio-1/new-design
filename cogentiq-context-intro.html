@@ -105,8 +105,8 @@
     opacity:0;
     animation:
       dotIn 1.1s cubic-bezier(.25,.6,.3,1) var(--d) both,
-      dotDrift 8s ease-in-out calc(var(--d) + .3s) infinite,
-      dotMerge 1.15s cubic-bezier(.55,.02,.25,1) calc(6.05s + var(--d) / 3) forwards;
+      dotDrift var(--wt,8s) ease-in-out calc(var(--d) + .3s) infinite,
+      dotMerge 1.15s cubic-bezier(.55,.02,.25,1) calc(5.9s + var(--d) / 8) forwards;
   }
   @keyframes dotIn{from{opacity:0;transform:scale(.4)}to{opacity:var(--o,.85);transform:scale(1)}}
   /* small wander loop: out, across, back */
@@ -209,10 +209,14 @@
     box-shadow:
       0 0 42px 6px rgba(96,180,255,.55),
       0 0 130px 34px rgba(64,140,255,.28);
+    opacity:0;
     animation:
-      orbCharge 1.5s ease-in 6.1s forwards,
+      orbForm 1s cubic-bezier(.3,.4,.25,1) 6s forwards,
+      orbCharge 1.4s ease-in 6.2s forwards,
       orbDarkOut .45s ease 7.6s forwards;
   }
+  /* the sphere only exists once the scattered data forms it */
+  @keyframes orbForm{from{opacity:0}to{opacity:1}}
   /* glow builds as the data pours in */
   @keyframes orbCharge{
     to{box-shadow:
@@ -246,10 +250,9 @@
     animation:fadeIn 1s ease 7.9s both;
   }
   @keyframes orbMove{
-    0%     {transform:translate(0,15vh) scale(.42)}   /* 0s    low, small     */
-    15%    {transform:translate(0,7vh)  scale(.55)}   /* 3s                   */
-    27.5%  {transform:translate(0,2vh)  scale(.62)}   /* 5.5s                 */
-    30.5%  {transform:translate(0,0)    scale(.7)}    /* 6.1s  centered       */
+    0%     {transform:translate(0,0)    scale(.3)}    /* hidden until formed  */
+    30%    {transform:translate(0,0)    scale(.3)}    /* 6s   forming begins  */
+    33%    {transform:translate(0,0)    scale(.62)}   /* 6.6s grows from data */
     35.5%  {transform:translate(0,0)    scale(.82)}   /* 7.1s  charging       */
     38.5%  {transform:translate(0,0)    scale(1.35)}  /* 7.7s  bloom swell    */
     41.5%  {transform:translate(0,1vh)  scale(1)}     /* 8.3s  light world    */
@@ -344,7 +347,7 @@
   /* ================= CAPTIONS ================= */
   .caps{position:absolute;inset:0;z-index:20;pointer-events:none}
   .cap{
-    position:absolute;left:50%;top:33%;
+    position:absolute;left:50%;top:var(--ctop,33%);
     transform:translateX(-50%);
     width:100%;
     text-align:center;
@@ -438,21 +441,29 @@
 
   <!-- ============ DARK WORLD ============ -->
   <div class="scene-dark">
-    <!-- scattered source orbs -->
-    <div class="dot" style="--x:14%;--y:16%;--sz:26px;--c1:#8f7bff;--c2:#4a3bbd;--d:.4s;--dx:16px;--dy:-12px"></div>
-    <div class="dot" style="--x:33%;--y:11%;--sz:20px;--c1:#a06bff;--c2:#5b2fb8;--d:.6s;--dx:-12px;--dy:14px"></div>
-    <div class="dot" style="--x:56%;--y:14%;--sz:30px;--c1:#6f8bff;--c2:#2f4bd0;--d:.5s;--dx:14px;--dy:12px"></div>
-    <div class="dot" style="--x:76%;--y:10%;--sz:22px;--c1:#5a5aff;--c2:#3327a8;--d:.75s;--dx:-16px;--dy:-10px"></div>
-    <div class="dot" style="--x:90%;--y:20%;--sz:26px;--c1:#7d6bf2;--c2:#3d2fa8;--d:.9s;--dx:-12px;--dy:16px"></div>
-    <div class="dot" style="--x:8%;--y:44%;--sz:18px;--c1:#4f9bff;--c2:#2451c9;--d:.8s;--dx:18px;--dy:8px"></div>
-    <div class="dot" style="--x:26%;--y:38%;--sz:28px;--c1:#79c4e8;--c2:#2f6ac0;--d:.55s;--dx:-10px;--dy:-16px"></div>
-    <div class="dot" style="--x:73%;--y:40%;--sz:22px;--c1:#8db4e0;--c2:#40549e;--d:.7s;--dx:12px;--dy:-14px"></div>
-    <div class="dot" style="--x:88%;--y:52%;--sz:26px;--c1:#3fc4b4;--c2:#1f6f80;--d:1s;--dx:-14px;--dy:12px"></div>
-    <div class="dot" style="--x:18%;--y:72%;--sz:30px;--c1:#9ecdf2;--c2:#3d6bbd;--d:.85s;--dx:14px;--dy:-12px"></div>
-    <div class="dot" style="--x:40%;--y:80%;--sz:20px;--c1:#6ad4c8;--c2:#22707e;--d:1.05s;--dx:-12px;--dy:-14px"></div>
-    <div class="dot" style="--x:63%;--y:76%;--sz:24px;--c1:#7e8ef5;--c2:#3838ad;--d:.72s;--dx:16px;--dy:10px"></div>
-    <div class="dot" style="--x:82%;--y:82%;--sz:28px;--c1:#4fb0d8;--c2:#245e93;--d:1.12s;--dx:-16px;--dy:-10px"></div>
-    <div class="dot" style="--x:5%;--y:88%;--sz:22px;--c1:#8f7bff;--c2:#41339e;--d:1.2s;--dx:12px;--dy:-16px"></div>
+    <!-- scattered source orbs: arrive at different times, wander, then merge -->
+    <div class="dot" style="--x:14%;--y:16%;--sz:28px;--c1:#8f7bff;--c2:#4a3bbd;--d:.35s;--dx:26px;--dy:-20px;--wt:7s"></div>
+    <div class="dot" style="--x:33%;--y:11%;--sz:20px;--c1:#a06bff;--c2:#5b2fb8;--d:1.4s;--dx:-20px;--dy:24px;--wt:9s"></div>
+    <div class="dot" style="--x:52%;--y:8%; --sz:32px;--c1:#6f8bff;--c2:#2f4bd0;--d:.6s;--dx:24px;--dy:20px;--wt:8s"></div>
+    <div class="dot" style="--x:76%;--y:10%;--sz:22px;--c1:#5a5aff;--c2:#3327a8;--d:2.1s;--dx:-28px;--dy:-16px;--wt:6.5s"></div>
+    <div class="dot" style="--x:90%;--y:20%;--sz:26px;--c1:#7d6bf2;--c2:#3d2fa8;--d:1s;--dx:-20px;--dy:26px;--wt:10s"></div>
+    <div class="dot" style="--x:8%;--y:44%;--sz:18px;--c1:#4f9bff;--c2:#2451c9;--d:1.75s;--dx:30px;--dy:14px;--wt:7.5s"></div>
+    <div class="dot" style="--x:24%;--y:34%;--sz:30px;--c1:#79c4e8;--c2:#2f6ac0;--d:.5s;--dx:-18px;--dy:-26px;--wt:8.5s"></div>
+    <div class="dot" style="--x:44%;--y:42%;--sz:16px;--c1:#9bb6ff;--c2:#4a5ad0;--d:2.6s;--dx:22px;--dy:18px;--wt:6s;--o:.7"></div>
+    <div class="dot" style="--x:60%;--y:36%;--sz:24px;--c1:#8db4e0;--c2:#40549e;--d:1.2s;--dx:20px;--dy:-24px;--wt:9.5s"></div>
+    <div class="dot" style="--x:74%;--y:48%;--sz:18px;--c1:#b48cf2;--c2:#5b3bb0;--d:2.9s;--dx:-24px;--dy:-18px;--wt:7s;--o:.75"></div>
+    <div class="dot" style="--x:88%;--y:52%;--sz:26px;--c1:#3fc4b4;--c2:#1f6f80;--d:.9s;--dx:-26px;--dy:20px;--wt:8s"></div>
+    <div class="dot" style="--x:36%;--y:58%;--sz:20px;--c1:#6fa4f5;--c2:#2c4fbd;--d:2.3s;--dx:18px;--dy:26px;--wt:10s;--o:.8"></div>
+    <div class="dot" style="--x:56%;--y:62%;--sz:28px;--c1:#7cc9ff;--c2:#2f6bd0;--d:.75s;--dx:-22px;--dy:-20px;--wt:7.5s"></div>
+    <div class="dot" style="--x:18%;--y:72%;--sz:32px;--c1:#9ecdf2;--c2:#3d6bbd;--d:1.6s;--dx:24px;--dy:-22px;--wt:9s"></div>
+    <div class="dot" style="--x:40%;--y:82%;--sz:20px;--c1:#6ad4c8;--c2:#22707e;--d:3.2s;--dx:-20px;--dy:-24px;--wt:6.5s"></div>
+    <div class="dot" style="--x:63%;--y:78%;--sz:24px;--c1:#7e8ef5;--c2:#3838ad;--d:1.1s;--dx:28px;--dy:16px;--wt:8.5s"></div>
+    <div class="dot" style="--x:82%;--y:82%;--sz:30px;--c1:#4fb0d8;--c2:#245e93;--d:2s;--dx:-26px;--dy:-16px;--wt:7s"></div>
+    <div class="dot" style="--x:5%;--y:88%;--sz:22px;--c1:#8f7bff;--c2:#41339e;--d:2.7s;--dx:20px;--dy:-28px;--wt:9.5s"></div>
+    <div class="dot" style="--x:5%;--y:12%;--sz:16px;--c1:#6fc0f0;--c2:#2a5f9e;--d:3s;--dx:18px;--dy:22px;--wt:6s;--o:.7"></div>
+    <div class="dot" style="--x:68%;--y:20%;--sz:18px;--c1:#92e0d2;--c2:#2f8577;--d:3.4s;--dx:-16px;--dy:20px;--wt:7.5s;--o:.75"></div>
+    <div class="dot" style="--x:95%;--y:70%;--sz:20px;--c1:#8fa0ff;--c2:#3c3fb0;--d:1.9s;--dx:-22px;--dy:-20px;--wt:8s"></div>
+    <div class="dot" style="--x:28%;--y:90%;--sz:24px;--c1:#78b8f2;--c2:#2d5cae;--d:2.45s;--dx:22px;--dy:-18px;--wt:10s"></div>
 
     <!-- clutter panels (scene 2) -->
     <div class="panel" style="--x:6%; --y:12%;--w:190px;--h:250px;--r:-8deg;--d:2.5s;--dm2:5.95s;--bl:2.5px;--o:.75;--bar:rgba(196,120,220,.3)"></div>
@@ -562,9 +573,9 @@
 
   <!-- ============ CAPTIONS ============ -->
   <div class="caps">
-    <div class="cap dark-cap"  style="--d:.6s;  --len:2.9s">Your enterprise data lives everywhere</div>
-    <div class="cap dark-cap"  style="--d:3.4s; --len:2.6s">scattered, siloed, out of context</div>
-    <div class="cap dark-cap"  style="--d:6.05s;--len:1.8s">It&rsquo;s time AI understood your business</div>
+    <div class="cap dark-cap"  style="--d:.6s;  --len:2.9s;--ctop:46%">Your enterprise data lives everywhere</div>
+    <div class="cap dark-cap"  style="--d:3.4s; --len:2.6s;--ctop:46%">scattered, siloed, out of context</div>
+    <div class="cap dark-cap"  style="--d:6.05s;--len:1.8s;--ctop:28%">It&rsquo;s time AI understood your business</div>
     <div class="cap light-cap big" style="--d:8.2s; --len:3s">Meet Cogentiq Context</div>
     <div class="cap light-cap" style="--d:12.3s;--len:2.9s">everything AI needs to know, in one place</div>
   </div>
