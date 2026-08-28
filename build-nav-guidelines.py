@@ -12,41 +12,17 @@ component it documents, and the code blocks on it are the code that runs.
 """
 import pathlib, re, sys
 
+import panel_source as PS
+
 here = pathlib.Path(__file__).parent
-src  = (here / 'model-hub.html').read_text()
+src = PS.SRC
 
-
-def between(start, end, *, keep_end=False):
-    i = src.index(start)
-    j = src.index(end, i + len(start))
-    return src[i:j + (len(end) if keep_end else 0)].rstrip()
-
-
-RAIL_CSS   = between('    /* ── Platform panel (left rail) ', '    /* ── Main content ')
-RAIL_HTML  = between('  <aside class="rail"', '</aside>', keep_end=True)
-UPSELL_HTML= between('<!-- Shown when Context Studio', '<!-- Ask Tiq —')
-# The preview positions itself with this shared helper, so the handoff is
-# incomplete without it — copying the behaviour block alone would not run.
-DEPS_JS    = (between('/* Both Tiq bars sit beside the surface that owns them',
-                      'function positionTiqBar()')
-              + '\n\n' +
-              between('/* ══ Context Studio · the preview clip',
-                      'const railEl = document.querySelector'))
-RAIL_JS    = between('const railEl = document.querySelector',
-                     "railExposeOnly(railActive ? railActive.closest('.rail-group') : null);",
-                     keep_end=True)
-BTN_CSS    = between('    .btn-primary {', '    .btn-tonal {')
-TYPE_RAMP  = between('    /* Body1/Med, Body2/Reg', '    /* ══════════════════════════════════════════════════════════════\n       RESET')
-
-# Only the symbols the navigation actually references.
-needed = sorted(set(re.findall(r'href="#(ic-[a-z0-9_]+)"', RAIL_HTML + UPSELL_HTML)))
-symbols = []
-for name in needed:
-    m = re.search(r'<symbol id="%s".*?</symbol>' % re.escape(name), src, re.S)
-    if not m:
-        sys.exit(f'sprite symbol missing: {name}')
-    symbols.append(m.group(0))
-SPRITE = '<svg class="sprite" aria-hidden="true">' + ''.join(symbols) + '</svg>'
+RAIL_CSS, BTN_CSS   = PS.RAIL_CSS, PS.BTN_CSS
+TYPE_RAMP           = PS.TYPE_RAMP
+RAIL_HTML           = PS.RAIL_HTML
+UPSELL_HTML         = PS.UPSELL_HTML
+RAIL_JS, DEPS_JS    = PS.RAIL_JS, PS.DEPS_JS
+SPRITE, needed      = PS.sprite(RAIL_HTML, UPSELL_HTML)
 
 parts = {
     'TYPE_RAMP':  TYPE_RAMP,
