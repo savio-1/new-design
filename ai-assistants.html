@@ -1372,7 +1372,10 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
 
 .as-hero__center {
   position: absolute; left: 50%; top: 32px; transform: translateX(-50%);
-  z-index: 1;
+  /* Above the scope tabs (z-index 1) so the autosuggest panel, which can
+     extend down over that row, paints in front of it rather than under —
+     z-index on a descendant can't escape its own stacking context. */
+  z-index: 2;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   width: min(406px, calc(100vw - 48px));
 }
@@ -1396,8 +1399,9 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
    margin stacked on top); the gap below it to the scope tabs is
    whatever room is left in the fixed-height hero, which is the point —
    trimming the gap above widens the one below for free. */
+.as-hero__search-wrap { position: relative; width: 360px; max-width: 100%; }
 .as-hero__search {
-  width: 360px; max-width: 100%;
+  width: 100%;
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px;
   border-radius: var(--radius-full);
@@ -1405,11 +1409,21 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
   border: 1px solid var(--strokes-card-default);
   filter: drop-shadow(0 2px 4px rgba(33, 33, 33, .12));
   color: var(--text-teritiary);
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transform: scale(1);
+  transition: border-color .15s ease, box-shadow .2s ease, transform .2s cubic-bezier(.2, .8, .3, 1.15), background .15s ease;
 }
+/* A small lift on hover — the field invites a click before it has one. */
+.as-hero__search:hover {
+  border-color: var(--strokes-line-1);
+  background: var(--backgrounds-type-default-bg-1);
+  transform: scale(1.015);
+  filter: drop-shadow(0 4px 10px rgba(33, 33, 33, .18));
+}
+.as-hero__search:hover .cq-ic { color: var(--text-secondary); }
 .as-hero__search:focus-within {
   border-color: var(--strokes-type-focus);
   box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
+  transform: scale(1);
 }
 .as-hero__search input {
   flex: 1 1 auto; min-width: 0; color: var(--text-primary);
@@ -1420,6 +1434,50 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
    pill's radius; the input's own default ring is a rectangle that
    overshoots those rounded corners, so it is turned off here. */
 .as-hero__search input:focus-visible { outline: none; }
+
+/* Autosuggest — anchored to the search pill, so it reads as part of the
+   field rather than a separate popover floating near it. */
+.as-hero__suggest {
+  display: none; flex-direction: column;
+  /* Fixed and positioned from JS (the search box's own rect) rather than
+     absolute-in-wrap: the hero clips (overflow:hidden) for its
+     background art, which would cut the panel off at the hero's edge. */
+  position: fixed; z-index: 50;
+  max-height: 296px; overflow-y: auto;
+  padding: 6px; border-radius: var(--radius-lg);
+  background: var(--backgrounds-card-bg-3);
+  border: 1px solid var(--strokes-card-default);
+  box-shadow: var(--shadow-pop);
+  text-align: left;
+}
+.as-hero__suggest.is-open { display: flex; }
+.as-hero__suggest__label {
+  padding: 6px 8px 4px; color: var(--text-teritiary);
+  text-transform: uppercase; letter-spacing: .4px;
+}
+.as-hero__sg {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 7px 8px; border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: background .12s ease, color .12s ease;
+}
+/* card-bg-3 (this panel) and card-bg-4 (the DS hover fill) are the same
+   #323232 in dark mode, so a fill alone is invisible there — add the
+   left accent bar .cq-row.is-selected already uses, which reads in
+   both themes regardless of what the fill is doing. */
+.as-hero__sg:hover, .as-hero__sg.is-active {
+  background: var(--backgrounds-card-bg-4);
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 var(--strokes-card-selected);
+}
+.as-hero__sg__text { min-width: 0; display: flex; flex-direction: column; }
+.as-hero__sg__name { color: var(--text-primary); }
+.as-hero__sg__desc {
+  color: var(--text-teritiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.as-hero__sg mark { background: none; color: var(--text-coloured-blue); font-weight: 500; }
+.as-hero__suggest__empty { padding: 10px 8px 12px; color: var(--text-teritiary); }
 
 /* Scope toggle — the Figma underline tabs, pinned to the hero's foot. */
 .as-hero__toggle {
@@ -1691,10 +1749,13 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
 </defs>
 </svg></span>
         <h1 class="as-hero__title">cogentiq <em>assistants</em></h1>
-        <label class="as-hero__search">
-          <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-search"/></svg>
-          <input id="heroSearch" type="search" placeholder="Marketing related assistants" aria-label="Search assistants" />
-        </label>
+        <div class="as-hero__search-wrap">
+          <label class="as-hero__search">
+            <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-search"/></svg>
+            <input id="heroSearch" type="search" placeholder="Marketing related assistants" aria-label="Search assistants"
+                   role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="heroSuggest" autocomplete="off" />
+          </label>
+        </div>
       </div>
 
       <div class="as-hero__toggle" role="tablist" aria-label="Assistant scope">
@@ -1816,6 +1877,13 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
   </div>
 
   </main>
+
+  <!-- Portalled out of .as-hero, which clips (overflow:hidden) for its
+       background art — a dropdown anchored inside it would be cut off at
+       the hero's own edge. Positioned in JS from the search box's rect.
+       Kept inside .cq (this element's ancestor), not outside it — the
+       design system's button reset is scoped to .cq descendants. -->
+  <div class="as-hero__suggest" id="heroSuggest" role="listbox" aria-label="Suggested assistants"></div>
 </div>
 
 <script>
@@ -1954,10 +2022,109 @@ document.querySelectorAll('.cq-seg [data-tab]').forEach(btn => btn.addEventListe
   applyFilters();
 }));
 
-/* Hero search */
+/* Hero search + its autosuggest. The list narrows the same ASSISTANTS
+   set the grid below is already filtering to (current scope, tags), so
+   picking a suggestion never lands on a card the grid is hiding. */
+let sgActive = -1;
+
+function heroMatches(q) {
+  const pool = ASSISTANTS
+    .filter(a => a.scope === state.scope)
+    .filter(a => !state.tags.size || a.tags.some(t => state.tags.has(t)));
+  if (!q) return pool.slice().sort((x, y) => x.days - y.days).slice(0, 5);
+  return pool.filter(a => (a.name + ' ' + a.desc + ' ' + a.tags.join(' ')).toLowerCase().includes(q)).slice(0, 6);
+}
+
+function markHTML(text, q) {
+  if (!q) return esc(text);
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+}
+
+function renderHeroSuggestions(q) {
+  const matches = heroMatches(q);
+  sgActive = -1;
+  const label = q ? '' : `<div class="as-hero__suggest__label cq-caption-med">Recently active</div>`;
+  const rows = matches.map((a, i) => `
+    <button class="as-hero__sg" id="sg-${i}" role="option" aria-selected="false" data-name="${esc(a.name)}">
+      <span class="cq-logo-tile cq-logo-tile--sm ${GLYPH_TILE[a.glyph]}"><svg width="16" height="16" aria-hidden="true"><use href="#i-glyph-${a.glyph}"/></svg></span>
+      <span class="as-hero__sg__text">
+        <span class="as-hero__sg__name cq-body2-med">${markHTML(a.name, q)}</span>
+        <span class="as-hero__sg__desc cq-caption-reg">${esc(a.desc)}</span>
+      </span>
+    </button>`).join('');
+  $('heroSuggest').innerHTML = label + (rows || `<div class="as-hero__suggest__empty cq-body2-reg">No assistants match</div>`);
+}
+
+/* The panel is fixed and lives outside the hero (see the markup note),
+   so its position has to be set from the search box's own rect rather
+   than a CSS top/left relative to a parent. */
+function positionHeroSuggest() {
+  const r = document.querySelector('.as-hero__search-wrap').getBoundingClientRect();
+  const el = $('heroSuggest');
+  el.style.left = r.left + 'px';
+  el.style.top = (r.bottom + 8) + 'px';
+  el.style.width = r.width + 'px';
+}
+function openHeroSuggest() {
+  renderHeroSuggestions(state.q);
+  positionHeroSuggest();
+  $('heroSuggest').classList.add('is-open');
+  $('heroSearch').setAttribute('aria-expanded', 'true');
+  window.addEventListener('scroll', positionHeroSuggest, true);
+  window.addEventListener('resize', positionHeroSuggest);
+}
+function closeHeroSuggest() {
+  $('heroSuggest').classList.remove('is-open');
+  $('heroSearch').setAttribute('aria-expanded', 'false');
+  $('heroSearch').removeAttribute('aria-activedescendant');
+  sgActive = -1;
+  window.removeEventListener('scroll', positionHeroSuggest, true);
+  window.removeEventListener('resize', positionHeroSuggest);
+}
+function setActiveSuggestion(i) {
+  const items = [...$('heroSuggest').querySelectorAll('.as-hero__sg')];
+  items.forEach(el => el.classList.remove('is-active'));
+  if (i >= 0 && items[i]) {
+    items[i].classList.add('is-active');
+    items[i].scrollIntoView({ block: 'nearest' });
+    $('heroSearch').setAttribute('aria-activedescendant', items[i].id);
+  } else {
+    $('heroSearch').removeAttribute('aria-activedescendant');
+  }
+  sgActive = i;
+}
+function pickSuggestion(name) {
+  $('heroSearch').value = name;
+  state.q = name.toLowerCase();
+  applyFilters();
+  closeHeroSuggest();
+}
+
 $('heroSearch').addEventListener('input', e => {
   state.q = e.target.value.trim().toLowerCase();
   applyFilters();
+  openHeroSuggest();
+});
+$('heroSearch').addEventListener('focus', () => openHeroSuggest());
+$('heroSearch').addEventListener('keydown', e => {
+  const count = $('heroSuggest').querySelectorAll('.as-hero__sg').length;
+  if (e.key === 'ArrowDown' && count) { e.preventDefault(); setActiveSuggestion((sgActive + 1) % count); }
+  else if (e.key === 'ArrowUp' && count) { e.preventDefault(); setActiveSuggestion((sgActive - 1 + count) % count); }
+  else if (e.key === 'Enter' && sgActive >= 0) {
+    e.preventDefault();
+    pickSuggestion($('heroSuggest').querySelectorAll('.as-hero__sg')[sgActive].dataset.name);
+  } else if (e.key === 'Escape') {
+    closeHeroSuggest();
+  }
+});
+$('heroSuggest').addEventListener('click', e => {
+  const btn = e.target.closest('.as-hero__sg');
+  if (btn) pickSuggestion(btn.dataset.name);
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.as-hero__search-wrap')) closeHeroSuggest();
 });
 
 /* Bookmarks */
@@ -2181,6 +2348,7 @@ $('chatSearch').addEventListener('input', e => {
 /* ── Views — the rail switches which panel the shell shows ────────── */
 function setView(view) {
   state.view = view;
+  closeHeroSuggest();
   document.querySelectorAll('[data-view-panel]').forEach(p => {
     p.classList.toggle('is-on', p.dataset.viewPanel === view);
   });
