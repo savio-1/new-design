@@ -1704,22 +1704,34 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
     .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
     /* Context's tile ships its own gradient in the component (2906:507591)
-       rather than composing the shared ramp trio — kept verbatim. The
-       gradient is painted at twice the tile and drifts across it on a
-       slow alternate loop: enough motion to read as alive, not enough
-       to compete with the pill's sheen. Reduced motion holds it still. */
-    .grad-context {
+       rather than composing the shared ramp trio — kept verbatim. A
+       background-position drift turned out unreadable at 24px: two of
+       the three stops are close blues, so most positions along the
+       gradient look the same colour and only a narrow band ever showed
+       the purple. Rotating the whole gradient plane instead sweeps
+       every stop through the tile on every lap, which is the same
+       trick as spinning a background-gradient element — the paint is
+       oversized (inset -50%, so it never uncovers a corner as it turns)
+       and sits on a ::before under the icon, which stays upright.
+       Hovering the row quickens the spin — the one hover-driven speed
+       change in the panel, since it is also the one tile whose colour
+       is the entire point of hovering it. Reduced motion holds it
+       still either way. */
+    .grad-context { position: relative; overflow: hidden; background-image: none; }
+    .grad-context::before {
+      content: ""; position: absolute; inset: -50%;
       background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
-      background-size: 220% 220%;
-      background-position: 0% 0%;
-      animation: ctxGradDrift 7s ease-in-out infinite alternate;
+      animation: ctxGradSpin 6s linear infinite;
     }
-    @keyframes ctxGradDrift {
-      from { background-position: 0% 0%; }
-      to   { background-position: 100% 100%; }
+    #ctxStudio:hover .grad-context::before,
+    .upsell-head:hover .grad-context::before {
+      animation-duration: 1.4s;
+    }
+    @keyframes ctxGradSpin {
+      to { transform: rotate(360deg); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .grad-context { animation: none; }
+      .grad-context::before { animation: none; }
     }
 
     /* The preview's primary action, lifted with it. */
@@ -2342,7 +2354,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-open-row"><dt>Offerings sold separately</dt><dd>Their own top-level row, never a slot inside another category — a top-level row is the only one the one-open rule can never hide. Off-plan it still shows, with a pill when opened and a dot on the tile when crunched. What is still open is where in the list that row sits, and how hard it argues for itself: see the switcher above.</dd></div>
           <div class="nav-open-row"><dt>Never grey out an upsell</dt><dd>The tile keeps full colour. Greying it reads "not for you", which is the opposite of the job.</dd></div>
           <div class="nav-open-row"><dt>Highlight where it will be seen</dt><dd>The panel is crunched by default, so any emphasis living in the label row is emphasis almost nobody sees. The dot is on the tile for that reason.</dd></div>
-          <div class="nav-open-row"><dt>Motion is periodic, not constant</dt><dd>The pill's sheen crosses once every 3.4s with a long hold, and the Context tile's gradient drifts on a slow 7s alternate loop. Continuous, fast motion in a nav panel nags; these are the two exceptions, and both are slow, small and dropped under reduced motion.</dd></div>
+          <div class="nav-open-row"><dt>Motion is periodic, not constant</dt><dd>The pill's sheen crosses once every 3.4s with a long hold, and the Context tile's gradient spins once every 6s, quickening to 1.4s on hover. Continuous, fast motion in a nav panel nags; these are the two exceptions, both dropped under reduced motion — and the Context tile's is the one that responds to the cursor, since a hover there is a hover on the thing being sold.</dd></div>
           <div class="nav-open-row"><dt>Preview on a dwell</dt><dd>300ms to open, 240ms to close. Nobody clicks a thing they have not been sold; the offer should arrive while the eye is already on the row. The close is slow enough to cross into the preview and reach its buttons, and the panel is held open while it is up.</dd></div>
         </dl>
       </section>
@@ -2830,22 +2842,34 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
     .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
     /* Context's tile ships its own gradient in the component (2906:507591)
-       rather than composing the shared ramp trio — kept verbatim. The
-       gradient is painted at twice the tile and drifts across it on a
-       slow alternate loop: enough motion to read as alive, not enough
-       to compete with the pill's sheen. Reduced motion holds it still. */
-    .grad-context {
+       rather than composing the shared ramp trio — kept verbatim. A
+       background-position drift turned out unreadable at 24px: two of
+       the three stops are close blues, so most positions along the
+       gradient look the same colour and only a narrow band ever showed
+       the purple. Rotating the whole gradient plane instead sweeps
+       every stop through the tile on every lap, which is the same
+       trick as spinning a background-gradient element — the paint is
+       oversized (inset -50%, so it never uncovers a corner as it turns)
+       and sits on a ::before under the icon, which stays upright.
+       Hovering the row quickens the spin — the one hover-driven speed
+       change in the panel, since it is also the one tile whose colour
+       is the entire point of hovering it. Reduced motion holds it
+       still either way. */
+    .grad-context { position: relative; overflow: hidden; background-image: none; }
+    .grad-context::before {
+      content: ""; position: absolute; inset: -50%;
       background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
-      background-size: 220% 220%;
-      background-position: 0% 0%;
-      animation: ctxGradDrift 7s ease-in-out infinite alternate;
+      animation: ctxGradSpin 6s linear infinite;
     }
-    @keyframes ctxGradDrift {
-      from { background-position: 0% 0%; }
-      to   { background-position: 100% 100%; }
+    #ctxStudio:hover .grad-context::before,
+    .upsell-head:hover .grad-context::before {
+      animation-duration: 1.4s;
+    }
+    @keyframes ctxGradSpin {
+      to { transform: rotate(360deg); }
     }
     @media (prefers-reduced-motion: reduce) {
-      .grad-context { animation: none; }
+      .grad-context::before { animation: none; }
     }
 
     .btn-primary {
