@@ -2121,6 +2121,15 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       border: 1px solid var(--strokes-line-3); height: 74px; flex: none;
     }
 
+    .film-mount {
+      position: relative; width: 100%; aspect-ratio: 16 / 9;
+      overflow: hidden; border-radius: var(--radius-lg);
+      background: #080c1a;
+      border: 1px solid var(--strokes-line-3);
+    }
+    .film-mount iframe { position: absolute; left: 0; top: 0; width: 1600px; height: 900px;
+      transform-origin: 0 0; border: 0; display: block; }
+
     .nav-spec { display: flex; flex-direction: column; gap: 1px; }
     .nav-spec-row {
       display: grid; grid-template-columns: 1fr 92px 92px; gap: 12px; align-items: baseline;
@@ -2452,6 +2461,36 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-open-row"><dt>Highlight where it will be seen</dt><dd>The panel is crunched by default, so any emphasis living in the label row is emphasis almost nobody sees. The dot is on the tile for that reason.</dd></div>
           <div class="nav-open-row"><dt>Motion is periodic, not constant</dt><dd>The pill's sheen crosses once every 3.4s with a long hold. Continuous motion in a nav panel nags. Reduced motion drops it.</dd></div>
           <div class="nav-open-row"><dt>Preview on a dwell</dt><dd>300ms to open, 240ms to close. Nobody clicks a thing they have not been sold; the offer should arrive while the eye is already on the row. The close is slow enough to cross into the preview and reach its buttons, and the panel is held open while it is up.</dd></div>
+        </dl>
+      </section>
+
+<section class="ds-sec" id="s-film">
+        <div class="ds-sec-head">
+          <h2>The preview clip</h2>
+          <p>What plays inside the offer, at full size. Unlike the panel above, this is not
+             built from this page's tokens — it is a separate, already-published piece
+             (<a class="ds-code" href="https://claude.ai/code/artifact/68918488-0df9-49b1-882d-e227317300af" target="_blank" rel="noreferrer">Cogentiq Context Intro</a>),
+             embedded whole rather than rebuilt component by component. That trade is explicit:
+             it reads as finished in a way a token-driven build does not, and it can drift from
+             this page, because it is not made of this page's parts.</p>
+        </div>
+
+        <div class="film-mount" id="filmDoc" role="img"
+             aria-label="Enterprise data scatters, converges into a sphere, and resolves into the Cogentiq Context reveal"></div>
+
+        <div class="cq-row-flex" style="gap:8px;flex-wrap:wrap">
+          <button class="cq-btn cq-btn--tonal" id="filmToggle">Pause</button>
+          <button class="cq-btn cq-btn--tonal" id="filmReplay">Replay</button>
+        </div>
+
+        <dl class="nav-open">
+          <div class="nav-open-row"><dt>Scatter</dt><dd>Around twenty app icons and UI fragments drift in across three blurred depth planes — the enterprise data a company already has, spread across tools with nothing connecting them.</dd></div>
+          <div class="nav-open-row"><dt>Merge</dt><dd>Everything converges toward a single point off to the right as the camera pans there, and the sphere — <i>the context layer</i> — forms and powers up from what merged into it.</dd></div>
+          <div class="nav-open-row"><dt>Chips</dt><dd>Six labelled chips (Glossary, Ontology, Data binding, Tool binding, Prompts, Policies) orbit the sphere and spiral into it — the categories, named this time rather than left as anonymous icons.</dd></div>
+          <div class="nav-open-row"><dt>Reveal</dt><dd>The sphere blooms into a full-frame flash, the ground cuts from night to a light sky, and the piece closes on a lockup: <i>Cogentiq Context — The Enterprise AI Context Layer</i>.</dd></div>
+          <div class="nav-open-row"><dt>How it is mounted</dt><dd>An <code>&lt;iframe srcdoc&gt;</code>, not an <code>&lt;img&gt;</code> or a linked page: the clip's markup, CSS and script travel inside this document as one JS string, so nothing extra loads at view time and nothing is fetched cross-origin. The same string mounts all three places it appears: this stage, the box in the offer, and the big view the offer's expand button opens.</dd></div>
+          <div class="nav-open-row"><dt>Controls</dt><dd>Pause/Play stop and resume every animation in the embedded document via <code>Animation.pause()/.play()</code>; Replay cancels and restarts them, the same call the clip's own bottom-right replay button makes. There is no scrub bar here — the clip does not expose a single timeline the way the retired build's GSAP timeline did, only however many independent CSS animations happen to be running.</dd></div>
+          <div class="nav-open-row"><dt>Reduced motion</dt><dd>Handled inside the embedded document itself, which collapses every animation to its end state under <code>prefers-reduced-motion: reduce</code> — not something this page adds on top.</dd></div>
         </dl>
       </section>
 
@@ -5400,6 +5439,38 @@ function iconOf(el) {
   const u = el.querySelector('use');
   return u ? u.getAttribute('href').slice(1) : 'ic-pp_home';
 }
+
+/* ── The clip, at full size ─────────────────────────────────────── */
+const filmDoc = mountCinema($('filmDoc'));
+let filmWanted = true;
+
+function syncFilmBtn() {
+  $('filmToggle').textContent = filmDoc.paused() ? 'Play' : 'Pause';
+}
+/* Nothing is actually running until the iframe has parsed its document
+   and started its own CSS animations — before that, syncFilmBtn reads
+   an empty animation list and shows "Play" for a clip that is, a
+   moment later, already going. srcdoc can finish parsing before this
+   script reaches the next line, so the load event alone is not safe to
+   rely on — a short timeout catches the case a synchronous listener
+   attach missed. */
+filmDoc.iframe.addEventListener('load', syncFilmBtn);
+setTimeout(syncFilmBtn, 50);
+$('filmToggle').addEventListener('click', () => {
+  filmWanted = filmDoc.paused();
+  filmWanted ? filmDoc.play() : filmDoc.pause();
+  syncFilmBtn();
+});
+$('filmReplay').addEventListener('click', () => {
+  filmWanted = true;
+  filmDoc.restart();
+  syncFilmBtn();
+});
+/* A clip nobody is looking at should not be running. */
+new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) { if (filmWanted) filmDoc.play(); } else filmDoc.pause();
+  syncFilmBtn();
+}), { root: $('dsScroll'), threshold: .25 }).observe($('filmDoc'));
 
 /* ── Index ──────────────────────────────────────────────────────── */
 function renderNav() {
