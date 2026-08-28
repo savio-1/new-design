@@ -1645,19 +1645,22 @@ body.cq { margin: 0; }
       height: 32px;
       display: inline-flex; align-items: center; gap: 6px;
       padding: 0 8px 0 6px; border-radius: var(--radius-md);
-      background: var(--backgrounds-card-bg-5);
-      border: 1px solid var(--strokes-line-3);
+      background: transparent;
+      /* Transparent rather than absent, so nothing shifts when the
+         stroke appears under the pointer. */
+      border: 1px solid transparent;
       color: var(--text-secondary);
     }
-    .ws-pill:hover { border-color: var(--strokes-line-1); }
+    .ws-pill:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-3); }
     .ws-pill .cq-ic { color: var(--text-teritiary); }
     .hdr-avatar { width: 32px; height: 32px; border-radius: 50%; display: block; }
 
-    /* ── Filters bar — title, then the view tabs beside the search ── */
-    .bar-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-    .bar-title-row h1 { margin: 0; }
+    /* ── Filters bar — the tabs are the page's title now, search opposite ── */
     .bar-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
     .bar-actions .cq-search { width: 260px; }
+    /* 5 · The field's own focus ring would draw a second box inside the
+       one the container already draws on :focus-within. One box. */
+    .cq-search input:focus, .cq-search input:focus-visible { outline: none; }
 
     /* ══ The banner ══
        A single shelf of marks that never stops moving, on the page's
@@ -1666,11 +1669,11 @@ body.cq { margin: 0; }
        to run past the edges. The mask keeps roughly five tiles at
        full strength and lets the rest fall away, which is what makes
        a finite row read as an endless one. */
-    .intg-banner { position: relative; margin: 0 0 4px; padding: 4px 0 12px; }
+    .intg-banner { position: relative; margin: 32px 0 24px; padding: 0; }
     .intg-banner__label {
       display: block; text-align: center;
-      margin: 0 0 10px;
-      font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px;
+      margin: 0 0 12px;
+      font: 500 24px/32px var(--font-geist); letter-spacing: -0.96px;
       color: var(--text-primary);
     }
     .mq {
@@ -1919,18 +1922,14 @@ body.cq { margin: 0; }
         <nav class="cq-page__sidebar" id="sideNav" aria-label="Categories"></nav>
 
         <section class="cq-page__col">
-          <!-- The tabs live in the bar with the search, so the two
-               controls that change what the list holds sit together. -->
+          <!-- The tabs stand in for a page heading: what the list holds
+               is the thing a heading would have named. -->
           <div class="cq-page__bar">
-            <div class="bar-title-row">
-              <h1 class="cq-subhead1-med" id="pageTitle">All integrations</h1>
-              <span class="cq-count" id="countPill">0</span>
+            <div class="cq-seg" role="tablist" aria-label="Integration views">
+              <button data-tab="live" role="tab" aria-selected="false">Live integrations</button>
+              <button data-tab="templates" class="is-active" role="tab" aria-selected="true">Integration templates</button>
             </div>
             <div class="bar-actions">
-              <div class="cq-seg" role="tablist" aria-label="Integration views">
-                <button data-tab="live" role="tab" aria-selected="false">Live integrations</button>
-                <button data-tab="templates" class="is-active" role="tab" aria-selected="true">Integration templates</button>
-              </div>
               <label class="cq-search">
                 <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
                 <input id="q" class="cq-body2-reg" type="search" placeholder="Search integrations" aria-label="Search integrations" />
@@ -2105,10 +2104,6 @@ function render() {
   const box = $('sections');
   const live = state.tab === 'live';
 
-  $('countPill').textContent = items.length;
-  $('pageTitle').textContent = state.sub ? subOf(state.sub).label
-    : state.cat === 'all' ? (live ? 'Live integrations' : 'All integrations')
-    : CATS.find(c => c.id === state.cat).label;
   $('bannerLabel').textContent = live ? 'Live integrations' : 'Integration templates';
 
   if (!items.length) {
@@ -2145,7 +2140,7 @@ function renderSide() {
   const nav = $('sideNav');
   nav.innerHTML = `
     <button class="cq-nav-item side-all${state.cat === 'all' && !state.sub ? ' is-active' : ''}" data-cat="all">
-      <span class="cq-nav-item__label">All integrations</span>
+      <span class="cq-nav-item__label">All</span>
       <span class="n cq-mono">${INTG.length}</span>
     </button>` +
     CATS.map(cat => `
