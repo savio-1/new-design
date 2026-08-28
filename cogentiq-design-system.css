@@ -29,6 +29,7 @@
   --backgrounds-page-bg-4:            #121212;  /* content ground      */
 
   /* ── Backgrounds · card ─────────────────────────────────────── */
+  --backgrounds-card-bg-1:            #121212;
   --backgrounds-card-bg-2:            #212121;
   --backgrounds-card-bg-3:            #323232;
   --backgrounds-card-bg-4:            #323232;  /* hover fill          */
@@ -37,6 +38,16 @@
   /* ── Backgrounds · controls ─────────────────────────────────── */
   --backgrounds-button-primary:       #0d99ff;
   --backgrounds-button-tonal-1:       #093077;
+  --backgrounds-button-tonal-2:       #323232;
+  /* Hover and focus fills for the tonal buttons. Figma publishes light
+     values only, so the dark ones are derived — each from a pair the
+     library already carries, except hover/tonal-1, noted below.
+     Light's #e5f4ff → #bde3ff is exactly tonal-1 lifted 18.5% toward
+     Blue/500; the same lift applied to dark's #093077 gives #0a4390. */
+  --backgrounds-button-hover-tonal-1:   #0a4390;
+  --backgrounds-button-hover-tonal-2:   #424242;
+  --backgrounds-button-focused-tonal-1: #093077;
+  --backgrounds-button-focused-tonal-2: #093077;
   --backgrounds-disabled-tonal-1:     #093077;
   --backgrounds-disabled-tonal-2:     #424242;
   --backgrounds-seg-control-tabs-1:   #424242;
@@ -62,6 +73,9 @@
   --strokes-line-1:                   #424242;
   --strokes-line-3:                   #323232;  /* hairline divider    */
   --strokes-type-default:             #424242;
+  /* Derived: one step brighter than the default stroke, the way light's
+     #e0e0e0 → #9e9e9e reads as one clear step darker. */
+  --strokes-type-hover:               #616161;
   --strokes-type-focus:               #007be5;
   --strokes-checkbox-default:         #616161;
   --strokes-checkbox-focus:           #0d99ff;
@@ -113,6 +127,7 @@
 
   /* ── Palette ramps · identical in both themes ───────────────── */
   --blue-300: #bde3ff;   --blue-500: #0d99ff;   --blue-600: #007be5;
+  --blue-700: #0768cf;
   --indigo-300: #c2c5fa; --indigo-500: #5860ed; --indigo-600: #454de0;
   --purple-300: #e4ccff; --purple-400: #d9b8ff; --purple-500: #9747ff; --purple-600: #8638e5;
   /* A palette value, not a theme colour: white in both modes, which is
@@ -161,6 +176,7 @@
   --backgrounds-page-bg-3:            #f5f5f5;
   --backgrounds-page-bg-4:            #f0f0f0;
 
+  --backgrounds-card-bg-1:            #fafafa;
   --backgrounds-card-bg-2:            #ffffff;
   --backgrounds-card-bg-3:            #ffffff;
   --backgrounds-card-bg-4:            #f5f5f5;
@@ -168,6 +184,11 @@
 
   --backgrounds-button-primary:       #0d99ff;
   --backgrounds-button-tonal-1:       #e5f4ff;
+  --backgrounds-button-tonal-2:       #f5f5f5;
+  --backgrounds-button-hover-tonal-1:   #bde3ff;
+  --backgrounds-button-hover-tonal-2:   #eeeeee;
+  --backgrounds-button-focused-tonal-1: #e5f4ff;
+  --backgrounds-button-focused-tonal-2: #e5f4ff;
   --backgrounds-disabled-tonal-1:     #e5f4ff;
   --backgrounds-disabled-tonal-2:     #eeeeee;
   --backgrounds-seg-control-tabs-1:   #eeeeee;
@@ -191,6 +212,7 @@
   --strokes-line-1:                   #eeeeee;
   --strokes-line-3:                   #f5f5f5;
   --strokes-type-default:             #e0e0e0;
+  --strokes-type-hover:               #9e9e9e;
   --strokes-type-focus:               #0d99ff;
   --strokes-checkbox-default:         #bdbdbd;
   --strokes-checkbox-focus:           #0d99ff;
@@ -274,38 +296,185 @@ body.cq { margin: 0; }
 
 /* ═══════════════════════════════════════════════════════════════════
    5 · BUTTONS
-   Figma strokes sit INSIDE the box, so every bordered control below
-   carries an explicit height. Without it a 1px border grows the
-   control 2px past its designed size.
+   Figma frame "Buttons" (497:233716) — 5 styles x 4 sizes x 4 states,
+   square or round, icon left / right / none / only.
+
+   Two mechanics carry the whole set:
+
+   1 · Strokes are drawn with `box-shadow: inset 0 0 0 1px`, never with
+       `border`. Figma draws strokes inside the box, and a state that
+       adds a real border would either grow the control or shift its
+       label 1px. An inset shadow costs no geometry, so a button is the
+       same size and its text sits in the same place in every state.
+
+   2 · Each state also answers to a forced class — `.is-hover`,
+       `.is-focus` — beside its pseudo-class, so the docs can show all
+       four states at once and a card can drive its own button's hover
+       from the card surface. The two always carry identical rules.
+
+   3 · Every state names its own fill token. It must NOT be reached for
+       with `filter: brightness()`: the light tonal fills are already
+       near white (#e5f4ff), so brightening clips them to #ffffff and
+       the button dissolves into the page.
    ═══════════════════════════════════════════════════════════════════ */
+
+/* Size L is the base — the size chrome and page headers use. Add
+   --s / --m / --xl to change it. */
 .cq-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  box-sizing: border-box;
   height: 36px; padding: 0 12px;
   border-radius: var(--radius-md);
   font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
   white-space: nowrap;
-  transition: background .15s ease, filter .15s ease, color .15s ease;
+  background: transparent; color: var(--text-button-tonal-2);
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
 }
-.cq-btn--sm { height: 32px; }
-.cq-btn--wide { width: 140px; }
+.cq-btn .cq-ic { width: 20px; height: 20px; flex: none; }
 
-.cq-btn--primary { background: var(--backgrounds-button-primary); color: var(--text-button-white); }
-.cq-btn--primary:hover { filter: brightness(1.08); }
+/* ── Size ─────────────────────────────────────────────────────────── */
+.cq-btn--s {
+  height: 24px; padding: 0 8px; border-radius: var(--radius-sm);
+  font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+}
+.cq-btn--s .cq-ic { width: 16px; height: 16px; }
+.cq-btn--m  { height: 32px; padding: 0 12px; }
+.cq-btn--l  { height: 36px; padding: 0 12px; }
+.cq-btn--xl { height: 44px; padding: 0 16px; }
 
-.cq-btn--tonal { background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1); }
-.cq-btn--tonal:hover { filter: brightness(1.18); }
+/* ── Shape ────────────────────────────────────────────────────────── */
+/* Round is how Figma draws an icon-only button; it applies to a labelled
+   one too, where it reads as a pill. */
+.cq-btn--round { border-radius: var(--radius-full); }
 
-.cq-btn--ghost { color: var(--text-secondary); }
-.cq-btn--ghost:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+/* Icon-only. Square keeps the size's radius, round goes circular. */
+.cq-btn--icon { width: 36px; padding: 0; }
+.cq-btn--icon.cq-btn--s  { width: 24px; }
+.cq-btn--icon.cq-btn--m  { width: 32px; }
+.cq-btn--icon.cq-btn--l  { width: 36px; }
+.cq-btn--icon.cq-btn--xl { width: 44px; }
+/* Figma pairs XL icon-only with the 16px glyph, not the 20px one every
+   other XL button uses. Kept as drawn — see the note in the docs. */
+.cq-btn--icon.cq-btn--xl .cq-ic { width: 16px; height: 16px; }
 
+/* ── Style · Primary ──────────────────────────────────────────────── */
+.cq-btn--primary {
+  background: var(--backgrounds-button-primary);
+  color: var(--text-button-white);
+}
+.cq-btn--primary:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--primary.is-hover {
+  background: var(--blue-700);
+}
+.cq-btn--primary:focus-visible,
+.cq-btn--primary.is-focus {
+  background: var(--blue-500);
+  box-shadow: inset 0 0 0 1px var(--blue-700);
+}
+
+/* ── Style · Tonal-1 (the blue tonal) ─────────────────────────────── */
+.cq-btn--tonal-1 {
+  background: var(--backgrounds-button-tonal-1);
+  color: var(--text-button-tonal-1);
+}
+.cq-btn--tonal-1:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--tonal-1.is-hover {
+  background: var(--backgrounds-button-hover-tonal-1);
+}
+.cq-btn--tonal-1:focus-visible,
+.cq-btn--tonal-1.is-focus {
+  background: var(--backgrounds-button-focused-tonal-1);
+  box-shadow: inset 0 0 0 1px var(--strokes-card-selected);
+}
+
+/* ── Style · Tonal-2 (the neutral tonal) ──────────────────────────── */
+.cq-btn--tonal-2 {
+  background: var(--backgrounds-button-tonal-2);
+  color: var(--text-button-tonal-2);
+}
+.cq-btn--tonal-2:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--tonal-2.is-hover {
+  background: var(--backgrounds-button-hover-tonal-2);
+}
+/* Focus recolours the label as well as the fill — the only style that
+   changes its text colour between states. */
+.cq-btn--tonal-2:focus-visible,
+.cq-btn--tonal-2.is-focus {
+  background: var(--backgrounds-button-focused-tonal-2);
+  color: var(--text-button-tonal-1);
+  box-shadow: inset 0 0 0 1px var(--strokes-type-focus);
+}
+
+/* ── Style · Ghost ────────────────────────────────────────────────── */
+.cq-btn--ghost { background: transparent; color: var(--text-button-tonal-2); }
+/* Figma fills ghost-hover with the card stroke token. It is the same
+   value the neutral hover fill wants, and it carries both themes. */
+.cq-btn--ghost:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--ghost.is-hover {
+  background: var(--strokes-card-default);
+}
+.cq-btn--ghost:focus-visible,
+.cq-btn--ghost.is-focus {
+  background: var(--backgrounds-card-bg-1);
+  box-shadow: inset 0 0 0 1px var(--strokes-type-default);
+}
+
+/* ── Style · Outline ──────────────────────────────────────────────── */
+.cq-btn--outline {
+  background: transparent; color: var(--text-button-tonal-2);
+  box-shadow: inset 0 0 0 1px var(--strokes-type-default);
+}
+.cq-btn--outline:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--outline.is-hover {
+  box-shadow: inset 0 0 0 1px var(--strokes-type-hover);
+}
+.cq-btn--outline:focus-visible,
+.cq-btn--outline.is-focus {
+  box-shadow: inset 0 0 0 1px var(--strokes-type-focus);
+}
+
+/* ── Disabled ─────────────────────────────────────────────────────── */
+/* Filled styles drop to the neutral disabled fill; the two unfilled ones
+   keep no fill and no stroke, so only the label greys out. */
 .cq-btn:disabled,
 .cq-btn[aria-disabled="true"] {
   background: var(--backgrounds-disabled-tonal-2);
   color: var(--text-disabled-tonal-2);
-  cursor: not-allowed; filter: none;
+  box-shadow: none; cursor: not-allowed;
+}
+.cq-btn--tonal-1:disabled,
+.cq-btn--tonal-1[aria-disabled="true"] {
+  background: var(--backgrounds-disabled-tonal-1);
+  color: var(--text-disabled-tonal-1);
+}
+.cq-btn--ghost:disabled,   .cq-btn--ghost[aria-disabled="true"],
+.cq-btn--outline:disabled, .cq-btn--outline[aria-disabled="true"] {
+  background: transparent;
 }
 
-/* Icon-only. 32px is the default; --sm is the 24px in-card size. */
+/* ── Layout helpers ───────────────────────────────────────────────── */
+.cq-btn--wide { width: 140px; }
+/* There is no icon-right modifier on purpose. Put the <svg> after the
+   label in the markup and it lands on the right, with the reading order
+   already correct — a CSS `order` flip would leave the two disagreeing. */
+
+/* Names kept from before the Figma matrix landed. --tonal is Tonal-1;
+   --sm is size M. */
+.cq-btn--tonal { background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1); }
+.cq-btn--tonal:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--tonal.is-hover { background: var(--backgrounds-button-hover-tonal-1); }
+.cq-btn--tonal:focus-visible,
+.cq-btn--tonal.is-focus {
+  background: var(--backgrounds-button-focused-tonal-1);
+  box-shadow: inset 0 0 0 1px var(--strokes-card-selected);
+}
+.cq-btn--tonal:disabled, .cq-btn--tonal[aria-disabled="true"] {
+  background: var(--backgrounds-disabled-tonal-1); color: var(--text-disabled-tonal-1);
+}
+.cq-btn--sm { height: 32px; }
+
+/* Icon-only, in the chrome sense: a bare glyph with a hover wash, not a
+   button from the Figma matrix. For that, use .cq-btn--icon. */
 .cq-icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; border-radius: var(--radius-md);

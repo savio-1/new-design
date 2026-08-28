@@ -139,10 +139,15 @@
       <section class="ds-sec" id="s-buttons">
         <div class="ds-sec-head">
           <h2>Buttons</h2>
-          <p>Figma strokes sit inside the box, so every bordered control carries an explicit height —
-             without it a 1px border grows the control 2px past its designed size.</p>
+          <p>Five styles, four sizes, four states, square or round, with the icon left, right, none
+             or alone. Two rules hold it together. Strokes are drawn as an inset shadow rather than a
+             border, because Figma draws them inside the box and a state that added a real border
+             would shift the label a pixel. And every state names its own fill token — a hover reached
+             for with <code>filter: brightness()</code> clips the light tonal fills to white and the
+             button disappears into the page.</p>
         </div>
         <div id="dsButtons"></div>
+        <dl class="nav-open" id="dsButtonNotes"></dl>
       </section>
 
       <section class="ds-sec" id="s-fields">
@@ -381,18 +386,67 @@ function renderShape() {
 }
 
 function renderButtons() {
+  const STYLES = [
+    ['primary',  'Primary',  'the one action a screen is asking for'],
+    ['tonal-1',  'Tonal-1',  'the blue tonal — a second action, still blue'],
+    ['tonal-2',  'Tonal-2',  'the neutral tonal — dismiss, cancel, secondary'],
+    ['ghost',    'Ghost',    'no fill until hovered; toolbars and dense rows'],
+    ['outline',  'Outline',  'a stroke only; sits on a filled card'],
+  ];
+  const STATES = [['', 'Default'], ['is-hover', 'Hover'], ['is-focus', 'Focused'], ['disabled', 'Disable']];
+  const SIZES  = [['s', 'S', '24'], ['m', 'M', '32'], ['', 'L', '36'], ['xl', 'XL', '44']];
+  const ic = (n, sz) => `<svg class="cq-ic" width="${sz || 20}" height="${sz || 20}"><use href="#i-${n}"/></svg>`;
+
+  const cell = (sty, st) =>
+    `<button class="cq-btn cq-btn--${sty}${st && st !== 'disabled' ? ' ' + st : ''}"${st === 'disabled' ? ' disabled' : ''}>Button</button>`;
+
+  const matrix = `<div class="ds-matrix">
+      <span></span>${STATES.map(([, l]) => `<em>${l}</em>`).join('')}
+      ${STYLES.map(([k, label]) => `<b>${label}</b>${STATES.map(([st]) => `<span>${cell(k, st)}</span>`).join('')}`).join('')}
+    </div>`;
+
   $('dsButtons').innerHTML =
-    bench(`<button class="cq-btn cq-btn--primary"><svg class="cq-ic" width="20" height="20"><use href="#i-plus"/></svg>New model</button>
-           <button class="cq-btn cq-btn--tonal"><svg class="cq-ic" width="20" height="20"><use href="#i-edit"/></svg>Edit</button>
-           <button class="cq-btn cq-btn--ghost">Cancel</button>`,
-      '.cq-btn--primary / --tonal / --ghost', '36px default, --sm for 32px') +
+    bench(matrix, '.cq-btn--primary / --tonal-1 / --tonal-2 / --ghost / --outline',
+      'Hover and Focused are shown with the forced classes .is-hover and .is-focus; ' +
+      'the pointer and the keyboard reach the identical rules.', true) +
+
+    bench(SIZES.map(([k, l, h]) =>
+        `<button class="cq-btn cq-btn--primary${k ? ' cq-btn--' + k : ''}">${l} · ${h}</button>`).join(''),
+      '.cq-btn--s / --m / --xl', 'L is the base at 36px; S drops to Caption/Med and a 6px radius') +
+
+    bench(`<button class="cq-btn cq-btn--tonal-1">${ic('plus')}Icon left</button>
+           <button class="cq-btn cq-btn--tonal-1">Icon right${ic('arrow-r')}</button>
+           <button class="cq-btn cq-btn--tonal-1">No icon</button>`,
+      'icon left  ·  icon right', 'no modifier for either — put the icon element where it should read') +
+
+    bench(`<button class="cq-btn cq-btn--icon cq-btn--primary" aria-label="Edit">${ic('edit')}</button>
+           <button class="cq-btn cq-btn--icon cq-btn--round cq-btn--primary" aria-label="Edit">${ic('edit')}</button>
+           <button class="cq-btn cq-btn--icon cq-btn--s cq-btn--tonal-1" aria-label="Add">${ic('plus', 16)}</button>
+           <button class="cq-btn cq-btn--icon cq-btn--s cq-btn--round cq-btn--tonal-1" aria-label="Add">${ic('plus', 16)}</button>
+           <button class="cq-btn cq-btn--icon cq-btn--xl cq-btn--outline" aria-label="Edit">${ic('edit', 16)}</button>`,
+      '.cq-btn--icon  ·  --round', 'square keeps the size radius, round goes circular; always give it an aria-label') +
+
     bench(`<button class="cq-btn cq-btn--primary cq-btn--wide">Publish model</button>
-           <button class="cq-btn cq-btn--wide" disabled>Next</button>`,
-      '.cq-btn--wide  ·  :disabled', 'fixed 140px for modal footers') +
-    bench(`<button class="cq-icon-btn"><svg class="cq-ic" width="20" height="20"><use href="#i-edit"/></svg></button>
-           <button class="cq-icon-btn"><svg class="cq-ic" width="20" height="20"><use href="#i-trash"/></svg></button>
-           <button class="cq-icon-btn cq-icon-btn--sm"><svg class="cq-ic" width="16" height="16"><use href="#i-dots"/></svg></button>`,
-      '.cq-icon-btn  ·  --sm', '32px in chrome, 24px inside cards');
+           <button class="cq-btn cq-btn--tonal-2 cq-btn--wide">Cancel</button>`,
+      '.cq-btn--wide', 'fixed 140px, so a modal footer stays even') +
+
+    bench(`<button class="cq-icon-btn">${ic('edit')}</button>
+           <button class="cq-icon-btn">${ic('trash')}</button>
+           <button class="cq-icon-btn cq-icon-btn--sm">${ic('dots', 16)}</button>`,
+      '.cq-icon-btn  ·  --sm', 'chrome glyph with a hover wash — not a button from the matrix');
+}
+
+function renderButtonNotes() {
+  $('dsButtonNotes').innerHTML = [
+    ['Never brighten a fill', 'The bug this set was written to close. <code>filter: brightness()</code> on the light tonal fill (#e5f4ff) clips it to pure white and the button vanishes, leaving blue text on the page. Every state names a token.'],
+    ['Strokes are inset shadows', '<code>box-shadow: inset 0 0 0 1px</code>, not <code>border</code>. Figma draws strokes inside the box; a real border on Focused only would move the label a pixel as you tabbed through.'],
+    ['Focused is a state, not the ring', 'Figma&rsquo;s Focused draws a fill and a 1px stroke. The library keeps its own focus ring on top of it, because Primary&rsquo;s focus stroke alone (#0768cf on #0d99ff) does not carry enough contrast to be the only signal.'],
+    ['Tonal-2 recolours on focus', 'Its label turns blue &mdash; the one style whose text colour differs between states. Every other style keeps one label colour throughout.'],
+    ['Primary disables to neutral', 'Not to a pale blue. A disabled Primary takes the same grey fill as a disabled Tonal-2, so nothing on a disabled row still reads as the call to action.'],
+    ['Ghost and Outline keep nothing when disabled', 'No fill, no stroke, only the label greys. Drawn that way in Figma, and it means the two are indistinguishable while disabled.'],
+    ['XL icon-only takes the 16px glyph', 'Every other XL button uses 20px. Kept as Figma draws it; it looks small in a 44px box and is worth a second look before this ships.'],
+    ['Text style is not here', 'Figma has three Text variants, all empty frames &mdash; no fill, no children, no label. Nothing to port until it is drawn.'],
+  ].map(([t, d]) => `<div class="nav-open-row"><dt>${t}</dt><dd>${d}</dd></div>`).join('');
 }
 
 function renderFields() {
@@ -724,6 +778,7 @@ renderNav();
 renderType();
 renderShape();
 renderButtons();
+renderButtonNotes();
 renderFields();
 renderFilters();
 renderTags();

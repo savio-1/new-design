@@ -70,8 +70,14 @@ _CLASSES = ['rail-tile-wrap', 'rail-ghead--leaf', 'rail-group--offering',
             'upsell-play', 'upsell', 'filmbox-stage', 'filmbox-close', 'filmbox',
             'coach-ring', 'coach-tip', 'coach-arrow', 'coach-x',
             'grad-blue', 'grad-purple', 'grad-indigo', 'grad-orange', 'grad-green',
-            'grad-context', 'btn-primary']
+            'grad-context']
 _ALT = '|'.join(re.escape(c) for c in _CLASSES)
+
+# The page names its primary button `.btn-primary`; the library states the
+# same thing as a base plus a modifier. A straight cq- prefix would produce
+# `.cq-btn-primary`, which no rule in the library matches, and the offer
+# card's Contact sales button would come through unstyled.
+_RENAME = {'btn-primary': 'cq-btn cq-btn--primary'}
 
 
 def for_library(markup):
@@ -94,7 +100,9 @@ def for_library(markup):
 def namespaced(text):
     """Rewrite class attributes and CSS/JS selectors into the cq- namespace."""
     def attr(m):
-        names = [('cq-' + c if c in _CLASSES else c) for c in m.group(2).split()]
+        names = []
+        for c in m.group(2).split():
+            names.append(_RENAME.get(c) or ('cq-' + c if c in _CLASSES else c))
         return f'{m.group(1)}"{" ".join(names)}"'
     text = re.sub(r'(class=)"([^"]*)"', attr, text)
     text = re.sub(r'\.(%s)(?![-\w])' % _ALT, lambda m: '.cq-' + m.group(1), text)
