@@ -123,10 +123,15 @@
   --blue-300: #bde3ff;   --blue-500: #0d99ff;   --blue-600: #007be5;
   --indigo-300: #c2c5fa; --indigo-500: #5860ed; --indigo-600: #454de0;
   --purple-300: #e4ccff; --purple-400: #d9b8ff; --purple-500: #9747ff; --purple-600: #8638e5;
+  /* A palette value, not a theme colour: white in both modes, which is
+     what a glyph sitting on a coloured tile wants. */
+  --white: #ffffff;
   --orange-300: #fcd19c; --orange-600: #fc9e24; --orange-800: #dd7c0e;
   --green-300: #aff4c6;  --green-500: #14ae5c;  --green-600: #009951;
   --cyan-400:  #75d7f0;
   --flag-sheen: rgba(255, 255, 255, .30);
+  /* The coach-mark sheen, keyed off the tile it sits on. */
+  --coach-sheen: rgba(255, 255, 255, .28);
 
   /* ── Type ───────────────────────────────────────────────────── */
   --font-geist:      "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -229,6 +234,7 @@
   --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
   --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
   --flag-sheen: rgba(13, 153, 255, .28);
+  --coach-sheen: rgba(13, 153, 255, .30);
   --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
 
   --logo-openai: #121212;
@@ -1531,7 +1537,16 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       transition: background .15s ease, color .15s ease;
     }
     .rail-btn > .ic { flex: none; }
-    .rail-btn:hover { background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
+    /* Hover draws a rectangle, not just a fill — at 68px the icons have
+       no labels to hit-test against, so the row needs to say where it
+       begins and ends. The border comes out of the padding exactly as it
+       does on an active item, so nothing shifts by a pixel. */
+    .rail-btn:hover {
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      padding: 7px;
+      color: var(--text-secondary);
+    }
     .rail-btn.is-active {
       background: var(--backgrounds-button-tonal-1);
       /* Figma strokes sit inside the box, so the padding absorbs the border
@@ -1545,9 +1560,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 
     /* ── Group header ── */
     .rail-ghead {
+      position: relative;
       width: 100%; height: 24px; flex: none;
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
+    /* A category header is 24px of tile and label with no box of its own,
+       and it is a control. The rectangle is drawn by a pseudo-element
+       rather than by padding a fixed-height row, so it can overhang the
+       24px without touching layout — and the children are lifted above
+       it, since a positioned pseudo would otherwise paint over them. */
+    .rail-ghead::before {
+      content: ""; position: absolute; inset: -6px -8px; z-index: 0;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .rail-ghead:hover::before {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-card-default);
+    }
+    .rail-ghead > * { position: relative; z-index: 1; }
     .rail-tile {
       flex: none;
       width: 24px; height: 24px; border-radius: 6px; overflow: hidden;
@@ -1585,14 +1617,20 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       background: var(--text-coloured-blue);
       box-shadow: 0 0 0 2px var(--backgrounds-page-bg-1);
     }
+    /* The pill carries the Context tile's own gradient rather than the
+       generic blue badge, so the row's two coloured things read as one
+       offering instead of two unrelated accents. The gradient is static
+       here even though the tile's turns: two rotations six pixels apart
+       is noise, and the pill already has its own motion in the sheen
+       below. No border — a stroke on a saturated fill only muddies it,
+       and dropping it buys the 1px back as padding. */
     .rail-flag {
       display: none;
       position: relative; overflow: hidden;
-      flex: none; height: 18px; padding: 0 7px; border-radius: 9px;
+      flex: none; height: 18px; padding: 0 8px; border-radius: 9px;
       align-items: center;
-      background: var(--backgrounds-badge-blue);
-      border: 1px solid var(--strokes-colour-blue);
-      color: var(--text-coloured-blue);
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      color: var(--text-button-white);
       font: 500 11px/1 var(--font-geist); letter-spacing: -0.11px;
     }
     /* A glint that crosses the pill every few seconds, with a long hold
@@ -1614,7 +1652,91 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .rail-group.is-locked .rail-flag { display: inline-flex; }
     .rail:not(.is-open) .rail-flag { display: none; }
 
+    /* ── Where Context Studio sits ───────────────────────────────
+       Still being chosen, so every candidate ships and the panel
+       switches between them with data-cs. One row, one set of
+       listeners, nothing to keep in sync.
+         inline — A · in category order, between Build and Library
+         after  — B · past the last category, under a rule
+         footer — C · the same row, dropped to the foot of the panel
+         card   — D · past the last category, boxed, with a one-liner
+         open   — F · in category order, opened into its six blocks
+       A reads Context Studio as a peer of the categories. B, C and D
+       read it as an offering of its own — by rule, by position, by
+       card. F stops arguing about the row altogether and shows what is
+       inside it. (E, which sat it at the top beside Marketplace, was
+       withdrawn; the letters are not re-used, so F stays F.) */
+    .rail-rule--cs { display: none; }
+    .rail[data-cs="after"] .rail-rule--cs,
+    .rail[data-cs="footer"] .rail-rule--cs { display: block; }
+    .rail[data-cs="after"] .rail-group[data-group="context-studio"],
+    .rail[data-cs="footer"] .rail-group[data-group="context-studio"],
+    .rail[data-cs="card"] .rail-group[data-group="context-studio"] { order: 1; }
+    /* Spare height collects above the rule, so the row lands on the foot
+       of the panel and the rule travels down with it. A short viewport
+       has no spare height to give, and C becomes B rather than scroll. */
+    .rail[data-cs="footer"] .rail-group[data-group="context-studio"] { margin-top: auto; }
+
+    /* F · opened into its blocks. The chevron exists only where there is
+       something to disclose: everywhere else Context Studio is a
+       destination, and a chevron would promise a list that is not
+       there. The list itself is built in script rather than hidden in
+       the markup — see setCsBlocks. */
+    .rail-chev--cs { display: none; }
+    .rail.is-open[data-cs="open"] .rail-chev--cs { display: block; }
+
+    /* D · a box instead of a rule. The same row in the same place as B,
+       lifted onto the card fill the Marketplace pill already uses, with a
+       line of copy under it. The box does the separating a rule would,
+       and the line answers "what is it" before the click instead of
+       after — at the cost of the panel's evenness, since it is then the
+       only thing in the list that is not a row. */
+    /* Opened only: crunched, the box has no line of copy to hold, and a
+       36px card around a 24px tile read as a button that goes nowhere —
+       so at 68px the row is a plain tile like every other category. */
+    .rail.is-open[data-cs="card"] #ctxStudio {
+      height: auto; flex-wrap: wrap; row-gap: 6px;
+      /* card/bg-4 is the one fill that reads as a raised grey against the
+         rail's ground in both themes: bg-3, which the Marketplace pill
+         uses, goes white in light, and page/bg-3 all but vanishes in
+         dark. In dark the two are the same value, so the rail still has
+         one box colour. */
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      border-radius: 10px;
+      /* 7 + the 1px border lands the tile on the same 8px line the items
+         indent their icons to — Figma strokes sit inside the box, so the
+         border comes out of the padding. */
+      padding: 7px;
+    }
+    /* The line is the point of D, and it needs the label's width to
+       read, so it goes when the labels do. */
+    .rail-cs-note {
+      display: none;
+      flex: 0 0 100%; text-align: left;
+      color: var(--text-teritiary);
+      font: 400 11px/15px var(--font-geist); letter-spacing: -0.11px;
+    }
+    .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
+    /* In D the box is already the rectangle, so the hover one would be a
+       second border 7px inside the first. The box takes the hover
+       instead. */
+    .rail.is-open[data-cs="card"] #ctxStudio::before { content: none; }
+    .rail.is-open[data-cs="card"] #ctxStudio:hover {
+      border-color: var(--strokes-icon-default);
+    }
+    /* The dot's ring is the surface behind it, and in D that is the box. */
+    .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
+
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
+    /* 520px: the preview inside is a full-size clip scaled to fit, so
+       every extra pixel of card is a pixel of legible caption. The
+       card's own type stays at token sizes — only the media grows,
+       which is the part that was too small to read.
+       The stack sets no gap of its own. A heading and the line it
+       introduces want to sit closer together than either wants to sit
+       to the media above or the buttons below, so each slot states its
+       own space rather than sharing one rhythm. */
     .upsell {
       position: fixed; z-index: 95; width: 520px;
       display: none; flex-direction: column; gap: 0;
@@ -1634,6 +1756,18 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       background: var(--backgrounds-page-bg-1);
       border: 1px solid var(--strokes-line-3);
       display: flex; align-items: center; justify-content: center;
+    }
+    .upsell-play {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-secondary);
+    }
+    .upsell-media-note {
+      position: absolute; left: 10px; bottom: 8px;
+      color: var(--text-teritiary);
+      font: 400 11px/1 var(--font-geist-mono);
     }
     /* ── Expand, and the big view it opens ─────────────────────── */
     /* Even at 520px the clip is running at about a third of the size it
@@ -1732,6 +1866,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .upsell-learn svg { flex: none; opacity: .75; }
     .upsell-learn:hover svg { opacity: 1; }
 
+    .grad-blue   { background-image: linear-gradient(225.24deg, var(--blue-600) 8.84%, var(--blue-500) 54.42%, var(--blue-300) 100%); }
+    .grad-purple { background-image: linear-gradient(225.24deg, var(--purple-600) 8.84%, var(--purple-500) 54.42%, var(--purple-300) 100%); }
+    .grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
+    .grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
+    .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
+    .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
+    /* Context's tile ships its own gradient in the component (2906:507591)
+       rather than composing the shared ramp trio — kept verbatim. A
+       background-position drift turned out unreadable at 24px: two of
+       the three stops are close blues, so most positions along the
+       gradient look the same colour and only a narrow band ever showed
+       the purple. Rotating the whole gradient plane instead sweeps
+       every stop through the tile on every lap, which is the same
+       trick as spinning a background-gradient element — the paint is
+       oversized (inset -50%, so it never uncovers a corner as it turns)
+       and sits on a ::before under the icon, which stays upright.
+       Hovering the row quickens the spin — the one hover-driven speed
+       change in the panel, since it is also the one tile whose colour
+       is the entire point of hovering it. Reduced motion holds it
+       still either way. */
     .grad-context { position: relative; overflow: hidden; background-image: none; }
     .grad-context::before {
       content: ""; position: absolute; inset: -50%;
@@ -1754,6 +1908,15 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        the spin on top of it. Lifted explicitly rather than left to that
        tie-break. */
     .grad-context > svg { position: relative; z-index: 1; }
+
+    /* The clip is authored against a full-size viewport: its sphere is
+       a fixed 340px, its chips sit at ±300px offsets, and its captions
+       clamp to px minimums. Sized fluidly into a 288px box, all of that
+       stays put while the frame shrinks around it — one enormous orb
+       and a caption running off both edges. So the iframe is given the
+       viewport the clip expects (1600×900) and the whole stage is
+       scaled down to the mount instead. Both mounts are 16/9, as is
+       1600×900, so one factor fits both axes and nothing is cropped. */
     #upsellFilm iframe, .filmbox-stage iframe {
       position: absolute; left: 0; top: 0;
       width: 1600px; height: 900px;
@@ -1762,12 +1925,102 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     }
     /* The offer's box carries the clip's own ink-night rather than this
        page's ground, so it does not flash the wrong colour for the
+       instant before the iframe's first paint. */
+    #upsellFilm.upsell-media { background: #080c1a; }
 
-    .grad-blue   { background-image: linear-gradient(225.24deg, var(--blue-600) 8.84%, var(--blue-500) 54.42%, var(--blue-300) 100%); }
-    .grad-purple { background-image: linear-gradient(225.24deg, var(--purple-600) 8.84%, var(--purple-500) 54.42%, var(--purple-300) 100%); }
-    .grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
-    .grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
-    .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
+
+    /* ── First run · the tooltip ──────────────────────────────────
+       The panel is crunched by default, so the only thing a new user
+       ever sees of Context is a 24px tile with a dot on it. This is the
+       one moment that tile gets a sentence. Unlike the review page's
+       looping demo, here it appears once, waits to be read, and does
+       not come back: a coach mark that returns is an interruption, not
+       an introduction.
+       Both sit above the rail's own z-index 80 — the panel would paint
+       over them otherwise — and below the offer card's 95, because if
+       the card is up the tooltip has already done its job. */
+    .coach-ring {
+      position: fixed; z-index: 88; width: 36px; height: 36px;
+      border-radius: 11px; pointer-events: none;
+      box-shadow: 0 0 0 2px var(--backgrounds-button-primary);
+      opacity: 0; transition: opacity .3s ease;
+    }
+    .coach-ring::after {
+      content: ""; position: absolute; inset: 0; border-radius: 11px;
+      box-shadow: 0 0 0 2px var(--backgrounds-button-primary);
+      opacity: .45;
+    }
+    .coach-tip {
+      position: fixed; z-index: 89; width: 320px;
+      display: none; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; border-radius: 12px;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      box-shadow: var(--shadow-tiq);
+      opacity: 0; transform: translateX(-8px);
+      transition: opacity .22s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+    }
+    .coach-tip.is-open { display: flex; }
+    .coach-tip.is-shown { opacity: 1; transform: none; }
+    .coach-ring.is-shown { opacity: 1; }
+    .coach-arrow {
+      position: absolute; z-index: 2; left: -5px; top: 50%; margin-top: -4.5px;
+      width: 9px; height: 9px; rotate: 45deg;
+      background: var(--backgrounds-card-bg-2);
+      border-left: 1px solid var(--strokes-line-3);
+      border-bottom: 1px solid var(--strokes-line-3);
+    }
+    .coach-tip .rail-tile { flex: none; }
+    .coach-tip b {
+      display: block; color: var(--text-primary);
+      font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist);
+      letter-spacing: -0.56px;
+    }
+    .coach-x {
+      flex: none; width: 20px; height: 20px; margin: -2px -4px 0 auto;
+      /* auto on the left, not a fixed gap after the text — pinned to the
+         corner regardless of how long the line runs. */
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; color: var(--text-teritiary);
+      transition: background .14s ease, color .14s ease;
+    }
+    .coach-x:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    /* A sheen crossing the card every few seconds, the same idiom as the
+       Try pill's glint and for the same reason: a nav tooltip that
+       shimmers continuously nags, one that passes and gets out of the way
+       reads as emphasis. It is a moving background rather than a moving
+       element, so it cannot paint outside the card and the arrow — which
+       sticks out of it — is left alone; no overflow clipping needed. */
+    .coach-tip::after {
+      content: ""; position: absolute; inset: 0; z-index: 0;
+      border-radius: inherit; pointer-events: none;
+      background-image: linear-gradient(100deg, transparent 36%, var(--coach-sheen) 50%, transparent 64%);
+      background-size: 200% 100%; background-repeat: no-repeat;
+      background-position: 150% 0;
+      animation: coachSheen 3.2s ease-in-out infinite;
+    }
+    /* The band is only inside the card between 100% and 0%; the rest of
+       the travel parks it off one edge or the other. Sweeping 150% to
+       -50% spends half the 2s of travel on screen, which is a pass you
+       can watch rather than a flicker you catch by accident. */
+    @keyframes coachSheen {
+      0%, 38% { background-position: 150% 0; }
+      100%    { background-position: -50% 0; }
+    }
+    /* The sheen is painted behind everything the card says. A flex item's
+       implicit tier does not reliably beat a positioned ::after. */
+    .coach-tip > *:not(.coach-arrow) { position: relative; z-index: 1; }
+    /* The halo pulses only while the tooltip is up, and stops with it. */
+    .coach-ring.is-shown::after { animation: coachHalo 2s ease-out infinite; }
+    @keyframes coachHalo {
+      0%        { transform: scale(1); opacity: .45; }
+      70%, 100% { transform: scale(1.55); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .coach-ring.is-shown::after,
+      .coach-tip::after { animation: none; }
+      .coach-tip { transition: none; }
+    }
 
     /* The preview's primary action, lifted with it. */
     .btn-primary {
@@ -1930,7 +2183,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   <symbol id="i-moon" viewBox="0 0 20 20"><path d="M16.25 11.42A6.67 6.67 0 018.58 3.75a6.67 6.67 0 107.67 7.67z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
-<svg class="sprite" aria-hidden="true"><symbol id="ic-logoonly" viewBox="0 0 20 17.6389" fill="none"><g id="Logo Only"><g id="logoonly__Vector"><path d="M10.8317 17.6389H0L5.35366 7.99841L5.78701 8.74656C6.69839 10.3264 7.47375 11.7081 8.2219 13.045C8.94479 14.3373 9.62881 15.5557 10.4061 16.9043L10.8317 17.6389ZM1.66537 16.6595H9.13523C8.5231 15.5888 7.95762 14.5802 7.36687 13.5231C6.74114 12.4057 6.09793 11.2572 5.37115 9.9883L1.66537 16.6595Z" fill="#FAB518"/><path d="M20 17.6389H9.13528L9.55696 16.9043C10.2721 15.6587 10.9347 14.4675 11.6343 13.2044C12.4038 11.8188 13.1986 10.3867 14.1411 8.74656L14.5706 8.00035L14.9942 8.75045C15.8667 10.2953 16.6323 11.6576 17.3824 12.9906C18.1053 14.2751 18.8146 15.5343 19.588 16.9082L20 17.6389ZM10.8279 16.6595H18.323C17.705 15.5635 17.122 14.5258 16.5274 13.4726C15.9017 12.3591 15.2643 11.2281 14.5647 9.98636C13.8088 11.3155 13.1403 12.5165 12.4932 13.6824C11.9297 14.6987 11.3895 15.6684 10.8279 16.6614V16.6595Z" fill="#EC3225"/><path d="M15.4256 9.48113H4.53172L4.93981 8.75241C5.68602 7.42128 6.40696 6.18926 7.17066 4.88339C7.93825 3.5717 8.73303 2.21531 9.55697 0.744265L9.97477 0L10.4081 0.736492C11.2418 2.15507 11.9899 3.48231 12.7148 4.7668C13.4318 6.03768 14.1722 7.35327 14.9923 8.74658L15.4275 9.48501L15.4256 9.48113ZM6.20486 8.50173H13.7136C13.0587 7.3727 12.4505 6.29419 11.8597 5.24484C11.2651 4.18965 10.653 3.10532 9.99226 1.96657C9.31407 3.16361 8.6553 4.28487 8.01597 5.37698C7.39608 6.43605 6.80339 7.44654 6.20486 8.49978V8.50173Z" fill="#098BCB"/></g></g></symbol><symbol id="ic-pp_agent" viewBox="0 0 16 16" fill="none"><g id="pp_agent__Agent"><path id="pp_agent__Vector" d="M8 5.33333V2.66667H5.33333M1.33333 9.33333H2.66667M13.3333 9.33333H14.6667M10 8.66667V10M6 8.66667V10M4 5.33333H12C12.7364 5.33333 13.3333 5.93029 13.3333 6.66667V12C13.3333 12.7364 12.7364 13.3333 12 13.3333H4C3.26362 13.3333 2.66667 12.7364 2.66667 12V6.66667C2.66667 5.93029 3.26362 5.33333 4 5.33333Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_aiassistant" viewBox="0 0 16 16" fill="none"><g id="AI assistant" clip-path="url(#pp_aiassistant__clip0_0_369)"><g id="pp_aiassistant__Vector"></g><path id="pp_aiassistant__Vector_2" d="M7.01133 13.246C6.3596 13.1491 5.72638 12.9538 5.13333 12.6667L2 13.3333L2.86667 10.7333C1.31733 8.442 1.916 5.48533 4.26667 3.81733C6.61733 2.15 9.99333 2.28667 12.1633 4.13733C13.274 5.08467 13.8927 6.33067 13.9947 7.61067" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_aiassistant__Vector_3" d="M11.1333 14.2667C11.2702 13.7008 11.5604 13.1837 11.9721 12.7721C12.3837 12.3604 12.9008 12.0702 13.4667 11.9333C12.9008 11.7965 12.3837 11.5063 11.9721 11.0946C11.5604 10.683 11.2702 10.1658 11.1333 9.6C10.9965 10.1658 10.7063 10.683 10.2946 11.0946C9.88297 11.5063 9.36583 11.7965 8.8 11.9333C9.36583 12.0702 9.88297 12.3604 10.2946 12.7721C10.7063 13.1837 10.9965 13.7008 11.1333 14.2667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_aiassistant__clip0_0_369"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_automation" viewBox="0 0 16 16" fill="none"><g id="pp_automation__Automation"><path id="pp_automation__Icon" d="M11.3333 13.3333H11.2C10.0799 13.3333 9.51984 13.3333 9.09202 13.1153C8.71569 12.9236 8.40973 12.6176 8.21799 12.2413C8 11.8135 8 11.2534 8 10.1333V5.86667C8 4.74656 8 4.18651 8.21799 3.75869C8.40973 3.38236 8.71569 3.0764 9.09202 2.88465C9.51984 2.66667 10.0799 2.66667 11.2 2.66667H11.3333M11.3333 13.3333C11.3333 14.0697 11.9303 14.6667 12.6667 14.6667C13.403 14.6667 14 14.0697 14 13.3333C14 12.597 13.403 12 12.6667 12C11.9303 12 11.3333 12.597 11.3333 13.3333ZM11.3333 2.66667C11.3333 3.40305 11.9303 4 12.6667 4C13.403 4 14 3.40305 14 2.66667C14 1.93029 13.403 1.33333 12.6667 1.33333C11.9303 1.33333 11.3333 1.93029 11.3333 2.66667ZM4.66667 8L11.3333 8M4.66667 8C4.66667 8.73638 4.06971 9.33333 3.33333 9.33333C2.59695 9.33333 2 8.73638 2 8C2 7.26362 2.59695 6.66667 3.33333 6.66667C4.06971 6.66667 4.66667 7.26362 4.66667 8ZM11.3333 8C11.3333 8.73638 11.9303 9.33333 12.6667 9.33333C13.403 9.33333 14 8.73638 14 8C14 7.26362 13.403 6.66667 12.6667 6.66667C11.9303 6.66667 11.3333 7.26362 11.3333 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_bookopen" viewBox="0 0 14 14" fill="none"><g id="pp_bookopen__book-open-01"><path id="pp_bookopen__Icon" d="M7 5.48333C7 4.17654 7 3.52315 7.25432 3.02402C7.47802 2.58498 7.83498 2.22802 8.27402 2.00432C8.77315 1.75 9.42654 1.75 10.7333 1.75H10.9667C11.6201 1.75 11.9468 1.75 12.1963 1.87716C12.4158 1.98901 12.5943 2.16749 12.7062 2.38701C12.8333 2.63657 12.8333 2.96327 12.8333 3.61667V8.63333C12.8333 9.28673 12.8333 9.61342 12.7062 9.86299C12.5943 10.0825 12.4158 10.261 12.1963 10.3728C11.9468 10.5 11.6201 10.5 10.9667 10.5H10.1647C9.43419 10.5 9.06894 10.5 8.7374 10.6007C8.44389 10.6898 8.17083 10.836 7.93386 11.0307C7.66618 11.2507 7.46357 11.5546 7.05837 12.1625L7 12.25L6.94164 12.1625C6.53643 11.5546 6.33382 11.2507 6.06614 11.0307C5.82917 10.836 5.55611 10.6898 5.2626 10.6007C4.93106 10.5 4.56581 10.5 3.83531 10.5H3.03333C2.37994 10.5 2.05324 10.5 1.80368 10.3728C1.58416 10.261 1.40568 10.0825 1.29383 9.86299C1.16667 9.61342 1.16667 9.28673 1.16667 8.63333V3.61667C1.16667 2.96327 1.16667 2.63657 1.29383 2.38701C1.40568 2.16749 1.58416 1.98901 1.80368 1.87716C2.05324 1.75 2.37994 1.75 3.03333 1.75H3.26667C4.57346 1.75 5.22685 1.75 5.72598 2.00432C6.16502 2.22802 6.52198 2.58498 6.74568 3.02402C7 3.52315 7 4.17654 7 5.48333ZM7 12.25V5.48333" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_brain" viewBox="0 0 16 16" fill="none"><g id="pp_brain__Brain" clip-path="url(#pp_brain__clip0_0_300)"><g id="pp_brain__Vector"></g><path id="pp_brain__Vector_2" d="M10.3333 8.66667C9.71449 8.66667 9.121 8.9125 8.68342 9.35008C8.24583 9.78767 8 10.3812 8 11V11.6667C8 12.2855 8.24583 12.879 8.68342 13.3166C9.121 13.7542 9.71449 14 10.3333 14C10.9522 14 11.5457 13.7542 11.9832 13.3166C12.4208 12.879 12.6667 12.2855 12.6667 11.6667V10.4667" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_3" d="M5.66667 8.66667C6.28551 8.66667 6.879 8.9125 7.31658 9.35008C7.75417 9.78767 8 10.3812 8 11V11.6667C8 12.2855 7.75417 12.879 7.31658 13.3166C6.879 13.7542 6.28551 14 5.66667 14C5.04783 14 4.45434 13.7542 4.01675 13.3166C3.57917 12.879 3.33333 12.2855 3.33333 11.6667V10.4667" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_4" d="M11.6667 10.6667C12.2855 10.6667 12.879 10.4208 13.3166 9.98325C13.7542 9.54566 14 8.95217 14 8.33333C14 7.71449 13.7542 7.121 13.3166 6.68342C12.879 6.24583 12.2855 6 11.6667 6H11.3333" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_5" d="M12.6667 6.2V4.33333C12.6667 3.71449 12.4208 3.121 11.9832 2.68342C11.5457 2.24583 10.9522 2 10.3333 2C9.71449 2 9.121 2.24583 8.68342 2.68342C8.24583 3.121 8 3.71449 8 4.33333" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_6" d="M4.33333 10.6667C3.71449 10.6667 3.121 10.4208 2.68342 9.98325C2.24583 9.54566 2 8.95217 2 8.33333C2 7.71449 2.24583 7.121 2.68342 6.68342C3.121 6.24583 3.71449 6 4.33333 6H4.66667" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_7" d="M3.33333 6.2V4.33333C3.33333 3.71449 3.57917 3.121 4.01675 2.68342C4.45434 2.24583 5.04783 2 5.66667 2C6.28551 2 6.879 2.24583 7.31658 2.68342C7.75417 3.121 8 3.71449 8 4.33333V11" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_brain__clip0_0_300"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="ic-pp_closepanel" viewBox="0 0 20 20" fill="none"><path d="M3.33333 5C3.33333 4.55797 3.50893 4.13405 3.82149 3.82149C4.13405 3.50893 4.55797 3.33333 5 3.33333H15C15.442 3.33333 15.8659 3.50893 16.1785 3.82149C16.4911 4.13405 16.6667 4.55797 16.6667 5V15C16.6667 15.442 16.4911 15.8659 16.1785 16.1785C15.8659 16.4911 15.442 16.6667 15 16.6667H5C4.55797 16.6667 4.13405 16.4911 3.82149 16.1785C3.50893 15.8659 3.33333 15.442 3.33333 15V5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 3.33333V16.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 8.33333L10.8333 10L12.5 11.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="ic-pp_contextstudio" viewBox="0 0 16 16" fill="none"><g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="3.4" r="1.9"/><circle cx="3.6" cy="12.6" r="1.9"/><circle cx="12.4" cy="12.6" r="1.9"/><path d="M8 5.3V8M3.6 10.7V8H12.4V10.7"/></g></symbol><symbol id="ic-pp_edit" viewBox="0 0 16 16" fill="none"><g id="pp_edit__Edit" clip-path="url(#pp_edit__clip0_0_276)"><g id="pp_edit__Vector"></g><path id="pp_edit__Vector_2" d="M2.66667 13.3333H5.33333L12.3333 6.33333C12.5084 6.15824 12.6473 5.95037 12.7421 5.72159C12.8368 5.49282 12.8856 5.24762 12.8856 5C12.8856 4.75238 12.8368 4.50718 12.7421 4.27841C12.6473 4.04963 12.5084 3.84176 12.3333 3.66667C12.1582 3.49157 11.9504 3.35268 11.7216 3.25792C11.4928 3.16315 11.2476 3.11438 11 3.11438C10.7524 3.11438 10.5072 3.16315 10.2784 3.25792C10.0496 3.35268 9.84176 3.49157 9.66667 3.66667L2.66667 10.6667V13.3333Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_edit__Vector_3" d="M9 4.33333L11.6667 7" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_edit__clip0_0_276"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_ellipse316" viewBox="0 0 195.505 132.505" fill="none"><g id="Ellipse 316" filter="url(#pp_ellipse316__filter0_f_0_403)" style="mix-blend-mode:plus-darker"><ellipse cx="97.7527" cy="66.2526" rx="60" ry="28.5" fill="#007BE5"/></g><defs><filter id="pp_ellipse316__filter0_f_0_403" x="0" y="0" width="195.505" height="132.505" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_403"/></filter></defs></symbol><symbol id="ic-pp_ellipse317" viewBox="0 0 263.505 263.505" fill="none"><g id="Ellipse 317" opacity="0.5" filter="url(#pp_ellipse317__filter0_f_0_426)"><ellipse cx="131.753" cy="131.753" rx="94" ry="94" fill="#75D7F0"/></g><defs><filter id="pp_ellipse317__filter0_f_0_426" x="0" y="0" width="263.505" height="263.505" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_426"/></filter></defs></symbol><symbol id="ic-pp_file" viewBox="0 0 16 16" fill="none"><g id="pp_file__File" clip-path="url(#pp_file__clip0_0_319)"><g id="pp_file__Vector"></g><path id="pp_file__Vector_2" d="M9.33333 2V4.66667C9.33333 4.84348 9.40357 5.01305 9.5286 5.13807C9.65362 5.2631 9.82319 5.33333 10 5.33333H12.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_3" d="M11.3333 14H4.66667C4.31304 14 3.97391 13.8595 3.72386 13.6095C3.47381 13.3594 3.33333 13.0203 3.33333 12.6667V3.33333C3.33333 2.97971 3.47381 2.64057 3.72386 2.39052C3.97391 2.14048 4.31304 2 4.66667 2H9.33333L12.6667 5.33333V12.6667C12.6667 13.0203 12.5262 13.3594 12.2761 13.6095C12.0261 13.8595 11.687 14 11.3333 14Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_4" d="M6 4.66667H6.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_5" d="M6 8.66667H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_6" d="M8.66667 11.3333H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_file__clip0_0_319"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_folder" viewBox="0 0 16 16" fill="none"><g id="pp_folder__Folder" clip-path="url(#pp_folder__clip0_0_332)"><g id="pp_folder__Vector"></g><path id="pp_folder__Vector_2" d="M3.33333 2.66667H6L8 4.66667H12.6667C13.0203 4.66667 13.3594 4.80714 13.6095 5.05719C13.8595 5.30724 14 5.64638 14 6V11.3333C14 11.687 13.8595 12.0261 13.6095 12.2761C13.3594 12.5262 13.0203 12.6667 12.6667 12.6667H3.33333C2.97971 12.6667 2.64057 12.5262 2.39052 12.2761C2.14048 12.0261 2 11.687 2 11.3333V4C2 3.64638 2.14048 3.30724 2.39052 3.05719C2.64057 2.80714 2.97971 2.66667 3.33333 2.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_folder__clip0_0_332"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_frame" viewBox="0 0 16 16" fill="none"><g id="pp_frame__Frame" clip-path="url(#pp_frame__clip0_0_373)"><g id="pp_frame__Vector"></g><path id="pp_frame__Vector_2" d="M14 8V5.32667C13.9996 5.09405 13.9377 4.86567 13.8206 4.66465C13.7036 4.46364 13.5355 4.29713 13.3333 4.182L8.66667 1.51C8.46354 1.39427 8.23378 1.3334 8 1.3334C7.76622 1.3334 7.53646 1.39427 7.33333 1.51L2.66667 4.182C2.254 4.41867 2 4.85533 2 5.32733V10.6727C2 11.1453 2.254 11.5813 2.66667 11.8173L7.33333 14.4893C7.74667 14.7253 8.25333 14.7253 8.66667 14.4893" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_3" d="M8 14.6667V8" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_4" d="M8 8L13.82 4.64" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_5" d="M2.17969 4.63989L7.99969 7.99989" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_6" d="M12.6663 14.9999C12.8032 14.4341 13.0934 13.9169 13.5051 13.5053C13.9167 13.0937 14.4338 12.8035 14.9997 12.6666C14.4338 12.5297 13.9167 12.2395 13.5051 11.8279C13.0934 11.4162 12.8032 10.8991 12.6663 10.3333C12.5295 10.8991 12.2393 11.4162 11.8276 11.8279C11.416 12.2395 10.8988 12.5297 10.333 12.6666C10.8988 12.8035 11.416 13.0937 11.8276 13.5053C12.2393 13.9169 12.5295 14.4341 12.6663 14.9999Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_frame__clip0_0_373"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_frame1" viewBox="0 0 16 16" fill="none"><g id="pp_frame1__Frame" clip-path="url(#pp_frame1__clip0_0_359)"><g id="pp_frame1__Vector"></g><path id="pp_frame1__Vector_2" d="M9.33301 2.66675H13.333V6.66675H9.33301V2.66675Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame1__Vector_3" d="M2.66699 9.33325H6.66699V13.3333H2.66699V9.33325Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame1__Vector_4" d="M9.33301 11.3333C9.33301 11.8637 9.54372 12.3724 9.91879 12.7475C10.2939 13.1225 10.8026 13.3333 11.333 13.3333C11.8634 13.3333 12.3721 13.1225 12.7472 12.7475C13.1223 12.3724 13.333 11.8637 13.333 11.3333C13.333 10.8028 13.1223 10.2941 12.7472 9.91904C12.3721 9.54397 11.8634 9.33325 11.333 9.33325C10.8026 9.33325 10.2939 9.54397 9.91879 9.91904C9.54372 10.2941 9.33301 10.8028 9.33301 11.3333Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame1__Vector_5" d="M2.66699 4.66675C2.66699 4.92939 2.71872 5.18946 2.81923 5.43212C2.91974 5.67477 3.06706 5.89524 3.25278 6.08096C3.4385 6.26668 3.65897 6.414 3.90163 6.51451C4.14428 6.61502 4.40435 6.66675 4.66699 6.66675C4.92964 6.66675 5.18971 6.61502 5.43236 6.51451C5.67501 6.414 5.89549 6.26668 6.08121 6.08096C6.26692 5.89524 6.41424 5.67477 6.51475 5.43212C6.61526 5.18946 6.66699 4.92939 6.66699 4.66675C6.66699 4.4041 6.61526 4.14403 6.51475 3.90138C6.41424 3.65873 6.26692 3.43825 6.08121 3.25253C5.89549 3.06682 5.67501 2.9195 5.43236 2.81899C5.18971 2.71848 4.92964 2.66675 4.66699 2.66675C4.40435 2.66675 4.14428 2.71848 3.90163 2.81899C3.65897 2.9195 3.4385 3.06682 3.25278 3.25253C3.06706 3.43825 2.91974 3.65873 2.81923 3.90138C2.71872 4.14403 2.66699 4.4041 2.66699 4.66675Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_frame1__clip0_0_359"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_group293" viewBox="0 0 24 15.6" fill="none"><g id="Group 293"><path id="Rectangle 149" d="M3.35998 4.49906C3.35998 2.14295 5.38619 0.297224 7.73209 0.516405L12.1129 0.925714C12.3571 0.948531 12.6029 0.948838 12.8472 0.926633L16.1228 0.628845C18.4343 0.418714 20.4387 2.21348 20.4842 4.534L20.5849 9.66935C20.618 11.3557 19.5897 12.8816 18.0142 13.484L13.8329 15.0827C12.9587 15.417 11.9951 15.4341 11.1096 15.1312L6.06523 13.4055C4.44716 12.8519 3.35998 11.331 3.35998 9.62082L3.35998 4.49906Z" fill="url(#pp_group293__paint0_linear_0_381)"/><foreignObject x="-4" y="-4" width="20.48" height="15.2"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(2px);clip-path:url(#pp_group293__bgblur_0_0_381_clip_path);height:100%;width:100%"></div></foreignObject><g id="pp_group293__Vector" filter="url(#pp_group293__filter0_i_0_381)" data-figma-bg-blur-radius="4"><path d="M2.69405 0L12.48 0.959999L8.89506 6.88594C8.70128 7.1651 8.4106 7.25815 8.11993 7.1651L0.368675 5.02488C0.078003 4.93182 -0.115778 4.55961 0.078003 4.1874L2.11271 0.372213C2.2096 0.0930532 2.40338 0 2.69405 0Z" fill="#BDE3FF" fill-opacity="0.6"/></g><foreignObject x="8.47999" y="-4" width="19.52" height="14.72"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(2px);clip-path:url(#pp_group293__bgblur_1_0_381_clip_path);height:100%;width:100%"></div></foreignObject><g id="pp_group293__Vector_2" filter="url(#pp_group293__filter1_i_0_381)" data-figma-bg-blur-radius="4"><path d="M23.5317 4.68988L16.4015 6.68743C16.1342 6.77428 15.8668 6.68743 15.7777 6.42688L12.48 0.959999L21.4818 0C21.7491 0 21.9274 0.0868497 22.1056 0.347399L23.9773 3.90824C24.0664 4.25564 23.8882 4.60303 23.5317 4.68988Z" fill="#BDE3FF" fill-opacity="0.6"/></g></g><defs><filter id="pp_group293__filter0_i_0_381" x="-4" y="-4" width="20.48" height="15.2" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dx="0.2" dy="0.1"/><feGaussianBlur stdDeviation="0.5"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_381"/></filter><clipPath id="pp_group293__bgblur_0_0_381_clip_path" transform="translate(4 4)"><path d="M2.69405 0L12.48 0.959999L8.89506 6.88594C8.70128 7.1651 8.4106 7.25815 8.11993 7.1651L0.368675 5.02488C0.078003 4.93182 -0.115778 4.55961 0.078003 4.1874L2.11271 0.372213C2.2096 0.0930532 2.40338 0 2.69405 0Z"/></clipPath><filter id="pp_group293__filter1_i_0_381" x="8.47999" y="-4" width="19.52" height="14.72" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dx="0.2" dy="0.1"/><feGaussianBlur stdDeviation="0.5"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_381"/></filter><clipPath id="pp_group293__bgblur_1_0_381_clip_path" transform="translate(-8.47999 4)"><path d="M23.5317 4.68988L16.4015 6.68743C16.1342 6.77428 15.8668 6.68743 15.7777 6.42688L12.48 0.959999L21.4818 0C21.7491 0 21.9274 0.0868497 22.1056 0.347399L23.9773 3.90824C24.0664 4.25564 23.8882 4.60303 23.5317 4.68988Z"/></clipPath><linearGradient id="pp_group293__paint0_linear_0_381" x1="19.1778" y1="1.53795" x2="5.06784" y2="17.1441" gradientUnits="userSpaceOnUse"><stop stop-color="#007BE5"/><stop offset="0.5" stop-color="#0D99FF"/><stop offset="1" stop-color="#BDE3FF"/></linearGradient></defs></symbol><symbol id="ic-pp_guardrails" viewBox="0 0 16 16" fill="none"><g id="pp_guardrails__Guardrails" clip-path="url(#pp_guardrails__clip0_0_288)"><g id="pp_guardrails__Vector"></g><path id="pp_guardrails__Vector_2" d="M8 2C9.55722 3.37772 11.5896 4.09504 13.6667 4C13.9691 5.02868 14.0616 6.10764 13.9387 7.17279C13.8159 8.23793 13.4802 9.26751 12.9516 10.2004C12.423 11.1332 11.7123 11.9503 10.8616 12.603C10.011 13.2557 9.03786 13.7308 8 14C6.96214 13.7308 5.98899 13.2557 5.13836 12.603C4.28774 11.9503 3.57701 11.1332 3.0484 10.2004C2.51979 9.26751 2.18409 8.23793 2.06125 7.17279C1.93841 6.10764 2.03094 5.02868 2.33333 4C4.41035 4.09504 6.44278 3.37772 8 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_guardrails__Vector_3" d="M8 2V14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_guardrails__clip0_0_288"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_home" viewBox="0 0 16 16" fill="none"><g id="pp_home__Home"><path id="pp_home__Icon" d="M5.33333 11.3333H10.6667M7.34513 1.84268L2.82359 5.35943C2.52135 5.59451 2.37022 5.71205 2.26135 5.85925C2.16491 5.98964 2.09307 6.13653 2.04935 6.29271C2 6.46902 2 6.66048 2 7.04338V11.8667C2 12.6134 2 12.9868 2.14532 13.272C2.27316 13.5229 2.47713 13.7268 2.72801 13.8547C3.01323 14 3.3866 14 4.13333 14H11.8667C12.6134 14 12.9868 14 13.272 13.8547C13.5229 13.7268 13.7268 13.5229 13.8547 13.272C14 12.9868 14 12.6134 14 11.8667V7.04338C14 6.66048 14 6.46902 13.9506 6.29271C13.9069 6.13653 13.8351 5.98964 13.7386 5.85925C13.6298 5.71205 13.4787 5.59451 13.1764 5.35943L8.65487 1.84268C8.42065 1.66051 8.30354 1.56942 8.17423 1.53441C8.06013 1.50352 7.93987 1.50352 7.82577 1.53441C7.69646 1.56942 7.57935 1.66051 7.34513 1.84268Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_icon" viewBox="0 0 299.75 330.75" fill="none"><g id="pp_icon__Icon" filter="url(#pp_icon__filter0_f_0_326)"><g id="Ellipse 316" opacity="0.4" filter="url(#pp_icon__filter1_f_0_326)"><ellipse cx="175.497" cy="206.497" rx="86.5" ry="86.5" fill="#0D99FF"/></g><g id="Ellipse 317" opacity="0.7" filter="url(#pp_icon__filter2_f_0_326)"><circle cx="88.3748" cy="88.3748" r="50.6222" fill="#80CAFF"/></g></g><defs><filter id="pp_icon__filter0_f_0_326" x="23.3526" y="23.3526" width="253.044" height="284.044" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="7.2" result="effect1_foregroundBlur_0_326"/></filter><filter id="pp_icon__filter1_f_0_326" x="51.2444" y="82.2444" width="248.505" height="248.505" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_326"/></filter><filter id="pp_icon__filter2_f_0_326" x="0" y="-1.22165e-06" width="176.75" height="176.75" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_326"/></filter></defs></symbol><symbol id="ic-pp_integrations" viewBox="0 0 16 16" fill="none"><g id="pp_integrations__Integrations" clip-path="url(#pp_integrations__clip0_0_346)"><g id="pp_integrations__Vector"></g><path id="pp_integrations__Vector_2" d="M2.66667 4.33333C2.66667 4.77536 2.84226 5.19928 3.15482 5.51184C3.46738 5.8244 3.89131 6 4.33333 6C4.77536 6 5.19928 5.8244 5.51184 5.51184C5.8244 5.19928 6 4.77536 6 4.33333C6 3.89131 5.8244 3.46738 5.51184 3.15482C5.19928 2.84226 4.77536 2.66667 4.33333 2.66667C3.89131 2.66667 3.46738 2.84226 3.15482 3.15482C2.84226 3.46738 2.66667 3.89131 2.66667 4.33333Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_3" d="M10 4.33333C10 4.77536 10.1756 5.19928 10.4882 5.51184C10.8007 5.8244 11.2246 6 11.6667 6C12.1087 6 12.5326 5.8244 12.8452 5.51184C13.1577 5.19928 13.3333 4.77536 13.3333 4.33333C13.3333 3.89131 13.1577 3.46738 12.8452 3.15482C12.5326 2.84226 12.1087 2.66667 11.6667 2.66667C11.2246 2.66667 10.8007 2.84226 10.4882 3.15482C10.1756 3.46738 10 3.89131 10 4.33333Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_4" d="M10 11.6667C10 12.1087 10.1756 12.5326 10.4882 12.8452C10.8007 13.1577 11.2246 13.3333 11.6667 13.3333C12.1087 13.3333 12.5326 13.1577 12.8452 12.8452C13.1577 12.5326 13.3333 12.1087 13.3333 11.6667C13.3333 11.2246 13.1577 10.8007 12.8452 10.4882C12.5326 10.1756 12.1087 10 11.6667 10C11.2246 10 10.8007 10.1756 10.4882 10.4882C10.1756 10.8007 10 11.2246 10 11.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_5" d="M2.66667 11.6667C2.66667 12.1087 2.84226 12.5326 3.15482 12.8452C3.46738 13.1577 3.89131 13.3333 4.33333 13.3333C4.77536 13.3333 5.19928 13.1577 5.51184 12.8452C5.8244 12.5326 6 12.1087 6 11.6667C6 11.2246 5.8244 10.8007 5.51184 10.4882C5.19928 10.1756 4.77536 10 4.33333 10C3.89131 10 3.46738 10.1756 3.15482 10.4882C2.84226 10.8007 2.66667 11.2246 2.66667 11.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_6" d="M5.66667 10.3333L10.3333 5.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_integrations__clip0_0_346"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_monitorcog" viewBox="0 0 14 14" fill="none"><g id="pp_monitorcog__monitor-cog"><path id="pp_monitorcog__Vector" d="M7 9.91667V12.25M8.86669 2.85833L8.34169 2.625M8.86669 4.14172L8.34169 4.37506M9.85833 1.8667L9.625 1.3417M9.85833 5.13336L9.625 5.65836M11.3751 1.3417L11.1417 1.8667M11.3751 5.65836L11.1417 5.13336M12.6584 2.625L12.1334 2.85833M12.6584 4.37506L12.1334 4.14172M12.8333 7.58333V8.75C12.8333 9.05942 12.7104 9.35616 12.4916 9.57496C12.2728 9.79375 11.9761 9.91667 11.6667 9.91667H2.33333C2.02391 9.91667 1.72717 9.79375 1.50838 9.57496C1.28958 9.35616 1.16667 9.05942 1.16667 8.75V2.91667C1.16667 2.60725 1.28958 2.3105 1.50838 2.09171C1.72717 1.87292 2.02391 1.75 2.33333 1.75H6.41667M4.66667 12.25H9.33333M12.25 3.5C12.25 4.4665 11.4665 5.25 10.5 5.25C9.5335 5.25 8.75 4.4665 8.75 3.5C8.75 2.5335 9.5335 1.75 10.5 1.75C11.4665 1.75 12.25 2.5335 12.25 3.5Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_skill" viewBox="0 0 16 16" fill="none"><g id="pp_skill__Skill" clip-path="url(#pp_skill__clip0_0_264)"><g id="pp_skill__Vector"></g><path id="pp_skill__Vector_2" d="M9.33333 2V4.66667C9.33333 4.84348 9.40357 5.01305 9.5286 5.13807C9.65362 5.2631 9.82319 5.33333 10 5.33333H12.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_3" d="M8 14H4.66667C4.31304 14 3.97391 13.8595 3.72386 13.6095C3.47381 13.3594 3.33333 13.0203 3.33333 12.6667V3.33333C3.33333 2.97971 3.47381 2.64057 3.72386 2.39052C3.97391 2.14048 4.31304 2 4.66667 2H9.33333L12.6667 5.33333V7.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_4" d="M6 6H6.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_5" d="M6 8.66667H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_6" d="M6 11.3333H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_7" d="M12.6667 15C12.8035 14.4342 13.0937 13.917 13.5054 13.5054C13.917 13.0937 14.4342 12.8035 15 12.6667C14.4342 12.5298 13.917 12.2396 13.5054 11.8279C13.0937 11.4163 12.8035 10.8992 12.6667 10.3333C12.5298 10.8992 12.2396 11.4163 11.8279 11.8279C11.4163 12.2396 10.8992 12.5298 10.3333 12.6667C10.8992 12.8035 11.4163 13.0937 11.8279 13.5054C12.2396 13.917 12.5298 14.4342 12.6667 15Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_skill__clip0_0_264"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_toolsskills" viewBox="0 0 16 16" fill="none"><g id="Tools &#38; skills" clip-path="url(#pp_toolsskills__clip0_0_356)"><g id="pp_toolsskills__Vector"></g><path id="pp_toolsskills__Vector_2" d="M4.66667 6.66667H6.66667V4.66667L4.33333 2.33333C5.07975 1.97685 5.91833 1.86054 6.7336 2.00041C7.54886 2.14029 8.30072 2.52948 8.88562 3.11438C9.47052 3.69929 9.85971 4.45114 9.99959 5.2664C10.1395 6.08167 10.0232 6.92025 9.66667 7.66667L13.6667 11.6667C13.9319 11.9319 14.0809 12.2916 14.0809 12.6667C14.0809 13.0417 13.9319 13.4014 13.6667 13.6667C13.4014 13.9319 13.0417 14.0809 12.6667 14.0809C12.2916 14.0809 11.9319 13.9319 11.6667 13.6667L7.66667 9.66667C6.92025 10.0232 6.08167 10.1395 5.2664 9.99959C4.45114 9.85971 3.69929 9.47052 3.11438 8.88562C2.52948 8.30072 2.14029 7.54886 2.00041 6.7336C1.86054 5.91833 1.97685 5.07975 2.33333 4.33333L4.66667 6.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_toolsskills__clip0_0_356"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol></svg>
+<svg class="sprite" aria-hidden="true"><symbol id="ic-logoonly" viewBox="0 0 20 17.6389" fill="none"><g id="Logo Only"><g id="logoonly__Vector"><path d="M10.8317 17.6389H0L5.35366 7.99841L5.78701 8.74656C6.69839 10.3264 7.47375 11.7081 8.2219 13.045C8.94479 14.3373 9.62881 15.5557 10.4061 16.9043L10.8317 17.6389ZM1.66537 16.6595H9.13523C8.5231 15.5888 7.95762 14.5802 7.36687 13.5231C6.74114 12.4057 6.09793 11.2572 5.37115 9.9883L1.66537 16.6595Z" fill="#FAB518"/><path d="M20 17.6389H9.13528L9.55696 16.9043C10.2721 15.6587 10.9347 14.4675 11.6343 13.2044C12.4038 11.8188 13.1986 10.3867 14.1411 8.74656L14.5706 8.00035L14.9942 8.75045C15.8667 10.2953 16.6323 11.6576 17.3824 12.9906C18.1053 14.2751 18.8146 15.5343 19.588 16.9082L20 17.6389ZM10.8279 16.6595H18.323C17.705 15.5635 17.122 14.5258 16.5274 13.4726C15.9017 12.3591 15.2643 11.2281 14.5647 9.98636C13.8088 11.3155 13.1403 12.5165 12.4932 13.6824C11.9297 14.6987 11.3895 15.6684 10.8279 16.6614V16.6595Z" fill="#EC3225"/><path d="M15.4256 9.48113H4.53172L4.93981 8.75241C5.68602 7.42128 6.40696 6.18926 7.17066 4.88339C7.93825 3.5717 8.73303 2.21531 9.55697 0.744265L9.97477 0L10.4081 0.736492C11.2418 2.15507 11.9899 3.48231 12.7148 4.7668C13.4318 6.03768 14.1722 7.35327 14.9923 8.74658L15.4275 9.48501L15.4256 9.48113ZM6.20486 8.50173H13.7136C13.0587 7.3727 12.4505 6.29419 11.8597 5.24484C11.2651 4.18965 10.653 3.10532 9.99226 1.96657C9.31407 3.16361 8.6553 4.28487 8.01597 5.37698C7.39608 6.43605 6.80339 7.44654 6.20486 8.49978V8.50173Z" fill="#098BCB"/></g></g></symbol><symbol id="ic-pp_agent" viewBox="0 0 16 16" fill="none"><g id="pp_agent__Agent"><path id="pp_agent__Vector" d="M8 5.33333V2.66667H5.33333M1.33333 9.33333H2.66667M13.3333 9.33333H14.6667M10 8.66667V10M6 8.66667V10M4 5.33333H12C12.7364 5.33333 13.3333 5.93029 13.3333 6.66667V12C13.3333 12.7364 12.7364 13.3333 12 13.3333H4C3.26362 13.3333 2.66667 12.7364 2.66667 12V6.66667C2.66667 5.93029 3.26362 5.33333 4 5.33333Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_aiassistant" viewBox="0 0 16 16" fill="none"><g id="AI assistant" clip-path="url(#pp_aiassistant__clip0_0_369)"><g id="pp_aiassistant__Vector"></g><path id="pp_aiassistant__Vector_2" d="M7.01133 13.246C6.3596 13.1491 5.72638 12.9538 5.13333 12.6667L2 13.3333L2.86667 10.7333C1.31733 8.442 1.916 5.48533 4.26667 3.81733C6.61733 2.15 9.99333 2.28667 12.1633 4.13733C13.274 5.08467 13.8927 6.33067 13.9947 7.61067" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_aiassistant__Vector_3" d="M11.1333 14.2667C11.2702 13.7008 11.5604 13.1837 11.9721 12.7721C12.3837 12.3604 12.9008 12.0702 13.4667 11.9333C12.9008 11.7965 12.3837 11.5063 11.9721 11.0946C11.5604 10.683 11.2702 10.1658 11.1333 9.6C10.9965 10.1658 10.7063 10.683 10.2946 11.0946C9.88297 11.5063 9.36583 11.7965 8.8 11.9333C9.36583 12.0702 9.88297 12.3604 10.2946 12.7721C10.7063 13.1837 10.9965 13.7008 11.1333 14.2667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_aiassistant__clip0_0_369"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_automation" viewBox="0 0 16 16" fill="none"><g id="pp_automation__Automation"><path id="pp_automation__Icon" d="M11.3333 13.3333H11.2C10.0799 13.3333 9.51984 13.3333 9.09202 13.1153C8.71569 12.9236 8.40973 12.6176 8.21799 12.2413C8 11.8135 8 11.2534 8 10.1333V5.86667C8 4.74656 8 4.18651 8.21799 3.75869C8.40973 3.38236 8.71569 3.0764 9.09202 2.88465C9.51984 2.66667 10.0799 2.66667 11.2 2.66667H11.3333M11.3333 13.3333C11.3333 14.0697 11.9303 14.6667 12.6667 14.6667C13.403 14.6667 14 14.0697 14 13.3333C14 12.597 13.403 12 12.6667 12C11.9303 12 11.3333 12.597 11.3333 13.3333ZM11.3333 2.66667C11.3333 3.40305 11.9303 4 12.6667 4C13.403 4 14 3.40305 14 2.66667C14 1.93029 13.403 1.33333 12.6667 1.33333C11.9303 1.33333 11.3333 1.93029 11.3333 2.66667ZM4.66667 8L11.3333 8M4.66667 8C4.66667 8.73638 4.06971 9.33333 3.33333 9.33333C2.59695 9.33333 2 8.73638 2 8C2 7.26362 2.59695 6.66667 3.33333 6.66667C4.06971 6.66667 4.66667 7.26362 4.66667 8ZM11.3333 8C11.3333 8.73638 11.9303 9.33333 12.6667 9.33333C13.403 9.33333 14 8.73638 14 8C14 7.26362 13.403 6.66667 12.6667 6.66667C11.9303 6.66667 11.3333 7.26362 11.3333 8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_bookopen" viewBox="0 0 14 14" fill="none"><g id="pp_bookopen__book-open-01"><path id="pp_bookopen__Icon" d="M7 5.48333C7 4.17654 7 3.52315 7.25432 3.02402C7.47802 2.58498 7.83498 2.22802 8.27402 2.00432C8.77315 1.75 9.42654 1.75 10.7333 1.75H10.9667C11.6201 1.75 11.9468 1.75 12.1963 1.87716C12.4158 1.98901 12.5943 2.16749 12.7062 2.38701C12.8333 2.63657 12.8333 2.96327 12.8333 3.61667V8.63333C12.8333 9.28673 12.8333 9.61342 12.7062 9.86299C12.5943 10.0825 12.4158 10.261 12.1963 10.3728C11.9468 10.5 11.6201 10.5 10.9667 10.5H10.1647C9.43419 10.5 9.06894 10.5 8.7374 10.6007C8.44389 10.6898 8.17083 10.836 7.93386 11.0307C7.66618 11.2507 7.46357 11.5546 7.05837 12.1625L7 12.25L6.94164 12.1625C6.53643 11.5546 6.33382 11.2507 6.06614 11.0307C5.82917 10.836 5.55611 10.6898 5.2626 10.6007C4.93106 10.5 4.56581 10.5 3.83531 10.5H3.03333C2.37994 10.5 2.05324 10.5 1.80368 10.3728C1.58416 10.261 1.40568 10.0825 1.29383 9.86299C1.16667 9.61342 1.16667 9.28673 1.16667 8.63333V3.61667C1.16667 2.96327 1.16667 2.63657 1.29383 2.38701C1.40568 2.16749 1.58416 1.98901 1.80368 1.87716C2.05324 1.75 2.37994 1.75 3.03333 1.75H3.26667C4.57346 1.75 5.22685 1.75 5.72598 2.00432C6.16502 2.22802 6.52198 2.58498 6.74568 3.02402C7 3.52315 7 4.17654 7 5.48333ZM7 12.25V5.48333" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_brain" viewBox="0 0 16 16" fill="none"><g id="pp_brain__Brain" clip-path="url(#pp_brain__clip0_0_300)"><g id="pp_brain__Vector"></g><path id="pp_brain__Vector_2" d="M10.3333 8.66667C9.71449 8.66667 9.121 8.9125 8.68342 9.35008C8.24583 9.78767 8 10.3812 8 11V11.6667C8 12.2855 8.24583 12.879 8.68342 13.3166C9.121 13.7542 9.71449 14 10.3333 14C10.9522 14 11.5457 13.7542 11.9832 13.3166C12.4208 12.879 12.6667 12.2855 12.6667 11.6667V10.4667" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_3" d="M5.66667 8.66667C6.28551 8.66667 6.879 8.9125 7.31658 9.35008C7.75417 9.78767 8 10.3812 8 11V11.6667C8 12.2855 7.75417 12.879 7.31658 13.3166C6.879 13.7542 6.28551 14 5.66667 14C5.04783 14 4.45434 13.7542 4.01675 13.3166C3.57917 12.879 3.33333 12.2855 3.33333 11.6667V10.4667" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_4" d="M11.6667 10.6667C12.2855 10.6667 12.879 10.4208 13.3166 9.98325C13.7542 9.54566 14 8.95217 14 8.33333C14 7.71449 13.7542 7.121 13.3166 6.68342C12.879 6.24583 12.2855 6 11.6667 6H11.3333" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_5" d="M12.6667 6.2V4.33333C12.6667 3.71449 12.4208 3.121 11.9832 2.68342C11.5457 2.24583 10.9522 2 10.3333 2C9.71449 2 9.121 2.24583 8.68342 2.68342C8.24583 3.121 8 3.71449 8 4.33333" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_6" d="M4.33333 10.6667C3.71449 10.6667 3.121 10.4208 2.68342 9.98325C2.24583 9.54566 2 8.95217 2 8.33333C2 7.71449 2.24583 7.121 2.68342 6.68342C3.121 6.24583 3.71449 6 4.33333 6H4.66667" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_brain__Vector_7" d="M3.33333 6.2V4.33333C3.33333 3.71449 3.57917 3.121 4.01675 2.68342C4.45434 2.24583 5.04783 2 5.66667 2C6.28551 2 6.879 2.24583 7.31658 2.68342C7.75417 3.121 8 3.71449 8 4.33333V11" stroke="#0D99FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_brain__clip0_0_300"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="ic-pp_closepanel" viewBox="0 0 20 20" fill="none"><path d="M3.33333 5C3.33333 4.55797 3.50893 4.13405 3.82149 3.82149C4.13405 3.50893 4.55797 3.33333 5 3.33333H15C15.442 3.33333 15.8659 3.50893 16.1785 3.82149C16.4911 4.13405 16.6667 4.55797 16.6667 5V15C16.6667 15.442 16.4911 15.8659 16.1785 16.1785C15.8659 16.4911 15.442 16.6667 15 16.6667H5C4.55797 16.6667 4.13405 16.4911 3.82149 16.1785C3.50893 15.8659 3.33333 15.442 3.33333 15V5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 3.33333V16.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 8.33333L10.8333 10L12.5 11.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="ic-pp_contextstudio" viewBox="0 0 16 16" fill="none"><path d="M14 8L8 12L2 8M14 10.6667L8 14.6667L2 10.6667M14 5.33333L8 9.33333L2 5.33333L8 1.33333L14 5.33333Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="ic-pp_edit" viewBox="0 0 16 16" fill="none"><g id="pp_edit__Edit" clip-path="url(#pp_edit__clip0_0_276)"><g id="pp_edit__Vector"></g><path id="pp_edit__Vector_2" d="M2.66667 13.3333H5.33333L12.3333 6.33333C12.5084 6.15824 12.6473 5.95037 12.7421 5.72159C12.8368 5.49282 12.8856 5.24762 12.8856 5C12.8856 4.75238 12.8368 4.50718 12.7421 4.27841C12.6473 4.04963 12.5084 3.84176 12.3333 3.66667C12.1582 3.49157 11.9504 3.35268 11.7216 3.25792C11.4928 3.16315 11.2476 3.11438 11 3.11438C10.7524 3.11438 10.5072 3.16315 10.2784 3.25792C10.0496 3.35268 9.84176 3.49157 9.66667 3.66667L2.66667 10.6667V13.3333Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_edit__Vector_3" d="M9 4.33333L11.6667 7" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_edit__clip0_0_276"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_ellipse316" viewBox="0 0 195.505 132.505" fill="none"><g id="Ellipse 316" filter="url(#pp_ellipse316__filter0_f_0_403)" style="mix-blend-mode:plus-darker"><ellipse cx="97.7527" cy="66.2526" rx="60" ry="28.5" fill="#007BE5"/></g><defs><filter id="pp_ellipse316__filter0_f_0_403" x="0" y="0" width="195.505" height="132.505" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_403"/></filter></defs></symbol><symbol id="ic-pp_ellipse317" viewBox="0 0 263.505 263.505" fill="none"><g id="Ellipse 317" opacity="0.5" filter="url(#pp_ellipse317__filter0_f_0_426)"><ellipse cx="131.753" cy="131.753" rx="94" ry="94" fill="#75D7F0"/></g><defs><filter id="pp_ellipse317__filter0_f_0_426" x="0" y="0" width="263.505" height="263.505" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_426"/></filter></defs></symbol><symbol id="ic-pp_file" viewBox="0 0 16 16" fill="none"><g id="pp_file__File" clip-path="url(#pp_file__clip0_0_319)"><g id="pp_file__Vector"></g><path id="pp_file__Vector_2" d="M9.33333 2V4.66667C9.33333 4.84348 9.40357 5.01305 9.5286 5.13807C9.65362 5.2631 9.82319 5.33333 10 5.33333H12.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_3" d="M11.3333 14H4.66667C4.31304 14 3.97391 13.8595 3.72386 13.6095C3.47381 13.3594 3.33333 13.0203 3.33333 12.6667V3.33333C3.33333 2.97971 3.47381 2.64057 3.72386 2.39052C3.97391 2.14048 4.31304 2 4.66667 2H9.33333L12.6667 5.33333V12.6667C12.6667 13.0203 12.5262 13.3594 12.2761 13.6095C12.0261 13.8595 11.687 14 11.3333 14Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_4" d="M6 4.66667H6.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_5" d="M6 8.66667H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_file__Vector_6" d="M8.66667 11.3333H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_file__clip0_0_319"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_folder" viewBox="0 0 16 16" fill="none"><g id="pp_folder__Folder" clip-path="url(#pp_folder__clip0_0_332)"><g id="pp_folder__Vector"></g><path id="pp_folder__Vector_2" d="M3.33333 2.66667H6L8 4.66667H12.6667C13.0203 4.66667 13.3594 4.80714 13.6095 5.05719C13.8595 5.30724 14 5.64638 14 6V11.3333C14 11.687 13.8595 12.0261 13.6095 12.2761C13.3594 12.5262 13.0203 12.6667 12.6667 12.6667H3.33333C2.97971 12.6667 2.64057 12.5262 2.39052 12.2761C2.14048 12.0261 2 11.687 2 11.3333V4C2 3.64638 2.14048 3.30724 2.39052 3.05719C2.64057 2.80714 2.97971 2.66667 3.33333 2.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_folder__clip0_0_332"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_frame" viewBox="0 0 16 16" fill="none"><g id="pp_frame__Frame" clip-path="url(#pp_frame__clip0_0_373)"><g id="pp_frame__Vector"></g><path id="pp_frame__Vector_2" d="M14 8V5.32667C13.9996 5.09405 13.9377 4.86567 13.8206 4.66465C13.7036 4.46364 13.5355 4.29713 13.3333 4.182L8.66667 1.51C8.46354 1.39427 8.23378 1.3334 8 1.3334C7.76622 1.3334 7.53646 1.39427 7.33333 1.51L2.66667 4.182C2.254 4.41867 2 4.85533 2 5.32733V10.6727C2 11.1453 2.254 11.5813 2.66667 11.8173L7.33333 14.4893C7.74667 14.7253 8.25333 14.7253 8.66667 14.4893" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_3" d="M8 14.6667V8" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_4" d="M8 8L13.82 4.64" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_5" d="M2.17969 4.63989L7.99969 7.99989" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame__Vector_6" d="M12.6663 14.9999C12.8032 14.4341 13.0934 13.9169 13.5051 13.5053C13.9167 13.0937 14.4338 12.8035 14.9997 12.6666C14.4338 12.5297 13.9167 12.2395 13.5051 11.8279C13.0934 11.4162 12.8032 10.8991 12.6663 10.3333C12.5295 10.8991 12.2393 11.4162 11.8276 11.8279C11.416 12.2395 10.8988 12.5297 10.333 12.6666C10.8988 12.8035 11.416 13.0937 11.8276 13.5053C12.2393 13.9169 12.5295 14.4341 12.6663 14.9999Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_frame__clip0_0_373"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_frame1" viewBox="0 0 16 16" fill="none"><g id="pp_frame1__Frame" clip-path="url(#pp_frame1__clip0_0_359)"><g id="pp_frame1__Vector"></g><path id="pp_frame1__Vector_2" d="M9.33301 2.66675H13.333V6.66675H9.33301V2.66675Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame1__Vector_3" d="M2.66699 9.33325H6.66699V13.3333H2.66699V9.33325Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame1__Vector_4" d="M9.33301 11.3333C9.33301 11.8637 9.54372 12.3724 9.91879 12.7475C10.2939 13.1225 10.8026 13.3333 11.333 13.3333C11.8634 13.3333 12.3721 13.1225 12.7472 12.7475C13.1223 12.3724 13.333 11.8637 13.333 11.3333C13.333 10.8028 13.1223 10.2941 12.7472 9.91904C12.3721 9.54397 11.8634 9.33325 11.333 9.33325C10.8026 9.33325 10.2939 9.54397 9.91879 9.91904C9.54372 10.2941 9.33301 10.8028 9.33301 11.3333Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_frame1__Vector_5" d="M2.66699 4.66675C2.66699 4.92939 2.71872 5.18946 2.81923 5.43212C2.91974 5.67477 3.06706 5.89524 3.25278 6.08096C3.4385 6.26668 3.65897 6.414 3.90163 6.51451C4.14428 6.61502 4.40435 6.66675 4.66699 6.66675C4.92964 6.66675 5.18971 6.61502 5.43236 6.51451C5.67501 6.414 5.89549 6.26668 6.08121 6.08096C6.26692 5.89524 6.41424 5.67477 6.51475 5.43212C6.61526 5.18946 6.66699 4.92939 6.66699 4.66675C6.66699 4.4041 6.61526 4.14403 6.51475 3.90138C6.41424 3.65873 6.26692 3.43825 6.08121 3.25253C5.89549 3.06682 5.67501 2.9195 5.43236 2.81899C5.18971 2.71848 4.92964 2.66675 4.66699 2.66675C4.40435 2.66675 4.14428 2.71848 3.90163 2.81899C3.65897 2.9195 3.4385 3.06682 3.25278 3.25253C3.06706 3.43825 2.91974 3.65873 2.81923 3.90138C2.71872 4.14403 2.66699 4.4041 2.66699 4.66675Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_frame1__clip0_0_359"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_group293" viewBox="0 0 24 15.6" fill="none"><g id="Group 293"><path id="Rectangle 149" d="M3.35998 4.49906C3.35998 2.14295 5.38619 0.297224 7.73209 0.516405L12.1129 0.925714C12.3571 0.948531 12.6029 0.948838 12.8472 0.926633L16.1228 0.628845C18.4343 0.418714 20.4387 2.21348 20.4842 4.534L20.5849 9.66935C20.618 11.3557 19.5897 12.8816 18.0142 13.484L13.8329 15.0827C12.9587 15.417 11.9951 15.4341 11.1096 15.1312L6.06523 13.4055C4.44716 12.8519 3.35998 11.331 3.35998 9.62082L3.35998 4.49906Z" fill="url(#pp_group293__paint0_linear_0_381)"/><foreignObject x="-4" y="-4" width="20.48" height="15.2"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(2px);clip-path:url(#pp_group293__bgblur_0_0_381_clip_path);height:100%;width:100%"></div></foreignObject><g id="pp_group293__Vector" filter="url(#pp_group293__filter0_i_0_381)" data-figma-bg-blur-radius="4"><path d="M2.69405 0L12.48 0.959999L8.89506 6.88594C8.70128 7.1651 8.4106 7.25815 8.11993 7.1651L0.368675 5.02488C0.078003 4.93182 -0.115778 4.55961 0.078003 4.1874L2.11271 0.372213C2.2096 0.0930532 2.40338 0 2.69405 0Z" fill="#BDE3FF" fill-opacity="0.6"/></g><foreignObject x="8.47999" y="-4" width="19.52" height="14.72"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(2px);clip-path:url(#pp_group293__bgblur_1_0_381_clip_path);height:100%;width:100%"></div></foreignObject><g id="pp_group293__Vector_2" filter="url(#pp_group293__filter1_i_0_381)" data-figma-bg-blur-radius="4"><path d="M23.5317 4.68988L16.4015 6.68743C16.1342 6.77428 15.8668 6.68743 15.7777 6.42688L12.48 0.959999L21.4818 0C21.7491 0 21.9274 0.0868497 22.1056 0.347399L23.9773 3.90824C24.0664 4.25564 23.8882 4.60303 23.5317 4.68988Z" fill="#BDE3FF" fill-opacity="0.6"/></g></g><defs><filter id="pp_group293__filter0_i_0_381" x="-4" y="-4" width="20.48" height="15.2" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dx="0.2" dy="0.1"/><feGaussianBlur stdDeviation="0.5"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_381"/></filter><clipPath id="pp_group293__bgblur_0_0_381_clip_path" transform="translate(4 4)"><path d="M2.69405 0L12.48 0.959999L8.89506 6.88594C8.70128 7.1651 8.4106 7.25815 8.11993 7.1651L0.368675 5.02488C0.078003 4.93182 -0.115778 4.55961 0.078003 4.1874L2.11271 0.372213C2.2096 0.0930532 2.40338 0 2.69405 0Z"/></clipPath><filter id="pp_group293__filter1_i_0_381" x="8.47999" y="-4" width="19.52" height="14.72" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/><feOffset dx="0.2" dy="0.1"/><feGaussianBlur stdDeviation="0.5"/><feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1"/><feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0"/><feBlend mode="normal" in2="shape" result="effect1_innerShadow_0_381"/></filter><clipPath id="pp_group293__bgblur_1_0_381_clip_path" transform="translate(-8.47999 4)"><path d="M23.5317 4.68988L16.4015 6.68743C16.1342 6.77428 15.8668 6.68743 15.7777 6.42688L12.48 0.959999L21.4818 0C21.7491 0 21.9274 0.0868497 22.1056 0.347399L23.9773 3.90824C24.0664 4.25564 23.8882 4.60303 23.5317 4.68988Z"/></clipPath><linearGradient id="pp_group293__paint0_linear_0_381" x1="19.1778" y1="1.53795" x2="5.06784" y2="17.1441" gradientUnits="userSpaceOnUse"><stop stop-color="#007BE5"/><stop offset="0.5" stop-color="#0D99FF"/><stop offset="1" stop-color="#BDE3FF"/></linearGradient></defs></symbol><symbol id="ic-pp_guardrails" viewBox="0 0 16 16" fill="none"><g id="pp_guardrails__Guardrails" clip-path="url(#pp_guardrails__clip0_0_288)"><g id="pp_guardrails__Vector"></g><path id="pp_guardrails__Vector_2" d="M8 2C9.55722 3.37772 11.5896 4.09504 13.6667 4C13.9691 5.02868 14.0616 6.10764 13.9387 7.17279C13.8159 8.23793 13.4802 9.26751 12.9516 10.2004C12.423 11.1332 11.7123 11.9503 10.8616 12.603C10.011 13.2557 9.03786 13.7308 8 14C6.96214 13.7308 5.98899 13.2557 5.13836 12.603C4.28774 11.9503 3.57701 11.1332 3.0484 10.2004C2.51979 9.26751 2.18409 8.23793 2.06125 7.17279C1.93841 6.10764 2.03094 5.02868 2.33333 4C4.41035 4.09504 6.44278 3.37772 8 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_guardrails__Vector_3" d="M8 2V14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_guardrails__clip0_0_288"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_home" viewBox="0 0 16 16" fill="none"><g id="pp_home__Home"><path id="pp_home__Icon" d="M5.33333 11.3333H10.6667M7.34513 1.84268L2.82359 5.35943C2.52135 5.59451 2.37022 5.71205 2.26135 5.85925C2.16491 5.98964 2.09307 6.13653 2.04935 6.29271C2 6.46902 2 6.66048 2 7.04338V11.8667C2 12.6134 2 12.9868 2.14532 13.272C2.27316 13.5229 2.47713 13.7268 2.72801 13.8547C3.01323 14 3.3866 14 4.13333 14H11.8667C12.6134 14 12.9868 14 13.272 13.8547C13.5229 13.7268 13.7268 13.5229 13.8547 13.272C14 12.9868 14 12.6134 14 11.8667V7.04338C14 6.66048 14 6.46902 13.9506 6.29271C13.9069 6.13653 13.8351 5.98964 13.7386 5.85925C13.6298 5.71205 13.4787 5.59451 13.1764 5.35943L8.65487 1.84268C8.42065 1.66051 8.30354 1.56942 8.17423 1.53441C8.06013 1.50352 7.93987 1.50352 7.82577 1.53441C7.69646 1.56942 7.57935 1.66051 7.34513 1.84268Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_icon" viewBox="0 0 299.75 330.75" fill="none"><g id="pp_icon__Icon" filter="url(#pp_icon__filter0_f_0_326)"><g id="Ellipse 316" opacity="0.4" filter="url(#pp_icon__filter1_f_0_326)"><ellipse cx="175.497" cy="206.497" rx="86.5" ry="86.5" fill="#0D99FF"/></g><g id="Ellipse 317" opacity="0.7" filter="url(#pp_icon__filter2_f_0_326)"><circle cx="88.3748" cy="88.3748" r="50.6222" fill="#80CAFF"/></g></g><defs><filter id="pp_icon__filter0_f_0_326" x="23.3526" y="23.3526" width="253.044" height="284.044" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="7.2" result="effect1_foregroundBlur_0_326"/></filter><filter id="pp_icon__filter1_f_0_326" x="51.2444" y="82.2444" width="248.505" height="248.505" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_326"/></filter><filter id="pp_icon__filter2_f_0_326" x="0" y="-1.22165e-06" width="176.75" height="176.75" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"/><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur stdDeviation="18.8763" result="effect1_foregroundBlur_0_326"/></filter></defs></symbol><symbol id="ic-pp_integrations" viewBox="0 0 16 16" fill="none"><g id="pp_integrations__Integrations" clip-path="url(#pp_integrations__clip0_0_346)"><g id="pp_integrations__Vector"></g><path id="pp_integrations__Vector_2" d="M2.66667 4.33333C2.66667 4.77536 2.84226 5.19928 3.15482 5.51184C3.46738 5.8244 3.89131 6 4.33333 6C4.77536 6 5.19928 5.8244 5.51184 5.51184C5.8244 5.19928 6 4.77536 6 4.33333C6 3.89131 5.8244 3.46738 5.51184 3.15482C5.19928 2.84226 4.77536 2.66667 4.33333 2.66667C3.89131 2.66667 3.46738 2.84226 3.15482 3.15482C2.84226 3.46738 2.66667 3.89131 2.66667 4.33333Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_3" d="M10 4.33333C10 4.77536 10.1756 5.19928 10.4882 5.51184C10.8007 5.8244 11.2246 6 11.6667 6C12.1087 6 12.5326 5.8244 12.8452 5.51184C13.1577 5.19928 13.3333 4.77536 13.3333 4.33333C13.3333 3.89131 13.1577 3.46738 12.8452 3.15482C12.5326 2.84226 12.1087 2.66667 11.6667 2.66667C11.2246 2.66667 10.8007 2.84226 10.4882 3.15482C10.1756 3.46738 10 3.89131 10 4.33333Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_4" d="M10 11.6667C10 12.1087 10.1756 12.5326 10.4882 12.8452C10.8007 13.1577 11.2246 13.3333 11.6667 13.3333C12.1087 13.3333 12.5326 13.1577 12.8452 12.8452C13.1577 12.5326 13.3333 12.1087 13.3333 11.6667C13.3333 11.2246 13.1577 10.8007 12.8452 10.4882C12.5326 10.1756 12.1087 10 11.6667 10C11.2246 10 10.8007 10.1756 10.4882 10.4882C10.1756 10.8007 10 11.2246 10 11.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_5" d="M2.66667 11.6667C2.66667 12.1087 2.84226 12.5326 3.15482 12.8452C3.46738 13.1577 3.89131 13.3333 4.33333 13.3333C4.77536 13.3333 5.19928 13.1577 5.51184 12.8452C5.8244 12.5326 6 12.1087 6 11.6667C6 11.2246 5.8244 10.8007 5.51184 10.4882C5.19928 10.1756 4.77536 10 4.33333 10C3.89131 10 3.46738 10.1756 3.15482 10.4882C2.84226 10.8007 2.66667 11.2246 2.66667 11.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_integrations__Vector_6" d="M5.66667 10.3333L10.3333 5.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_integrations__clip0_0_346"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_monitorcog" viewBox="0 0 14 14" fill="none"><g id="pp_monitorcog__monitor-cog"><path id="pp_monitorcog__Vector" d="M7 9.91667V12.25M8.86669 2.85833L8.34169 2.625M8.86669 4.14172L8.34169 4.37506M9.85833 1.8667L9.625 1.3417M9.85833 5.13336L9.625 5.65836M11.3751 1.3417L11.1417 1.8667M11.3751 5.65836L11.1417 5.13336M12.6584 2.625L12.1334 2.85833M12.6584 4.37506L12.1334 4.14172M12.8333 7.58333V8.75C12.8333 9.05942 12.7104 9.35616 12.4916 9.57496C12.2728 9.79375 11.9761 9.91667 11.6667 9.91667H2.33333C2.02391 9.91667 1.72717 9.79375 1.50838 9.57496C1.28958 9.35616 1.16667 9.05942 1.16667 8.75V2.91667C1.16667 2.60725 1.28958 2.3105 1.50838 2.09171C1.72717 1.87292 2.02391 1.75 2.33333 1.75H6.41667M4.66667 12.25H9.33333M12.25 3.5C12.25 4.4665 11.4665 5.25 10.5 5.25C9.5335 5.25 8.75 4.4665 8.75 3.5C8.75 2.5335 9.5335 1.75 10.5 1.75C11.4665 1.75 12.25 2.5335 12.25 3.5Z" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></g></symbol><symbol id="ic-pp_skill" viewBox="0 0 16 16" fill="none"><g id="pp_skill__Skill" clip-path="url(#pp_skill__clip0_0_264)"><g id="pp_skill__Vector"></g><path id="pp_skill__Vector_2" d="M9.33333 2V4.66667C9.33333 4.84348 9.40357 5.01305 9.5286 5.13807C9.65362 5.2631 9.82319 5.33333 10 5.33333H12.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_3" d="M8 14H4.66667C4.31304 14 3.97391 13.8595 3.72386 13.6095C3.47381 13.3594 3.33333 13.0203 3.33333 12.6667V3.33333C3.33333 2.97971 3.47381 2.64057 3.72386 2.39052C3.97391 2.14048 4.31304 2 4.66667 2H9.33333L12.6667 5.33333V7.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_4" d="M6 6H6.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_5" d="M6 8.66667H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_6" d="M6 11.3333H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="pp_skill__Vector_7" d="M12.6667 15C12.8035 14.4342 13.0937 13.917 13.5054 13.5054C13.917 13.0937 14.4342 12.8035 15 12.6667C14.4342 12.5298 13.917 12.2396 13.5054 11.8279C13.0937 11.4163 12.8035 10.8992 12.6667 10.3333C12.5298 10.8992 12.2396 11.4163 11.8279 11.8279C11.4163 12.2396 10.8992 12.5298 10.3333 12.6667C10.8992 12.8035 11.4163 13.0937 11.8279 13.5054C12.2396 13.917 12.5298 14.4342 12.6667 15Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_skill__clip0_0_264"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol><symbol id="ic-pp_toolsskills" viewBox="0 0 16 16" fill="none"><g id="Tools &#38; skills" clip-path="url(#pp_toolsskills__clip0_0_356)"><g id="pp_toolsskills__Vector"></g><path id="pp_toolsskills__Vector_2" d="M4.66667 6.66667H6.66667V4.66667L4.33333 2.33333C5.07975 1.97685 5.91833 1.86054 6.7336 2.00041C7.54886 2.14029 8.30072 2.52948 8.88562 3.11438C9.47052 3.69929 9.85971 4.45114 9.99959 5.2664C10.1395 6.08167 10.0232 6.92025 9.66667 7.66667L13.6667 11.6667C13.9319 11.9319 14.0809 12.2916 14.0809 12.6667C14.0809 13.0417 13.9319 13.4014 13.6667 13.6667C13.4014 13.9319 13.0417 14.0809 12.6667 14.0809C12.2916 14.0809 11.9319 13.9319 11.6667 13.6667L7.66667 9.66667C6.92025 10.0232 6.08167 10.1395 5.2664 9.99959C4.45114 9.85971 3.69929 9.47052 3.11438 8.88562C2.52948 8.30072 2.14029 7.54886 2.00041 6.7336C1.86054 5.91833 1.97685 5.07975 2.33333 4.33333L4.66667 6.66667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="pp_toolsskills__clip0_0_356"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol></svg>
 
 <aside class="ds-index">
   <div class="ds-brand">
@@ -1973,7 +2226,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-stage-fill" aria-hidden="true">
             <div class="nav-ghost"></div><div class="nav-ghost"></div><div class="nav-ghost"></div>
           </div>
-  <aside class="rail" aria-label="Platform">
+  <aside class="rail" data-cs="after" aria-label="Platform">
     <div class="rail-head">
       <div class="rail-brand">
         <span class="rail-logo">
@@ -2012,6 +2265,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
         <button class="rail-btn" title="Agents"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_agent"/></svg><span class="rail-lbl">Agents</span></button>
         <button class="rail-btn" title="Assistants"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_aiassistant"/></svg><span class="rail-lbl">Assistants</span></button>
       </div>
+    </div>
+
+    <!-- Where this sits is a variable, not a second component: A leaves it
+         here in category order, B, C and D send it past the last category —
+         under a rule, or boxed. Same markup in all four — see .rail[data-cs]. -->
+    <div class="rail-group" data-group="context-studio">
+      <div class="rail-rule rail-rule--cs" aria-hidden="true"></div>
+      <button class="rail-ghead rail-ghead--leaf" id="ctxStudio" title="Context Studio">
+        <span class="rail-tile-wrap">
+          <span class="rail-tile grad-context"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_contextstudio"/></svg></span>
+          <span class="rail-dot" aria-hidden="true"></span>
+        </span>
+        <span class="rail-lbl">Context Studio</span>
+        <span class="rail-flag">Try</span>
+        <!-- F only: shown when the row actually has a list under it. -->
+        <svg class="ic rail-chev rail-chev--cs" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+        <!-- D only. Inside the control, so the box, the line and the row
+             are one target and one focus ring rather than three. -->
+        <span class="rail-cs-note">Give your agents what your company knows.</span>
+      </button>
     </div>
 
     <div class="rail-group" data-group="library">
@@ -2054,18 +2327,9 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
         <svg class="ic rail-chev" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
       </button>
     </div>
-    <div class="rail-group" data-group="context-studio">
-      <div class="rail-rule" aria-hidden="true"></div>
-      <button class="rail-ghead rail-ghead--leaf" id="ctxStudio" title="Context Studio">
-        <span class="rail-tile-wrap">
-          <span class="rail-tile grad-context"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_contextstudio"/></svg></span>
-          <span class="rail-dot" aria-hidden="true"></span>
-        </span>
-        <span class="rail-lbl">Context Studio</span>
-        <span class="rail-flag">Try</span>
-      </button>
-    </div>
   </aside>
+<!-- Shown when Context Studio is not on the plan. Anchored beside the
+     panel, so the offer arrives where the user just clicked. -->
 <!-- Shown when Context Studio is not on the plan. Anchored beside the
      panel, so the offer arrives where the user just clicked. -->
 <div class="upsell" id="upsell" role="dialog" aria-label="About Context Studio">
@@ -2099,6 +2363,19 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
         d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5 7.5 8.5" stroke="currentColor"
         stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   </div>
+</div>
+
+<!-- First run only. Points at the Context tile in the crunched panel. -->
+<span class="coach-ring" id="coachRing" aria-hidden="true"></span>
+<div class="coach-tip" id="coachTip" role="status">
+  <span class="coach-arrow" aria-hidden="true"></span>
+  <span class="rail-tile grad-context"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_contextstudio"/></svg></span>
+  <div><b>Introducing Cogentiq Context</b></div>
+  <button class="coach-x" id="coachX" type="button" aria-label="Dismiss">
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4 4 12 12M12 4 4 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+  </button>
 </div>
 
 <!-- The big view the preview's expand button opens. Empty until first
@@ -2203,7 +2480,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 
         <div>
           <div class="nav-codehead"><b>Markup</b><button class="ds-code" data-copy-target="codeHtml">Copy</button></div>
-          <pre class="nav-code" id="codeHtml">  &lt;aside class="rail" aria-label="Platform"&gt;
+          <pre class="nav-code" id="codeHtml">  &lt;aside class="rail" data-cs="after" aria-label="Platform"&gt;
     &lt;div class="rail-head"&gt;
       &lt;div class="rail-brand"&gt;
         &lt;span class="rail-logo"&gt;
@@ -2242,6 +2519,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
         &lt;button class="rail-btn" title="Agents"&gt;&lt;svg class="ic" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_agent"/&gt;&lt;/svg&gt;&lt;span class="rail-lbl"&gt;Agents&lt;/span&gt;&lt;/button&gt;
         &lt;button class="rail-btn" title="Assistants"&gt;&lt;svg class="ic" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_aiassistant"/&gt;&lt;/svg&gt;&lt;span class="rail-lbl"&gt;Assistants&lt;/span&gt;&lt;/button&gt;
       &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Where this sits is a variable, not a second component: A leaves it
+         here in category order, B, C and D send it past the last category —
+         under a rule, or boxed. Same markup in all four — see .rail[data-cs]. --&gt;
+    &lt;div class="rail-group" data-group="context-studio"&gt;
+      &lt;div class="rail-rule rail-rule--cs" aria-hidden="true"&gt;&lt;/div&gt;
+      &lt;button class="rail-ghead rail-ghead--leaf" id="ctxStudio" title="Context Studio"&gt;
+        &lt;span class="rail-tile-wrap"&gt;
+          &lt;span class="rail-tile grad-context"&gt;&lt;svg class="ic" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_contextstudio"/&gt;&lt;/svg&gt;&lt;/span&gt;
+          &lt;span class="rail-dot" aria-hidden="true"&gt;&lt;/span&gt;
+        &lt;/span&gt;
+        &lt;span class="rail-lbl"&gt;Context Studio&lt;/span&gt;
+        &lt;span class="rail-flag"&gt;Try&lt;/span&gt;
+        &lt;!-- F only: shown when the row actually has a list under it. --&gt;
+        &lt;svg class="ic rail-chev rail-chev--cs" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_chevron"/&gt;&lt;/svg&gt;
+        &lt;!-- D only. Inside the control, so the box, the line and the row
+             are one target and one focus ring rather than three. --&gt;
+        &lt;span class="rail-cs-note"&gt;Give your agents what your company knows.&lt;/span&gt;
+      &lt;/button&gt;
     &lt;/div&gt;
 
     &lt;div class="rail-group" data-group="library"&gt;
@@ -2284,22 +2581,13 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
         &lt;svg class="ic rail-chev" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_chevron"/&gt;&lt;/svg&gt;
       &lt;/button&gt;
     &lt;/div&gt;
-    &lt;div class="rail-group" data-group="context-studio"&gt;
-      &lt;div class="rail-rule" aria-hidden="true"&gt;&lt;/div&gt;
-      &lt;button class="rail-ghead rail-ghead--leaf" id="ctxStudio" title="Context Studio"&gt;
-        &lt;span class="rail-tile-wrap"&gt;
-          &lt;span class="rail-tile grad-context"&gt;&lt;svg class="ic" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_contextstudio"/&gt;&lt;/svg&gt;&lt;/span&gt;
-          &lt;span class="rail-dot" aria-hidden="true"&gt;&lt;/span&gt;
-        &lt;/span&gt;
-        &lt;span class="rail-lbl"&gt;Context Studio&lt;/span&gt;
-        &lt;span class="rail-flag"&gt;Try&lt;/span&gt;
-      &lt;/button&gt;
-    &lt;/div&gt;
   &lt;/aside&gt;</pre>
         </div>
         <div>
           <div class="nav-codehead"><b>Preview overlay</b><button class="ds-code" data-copy-target="codeUpsell">Copy</button></div>
           <pre class="nav-code" id="codeUpsell">&lt;!-- Shown when Context Studio is not on the plan. Anchored beside the
+     panel, so the offer arrives where the user just clicked. --&gt;
+&lt;!-- Shown when Context Studio is not on the plan. Anchored beside the
      panel, so the offer arrives where the user just clicked. --&gt;
 &lt;div class="upsell" id="upsell" role="dialog" aria-label="About Context Studio"&gt;
   &lt;!-- The preview film. Built, not recorded — see the reference
@@ -2332,6 +2620,19 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
         d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5 7.5 8.5" stroke="currentColor"
         stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/&gt;&lt;/svg&gt;&lt;/a&gt;
   &lt;/div&gt;
+&lt;/div&gt;
+
+&lt;!-- First run only. Points at the Context tile in the crunched panel. --&gt;
+&lt;span class="coach-ring" id="coachRing" aria-hidden="true"&gt;&lt;/span&gt;
+&lt;div class="coach-tip" id="coachTip" role="status"&gt;
+  &lt;span class="coach-arrow" aria-hidden="true"&gt;&lt;/span&gt;
+  &lt;span class="rail-tile grad-context"&gt;&lt;svg class="ic" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_contextstudio"/&gt;&lt;/svg&gt;&lt;/span&gt;
+  &lt;div&gt;&lt;b&gt;Introducing Cogentiq Context&lt;/b&gt;&lt;/div&gt;
+  &lt;button class="coach-x" id="coachX" type="button" aria-label="Dismiss"&gt;
+    &lt;svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"&gt;
+      &lt;path d="M4 4 12 12M12 4 4 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/&gt;
+    &lt;/svg&gt;
+  &lt;/button&gt;
 &lt;/div&gt;
 
 &lt;!-- The big view the preview's expand button opens. Empty until first
@@ -2445,7 +2746,16 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       transition: background .15s ease, color .15s ease;
     }
     .rail-btn &gt; .ic { flex: none; }
-    .rail-btn:hover { background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
+    /* Hover draws a rectangle, not just a fill — at 68px the icons have
+       no labels to hit-test against, so the row needs to say where it
+       begins and ends. The border comes out of the padding exactly as it
+       does on an active item, so nothing shifts by a pixel. */
+    .rail-btn:hover {
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      padding: 7px;
+      color: var(--text-secondary);
+    }
     .rail-btn.is-active {
       background: var(--backgrounds-button-tonal-1);
       /* Figma strokes sit inside the box, so the padding absorbs the border
@@ -2459,9 +2769,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 
     /* ── Group header ── */
     .rail-ghead {
+      position: relative;
       width: 100%; height: 24px; flex: none;
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
+    /* A category header is 24px of tile and label with no box of its own,
+       and it is a control. The rectangle is drawn by a pseudo-element
+       rather than by padding a fixed-height row, so it can overhang the
+       24px without touching layout — and the children are lifted above
+       it, since a positioned pseudo would otherwise paint over them. */
+    .rail-ghead::before {
+      content: ""; position: absolute; inset: -6px -8px; z-index: 0;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .rail-ghead:hover::before {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-card-default);
+    }
+    .rail-ghead &gt; * { position: relative; z-index: 1; }
     .rail-tile {
       flex: none;
       width: 24px; height: 24px; border-radius: 6px; overflow: hidden;
@@ -2499,14 +2826,20 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       background: var(--text-coloured-blue);
       box-shadow: 0 0 0 2px var(--backgrounds-page-bg-1);
     }
+    /* The pill carries the Context tile's own gradient rather than the
+       generic blue badge, so the row's two coloured things read as one
+       offering instead of two unrelated accents. The gradient is static
+       here even though the tile's turns: two rotations six pixels apart
+       is noise, and the pill already has its own motion in the sheen
+       below. No border — a stroke on a saturated fill only muddies it,
+       and dropping it buys the 1px back as padding. */
     .rail-flag {
       display: none;
       position: relative; overflow: hidden;
-      flex: none; height: 18px; padding: 0 7px; border-radius: 9px;
+      flex: none; height: 18px; padding: 0 8px; border-radius: 9px;
       align-items: center;
-      background: var(--backgrounds-badge-blue);
-      border: 1px solid var(--strokes-colour-blue);
-      color: var(--text-coloured-blue);
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      color: var(--text-button-white);
       font: 500 11px/1 var(--font-geist); letter-spacing: -0.11px;
     }
     /* A glint that crosses the pill every few seconds, with a long hold
@@ -2528,7 +2861,91 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .rail-group.is-locked .rail-flag { display: inline-flex; }
     .rail:not(.is-open) .rail-flag { display: none; }
 
+    /* ── Where Context Studio sits ───────────────────────────────
+       Still being chosen, so every candidate ships and the panel
+       switches between them with data-cs. One row, one set of
+       listeners, nothing to keep in sync.
+         inline — A · in category order, between Build and Library
+         after  — B · past the last category, under a rule
+         footer — C · the same row, dropped to the foot of the panel
+         card   — D · past the last category, boxed, with a one-liner
+         open   — F · in category order, opened into its six blocks
+       A reads Context Studio as a peer of the categories. B, C and D
+       read it as an offering of its own — by rule, by position, by
+       card. F stops arguing about the row altogether and shows what is
+       inside it. (E, which sat it at the top beside Marketplace, was
+       withdrawn; the letters are not re-used, so F stays F.) */
+    .rail-rule--cs { display: none; }
+    .rail[data-cs="after"] .rail-rule--cs,
+    .rail[data-cs="footer"] .rail-rule--cs { display: block; }
+    .rail[data-cs="after"] .rail-group[data-group="context-studio"],
+    .rail[data-cs="footer"] .rail-group[data-group="context-studio"],
+    .rail[data-cs="card"] .rail-group[data-group="context-studio"] { order: 1; }
+    /* Spare height collects above the rule, so the row lands on the foot
+       of the panel and the rule travels down with it. A short viewport
+       has no spare height to give, and C becomes B rather than scroll. */
+    .rail[data-cs="footer"] .rail-group[data-group="context-studio"] { margin-top: auto; }
+
+    /* F · opened into its blocks. The chevron exists only where there is
+       something to disclose: everywhere else Context Studio is a
+       destination, and a chevron would promise a list that is not
+       there. The list itself is built in script rather than hidden in
+       the markup — see setCsBlocks. */
+    .rail-chev--cs { display: none; }
+    .rail.is-open[data-cs="open"] .rail-chev--cs { display: block; }
+
+    /* D · a box instead of a rule. The same row in the same place as B,
+       lifted onto the card fill the Marketplace pill already uses, with a
+       line of copy under it. The box does the separating a rule would,
+       and the line answers "what is it" before the click instead of
+       after — at the cost of the panel's evenness, since it is then the
+       only thing in the list that is not a row. */
+    /* Opened only: crunched, the box has no line of copy to hold, and a
+       36px card around a 24px tile read as a button that goes nowhere —
+       so at 68px the row is a plain tile like every other category. */
+    .rail.is-open[data-cs="card"] #ctxStudio {
+      height: auto; flex-wrap: wrap; row-gap: 6px;
+      /* card/bg-4 is the one fill that reads as a raised grey against the
+         rail's ground in both themes: bg-3, which the Marketplace pill
+         uses, goes white in light, and page/bg-3 all but vanishes in
+         dark. In dark the two are the same value, so the rail still has
+         one box colour. */
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      border-radius: 10px;
+      /* 7 + the 1px border lands the tile on the same 8px line the items
+         indent their icons to — Figma strokes sit inside the box, so the
+         border comes out of the padding. */
+      padding: 7px;
+    }
+    /* The line is the point of D, and it needs the label's width to
+       read, so it goes when the labels do. */
+    .rail-cs-note {
+      display: none;
+      flex: 0 0 100%; text-align: left;
+      color: var(--text-teritiary);
+      font: 400 11px/15px var(--font-geist); letter-spacing: -0.11px;
+    }
+    .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
+    /* In D the box is already the rectangle, so the hover one would be a
+       second border 7px inside the first. The box takes the hover
+       instead. */
+    .rail.is-open[data-cs="card"] #ctxStudio::before { content: none; }
+    .rail.is-open[data-cs="card"] #ctxStudio:hover {
+      border-color: var(--strokes-icon-default);
+    }
+    /* The dot's ring is the surface behind it, and in D that is the box. */
+    .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
+
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
+    /* 520px: the preview inside is a full-size clip scaled to fit, so
+       every extra pixel of card is a pixel of legible caption. The
+       card's own type stays at token sizes — only the media grows,
+       which is the part that was too small to read.
+       The stack sets no gap of its own. A heading and the line it
+       introduces want to sit closer together than either wants to sit
+       to the media above or the buttons below, so each slot states its
+       own space rather than sharing one rhythm. */
     .upsell {
       position: fixed; z-index: 95; width: 520px;
       display: none; flex-direction: column; gap: 0;
@@ -2548,6 +2965,18 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       background: var(--backgrounds-page-bg-1);
       border: 1px solid var(--strokes-line-3);
       display: flex; align-items: center; justify-content: center;
+    }
+    .upsell-play {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-secondary);
+    }
+    .upsell-media-note {
+      position: absolute; left: 10px; bottom: 8px;
+      color: var(--text-teritiary);
+      font: 400 11px/1 var(--font-geist-mono);
     }
     /* ── Expand, and the big view it opens ─────────────────────── */
     /* Even at 520px the clip is running at about a third of the size it
@@ -2646,6 +3075,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .upsell-learn svg { flex: none; opacity: .75; }
     .upsell-learn:hover svg { opacity: 1; }
 
+    .grad-blue   { background-image: linear-gradient(225.24deg, var(--blue-600) 8.84%, var(--blue-500) 54.42%, var(--blue-300) 100%); }
+    .grad-purple { background-image: linear-gradient(225.24deg, var(--purple-600) 8.84%, var(--purple-500) 54.42%, var(--purple-300) 100%); }
+    .grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
+    .grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
+    .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
+    .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
+    /* Context's tile ships its own gradient in the component (2906:507591)
+       rather than composing the shared ramp trio — kept verbatim. A
+       background-position drift turned out unreadable at 24px: two of
+       the three stops are close blues, so most positions along the
+       gradient look the same colour and only a narrow band ever showed
+       the purple. Rotating the whole gradient plane instead sweeps
+       every stop through the tile on every lap, which is the same
+       trick as spinning a background-gradient element — the paint is
+       oversized (inset -50%, so it never uncovers a corner as it turns)
+       and sits on a ::before under the icon, which stays upright.
+       Hovering the row quickens the spin — the one hover-driven speed
+       change in the panel, since it is also the one tile whose colour
+       is the entire point of hovering it. Reduced motion holds it
+       still either way. */
     .grad-context { position: relative; overflow: hidden; background-image: none; }
     .grad-context::before {
       content: ""; position: absolute; inset: -50%;
@@ -2668,6 +3117,15 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        the spin on top of it. Lifted explicitly rather than left to that
        tie-break. */
     .grad-context &gt; svg { position: relative; z-index: 1; }
+
+    /* The clip is authored against a full-size viewport: its sphere is
+       a fixed 340px, its chips sit at ±300px offsets, and its captions
+       clamp to px minimums. Sized fluidly into a 288px box, all of that
+       stays put while the frame shrinks around it — one enormous orb
+       and a caption running off both edges. So the iframe is given the
+       viewport the clip expects (1600×900) and the whole stage is
+       scaled down to the mount instead. Both mounts are 16/9, as is
+       1600×900, so one factor fits both axes and nothing is cropped. */
     #upsellFilm iframe, .filmbox-stage iframe {
       position: absolute; left: 0; top: 0;
       width: 1600px; height: 900px;
@@ -2676,12 +3134,102 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     }
     /* The offer's box carries the clip's own ink-night rather than this
        page's ground, so it does not flash the wrong colour for the
+       instant before the iframe's first paint. */
+    #upsellFilm.upsell-media { background: #080c1a; }
 
-    .grad-blue   { background-image: linear-gradient(225.24deg, var(--blue-600) 8.84%, var(--blue-500) 54.42%, var(--blue-300) 100%); }
-    .grad-purple { background-image: linear-gradient(225.24deg, var(--purple-600) 8.84%, var(--purple-500) 54.42%, var(--purple-300) 100%); }
-    .grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
-    .grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
-    .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
+
+    /* ── First run · the tooltip ──────────────────────────────────
+       The panel is crunched by default, so the only thing a new user
+       ever sees of Context is a 24px tile with a dot on it. This is the
+       one moment that tile gets a sentence. Unlike the review page's
+       looping demo, here it appears once, waits to be read, and does
+       not come back: a coach mark that returns is an interruption, not
+       an introduction.
+       Both sit above the rail's own z-index 80 — the panel would paint
+       over them otherwise — and below the offer card's 95, because if
+       the card is up the tooltip has already done its job. */
+    .coach-ring {
+      position: fixed; z-index: 88; width: 36px; height: 36px;
+      border-radius: 11px; pointer-events: none;
+      box-shadow: 0 0 0 2px var(--backgrounds-button-primary);
+      opacity: 0; transition: opacity .3s ease;
+    }
+    .coach-ring::after {
+      content: ""; position: absolute; inset: 0; border-radius: 11px;
+      box-shadow: 0 0 0 2px var(--backgrounds-button-primary);
+      opacity: .45;
+    }
+    .coach-tip {
+      position: fixed; z-index: 89; width: 320px;
+      display: none; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; border-radius: 12px;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      box-shadow: var(--shadow-tiq);
+      opacity: 0; transform: translateX(-8px);
+      transition: opacity .22s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+    }
+    .coach-tip.is-open { display: flex; }
+    .coach-tip.is-shown { opacity: 1; transform: none; }
+    .coach-ring.is-shown { opacity: 1; }
+    .coach-arrow {
+      position: absolute; z-index: 2; left: -5px; top: 50%; margin-top: -4.5px;
+      width: 9px; height: 9px; rotate: 45deg;
+      background: var(--backgrounds-card-bg-2);
+      border-left: 1px solid var(--strokes-line-3);
+      border-bottom: 1px solid var(--strokes-line-3);
+    }
+    .coach-tip .rail-tile { flex: none; }
+    .coach-tip b {
+      display: block; color: var(--text-primary);
+      font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist);
+      letter-spacing: -0.56px;
+    }
+    .coach-x {
+      flex: none; width: 20px; height: 20px; margin: -2px -4px 0 auto;
+      /* auto on the left, not a fixed gap after the text — pinned to the
+         corner regardless of how long the line runs. */
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; color: var(--text-teritiary);
+      transition: background .14s ease, color .14s ease;
+    }
+    .coach-x:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    /* A sheen crossing the card every few seconds, the same idiom as the
+       Try pill's glint and for the same reason: a nav tooltip that
+       shimmers continuously nags, one that passes and gets out of the way
+       reads as emphasis. It is a moving background rather than a moving
+       element, so it cannot paint outside the card and the arrow — which
+       sticks out of it — is left alone; no overflow clipping needed. */
+    .coach-tip::after {
+      content: ""; position: absolute; inset: 0; z-index: 0;
+      border-radius: inherit; pointer-events: none;
+      background-image: linear-gradient(100deg, transparent 36%, var(--coach-sheen) 50%, transparent 64%);
+      background-size: 200% 100%; background-repeat: no-repeat;
+      background-position: 150% 0;
+      animation: coachSheen 3.2s ease-in-out infinite;
+    }
+    /* The band is only inside the card between 100% and 0%; the rest of
+       the travel parks it off one edge or the other. Sweeping 150% to
+       -50% spends half the 2s of travel on screen, which is a pass you
+       can watch rather than a flicker you catch by accident. */
+    @keyframes coachSheen {
+      0%, 38% { background-position: 150% 0; }
+      100%    { background-position: -50% 0; }
+    }
+    /* The sheen is painted behind everything the card says. A flex item's
+       implicit tier does not reliably beat a positioned ::after. */
+    .coach-tip &gt; *:not(.coach-arrow) { position: relative; z-index: 1; }
+    /* The halo pulses only while the tooltip is up, and stops with it. */
+    .coach-ring.is-shown::after { animation: coachHalo 2s ease-out infinite; }
+    @keyframes coachHalo {
+      0%        { transform: scale(1); opacity: .45; }
+      70%, 100% { transform: scale(1.55); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .coach-ring.is-shown::after,
+      .coach-tip::after { animation: none; }
+      .coach-tip { transition: none; }
+    }
 
     .btn-primary {
       display: flex; align-items: center; justify-content: center; gap: 4px;
@@ -2810,7 +3358,9 @@ document.querySelectorAll('.rail-ghead').forEach(h =&gt; {
   });
 });
 
-document.querySelectorAll('.rail-btn').forEach(b =&gt; {
+/* Named rather than inline: rows can be added after load (F builds
+   Context Studio's blocks), and they need the same behaviour. */
+function bindRailItem(b) {
   b.addEventListener('click', () =&gt; {
     document.querySelectorAll('.rail-btn.is-active').forEach(x =&gt; {
       x.classList.remove('is-active');
@@ -2821,7 +3371,8 @@ document.querySelectorAll('.rail-btn').forEach(b =&gt; {
     /* Home sits outside every category, so it collapses all of them. */
     railExposeOnly(b.closest('.rail-group'));
   });
-});
+}
+document.querySelectorAll('.rail-btn').forEach(bindRailItem);
 
 /* ═══════════════════════════════════════════════════════════════
    Entitlements. Context Studio is sold separately: on the plan it
@@ -2834,12 +3385,15 @@ const ctxGroup = document.querySelector('.rail-group[data-group="context-studio"
 ctxGroup.classList.toggle('is-locked', !OWNS_CONTEXT_STUDIO);
 $('ctxStudio').title = OWNS_CONTEXT_STUDIO ? 'Context Studio' : 'Context Studio — not on your plan';
 
-/* The card is far taller than the row it belongs to, so it starts a little
-   above it rather than hanging off its top edge. */
+/* The card sits a little above the row it belongs to rather than level
+   with it: anchored flush, a 416px card hangs a long way below a 24px
+   row and reads as belonging to whatever is under it. */
 const UPSELL_RISE = 28, UPSELL_GAP = 20;
+
 function positionUpsell() {
+  const bar = $('upsell');
   const row = $('ctxStudio').getBoundingClientRect();
-  placeTiqBar($('upsell'), railEl.getBoundingClientRect(),
+  placeTiqBar(bar, railEl.getBoundingClientRect(),
               { top: row.top - UPSELL_RISE, left: row.left }, UPSELL_GAP);
 }
 function closeUpsell() {
@@ -2855,10 +3409,12 @@ function openUpsell() {
   const el = $('upsell');
   el.classList.add('is-open');
   positionUpsell();
-  /* Mounted here, not at boot: an iframe created while .upsell was still
-     display:none is never given a rendering opportunity, so its animations
-     sit at currentTime 0 even after play(). The box is visible by this line,
-     so the clip is not made in the dark. */
+  /* Mounted here, not at boot: creating the iframe while .upsell was
+     still display:none left its animations stuck at currentTime 0 even
+     after cancel()+play() — a hidden iframe is never given a rendering
+     opportunity to start ticking. The box is already visible by this
+     line, so the clip is not made in the dark. From the top every time
+     after that: the offer is most people's first frame. */
   if (!filmOffer) filmOffer = mountCinema($('upsellFilm'));
   else filmOffer.restart();
   requestAnimationFrame(() =&gt; el.classList.add('is-shown'));
@@ -2881,22 +3437,6 @@ if (!OWNS_CONTEXT_STUDIO) {
   $('upsell').addEventListener('mouseleave', () =&gt; upsellHover(false));
 }
 
-$('ctxStudio').addEventListener('click', e =&gt; {
-  e.stopPropagation();
-  if (!OWNS_CONTEXT_STUDIO) {
-    /* Clicking should not fight the hover that is already opening it. */
-    clearTimeout(upsellTimer);
-    openUpsell();
-    return;
-  }
-  /* Owned, it behaves like any other destination — and being its own
-     category, opening it closes the rest. */
-  document.querySelectorAll('.rail-btn.is-active').forEach(x =&gt; {
-    x.classList.remove('is-active');
-    x.removeAttribute('aria-current');
-  });
-  railExposeOnly(ctxGroup);
-});
 /* ── The big view ───────────────────────────────────────────────
    A second mount rather than moving the card's iframe into the
    overlay: re-parenting an iframe reloads its document in every
@@ -2937,7 +3477,30 @@ $('filmBox').addEventListener('click', e =&gt; {
   if (e.target === $('filmBox')) closeFilmBox();
 });
 
+$('ctxStudio').addEventListener('click', e =&gt; {
+  e.stopPropagation();
+  /* Opened into its blocks (F) the row is a disclosure like any other
+     category, and the group handler above has already toggled it. The
+     offer still arrives on the dwell, which is where it belongs. */
+  if (ctxGroup.querySelector('.rail-stack')) return;
+  if (!OWNS_CONTEXT_STUDIO) {
+    /* Clicking should not fight the hover that is already opening it. */
+    clearTimeout(upsellTimer);
+    openUpsell();
+    return;
+  }
+  /* Owned, it behaves like any other destination — and being its own
+     category, opening it closes the rest. */
+  document.querySelectorAll('.rail-btn.is-active').forEach(x =&gt; {
+    x.classList.remove('is-active');
+    x.removeAttribute('aria-current');
+  });
+  railExposeOnly(ctxGroup);
+});
 $('upsell').addEventListener('click', e =&gt; e.stopPropagation());
+/* preventDefault only because the href is a placeholder — with a real
+   destination this handler is just the close. */
+$('upsellLearn').addEventListener('click', e =&gt; { e.preventDefault(); closeUpsell(); });
 $('upsellGo').addEventListener('click', closeUpsell);
 document.addEventListener('click', closeUpsell);
 window.addEventListener('resize', positionUpsell);
@@ -2949,7 +3512,45 @@ railExposeOnly(railActive ? railActive.closest('.rail-group') : null);</pre>
         </div>
         <div>
           <div class="nav-codehead"><b>Shared helper it depends on</b><button class="ds-code" data-copy-target="codeDeps">Copy</button></div>
-          <pre class="nav-code" id="codeDeps">/* ══ Context Studio · the preview clip ═══════════════════════════
+          <pre class="nav-code" id="codeDeps">/* Both Tiq bars sit beside the surface that owns them — the modal for the
+   description writer, the detail panel for Ask Tiq — flipping to whichever
+   side has room and clamping so the bar never leaves the viewport. `anchor`
+   only sets where it starts vertically: the control the bar belongs to. */
+function placeTiqBar(bar, owner, anchor, gap = 12) {
+  if (!bar.classList.contains('is-open')) return;
+  /* Docked, the bar is pinned by CSS; a stale inline left/top would fight it. */
+  if (bar.classList.contains('is-docked')) { bar.style.left = bar.style.top = ''; return; }
+  const edge = 12;
+  const w = bar.offsetWidth, h = bar.offsetHeight;
+
+  let left = owner.right + gap;
+  if (left + w &gt; window.innerWidth - edge) left = owner.left - w - gap;
+  if (left &lt; edge) left = Math.min(Math.max(edge, anchor.left), window.innerWidth - w - edge);
+
+  let top = anchor.top;
+  if (top + h &gt; window.innerHeight - edge) top = window.innerHeight - edge - h;
+  if (top &lt; edge) top = edge;
+
+  bar.style.left = `${Math.round(left)}px`;
+  bar.style.top = `${Math.round(top)}px`;
+}
+
+/* Runs the gradient sweep across a bar's placeholder, once per bar for
+   the life of the page — see .tb-ghost. Typing cuts it short, since a
+   flourish that talks over the user is just in the way. */
+const tiqShimmered = new Set();
+function shimmerOnce(key, rowSel, ghostId, inputId) {
+  if (tiqShimmered.has(key) || reducedMotion()) return;
+  tiqShimmered.add(key);
+  const row = document.querySelector(rowSel), ghost = $(ghostId), input = $(inputId);
+  ghost.textContent = input.placeholder;
+  row.classList.add('is-shimmer');
+  const stop = () =&gt; row.classList.remove('is-shimmer');
+  ghost.addEventListener('animationend', stop, { once: true });
+  input.addEventListener('input', stop, { once: true });
+}
+
+/* ══ Context Studio · the preview clip ═══════════════════════════
    The whole piece travels in this page as one string and is mounted
    into an iframe, so nothing is fetched when the offer opens. */
 const CINEMA_HTML = `&lt;!DOCTYPE html&gt;
@@ -3677,45 +4278,23 @@ function mountCinema(host) {
   };
 }
 
+/* Mounted on the offer's first open, not here — an iframe created
+   inside a display:none card never gets a rendering opportunity, and
+   its animations sit at frame one for good. */
 let filmOffer = null;
 
-/* Both Tiq bars sit beside the surface that owns them — the modal for the
-   description writer, the detail panel for Ask Tiq — flipping to whichever
-   side has room and clamping so the bar never leaves the viewport. `anchor`
-   only sets where it starts vertically: the control the bar belongs to. */
-function placeTiqBar(bar, owner, anchor, gap = 12) {
-  if (!bar.classList.contains('is-open')) return;
-  /* Docked, the bar is pinned by CSS; a stale inline left/top would fight it. */
-  if (bar.classList.contains('is-docked')) { bar.style.left = bar.style.top = ''; return; }
-  const edge = 12;
-  const w = bar.offsetWidth, h = bar.offsetHeight;
-
-  let left = owner.right + gap;
-  if (left + w &gt; window.innerWidth - edge) left = owner.left - w - gap;
-  if (left &lt; edge) left = Math.min(Math.max(edge, anchor.left), window.innerWidth - w - edge);
-
-  let top = anchor.top;
-  if (top + h &gt; window.innerHeight - edge) top = window.innerHeight - edge - h;
-  if (top &lt; edge) top = edge;
-
-  bar.style.left = `${Math.round(left)}px`;
-  bar.style.top = `${Math.round(top)}px`;
-}
-
-/* Runs the gradient sweep across a bar's placeholder, once per bar for
-   the life of the page — see .tb-ghost. Typing cuts it short, since a
-   flourish that talks over the user is just in the way. */
-const tiqShimmered = new Set();
-function shimmerOnce(key, rowSel, ghostId, inputId) {
-  if (tiqShimmered.has(key) || reducedMotion()) return;
-  tiqShimmered.add(key);
-  const row = document.querySelector(rowSel), ghost = $(ghostId), input = $(inputId);
-  ghost.textContent = input.placeholder;
-  row.classList.add('is-shimmer');
-  const stop = () =&gt; row.classList.remove('is-shimmer');
-  ghost.addEventListener('animationend', stop, { once: true });
-  input.addEventListener('input', stop, { once: true });
-}</pre>
+/* ═══════════════════════════════════════════════════════════════
+   Platform panel — one component, two widths. Groups keep their own
+   expanded state at either width, so crunching does not lose it.
+   ═══════════════════════════════════════════════════════════════ */
+/* Where Context Studio sits is still under review, so the panel ships
+   every candidate and picks one by attribute. "after" — below every
+   category, under a rule — is the default; ?place=card shows the boxed
+   variant, and inline / footer / open the rest. The product sets this
+   once and forgets it. */
+const CS_PLACES = ['inline', 'after', 'footer', 'card', 'open'];
+const csPlace = new URLSearchParams(location.search).get('place');
+if (CS_PLACES.includes(csPlace)) document.querySelector('.rail').dataset.cs = csPlace;</pre>
         </div>
         <p class="ds-note">The glyphs are a sprite of 25 <code>&lt;symbol&gt;</code> elements, most of
            them exports from the Figma component. They are embedded in this page — copy them out of
@@ -3770,6 +4349,44 @@ const MH_URL  = 'https://claude.ai/code/artifact/e9b6ca99-1c80-499d-b1ed-b1b3fdc
 $('lnkDs').href = DS_URL; $('lnkPg').href = PG_URL; $('lnkMh').href = MH_URL;
 
 /* ── Shared helper the preview depends on ───────────────────────── */
+/* Both Tiq bars sit beside the surface that owns them — the modal for the
+   description writer, the detail panel for Ask Tiq — flipping to whichever
+   side has room and clamping so the bar never leaves the viewport. `anchor`
+   only sets where it starts vertically: the control the bar belongs to. */
+function placeTiqBar(bar, owner, anchor, gap = 12) {
+  if (!bar.classList.contains('is-open')) return;
+  /* Docked, the bar is pinned by CSS; a stale inline left/top would fight it. */
+  if (bar.classList.contains('is-docked')) { bar.style.left = bar.style.top = ''; return; }
+  const edge = 12;
+  const w = bar.offsetWidth, h = bar.offsetHeight;
+
+  let left = owner.right + gap;
+  if (left + w > window.innerWidth - edge) left = owner.left - w - gap;
+  if (left < edge) left = Math.min(Math.max(edge, anchor.left), window.innerWidth - w - edge);
+
+  let top = anchor.top;
+  if (top + h > window.innerHeight - edge) top = window.innerHeight - edge - h;
+  if (top < edge) top = edge;
+
+  bar.style.left = `${Math.round(left)}px`;
+  bar.style.top = `${Math.round(top)}px`;
+}
+
+/* Runs the gradient sweep across a bar's placeholder, once per bar for
+   the life of the page — see .tb-ghost. Typing cuts it short, since a
+   flourish that talks over the user is just in the way. */
+const tiqShimmered = new Set();
+function shimmerOnce(key, rowSel, ghostId, inputId) {
+  if (tiqShimmered.has(key) || reducedMotion()) return;
+  tiqShimmered.add(key);
+  const row = document.querySelector(rowSel), ghost = $(ghostId), input = $(inputId);
+  ghost.textContent = input.placeholder;
+  row.classList.add('is-shimmer');
+  const stop = () => row.classList.remove('is-shimmer');
+  ghost.addEventListener('animationend', stop, { once: true });
+  input.addEventListener('input', stop, { once: true });
+}
+
 /* ══ Context Studio · the preview clip ═══════════════════════════
    The whole piece travels in this page as one string and is mounted
    into an iframe, so nothing is fetched when the offer opens. */
@@ -4498,45 +5115,23 @@ function mountCinema(host) {
   };
 }
 
+/* Mounted on the offer's first open, not here — an iframe created
+   inside a display:none card never gets a rendering opportunity, and
+   its animations sit at frame one for good. */
 let filmOffer = null;
 
-/* Both Tiq bars sit beside the surface that owns them — the modal for the
-   description writer, the detail panel for Ask Tiq — flipping to whichever
-   side has room and clamping so the bar never leaves the viewport. `anchor`
-   only sets where it starts vertically: the control the bar belongs to. */
-function placeTiqBar(bar, owner, anchor, gap = 12) {
-  if (!bar.classList.contains('is-open')) return;
-  /* Docked, the bar is pinned by CSS; a stale inline left/top would fight it. */
-  if (bar.classList.contains('is-docked')) { bar.style.left = bar.style.top = ''; return; }
-  const edge = 12;
-  const w = bar.offsetWidth, h = bar.offsetHeight;
-
-  let left = owner.right + gap;
-  if (left + w > window.innerWidth - edge) left = owner.left - w - gap;
-  if (left < edge) left = Math.min(Math.max(edge, anchor.left), window.innerWidth - w - edge);
-
-  let top = anchor.top;
-  if (top + h > window.innerHeight - edge) top = window.innerHeight - edge - h;
-  if (top < edge) top = edge;
-
-  bar.style.left = `${Math.round(left)}px`;
-  bar.style.top = `${Math.round(top)}px`;
-}
-
-/* Runs the gradient sweep across a bar's placeholder, once per bar for
-   the life of the page — see .tb-ghost. Typing cuts it short, since a
-   flourish that talks over the user is just in the way. */
-const tiqShimmered = new Set();
-function shimmerOnce(key, rowSel, ghostId, inputId) {
-  if (tiqShimmered.has(key) || reducedMotion()) return;
-  tiqShimmered.add(key);
-  const row = document.querySelector(rowSel), ghost = $(ghostId), input = $(inputId);
-  ghost.textContent = input.placeholder;
-  row.classList.add('is-shimmer');
-  const stop = () => row.classList.remove('is-shimmer');
-  ghost.addEventListener('animationend', stop, { once: true });
-  input.addEventListener('input', stop, { once: true });
-}
+/* ═══════════════════════════════════════════════════════════════
+   Platform panel — one component, two widths. Groups keep their own
+   expanded state at either width, so crunching does not lose it.
+   ═══════════════════════════════════════════════════════════════ */
+/* Where Context Studio sits is still under review, so the panel ships
+   every candidate and picks one by attribute. "after" — below every
+   category, under a rule — is the default; ?place=card shows the boxed
+   variant, and inline / footer / open the rest. The product sets this
+   once and forgets it. */
+const CS_PLACES = ['inline', 'after', 'footer', 'card', 'open'];
+const csPlace = new URLSearchParams(location.search).get('place');
+if (CS_PLACES.includes(csPlace)) document.querySelector('.rail').dataset.cs = csPlace;
 
 /* ── The panel's own behaviour, lifted from the product page ────── */
 const railEl = document.querySelector('.rail');
@@ -4594,7 +5189,9 @@ document.querySelectorAll('.rail-ghead').forEach(h => {
   });
 });
 
-document.querySelectorAll('.rail-btn').forEach(b => {
+/* Named rather than inline: rows can be added after load (F builds
+   Context Studio's blocks), and they need the same behaviour. */
+function bindRailItem(b) {
   b.addEventListener('click', () => {
     document.querySelectorAll('.rail-btn.is-active').forEach(x => {
       x.classList.remove('is-active');
@@ -4605,7 +5202,8 @@ document.querySelectorAll('.rail-btn').forEach(b => {
     /* Home sits outside every category, so it collapses all of them. */
     railExposeOnly(b.closest('.rail-group'));
   });
-});
+}
+document.querySelectorAll('.rail-btn').forEach(bindRailItem);
 
 /* ═══════════════════════════════════════════════════════════════
    Entitlements. Context Studio is sold separately: on the plan it
@@ -4618,12 +5216,15 @@ const ctxGroup = document.querySelector('.rail-group[data-group="context-studio"
 ctxGroup.classList.toggle('is-locked', !OWNS_CONTEXT_STUDIO);
 $('ctxStudio').title = OWNS_CONTEXT_STUDIO ? 'Context Studio' : 'Context Studio — not on your plan';
 
-/* The card is far taller than the row it belongs to, so it starts a little
-   above it rather than hanging off its top edge. */
+/* The card sits a little above the row it belongs to rather than level
+   with it: anchored flush, a 416px card hangs a long way below a 24px
+   row and reads as belonging to whatever is under it. */
 const UPSELL_RISE = 28, UPSELL_GAP = 20;
+
 function positionUpsell() {
+  const bar = $('upsell');
   const row = $('ctxStudio').getBoundingClientRect();
-  placeTiqBar($('upsell'), railEl.getBoundingClientRect(),
+  placeTiqBar(bar, railEl.getBoundingClientRect(),
               { top: row.top - UPSELL_RISE, left: row.left }, UPSELL_GAP);
 }
 function closeUpsell() {
@@ -4639,10 +5240,12 @@ function openUpsell() {
   const el = $('upsell');
   el.classList.add('is-open');
   positionUpsell();
-  /* Mounted here, not at boot: an iframe created while .upsell was still
-     display:none is never given a rendering opportunity, so its animations
-     sit at currentTime 0 even after play(). The box is visible by this line,
-     so the clip is not made in the dark. */
+  /* Mounted here, not at boot: creating the iframe while .upsell was
+     still display:none left its animations stuck at currentTime 0 even
+     after cancel()+play() — a hidden iframe is never given a rendering
+     opportunity to start ticking. The box is already visible by this
+     line, so the clip is not made in the dark. From the top every time
+     after that: the offer is most people's first frame. */
   if (!filmOffer) filmOffer = mountCinema($('upsellFilm'));
   else filmOffer.restart();
   requestAnimationFrame(() => el.classList.add('is-shown'));
@@ -4665,22 +5268,6 @@ if (!OWNS_CONTEXT_STUDIO) {
   $('upsell').addEventListener('mouseleave', () => upsellHover(false));
 }
 
-$('ctxStudio').addEventListener('click', e => {
-  e.stopPropagation();
-  if (!OWNS_CONTEXT_STUDIO) {
-    /* Clicking should not fight the hover that is already opening it. */
-    clearTimeout(upsellTimer);
-    openUpsell();
-    return;
-  }
-  /* Owned, it behaves like any other destination — and being its own
-     category, opening it closes the rest. */
-  document.querySelectorAll('.rail-btn.is-active').forEach(x => {
-    x.classList.remove('is-active');
-    x.removeAttribute('aria-current');
-  });
-  railExposeOnly(ctxGroup);
-});
 /* ── The big view ───────────────────────────────────────────────
    A second mount rather than moving the card's iframe into the
    overlay: re-parenting an iframe reloads its document in every
@@ -4721,7 +5308,30 @@ $('filmBox').addEventListener('click', e => {
   if (e.target === $('filmBox')) closeFilmBox();
 });
 
+$('ctxStudio').addEventListener('click', e => {
+  e.stopPropagation();
+  /* Opened into its blocks (F) the row is a disclosure like any other
+     category, and the group handler above has already toggled it. The
+     offer still arrives on the dwell, which is where it belongs. */
+  if (ctxGroup.querySelector('.rail-stack')) return;
+  if (!OWNS_CONTEXT_STUDIO) {
+    /* Clicking should not fight the hover that is already opening it. */
+    clearTimeout(upsellTimer);
+    openUpsell();
+    return;
+  }
+  /* Owned, it behaves like any other destination — and being its own
+     category, opening it closes the rest. */
+  document.querySelectorAll('.rail-btn.is-active').forEach(x => {
+    x.classList.remove('is-active');
+    x.removeAttribute('aria-current');
+  });
+  railExposeOnly(ctxGroup);
+});
 $('upsell').addEventListener('click', e => e.stopPropagation());
+/* preventDefault only because the href is a placeholder — with a real
+   destination this handler is just the close. */
+$('upsellLearn').addEventListener('click', e => { e.preventDefault(); closeUpsell(); });
 $('upsellGo').addEventListener('click', closeUpsell);
 document.addEventListener('click', closeUpsell);
 window.addEventListener('resize', positionUpsell);
