@@ -4608,17 +4608,11 @@ railExposeOnly(railActive ? railActive.closest('.rail-group') : null);
    with no label to anchor to, so both the ring and the tooltip are put
    where that tile actually is.
    It gets out of the way of anything it would talk over — the panel
-   opening, the offer card, a click anywhere — and once dismissed it
-   does not return, which is the difference between an introduction and
-   an interruption. localStorage can throw (private mode, blocked site
-   data), so every read and write is guarded and the failure mode is
-   simply showing it again. */
-/* v2: the arrow/close-button layout bug in v1 meant anyone who
-   dismissed it — even by just hovering the rail while testing —
-   never saw the corrected tooltip. A new key gives it one fresh
-   showing; real visitors carry no v1 flag either way. */
-const COACH_KEY = 'cogentiq.context.coach.v2';
-const coachSeen = () => { try { return localStorage.getItem(COACH_KEY) === '1'; } catch (e) { return false; } };
+   opening, the offer card, a click anywhere, or the tile itself being
+   clicked — but that only ends the moment for this load of the page.
+   Nothing is remembered between visits: it introduces the tile again
+   on every fresh load, on the view that a returning user benefits from
+   the reminder as much as a first-time one does. */
 const coachTip = $('coachTip'), coachRing = $('coachRing');
 let coachLive = false;
 
@@ -4630,14 +4624,13 @@ function placeCoach() {
   coachTip.style.left  = Math.round(t.right + 22) + 'px';
   coachTip.style.top   = Math.round(cy - coachTip.offsetHeight / 2) + 'px';
 }
-function endCoach(remember) {
+function endCoach() {
   if (!coachLive) return;
   coachLive = false;
   clearTimeout(coachLinger);
   coachTip.classList.remove('is-shown');
   coachRing.classList.remove('is-shown');
   setTimeout(() => coachTip.classList.remove('is-open'), 260);
-  if (remember) { try { localStorage.setItem(COACH_KEY, '1'); } catch (e) {} }
 }
 /* Long enough to be read at leisure by someone who did not come here
    to read it, short enough that it is not still sitting over the app
@@ -4646,7 +4639,7 @@ function endCoach(remember) {
 const COACH_LINGER = 20000;
 let coachLinger = null;
 function startCoach() {
-  if (coachSeen() || OWNS_CONTEXT_STUDIO || railEl.classList.contains('is-open')) return;
+  if (OWNS_CONTEXT_STUDIO || railEl.classList.contains('is-open')) return;
   coachLive = true;
   coachTip.classList.add('is-open');
   placeCoach();
@@ -4654,14 +4647,14 @@ function startCoach() {
     coachTip.classList.add('is-shown');
     coachRing.classList.add('is-shown');
   });
-  coachLinger = setTimeout(() => endCoach(true), COACH_LINGER);
+  coachLinger = setTimeout(endCoach, COACH_LINGER);
 }
-$('coachX').addEventListener('click', e => { e.stopPropagation(); endCoach(true); });
-/* Clicking the tile is the outcome the tooltip was asking for, so that
-   counts as seen too — as does opening the panel, where the row speaks
-   for itself. */
-$('ctxStudio').addEventListener('click', () => endCoach(true));
-railEl.addEventListener('mouseenter', () => endCoach(true));
+$('coachX').addEventListener('click', e => { e.stopPropagation(); endCoach(); });
+/* Clicking the tile is the outcome the tooltip was asking for, and
+   opening the panel is where the row starts speaking for itself —
+   both end the moment without needing to remember anything. */
+$('ctxStudio').addEventListener('click', () => endCoach());
+railEl.addEventListener('mouseenter', () => endCoach());
 /* Deliberately not dismissed by a click anywhere on the page. Someone
    who clicks a filter has not read the tooltip, and taking it away on
    the first click elsewhere is how an introduction ends up never being
