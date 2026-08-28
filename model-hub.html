@@ -739,6 +739,35 @@
        tie-break. */
     .grad-context > svg { position: relative; z-index: 1; }
 
+    /* ── Icon motion on hover ────────────────────────────────────
+       Two effects, one per visual class in the rail, because the two
+       classes are different things and should not feel the same to
+       hover: a leaf item is a line glyph, a group header is a
+       coloured chip.
+
+       Both are driven from custom properties rather than letting the
+       script write `transform`, because on an <svg> root the CSS
+       property and the SVG transform *attribute* disagree about what
+       they mean; going through a variable sidesteps that entirely.
+
+       What is reachable at all is the constraint here: the glyphs are
+       referenced through <use>, so their innards are shadow DOM no
+       script can touch. stroke-dasharray and stroke-dashoffset are
+       INHERITED SVG properties, so setting them on the outer <svg>
+       does reach the path inside the symbol — that is the whole basis
+       of the draw. */
+
+    /* Every glyph in the rail draws the same way, whether it sits on
+       its own as a leaf item or inside a category's gradient tile.
+       The tile itself is deliberately left alone: it is the container,
+       not the icon, and turning the whole chip animates the wrong
+       thing. */
+    .rail-btn .ic,
+    .rail-ghead .rail-tile .ic { transform: scale(var(--ic-s, 1)); transform-origin: 50% 50%; }
+    @media (prefers-reduced-motion: reduce) {
+      .rail-btn .ic, .rail-ghead .rail-tile .ic { transform: none; }
+    }
+
     /* The clip is authored against a full-size viewport: its sphere is
        a fixed 340px, its chips sit at ±300px offsets, and its captions
        clamp to px minimums. Sized fluidly into a 288px box, all of that
@@ -2470,6 +2499,9 @@
   <div class="tb-suggest" id="askSuggest"></div>
 </div>
 
+<!-- Drives the icon hover motion. The panel degrades to no motion,
+     with no errors, if this fails to load. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════
    Provider logos — each is drawn at the geometry the Figma
@@ -4605,6 +4637,127 @@ $('upsellLearn').addEventListener('click', e => { e.preventDefault(); closeUpsel
 $('upsellGo').addEventListener('click', closeUpsell);
 document.addEventListener('click', closeUpsell);
 window.addEventListener('resize', positionUpsell);
+
+/* ── Icon motion on hover ─────────────────────────────────────────
+   One timeline per icon, built once and replayed rather than rebuilt,
+   so running the cursor down the rail cannot leave a half-finished
+   tween behind: restart() takes it to frame one whatever it was doing.
+   Everything is set up inside matchMedia, so the whole thing reverts
+   itself for anyone who asks for reduced motion. */
+(function () {
+  var g = window.gsap;
+  if (!g) return;                       /* no GSAP, no motion, no errors */
+
+  /* The glyph is inlined before anything is animated. Referenced
+     through <use> its paths are shadow DOM, so one dasharray has to
+     serve all of them — on a six-path icon like Skills or Model Hub
+     the short strokes then snap in whole while only the longest
+     actually draws, which is why those read as a bare scale. Cloning
+     the symbol's own contents in gives every path its own length, and
+     lets them stagger, so the icon assembles rather than appearing.
+     Only done when GSAP is present: without it the markup keeps its
+     <use> and nothing here has run. */
+  function inlineGlyph(svg) {
+    var use = svg.querySelector('use');
+    if (!use) return [].slice.call(svg.querySelectorAll('path'));  /* already inlined */
+    var href = use.getAttribute('href') || use.getAttribute('xlink:href');
+    var sym = href && document.querySelector(href);
+    /* A <use> scales the symbol's viewBox into its own viewport; a
+       clone does not. Equal viewBoxes is what makes the swap safe, so
+       it is checked rather than assumed. */
+    if (!sym || sym.getAttribute('viewBox') !== svg.getAttribute('viewBox')) return [];
+    /* The presentation attributes come across too. Every symbol here
+       carries fill="none", and the paths inside rely on inheriting it
+       — cloning only the children drops that, fill falls back to the
+       SVG default of black, and the glyph fills in solid: interiors
+       go black and anything drawn as a hole, like the robot's eyes,
+       disappears against the background. */
+    for (var a = 0; a < sym.attributes.length; a++) {
+      var at = sym.attributes[a];
+      if (at.name === 'id' || at.name === 'viewBox') continue;
+      if (!svg.hasAttribute(at.name)) svg.setAttribute(at.name, at.value);
+    }
+    use.remove();
+    for (var i = 0; i < sym.children.length; i++) {
+      svg.appendChild(sym.children[i].cloneNode(true));
+    }
+    var out = [];
+    svg.querySelectorAll('path').forEach(function (p) {
+      out = out.concat(splitSubpaths(p));
+    });
+    return out;
+  }
+
+  /* One <path> is often several disconnected pieces — Automations is
+     six, Monitor twelve — and SVG resets the dash pattern at the start
+     of every subpath. So a single dasharray leaves each piece fully
+     drawn almost immediately and the icon looks like it only scales,
+     however carefully the offset is animated. Splitting the pieces
+     into real paths gives each its own length, and lets them come in
+     one after another.
+     Safe only because these exports use absolute moves throughout: a
+     relative 'm' is measured from the previous piece's end, so lifting
+     it out on its own would move it. Checked, not assumed. */
+  function splitSubpaths(path) {
+    var d = path.getAttribute('d') || '';
+    if (d.indexOf('m') !== -1) return [path];
+    var parts = d.match(/M[^M]*/g);
+    if (!parts || parts.length < 2) return [path];
+    var made = [];
+    parts.forEach(function (seg) {
+      var c = path.cloneNode(false);
+      c.setAttribute('d', seg.trim());
+      path.parentNode.insertBefore(c, path);
+      made.push(c);
+    });
+    path.remove();
+    return made;
+  }
+
+  /* One builder for both, so a category's glyph and a leaf item's are
+     literally the same animation. */
+  function drawIn(svg) {
+    var paths = inlineGlyph(svg);
+    if (!paths || !paths.length) return null;
+    return g.timeline({ paused: true })
+      /* dasharray is SET, not tweened. Left out of a fromTo's to-vars
+         GSAP reads it as "animate back to the natural value" and
+         undoes the dashing part-way through. Function-based values
+         give each path its own length. */
+      .set(paths, { strokeDasharray: function (i, t) { return t.getTotalLength(); } })
+      .fromTo(paths,
+        { strokeDashoffset: function (i, t) { return t.getTotalLength(); } },
+        { strokeDashoffset: 0, duration: .45, ease: 'power2.out',
+          stagger: { amount: .22 },
+          clearProps: 'strokeDasharray,strokeDashoffset' }, 0)
+      /* A small pop on the whole glyph, peaking early and out of the
+         way before the last stroke lands. */
+      .fromTo(svg, { '--ic-s': 1 },
+        { '--ic-s': 1.12, duration: .16, ease: 'power2.out' }, 0)
+      .to(svg, { '--ic-s': 1, duration: .42, ease: 'elastic.out(1, .55)' }, .16);
+  }
+
+  g.matchMedia().add('(prefers-reduced-motion: no-preference)', function () {
+
+    /* A leaf item's glyph, and a category's glyph inside its tile —
+       the tile's own chevron is deliberately not in this list. */
+    document.querySelectorAll('.rail-btn .ic, .rail-ghead .rail-tile .ic')
+      .forEach(function (svg) {
+        var tl = drawIn(svg);
+        if (!tl) return;
+        var row = svg.closest('.rail-btn, .rail-ghead');
+        row.addEventListener('mouseenter', function () { tl.restart(); });
+      });
+
+    /* matchMedia reverts everything created in here when the query
+       stops matching; the listeners are all it cannot see, so they are
+       taken off explicitly. */
+    return function () {
+      document.querySelectorAll('.rail-btn .ic, .rail-ghead .rail-tile .ic')
+        .forEach(function (el) { el.style.cssText = ''; });
+    };
+  });
+})();
 
 /* Open on the section this page belongs to, whichever item is marked
    active — the panel should never need a click to show you where you are. */
