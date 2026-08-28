@@ -78,6 +78,7 @@
       --green-300: #aff4c6;  --green-500: #14ae5c;  --green-600: #009951;
       --cyan-400:  #75d7f0;
       --flag-sheen: rgba(255, 255, 255, .30);
+      --coach-sheen: rgba(255, 255, 255, .28);
 
       /* Two badge families the Figma library does not yet publish a
          token for; derived in the same key as the published pairs so
@@ -211,6 +212,7 @@
       --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
       --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
       --flag-sheen: rgba(13, 153, 255, .28);
+      --coach-sheen: rgba(13, 153, 255, .30);
       --shadow-tiq:     0 2px 6px rgba(18, 18, 18, .06), 0 12px 28px rgba(18, 18, 18, .14), 0 24px 56px rgba(33, 33, 33, .10);
       --shadow-tab:     0 1px 2px rgba(33, 33, 33, .12);
 
@@ -773,7 +775,7 @@
       opacity: .45;
     }
     .coach-tip {
-      position: fixed; z-index: 89; width: 272px;
+      position: fixed; z-index: 89; width: 320px;
       display: none; align-items: flex-start; gap: 10px;
       padding: 12px 14px; border-radius: 12px;
       background: var(--backgrounds-card-bg-2);
@@ -805,6 +807,31 @@
       transition: background .14s ease, color .14s ease;
     }
     .coach-x:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    /* A sheen crossing the card every few seconds, the same idiom as the
+       Try pill's glint and for the same reason: a nav tooltip that
+       shimmers continuously nags, one that passes and gets out of the way
+       reads as emphasis. It is a moving background rather than a moving
+       element, so it cannot paint outside the card and the arrow — which
+       sticks out of it — is left alone; no overflow clipping needed. */
+    .coach-tip::after {
+      content: ""; position: absolute; inset: 0; z-index: 0;
+      border-radius: inherit; pointer-events: none;
+      background-image: linear-gradient(100deg, transparent 36%, var(--coach-sheen) 50%, transparent 64%);
+      background-size: 200% 100%; background-repeat: no-repeat;
+      background-position: 150% 0;
+      animation: coachSheen 3.2s ease-in-out infinite;
+    }
+    /* The band is only inside the card between 100% and 0%; the rest of
+       the travel parks it off one edge or the other. Sweeping 150% to
+       -50% spends half the 2s of travel on screen, which is a pass you
+       can watch rather than a flicker you catch by accident. */
+    @keyframes coachSheen {
+      0%, 38% { background-position: 150% 0; }
+      100%    { background-position: -50% 0; }
+    }
+    /* The sheen is painted behind everything the card says. A flex item's
+       implicit tier does not reliably beat a positioned ::after. */
+    .coach-tip > * { position: relative; z-index: 1; }
     /* The halo pulses only while the tooltip is up, and stops with it. */
     .coach-ring.is-shown::after { animation: coachHalo 2s ease-out infinite; }
     @keyframes coachHalo {
@@ -812,7 +839,8 @@
       70%, 100% { transform: scale(1.55); opacity: 0; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .coach-ring.is-shown::after { animation: none; }
+      .coach-ring.is-shown::after,
+      .coach-tip::after { animation: none; }
       .coach-tip { transition: none; }
     }
 
@@ -4599,11 +4627,18 @@ function placeCoach() {
 function endCoach(remember) {
   if (!coachLive) return;
   coachLive = false;
+  clearTimeout(coachLinger);
   coachTip.classList.remove('is-shown');
   coachRing.classList.remove('is-shown');
   setTimeout(() => coachTip.classList.remove('is-open'), 260);
   if (remember) { try { localStorage.setItem(COACH_KEY, '1'); } catch (e) {} }
 }
+/* Long enough to be read at leisure by someone who did not come here
+   to read it, short enough that it is not still sitting over the app
+   after the moment has passed. It retires itself as seen, so nobody
+   who waited it out gets asked again. */
+const COACH_LINGER = 20000;
+let coachLinger = null;
 function startCoach() {
   if (coachSeen() || OWNS_CONTEXT_STUDIO || railEl.classList.contains('is-open')) return;
   coachLive = true;
@@ -4613,6 +4648,7 @@ function startCoach() {
     coachTip.classList.add('is-shown');
     coachRing.classList.add('is-shown');
   });
+  coachLinger = setTimeout(() => endCoach(true), COACH_LINGER);
 }
 $('coachX').addEventListener('click', e => { e.stopPropagation(); endCoach(true); });
 /* Clicking the tile is the outcome the tooltip was asking for, so that
@@ -4620,7 +4656,11 @@ $('coachX').addEventListener('click', e => { e.stopPropagation(); endCoach(true)
    for itself. */
 $('ctxStudio').addEventListener('click', () => endCoach(true));
 railEl.addEventListener('mouseenter', () => endCoach(true));
-document.addEventListener('click', () => endCoach(true));
+/* Deliberately not dismissed by a click anywhere on the page. Someone
+   who clicks a filter has not read the tooltip, and taking it away on
+   the first click elsewhere is how an introduction ends up never being
+   seen. The panel, the tile, the X and the timer are the four ways
+   out; all of them mean the moment is over. */
 addEventListener('resize', () => coachLive && placeCoach());
 /* A beat after load: arriving with the page, it reads as part of the
    furniture and gets skipped with it. */
