@@ -1301,6 +1301,16 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
 
 /* ── Hero — kept as the Figma header ─────────────────────────────── */
 .as-hero-wrap { flex: none; padding: 8px; }
+.as-hero-wrap[hidden] { display: none; }
+
+/* The chats view's whole chrome: the account control, on the same line
+   the hero's nav row sat on (8px frame inset + 24px nav padding). */
+.as-topbar {
+  flex: none;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 12px 32px 0;
+}
+.as-topbar[hidden] { display: none; }
 .as-hero {
   position: relative; height: 285px;
   border-radius: var(--radius-lg);
@@ -1614,7 +1624,12 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
   </aside>
 
   <!-- ── Hero — the Figma header, verbatim ─────────────────────────── -->
-  <div class="as-hero-wrap">
+  <!-- My chats carries no hero — just the account control. -->
+  <div class="as-topbar" id="chatsTopbar" hidden>
+    <span class="cq-avatar cq-avatar--lg" style="background:var(--purple-500)">S</span>
+  </div>
+
+  <div class="as-hero-wrap" id="heroWrap">
     <header class="as-hero">
       <svg class="as-hero__art" aria-hidden="true" preserveAspectRatio="none" overflow="visible" width="1840" height="909.208" viewBox="0 0 1840 909.208" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="Rectangle 161124627" opacity="1" filter="url(#filter0_f_0_289)">
@@ -2129,14 +2144,12 @@ function setView(view) {
     b.classList.toggle('is-active', on);
     on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current');
   });
-  /* The scope toggle belongs to the assistants list, not the chat log.
-     The hero search stays with the assistants too — chats have their own
-     search in the filters bar, and two fields for one list is one too
-     many, so the hero one is put out of use here rather than left live
-     over a list it no longer filters. */
+  /* The hero belongs to the assistants landing — its title, search and
+     scope tabs are all about that list. Chats swaps it for a bare top
+     bar carrying the account control alone. */
   const onHome = view === 'home';
-  document.querySelector('.as-hero__toggle').style.visibility = onHome ? '' : 'hidden';
-  document.querySelector('.as-hero__search').style.visibility = onHome ? '' : 'hidden';
+  $('heroWrap').hidden = !onHome;
+  $('chatsTopbar').hidden = onHome;
   onHome ? applyFilters() : applyChatFilters();
 }
 document.querySelectorAll('.cq-rail-btn[data-view]').forEach(btn =>
