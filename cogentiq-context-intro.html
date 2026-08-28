@@ -34,7 +34,7 @@
   .bg-sky{
     background:linear-gradient(158deg, #5d7cf0 0%, #7a8bf3 26%, #9aa6f6 48%, #c9cdf8 74%, #ecebfb 100%);
     opacity:0;
-    animation:fadeIn .8s cubic-bezier(.45,0,.2,1) 17.8s both;
+    animation:fadeIn .18s linear 17.68s both;
   }
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   .bg-dots{
@@ -46,16 +46,7 @@
   }
   @keyframes fadeInDots{from{opacity:0}to{opacity:.5}}
 
-  /* ------- white bloom flash into the final reveal ------- */
-  .flash{
-    position:absolute;inset:0;z-index:40;pointer-events:none;
-    background:radial-gradient(circle at 50% 48%, #fff 0%, #fff 46%, rgba(255,255,255,0) 82%);
-    opacity:0;
-    animation:flash .85s cubic-bezier(.35,0,.3,1) 17.5s both;
-  }
-  @keyframes flash{
-    0%{opacity:0} 42%{opacity:1} 56%{opacity:1} 100%{opacity:0}
-  }
+  /* the ground flips in a couple of frames, hidden under the sphere's own bloom */
 
   /* ================= THE WORLD (camera pans across it) ================= */
   .world{
@@ -231,10 +222,28 @@
     animation:
       fadeIn 1.6s ease var(--d) both,
       pathSpin var(--t,26s) linear var(--d) infinite,
-      pathOut .5s ease 17.5s forwards;
+      pathOut .45s ease 17.15s forwards;
   }
   @keyframes pathSpin{from{rotate:0deg}to{rotate:360deg}}
   @keyframes pathOut{to{opacity:0}}
+
+  /* the sphere's halo swells to wash the frame, then contracts onto the light ground */
+  .bloom{
+    position:absolute;left:0;top:0;z-index:40;pointer-events:none;
+    width:100vmax;height:100vmax;margin:-50vmax 0 0 -50vmax;border-radius:50%;
+    background:radial-gradient(circle, #fff 0%, #fff 40%, rgba(255,255,255,.94) 58%, rgba(255,255,255,0) 78%);
+    opacity:0;
+    animation:bloom 2.3s cubic-bezier(.32,0,.24,1) 16.9s both;
+  }
+  @keyframes bloom{
+    0%   {opacity:0;  transform:scale(.04)}
+    22%  {opacity:.95;transform:scale(.26)}
+    35%  {opacity:1;  transform:scale(1.9)}   /* 17.7s  frame fully washed */
+    41%  {opacity:1;  transform:scale(1.9)}
+    58%  {opacity:.45;transform:scale(.5)}    /* halo contracts back in */
+    78%  {opacity:.2; transform:scale(.26)}
+    100% {opacity:0;  transform:scale(.2)}
+  }
 
   /* pulse rings */
   .ring{
@@ -258,10 +267,15 @@
   }
   .orb{
     position:relative;width:340px;height:340px;margin:-170px 0 0 -170px;
-    animation:orbBreathe 4.6s ease-in-out 0s infinite alternate;
+    animation:orbFloat 9.5s cubic-bezier(.45,0,.55,1) 0s infinite;
   }
-  @keyframes orbBreathe{
-    from{transform:scale(1)} to{transform:scale(1.05)}
+  /* an unhurried arc so the sphere is never still */
+  @keyframes orbFloat{
+    0%  {transform:translate(0,0)         scale(1)}
+    25% {transform:translate(1.4vw,-1.1vh) scale(1.04)}
+    50% {transform:translate(.3vw,1.3vh)   scale(1.008)}
+    75% {transform:translate(-1.3vw,-.5vh) scale(1.045)}
+    100%{transform:translate(0,0)         scale(1)}
   }
   .orb-art{
     position:absolute;inset:0;
@@ -301,11 +315,14 @@
     57.1% {transform:translate(0,1vh) scale(1.005)}
     60%   {transform:translate(0,1vh) scale(1.045)}
     62.9% {transform:translate(0,1vh) scale(1.01)}
-    64.6% {transform:translate(0,1vh) scale(1.06)} /* 15.5s power-up */
-    67.1% {transform:translate(0,1vh) scale(1.09)}
-    70%   {transform:translate(0,1vh) scale(1.02)}
-    78%   {transform:translate(0,5vh) scale(.98)}
-    100%  {transform:translate(0,6vh) scale(1)}
+    64.6% {transform:translate(0,1vh)     scale(1.06)} /* 15.5s power-up */
+    67.1% {transform:translate(0,1.4vh)   scale(1.1)}
+    70.4% {transform:translate(.6vw,2vh)  scale(1.04)}
+    73.8% {transform:translate(.3vw,2.6vh) scale(1.2)}  /* 17.7s swells into the bloom */
+    77%   {transform:translate(-.4vw,3.4vh) scale(1)}   /* 18.5s lands on the light ground */
+    84%   {transform:translate(-1.2vw,5.6vh) scale(1.11)}
+    92%   {transform:translate(-.2vw,8.4vh)  scale(1.22)}
+    100%  {transform:translate(1vw,11.4vh)   scale(1.34)} /* 24s still moving */
   }
 
   /* -------- artifact chips: enter, orbit the sphere, spiral in -------- */
@@ -561,6 +578,8 @@
           </div>
         </div>
       </div>
+
+      <div class="bloom"></div>
 
       <!-- the context sphere -->
       <div class="orb-anchor">
@@ -979,7 +998,6 @@
     <p>Business-aware knowledge for accurate, autonomous AI.</p>
   </div>
 
-  <div class="flash"></div>
 
   <button class="replay" id="replay" aria-label="Replay animation">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5"/></svg>
