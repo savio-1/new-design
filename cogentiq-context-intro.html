@@ -34,14 +34,14 @@
   .bg-sky{
     background:linear-gradient(158deg, #5d7cf0 0%, #7a8bf3 26%, #9aa6f6 48%, #c9cdf8 74%, #ecebfb 100%);
     opacity:0;
-    animation:fadeIn .8s cubic-bezier(.45,0,.2,1) 14.45s both;
+    animation:fadeIn .8s cubic-bezier(.45,0,.2,1) 17.8s both;
   }
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   .bg-dots{
     background-image:radial-gradient(rgba(255,255,255,.35) 1px, transparent 1.4px);
     background-size:26px 26px;
     opacity:0;
-    animation:fadeInDots 1.6s ease 15s both;
+    animation:fadeInDots 1.6s ease 18.35s both;
     mix-blend-mode:overlay;
   }
   @keyframes fadeInDots{from{opacity:0}to{opacity:.5}}
@@ -51,7 +51,7 @@
     position:absolute;inset:0;z-index:40;pointer-events:none;
     background:radial-gradient(circle at 50% 48%, #fff 0%, #fff 46%, rgba(255,255,255,0) 82%);
     opacity:0;
-    animation:flash .85s cubic-bezier(.35,0,.3,1) 14.15s both;
+    animation:flash .85s cubic-bezier(.35,0,.3,1) 17.5s both;
   }
   @keyframes flash{
     0%{opacity:0} 42%{opacity:1} 56%{opacity:1} 100%{opacity:0}
@@ -63,13 +63,13 @@
     width:170vw;height:100%;
     z-index:2;
     will-change:transform;
-    animation:camPan 20s cubic-bezier(.5,0,.2,1) 0s both;
+    animation:camPan 24s cubic-bezier(.5,0,.2,1) 0s both;
   }
   /* the camera holds on the scattered data, then pans right to the context layer */
   @keyframes camPan{
-    0%   {transform:translateX(0)}
-    30%  {transform:translateX(0)}            /* 6.0s  merge begins */
-    39%  {transform:translateX(calc(-1 * var(--cam)))}  /* 7.8s  arrive */
+    0%    {transform:translateX(0)}
+    25%   {transform:translateX(0)}                      /* 6.0s  merge begins */
+    32.5% {transform:translateX(calc(-1 * var(--cam)))}  /* 7.8s  arrive */
     100% {transform:translateX(calc(-1 * var(--cam)))}
   }
 
@@ -77,10 +77,17 @@
   .frame-a{position:absolute;left:0;top:0;width:100vw;height:100%}
 
   /* ---- source spheres (artwork) ---- */
+  /* depth planes: the camera focuses on the middle of the field */
+  .d-near{--bl:7px; --ds:1.5;  --o:.85; --dp:2;   z-index:3}
+  .d-mid { --bl:0px; --ds:1;    --o:1;   --dp:1;   z-index:2}
+  .d-far { --bl:2.5px;--ds:.6;  --o:.72; --dp:.45; z-index:1}
+
   .dot{
     position:absolute;left:var(--x);top:var(--y);
     width:var(--sz);height:var(--sz);
     background-size:contain;background-repeat:no-repeat;background-position:center;
+    filter:blur(var(--bl,0px));
+    scale:var(--ds,1);
     opacity:0;
     animation:
       dotIn 1.1s cubic-bezier(.25,.6,.3,1) var(--d) both,
@@ -90,8 +97,8 @@
   @keyframes dotIn{from{opacity:0;transform:scale(.4)}to{opacity:var(--o,1);transform:scale(1)}}
   @keyframes dotDrift{
     0%  {translate:0 0}
-    30% {translate:var(--dx,10px) var(--dy,-14px)}
-    65% {translate:calc(var(--dx,10px) * -.55) calc(var(--dy,-14px) * .7)}
+    30% {translate:calc(var(--dx,10px) * var(--dp,1)) calc(var(--dy,-14px) * var(--dp,1))}
+    65% {translate:calc(var(--dx,10px) * var(--dp,1) * -.55) calc(var(--dy,-14px) * var(--dp,1) * .7)}
     100%{translate:0 0}
   }
   @keyframes dotMerge{
@@ -105,6 +112,7 @@
     position:absolute;left:var(--x);top:var(--y);
     opacity:0;
     filter:blur(var(--bl,0px));
+    scale:var(--ds,1);
     animation:
       fragIn 1s cubic-bezier(.22,.7,.3,1) var(--d) both,
       fragDrift var(--wt,9s) ease-in-out calc(var(--d) + .4s) infinite,
@@ -115,7 +123,9 @@
     to  {opacity:var(--o,1);transform:translateY(0) scale(1)}
   }
   @keyframes fragDrift{
-    0%{translate:0 0} 50%{translate:var(--dx,12px) var(--dy,-14px)} 100%{translate:0 0}
+    0%{translate:0 0}
+    50%{translate:calc(var(--dx,12px) * var(--dp,1)) calc(var(--dy,-14px) * var(--dp,1))}
+    100%{translate:0 0}
   }
   @keyframes fragMerge{
     0%  {opacity:var(--o,1);transform:scale(1)}
@@ -228,7 +238,7 @@
     animation:
       fadeIn 1.6s ease var(--d) both,
       pathSpin var(--t,26s) linear var(--d) infinite,
-      pathOut .5s ease 14.15s forwards;
+      pathOut .5s ease 17.5s forwards;
   }
   @keyframes pathSpin{from{rotate:0deg}to{rotate:360deg}}
   @keyframes pathOut{to{opacity:0}}
@@ -251,7 +261,7 @@
   /* ---- the context sphere ---- */
   .orb-anchor{
     position:absolute;left:0;top:0;z-index:10;
-    animation:orbMove 20s linear 0s both;
+    animation:orbMove 24s linear 0s both;
   }
   .orb{
     position:relative;width:340px;height:340px;margin:-170px 0 0 -170px;
@@ -266,7 +276,7 @@
     animation:
       orbForm 1.1s cubic-bezier(.3,.4,.25,1) 6s forwards,
       orbCharge 1.3s ease-in 6.3s forwards,
-      orbPower 1.2s cubic-bezier(.3,.1,.3,1) 13.3s forwards;
+      orbPower 1.2s cubic-bezier(.3,.1,.3,1) 15.5s forwards;
   }
   .orb-art svg{display:block;width:100%;height:100%}
   /* the sphere only exists once the scattered data forms it */
@@ -289,25 +299,26 @@
   }
   @keyframes orbMove{
     0%    {transform:translate(0,0)   scale(.34)}
-    30%   {transform:translate(0,0)   scale(.34)}  /* 6.0s  forming begins */
-    34%   {transform:translate(0,0)   scale(.72)}  /* 6.8s  grows from data */
-    39%   {transform:translate(0,0)   scale(.9)}   /* 7.8s  camera arrives */
-    44%   {transform:translate(0,1vh) scale(1)}    /* 8.8s */
-    55%   {transform:translate(0,1vh) scale(1)}
-    58%   {transform:translate(0,1vh) scale(1.035)}
-    61%   {transform:translate(0,1vh) scale(1.005)}
-    64%   {transform:translate(0,1vh) scale(1.045)}
-    66.5% {transform:translate(0,1vh) scale(1.05)} /* 13.3s power-up */
-    70%   {transform:translate(0,1vh) scale(1.085)}
-    74%   {transform:translate(0,1vh) scale(1.02)}
-    80%   {transform:translate(0,5vh) scale(.98)}
+    25%   {transform:translate(0,0)   scale(.34)}  /* 6.0s  forming begins */
+    28.3% {transform:translate(0,0)   scale(.72)}  /* 6.8s  grows from data */
+    32.5% {transform:translate(0,0)   scale(.9)}   /* 7.8s  camera arrives */
+    36.7% {transform:translate(0,1vh) scale(1)}    /* 8.8s */
+    50%   {transform:translate(0,1vh) scale(1)}    /* 12.0s orbit begins */
+    54.2% {transform:translate(0,1vh) scale(1.035)}/* absorb breaths */
+    57.1% {transform:translate(0,1vh) scale(1.005)}
+    60%   {transform:translate(0,1vh) scale(1.045)}
+    62.9% {transform:translate(0,1vh) scale(1.01)}
+    64.6% {transform:translate(0,1vh) scale(1.06)} /* 15.5s power-up */
+    67.1% {transform:translate(0,1vh) scale(1.09)}
+    70%   {transform:translate(0,1vh) scale(1.02)}
+    78%   {transform:translate(0,5vh) scale(.98)}
     100%  {transform:translate(0,6vh) scale(1)}
   }
 
   /* -------- artifact chips: enter, orbit the sphere, spiral in -------- */
   .chips-orbit{
     position:absolute;left:0;top:0;width:0;height:0;
-    animation:orbitSpin 3.4s cubic-bezier(.42,.05,.3,.95) 9.7s forwards;
+    animation:orbitSpin 3.6s cubic-bezier(.42,.05,.3,.95) 12s forwards;
   }
   @keyframes orbitSpin{from{transform:rotate(0deg)}to{transform:rotate(280deg)}}
   .chip{position:absolute;left:0;top:0;width:0;height:0}
@@ -320,7 +331,7 @@
     75% {opacity:1}
     100%{transform:translate(0,0) scale(.08);opacity:0}
   }
-  .chip-rot{animation:counterSpin 3.4s cubic-bezier(.42,.05,.3,.95) 9.7s forwards}
+  .chip-rot{animation:counterSpin 3.6s cubic-bezier(.42,.05,.3,.95) 12s forwards}
   @keyframes counterSpin{from{transform:rotate(0deg)}to{transform:rotate(-280deg)}}
   .chip-inner{
     display:flex;flex-direction:column;align-items:center;gap:9px;
@@ -382,18 +393,18 @@
   .lockup .eyebrow{
     font-size:clamp(12px,1vw,14px);font-weight:500;
     letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.85);
-    opacity:0;animation:lockIn 1.3s cubic-bezier(.22,.9,.3,1) 15s both;
+    opacity:0;animation:lockIn 1.3s cubic-bezier(.22,.9,.3,1) 18.3s both;
   }
   .lockup h1{
     margin-top:14px;font-size:clamp(34px,4.6vw,62px);
     font-weight:600;letter-spacing:-.022em;text-wrap:balance;
     text-shadow:0 4px 30px rgba(35,50,140,.35);
-    opacity:0;animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 15.35s both;
+    opacity:0;animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 18.65s both;
   }
   .lockup p{
     margin-top:12px;font-size:clamp(15px,1.5vw,20px);font-weight:300;
     color:rgba(255,255,255,.92);
-    opacity:0;animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 15.75s both;
+    opacity:0;animation:lockIn 1.4s cubic-bezier(.22,.9,.3,1) 19.05s both;
   }
   @keyframes lockIn{
     from{opacity:0;transform:translateY(18px);filter:blur(6px)}
@@ -447,44 +458,44 @@
 
     <!-- frame A: scattered enterprise data -->
     <div class="frame-a">
-      <div class="dot s1"  style="--x:14%;--y:16%;--sz:71px;--d:.35s;--dx:26px;--dy:-20px;--wt:7s"></div>
-      <div class="dot s2"  style="--x:33%;--y:11%;--sz:55px;--d:1.4s;--dx:-20px;--dy:24px;--wt:9s"></div>
-      <div class="dot s3"  style="--x:52%;--y:8%; --sz:84px;--d:.6s;--dx:24px;--dy:20px;--wt:8s"></div>
-      <div class="dot s4"  style="--x:76%;--y:10%;--sz:59px;--d:2.1s;--dx:-28px;--dy:-16px;--wt:6.5s"></div>
-      <div class="dot s5"  style="--x:90%;--y:20%;--sz:67px;--d:1s;--dx:-20px;--dy:26px;--wt:10s"></div>
-      <div class="dot s6"  style="--x:8%; --y:44%;--sz:50px;--d:1.75s;--dx:30px;--dy:14px;--wt:7.5s"></div>
-      <div class="dot s7"  style="--x:24%;--y:34%;--sz:80px;--d:.5s;--dx:-18px;--dy:-26px;--wt:8.5s"></div>
-      <div class="dot s8"  style="--x:44%;--y:42%;--sz:42px;--d:2.6s;--dx:22px;--dy:18px;--wt:6s;--o:.85"></div>
-      <div class="dot s9"  style="--x:60%;--y:36%;--sz:63px;--d:1.2s;--dx:20px;--dy:-24px;--wt:9.5s"></div>
-      <div class="dot s10" style="--x:74%;--y:48%;--sz:50px;--d:2.9s;--dx:-24px;--dy:-18px;--wt:7s;--o:.9"></div>
-      <div class="dot s11" style="--x:88%;--y:52%;--sz:67px;--d:.9s;--dx:-26px;--dy:20px;--wt:8s"></div>
-      <div class="dot s12" style="--x:36%;--y:58%;--sz:55px;--d:2.3s;--dx:18px;--dy:26px;--wt:10s"></div>
-      <div class="dot s13" style="--x:56%;--y:62%;--sz:76px;--d:.75s;--dx:-22px;--dy:-20px;--wt:7.5s"></div>
-      <div class="dot s2"  style="--x:18%;--y:72%;--sz:84px;--d:1.6s;--dx:24px;--dy:-22px;--wt:9s"></div>
-      <div class="dot s5"  style="--x:40%;--y:82%;--sz:55px;--d:3.2s;--dx:-20px;--dy:-24px;--wt:6.5s"></div>
-      <div class="dot s9"  style="--x:63%;--y:78%;--sz:63px;--d:1.1s;--dx:28px;--dy:16px;--wt:8.5s"></div>
-      <div class="dot s12" style="--x:82%;--y:82%;--sz:76px;--d:2s;--dx:-26px;--dy:-16px;--wt:7s"></div>
-      <div class="dot s7"  style="--x:5%; --y:88%;--sz:59px;--d:2.7s;--dx:20px;--dy:-28px;--wt:9.5s"></div>
-      <div class="dot s10" style="--x:5%; --y:12%;--sz:46px;--d:3s;--dx:18px;--dy:22px;--wt:6s;--o:.85"></div>
-      <div class="dot s13" style="--x:68%;--y:20%;--sz:50px;--d:3.4s;--dx:-16px;--dy:20px;--wt:7.5s;--o:.9"></div>
-      <div class="dot s4"  style="--x:95%;--y:70%;--sz:55px;--d:1.9s;--dx:-22px;--dy:-20px;--wt:8s"></div>
-      <div class="dot s6"  style="--x:28%;--y:90%;--sz:63px;--d:2.45s;--dx:22px;--dy:-18px;--wt:10s"></div>
+      <div class="dot d-mid s1"  style="--x:14%;--y:16%;--sz:71px;--d:.35s;--dx:26px;--dy:-20px;--wt:7s"></div>
+      <div class="dot d-mid s2"  style="--x:33%;--y:11%;--sz:55px;--d:1.4s;--dx:-20px;--dy:24px;--wt:9s"></div>
+      <div class="dot d-near s3"  style="--x:52%;--y:8%; --sz:84px;--d:.6s;--dx:24px;--dy:20px;--wt:8s"></div>
+      <div class="dot d-mid s4"  style="--x:76%;--y:10%;--sz:59px;--d:2.1s;--dx:-28px;--dy:-16px;--wt:6.5s"></div>
+      <div class="dot d-mid s5"  style="--x:90%;--y:20%;--sz:67px;--d:1s;--dx:-20px;--dy:26px;--wt:10s"></div>
+      <div class="dot d-far s6"  style="--x:8%; --y:44%;--sz:50px;--d:1.75s;--dx:30px;--dy:14px;--wt:7.5s"></div>
+      <div class="dot d-near s7"  style="--x:24%;--y:34%;--sz:80px;--d:.5s;--dx:-18px;--dy:-26px;--wt:8.5s"></div>
+      <div class="dot d-far s8"  style="--x:44%;--y:42%;--sz:42px;--d:2.6s;--dx:22px;--dy:18px;--wt:6s;"></div>
+      <div class="dot d-mid s9"  style="--x:60%;--y:36%;--sz:63px;--d:1.2s;--dx:20px;--dy:-24px;--wt:9.5s"></div>
+      <div class="dot d-far s10" style="--x:74%;--y:48%;--sz:50px;--d:2.9s;--dx:-24px;--dy:-18px;--wt:7s;"></div>
+      <div class="dot d-mid s11" style="--x:88%;--y:52%;--sz:67px;--d:.9s;--dx:-26px;--dy:20px;--wt:8s"></div>
+      <div class="dot d-mid s12" style="--x:36%;--y:58%;--sz:55px;--d:2.3s;--dx:18px;--dy:26px;--wt:10s"></div>
+      <div class="dot d-near s13" style="--x:56%;--y:62%;--sz:76px;--d:.75s;--dx:-22px;--dy:-20px;--wt:7.5s"></div>
+      <div class="dot d-near s2"  style="--x:18%;--y:72%;--sz:84px;--d:1.6s;--dx:24px;--dy:-22px;--wt:9s"></div>
+      <div class="dot d-mid s5"  style="--x:40%;--y:82%;--sz:55px;--d:3.2s;--dx:-20px;--dy:-24px;--wt:6.5s"></div>
+      <div class="dot d-mid s9"  style="--x:63%;--y:78%;--sz:63px;--d:1.1s;--dx:28px;--dy:16px;--wt:8.5s"></div>
+      <div class="dot d-near s12" style="--x:82%;--y:82%;--sz:76px;--d:2s;--dx:-26px;--dy:-16px;--wt:7s"></div>
+      <div class="dot d-mid s7"  style="--x:5%; --y:88%;--sz:59px;--d:2.7s;--dx:20px;--dy:-28px;--wt:9.5s"></div>
+      <div class="dot d-far s10" style="--x:5%; --y:12%;--sz:46px;--d:3s;--dx:18px;--dy:22px;--wt:6s;"></div>
+      <div class="dot d-far s13" style="--x:68%;--y:20%;--sz:50px;--d:3.4s;--dx:-16px;--dy:20px;--wt:7.5s;"></div>
+      <div class="dot d-mid s4"  style="--x:95%;--y:70%;--sz:55px;--d:1.9s;--dx:-22px;--dy:-20px;--wt:8s"></div>
+      <div class="dot d-mid s6"  style="--x:28%;--y:90%;--sz:63px;--d:2.45s;--dx:22px;--dy:-18px;--wt:10s"></div>
 
       <!-- enterprise data fragments -->
-      <div class="frag f-folder"  style="--x:7%;  --y:8%;  --d:3.35s;--dm:6.05s;--dx:14px; --dy:12px"></div>
-      <div class="frag f-toggle"  style="--x:27%; --y:15%; --d:4.05s;--dm:6.4s; --dx:-10px;--dy:12px"></div>
-      <div class="frag f-msg"     style="--x:52%; --y:5%;  --d:3.5s; --dm:6.15s;--dx:-12px;--dy:14px;--bl:1px"></div>
-      <div class="frag f-table"   style="--x:80%; --y:6%;  --d:3.4s; --dm:6.25s;--dx:-16px;--dy:12px;--bl:1.5px;--o:.95"></div>
-      <div class="frag f-donut"   style="--x:64%; --y:28%; --d:3.9s; --dm:6.35s;--dx:12px; --dy:-12px"></div>
-      <div class="frag f-chart"   style="--x:4%;  --y:32%; --d:3.55s;--dm:6.1s; --dx:16px; --dy:-10px"></div>
-      <div class="frag f-code"    style="--x:86%; --y:42%; --d:3.7s; --dm:6.3s; --dx:-14px;--dy:-12px;--bl:1px;--o:.95"></div>
-      <div class="frag f-mail"    style="--x:10%; --y:58%; --d:3.65s;--dm:6.2s; --dx:14px; --dy:-14px"></div>
-      <div class="frag f-kanban"  style="--x:28%; --y:76%; --d:3.8s; --dm:6.45s;--dx:12px; --dy:-12px;--bl:1px"></div>
-      <div class="frag f-avatars" style="--x:55%; --y:84%; --d:3.95s;--dm:6.5s; --dx:-12px;--dy:-14px"></div>
-      <div class="frag f-cal"     style="--x:76%; --y:66%; --d:3.6s; --dm:6.4s; --dx:-14px;--dy:-12px;--bl:1.5px;--o:.95"></div>
-      <div class="frag f-tag"     style="--x:43%; --y:27%; --d:4.15s;--dm:6.35s;--dx:10px; --dy:12px;--c:#8b7cf2;--w:76px"></div>
-      <div class="frag f-tag"     style="--x:90%; --y:86%; --d:4.25s;--dm:6.45s;--dx:-12px;--dy:-10px;--c:#27b7a2;--w:60px"></div>
-      <div class="frag f-tag"     style="--x:2%;  --y:86%; --d:4.2s; --dm:6.3s; --dx:12px; --dy:-12px;--c:#e879c8;--w:52px"></div>
+      <div class="frag f-folder d-mid"  style="--x:7%;  --y:8%;  --d:3.35s;--dm:6.05s;--dx:14px; --dy:12px"></div>
+      <div class="frag f-toggle d-far"  style="--x:27%; --y:15%; --d:4.05s;--dm:6.4s; --dx:-10px;--dy:12px"></div>
+      <div class="frag f-msg d-far"     style="--x:52%; --y:5%;  --d:3.5s; --dm:6.15s;--dx:-12px;--dy:14px;"></div>
+      <div class="frag f-table d-far"   style="--x:80%; --y:6%;  --d:3.4s; --dm:6.25s;--dx:-16px;--dy:12px;"></div>
+      <div class="frag f-donut d-mid"   style="--x:64%; --y:28%; --d:3.9s; --dm:6.35s;--dx:12px; --dy:-12px"></div>
+      <div class="frag f-chart d-near"   style="--x:4%;  --y:32%; --d:3.55s;--dm:6.1s; --dx:16px; --dy:-10px"></div>
+      <div class="frag f-code d-far"    style="--x:86%; --y:42%; --d:3.7s; --dm:6.3s; --dx:-14px;--dy:-12px;"></div>
+      <div class="frag f-mail d-mid"    style="--x:10%; --y:58%; --d:3.65s;--dm:6.2s; --dx:14px; --dy:-14px"></div>
+      <div class="frag f-kanban d-near"  style="--x:28%; --y:76%; --d:3.8s; --dm:6.45s;--dx:12px; --dy:-12px;"></div>
+      <div class="frag f-avatars d-mid" style="--x:55%; --y:84%; --d:3.95s;--dm:6.5s; --dx:-12px;--dy:-14px"></div>
+      <div class="frag f-cal d-near"     style="--x:76%; --y:66%; --d:3.6s; --dm:6.4s; --dx:-14px;--dy:-12px;"></div>
+      <div class="frag f-tag d-mid"     style="--x:43%; --y:27%; --d:4.15s;--dm:6.35s;--dx:10px; --dy:12px;--c:#8b7cf2;--w:76px"></div>
+      <div class="frag f-tag d-mid"     style="--x:90%; --y:86%; --d:4.25s;--dm:6.45s;--dx:-12px;--dy:-10px;--c:#27b7a2;--w:60px"></div>
+      <div class="frag f-tag d-mid"     style="--x:2%;  --y:86%; --d:4.2s; --dm:6.3s; --dx:12px; --dy:-12px;--c:#e879c8;--w:52px"></div>
     </div>
 
     <!-- the context-layer frame -->
@@ -495,58 +506,58 @@
       <div class="ring" style="--d:6.1s"></div>
       <div class="ring" style="--d:6.6s"></div>
       <div class="ring" style="--d:7.1s"></div>
-      <div class="ring" style="--d:13.3s"></div>
+      <div class="ring" style="--d:15.5s"></div>
 
       <!-- accent spheres for the final reveal -->
-      <div class="bokeh" style="--x:-44vw;--y:-26vh;--sz:8vmin;--c1:#f3b98e;--c2:#e8935c;--d:15.2s;--o:.85;--bl:5px;--dx:12px;--dy:-20px"></div>
-      <div class="bokeh" style="--x:26vw; --y:22vh; --sz:9vmin;--c1:#f2a6c8;--c2:#e078ad;--d:15.6s;--o:.8;--bl:7px;--dx:-14px;--dy:-24px"></div>
-      <div class="bokeh" style="--x:-40vw;--y:24vh; --sz:6vmin;--c1:#9cd7f0;--c2:#5aa6dd;--d:16s;--o:.8;--bl:5px;--dx:16px;--dy:-16px"></div>
+      <div class="bokeh" style="--x:-44vw;--y:-26vh;--sz:8vmin;--c1:#f3b98e;--c2:#e8935c;--d:18.5s;--dx:12px;--dy:-20px"></div>
+      <div class="bokeh" style="--x:26vw; --y:22vh; --sz:9vmin;--c1:#f2a6c8;--c2:#e078ad;--d:18.9s;--dx:-14px;--dy:-24px"></div>
+      <div class="bokeh" style="--x:-40vw;--y:24vh; --sz:6vmin;--c1:#9cd7f0;--c2:#5aa6dd;--d:19.3s;--dx:16px;--dy:-16px"></div>
 
       <!-- artifact chips -->
       <div class="chips-orbit">
         <div class="chip">
-          <div class="chip-pos" style="--ox:-300px;--oy:-135px;--dc:10.9s">
-            <div class="chip-rot"><div class="chip-inner" style="--din:8.2s;--fx:-130px;--fy:-65px">
+          <div class="chip-pos" style="--ox:-300px;--oy:-135px;--dc:13s">
+            <div class="chip-rot"><div class="chip-inner" style="--din:9.12s;--fx:-130px;--fy:-65px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2.5 2.5 0 0 1 2.5-2.5H20v16H6.5A2.5 2.5 0 0 1 4 19.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div>
               <span class="chip-label">Glossary</span>
             </div></div>
           </div>
         </div>
         <div class="chip">
-          <div class="chip-pos" style="--ox:-345px;--oy:60px;--dc:11.07s">
-            <div class="chip-rot"><div class="chip-inner" style="--din:8.4s;--fx:-150px;--fy:30px">
+          <div class="chip-pos" style="--ox:-345px;--oy:60px;--dc:13.2s">
+            <div class="chip-rot"><div class="chip-inner" style="--din:8.86s;--fx:-150px;--fy:30px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></div>
               <span class="chip-label">Ontology</span>
             </div></div>
           </div>
         </div>
         <div class="chip">
-          <div class="chip-pos" style="--ox:-170px;--oy:200px;--dc:11.24s">
-            <div class="chip-rot"><div class="chip-inner" style="--din:8.6s;--fx:-75px;--fy:105px">
+          <div class="chip-pos" style="--ox:-170px;--oy:200px;--dc:13.4s">
+            <div class="chip-rot"><div class="chip-inner" style="--din:9.12s;--fx:-75px;--fy:105px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#0eb5a3" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>
               <span class="chip-label">Data binding</span>
             </div></div>
           </div>
         </div>
         <div class="chip">
-          <div class="chip-pos" style="--ox:170px;--oy:200px;--dc:11.41s">
-            <div class="chip-rot"><div class="chip-inner" style="--din:8.8s;--fx:75px;--fy:105px">
+          <div class="chip-pos" style="--ox:170px;--oy:200px;--dc:13.6s">
+            <div class="chip-rot"><div class="chip-inner" style="--din:9.38s;--fx:75px;--fy:105px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#e0356f" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
               <span class="chip-label">Tool binding</span>
             </div></div>
           </div>
         </div>
         <div class="chip">
-          <div class="chip-pos" style="--ox:345px;--oy:60px;--dc:11.58s">
-            <div class="chip-rot"><div class="chip-inner" style="--din:9s;--fx:150px;--fy:30px">
+          <div class="chip-pos" style="--ox:345px;--oy:60px;--dc:13.8s">
+            <div class="chip-rot"><div class="chip-inner" style="--din:9.64s;--fx:150px;--fy:30px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
               <span class="chip-label">Prompts</span>
             </div></div>
           </div>
         </div>
         <div class="chip">
-          <div class="chip-pos" style="--ox:300px;--oy:-135px;--dc:11.75s">
-            <div class="chip-rot"><div class="chip-inner" style="--din:9.2s;--fx:130px;--fy:-65px">
+          <div class="chip-pos" style="--ox:300px;--oy:-135px;--dc:14s">
+            <div class="chip-rot"><div class="chip-inner" style="--din:9.9s;--fx:130px;--fy:-65px">
               <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#57a83e" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
               <span class="chip-label">Policies</span>
             </div></div>
@@ -960,9 +971,9 @@
   <div class="caps">
     <div class="cap" style="--d:.6s;  --len:2.9s;--ctop:46%">Your enterprise data lives everywhere</div>
     <div class="cap" style="--d:3.4s; --len:2.6s;--ctop:46%">scattered, siloed, out of context</div>
-    <div class="cap" style="--d:6.05s;--len:2.1s;--ctop:26%">It&rsquo;s time AI understood your business</div>
-    <div class="cap big" style="--d:8.3s; --len:2.9s">Meet Cogentiq Context</div>
-    <div class="cap" style="--d:11.9s;--len:2.2s;--ctop:26%">everything AI needs to know, in one place</div>
+    <div class="cap" style="--d:6.05s;--len:2.6s;--ctop:26%">It&rsquo;s time AI understood your business</div>
+    <div class="cap big" style="--d:8.7s; --len:3.6s">Meet Cogentiq Context</div>
+    <div class="cap" style="--d:15s;--len:2.3s;--ctop:26%">everything AI needs to know, in one place</div>
   </div>
 
   <div class="lockup">
@@ -997,7 +1008,7 @@
   function armReplay(){
     clearTimeout(timer);
     replay.classList.remove('show');
-    timer = setTimeout(function(){ replay.classList.add('show'); }, 19500);
+    timer = setTimeout(function(){ replay.classList.add('show'); }, 23500);
   }
 
   replay.addEventListener('click', function(){
