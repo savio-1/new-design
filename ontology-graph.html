@@ -575,38 +575,62 @@ function computeFullLayout(){
   const SIZE={};
   for(const n of NODES) SIZE[n.id]=Math.max(34, _mm.measureText(n.id).width/2+18);
 
-  // seed spread out across an area proportional to node count, so the
-  // simulation starts near its resting scale instead of uncrushing a ball
-  const spread=90*Math.sqrt(NODES.length);
-  for(const n of NODES){ const a=rnd()*Math.PI*2, r=spread*(0.3+rnd()*0.7); P[n.id]={x:Math.cos(a)*r,y:Math.sin(a)*r}; }
+  // Scatter across the page rather than ringing the cluster. The camera puts
+  // world (0,0) at (W*0.26, H/2), so this rectangle is the viewport in world
+  // coordinates, padded a little so nodes carry past the edges.
+  const padX=W*0.12, padY=H*0.12;
+  const x0=-W*0.26-padX, x1=W*0.74+padX;
+  const y0=-H/2-padY,    y1=H/2+padY;
+  const RW=x1-x0, RH=y1-y0;
 
-  const LINK_LEN=170;
-  for(let iter=0; iter<500; iter++){
+  // the focused fan needs a clear stage; cells inside this ellipse are simply
+  // never handed out, so nothing has to be shoved outward afterwards — that
+  // shove is what used to pile every displaced node onto one visible circle
+  const EX={x:215,y:0,rx:445,ry:305};
+  const depth=(x,y)=>{const dx=(x-EX.x)/EX.rx, dy=(y-EX.y)/EX.ry; return Math.hypot(dx,dy);};
+
+  // Jittered grid: even coverage across the whole rectangle, with enough
+  // offset per cell that it reads as an organic scatter, not a lattice.
+  // Densify until enough cells survive the exclusion zone.
+  const ids=NODES.map(n=>n.id);
+  for(let i=ids.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
+  let cells=[], cw=0, ch=0;
+  for(let scale=1; scale<=3; scale+=0.25){
+    const cols=Math.max(1,Math.round(Math.sqrt(ids.length*scale*RW/RH)));
+    const rows=Math.max(1,Math.ceil(ids.length*scale/cols));
+    cw=RW/cols; ch=RH/rows; cells=[];
+    for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+      const x=x0+(c+0.5)*cw, y=y0+(r+0.5)*ch;
+      if(depth(x,y)>=1) cells.push({x,y});
+    }
+    if(cells.length>=ids.length) break;
+  }
+  for(let i=cells.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[cells[i],cells[j]]=[cells[j],cells[i]];}
+  ids.forEach((id,i)=>{
+    const c=cells[i%cells.length];
+    P[id]={x:c.x+(rnd()-0.5)*cw*0.75, y:c.y+(rnd()-0.5)*ch*0.75};
+  });
+
+  for(let iter=0; iter<260; iter++){
     // soft-collision on each pair's real footprint (not a uniform point
-    // radius) — this is what makes the rest-of-graph layer read as evenly
-    // spaced, like the reference, instead of crowding wherever labels are long
+    // radius), so long labels claim the room they actually need
     for(let i=0;i<NODES.length;i++)for(let j=i+1;j<NODES.length;j++){
       const idA=NODES[i].id, idB=NODES[j].id, A=P[idA], B=P[idB];
       let dx=A.x-B.x,dy=A.y-B.y,d=Math.hypot(dx,dy)||0.01;
       const minD=SIZE[idA]+SIZE[idB]+22;
       if(d<minD){ const push=(minD-d)/d*0.5; A.x+=dx*push; A.y+=dy*push; B.x-=dx*push; B.y-=dy*push; }
     }
-    for(const [a,b] of LINKS){
-      const A=P[a],B=P[b]; if(!A||!B)continue;
-      let dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy)||0.01;
-      const f=(d-LINK_LEN)*0.012;
-      A.x+=dx/d*f; A.y+=dy/d*f; B.x-=dx/d*f; B.y-=dy/d*f;
+    for(const n of NODES){
+      const p=P[n.id];
+      // ease anything collision nudged into the stage back out, a fraction of
+      // the way per pass so it drifts clear instead of snapping to the edge
+      const e=depth(p.x,p.y);
+      if(e<1&&e>0.001){
+        const t=1+(1/e-1)*0.12;
+        p.x=EX.x+(p.x-EX.x)*t; p.y=EX.y+(p.y-EX.y)*t;
+      }
+      p.x=Math.min(x1,Math.max(x0,p.x)); p.y=Math.min(y1,Math.max(y0,p.y));
     }
-    for(const n of NODES){ const p=P[n.id]; p.x*=0.998; p.y*=0.998; }
-  }
-  // keep the layout clear of the active cluster's own footprint: only nodes
-  // that landed inside that radius get pushed just outside it (angle kept),
-  // rather than compressing the whole graph into a ring like before — every
-  // node further out keeps the even spacing the collision pass just gave it
-  const CLEAR_R=420;
-  for(const n of NODES){
-    const p=P[n.id], r=Math.hypot(p.x,p.y)||1;
-    if(r<CLEAR_R){ const ang=Math.atan2(p.y,p.x); p.x=Math.cos(ang)*CLEAR_R; p.y=Math.sin(ang)*CLEAR_R*0.85; }
   }
   return P;
 }
