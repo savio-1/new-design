@@ -292,7 +292,11 @@ const GROUPS = [
   ]},
   { name:'Post & output', open:false, items:[
     ['bloom',     'Bloom strength',      0, 4, .01],
+    ['bloomT',    'Bloom threshold',     0, 3, .01],
+    ['bloomK',    'Bloom knee',        .01, 1, .01],
     ['bloomR',    'Bloom radius',        0, 1, .01],
+    ['sharp',     'Sharpness',           0, 2, .01],
+    ['punch',     'Colour punch',        0, 2, .01],
     ['exposure',  'Exposure',           .2, 3, .01],
     ['contrast',  'Contrast',           .5, 2, .01],
     ['vign',      'Vignette',            0, 1, .01],
@@ -302,12 +306,13 @@ const GROUPS = [
 ];
 
 const DEFAULTS = {
-  speed:.32, flow:0, freqA:1.25, freqB:.7, beamOff:.2, wobble:.1, wobFreq:2.2,
+  speed:.32, flow:0, freqA:1.35, freqB:.7, beamOff:.2, wobble:.08, wobFreq:2.2,
   beams:5, div:17, rot:0, scale:1, len:1.7, originX:0, originY:.46,
-  gap:.045, taper:0, softPx:.0016, edge:.85, edgeW:.0011, startFade:.025, tipFade:.06, falloff:.35,
+  gap:.05, taper:0, softPx:.0009, edge:1.05, edgeW:.0008, startFade:.02, tipFade:.06, falloff:.3,
   emSize:.085, emitter:true,
-  bright:.8, hot:.38, sat:1.12, hue:0, blend:1, haze:.34, hazeW:1.2,
-  bloom:1.05, bloomR:.55, exposure:.95, contrast:1.05, vign:.32, grain:.012, quality:1,
+  bright:.9, hot:.32, sat:1.22, hue:0, blend:.66, haze:.16, hazeW:1.0,
+  bloom:1.2, bloomT:.8, bloomK:.28, bloomR:.45, sharp:.3, punch:1.28,
+  exposure:.95, contrast:1.12, vign:.32, grain:.008, quality:1,
   bg:'#000000', colors: PALETTES['Neon Pop'].slice()
 };
 
@@ -317,8 +322,8 @@ const SCENES = {
   'Single blade': { beams:1, div:7, gap:0, freqA:2.6, wobble:.3, edge:1.4, bloom:2, hot:.8, len:1.8 },
   'Horizon': { rot:90, originX:-.9, originY:0, beams:7, div:22, len:2.4, hazeW:1.6, haze:.6 },
   'Kaleido': { beams:20, div:70, len:2.2, gap:.12, originY:.1, freqB:2.4, beamOff:.05, bloom:1.3, hot:.5, rot:0 },
-  'Slow drift': { speed:.12, freqA:1.1, freqB:.3, wobble:.05, blend:1, haze:.55, bloom:1.9, beams:4, div:11 },
-  'Hard bands': { blend:.1, freqA:3.2, speed:.6, hot:.35, bloom:1.1, edge:1.6, gap:.08 }
+  'Slow drift': { speed:.12, freqA:1.1, freqB:.3, wobble:.05, blend:.7, haze:.3, bloom:1.5, bloomT:.7, beams:4, div:11 },
+  'Hard bands': { blend:.06, freqA:3.2, speed:.6, hot:.2, bloom:.9, bloomT:1.1, sharp:.8, punch:1.45, edge:1.6, gap:.08 }
 };
 
 /* ---------------------------------------------------------------- state */
@@ -451,12 +456,34 @@ void main(){
     float sd = (length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0)) * sc;
     float bw = max(uEdgeW * 1.3, 0.0007);
     vec3 ec = palette(uPhase);
-    ec = mix(vec3(dot(ec, vec3(0.2126, 0.7152, 0.0722))), ec, 0.45);
+    ec = mix(vec3(1.0), ec, 0.22);
     col += vec3(1.0) * exp(-pow(sd / bw, 2.0)) * 1.7 * uBright;
-    col += ec * smoothstep(0.0, -bw * 3.0, sd) * 0.16 * uBright;
+    col += ec * smoothstep(0.0, -bw * 3.0, sd) * 0.45 * uBright;
   }
 
   outCol = vec4(col, 1.0);
+}`;
+
+const PREFILTER_FS = `#version 300 es
+precision highp float;
+out vec4 outCol;
+uniform sampler2D uTex;
+uniform vec2 uRes, uTexel;
+uniform float uThresh, uKnee;
+void main(){
+  vec2 uv = gl_FragCoord.xy / uRes;
+  vec2 o = uTexel;
+  vec3 c = ( texture(uTex, uv + o * vec2( 0.5,  0.5)).rgb
+           + texture(uTex, uv + o * vec2(-0.5,  0.5)).rgb
+           + texture(uTex, uv + o * vec2( 0.5, -0.5)).rgb
+           + texture(uTex, uv + o * vec2(-0.5, -0.5)).rgb ) * 0.25;
+  /* soft-knee threshold: mid-tones contribute nothing, only hot cores glow */
+  float br = max(c.r, max(c.g, c.b));
+  float kn = max(uKnee, 0.0001);
+  float soft = clamp(br - uThresh + kn, 0.0, 2.0 * kn);
+  soft = soft * soft / (4.0 * kn);
+  float w = max(soft, br - uThresh) / max(br, 0.0001);
+  outCol = vec4(c * w, 1.0);
 }`;
 
 const BLUR_FS = `#version 300 es
@@ -482,7 +509,7 @@ out vec4 outCol;
 uniform sampler2D uScene, uB0, uB1, uB2, uB3;
 uniform vec2  uRes;
 uniform vec4  uBW;
-uniform float uBloom, uExposure, uContrast, uVign, uGrain, uTime;
+uniform float uBloom, uExposure, uContrast, uVign, uGrain, uTime, uSharp, uPunch;
 
 vec3 aces(vec3 x){
   const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
@@ -493,6 +520,17 @@ float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); 
 void main(){
   vec2 uv = gl_FragCoord.xy / uRes;
   vec3 c = texture(uScene, uv).rgb;
+
+  /* unsharp mask in linear light: re-crisps edges the beam shader softened */
+  if (uSharp > 0.001) {
+    vec2 d = 1.4 / uRes;
+    vec3 lo = ( texture(uScene, uv + vec2( d.x,  d.y)).rgb
+              + texture(uScene, uv + vec2(-d.x,  d.y)).rgb
+              + texture(uScene, uv + vec2( d.x, -d.y)).rgb
+              + texture(uScene, uv + vec2(-d.x, -d.y)).rgb ) * 0.25;
+    c = max(c + (c - lo) * uSharp * 2.0, 0.0);
+  }
+
   vec3 b = texture(uB0, uv).rgb * uBW.x
          + texture(uB1, uv).rgb * uBW.y
          + texture(uB2, uv).rgb * uBW.z
@@ -501,6 +539,9 @@ void main(){
   c *= uExposure;
   c  = aces(c);
   c  = pow(c, vec3(1.0 / 2.2));
+  /* ACES bleaches highlights toward white — pull the chroma back afterwards */
+  float lp = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c  = clamp(mix(vec3(lp), c, uPunch), 0.0, 1.0);
   c  = (c - 0.5) * uContrast + 0.5;
 
   float r = length((uv - 0.5) * vec2(uRes.x / uRes.y, 1.0)) * 1.35;
@@ -510,7 +551,7 @@ void main(){
   outCol = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
 
-let sceneProg, blurProg, compProg, vao, fmt, sceneFBO, levels = [], W = 1, H = 1;
+let sceneProg, blurProg, compProg, preProg, vao, fmt, sceneFBO, levels = [], W = 1, H = 1;
 
 function compile(type, src){
   const sh = gl.createShader(type);
@@ -557,6 +598,7 @@ function initGL(){
   sceneProg = program(SCENE_FS);
   blurProg  = program(BLUR_FS);
   compProg  = program(COMP_FS);
+  preProg   = program(PREFILTER_FS);
 }
 
 function resize(){
@@ -577,7 +619,9 @@ function resize(){
   let lw = W, lh = H;
   for (let i = 0; i < LEVELS; i++) {
     lw = Math.max(2, lw >> 1); lh = Math.max(2, lh >> 1);
-    levels.push({ a: makeFBO(lw, lh), b: makeFBO(lw, lh), w: lw, h: lh });
+    const lv = { a: makeFBO(lw, lh), b: makeFBO(lw, lh), w: lw, h: lh };
+    lv.out = lv.b;
+    levels.push(lv);
   }
 }
 
@@ -657,12 +701,35 @@ function blur(srcTex, srcW, srcH, dst, dx, dy){
   drawQuad();
 }
 
+function prefilter(srcTex, srcW, srcH, dst){
+  const p = preProg;
+  gl.useProgram(p);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+  gl.viewport(0, 0, dst.w, dst.h);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  gl.uniform1i(p.u('uTex'), 0);
+  gl.uniform2f(p.u('uRes'), dst.w, dst.h);
+  gl.uniform2f(p.u('uTexel'), 1 / srcW, 1 / srcH);
+  gl.uniform1f(p.u('uThresh'), P.bloomT);
+  gl.uniform1f(p.u('uKnee'), P.bloomK);
+  drawQuad();
+}
+
 function renderBloom(){
-  let srcTex = sceneFBO.tex, sw = W, sh = H;
-  for (let i = 0; i < LEVELS; i++) {
+  /* level 0 starts from the bright-pass, so mid-tones never enter the blur */
+  const l0 = levels[0];
+  prefilter(sceneFBO.tex, W, H, l0.a);
+  blur(l0.a.tex, l0.w, l0.h, l0.b, 1, 0);
+  blur(l0.b.tex, l0.w, l0.h, l0.a, 0, 1);
+  l0.out = l0.a;
+
+  let srcTex = l0.a.tex, sw = l0.w, sh = l0.h;
+  for (let i = 1; i < LEVELS; i++) {
     const l = levels[i];
     blur(srcTex, sw, sh, l.a, 1, 0);
     blur(l.a.tex, l.w, l.h, l.b, 0, 1);
+    l.out = l.b;
     srcTex = l.b.tex; sw = l.w; sh = l.h;
   }
 }
@@ -680,7 +747,7 @@ function composite(){
   gl.useProgram(p);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, W, H);
-  const texes = [sceneFBO.tex, levels[0].b.tex, levels[1].b.tex, levels[2].b.tex, levels[3].b.tex];
+  const texes = [sceneFBO.tex, levels[0].out.tex, levels[1].out.tex, levels[2].out.tex, levels[3].out.tex];
   const names = ['uScene', 'uB0', 'uB1', 'uB2', 'uB3'];
   for (let i = 0; i < texes.length; i++) {
     gl.activeTexture(gl.TEXTURE0 + i);
@@ -695,6 +762,8 @@ function composite(){
   gl.uniform1f(p.u('uContrast'), P.contrast);
   gl.uniform1f(p.u('uVign'), P.vign);
   gl.uniform1f(p.u('uGrain'), P.grain);
+  gl.uniform1f(p.u('uSharp'), P.sharp);
+  gl.uniform1f(p.u('uPunch'), P.punch);
   gl.uniform1f(p.u('uTime'), tGlobal);
   drawQuad();
 }
@@ -955,12 +1024,13 @@ document.getElementById('rand').addEventListener('click', () => {
     freqB: rnd(0, 1.8),
     beamOff: rnd(-.3, .3),
     wobble: rnd(0, .35),
-    hot: rnd(.35, .85),
-    haze: rnd(.2, .8),
+    hot: rnd(.18, .5),
+    haze: rnd(.05, .35),
     hazeW: rnd(.7, 2),
-    bloom: rnd(1, 2.2),
-    bloomR: rnd(.35, .85),
-    blend: pick([1, 1, rnd(.1, .6)]),
+    bloom: rnd(.8, 1.8),
+    bloomT: rnd(.6, 1.2),
+    bloomR: rnd(.3, .7),
+    blend: pick([.66, .5, rnd(.15, .8)]),
     hue: rnd(-25, 25),
     edge: rnd(.4, 1.6)
   });
