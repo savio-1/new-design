@@ -1404,40 +1404,65 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
    whatever room is left in the fixed-height hero, which is the point —
    trimming the gap above widens the one below for free. */
 .as-hero__search-wrap { position: relative; width: 360px; max-width: 100%; }
+/* Like the sparkles and the theme toggle, this field sits on the
+   coloured wash, not the page chrome — it stays a fixed white pill in
+   both themes rather than re-theming with the content below. */
 .as-hero__search {
-  width: 100%;
+  width: 100%; position: relative;
   display: flex; align-items: center; gap: 8px;
   padding: 8px 12px;
   border-radius: var(--radius-full);
-  background: var(--backgrounds-type-default-bg-2);
-  border: 1px solid var(--strokes-card-default);
-  filter: drop-shadow(0 2px 4px rgba(33, 33, 33, .12));
-  color: var(--text-teritiary);
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  filter: drop-shadow(0 2px 4px rgba(33, 33, 33, .16));
+  color: #757575;
   transform: scale(1);
-  transition: border-color .15s ease, box-shadow .2s ease, transform .2s cubic-bezier(.2, .8, .3, 1.15), background .15s ease;
+  transition: border-color .15s ease, box-shadow .2s ease, transform .2s cubic-bezier(.2, .8, .3, 1.15);
 }
-/* A small lift on hover — the field invites a click before it has one. */
+/* A small lift on hover — the field invites a click before it has one.
+   Just a subtly darker grey stroke, no colour or fill change. */
 .as-hero__search:hover {
-  border-color: var(--strokes-line-1);
-  background: var(--backgrounds-type-default-bg-1);
+  border-color: #b8b8b8;
   transform: scale(1.015);
-  filter: drop-shadow(0 4px 10px rgba(33, 33, 33, .18));
+  filter: drop-shadow(0 4px 10px rgba(33, 33, 33, .2));
 }
-.as-hero__search:hover .cq-ic { color: var(--text-secondary); }
+.as-hero__search:hover .cq-ic { color: #424242; }
 .as-hero__search:focus-within {
   border-color: var(--strokes-type-focus);
   box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
   transform: scale(1);
 }
 .as-hero__search input {
-  flex: 1 1 auto; min-width: 0; color: var(--text-primary);
+  flex: 1 1 auto; min-width: 0; color: #121212;
   font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+  background: transparent;
 }
-.as-hero__search input::placeholder { color: var(--text-teritiary); }
+.as-hero__search input::placeholder { color: transparent; }
 /* The wrapper already shows focus with a border + ring that follows the
    pill's radius; the input's own default ring is a rectangle that
    overshoots those rounded corners, so it is turned off here. */
 .as-hero__search input:focus-visible { outline: none; }
+
+/* Cycling example prompts — the native placeholder is blanked above
+   (transparent) and this ghost stands in for it, sliding the outgoing
+   phrase up and out while the next slides up and in from below. Hidden
+   the moment there is a real value to show instead. */
+.as-hero__search-ghost {
+  position: absolute; left: 40px; right: 16px; top: 0; bottom: 0;
+  display: flex; align-items: center;
+  overflow: hidden; pointer-events: none;
+}
+.as-hero__search.has-value .as-hero__search-ghost { display: none; }
+.as-hero__search-ghost span {
+  display: block; width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #8c8c8c;
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+  transform: translateY(0); opacity: 1;
+  transition: transform .38s cubic-bezier(.4, 0, .2, 1), opacity .3s ease;
+}
+.as-hero__search-ghost span.is-out { transform: translateY(-135%); opacity: 0; }
+.as-hero__search-ghost span.is-in  { transform: translateY(135%); opacity: 0; transition: none; }
 
 /* Autosuggest — anchored to the search pill, so it reads as part of the
    field rather than a separate popover floating near it. */
@@ -1463,16 +1488,12 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
   display: flex; align-items: center; gap: 10px;
   width: 100%; padding: 7px 8px; border-radius: var(--radius-md);
   color: var(--text-secondary);
+  text-align: left;
   transition: background .12s ease, color .12s ease;
 }
-/* card-bg-3 (this panel) and card-bg-4 (the DS hover fill) are the same
-   #323232 in dark mode, so a fill alone is invisible there — add the
-   left accent bar .cq-row.is-selected already uses, which reads in
-   both themes regardless of what the fill is doing. */
 .as-hero__sg:hover, .as-hero__sg.is-active {
   background: var(--backgrounds-card-bg-4);
   color: var(--text-primary);
-  box-shadow: inset 3px 0 0 var(--strokes-card-selected);
 }
 .as-hero__sg__text { min-width: 0; display: flex; flex-direction: column; }
 .as-hero__sg__name { color: var(--text-primary); }
@@ -1754,10 +1775,11 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
 </svg></span>
         <h1 class="as-hero__title">cogentiq <em>assistants</em></h1>
         <div class="as-hero__search-wrap">
-          <label class="as-hero__search">
+          <label class="as-hero__search" id="heroSearchField">
             <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-search"/></svg>
             <input id="heroSearch" type="search" placeholder="Marketing related assistants" aria-label="Search assistants"
                    role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="heroSuggest" autocomplete="off" />
+            <span class="as-hero__search-ghost" aria-hidden="true"><span>Marketing related assistants</span></span>
           </label>
         </div>
       </div>
@@ -2102,12 +2124,57 @@ function pickSuggestion(name) {
   state.q = name.toLowerCase();
   applyFilters();
   closeHeroSuggest();
+  syncHeroHasValue();
+}
+
+/* ── Cycling example prompts ──────────────────────────────────────────
+   The native placeholder is left in the markup (for a screen reader)
+   but painted transparent; this ghost stands in for it, sliding the
+   outgoing phrase up and out while the next slides up and in from
+   below. Runs whenever the field is empty — focused or not — and stops
+   the moment there is a real value to show instead. */
+const HERO_PROMPTS = [
+  'Marketing related assistants',
+  'Sales pipeline assistants',
+  'Finance & invoicing assistants',
+  'HR & onboarding assistants',
+  'Data science assistants',
+];
+let heroGhostIdx = 0, heroGhostTimer = null;
+
+function tickHeroGhost() {
+  const span = document.querySelector('.as-hero__search-ghost span');
+  if (!span) return;
+  span.classList.add('is-out');
+  setTimeout(() => {
+    heroGhostIdx = (heroGhostIdx + 1) % HERO_PROMPTS.length;
+    span.textContent = HERO_PROMPTS[heroGhostIdx];
+    span.classList.remove('is-out');
+    span.classList.add('is-in');
+    void span.offsetWidth; // force reflow so the next class removal transitions
+    span.classList.remove('is-in');
+  }, 380);
+}
+function startHeroGhost() {
+  stopHeroGhost();
+  heroGhostTimer = setInterval(tickHeroGhost, 2800);
+}
+function stopHeroGhost() {
+  clearInterval(heroGhostTimer);
+  heroGhostTimer = null;
+}
+function syncHeroHasValue() {
+  const hasValue = $('heroSearch').value.length > 0;
+  $('heroSearchField').classList.toggle('has-value', hasValue);
+  if (hasValue) stopHeroGhost();
+  else if (!heroGhostTimer && state.view === 'home') startHeroGhost();
 }
 
 $('heroSearch').addEventListener('input', e => {
   state.q = e.target.value.trim().toLowerCase();
   applyFilters();
   openHeroSuggest();
+  syncHeroHasValue();
 });
 $('heroSearch').addEventListener('focus', () => openHeroSuggest());
 $('heroSearch').addEventListener('keydown', e => {
@@ -2366,6 +2433,7 @@ function setView(view) {
   $('heroWrap').hidden = !onHome;
   $('chatsTopbar').hidden = onHome;
   onHome ? applyFilters() : applyChatFilters();
+  onHome ? syncHeroHasValue() : stopHeroGhost();
 }
 document.querySelectorAll('.cq-rail-btn[data-view]').forEach(btn =>
   btn.addEventListener('click', () => setView(btn.dataset.view)));
@@ -2401,4 +2469,5 @@ applyMode(stored === 'light' ? 'light' : 'dark');
 
 applyFilters();
 applyChatFilters();
+syncHeroHasValue();
 </script>
