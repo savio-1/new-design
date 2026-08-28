@@ -1270,6 +1270,11 @@ body.cq { margin: 0; }
   --hero-scrim: rgba(255, 255, 255, .58);
 }
 
+/* Reserve the scrollbar's width whether or not it's needed — otherwise
+   switching to a view/tab short enough to lose the scrollbar (e.g.
+   Enterprise assistants' 9 cards vs. a filtered 3) widens the viewport
+   by that amount and the whole page visibly shifts sideways. */
+html { scrollbar-gutter: stable; }
 html, body { height: 100%; }
 /* Content ground, per the page guidelines — its tint is what separates
    the cards from the chrome in light mode. */
@@ -1541,6 +1546,28 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
    radius — and turn the input's own ring off. */
 .cq-search:focus-within { box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2); }
 .cq-search input:focus-visible { outline: none; }
+
+/* My chats' search sits directly on --backgrounds-page-bg-4, and that
+   token is identical to --backgrounds-type-search-default in dark mode
+   (#121212 = #121212) and nearly so in light (#f5f5f5 vs #f0f0f0) — the
+   field was rendering with no visible box in either theme. card-bg-3
+   gives white in light and a contrasting #323232 in dark, both clearly
+   distinct from the page ground behind it. */
+#chatSearchField { background: var(--backgrounds-card-bg-3); }
+
+/* Hover microinteraction for My chats' filter controls — a small lift
+   and a darker border, mirroring the hero search's treatment. No fill
+   change on hover: card-bg-3 and card-bg-4 are the same #323232 in dark
+   mode, so a fill swap alone would be invisible there. */
+#scopeBtn, #whenBtn, #sortBtn, #chatSearchField {
+  transform: scale(1);
+  transition: border-color .15s ease, transform .2s cubic-bezier(.2, .8, .3, 1.15), box-shadow .2s ease;
+}
+#scopeBtn:hover, #whenBtn:hover, #sortBtn:hover, #chatSearchField:hover {
+  border-color: var(--strokes-line-1);
+  transform: scale(1.02);
+}
+#chatSearchField:focus-within { transform: scale(1); }
 
 /* ── Content ─────────────────────────────────────────────────────── */
 .as-content {
@@ -1886,7 +1913,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
         </div>
       </div>
       <div class="as-filter-row__right">
-        <label class="cq-search cq-search--sm" style="width:239px">
+        <label class="cq-search cq-search--sm" id="chatSearchField" style="width:239px">
           <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-search"/></svg>
           <input id="chatSearch" type="search" placeholder="Search chats" aria-label="Search chats" />
         </label>
@@ -1941,9 +1968,15 @@ const ASSISTANTS = [
   { name: 'Invoice Auditor',      desc: 'Flags anomalies in supplier invoices before payment',      glyph: 'purple', tags: ['Finance', 'Data science'],          extra: 0, status: 'draft',  date: '21 Feb', days: 24, scope: 'you',    marked: false },
   { name: 'Meeting Notetaker',    desc: 'Turns call recordings into action items and owners',       glyph: 'green',  tags: ['Machine learning'],                 extra: 2, status: 'active', date: '18 Feb', days: 27, scope: 'you',    marked: false },
   { name: 'Release Notes Writer', desc: 'Compiles shipped work into customer-ready release notes',  glyph: 'cyan',   tags: ['Development', 'Marketing'],         extra: 0, status: 'active', date: '15 Feb', days: 30, scope: 'you',    marked: false },
-  { name: 'Policy Answerer',      desc: 'Answers compliance questions with citations to policy',    glyph: 'purple', tags: ['HR', 'Finance'],                    extra: 0, status: 'active', date: '11 Feb', days: 34, scope: 'shared', marked: true  },
-  { name: 'Churn Predictor',      desc: 'Scores accounts by churn risk from usage signals',         glyph: 'cyan',   tags: ['Data science', 'Marketing'],        extra: 1, status: 'draft',  date: '9 Feb',  days: 36, scope: 'shared', marked: false },
-  { name: 'Query Explainer',      desc: 'Explains slow database queries and suggests indexes',      glyph: 'green',  tags: ['Development'],                      extra: 0, status: 'active', date: '2 Feb',  days: 43, scope: 'shared', marked: false },
+  { name: 'Policy Answerer',        desc: 'Answers compliance questions with citations to policy',      glyph: 'purple', tags: ['HR', 'Finance'],               extra: 0, status: 'active', date: '11 Feb', days: 34, scope: 'shared', marked: true  },
+  { name: 'Churn Predictor',        desc: 'Scores accounts by churn risk from usage signals',           glyph: 'cyan',   tags: ['Data science', 'Marketing'],   extra: 1, status: 'draft',  date: '9 Feb',  days: 36, scope: 'shared', marked: false },
+  { name: 'Query Explainer',        desc: 'Explains slow database queries and suggests indexes',        glyph: 'green',  tags: ['Development'],                 extra: 0, status: 'active', date: '2 Feb',  days: 43, scope: 'shared', marked: false },
+  { name: 'Compliance Auditor',     desc: 'Reviews contracts against regulatory checklists',            glyph: 'purple', tags: ['Finance', 'HR'],               extra: 0, status: 'active', date: '28 Jan', days: 48, scope: 'shared', marked: false },
+  { name: 'Vendor Risk Scorer',     desc: 'Flags high-risk vendors from onboarding data',               glyph: 'cyan',   tags: ['Finance', 'Data science'],     extra: 0, status: 'draft',  date: '22 Jan', days: 54, scope: 'shared', marked: true  },
+  { name: 'Global Payroll Assistant', desc: 'Answers payroll questions across regions',                 glyph: 'green',  tags: ['HR'],                          extra: 1, status: 'active', date: '17 Jan', days: 59, scope: 'shared', marked: false },
+  { name: 'Security Incident Summariser', desc: 'Turns alert floods into a single incident brief',      glyph: 'purple', tags: ['Development'],                 extra: 0, status: 'active', date: '9 Jan',  days: 67, scope: 'shared', marked: false },
+  { name: 'Contract Renewal Tracker', desc: 'Flags contracts nearing renewal or auto-expiry',           glyph: 'cyan',   tags: ['Finance'],                     extra: 0, status: 'active', date: '3 Jan',  days: 73, scope: 'shared', marked: false },
+  { name: 'Executive Briefing Writer', desc: 'Compiles cross-team updates into a weekly exec brief',    glyph: 'green',  tags: ['Marketing', 'Development'],    extra: 0, status: 'draft',  date: '27 Dec', days: 80, scope: 'shared', marked: false },
 ];
 
 const GLYPH_TILE = { cyan: 'as-tile--cyan', purple: 'as-tile--purple', green: 'as-tile--light-green' };
