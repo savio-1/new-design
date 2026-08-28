@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ring Into Hexagon</title>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,300..800;1,6..12,300..700&display=swap">
+<style>
+:root{
+  --ground:#F7F6F2; --surface:#FFFFFF; --panel:#F1EFE8;
+  --ink:#04302B; --ink-65:rgba(6,48,43,.66); --ink-45:rgba(6,48,43,.46);
+  --accent:#00C4B5; --accent-deep:#00A396; --tint:#E0F7F4;
+  --hairline:rgba(120,140,134,.26);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#06231F; --surface:#0A2E29; --panel:#0C332D;
+    --ink:#E8F5F2; --ink-65:rgba(232,245,242,.68); --ink-45:rgba(232,245,242,.44);
+    --tint:rgba(0,196,181,.14); --hairline:rgba(120,220,208,.20); --accent-deep:#7FE8DE;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#06231F; --surface:#0A2E29; --panel:#0C332D;
+  --ink:#E8F5F2; --ink-65:rgba(232,245,242,.68); --ink-45:rgba(232,245,242,.44);
+  --tint:rgba(0,196,181,.14); --hairline:rgba(120,220,208,.20); --accent-deep:#7FE8DE;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Nunito Sans","Helvetica Neue",Arial,sans-serif; font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px; margin:0 auto; padding:0 28px 88px}
+h1,h2,h3{margin:0; font-weight:400; text-wrap:balance}
+p{margin:0}
+code{font-weight:600; font-size:.9em; background:var(--tint); padding:1px 5px; border-radius:4px}
+
+.masthead{padding:64px 0 34px}
+.eyebrow{display:block; font-size:12.5px; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent-deep); margin-bottom:20px}
+h1{font-size:clamp(38px,5.6vw,62px); line-height:1.03; letter-spacing:-.018em; max-width:14ch}
+.lede{margin-top:20px; max-width:58ch; font-size:18.5px; color:var(--ink-65)}
+
+/* stage */
+.stage-row{display:grid; grid-template-columns:minmax(0,460px) 1fr; gap:44px; align-items:start;
+  padding:16px 0 56px; border-bottom:1px solid var(--hairline)}
+.stage{background:var(--panel); border-radius:18px; padding:22px; display:grid; gap:18px;
+  justify-items:center}
+canvas{display:block; width:100%; height:auto; max-width:400px; touch-action:none}
+.controls{width:100%; display:grid; gap:14px}
+.row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+button{font:inherit; font-size:15px; font-weight:700; color:#04302B; background:var(--accent);
+  border:0; border-radius:6px; height:42px; padding:0 20px; cursor:pointer}
+button:hover{background:#00A396; color:#fff}
+button.ghost{background:transparent; color:var(--ink); border:1px solid var(--hairline); font-weight:600}
+button:focus-visible, input:focus-visible{outline:2px solid var(--accent-deep); outline-offset:2px}
+input[type=range]{flex:1; min-width:140px; accent-color:var(--accent)}
+.time{font-size:13px; color:var(--ink-45); font-variant-numeric:tabular-nums; min-width:66px;
+  text-align:right}
+.toggle{display:flex; align-items:center; gap:7px; font-size:14px; color:var(--ink-65)}
+
+.notes h2{font-size:30px; letter-spacing:-.012em}
+.notes>p{margin-top:14px; max-width:52ch; color:var(--ink-65)}
+.steps{margin:26px 0 0; padding:0; list-style:none; display:grid; gap:0}
+.steps li{display:grid; grid-template-columns:64px 1fr; gap:16px; padding:14px 0;
+  border-top:1px solid var(--hairline)}
+.steps li:last-child{border-bottom:1px solid var(--hairline)}
+.t{font-size:13px; font-weight:700; color:var(--accent-deep); font-variant-numeric:tabular-nums;
+  padding-top:2px}
+.steps b{display:block; font-weight:700; font-size:16px}
+.steps span{color:var(--ink-65); font-size:15px}
+
+.beats{padding:52px 0; border-bottom:1px solid var(--hairline)}
+.beats h2{font-size:30px; letter-spacing:-.012em; margin-bottom:6px}
+.beats>p{color:var(--ink-65); max-width:60ch; margin-bottom:26px}
+.beat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px}
+.beat{background:var(--surface); border:1px solid var(--hairline); border-radius:14px; padding:16px;
+  display:grid; gap:10px; justify-items:center}
+.beat canvas{max-width:180px}
+.beat .cap{font-size:13.5px; color:var(--ink-65); text-align:center}
+.beat .cap b{display:block; color:var(--ink); font-weight:700; font-size:14.5px}
+
+.build{padding:52px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:44px}
+.build h2{font-size:30px; letter-spacing:-.012em; margin-bottom:16px}
+.build h3{font-size:17px; font-weight:700; margin-bottom:6px}
+.build .item{padding:14px 0; border-top:1px solid var(--hairline)}
+.build .item p{color:var(--ink-65); font-size:15px; max-width:46ch}
+.mark-out{background:var(--panel); border-radius:16px; padding:28px; display:grid; gap:22px;
+  justify-items:center; align-content:start}
+.sizes{display:flex; align-items:flex-end; gap:22px}
+.sizes figure{margin:0; display:grid; gap:8px; justify-items:center}
+.sizes figcaption{font-size:11px; color:var(--ink-45)}
+.tile{display:grid; place-items:center; border-radius:6px; padding:6px; background:#F1EFE8}
+.tile.dark{background:#04302B}
+.mark-note{font-size:14px; color:var(--ink-65); text-align:center; max-width:34ch}
+
+@media (max-width:900px){
+  .stage-row,.build{grid-template-columns:1fr; gap:32px}
+  .beat-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:600px){ .wrap{padding:0 18px 64px} .beat-grid{grid-template-columns:1fr} }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <span class="eyebrow">AlmaConnect &middot; mark in motion</span>
+    <h1>Ring into hexagon</h1>
+    <p class="lede">Three figures stand linked arm to arm. The ring they are standing on rotates
+    towards you, they lay down into the plane &mdash; heads to the centre, legs out &mdash; and the
+    hexagon lands behind them.</p>
+  </header>
+
+  <section class="stage-row">
+    <div class="stage">
+      <canvas id="hero" width="800" height="800" role="img"
+        aria-label="Three linked figures rotating into a radial mark inside a hexagon"></canvas>
+      <div class="controls">
+        <div class="row">
+          <button id="play">Replay</button>
+          <button id="pause" class="ghost">Pause</button>
+          <button id="mode" class="ghost" aria-pressed="false">Heads: in</button>
+          <label class="toggle"><input type="checkbox" id="loop" checked> Loop</label>
+        </div>
+        <div class="row">
+          <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Scrub the animation">
+          <span class="time" id="time">0.00s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h2>What moves, and when</h2>
+      <p>One 2.4-second take, no cuts. Everything is driven by a single eased clock so the beats stay
+      locked together however you retime it.</p>
+      <ol class="steps">
+        <li><span class="t">0.00s</span><span><b>Three linked</b>The camera sits almost level with the
+        floor, so the ring reads as a row. Arms overlap &mdash; they are holding on.</span></li>
+        <li><span class="t">0.35s</span><span><b>The ring opens</b>The arc between the figures widens
+        from 9&deg; to 120&deg; while its radius collapses, so they swing apart into a circle.</span></li>
+        <li><span class="t">0.90s</span><span><b>They lay down</b>Each figure rotates about its own feet,
+        from standing on the ring to lying flat along it, head first towards the centre.</span></li>
+        <li><span class="t">1.45s</span><span><b>The hexagon lands</b>The camera finishes overhead, the
+        container springs in behind the group and the figures knock out to white.</span></li>
+        <li><span class="t">2.40s</span><span><b>Mark holds</b>Heads clustered at the centre, six legs
+        pointing at six vertices.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="beats">
+    <h2>The four beats</h2>
+    <p>Scrubbed stills, in case the motion needs to be storyboarded or handed to an animator.</p>
+    <div class="beat-grid">
+      <div class="beat"><canvas class="beat-c" data-t="0" width="360" height="360"></canvas>
+        <span class="cap"><b>Linked</b>0.00s &middot; camera 80&deg; below</span></div>
+      <div class="beat"><canvas class="beat-c" data-t="0.30" width="360" height="360"></canvas>
+        <span class="cap"><b>Opening</b>0.72s &middot; the row becomes an arc</span></div>
+      <div class="beat"><canvas class="beat-c" data-t="0.58" width="360" height="360"></canvas>
+        <span class="cap"><b>Laying down</b>1.39s &middot; heads swing inward</span></div>
+      <div class="beat"><canvas class="beat-c" data-t="1" width="360" height="360"></canvas>
+        <span class="cap"><b>Resolved</b>2.40s &middot; container behind</span></div>
+    </div>
+  </section>
+
+  <section class="build">
+    <div>
+      <h2>How it is built</h2>
+      <div class="item">
+        <h3>One 3D model, orthographic-ish</h3>
+        <p>The three figures live on a circle in a flat plane. Every point is projected through one
+        rotation about the horizontal axis, from 80&deg; down to 0&deg;, with a light perspective divide so
+        whoever is nearer reads slightly larger.</p>
+      </div>
+      <div class="item">
+        <h3>Standing is one number</h3>
+        <p>Each body axis is a spherical interpolation between straight up out of the plane and flat
+        along it, pointing inward. That single value takes a figure from standing on the ring to lying
+        on it &mdash; no separate rig, no keyframed limbs.</p>
+      </div>
+      <div class="item">
+        <h3>Shipping it</h3>
+        <p>About 4&nbsp;KB of canvas drawing, no library and no video file &mdash; fine for a splash, an
+        empty state or a page loader. For an emailable or After Effects hand-off, the same timeline
+        exports cleanly to Lottie because every limb is a two-point stroke.</p>
+      </div>
+      <div class="item">
+        <h3>Heads in, or heads out</h3>
+        <p>The <b>Heads</b> button swaps which way the bodies fall. Heads to the centre is the brief;
+        heads outward is what the six-figure reference does, and it gives the arms enough room to
+        close the circle instead of stopping short. Same animation, one sign flipped.</p>
+      </div>
+      <div class="item">
+        <h3>Reduced motion</h3>
+        <p>Anyone who asks their system for less motion gets the resolved mark on first paint. The
+        replay button still works, because that is a deliberate request.</p>
+      </div>
+    </div>
+
+    <div class="mark-out">
+      <div class="sizes">
+        <figure><span class="tile"><canvas class="still" width="288" height="288"
+          style="width:144px;height:144px"></canvas></span><figcaption>144px</figcaption></figure>
+        <figure><span class="tile"><canvas class="still" width="96" height="96"
+          style="width:48px;height:48px"></canvas></span><figcaption>48px</figcaption></figure>
+        <figure><span class="tile"><canvas class="still" width="48" height="48"
+          style="width:24px;height:24px"></canvas></span><figcaption>24px</figcaption></figure>
+        <figure><span class="tile dark"><canvas class="still" data-rev="1" width="96" height="96"
+          style="width:48px;height:48px"></canvas></span><figcaption>reversed</figcaption></figure>
+      </div>
+      <p class="mark-note">The frame it lands on is a mark on its own. It holds to about 48px;
+      at 24px the limbs close up, so a favicon would need a simplified cut.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var TURQ = "#00C4B5", INK = [4,48,43], WHITE = [255,255,255];
+  var DUR = 2400, HOLD = 950, UNIT = 128;
+
+  // Each mode is a full figure spec, in units measured from the feet, plus where the
+  // figures end up: feet-ring radius B, which way the body points, how far the arms wrap.
+  var ARM0 = 12;   // half arm span while they are still holding on
+  var MODES = {
+    "in":  { B: 41, sign: -1, delta: 52, HIP: 18, SHO: 23, NECK: 27,   HEAD: 31, HEAD_R: 5,
+             FOOT: 4.5, LW: 4.8 },
+    "out": { B: 9,  sign:  1, delta: 55, HIP: 15, SHO: 23, NECK: 26.5, HEAD: 31, HEAD_R: 4.8,
+             FOOT: 5,   LW: 4.8 }
+  };
+  var mode = "in";
+
+  var HEX = [];
+  for (var i = 0; i < 6; i++){
+    var a = (90 - i*60) * Math.PI/180;
+    HEX.push([40*Math.cos(a), -40*Math.sin(a)]);
+  }
+
+  function ease(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+  function easeOutBack(t){ var c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(t-1,3) + c1*Math.pow(t-1,2); }
+  function clamp(v){ return v<0?0:v>1?1:v; }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function mix(c1,c2,t){
+    return "rgb(" + Math.round(lerp(c1[0],c2[0],t)) + "," + Math.round(lerp(c1[1],c2[1],t))
+         + "," + Math.round(lerp(c1[2],c2[2],t)) + ")";
+  }
+
+  function build(u, m){
+    var M = MODES[m];
+    var beta = lerp(80, 0, u) * Math.PI/180;
+    var step = lerp(9, 120, u) * Math.PI/180;
+    var gap  = lerp(21.5, 2 * M.B * Math.sin(Math.PI/3), u);
+    var R    = gap / (2 * Math.sin(step/2));
+    var lay  = u * Math.PI/2, sinL = Math.sin(lay), cosL = Math.cos(lay);
+    var figs = [], cx = 0, cy = 0, k;
+    for (var i = -1; i <= 1; i++){
+      var th = Math.PI/2 + i*step, ox = Math.cos(th), oy = Math.sin(th);
+      figs.push({ base:[R*ox, R*oy], tan:[-oy, ox],
+                  dir:[M.sign*ox*sinL, M.sign*oy*sinL, cosL] });
+      cx += R*ox/3; cy += R*oy/3;
+    }
+    for (k = 0; k < 3; k++){ figs[k].base[0] -= cx; figs[k].base[1] -= cy; }
+
+    // arms: a straight bar while they are holding on, an arc around the group once settled
+    var d = M.delta * Math.PI/180, Ra = Math.abs(M.B + M.sign*M.SHO);
+    var endUp = M.sign * (Ra*Math.cos(d) - M.B), endSide = Ra*Math.sin(d);
+    return { figs: figs, beta: beta, M: M,
+             armUp: lerp(M.SHO, endUp, u), armSide: lerp(ARM0, endSide, u),
+             ctrlUp: lerp(M.SHO, 2*M.SHO - endUp, u) };
+  }
+
+  function pt(f, up, side){
+    return [ f.base[0] + f.dir[0]*up + f.tan[0]*side,
+             f.base[1] + f.dir[1]*up + f.tan[1]*side,
+             f.dir[2]*up ];
+  }
+  function project(p, beta){
+    var cb = Math.cos(beta), sb = Math.sin(beta), f = 480;
+    var depth = p[1]*sb + p[2]*cb, k = f/(f + depth);
+    return [ p[0]*k, (p[1]*cb - p[2]*sb)*k, k, depth ];
+  }
+
+  function drawFrame(ctx, px, T, opts){
+    opts = opts || {};
+    var s = px / UNIT;
+    var u = ease(clamp(T / 0.72));
+    var v = ease(clamp((T - 0.60) / 0.40));
+    var m = build(opts.still ? 1 : u, opts.mode || mode);
+    ctx.clearRect(0, 0, px, px);
+    ctx.save();
+    ctx.translate(px/2, px/2);
+
+    if (v > 0 || opts.still){
+      var vv = opts.still ? 1 : v;
+      var sc = opts.still ? 1 : lerp(0.68, 1, easeOutBack(clamp(vv)));
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, vv*1.5);
+      ctx.scale(sc*s, sc*s);
+      ctx.beginPath();
+      ctx.moveTo(HEX[0][0], HEX[0][1]);
+      for (var h = 1; h < 6; h++) ctx.lineTo(HEX[h][0], HEX[h][1]);
+      ctx.closePath();
+      ctx.lineJoin = "round"; ctx.lineWidth = 28;
+      ctx.strokeStyle = opts.reversed ? "#FFFFFF" : TURQ;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.stroke(); ctx.fill();
+      ctx.restore();
+    }
+
+    var order = m.figs.map(function(f){
+      return { f: f, d: project(pt(f, m.M.HIP, 0), m.beta)[3] };
+    }).sort(function(a,b){ return b.d - a.d; });
+
+    var body = opts.reversed ? "#04302B" : mix(INK, WHITE, opts.still ? 1 : v);
+    ctx.strokeStyle = body; ctx.fillStyle = body;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+    order.forEach(function(o){
+      var f = o.f;
+      var F = m.M;
+      var hip   = project(pt(f, F.HIP, 0), m.beta);
+      var neck  = project(pt(f, F.NECK, 0), m.beta);
+      var head  = project(pt(f, F.HEAD, 0), m.beta);
+      var footL = project(pt(f, 0, -F.FOOT), m.beta);
+      var footR = project(pt(f, 0,  F.FOOT), m.beta);
+      var armL  = project(pt(f, m.armUp, -m.armSide), m.beta);
+      var armR  = project(pt(f, m.armUp,  m.armSide), m.beta);
+      var ctrl  = project(pt(f, m.ctrlUp, 0), m.beta);
+      ctx.lineWidth = F.LW * s * hip[2];
+      ctx.beginPath();
+      ctx.moveTo(footL[0]*s, footL[1]*s); ctx.lineTo(hip[0]*s, hip[1]*s);
+      ctx.lineTo(footR[0]*s, footR[1]*s);
+      ctx.moveTo(hip[0]*s, hip[1]*s);     ctx.lineTo(neck[0]*s, neck[1]*s);
+      ctx.moveTo(armL[0]*s, armL[1]*s);
+      ctx.quadraticCurveTo(ctrl[0]*s, ctrl[1]*s, armR[0]*s, armR[1]*s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(head[0]*s, head[1]*s, F.HEAD_R*s*head[2], 0, Math.PI*2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function fit(canvas){
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var cssW = canvas.getBoundingClientRect().width || canvas.width;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = canvas.width;
+    return canvas.width;
+  }
+
+  var hero = document.getElementById("hero"), hctx = hero.getContext("2d"), heroPx = fit(hero);
+  var scrub = document.getElementById("scrub"), timeEl = document.getElementById("time"),
+      loopEl = document.getElementById("loop"), playBtn = document.getElementById("play"),
+      pauseBtn = document.getElementById("pause"), modeBtn = document.getElementById("mode");
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var playing = !reduced, t0 = performance.now(), T = reduced ? 1 : 0;
+
+  function render(t){
+    drawFrame(hctx, heroPx, t);
+    scrub.value = Math.round(t*1000);
+    timeEl.textContent = (t*DUR/1000).toFixed(2) + "s";
+  }
+  function tick(now){
+    if (playing){
+      var e = now - t0;
+      if (e <= DUR) T = e/DUR;
+      else if (e <= DUR + HOLD) T = 1;
+      else if (loopEl.checked){ t0 = now; T = 0; }
+      else { T = 1; playing = false; }
+      render(T);
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  render(T);
+
+  function statics(){
+    Array.prototype.forEach.call(document.querySelectorAll(".beat-c"), function(c){
+      var px = fit(c);
+      drawFrame(c.getContext("2d"), px, parseFloat(c.dataset.t));
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".still"), function(c){
+      drawFrame(c.getContext("2d"), c.width, 1, { still: true, reversed: c.dataset.rev === "1" });
+    });
+  }
+  statics();
+
+  playBtn.addEventListener("click", function(){ t0 = performance.now(); playing = true; });
+  pauseBtn.addEventListener("click", function(){ playing = false; });
+  scrub.addEventListener("input", function(){ playing = false; render(+scrub.value/1000); });
+  modeBtn.addEventListener("click", function(){
+    mode = mode === "in" ? "out" : "in";
+    modeBtn.textContent = mode === "in" ? "Heads: in" : "Heads: out";
+    modeBtn.setAttribute("aria-pressed", mode === "out");
+    statics(); render(T);
+  });
+  window.addEventListener("resize", function(){
+    heroPx = fit(hero); statics(); render(T);
+  });
+})();
+</script>
+</body>
+</html>
