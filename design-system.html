@@ -122,7 +122,7 @@
   /* ── Palette ramps · identical in both themes ───────────────── */
   --blue-300: #bde3ff;   --blue-500: #0d99ff;   --blue-600: #007be5;
   --indigo-300: #c2c5fa; --indigo-500: #5860ed; --indigo-600: #454de0;
-  --purple-300: #e4ccff; --purple-500: #9747ff; --purple-600: #8638e5;
+  --purple-300: #e4ccff; --purple-400: #d9b8ff; --purple-500: #9747ff; --purple-600: #8638e5;
   --orange-300: #fcd19c; --orange-600: #fc9e24; --orange-800: #dd7c0e;
   --green-300: #aff4c6;  --green-500: #14ae5c;  --green-600: #009951;
   --cyan-400:  #75d7f0;
@@ -916,7 +916,24 @@ body.cq { margin: 0; }
 .cq-grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
 .cq-grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
 .cq-grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
-.cq-grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
+/* Context's tile ships its own gradient in the component rather than
+   composing the shared ramp trio. The whole gradient plane rotates, so every
+   stop sweeps through the tile on each lap — a background-position drift is
+   unreadable at 24px, since two of the three stops are close blues and most
+   positions look the same colour. The paint is oversized so a corner never
+   uncovers as it turns, and the glyph is lifted above it explicitly: a flex
+   item's implicit tier does not reliably beat a positioned ::before. */
+.cq-grad-context { position: relative; overflow: hidden; background-image: none; }
+.cq-grad-context::before {
+  content: ""; position: absolute; inset: -50%;
+  background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+  animation: cq-ctx-grad-spin 6s linear infinite;
+}
+.cq-grad-context > svg { position: relative; z-index: 1; }
+@keyframes cq-ctx-grad-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .cq-grad-context::before { animation: none; }
+}
 
 /* ══════════════════════════════════════════════════════════════════
    14 · SURFACES & OVERLAYS

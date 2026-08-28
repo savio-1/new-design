@@ -27,7 +27,7 @@ RAIL_HTML  = between('  <aside class="rail"', '</aside>', keep_end=True)
 UPSELL_HTML= between('<!-- Shown when Context Studio', '<!-- Ask Tiq —')
 # The preview positions itself with this shared helper, so the handoff is
 # incomplete without it — copying the behaviour block alone would not run.
-DEPS_JS    = between('/* Both Tiq bars sit beside the surface that owns them',
+DEPS_JS    = between('/* ══ Context Studio · the preview clip',
                      'function positionTiqBar()')
 RAIL_JS    = between('const railEl = document.querySelector',
                      "railExposeOnly(railActive ? railActive.closest('.rail-group') : null);",
