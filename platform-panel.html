@@ -1512,7 +1512,16 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       transition: background .15s ease, color .15s ease;
     }
     .rail-btn > .ic { flex: none; }
-    .rail-btn:hover { background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
+    /* Hover draws a rectangle, not just a fill — at 68px the icons have
+       no labels to hit-test against, so the row needs to say where it
+       begins and ends. The border comes out of the padding exactly as it
+       does on an active item, so nothing shifts by a pixel. */
+    .rail-btn:hover {
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      padding: 7px;
+      color: var(--text-secondary);
+    }
     .rail-btn.is-active {
       background: var(--backgrounds-button-tonal-1);
       /* Figma strokes sit inside the box, so the padding absorbs the border
@@ -1526,9 +1535,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 
     /* ── Group header ── */
     .rail-ghead {
+      position: relative;
       width: 100%; height: 24px; flex: none;
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
+    /* A category header is 24px of tile and label with no box of its own,
+       and it is a control. The rectangle is drawn by a pseudo-element
+       rather than by padding a fixed-height row, so it can overhang the
+       24px without touching layout — and the children are lifted above
+       it, since a positioned pseudo would otherwise paint over them. */
+    .rail-ghead::before {
+      content: ""; position: absolute; inset: -6px -8px; z-index: 0;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .rail-ghead:hover::before {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-card-default);
+    }
+    .rail-ghead > * { position: relative; z-index: 1; }
     .rail-tile {
       flex: none;
       width: 24px; height: 24px; border-radius: 6px; overflow: hidden;
@@ -1655,17 +1681,28 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       font: 400 11px/15px var(--font-geist); letter-spacing: -0.11px;
     }
     .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
+    /* In D the box is already the rectangle, so the hover one would be a
+       second border 7px inside the first. The box takes the hover
+       instead. */
+    .rail.is-open[data-cs="card"] #ctxStudio::before { content: none; }
+    .rail.is-open[data-cs="card"] #ctxStudio:hover {
+      border-color: var(--strokes-icon-default);
+    }
     /* The dot's ring is the surface behind it, and in D that is the box. */
     .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
 
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
+    /* 416px rather than 320: the preview inside is a full-size clip
+       scaled to fit, so every extra pixel of card is a pixel of legible
+       caption. The card's own type stays at token sizes — only the media
+       grows, which is the part that was too small to read. */
     .upsell {
-      position: fixed; z-index: 95; width: 320px;
-      display: none; flex-direction: column; gap: 10px;
-      padding: 16px;
+      position: fixed; z-index: 95; width: 416px;
+      display: none; flex-direction: column; gap: 12px;
+      padding: 20px;
       background: var(--backgrounds-card-bg-2);
       border: 1px solid var(--strokes-line-3);
-      border-radius: 14px;
+      border-radius: 16px;
       box-shadow: var(--shadow-tiq);
       opacity: 0; transform: translateY(-4px) scale(.98);
       transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1);
@@ -1867,7 +1904,8 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     }
     .nav-stage .rail { position: absolute !important; }
     .nav-stage .upsell {
-      position: absolute !important; left: 264px !important;
+      /* 240px opened panel + the 16px gap. */
+      position: absolute !important; left: 256px !important;
     }
     .nav-stage-hint {
       position: absolute; right: 14px; bottom: 12px;
@@ -2109,9 +2147,8 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     <span class="upsell-title t-body1-med">Context Studio</span>
   </div>
   <p class="upsell-body t-body2-reg">
-    Give your agents and assistants your whole business context and data, so
-    they answer from what your company actually knows instead of filling the
-    gaps themselves.
+    Give your agents and assistants your whole business context, so they
+    answer from what your company knows.
   </p>
   <div class="upsell-actions">
     <button class="btn-primary t-body2-med" id="upsellGo">Contact sales</button>
@@ -2363,9 +2400,8 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     &lt;span class="upsell-title t-body1-med"&gt;Context Studio&lt;/span&gt;
   &lt;/div&gt;
   &lt;p class="upsell-body t-body2-reg"&gt;
-    Give your agents and assistants your whole business context and data, so
-    they answer from what your company actually knows instead of filling the
-    gaps themselves.
+    Give your agents and assistants your whole business context, so they
+    answer from what your company knows.
   &lt;/p&gt;
   &lt;div class="upsell-actions"&gt;
     &lt;button class="btn-primary t-body2-med" id="upsellGo"&gt;Contact sales&lt;/button&gt;
@@ -2481,7 +2517,16 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       transition: background .15s ease, color .15s ease;
     }
     .rail-btn &gt; .ic { flex: none; }
-    .rail-btn:hover { background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
+    /* Hover draws a rectangle, not just a fill — at 68px the icons have
+       no labels to hit-test against, so the row needs to say where it
+       begins and ends. The border comes out of the padding exactly as it
+       does on an active item, so nothing shifts by a pixel. */
+    .rail-btn:hover {
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      padding: 7px;
+      color: var(--text-secondary);
+    }
     .rail-btn.is-active {
       background: var(--backgrounds-button-tonal-1);
       /* Figma strokes sit inside the box, so the padding absorbs the border
@@ -2495,9 +2540,26 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 
     /* ── Group header ── */
     .rail-ghead {
+      position: relative;
       width: 100%; height: 24px; flex: none;
       display: flex; align-items: center; justify-content: center; gap: 6px;
     }
+    /* A category header is 24px of tile and label with no box of its own,
+       and it is a control. The rectangle is drawn by a pseudo-element
+       rather than by padding a fixed-height row, so it can overhang the
+       24px without touching layout — and the children are lifted above
+       it, since a positioned pseudo would otherwise paint over them. */
+    .rail-ghead::before {
+      content: ""; position: absolute; inset: -6px -8px; z-index: 0;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .rail-ghead:hover::before {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-card-default);
+    }
+    .rail-ghead > * { position: relative; z-index: 1; }
     .rail-tile {
       flex: none;
       width: 24px; height: 24px; border-radius: 6px; overflow: hidden;
@@ -2624,17 +2686,28 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       font: 400 11px/15px var(--font-geist); letter-spacing: -0.11px;
     }
     .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
+    /* In D the box is already the rectangle, so the hover one would be a
+       second border 7px inside the first. The box takes the hover
+       instead. */
+    .rail.is-open[data-cs="card"] #ctxStudio::before { content: none; }
+    .rail.is-open[data-cs="card"] #ctxStudio:hover {
+      border-color: var(--strokes-icon-default);
+    }
     /* The dot's ring is the surface behind it, and in D that is the box. */
     .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
 
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
+    /* 416px rather than 320: the preview inside is a full-size clip
+       scaled to fit, so every extra pixel of card is a pixel of legible
+       caption. The card's own type stays at token sizes — only the media
+       grows, which is the part that was too small to read. */
     .upsell {
-      position: fixed; z-index: 95; width: 320px;
-      display: none; flex-direction: column; gap: 10px;
-      padding: 16px;
+      position: fixed; z-index: 95; width: 416px;
+      display: none; flex-direction: column; gap: 12px;
+      padding: 20px;
       background: var(--backgrounds-card-bg-2);
       border: 1px solid var(--strokes-line-3);
-      border-radius: 14px;
+      border-radius: 16px;
       box-shadow: var(--shadow-tiq);
       opacity: 0; transform: translateY(-4px) scale(.98);
       transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1);
@@ -2904,8 +2977,15 @@ const ctxGroup = document.querySelector('.rail-group[data-group="context-studio"
 ctxGroup.classList.toggle('is-locked', !OWNS_CONTEXT_STUDIO);
 $('ctxStudio').title = OWNS_CONTEXT_STUDIO ? 'Context Studio' : 'Context Studio — not on your plan';
 
+/* The card sits a little above the row it belongs to rather than level
+   with it: anchored flush, a 416px card hangs a long way below a 24px
+   row and reads as belonging to whatever is under it. */
+const UPSELL_RISE = 28, UPSELL_GAP = 16;
+
 function positionUpsell() {
-  placeTiqBar($('upsell'), railEl.getBoundingClientRect(), $('ctxStudio').getBoundingClientRect());
+  const row = $('ctxStudio').getBoundingClientRect();
+  placeTiqBar($('upsell'), railEl.getBoundingClientRect(),
+              { top: row.top - UPSELL_RISE, left: row.left }, UPSELL_GAP);
 }
 function closeUpsell() {
   $('upsell').classList.remove('is-open', 'is-shown');
@@ -2981,11 +3061,11 @@ railExposeOnly(railActive ? railActive.closest('.rail-group') : null);</pre>
    description writer, the detail panel for Ask Tiq — flipping to whichever
    side has room and clamping so the bar never leaves the viewport. `anchor`
    only sets where it starts vertically: the control the bar belongs to. */
-function placeTiqBar(bar, owner, anchor) {
+function placeTiqBar(bar, owner, anchor, gap = 12) {
   if (!bar.classList.contains('is-open')) return;
   /* Docked, the bar is pinned by CSS; a stale inline left/top would fight it. */
   if (bar.classList.contains('is-docked')) { bar.style.left = bar.style.top = ''; return; }
-  const gap = 12, edge = 12;
+  const edge = 12;
   const w = bar.offsetWidth, h = bar.offsetHeight;
 
   let left = owner.right + gap;
@@ -3077,11 +3157,11 @@ $('lnkDs').href = DS_URL; $('lnkPg').href = PG_URL; $('lnkMh').href = MH_URL;
    description writer, the detail panel for Ask Tiq — flipping to whichever
    side has room and clamping so the bar never leaves the viewport. `anchor`
    only sets where it starts vertically: the control the bar belongs to. */
-function placeTiqBar(bar, owner, anchor) {
+function placeTiqBar(bar, owner, anchor, gap = 12) {
   if (!bar.classList.contains('is-open')) return;
   /* Docked, the bar is pinned by CSS; a stale inline left/top would fight it. */
   if (bar.classList.contains('is-docked')) { bar.style.left = bar.style.top = ''; return; }
-  const gap = 12, edge = 12;
+  const edge = 12;
   const w = bar.offsetWidth, h = bar.offsetHeight;
 
   let left = owner.right + gap;
@@ -3191,17 +3271,24 @@ const ctxGroup = document.querySelector('.rail-group[data-group="context-studio"
 ctxGroup.classList.toggle('is-locked', !OWNS_CONTEXT_STUDIO);
 $('ctxStudio').title = OWNS_CONTEXT_STUDIO ? 'Context Studio' : 'Context Studio — not on your plan';
 
+/* The card sits a little above the row it belongs to rather than level
+   with it: anchored flush, a 416px card hangs a long way below a 24px
+   row and reads as belonging to whatever is under it. */
+const UPSELL_RISE = 28, UPSELL_GAP = 16;
+
 function positionUpsell() {
   const bar = $('upsell');
-  placeTiqBar(bar, railEl.getBoundingClientRect(), $('ctxStudio').getBoundingClientRect());
+  const row = $('ctxStudio').getBoundingClientRect();
+  placeTiqBar(bar, railEl.getBoundingClientRect(),
+              { top: row.top - UPSELL_RISE, left: row.left }, UPSELL_GAP);
   /* Documentation-only: in the stage the preview is absolute rather than
      fixed, so the viewport coordinates placeTiqBar just wrote are rebased
      onto the stage — and it has to keep tracking the row, which is the one
      thing the placements move. Clamped to stay inside the box. */
   if (!bar.classList.contains('is-open')) return;
   const stage = $('navStage').getBoundingClientRect();
-  const row = $('ctxStudio').getBoundingClientRect();
-  const top = Math.min(Math.max(12, row.top - stage.top), stage.height - bar.offsetHeight - 12);
+  const top = Math.min(Math.max(12, row.top - stage.top - UPSELL_RISE),
+                       stage.height - bar.offsetHeight - 12);
   bar.style.top = `${Math.round(top)}px`;
 }
 function closeUpsell() {
