@@ -1260,6 +1260,12 @@ body.cq { margin: 0; }
   --backgrounds-icon-light-green-2: rgba(139, 195, 74, .20);
   /* AI gradient — the brand ramp Figma names "AI gradient". */
   --gradient-ai: linear-gradient(73.29deg, #0d99ff 16.5%, #5860ed 49.1%, #f24822 76.6%, #ffca28 96.8%);
+  /* The hero glyph tile is a translucent lift off the hero ground —
+     white-on-dark in the product default, ink-on-light once themed. */
+  --hero-glyph-bg: rgba(250, 250, 250, .2);
+}
+:root[data-mode="light"] {
+  --hero-glyph-bg: rgba(18, 18, 18, .06);
 }
 
 html, body { height: 100%; }
@@ -1274,8 +1280,9 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   border-radius: var(--radius-lg);
   border: 1px solid var(--strokes-line-3);
   overflow: hidden;
-  /* Fixed hero ground — the branded surface stays dark in both themes. */
-  background: #1b1b1b;
+  /* Header region per the page guidelines: card-bg-5, themed like any
+     other chrome surface — the brand art rides on top of it. */
+  background: var(--backgrounds-card-bg-5);
 }
 .as-hero__art {
   position: absolute; left: 50%; top: -582px;
@@ -1283,7 +1290,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   transform: translateX(-50%);
   pointer-events: none;
 }
-.as-hero__star { position: absolute; pointer-events: none; }
+.as-hero__star { position: absolute; pointer-events: none; color: var(--text-secondary); }
 
 .as-hero__nav {
   position: relative; z-index: 2;
@@ -1294,29 +1301,29 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 .as-hero__logo {
   width: 32px; height: 32px; flex: none; border-radius: 50%;
   background: #ffffff;
+  /* A white disc needs its own edge once the hero ground themes light. */
+  box-shadow: 0 0 0 1px var(--strokes-line-3);
   display: flex; align-items: center; justify-content: center;
 }
 .as-hero__nav-right { display: flex; align-items: center; gap: 8px; }
-/* The hero is always dark, so its icon button keys off fixed hero ink
-   rather than the themed tokens. */
-.as-hero__nav-right .cq-icon-btn { color: #bdbdbd; }
-.as-hero__nav-right .cq-icon-btn:hover { background: rgba(255, 255, 255, .12); color: #ffffff; }
+/* .cq-icon-btn already keys off text-tertiary/text-primary and card-bg-4
+   hover — themed like the rest of the chrome, no override needed. */
 
 .as-hero__center {
-  position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 32px; transform: translateX(-50%);
   z-index: 1;
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   width: min(406px, calc(100vw - 48px));
 }
 .as-hero__glyph {
   width: 48px; height: 48px; border-radius: var(--radius-lg);
-  background: rgba(250, 250, 250, .2);
+  background: var(--hero-glyph-bg);
   display: flex; align-items: center; justify-content: center;
 }
 .as-hero__title {
   display: flex; gap: 8px; justify-content: center; white-space: nowrap;
   font: 400 36px/40px var(--font-geist); letter-spacing: -1.44px;
-  color: #ffffff;
+  color: var(--text-primary);
 }
 .as-hero__title em {
   font-style: normal;
@@ -1324,23 +1331,34 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   -webkit-background-clip: text; background-clip: text;
   color: transparent;
 }
+/* Gap above the search box is the container's own 8px gap (no extra
+   margin stacked on top); the gap below it to the scope tabs is
+   whatever room is left in the fixed-height hero, which is the point —
+   trimming the gap above widens the one below for free. */
 .as-hero__search {
   width: 360px; max-width: 100%;
   display: flex; align-items: center; gap: 8px;
-  margin-top: 8px; padding: 8px 12px;
+  padding: 8px 12px;
   border-radius: var(--radius-full);
-  background: #323232;
-  border: 1px solid #424242;
+  background: var(--backgrounds-type-default-bg-2);
+  border: 1px solid var(--strokes-card-default);
   filter: drop-shadow(0 2px 4px rgba(33, 33, 33, .12));
-  color: #8c8c8c;
-  transition: border-color .15s ease;
+  color: var(--text-teritiary);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-.as-hero__search:focus-within { border-color: var(--strokes-type-focus); }
+.as-hero__search:focus-within {
+  border-color: var(--strokes-type-focus);
+  box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
+}
 .as-hero__search input {
-  flex: 1 1 auto; min-width: 0; color: #ffffff;
+  flex: 1 1 auto; min-width: 0; color: var(--text-primary);
   font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
 }
-.as-hero__search input::placeholder { color: #8c8c8c; }
+.as-hero__search input::placeholder { color: var(--text-teritiary); }
+/* The wrapper already shows focus with a border + ring that follows the
+   pill's radius; the input's own default ring is a rectangle that
+   overshoots those rounded corners, so it is turned off here. */
+.as-hero__search input:focus-visible { outline: none; }
 
 /* Scope toggle — the Figma underline tabs, pinned to the hero's foot. */
 .as-hero__toggle {
@@ -1350,13 +1368,20 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 }
 .as-scope-tab {
   padding: 8px; border-bottom: 2.4px solid transparent;
-  color: #bdbdbd;
+  color: var(--text-secondary);
   font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
   white-space: nowrap;
   transition: color .15s ease, border-color .15s ease;
 }
-.as-scope-tab:hover { color: #ffffff; }
-.as-scope-tab.is-active { color: #ffffff; border-bottom-color: var(--blue-500); }
+.as-scope-tab:hover { color: var(--text-primary); }
+.as-scope-tab.is-active { color: var(--text-primary); border-bottom-color: var(--blue-500); }
+
+/* The DS search field's :focus-visible ring lands on the plain-rectangle
+   <input>, so it juts past the pill/rounded box around it. Show focus on
+   the wrapper instead — border colour plus a ring that follows its own
+   radius — and turn the input's own ring off. */
+.cq-search:focus-within { box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2); }
+.cq-search input:focus-visible { outline: none; }
 
 /* ── Content ─────────────────────────────────────────────────────── */
 .as-content {
@@ -1370,6 +1395,19 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 
 .as-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .as-filter-row__right { display: flex; align-items: center; gap: 12px; }
+
+/* Per-tab counts — reflect what each tab would show under the current
+   scope, tag filter and search, not just the active one. */
+.as-tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--radius-sm);
+  background: var(--backgrounds-page-bg-3);
+  color: var(--text-teritiary);
+  font: 400 11px/1 var(--font-geist-mono);
+  font-variant-numeric: tabular-nums;
+}
+.cq-seg > button.is-active .as-tab-count { background: var(--backgrounds-page-bg-1); color: var(--text-secondary); }
 
 /* ── Card internals — DS card anatomy with this module's middle ──── */
 .as-tile--cyan        { background: var(--backgrounds-icon-cyan-2); }
@@ -1413,7 +1451,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     <symbol id="i-moon" viewBox="0 0 20 20"><path d="M16.25 11.42A6.67 6.67 0 018.58 3.75a6.67 6.67 0 107.67 7.67z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-tags" viewBox="0 0 20 20"><g stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5.42 6.25a.83.83 0 101.67 0 .83.83 0 00-1.67 0Z"/><path d="M2.5 9.31V5A2.5 2.5 0 015 2.5h4.31c.44 0 .87.18 1.18.49l6.42 6.42a1.98 1.98 0 010 2.84l-4.66 4.66a1.98 1.98 0 01-2.84 0L2.99 10.49A1.67 1.67 0 012.5 9.31Z"/></g></symbol>
     <symbol id="i-mark" viewBox="0 0 20 20"><path d="M15 5.83V17.5L10 14.17L5 17.5V5.83C5 4.95 5.35 4.1 5.98 3.48C6.6 2.85 7.45 2.5 8.33 2.5H11.67C12.55 2.5 13.4 2.85 14.02 3.48C14.65 4.1 15 4.95 15 5.83Z" style="fill:var(--mark-fill,none)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    <symbol id="i-star" viewBox="0 0 6 6"><path d="M3 0C3.51 1.39 4.61 2.49 6 3C4.61 3.51 3.51 4.61 3 6C2.49 4.61 1.39 3.51 0 3C1.39 2.49 2.49 1.39 3 0Z" fill="#fff"/></symbol>
+    <symbol id="i-star" viewBox="0 0 6 6"><path d="M3 0C3.51 1.39 4.61 2.49 6 3C4.61 3.51 3.51 4.61 3 6C2.49 4.61 1.39 3.51 0 3C1.39 2.49 2.49 1.39 3 0Z" fill="currentColor"/></symbol>
     <symbol id="i-glyph-cyan" viewBox="0 0 16 16"><g id="Frame" clip-path="url(#clip0_0_290)">
 <g id="Vector">
 </g>
@@ -1558,14 +1596,13 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   <main class="as-content">
     <div class="as-head-row">
       <h1 class="cq-subhead1-med" id="sectionTitle">Assistants created by you</h1>
-      <span class="cq-count" id="cardCount">9</span>
     </div>
 
     <div class="as-filter-row">
       <div class="cq-seg" role="tablist" aria-label="Filter assistants">
-        <button class="is-active" data-tab="all" role="tab" aria-selected="true">All</button>
-        <button data-tab="bookmarked" role="tab" aria-selected="false">Bookmarked</button>
-        <button data-tab="recent" role="tab" aria-selected="false">Recently used</button>
+        <button class="is-active" data-tab="all" role="tab" aria-selected="true">All<span class="as-tab-count" data-count="all">0</span></button>
+        <button data-tab="bookmarked" role="tab" aria-selected="false">Bookmarked<span class="as-tab-count" data-count="bookmarked">0</span></button>
+        <button data-tab="recent" role="tab" aria-selected="false">Recently used<span class="as-tab-count" data-count="recent">0</span></button>
       </div>
       <div class="as-filter-row__right">
         <div class="cq-filter-group">
@@ -1669,20 +1706,41 @@ $('cardGrid').innerHTML = ASSISTANTS.map(cardHTML).join('');
 /* ── Filter state ─────────────────────────────────────────────────── */
 const state = { scope: 'you', tab: 'all', tags: new Set(), q: '' };
 
+/* True when `a` clears every filter except the tab itself — scope, tags
+   and search. Shared by the grid pass and each tab's own count, so a
+   tab's number is "what you'd see if you clicked it", not just the
+   currently active one. */
+function matchesScopeTagsSearch(a, marked) {
+  let ok = a.scope === state.scope;
+  if (ok && state.tags.size) ok = a.tags.some(t => state.tags.has(t));
+  if (ok && state.q) ok = (a.name + ' ' + a.desc + ' ' + a.tags.join(' ')).toLowerCase().includes(state.q);
+  return ok;
+}
+function matchesTab(a, marked, tab) {
+  if (tab === 'bookmarked') return marked;
+  if (tab === 'recent') return a.days <= 14;
+  return true;
+}
+
 function applyFilters() {
   let shown = 0;
+  const counts = { all: 0, bookmarked: 0, recent: 0 };
   document.querySelectorAll('#cardGrid .cq-card').forEach(el => {
     const a = ASSISTANTS[+el.dataset.i];
     const marked = el.querySelector('.as-mark').classList.contains('is-marked');
-    let ok = a.scope === state.scope;
-    if (ok && state.tab === 'bookmarked') ok = marked;
-    if (ok && state.tab === 'recent') ok = a.days <= 14;
-    if (ok && state.tags.size) ok = a.tags.some(t => state.tags.has(t));
-    if (ok && state.q) ok = (a.name + ' ' + a.desc + ' ' + a.tags.join(' ')).toLowerCase().includes(state.q);
+    const base = matchesScopeTagsSearch(a, marked);
+    if (base) {
+      for (const tab of Object.keys(counts)) {
+        if (matchesTab(a, marked, tab)) counts[tab]++;
+      }
+    }
+    const ok = base && matchesTab(a, marked, state.tab);
     el.style.display = ok ? '' : 'none';
     if (ok) shown++;
   });
-  $('cardCount').textContent = shown;
+  document.querySelectorAll('.as-tab-count').forEach(el => {
+    el.textContent = counts[el.dataset.count];
+  });
   $('emptyState').classList.toggle('is-on', shown === 0);
   $('sectionTitle').textContent = state.scope === 'you' ? 'Assistants created by you' : 'Assistants shared with you';
 }
