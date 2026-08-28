@@ -1527,6 +1527,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
     <symbol id="i-moon" viewBox="0 0 20 20"><path d="M16.25 11.42A6.67 6.67 0 018.58 3.75a6.67 6.67 0 107.67 7.67z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-tags" viewBox="0 0 20 20"><g stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5.42 6.25a.83.83 0 101.67 0 .83.83 0 00-1.67 0Z"/><path d="M2.5 9.31V5A2.5 2.5 0 015 2.5h4.31c.44 0 .87.18 1.18.49l6.42 6.42a1.98 1.98 0 010 2.84l-4.66 4.66a1.98 1.98 0 01-2.84 0L2.99 10.49A1.67 1.67 0 012.5 9.31Z"/></g></symbol>
     <symbol id="i-mark" viewBox="0 0 20 20"><path d="M15 5.83V17.5L10 14.17L5 17.5V5.83C5 4.95 5.35 4.1 5.98 3.48C6.6 2.85 7.45 2.5 8.33 2.5H11.67C12.55 2.5 13.4 2.85 14.02 3.48C14.65 4.1 15 4.95 15 5.83Z" style="fill:var(--mark-fill,none)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 20 20"><g stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 3.5v13M3 13.7l2.8 2.8 2.8-2.8"/><path d="M14.2 16.5v-13M11.4 6.3l2.8-2.8 2.8 2.8"/></g></symbol>
     <symbol id="i-check" viewBox="0 0 16 16"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-home" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.6L8 2.3l5.5 4.3v6.1a1 1 0 01-1 1h-9a1 1 0 01-1-1V6.6Z"/><path d="M6.2 13.7V8.4h3.6v5.3"/></g></symbol>
     <symbol id="i-chats" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M13.7 9.1a1.5 1.5 0 01-1.5 1.5H5.4L2.4 13.5V3.6a1.5 1.5 0 011.5-1.5h8.3a1.5 1.5 0 011.5 1.5v5.5Z"/><path d="M5.3 5.4h5.4M5.3 7.7h3.4"/></g></symbol>
@@ -1782,6 +1783,16 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
             <div class="cq-pop__list" id="whenList"></div>
           </div>
         </div>
+        <div class="cq-filter-group">
+          <button class="cq-dropdown" id="sortBtn" aria-haspopup="true" aria-expanded="false">
+            <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-sort"/></svg>
+            <span id="sortLabel">Newest first</span>
+            <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-chev"/></svg>
+          </button>
+          <div class="cq-pop" id="sortPop" style="width:200px">
+            <div class="cq-pop__list" id="sortList"></div>
+          </div>
+        </div>
       </div>
       <div class="as-filter-row__right">
         <label class="cq-search cq-search--sm" style="width:239px">
@@ -1998,7 +2009,7 @@ $('tagsPop').addEventListener('click', e => {
 $('tagSearch').addEventListener('input', e => renderTagList(e.target.value));
 
 /* One popover open at a time — pass `keep` to spare the one being opened. */
-const POPS = [['tagsBtn', 'tagsPop'], ['scopeBtn', 'scopePop'], ['whenBtn', 'whenPop']];
+const POPS = [['tagsBtn', 'tagsPop'], ['scopeBtn', 'scopePop'], ['whenBtn', 'whenPop'], ['sortBtn', 'sortPop']];
 function closeAllPops(keep) {
   for (const [btnId, popId] of POPS) {
     const pop = $(popId);
@@ -2032,10 +2043,10 @@ const CHATS = [
 
 const BY_NAME = Object.fromEntries(ASSISTANTS.map(a => [a.name, a]));
 
-function chatRowHTML(c) {
+function chatRowHTML(c, i) {
   const a = BY_NAME[c.assistant];
   return `
-  <div class="cq-row cq-tint" data-chat role="button" tabindex="0">
+  <div class="cq-row cq-tint" data-i="${i}" role="button" tabindex="0">
     <span class="cq-cell">
       <span class="cq-logo-tile ${GLYPH_TILE[a.glyph]}"><svg width="16" height="16" aria-hidden="true"><use href="#i-glyph-${a.glyph}"/></svg></span>
       <span class="cq-truncate">
@@ -2050,7 +2061,7 @@ function chatRowHTML(c) {
 }
 $('chatTable').insertAdjacentHTML('beforeend', CHATS.map(chatRowHTML).join(''));
 
-const chatState = { scope: 'all', when: 'any', q: '' };
+const chatState = { scope: 'all', when: 'any', sort: 'newest', q: '' };
 
 function matchesChatTab(c, scope) {
   if (scope === 'active') return !c.archived;
@@ -2058,10 +2069,23 @@ function matchesChatTab(c, scope) {
   return true;
 }
 
+/* `days` is age, so ascending is newest-first. Rows carry their own index
+   into CHATS, so reordering the DOM never desynchronises the two. */
+function sortChatRows() {
+  const table = $('chatTable');
+  const rows = [...table.querySelectorAll('.cq-row')];
+  rows.sort((a, b) => {
+    const da = CHATS[+a.dataset.i].days, db = CHATS[+b.dataset.i].days;
+    return chatState.sort === 'oldest' ? db - da : da - db;
+  });
+  rows.forEach(r => table.appendChild(r));
+}
+
 function applyChatFilters() {
+  sortChatRows();
   let shown = 0;
-  document.querySelectorAll('#chatTable .cq-row').forEach((el, i) => {
-    const c = CHATS[i];
+  document.querySelectorAll('#chatTable .cq-row').forEach(el => {
+    const c = CHATS[+el.dataset.i];
     const q = chatState.q;
     let ok = matchesChatTab(c, chatState.scope) && withinWindow(c, chatState.when);
     if (ok && q) ok = (c.title + ' ' + c.snip + ' ' + c.assistant).toLowerCase().includes(q);
@@ -2083,6 +2107,10 @@ const WHEN_OPTS = [
   ['any',   'Anytime'],
   ['week',  'Last 7 days'],
   ['month', 'Last 30 days'],
+];
+const SORT_OPTS = [
+  ['newest', 'Newest first'],
+  ['oldest', 'Oldest first'],
 ];
 
 function withinWindow(c, when) {
@@ -2131,6 +2159,7 @@ function wireDropdown({ btn, pop, list, label, opts, key }) {
 }
 wireDropdown({ btn: 'scopeBtn', pop: 'scopePop', list: 'scopeList', label: 'scopeLabel', opts: SCOPE_OPTS, key: 'scope' });
 wireDropdown({ btn: 'whenBtn',  pop: 'whenPop',  list: 'whenList',  label: 'whenLabel',  opts: WHEN_OPTS,  key: 'when'  });
+wireDropdown({ btn: 'sortBtn',  pop: 'sortPop',  list: 'sortList',  label: 'sortLabel',  opts: SORT_OPTS,  key: 'sort'  });
 
 $('chatSearch').addEventListener('input', e => {
   chatState.q = e.target.value.trim().toLowerCase();
