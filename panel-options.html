@@ -3959,9 +3959,19 @@ function placeCard(rail) {
   const row = rail.querySelector('.rail-ghead--leaf').getBoundingClientRect();
   const gap = 20, edge = 12;
   const w = card.offsetWidth, h = card.offsetHeight;
-  let left = r.right + gap;
-  if (left + w > window.innerWidth - edge) left = r.left - w - gap;
-  if (left < edge) left = Math.max(edge, (window.innerWidth - w) / 2);
+  /* Right of the panel is the rule here, not a preference. A card that
+     appears on whichever side happens to have room makes a reviewer
+     re-find it on every option, and in a two-column layout that meant
+     the right-hand pair opening leftwards. Where the window cannot take
+     the full width it slides in over the neighbouring column instead of
+     jumping sides, and only gives up when it would otherwise cover more
+     than half of the panel it belongs to. */
+  let left = Math.min(r.right + gap, window.innerWidth - w - edge);
+  if (left < r.right - r.width / 2) {
+    const flipped = r.left - w - gap;
+    if (flipped >= edge) left = flipped;
+  }
+  if (left < edge) left = edge;
   /* The same 28px lift the product uses: a card this tall anchored
      level with a 24px row hangs a long way below it. */
   let top = row.top - 28;
