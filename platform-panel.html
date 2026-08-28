@@ -1704,7 +1704,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
 
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
-    /* 458px: the preview inside is a full-size clip scaled to fit, so
+    /* 520px: the preview inside is a full-size clip scaled to fit, so
        every extra pixel of card is a pixel of legible caption. The
        card's own type stays at token sizes — only the media grows,
        which is the part that was too small to read.
@@ -1713,7 +1713,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        to the media above or the buttons below, so each slot states its
        own space rather than sharing one rhythm. */
     .upsell {
-      position: fixed; z-index: 95; width: 458px;
+      position: fixed; z-index: 95; width: 520px;
       display: none; flex-direction: column; gap: 0;
       padding: 20px;
       background: var(--backgrounds-card-bg-2);
@@ -1743,6 +1743,72 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       position: absolute; left: 10px; bottom: 8px;
       color: var(--text-teritiary);
       font: 400 11px/1 var(--font-geist-mono);
+    }
+    /* ── Expand, and the big view it opens ─────────────────────── */
+    /* Even at 520px the clip is running at about a third of the size it
+       was composed for, and the labels inside it are the part that
+       suffers. The button sits over the media's own top-right corner
+       rather than in the card's chrome, because what it enlarges is the
+       frame, not the offer. Its colours are literals, not tokens: the
+       media behind it is the clip's own ink-night in both themes, so a
+       token that flips with the theme would be wrong in one of them.
+       Painted at all times, only quietened — a control that does not
+       exist until the pointer finds it is one most people never find. */
+    .upsell-expand {
+      position: absolute; top: 8px; right: 8px; z-index: 2;
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 13, 24, .58);
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #fff; opacity: .6;
+      transition: opacity .14s ease, background .14s ease, transform .14s ease;
+    }
+    .upsell-media:hover .upsell-expand { opacity: 1; }
+    .upsell-expand:hover { background: rgba(10, 13, 24, .86); transform: scale(1.06); }
+    .upsell-expand:focus-visible {
+      opacity: 1; outline: 2px solid var(--backgrounds-button-primary); outline-offset: 2px;
+    }
+
+    /* The big view is the same clip in a bigger box, not a second
+       composition: the stage is as much 16:9 as the window will give
+       it, and the scale-to-fit below does the rest. min() takes the
+       height constraint as a width, so a short window shrinks the
+       stage rather than cropping it. */
+    .filmbox {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+      padding: 40px;
+      background: rgba(8, 10, 18, .74);
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      opacity: 0; transition: opacity .18s ease;
+    }
+    .filmbox.is-open { display: flex; }
+    .filmbox.is-shown { opacity: 1; }
+    .filmbox-stage {
+      position: relative;
+      width: min(1280px, 100%, calc((100vh - 80px) * 16 / 9));
+      aspect-ratio: 16 / 9;
+      border-radius: var(--radius-lg); overflow: hidden;
+      background: #080c1a;
+      border: 1px solid var(--strokes-line-3);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+      transform: scale(.97);
+      transition: transform .2s cubic-bezier(.2,.8,.2,1);
+    }
+    .filmbox.is-shown .filmbox-stage { transform: none; }
+    /* Same literals as the expand button, for the same reason. */
+    .filmbox-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 13, 24, .58);
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #fff;
+      transition: background .14s ease;
+    }
+    .filmbox-close:hover { background: rgba(10, 13, 24, .9); }
+    @media (prefers-reduced-motion: reduce) {
+      .filmbox, .filmbox-stage { transition: none; }
     }
     .upsell-head {
       display: flex; align-items: center; gap: 8px;
@@ -1910,7 +1976,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        viewport the clip expects (1600×900) and the whole stage is
        scaled down to the mount instead. Both mounts are 16/9, as is
        1600×900, so one factor fits both axes and nothing is cropped. */
-    .film-mount iframe, #upsellFilm iframe {
+    .film-mount iframe, #upsellFilm iframe, .filmbox-stage iframe {
       position: absolute; left: 0; top: 0;
       width: 1600px; height: 900px;
       transform-origin: 0 0;
@@ -2165,10 +2231,19 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 <!-- Shown when Context Studio is not on the plan. Anchored beside the
      panel, so the offer arrives where the user just clicked. -->
 <div class="upsell" id="upsell" role="dialog" aria-label="About Context Studio">
-  <!-- The preview film, mounted at 288px. Built, not recorded — see
-       the reference page's own section on it. -->
+  <!-- The preview film. Built, not recorded — see the reference
+       page's own section on it. -->
   <div class="upsell-media" id="upsellFilm" role="img"
-       aria-label="Context artefacts gather into an assistant, which then answers from them"></div>
+       aria-label="Context artefacts gather into an assistant, which then answers from them">
+    <button class="upsell-expand" id="upsellExpand" type="button"
+            title="Expand" aria-label="Open the preview in a bigger view">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9"
+              stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
   <div class="upsell-head">
     <span class="rail-tile grad-context"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_contextstudio"/></svg></span>
     <span class="upsell-title t-body1-med">Context Studio</span>
@@ -2180,6 +2255,18 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   <div class="upsell-actions">
     <button class="btn-primary t-body2-med" id="upsellGo">Contact sales</button>
     <button class="upsell-dismiss t-body2-med" id="upsellClose">Not now</button>
+  </div>
+</div>
+<!-- The big view the preview's expand button opens. Empty until first
+     use; the clip is mounted into it on the way in. -->
+<div class="filmbox" id="filmBox" role="dialog" aria-modal="true"
+     aria-label="Context Studio preview">
+  <div class="filmbox-stage" id="filmBoxStage">
+    <button class="filmbox-close" id="filmBoxClose" type="button" aria-label="Close the preview">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M4 4 12 12M12 4 4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
   </div>
 </div>
           <span class="nav-stage-hint">hover the panel</span>
@@ -2250,6 +2337,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-open-row"><dt>Never grey out an upsell</dt><dd>The tile keeps full colour. Greying it reads "not for you", which is the opposite of the job.</dd></div>
           <div class="nav-open-row"><dt>Highlight where it will be seen</dt><dd>The panel is crunched by default, so any emphasis living in the label row is emphasis almost nobody sees. The dot is on the tile for that reason.</dd></div>
           <div class="nav-open-row"><dt>Motion is periodic, not constant</dt><dd>The pill's sheen crosses once every 3.4s with a long hold, and the Context tile's gradient spins once every 6s, quickening to 1.4s on hover. Continuous, fast motion in a nav panel nags; these are the two exceptions, both dropped under reduced motion — and the Context tile's is the one that responds to the cursor, since a hover there is a hover on the thing being sold.</dd></div>
+          <div class="nav-open-row"><dt>The preview can be opened bigger</dt><dd>An expand button in the media's own top-right corner — over the clip, not in the card's chrome, because what it enlarges is the frame. It hands over rather than stacking: the card is dismissed on the way in, so there is no second copy of the same six seconds running behind the overlay. Escape or the backdrop closes it. The big view mounts its own clip; re-parenting an iframe reloads its document in every engine, so moving the card's would have restarted it anyway.</dd></div>
           <div class="nav-open-row"><dt>Preview on a dwell</dt><dd>300ms to open, 240ms to close. Nobody clicks a thing they have not been sold; the offer should arrive while the eye is already on the row. The close is slow enough to cross into the preview and reach its buttons, and the panel is held open while it is up.</dd></div>
         </dl>
       </section>
@@ -2278,7 +2366,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-open-row"><dt>Merge</dt><dd>Everything converges toward a single point off to the right as the camera pans there, and the sphere — <i>the context layer</i> — forms and powers up from what merged into it.</dd></div>
           <div class="nav-open-row"><dt>Chips</dt><dd>Six labelled chips (Glossary, Ontology, Data binding, Tool binding, Prompts, Policies) orbit the sphere and spiral into it — the categories, named this time rather than left as anonymous icons.</dd></div>
           <div class="nav-open-row"><dt>Reveal</dt><dd>The sphere blooms into a full-frame flash, the ground cuts from night to a light sky, and the piece closes on a lockup: <i>Cogentiq Context — The Enterprise AI Context Layer</i>.</dd></div>
-          <div class="nav-open-row"><dt>How it is mounted</dt><dd>An <code>&lt;iframe srcdoc&gt;</code>, not an <code>&lt;img&gt;</code> or a linked page: the clip's markup, CSS and script travel inside this document as one JS string, so nothing extra loads at view time and nothing is fetched cross-origin. The same string mounts both this stage and the 288px box in the offer.</dd></div>
+          <div class="nav-open-row"><dt>How it is mounted</dt><dd>An <code>&lt;iframe srcdoc&gt;</code>, not an <code>&lt;img&gt;</code> or a linked page: the clip's markup, CSS and script travel inside this document as one JS string, so nothing extra loads at view time and nothing is fetched cross-origin. The same string mounts all three places it appears: this stage, the box in the offer, and the big view the offer's expand button opens.</dd></div>
           <div class="nav-open-row"><dt>Controls</dt><dd>Pause/Play stop and resume every animation in the embedded document via <code>Animation.pause()/.play()</code>; Replay cancels and restarts them, the same call the clip's own bottom-right replay button makes. There is no scrub bar here — the clip does not expose a single timeline the way the retired build's GSAP timeline did, only however many independent CSS animations happen to be running.</dd></div>
           <div class="nav-open-row"><dt>Reduced motion</dt><dd>Handled inside the embedded document itself, which collapses every animation to its end state under <code>prefers-reduced-motion: reduce</code> — not something this page adds on top.</dd></div>
         </dl>
@@ -2422,10 +2510,19 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <pre class="nav-code" id="codeUpsell">&lt;!-- Shown when Context Studio is not on the plan. Anchored beside the
      panel, so the offer arrives where the user just clicked. --&gt;
 &lt;div class="upsell" id="upsell" role="dialog" aria-label="About Context Studio"&gt;
-  &lt;!-- The preview film, mounted at 288px. Built, not recorded — see
-       the reference page's own section on it. --&gt;
+  &lt;!-- The preview film. Built, not recorded — see the reference
+       page's own section on it. --&gt;
   &lt;div class="upsell-media" id="upsellFilm" role="img"
-       aria-label="Context artefacts gather into an assistant, which then answers from them"&gt;&lt;/div&gt;
+       aria-label="Context artefacts gather into an assistant, which then answers from them"&gt;
+    &lt;button class="upsell-expand" id="upsellExpand" type="button"
+            title="Expand" aria-label="Open the preview in a bigger view"&gt;
+      &lt;svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"&gt;
+        &lt;path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9"
+              stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round"/&gt;
+      &lt;/svg&gt;
+    &lt;/button&gt;
+  &lt;/div&gt;
   &lt;div class="upsell-head"&gt;
     &lt;span class="rail-tile grad-context"&gt;&lt;svg class="ic" width="16" height="16" viewBox="0 0 16 16"&gt;&lt;use href="#ic-pp_contextstudio"/&gt;&lt;/svg&gt;&lt;/span&gt;
     &lt;span class="upsell-title t-body1-med"&gt;Context Studio&lt;/span&gt;
@@ -2437,6 +2534,18 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   &lt;div class="upsell-actions"&gt;
     &lt;button class="btn-primary t-body2-med" id="upsellGo"&gt;Contact sales&lt;/button&gt;
     &lt;button class="upsell-dismiss t-body2-med" id="upsellClose"&gt;Not now&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;!-- The big view the preview's expand button opens. Empty until first
+     use; the clip is mounted into it on the way in. --&gt;
+&lt;div class="filmbox" id="filmBox" role="dialog" aria-modal="true"
+     aria-label="Context Studio preview"&gt;
+  &lt;div class="filmbox-stage" id="filmBoxStage"&gt;
+    &lt;button class="filmbox-close" id="filmBoxClose" type="button" aria-label="Close the preview"&gt;
+      &lt;svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"&gt;
+        &lt;path d="M4 4 12 12M12 4 4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/&gt;
+      &lt;/svg&gt;
+    &lt;/button&gt;
   &lt;/div&gt;
 &lt;/div&gt;</pre>
         </div>
@@ -2740,7 +2849,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
 
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
-    /* 458px: the preview inside is a full-size clip scaled to fit, so
+    /* 520px: the preview inside is a full-size clip scaled to fit, so
        every extra pixel of card is a pixel of legible caption. The
        card's own type stays at token sizes — only the media grows,
        which is the part that was too small to read.
@@ -2749,7 +2858,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        to the media above or the buttons below, so each slot states its
        own space rather than sharing one rhythm. */
     .upsell {
-      position: fixed; z-index: 95; width: 458px;
+      position: fixed; z-index: 95; width: 520px;
       display: none; flex-direction: column; gap: 0;
       padding: 20px;
       background: var(--backgrounds-card-bg-2);
@@ -2779,6 +2888,72 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       position: absolute; left: 10px; bottom: 8px;
       color: var(--text-teritiary);
       font: 400 11px/1 var(--font-geist-mono);
+    }
+    /* ── Expand, and the big view it opens ─────────────────────── */
+    /* Even at 520px the clip is running at about a third of the size it
+       was composed for, and the labels inside it are the part that
+       suffers. The button sits over the media's own top-right corner
+       rather than in the card's chrome, because what it enlarges is the
+       frame, not the offer. Its colours are literals, not tokens: the
+       media behind it is the clip's own ink-night in both themes, so a
+       token that flips with the theme would be wrong in one of them.
+       Painted at all times, only quietened — a control that does not
+       exist until the pointer finds it is one most people never find. */
+    .upsell-expand {
+      position: absolute; top: 8px; right: 8px; z-index: 2;
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 13, 24, .58);
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #fff; opacity: .6;
+      transition: opacity .14s ease, background .14s ease, transform .14s ease;
+    }
+    .upsell-media:hover .upsell-expand { opacity: 1; }
+    .upsell-expand:hover { background: rgba(10, 13, 24, .86); transform: scale(1.06); }
+    .upsell-expand:focus-visible {
+      opacity: 1; outline: 2px solid var(--backgrounds-button-primary); outline-offset: 2px;
+    }
+
+    /* The big view is the same clip in a bigger box, not a second
+       composition: the stage is as much 16:9 as the window will give
+       it, and the scale-to-fit below does the rest. min() takes the
+       height constraint as a width, so a short window shrinks the
+       stage rather than cropping it. */
+    .filmbox {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+      padding: 40px;
+      background: rgba(8, 10, 18, .74);
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      opacity: 0; transition: opacity .18s ease;
+    }
+    .filmbox.is-open { display: flex; }
+    .filmbox.is-shown { opacity: 1; }
+    .filmbox-stage {
+      position: relative;
+      width: min(1280px, 100%, calc((100vh - 80px) * 16 / 9));
+      aspect-ratio: 16 / 9;
+      border-radius: var(--radius-lg); overflow: hidden;
+      background: #080c1a;
+      border: 1px solid var(--strokes-line-3);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+      transform: scale(.97);
+      transition: transform .2s cubic-bezier(.2,.8,.2,1);
+    }
+    .filmbox.is-shown .filmbox-stage { transform: none; }
+    /* Same literals as the expand button, for the same reason. */
+    .filmbox-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 13, 24, .58);
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #fff;
+      transition: background .14s ease;
+    }
+    .filmbox-close:hover { background: rgba(10, 13, 24, .9); }
+    @media (prefers-reduced-motion: reduce) {
+      .filmbox, .filmbox-stage { transition: none; }
     }
     .upsell-head {
       display: flex; align-items: center; gap: 8px;
@@ -2944,7 +3119,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        viewport the clip expects (1600×900) and the whole stage is
        scaled down to the mount instead. Both mounts are 16/9, as is
        1600×900, so one factor fits both axes and nothing is cropped. */
-    .film-mount iframe, #upsellFilm iframe {
+    .film-mount iframe, #upsellFilm iframe, .filmbox-stage iframe {
       position: absolute; left: 0; top: 0;
       width: 1600px; height: 900px;
       transform-origin: 0 0;
@@ -3396,6 +3571,46 @@ if (!OWNS_CONTEXT_STUDIO) {
   $('upsell').addEventListener('mouseenter', () => clearTimeout(upsellTimer));
   $('upsell').addEventListener('mouseleave', () => upsellHover(false));
 }
+
+/* ── The big view ───────────────────────────────────────────────
+   A second mount rather than moving the card's iframe into the
+   overlay: re-parenting an iframe reloads its document in every
+   engine, so the clip would restart regardless — and this way the
+   card keeps a clip of its own to come back to.
+   Opening hands over rather than stacking: the card is dismissed, so
+   there is no live preview sitting behind the backdrop running the
+   same six seconds at a size nobody can see. */
+let filmBig = null;
+function filmBoxKeys(e) { if (e.key === 'Escape') closeFilmBox(); }
+function openFilmBox() {
+  const box = $('filmBox');
+  box.classList.add('is-open');
+  if (!filmBig) filmBig = mountCinema($('filmBoxStage'));
+  else { filmBig.fit(); filmBig.restart(); }
+  requestAnimationFrame(() => box.classList.add('is-shown'));
+  document.addEventListener('keydown', filmBoxKeys);
+  $('filmBoxClose').focus();
+}
+function closeFilmBox() {
+  const box = $('filmBox');
+  box.classList.remove('is-shown');
+  if (filmBig) filmBig.pause();
+  document.removeEventListener('keydown', filmBoxKeys);
+  /* Held open for the fade, then taken out of the layout — leaving a
+     full-viewport overlay in flow would swallow every click under it. */
+  setTimeout(() => box.classList.remove('is-open'), 200);
+}
+$('upsellExpand').addEventListener('click', e => {
+  e.stopPropagation();
+  closeUpsell();               /* hand over, do not stack */
+  openFilmBox();
+});
+$('filmBoxClose').addEventListener('click', closeFilmBox);
+/* Only the backdrop itself, never a click that happened to bubble out
+   of the stage. */
+$('filmBox').addEventListener('click', e => {
+  if (e.target === $('filmBox')) closeFilmBox();
+});
 
 $('ctxStudio').addEventListener('click', e => {
   e.stopPropagation();
@@ -4586,8 +4801,9 @@ function mountCinema(host) {
   host.appendChild(iframe);
   /* One design size, any box — the same trick the panel's own stage
      uses. The iframe renders at 1600×900 and is scaled to whatever it
-     is mounted in, so the 288px offer and the full-size stage show the
-     same composition rather than two different croppings of it. */
+     is mounted in, so the offer's box, the full-size stage and the
+     big view all show the same composition rather than three different
+     croppings of it. */
   const fit = () => {
     const k = host.clientWidth / CINEMA_W;
     iframe.style.transform = 'scale(' + k + ')';
@@ -4600,6 +4816,11 @@ function mountCinema(host) {
   };
   return {
     iframe,
+    /* Exposed because a host that was display:none measures 0 and the
+       observer only catches up a frame later — a caller that has just
+       revealed its box can settle the scale now rather than showing one
+       frame of nothing. */
+    fit,
     pause() { anims().forEach(a => a.pause()); },
     play()  { anims().forEach(a => a.play()); },
     /* Reloading the document is the only restart that actually works
@@ -4789,4 +5010,3 @@ renderNav();
 syncState();
 setPlacement(new URLSearchParams(location.search).get('place') || 'inline', false);
 </script>
-
