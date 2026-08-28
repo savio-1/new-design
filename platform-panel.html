@@ -1621,7 +1621,10 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        and the line answers "what is it" before the click instead of
        after — at the cost of the panel's evenness, since it is then the
        only thing in the list that is not a row. */
-    .rail[data-cs="card"] #ctxStudio {
+    /* Opened only: crunched, the box has no line of copy to hold, and a
+       36px card around a 24px tile read as a button that goes nowhere —
+       so at 68px the row is a plain tile like every other category. */
+    .rail.is-open[data-cs="card"] #ctxStudio {
       height: auto; flex-wrap: wrap; row-gap: 6px;
       /* card/bg-4 is the one fill that reads as a raised grey against the
          rail's ground in both themes: bg-3, which the Marketplace pill
@@ -1631,13 +1634,11 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       background: var(--backgrounds-card-bg-4);
       border: 1px solid var(--strokes-card-default);
       border-radius: 10px;
-      /* 5 + the 1px border keeps the tile centred in the 36px the rest of
-         the crunched panel uses; 7 + 1 opened lands it on the same 8px
-         line the items indent their icons to. Figma strokes sit inside
-         the box, so the border comes out of the padding either way. */
-      padding: 5px;
+      /* 7 + the 1px border lands the tile on the same 8px line the items
+         indent their icons to — Figma strokes sit inside the box, so the
+         border comes out of the padding. */
+      padding: 7px;
     }
-    .rail.is-open[data-cs="card"] #ctxStudio { padding: 7px; }
     /* The line is the point of D, and it needs the label's width to
        read, so it goes when the labels do. */
     .rail-cs-note {
@@ -1648,7 +1649,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     }
     .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
     /* The dot's ring is the surface behind it, and in D that is the box. */
-    .rail[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
+    .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
 
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
     .upsell {
@@ -1703,8 +1704,23 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
     .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
     /* Context's tile ships its own gradient in the component (2906:507591)
-       rather than composing the shared ramp trio — kept verbatim. */
-    .grad-context { background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%); }
+       rather than composing the shared ramp trio — kept verbatim. The
+       gradient is painted at twice the tile and drifts across it on a
+       slow alternate loop: enough motion to read as alive, not enough
+       to compete with the pill's sheen. Reduced motion holds it still. */
+    .grad-context {
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      background-size: 220% 220%;
+      background-position: 0% 0%;
+      animation: ctxGradDrift 7s ease-in-out infinite alternate;
+    }
+    @keyframes ctxGradDrift {
+      from { background-position: 0% 0%; }
+      to   { background-position: 100% 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .grad-context { animation: none; }
+    }
 
     /* The preview's primary action, lifted with it. */
     .btn-primary {
@@ -2289,7 +2305,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-spec-row"><b>Library</b><span>+16</span><span>24 + items</span></div>
           <div class="nav-spec-row"><b>Evaluate / Monitor / Resources</b><span>+16 each</span><span>24</span></div>
           <div class="nav-spec-row"><b>Context Studio · B / C</b><span>last / foot</span><span>1 + 12 + 24</span></div>
-          <div class="nav-spec-row"><b>Context Studio · D</b><span>last</span><span>36 · 76 open</span></div>
+          <div class="nav-spec-row"><b>Context Studio · D</b><span>last</span><span>24 · 76 open</span></div>
         </div>
 
         <dl class="nav-open">
@@ -2299,7 +2315,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-open-row"><dt>Group header</dt><dd>24px tall, 24px gradient tile, 6px gap, 16px chevron.</dd></div>
           <div class="nav-open-row"><dt>The divider</dt><dd>Zero height, stroke drawn above it. A 1px box adds a row and pushes everything below out of rhythm.</dd></div>
           <div class="nav-open-row"><dt>The Context Studio rule</dt><dd>In <b>B</b> and <b>C</b>, the same <code>.rail-rule</code> the Marketplace uses, carried inside the group so it travels with the row: 16px under the last category, 12px over Context Studio. <b>A</b> and <b>D</b> have nothing to separate and hide it.</dd></div>
-          <div class="nav-open-row"><dt>The Context Studio box</dt><dd><b>D</b> only. <code>card/bg-4</code> on a <code>card/default</code> border at radius 10 — the one fill that stays a raised grey in both themes, and in dark the same value the Marketplace pill sits on, so the rail keeps to one box colour. Padding is 5px crunched and 7px opened, which holds the tile on the 36px centre and then on the items' 8px line; the border comes out of the padding, as it does on an active item. The line under it is caption-sized at <code>text/tertiary</code> and goes with the labels.</dd></div>
+          <div class="nav-open-row"><dt>The Context Studio box</dt><dd><b>D</b> only, and opened only — crunched, the box has no copy to hold and a card around a lone tile reads as a dead button, so at 68px the row is a plain tile like every other category. Opened: <code>card/bg-4</code> on a <code>card/default</code> border at radius 10 — the one fill that stays a raised grey in both themes, and in dark the same value the Marketplace pill sits on, so the rail keeps to one box colour. Padding is 7px, which lands the tile on the items' 8px line; the border comes out of the padding, as it does on an active item. The line under it is caption-sized at <code>text/tertiary</code> and goes with the labels.</dd></div>
           <div class="nav-open-row"><dt>Active item</dt><dd><code>tonal-1</code> fill, <code>card/selected</code> border, coloured-blue label at 500. Padding drops to 7px so the border does not push the icon off the 8px line — Figma strokes sit inside the box.</dd></div>
         </dl>
       </section>
@@ -2326,7 +2342,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
           <div class="nav-open-row"><dt>Offerings sold separately</dt><dd>Their own top-level row, never a slot inside another category — a top-level row is the only one the one-open rule can never hide. Off-plan it still shows, with a pill when opened and a dot on the tile when crunched. What is still open is where in the list that row sits, and how hard it argues for itself: see the switcher above.</dd></div>
           <div class="nav-open-row"><dt>Never grey out an upsell</dt><dd>The tile keeps full colour. Greying it reads "not for you", which is the opposite of the job.</dd></div>
           <div class="nav-open-row"><dt>Highlight where it will be seen</dt><dd>The panel is crunched by default, so any emphasis living in the label row is emphasis almost nobody sees. The dot is on the tile for that reason.</dd></div>
-          <div class="nav-open-row"><dt>Motion is periodic, not constant</dt><dd>The pill's sheen crosses once every 3.4s with a long hold. Continuous motion in a nav panel nags. Reduced motion drops it.</dd></div>
+          <div class="nav-open-row"><dt>Motion is periodic, not constant</dt><dd>The pill's sheen crosses once every 3.4s with a long hold, and the Context tile's gradient drifts on a slow 7s alternate loop. Continuous, fast motion in a nav panel nags; these are the two exceptions, and both are slow, small and dropped under reduced motion.</dd></div>
           <div class="nav-open-row"><dt>Preview on a dwell</dt><dd>300ms to open, 240ms to close. Nobody clicks a thing they have not been sold; the offer should arrive while the eye is already on the row. The close is slow enough to cross into the preview and reach its buttons, and the panel is held open while it is up.</dd></div>
         </dl>
       </section>
@@ -2731,7 +2747,10 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        and the line answers "what is it" before the click instead of
        after — at the cost of the panel's evenness, since it is then the
        only thing in the list that is not a row. */
-    .rail[data-cs="card"] #ctxStudio {
+    /* Opened only: crunched, the box has no line of copy to hold, and a
+       36px card around a 24px tile read as a button that goes nowhere —
+       so at 68px the row is a plain tile like every other category. */
+    .rail.is-open[data-cs="card"] #ctxStudio {
       height: auto; flex-wrap: wrap; row-gap: 6px;
       /* card/bg-4 is the one fill that reads as a raised grey against the
          rail's ground in both themes: bg-3, which the Marketplace pill
@@ -2741,13 +2760,11 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
       background: var(--backgrounds-card-bg-4);
       border: 1px solid var(--strokes-card-default);
       border-radius: 10px;
-      /* 5 + the 1px border keeps the tile centred in the 36px the rest of
-         the crunched panel uses; 7 + 1 opened lands it on the same 8px
-         line the items indent their icons to. Figma strokes sit inside
-         the box, so the border comes out of the padding either way. */
-      padding: 5px;
+      /* 7 + the 1px border lands the tile on the same 8px line the items
+         indent their icons to — Figma strokes sit inside the box, so the
+         border comes out of the padding. */
+      padding: 7px;
     }
-    .rail.is-open[data-cs="card"] #ctxStudio { padding: 7px; }
     /* The line is the point of D, and it needs the label's width to
        read, so it goes when the labels do. */
     .rail-cs-note {
@@ -2758,7 +2775,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     }
     .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
     /* The dot's ring is the surface behind it, and in D that is the box. */
-    .rail[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
+    .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
 
     /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
     .upsell {
@@ -2813,8 +2830,23 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
     .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
     .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
     /* Context's tile ships its own gradient in the component (2906:507591)
-       rather than composing the shared ramp trio — kept verbatim. */
-    .grad-context { background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%); }
+       rather than composing the shared ramp trio — kept verbatim. The
+       gradient is painted at twice the tile and drifts across it on a
+       slow alternate loop: enough motion to read as alive, not enough
+       to compete with the pill's sheen. Reduced motion holds it still. */
+    .grad-context {
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      background-size: 220% 220%;
+      background-position: 0% 0%;
+      animation: ctxGradDrift 7s ease-in-out infinite alternate;
+    }
+    @keyframes ctxGradDrift {
+      from { background-position: 0% 0%; }
+      to   { background-position: 100% 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .grad-context { animation: none; }
+    }
 
     .btn-primary {
       display: flex; align-items: center; justify-content: center; gap: 4px;
