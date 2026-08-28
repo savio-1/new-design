@@ -1263,9 +1263,11 @@ body.cq { margin: 0; }
   /* The hero glyph tile is a translucent lift off the hero ground —
      white-on-dark in the product default, ink-on-light once themed. */
   --hero-glyph-bg: rgba(250, 250, 250, .2);
+  --hero-scrim: rgba(18, 18, 18, .52);
 }
 :root[data-mode="light"] {
   --hero-glyph-bg: rgba(18, 18, 18, .06);
+  --hero-scrim: rgba(255, 255, 255, .58);
 }
 
 html, body { height: 100%; }
@@ -1287,10 +1289,41 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 .as-hero__art {
   position: absolute; left: 50%; top: -582px;
   width: 1840px; height: 909px;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(1.08);
+  transform-origin: 50% 0;
+  /* The exported wash is intentionally soft; push saturation so the
+     brand gradient reads as colour rather than haze — but stop short of
+     full strength, which drowns the title sitting on top of it. */
+  filter: saturate(1.3) contrast(1.04);
   pointer-events: none;
 }
-.as-hero__star { position: absolute; pointer-events: none; color: var(--text-secondary); }
+/* A scrim under the centred content keeps the title and search legible
+   now that the wash behind them carries real colour. */
+.as-hero::after {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(58% 74% at 50% 42%, var(--hero-scrim) 0%, transparent 72%);
+}
+
+/* Ambient sparkle field — always white (the brand mark on a coloured
+   wash, not page chrome), so it never keys off the theme tokens. Each
+   star loops its own fade-in / drift-up / fade-out on a slightly
+   different clock so a new "star" seems to replace the last one rather
+   than all of them pulsing in lockstep. */
+@keyframes as-star-life {
+  0%   { opacity: 0; transform: translateY(5px) scale(.5); }
+  14%  { opacity: 1; transform: translateY(0) scale(1); }
+  72%  { opacity: 1; transform: translateY(-7px) scale(1); }
+  100% { opacity: 0; transform: translateY(-15px) scale(.55); }
+}
+.as-hero__star {
+  position: absolute; z-index: 1; pointer-events: none;
+  color: #ffffff;
+  opacity: 0;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, .35));
+  animation: as-star-life var(--dur, 4.2s) ease-in-out var(--del, 0s) infinite;
+}
+.as-hero__star--soft   { filter: blur(1px)  drop-shadow(0 0 2px rgba(0, 0, 0, .3)); }
+.as-hero__star--softer { filter: blur(.5px) drop-shadow(0 0 2px rgba(0, 0, 0, .3)); }
 
 .as-hero__nav {
   position: relative; z-index: 2;
@@ -1509,14 +1542,14 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
   <div class="as-hero-wrap">
     <header class="as-hero">
       <svg class="as-hero__art" aria-hidden="true" preserveAspectRatio="none" overflow="visible" width="1840" height="909.208" viewBox="0 0 1840 909.208" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g id="Rectangle 161124627" opacity="0.8" filter="url(#filter0_f_0_289)">
+<g id="Rectangle 161124627" opacity="1" filter="url(#filter0_f_0_289)">
 <path d="M200 240C200 217.909 217.909 200 240 200H1600C1622.09 200 1640 217.909 1640 240V669.196C1640 694.111 1617.47 712.963 1592.95 708.569L927.054 589.264C922.389 588.428 917.611 588.428 912.946 589.264L247.054 708.569C222.53 712.963 200 694.111 200 669.196V240Z" fill="url(#paint0_linear_0_289)"/>
 </g>
 <defs>
 <filter id="filter0_f_0_289" x="0" y="0" width="1840" height="909.208" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
 <feFlood flood-opacity="0" result="BackgroundImageFix"/>
 <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
-<feGaussianBlur stdDeviation="100" result="effect1_foregroundBlur_0_289"/>
+<feGaussianBlur stdDeviation="68" result="effect1_foregroundBlur_0_289"/>
 </filter>
 <linearGradient id="paint0_linear_0_289" x1="200" y1="400.807" x2="1640" y2="400.807" gradientUnits="userSpaceOnUse">
 <stop stop-color="#0D99FF"/>
@@ -1526,13 +1559,23 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 </linearGradient>
 </defs>
 </svg>
-      <svg class="as-hero__star" style="left:379px;top:73px" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
-      <svg class="as-hero__star" style="left:459px;top:73px;filter:blur(1px)" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
-      <svg class="as-hero__star" style="left:285px;top:113px" width="4" height="4" aria-hidden="true"><use href="#i-star"/></svg>
-      <svg class="as-hero__star" style="left:383px;top:154px" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
-      <svg class="as-hero__star" style="left:928px;top:62px" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
-      <svg class="as-hero__star" style="left:1004px;top:65px;filter:blur(.5px)" width="8" height="8" aria-hidden="true"><use href="#i-star"/></svg>
-      <svg class="as-hero__star" style="left:1011px;top:168px" width="4" height="4" aria-hidden="true"><use href="#i-star"/></svg>
+      <!-- Sparkle field. The seven Figma positions, plus a few more to
+           keep the field alive while others are faded out; --del / --dur
+           stagger each one's own loop. -->
+      <svg class="as-hero__star" style="left:379px;top:73px;--del:0s;--dur:4.4s" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star as-hero__star--soft" style="left:459px;top:73px;--del:1.7s;--dur:5.2s" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:285px;top:113px;--del:2.9s;--dur:4.8s" width="4" height="4" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:383px;top:154px;--del:.9s;--dur:5.6s" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:928px;top:62px;--del:3.4s;--dur:4.6s" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star as-hero__star--softer" style="left:1004px;top:65px;--del:2.1s;--dur:5.9s" width="8" height="8" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:1011px;top:168px;--del:4.1s;--dur:4.2s" width="4" height="4" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:214px;top:186px;--del:1.2s;--dur:5.4s" width="5" height="5" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star as-hero__star--softer" style="left:546px;top:44px;--del:3.8s;--dur:5.1s" width="5" height="5" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:864px;top:196px;--del:.4s;--dur:6.1s" width="4" height="4" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:1128px;top:104px;--del:2.5s;--dur:4.9s" width="6" height="6" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star as-hero__star--soft" style="left:1232px;top:150px;--del:4.6s;--dur:5.7s" width="5" height="5" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:660px;top:214px;--del:5.2s;--dur:4.5s" width="4" height="4" aria-hidden="true"><use href="#i-star"/></svg>
+      <svg class="as-hero__star" style="left:1310px;top:70px;--del:1.9s;--dur:5.3s" width="5" height="5" aria-hidden="true"><use href="#i-star"/></svg>
 
       <nav class="as-hero__nav">
         <div class="as-hero__brand">
