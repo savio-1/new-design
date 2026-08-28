@@ -1456,6 +1456,11 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
 
 .as-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .as-filter-row__left { display: flex; align-items: center; gap: 8px; }
+/* .cq-btn's own display:inline-flex is an author rule at the same
+   specificity as the UA [hidden] rule, and author always wins — so
+   [hidden] alone left the New assistant button visible. The id bumps
+   this past it. */
+#newAssistantBtn[hidden] { display: none; }
 .as-filter-row__right { display: flex; align-items: center; gap: 12px; }
 
 /* Per-tab counts — reflect what each tab would show under the current
@@ -1697,7 +1702,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
       </div>
 
       <div class="as-hero__toggle" role="tablist" aria-label="Assistant scope">
-        <button class="as-scope-tab" data-scope="shared" role="tab" aria-selected="false">Shared with you</button>
+        <button class="as-scope-tab" data-scope="shared" role="tab" aria-selected="false">Enterprise assistants</button>
         <button class="as-scope-tab is-active" data-scope="you" role="tab" aria-selected="true">Created by you</button>
       </div>
     </header>
@@ -1718,8 +1723,8 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
         <button data-tab="bookmarked" role="tab" aria-selected="false">Bookmarked<span class="as-tab-count" data-count="bookmarked">0</span></button>
         <button data-tab="recent" role="tab" aria-selected="false">Recently used<span class="as-tab-count" data-count="recent">0</span></button>
       </div>
-      <div class="as-filter-row__right">
-        <div class="cq-filter-group">
+      <div class="as-filter-row__right" id="homeControls">
+        <div class="cq-filter-group" id="tagsFilterGroup">
           <button class="cq-dropdown" id="tagsBtn" aria-haspopup="true" aria-expanded="false">
             <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-tags"/></svg>
             Tags<span class="cq-dropdown__badge" id="tagsBadge">0</span>
@@ -1741,7 +1746,7 @@ body { margin: 0; background: var(--backgrounds-page-bg-4); }
             </div>
           </div>
         </div>
-        <button class="cq-btn cq-btn--primary">
+        <button class="cq-btn cq-btn--primary" id="newAssistantBtn">
           <svg class="cq-ic" width="20" height="20" aria-hidden="true"><use href="#i-plus"/></svg>New assistant
         </button>
       </div>
@@ -1851,9 +1856,14 @@ const ASSISTANTS = [
 const GLYPH_TILE = { cyan: 'as-tile--cyan', purple: 'as-tile--purple', green: 'as-tile--light-green' };
 
 function cardHTML(a, i) {
-  const tags = a.tags.map(t =>
-    `<span class="cq-tag" data-tone="${TAG_TONES[t]}">${esc(t)}</span>`).join('');
-  const extra = a.extra ? `<span class="cq-tag">+${a.extra}</span>` : '';
+  /* Enterprise assistants are centrally managed, not tagged by their
+     workspace owner, so their cards carry no tags — the row still
+     renders (empty) so the date/bookmark stay pinned right via the
+     foot's space-between. */
+  const showTags = a.scope !== 'shared';
+  const tags = showTags ? a.tags.map(t =>
+    `<span class="cq-tag" data-tone="${TAG_TONES[t]}">${esc(t)}</span>`).join('') : '';
+  const extra = showTags && a.extra ? `<span class="cq-tag">+${a.extra}</span>` : '';
   return `
   <button class="cq-card cq-tint" data-i="${i}">
     <span class="cq-card__head">
@@ -1917,7 +1927,13 @@ function applyFilters() {
     el.textContent = counts[el.dataset.count];
   });
   $('emptyState').classList.toggle('is-on', shown === 0);
-  $('sectionTitle').textContent = state.scope === 'you' ? 'Assistants created by you' : 'Assistants shared with you';
+  $('sectionTitle').textContent = state.scope === 'you' ? 'Assistants created by you' : 'Enterprise assistants';
+
+  /* Enterprise assistants are centrally managed: no per-workspace tags
+     to filter by, and no authoring a new one from this list. */
+  const isEnterprise = state.scope === 'shared';
+  $('tagsFilterGroup').hidden = isEnterprise;
+  $('newAssistantBtn').hidden = isEnterprise;
 }
 
 /* Scope toggle (hero) */
@@ -1928,6 +1944,7 @@ document.querySelectorAll('.as-scope-tab').forEach(btn => btn.addEventListener('
     b.setAttribute('aria-selected', on);
   });
   state.scope = btn.dataset.scope;
+  closeAllPops();
   applyFilters();
 }));
 
