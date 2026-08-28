@@ -191,6 +191,17 @@
         <div id="dsNavSec"></div>
       </section>
 
+      <section class="ds-sec" id="s-panel">
+        <div class="ds-sec-head">
+          <h2>Platform panel</h2>
+          <p>The left navigation, shown at both of its widths at once — the thing a hover demo
+             cannot do. Same markup in each: content is 36px crunched and 208px opened, and the
+             labels simply appear. For the behaviour, the full item tree and the code, see the
+             <a class="ds-code" id="lnkNav" href="#" target="_blank" rel="noreferrer">panel reference</a>.</p>
+        </div>
+        <div id="dsPanel"></div>
+      </section>
+
       <section class="ds-sec" id="s-surfaces">
         <div class="ds-sec-head">
           <h2>Surfaces &amp; overlays</h2>
@@ -508,6 +519,79 @@ function renderNavSec() {
       '.cq-seg  ·  --steps  ·  --icon', 'one base, three variants');
 }
 
+/* Both variants side by side. The panel is position: fixed in the product;
+   here each copy is relative so it can sit in a bench — the only override,
+   and it changes placement, not the component. */
+function panelDemo(open) {
+  const row = (icon, label, active) => `
+    <button class="cq-rail-btn${active ? ' is-active' : ''}">
+      <svg class="cq-ic" width="16" height="16"><use href="#${icon}"/></svg>
+      <span class="cq-rail-lbl">${label}</span></button>`;
+  return `<div class="cq-rail${open ? ' is-open' : ''}" style="position:relative;height:392px;box-shadow:none">
+    <div class="cq-rail-head">
+      <div class="cq-rail-brand">
+        <span class="cq-rail-logo"><svg width="16" height="16"><use href="#i-brain"/></svg></span>
+        <span class="cq-rail-lbl cq-rail-wordmark">cogentiq</span>
+      </div>
+      <button class="cq-rail-collapse"><svg class="cq-ic" width="20" height="20"><use href="#i-panel-r"/></svg></button>
+    </div>
+    <div class="cq-rail-group">
+      <button class="cq-rail-market">
+        <svg class="cq-ic" width="20" height="20" style="position:relative"><use href="#i-sparkle"/></svg>
+        <span class="cq-rail-lbl">Marketplace</span></button>
+      <div class="cq-rail-rule"></div>
+    </div>
+    ${row('i-grid', 'Home')}
+    <div class="cq-rail-group">
+      <button class="cq-rail-ghead" aria-expanded="true">
+        <span class="cq-rail-tile cq-grad-blue"><svg width="16" height="16"><use href="#i-list"/></svg></span>
+        <span class="cq-rail-lbl">Build</span>
+        <svg class="cq-ic cq-rail-chev" width="16" height="16"><use href="#i-chev"/></svg></button>
+      <div class="cq-rail-stack">${row('i-edit', 'Automations')}${row('i-search', 'Agents', true)}</div>
+    </div>
+    <div class="cq-rail-group cq-rail-group--offering is-locked">
+      <div class="cq-rail-rule"></div>
+      <button class="cq-rail-ghead cq-rail-ghead--leaf">
+        <span class="cq-rail-tile-wrap">
+          <span class="cq-rail-tile cq-grad-context"><svg width="16" height="16"><use href="#i-brain"/></svg></span>
+          <span class="cq-rail-dot"></span>
+        </span>
+        <span class="cq-rail-lbl">Context Studio</span>
+        <span class="cq-rail-flag">Try</span></button>
+    </div>
+  </div>`;
+}
+
+function renderPanel() {
+  $('dsPanel').innerHTML =
+    bench(`<div style="display:flex;gap:28px;align-items:flex-start">
+             ${panelDemo(false)}${panelDemo(true)}</div>`,
+      '.cq-rail  ·  .is-open',
+      'one component: 68px and 240px, both live — glyphs here are stand-ins, the panel ships its own sprite', true) +
+    bench(`<div style="background:var(--backgrounds-page-bg-4);padding:20px;border-radius:var(--radius-lg)">
+           <div class="cq-upsell is-open is-shown" style="position:static;width:100%;max-width:420px">
+             <div class="cq-upsell-media" style="background:var(--backgrounds-page-bg-3)">
+               <button class="cq-upsell-expand"><svg width="14" height="14"><use href="#i-panel-r"/></svg></button>
+             </div>
+             <div class="cq-upsell-head">
+               <span class="cq-rail-tile cq-grad-context"><svg width="16" height="16"><use href="#i-brain"/></svg></span>
+               <span class="cq-upsell-title cq-body1-med">Context Studio</span></div>
+             <p class="cq-upsell-body cq-body2-reg">One line on what the offering does, before the click rather than after.</p>
+             <div class="cq-upsell-actions">
+               <button class="cq-btn cq-btn--primary cq-btn--sm" style="width:200px">Contact sales</button>
+               <a class="cq-upsell-learn cq-body2-med" href="#">Learn more</a></div>
+           </div></div>`,
+      '.cq-upsell  ·  --media  ·  --learn',
+      'the offer beside the row; fixed and hidden until hovered in the product', true) +
+    bench(`<div class="cq-coach-tip is-open is-shown" style="position:static;width:320px">
+             <span class="cq-rail-tile cq-grad-context"><svg width="16" height="16"><use href="#i-brain"/></svg></span>
+             <div><b>Context Studio</b>
+               <span class="cq-caption-reg cq-text-tertiary">Your company's own context, behind every agent.</span></div>
+             <button class="cq-coach-x"><svg class="cq-ic" width="14" height="14"><use href="#i-x"/></svg></button>
+           </div>`,
+      '.cq-coach-tip  ·  .cq-coach-ring', 'shown once, then never again', true);
+}
+
 function renderSurfaces() {
   $('dsSurfaces').innerHTML =
     bench(`<div class="cq-modal" style="width:100%;max-width:420px">
@@ -668,6 +752,8 @@ document.addEventListener('click', e => {
 });
 
 const DS_URL = 'https://claude.ai/code/artifact/edb3664e-d248-4a96-9e7b-894bad13157d';
+const NAV_URL = 'https://claude.ai/code/artifact/78c121d8-096d-4b13-a2f3-581fcc07c03e';
+$('lnkNav').href = NAV_URL;
 const PG_URL = 'https://claude.ai/code/artifact/32738800-342f-461d-9792-9852122f7dae';
 const DS_PROMPT = `Build the <module> page for Cogentiq.
 Layout rules: ${PG_URL}
@@ -686,6 +772,7 @@ renderFilters();
 renderTags();
 renderData();
 renderNavSec();
+renderPanel();
 renderSurfaces();
 renderTiq();
 
