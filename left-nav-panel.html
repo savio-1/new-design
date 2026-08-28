@@ -1941,6 +1941,17 @@ window.addEventListener('resize', positionUpsell);
        clone does not. Equal viewBoxes is what makes the swap safe, so
        it is checked rather than assumed. */
     if (!sym || sym.getAttribute('viewBox') !== svg.getAttribute('viewBox')) return [];
+    /* The presentation attributes come across too. Every symbol here
+       carries fill="none", and the paths inside rely on inheriting it
+       — cloning only the children drops that, fill falls back to the
+       SVG default of black, and the glyph fills in solid: interiors
+       go black and anything drawn as a hole, like the robot's eyes,
+       disappears against the background. */
+    for (var a = 0; a < sym.attributes.length; a++) {
+      var at = sym.attributes[a];
+      if (at.name === 'id' || at.name === 'viewBox') continue;
+      if (!svg.hasAttribute(at.name)) svg.setAttribute(at.name, at.value);
+    }
     use.remove();
     for (var i = 0; i < sym.children.length; i++) {
       svg.appendChild(sym.children[i].cloneNode(true));
