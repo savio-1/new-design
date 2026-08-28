@@ -1296,20 +1296,29 @@
       background: linear-gradient(180deg, #b5d8f5 0%, #94c3ea 100%);
       box-shadow: 0 -1px 0 rgba(255, 255, 255, .14) inset;
     }
-    /* Type marks stack like an avatar pile — each one partly under
-       the next, ringed in the front panel's blue so the overlap reads
-       as separate chips. */
+    /* The folder's top file types, as the same dog-eared icons the
+       cards use, stacked like an avatar pile — each one partly under
+       the next. The outline is four hard drop-shadows rather than a
+       box-shadow: it has to hug the dog-eared silhouette, and a
+       box-shadow would ring the icon's square box instead. */
     .fv-front .fv-minis {
       position: absolute; left: 9px; bottom: 9px;
-      display: flex;
+      display: flex; align-items: flex-end;
     }
-    .fv-mini {
-      width: 16px; height: 16px; border-radius: 4px;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff;
-      box-shadow: 0 0 0 2px #a1cbef;
+    .fv-file {
+      position: relative;
+      display: block; flex: none;
+      filter:
+        drop-shadow( 1px 0 0 #b9dbf7) drop-shadow(-1px 0 0 #b9dbf7)
+        drop-shadow(0  1px 0 #b9dbf7) drop-shadow(0 -1px 0 #b9dbf7);
     }
-    .fv-mini + .fv-mini { margin-left: -5px; }
+    .fv-file + .fv-file { margin-left: -5px; }
+    /* The leading file paints over the ones behind it, so its label
+       survives the overlap; DOM order alone would bury it under the
+       next icon and clip the label to "PD". */
+    .fv-file:nth-child(1) { z-index: 3; }
+    .fv-file:nth-child(2) { z-index: 2; }
+    .fv-file:nth-child(3) { z-index: 1; }
 
     /* Who created the folder — pinned to the folder art itself. */
     .fv-avatar {
@@ -1319,14 +1328,6 @@
     /* The chrome's .avatar box is square (the circle is its inner
        svg), so round the box itself or the ring paints as a square. */
     .fv-avatar .avatar { border-radius: 50%; box-shadow: 0 0 0 2px #a1cbef; }
-    .fv-mini[data-type="pdf"]  { background: var(--red-500); }
-    .fv-mini[data-type="doc"]  { background: var(--blue-500); }
-    .fv-mini[data-type="xls"],
-    .fv-mini[data-type="csv"]  { background: var(--green-500); }
-    .fv-mini[data-type="ppt"]  { background: var(--red-600); }
-    .fv-mini[data-type="md"]   { background: var(--indigo-500); }
-    .fv-mini[data-type="img"]  { background: var(--cyan-400); }
-
     .folder-card__name {
       max-width: 100%;
       color: var(--text-primary);
@@ -2149,16 +2150,16 @@ const PEOPLE = {
   ty: { name: 'Tomas Ylinen',   initial: 'T' },
 };
 
-/* Tile colours live in CSS (`.doc-tile[data-type]`); csv borrows the
-   spreadsheet glyph so the two read as one family. */
+/* One file icon per type, in the sprite as `#df-<type>`; the label is
+   what the filter and the details pane call it. */
 const TYPES = {
-  pdf: { label: 'PDF',        glyph: 'dc-pdf' },
-  doc: { label: 'Word doc',   glyph: 'dc-doc' },
-  xls: { label: 'Excel',      glyph: 'dc-xls' },
-  csv: { label: 'CSV',        glyph: 'dc-xls' },
-  ppt: { label: 'PowerPoint', glyph: 'dc-ppt' },
-  md:  { label: 'Markdown',   glyph: 'dc-md'  },
-  img: { label: 'Image',      glyph: 'dc-img' },
+  pdf: { label: 'PDF' },
+  doc: { label: 'Word doc' },
+  xls: { label: 'Excel' },
+  csv: { label: 'CSV' },
+  ppt: { label: 'PowerPoint' },
+  md:  { label: 'Markdown' },
+  img: { label: 'Image' },
 };
 
 const FOLDERS = [
@@ -2298,12 +2299,11 @@ function docCardHTML(d) {
 
 function folderCardHTML(f) {
   const docs = docsIn(f.id);
-  /* The front of the folder carries its actual top file types. */
-  const types = [...new Set(docs.slice().sort((a, b) => a.ago - b.ago).map(d => d.type === 'csv' ? 'xls' : d.type))].slice(0, 3);
-  const minis = types.map(t => `
-      <span class="fv-mini" data-type="${t}">
-        <svg class="ic" width="10" height="10" viewBox="0 0 16 16" aria-hidden="true"><use href="#${TYPES[t].glyph}"/></svg>
-      </span>`).join('');
+  /* The front of the folder carries its actual top file types, drawn
+     with the same file icons the cards use. */
+  const types = [...new Set(docs.slice().sort((a, b) => a.ago - b.ago).map(d => d.type))].slice(0, 3);
+  const minis = types.map(t =>
+    `<svg class="fv-file" width="16" height="20" viewBox="0 0 32 40" aria-hidden="true"><use href="#df-${t}"/></svg>`).join('');
   return `
   <button class="folder-card" data-folder="${f.id}" aria-label="Open ${esc(f.name)}">
     <span class="folder-viz">
