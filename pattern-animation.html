@@ -20,7 +20,7 @@
 
   /* ---------- control panel ---------- */
   #panel{
-    position:fixed; top:0; right:0; height:100%; width:308px;
+    position:fixed; top:0; right:0; height:100%; width:320px;
     background:var(--panel-bg); backdrop-filter: blur(14px);
     border-left:1px solid var(--panel-border);
     color:var(--txt); font-size:12px;
@@ -49,7 +49,7 @@
     font-size:15px; backdrop-filter: blur(10px);
     transition:right .35s cubic-bezier(.4,0,.2,1);
   }
-  #toggleBtn.open{ right:322px; }
+  #toggleBtn.open{ right:334px; }
   #toggleBtn:hover{ color:#fff; border-color:rgba(255,255,255,.25); }
 
   .section{ border-bottom:1px solid var(--panel-border); }
@@ -107,6 +107,18 @@
   }
   #addColor:hover{ color:#fff; border-color:rgba(255,255,255,.5); }
 
+  /* gradient preset chips */
+  .gradList{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin:6px 0 2px; }
+  .gradChip{
+    position:relative; height:36px; border-radius:7px; cursor:pointer; padding:0; overflow:hidden;
+    border:1px solid var(--panel-border);
+  }
+  .gradChip span{
+    position:absolute; left:6px; bottom:4px; font-size:9.5px; color:#fff; letter-spacing:.2px;
+    text-shadow:0 1px 3px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.6);
+  }
+  .gradChip.active{ border-color:#fff; box-shadow:0 0 0 1px #fff inset; }
+
   .btnRow{ display:flex; flex-wrap:wrap; gap:7px; margin:9px 0 2px; }
   .btn{
     background:var(--input-bg); border:1px solid var(--panel-border); color:var(--txt);
@@ -116,6 +128,9 @@
   .btn:hover{ background:rgba(255,255,255,.12); }
   .btn.primary{ background:var(--accent); border-color:transparent; color:#fff; }
   .btn.primary:hover{ background:#8090ff; }
+  .btn.rec{ background:#e0344a; border-color:transparent; color:#fff; }
+  .btn.rec:hover{ background:#f04a60; }
+  .btn[disabled]{ opacity:.5; cursor:default; }
 
   .presetBtn{
     display:flex; align-items:center; gap:9px; width:100%; text-align:left;
@@ -123,8 +138,13 @@
     border-radius:8px; padding:7px 10px; font-size:11.5px; cursor:pointer; margin:5px 0;
   }
   .presetBtn:hover{ background:rgba(255,255,255,.1); }
-  .presetBtn .dots{ display:flex; gap:3px; flex-shrink:0; }
-  .presetBtn .dots i{ width:9px; height:9px; border-radius:50%; display:block; }
+  .presetBtn.active{ border-color:var(--accent); }
+  .presetBtn .ico{ flex-shrink:0; opacity:.85; }
+
+  #recBar{ height:3px; border-radius:2px; background:rgba(255,255,255,.12); overflow:hidden; margin-top:8px; display:none; }
+  #recBar.on{ display:block; }
+  #recFill{ height:100%; width:0%; background:var(--accent); transition:width .12s linear; }
+  .hint{ color:var(--txt-dim); font-size:10.5px; line-height:1.45; margin-top:7px; }
 
   #toast{
     position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(70px);
@@ -137,14 +157,16 @@
 </head>
 <body>
 <canvas id="stage"></canvas>
-<button id="toggleBtn" class="open" title="Toggle controls">⚙</button>
+<button id="toggleBtn" class="open" title="Toggle controls">&#9881;</button>
 <div id="panel"></div>
 <div id="toast"></div>
 
 <script>
 'use strict';
 /* =====================================================================
-   Flow Pattern Studio — configurable ribbon / gradient-bar animations
+   Flow Pattern Studio
+   Configurable animated background patterns: ribbons, bars, stepped
+   wipes, card fans, radial blades, tile grids and concentric rings.
    ===================================================================== */
 
 const canvas = document.getElementById('stage');
@@ -152,102 +174,159 @@ const ctx = canvas.getContext('2d');
 
 /* ---------------- state ---------------- */
 const DEFAULTS = {
-  variant: 'ribbons',        // ribbons | bars | steps
-  // motion
+  variant: 'ribbons',   // ribbons | bars | steps | fan | blades | grid | rings
+
+  /* motion (global) */
   speed: 0.8, colorDrift: 0.06, paused: false,
-  // ribbon shape
+  spin: 0, zoom: 1, pulse: 0, pulseSpeed: 0.5, driftAmt: 0, driftSpeed: 0.3,
+
+  /* ribbons */
   bands: 7, spacing: 0.055, gap: 0.0,
   amplitude: 0.10, frequency: 0.8,
   amplitude2: 0.04, frequency2: 1.9,
   stagger: 0.25, waveTaper: 0.55, centerY: 0.0,
-  // flow envelope
   spreadL: 1.5, spreadR: 0.07, pinch: 0.0, pinchPos: 0.5, pinchWidth: 0.18,
-  // orientation
+
+  /* orientation */
   angle: 0, flipX: false, flipY: false,
-  // colors
+
+  /* colors */
   bg: '#0d1440', bgGradient: false, bg2: '#1b2a6b',
   palette: ['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42'],
-  colorMode: 'flow',         // flow | solid
+  colorMode: 'flow',    // flow | solid
   gradientScale: 1.0, bandShift: 0.14,
-  // bars
+
+  /* bars */
   barCount: 7, barGap: 0.06, barAlternate: true, barSlide: 0.35, barSoft: 0.5,
-  // stepped wipe
+
+  /* stepped wipe */
   stepRows: 9, stepProfile: 'stair', stepStagger: 0.35, stepSoft: 0.12,
   stepOverlap: 1.4, stepJitter: 0.12,
-  // effects
+
+  /* card fan */
+  fanCount: 14, fanSpread: 150, fanPivot: 0.62, fanLength: 0.78, fanWidth: 0.13,
+  fanGap: 0.05, fanRound: 0.05, fanSweep: 0.2, fanSpin: 0, fanScatter: 0,
+
+  /* radial blades */
+  bladeCount: 7, bladeArc: 300, bladeSpin: 0.5, bladeGap: 0.35, bladeTaper: 0.6,
+  bladeInner: 0.02, bladeFocusX: 0.4, bladeFocusY: -0.4, bladeLength: 1,
+
+  /* tile grid */
+  gridCols: 6, gridRows: 4, gridGap: 0, gridWaveX: 1.0, gridWaveY: 0.7,
+  gridSharp: 0.3, gridFlow: 1.0, gridMirror: true, gridRound: 0,
+
+  /* concentric rings */
+  ringCount: 7, ringSweep: 0.75, ringSpin: 0.6, ringStagger: 0.6,
+  ringGap: 0.18, ringInner: 0.08,
+
+  /* texture */
   grain: 0.25,
+
+  /* recording */
+  recFormat: 'webm', recDuration: 4, recFps: 25, recWidth: 640,
 };
 let S = JSON.parse(JSON.stringify(DEFAULTS));
 
-/* ---------------- presets (variations from the reference video/images) ---------------- */
-const PRESETS = {
-  'Silk Flow': {           // wide ribbons pinching to a thin beam (— "flows smoother")
-    variant:'ribbons', bands:7, spacing:0.058, gap:0, amplitude:0.10, frequency:0.75,
-    amplitude2:0.035, frequency2:1.7, stagger:0.22, waveTaper:0.6, centerY:0,
-    spreadL:1.55, spreadR:0.07, pinch:0, pinchPos:0.5, pinchWidth:0.18,
-    angle:0, flipX:false, flipY:false,
-    bg:'#0d1440', bgGradient:false, bg2:'#1b2a6b',
-    palette:['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42'],
-    colorMode:'flow', gradientScale:1.0, bandShift:0.14,
-    speed:0.8, colorDrift:0.06, grain:0.22,
+/* ---------------- gradient presets (colors only — work with every type) --- */
+const GRADIENTS = [
+  {name:'Cobalt Rose',  bg:'#000000', palette:['#0b1a5c','#2f6bde','#e05fa8','#ffe1f0','#ffffff']},
+  {name:'Silk Flow',    bg:'#0d1440', palette:['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42']},
+  {name:'Emerald Wave', bg:'#0c3428', palette:['#0f5b3f','#35d07f','#a5e83c','#d6f56a','#57e0a0']},
+  {name:'Aurora Neon',  bg:'#0d1b3d', palette:['#ff9e6d','#f472b6','#3b82f6','#2dd4bf','#a855f7','#facc15']},
+  {name:'Prism Pop',    bg:'#050505', palette:['#f59e0b','#84cc16','#5eead4','#7c3aed','#2563eb','#ec4899','#ef4444']},
+  {name:'Midnight Ice', bg:'#101021', palette:['#22d3ee','#818cf8','#e879f9','#4ade80']},
+  {name:'Sunset Beach', bg:'#2b0a2e', palette:['#ff5f6d','#ffc371','#fff1a8','#ff8c94']},
+  {name:'Deep Ocean',   bg:'#001219', palette:['#012a4a','#2c7da0','#61a5c2','#a9d6e5','#014f86']},
+  {name:'Citrus Pop',   bg:'#14110f', palette:['#f9c80e','#f86624','#ea3546','#43bccd','#662e9b']},
+  {name:'Cotton Candy', bg:'#1a1030', palette:['#ffd1e8','#b5e2ff','#e0c3fc','#ffffff','#ffb3d9']},
+  {name:'Forest Mist',  bg:'#081c15', palette:['#1b4332','#40916c','#95d5b2','#d8f3dc','#74c69d']},
+  {name:'Copper Dusk',  bg:'#140b06', palette:['#7f2d16','#e07a3f','#f2c078','#3a2618','#c1440e']},
+  {name:'Ultra Violet', bg:'#0a0014', palette:['#2d00f7','#8900f2','#bc00dd','#f20089','#6a00f4']},
+  {name:'Neon Miami',   bg:'#06021a', palette:['#00f5d4','#00bbf9','#9b5de5','#f15bb5','#fee440']},
+  {name:'Arctic Dawn',  bg:'#0b1a24', palette:['#e0fbfc','#98c1d9','#3d5a80','#ee6c4d','#293241']},
+  {name:'Mono Ink',     bg:'#000000', palette:['#141414','#4d4d4d','#8f8f8f','#d4d4d4','#ffffff']},
+];
+
+/* ---------------- shape presets, grouped per pattern type ---------------- */
+const SHAPES = {
+  ribbons: {
+    'Silk beam':   {bands:7, spacing:0.058, gap:0, amplitude:0.10, frequency:0.75, amplitude2:0.035,
+                    frequency2:1.7, stagger:0.22, waveTaper:0.6, centerY:0, spreadL:1.55, spreadR:0.07,
+                    pinch:0, pinchPos:0.5, pinchWidth:0.18, angle:0, speed:0.8},
+    'Rolling wave':{bands:4, spacing:0.075, gap:0, amplitude:0.22, frequency:0.65, amplitude2:0.05,
+                    frequency2:1.4, stagger:0.45, waveTaper:0.25, centerY:0.08, spreadL:1.0, spreadR:1.15,
+                    pinch:0.25, pinchPos:0.35, pinchWidth:0.3, angle:0, speed:0.7},
+    'Corner fan':  {bands:9, spacing:0.09, gap:0.06, amplitude:0.12, frequency:0.45, amplitude2:0.03,
+                    frequency2:1.2, stagger:0.35, waveTaper:0.85, centerY:0, spreadL:0.02, spreadR:1.9,
+                    pinch:0, angle:-18, speed:0.9},
+    'Waist pinch': {bands:10, spacing:0.05, gap:0.05, amplitude:0.07, frequency:1.1, amplitude2:0.03,
+                    frequency2:2.3, stagger:0.3, waveTaper:0.4, centerY:0, spreadL:1.25, spreadR:1.25,
+                    pinch:0.88, pinchPos:0.5, pinchWidth:0.16, angle:0, speed:1.0},
+    'Cascade':     {bands:8, spacing:0.06, gap:0.03, amplitude:0.09, frequency:0.9, amplitude2:0.04,
+                    frequency2:1.8, stagger:0.28, waveTaper:0.5, centerY:0, spreadL:1.4, spreadR:0.12,
+                    pinch:0, angle:90, speed:0.85},
   },
-  'Emerald Wave': {        // big rolling green wave with dashed guide lines
-    variant:'ribbons', bands:4, spacing:0.075, gap:0, amplitude:0.22, frequency:0.65,
-    amplitude2:0.05, frequency2:1.4, stagger:0.45, waveTaper:0.25, centerY:0.08,
-    spreadL:1.0, spreadR:1.15, pinch:0.25, pinchPos:0.35, pinchWidth:0.3,
-    angle:0, flipX:false, flipY:false,
-    bg:'#0c3428', bgGradient:false, bg2:'#0a2820',
-    palette:['#0f5b3f','#35d07f','#a5e83c','#d6f56a','#57e0a0'],
-    colorMode:'flow', gradientScale:0.8, bandShift:0.1,
-    speed:0.7, colorDrift:0.05, grain:0.2,
+  bars: {
+    'Even bars':   {barCount:7, barGap:0.055, barAlternate:true, barSlide:0.4, barSoft:0.55, angle:0, speed:0.6},
+    'Wide slabs':  {barCount:4, barGap:0.02, barAlternate:true, barSlide:0.6, barSoft:0.7, angle:0, speed:0.5},
+    'Thin stripes':{barCount:18, barGap:0.12, barAlternate:true, barSlide:0.3, barSoft:0.4, angle:0, speed:0.8},
+    'Horizon':     {barCount:9, barGap:0.04, barAlternate:false, barSlide:0.45, barSoft:0.6, angle:90, speed:0.6},
   },
-  'Aurora Fan': {          // ribbons converging to an off-screen corner, navy + neon
-    variant:'ribbons', bands:9, spacing:0.09, gap:0.06, amplitude:0.12, frequency:0.45,
-    amplitude2:0.03, frequency2:1.2, stagger:0.35, waveTaper:0.85, centerY:0,
-    spreadL:0.02, spreadR:1.9, pinch:0, pinchPos:0.5, pinchWidth:0.18,
-    angle:-18, flipX:false, flipY:false,
-    bg:'#0d1b3d', bgGradient:true, bg2:'#091027',
-    palette:['#ff9e6d','#f472b6','#3b82f6','#2dd4bf','#a855f7','#facc15','#fb7185'],
-    colorMode:'flow', gradientScale:1.4, bandShift:0.19,
-    speed:0.9, colorDrift:0.09, grain:0.25,
+  steps: {
+    'Staircase':   {stepRows:9, stepProfile:'stair', stepStagger:0.4, stepSoft:0.12, stepOverlap:1.4,
+                    stepJitter:0.1, angle:0, speed:1.0},
+    'Bulge sweep': {stepRows:14, stepProfile:'bulge', stepStagger:0.5, stepSoft:0.18, stepOverlap:1.7,
+                    stepJitter:0.05, angle:0, speed:0.9},
+    'Scatter':     {stepRows:16, stepProfile:'random', stepStagger:0.25, stepSoft:0.06, stepOverlap:1.5,
+                    stepJitter:0.5, angle:0, speed:1.1},
+    'Rain':        {stepRows:12, stepProfile:'valley', stepStagger:0.45, stepSoft:0.1, stepOverlap:1.6,
+                    stepJitter:0.2, angle:90, speed:1.0},
   },
-  'Prism Bars': {          // vertical gradient bars with sliding colors
-    variant:'bars', barCount:7, barGap:0.055, barAlternate:true, barSlide:0.4, barSoft:0.55,
-    angle:0, flipX:false, flipY:false,
-    bg:'#050505', bgGradient:false, bg2:'#111',
-    palette:['#f59e0b','#84cc16','#5eead4','#7c3aed','#2563eb','#ec4899','#ef4444','#eab308'],
-    colorMode:'flow', gradientScale:1, bandShift:0.16,
-    speed:0.6, colorDrift:0.08, grain:0.3,
+  fan: {
+    'Card fan':    {fanCount:15, fanSpread:150, fanPivot:0.62, fanLength:0.78, fanWidth:0.13, fanGap:0.05,
+                    fanRound:0.04, fanSweep:0.18, fanSpin:0, fanScatter:0, angle:0, speed:0.8},
+    'Wide arc':    {fanCount:7, fanSpread:110, fanPivot:0.9, fanLength:1.0, fanWidth:0.26, fanGap:0.03,
+                    fanRound:0.02, fanSweep:0.12, fanSpin:0, fanScatter:0, angle:0, speed:0.7},
+    'Tight deck':  {fanCount:24, fanSpread:60, fanPivot:0.45, fanLength:0.62, fanWidth:0.07, fanGap:0.08,
+                    fanRound:0.3, fanSweep:0.35, fanSpin:0, fanScatter:0.15, angle:0, speed:1.0},
+    'Pinwheel':    {fanCount:12, fanSpread:360, fanPivot:0, fanLength:0.55, fanWidth:0.12, fanGap:0.04,
+                    fanRound:0.1, fanSweep:0, fanSpin:14, fanScatter:0, angle:0, speed:0.8},
   },
-  'Step Cascade': {        // chunky row-by-row color wipes sweeping the screen
-    variant:'steps', stepRows:9, stepProfile:'stair', stepStagger:0.4, stepSoft:0.12,
-    stepOverlap:1.4, stepJitter:0.1,
-    angle:0, flipX:false, flipY:false,
-    bg:'#122a75', bgGradient:false, bg2:'#0b1540',
-    palette:['#5b8def','#23d963','#122a75','#9bf07c'],
-    colorMode:'solid', gradientScale:1, bandShift:0.25,
-    speed:1.0, colorDrift:0, grain:0.12,
+  blades: {
+    'Corner rays': {bladeCount:9, bladeArc:110, bladeSpin:0.3, bladeGap:0.42, bladeTaper:0.3,
+                    bladeInner:0.02, bladeFocusX:0.55, bladeFocusY:-0.55, bladeLength:1, angle:0, speed:0.8},
+    'Full star':   {bladeCount:14, bladeArc:360, bladeSpin:0.5, bladeGap:0.35, bladeTaper:1,
+                    bladeInner:0.03, bladeFocusX:0, bladeFocusY:0, bladeLength:1, angle:0, speed:0.7},
+    'Beam spread': {bladeCount:5, bladeArc:150, bladeSpin:0.2, bladeGap:0.25, bladeTaper:0,
+                    bladeInner:0, bladeFocusX:-0.6, bladeFocusY:0.6, bladeLength:1, angle:0, speed:0.6},
+    'Sunburst':    {bladeCount:26, bladeArc:360, bladeSpin:0.8, bladeGap:0.5, bladeTaper:1,
+                    bladeInner:0.12, bladeFocusX:0, bladeFocusY:0, bladeLength:0.8, angle:0, speed:0.9},
   },
-  'Midnight Pinch': {      // symmetric flow squeezed through a mid-point waist
-    variant:'ribbons', bands:10, spacing:0.05, gap:0.05, amplitude:0.07, frequency:1.1,
-    amplitude2:0.03, frequency2:2.3, stagger:0.3, waveTaper:0.4, centerY:0,
-    spreadL:1.25, spreadR:1.25, pinch:0.88, pinchPos:0.5, pinchWidth:0.16,
-    angle:0, flipX:false, flipY:false,
-    bg:'#101021', bgGradient:false, bg2:'#1a1a33',
-    palette:['#22d3ee','#818cf8','#e879f9','#fb923c','#4ade80'],
-    colorMode:'flow', gradientScale:1.2, bandShift:0.12,
-    speed:1.0, colorDrift:0.07, grain:0.2,
+  grid: {
+    'Checkerboard':{gridCols:6, gridRows:4, gridGap:0, gridWaveX:1, gridWaveY:0.7, gridSharp:0.25,
+                    gridFlow:1, gridMirror:true, gridRound:0, angle:0, speed:0.8},
+    'Fine mosaic': {gridCols:14, gridRows:9, gridGap:0.12, gridWaveX:0.8, gridWaveY:0.5, gridSharp:0.5,
+                    gridFlow:1.4, gridMirror:true, gridRound:0.1, angle:0, speed:1.0},
+    'Wave tiles':  {gridCols:9, gridRows:6, gridGap:0.06, gridWaveX:0.5, gridWaveY:1.4, gridSharp:0.75,
+                    gridFlow:0.7, gridMirror:false, gridRound:0.25, angle:0, speed:0.7},
+    'Column blocks':{gridCols:5, gridRows:2, gridGap:0.03, gridWaveX:1.6, gridWaveY:0.2, gridSharp:0.2,
+                    gridFlow:1.1, gridMirror:true, gridRound:0, angle:0, speed:0.9},
   },
-  'Vertical Cascade': {    // the whole flow rotated to run top → bottom
-    variant:'ribbons', bands:8, spacing:0.06, gap:0.03, amplitude:0.09, frequency:0.9,
-    amplitude2:0.04, frequency2:1.8, stagger:0.28, waveTaper:0.5, centerY:0,
-    spreadL:1.4, spreadR:0.12, pinch:0, pinchPos:0.5, pinchWidth:0.18,
-    angle:90, flipX:false, flipY:false,
-    bg:'#160a26', bgGradient:true, bg2:'#0b0517',
-    palette:['#f0abfc','#818cf8','#38bdf8','#fb923c','#f472b6'],
-    colorMode:'flow', gradientScale:1.1, bandShift:0.15,
-    speed:0.85, colorDrift:0.07, grain:0.22,
+  rings: {
+    'Concentric':  {ringCount:8, ringSweep:1, ringSpin:0.4, ringStagger:0, ringGap:0.14, ringInner:0.05,
+                    angle:0, speed:0.7},
+    'Broken rings':{ringCount:7, ringSweep:0.7, ringSpin:0.9, ringStagger:0.7, ringGap:0.22, ringInner:0.1,
+                    angle:0, speed:0.9},
+    'Halo arcs':   {ringCount:4, ringSweep:0.45, ringSpin:0.55, ringStagger:1.2, ringGap:0.3, ringInner:0.2,
+                    angle:0, speed:0.8},
+    'Vortex':      {ringCount:16, ringSweep:0.85, ringSpin:1.4, ringStagger:0.35, ringGap:0.08,
+                    ringInner:0.02, angle:0, speed:1.1},
   },
+};
+
+const TYPE_LABEL = {
+  ribbons:'Flowing ribbons', bars:'Gradient bars', steps:'Stepped wipe',
+  fan:'Card fan', blades:'Radial blades', grid:'Tile grid', rings:'Concentric rings',
 };
 
 /* ---------------- helpers ---------------- */
@@ -255,18 +334,20 @@ const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
 const lerp  = (a,b,t)=>a+(b-a)*t;
 const smooth = t=>{ t=clamp(t,0,1); return t*t*(3-2*t); };
 const frac = v=>((v%1)+1)%1;
+const TAU = Math.PI*2;
+const hash01 = n=>{ const s=Math.sin(n*127.1+311.7)*43758.5453; return s-Math.floor(s); };
 
 function hexToRgb(h){
-  h=h.replace('#','');
+  h=String(h).replace('#','');
   if(h.length===3) h=h.split('').map(c=>c+c).join('');
   return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
 }
-const rgbStr=(r,g,b)=>`rgb(${r|0},${g|0},${b|0})`;
+const rgbStr=(r,g,b)=>'rgb('+(r|0)+','+(g|0)+','+(b|0)+')';
 
 let palRgb=[];
 function cachePalette(){ palRgb = S.palette.map(hexToRgb); }
 
-/* sample the palette as a smooth cyclic gradient, u in [0,1) */
+/* palette sampled as a smooth cyclic gradient, u in [0,1) */
 function colorArrAt(u){
   const n=palRgb.length;
   if(n===0) return [255,255,255];
@@ -276,7 +357,34 @@ function colorArrAt(u){
   const a=palRgb[i%n], b=palRgb[(i+1)%n];
   return [lerp(a[0],b[0],f), lerp(a[1],b[1],f), lerp(a[2],b[2],f)];
 }
-const colorAt=u=>rgbStr(...colorArrAt(u));
+const colorAt=u=>rgbStr.apply(null,colorArrAt(u));
+/* flat palette entry i (used by "solid per band" fill mode) */
+const stepColor=i=>{
+  const n=palRgb.length||1;
+  return rgbStr.apply(null, palRgb[((i%n)+n)%n] || [255,255,255]);
+};
+
+function rrect(c,x,y,w,h,r){
+  r=Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+  c.beginPath();
+  if(r<=0.5){ c.rect(x,y,w,h); return; }
+  if(c.roundRect){ c.roundRect(x,y,w,h,r); return; }
+  c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);     c.arcTo(x,y,x+w,y,r);
+  c.closePath();
+}
+
+/* a gradient running along a segment, sampled from the palette */
+function segGradient(c,x0,y0,x1,y1,off,t,stops){
+  const g=c.createLinearGradient(x0,y0,x1,y1);
+  const N=stops||16;
+  for(let s=0;s<=N;s++){
+    const u=s/N;
+    g.addColorStop(u, colorAt(u*S.gradientScale + off + t*S.colorDrift));
+  }
+  return g;
+}
 
 /* ---------------- canvas sizing ---------------- */
 let W=0,H=0,DPR=1;
@@ -285,9 +393,9 @@ function resize(){
   W=window.innerWidth; H=window.innerHeight;
   canvas.width=W*DPR; canvas.height=H*DPR;
   canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  forceDraw=true;
 }
 window.addEventListener('resize',resize);
-resize();
 
 /* ---------------- grain overlay ---------------- */
 const grainCv=document.createElement('canvas');
@@ -302,13 +410,20 @@ grainCv.width=grainCv.height=160;
   }
   gctx.putImageData(img,0,0);
 }
-let grainPattern=null;
+const grainPatterns=new WeakMap();
+function grainFor(c){
+  let p=grainPatterns.get(c);
+  if(!p){ p=c.createPattern(grainCv,'repeat'); grainPatterns.set(c,p); }
+  return p;
+}
 
 /* =====================================================================
-   RENDERING
+   PATTERN RENDERERS
+   Each draws in a frame centred on the origin, spanning L along x and
+   Wd along y; the caller has already applied rotation, zoom and flips.
    ===================================================================== */
 
-/* spread envelope along the flow, u in [0,1] */
+/* ---- flowing ribbons ---- */
 function envelope(u){
   let e=lerp(S.spreadL,S.spreadR,smooth(u));
   if(S.pinch>0){
@@ -317,89 +432,66 @@ function envelope(u){
   }
   return Math.max(e,0.004);
 }
-
-/* y position of ribbon edge j (can be fractional for guides) at u∈[0,1] */
-function edgeY(j,u,t,L,minD,nEdges){
+function edgeY(j,u,t,minD,nEdges){
   const env=envelope(u);
   const ampEnv=lerp(1,env,S.waveTaper);
-  const w1=S.amplitude *minD*Math.sin(2*Math.PI*(S.frequency *u)-t*S.speed     +j*S.stagger);
-  const w2=S.amplitude2*minD*Math.sin(2*Math.PI*(S.frequency2*u)+t*S.speed*0.63+j*S.stagger*1.7+2.1);
+  const w1=S.amplitude *minD*Math.sin(TAU*(S.frequency *u)-t*S.speed     +j*S.stagger);
+  const w2=S.amplitude2*minD*Math.sin(TAU*(S.frequency2*u)+t*S.speed*0.63+j*S.stagger*1.7+2.1);
   return S.centerY*minD + (w1+w2)*ampEnv + (j-nEdges/2)*S.spacing*minD*env;
 }
-
-function bandGradient(i,t,L){
-  const g=ctx.createLinearGradient(-L/2,0,L/2,0);
-  const STOPS=22;
-  for(let s=0;s<=STOPS;s++){
-    const uu=s/STOPS;
-    g.addColorStop(uu,colorAt(uu*S.gradientScale + i*S.bandShift + t*S.colorDrift));
-  }
-  return g;
-}
-
-function drawRibbons(t,L,Wd,minD){
+function drawRibbons(c,t,L,Wd,minD){
   const N=Math.max(1,Math.round(S.bands));
-  const nEdges=N;                 // N bands → N+1 edges, centered via j-(N)/2
   const SEG=110;
-  // precompute edges
   const edges=[];
   for(let j=0;j<=N;j++){
     const pts=new Float32Array(SEG+1);
-    for(let k=0;k<=SEG;k++) pts[k]=edgeY(j,k/SEG,t,L,minD,nEdges);
+    for(let k=0;k<=SEG;k++) pts[k]=edgeY(j,k/SEG,t,minD,N);
     edges.push(pts);
   }
   const xAt=k=>-L/2+(k/SEG)*L;
-
   for(let i=0;i<N;i++){
-    const top=edges[i], bot=edges[i+1];
-    ctx.beginPath();
+    const top=edges[i], bot=edges[i+1], g=S.gap*0.5;
+    c.beginPath();
     for(let k=0;k<=SEG;k++){
-      const g=S.gap*0.5;
       const y=lerp(top[k],bot[k],g);
-      k===0?ctx.moveTo(xAt(k),y):ctx.lineTo(xAt(k),y);
+      k===0?c.moveTo(xAt(k),y):c.lineTo(xAt(k),y);
     }
-    for(let k=SEG;k>=0;k--){
-      const g=S.gap*0.5;
-      ctx.lineTo(xAt(k),lerp(bot[k],top[k],g));
-    }
-    ctx.closePath();
-    ctx.fillStyle = S.colorMode==='solid'
-      ? colorAt(i*S.bandShift + t*S.colorDrift)
-      : bandGradient(i,t,L);
-    ctx.fill();
+    for(let k=SEG;k>=0;k--) c.lineTo(xAt(k), lerp(bot[k],top[k],g));
+    c.closePath();
+    c.fillStyle = S.colorMode==='solid'
+      ? stepColor(i)
+      : segGradient(c,-L/2,0,L/2,0,i*S.bandShift,t,22);
+    c.fill();
   }
 }
 
-function drawBars(t,L,Wd){
+/* ---- gradient bars ---- */
+function drawBars(c,t,L,Wd){
   const M=Math.max(2,Math.round(S.barCount));
-  const slot=L/M;
-  const gapPx=slot*S.barGap;
+  const slot=L/M, gapPx=slot*S.barGap;
   for(let k=0;k<M;k++){
-    const x0=-L/2+k*slot+gapPx/2;
-    const w=slot-gapPx;
+    const x0=-L/2+k*slot+gapPx/2, w=slot-gapPx;
     const flip=S.barAlternate&&(k%2===1)?-1:1;
-    const g=ctx.createLinearGradient(0,-Wd/2*flip,0,Wd/2*flip);
     const base=k*S.bandShift + t*S.colorDrift;
     const slide=S.barSlide*Math.sin(t*S.speed*0.9 + k*1.7);
-    const c0=colorAt(base);
-    const c1=colorAt(base + 0.18 + slide*0.25);
-    const c2=colorAt(base + 0.42 + slide*0.4);
-    g.addColorStop(0,c0);
-    g.addColorStop(clamp(0.5+slide*S.barSoft,0.08,0.92),c1);
-    g.addColorStop(1,c2);
-    ctx.fillStyle=g;
-    ctx.fillRect(x0,-Wd/2,w,Wd);
+    if(S.colorMode==='solid'){
+      c.fillStyle=stepColor(k);
+    }else{
+      const g=c.createLinearGradient(0,-Wd/2*flip,0,Wd/2*flip);
+      g.addColorStop(0,colorAt(base));
+      g.addColorStop(clamp(0.5+slide*S.barSoft,0.08,0.92),colorAt(base+0.18+slide*0.25));
+      g.addColorStop(1,colorAt(base+0.42+slide*0.4));
+      c.fillStyle=g;
+    }
+    c.fillRect(x0,-Wd/2,w,Wd);
   }
 }
 
-/* stepped wipe: successive gradient fields sweep across the screen, each
-   split into horizontal rows whose leading edges are offset into a
-   staircase / arc profile with a soft gradient edge */
-const hash01=n=>{ const s=Math.sin(n*127.1+311.7)*43758.5453; return s-Math.floor(s); };
-function drawSteps(t,L,Wd){
+/* ---- stepped wipe ---- */
+function drawSteps(c,t,L,Wd){
   const R=Math.max(2,Math.round(S.stepRows));
   const rowH=Wd/R;
-  const dur=Math.max(S.stepOverlap,1.01);           // sweep duration, in wave intervals
+  const dur=Math.max(S.stepOverlap,1.01);
   const tau=t*S.speed*0.22;
   const softL=Math.max(S.stepSoft*L,1);
   const maxOff=S.stepStagger*L + S.stepJitter*L*0.4;
@@ -411,114 +503,506 @@ function drawSteps(t,L,Wd){
       case 'bulge':  o=1-Math.sin(Math.PI*u); break;
       case 'valley': o=Math.sin(Math.PI*u); break;
       case 'random': o=hash01(r); break;
-      default:       o=u;                           // stair
+      default:       o=u;
     }
     return o*S.stepStagger*L + hash01(r+57)*S.stepJitter*L*0.4;
   };
-  // in solid mode each wave is one distinct palette color shading toward
-  // white, which keeps the steps crisp; flow mode blends along the palette
   const layerCols=n=>{
     if(S.colorMode==='solid'){
-      const len=palRgb.length;
-      const base=palRgb[(((n%len)+len)%len)|0];
+      const len=palRgb.length||1;
+      const base=palRgb[(((n%len)+len)%len)] || [255,255,255];
       const k=0.3+hash01(n*3.3)*0.25;
       const lite=base.map(v=>v+(255-v)*k);
       return hash01(n*7.7)<0.5? [base,lite] : [lite,base];
     }
     return [colorArrAt(n*S.bandShift), colorArrAt(n*S.bandShift+0.18)];
   };
-
-  // base: the last fully completed wave
   const n0=Math.floor(tau-dur);
-  const [b1,b2]=layerCols(n0);
-  const base=ctx.createLinearGradient(-L/2,0,L/2,0);
-  base.addColorStop(0,rgbStr(...b1)); base.addColorStop(1,rgbStr(...b2));
-  ctx.fillStyle=base;
-  ctx.fillRect(-L/2,-Wd/2,L,Wd);
-
-  // waves still sweeping, oldest first so newer edges layer on top
+  const b=layerCols(n0);
+  const base=c.createLinearGradient(-L/2,0,L/2,0);
+  base.addColorStop(0,rgbStr.apply(null,b[0]));
+  base.addColorStop(1,rgbStr.apply(null,b[1]));
+  c.fillStyle=base;
+  c.fillRect(-L/2,-Wd/2,L,Wd);
   for(let n=n0+1;n<=Math.floor(tau);n++){
     const p=(tau-n)/dur;
     if(p<0||p>1) continue;
-    const [c1,c2]=layerCols(n);
-    const mix=(q)=>{ q=clamp(q,0,1); return [lerp(c1[0],c2[0],q),lerp(c1[1],c2[1],q),lerp(c1[2],c2[2],q)]; };
+    const cc=layerCols(n), c1=cc[0], c2=cc[1];
+    const mix=q=>{ q=clamp(q,0,1); return [lerp(c1[0],c2[0],q),lerp(c1[1],c2[1],q),lerp(c1[2],c2[2],q)]; };
     for(let r=0;r<R;r++){
       const edge=-L/2 - softL + p*travel - prof(r);
       const wEnd=Math.min(edge,L/2);
       if(wEnd<=-L/2) continue;
       const y=-Wd/2+r*rowH;
       const q1=(edge-softL+L/2)/L, q2=(edge+L/2)/L;
-      const g=ctx.createLinearGradient(-L/2,0,L/2,0);
+      const g=c.createLinearGradient(-L/2,0,L/2,0);
       const m1=mix(q1), m2=mix(q2);
-      g.addColorStop(0,rgbStr(...c1));
-      g.addColorStop(clamp(q1,0,1),rgbStr(...m1));
-      g.addColorStop(clamp(q2,0.0001,1),`rgba(${m2[0]|0},${m2[1]|0},${m2[2]|0},0)`);
-      ctx.fillStyle=g;
-      ctx.fillRect(-L/2,y,wEnd+L/2,rowH+1);
+      g.addColorStop(0,rgbStr.apply(null,c1));
+      g.addColorStop(clamp(q1,0,1),rgbStr.apply(null,m1));
+      g.addColorStop(clamp(q2,0.0001,1),'rgba('+(m2[0]|0)+','+(m2[1]|0)+','+(m2[2]|0)+',0)');
+      c.fillStyle=g;
+      c.fillRect(-L/2,y,wEnd+L/2,rowH+1);
     }
   }
 }
 
-function frame(now){
-  requestAnimationFrame(frame);
-  if(S.paused && !forceDraw) return;
-  forceDraw=false;
-  const t=now*0.001;
-
-  ctx.setTransform(DPR,0,0,DPR,0,0);
-  // background
-  if(S.bgGradient){
-    const bgG=ctx.createLinearGradient(0,0,0,H);
-    bgG.addColorStop(0,S.bg); bgG.addColorStop(1,S.bg2);
-    ctx.fillStyle=bgG;
-  } else ctx.fillStyle=S.bg;
-  ctx.fillRect(0,0,W,H);
-
-  // rotated drawing frame that always covers the viewport
-  const rad=S.angle*Math.PI/180;
-  const c=Math.abs(Math.cos(rad)), s=Math.abs(Math.sin(rad));
-  const L =(W*c+H*s)*1.06;     // extent along flow
-  const Wd=(W*s+H*c)*1.06;     // extent across flow
-  const minD=Math.min(W,H);
-
-  ctx.save();
-  ctx.translate(W/2,H/2);
-  ctx.rotate(rad);
-  ctx.scale(S.flipX?-1:1, S.flipY?-1:1);
-
-  if(S.variant==='bars') drawBars(t,L,Wd);
-  else if(S.variant==='steps') drawSteps(t,L,Wd);
-  else drawRibbons(t,L,Wd,minD);
-  ctx.restore();
-
-  // grain
-  if(S.grain>0){
-    if(!grainPattern) grainPattern=ctx.createPattern(grainCv,'repeat');
-    ctx.save();
-    ctx.globalAlpha=S.grain;
-    ctx.globalCompositeOperation='overlay';
-    ctx.fillStyle=grainPattern;
-    ctx.fillRect(0,0,W,H);
-    ctx.restore();
+/* ---- card fan: rotated cards pivoting around a point ---- */
+function drawFan(c,t,L,Wd,minD){
+  const N=Math.max(1,Math.round(S.fanCount));
+  const spread=S.fanSpread*Math.PI/180;
+  const pivotY=Wd*0.5*S.fanPivot;
+  const len=S.fanLength*minD;
+  const cw=S.fanWidth*minD;
+  const sweep=Math.sin(t*S.speed*0.35)*S.fanSweep + t*S.fanSpin*Math.PI/180;
+  for(let i=0;i<N;i++){
+    const u=N>1? i/(N-1):0.5;
+    const jit=(hash01(i*5.1)-0.5)*S.fanScatter;
+    const a=(u-0.5+jit*0.35)*spread + sweep;
+    const l=len*(1+jit*0.5);
+    c.save();
+    c.translate(0,pivotY);
+    c.rotate(a);
+    rrect(c,-cw/2,-l,cw,l,S.fanRound*cw);
+    c.fillStyle = S.colorMode==='solid'
+      ? stepColor(i)
+      : segGradient(c,0,0,0,-l,i*S.bandShift,t,14);
+    c.fill();
+    if(S.fanGap>0){
+      c.lineWidth=S.fanGap*cw;
+      c.strokeStyle=S.bg;
+      c.stroke();
+    }
+    c.restore();
   }
 }
-let forceDraw=true;
-cachePalette();
-requestAnimationFrame(frame);
+
+/* ---- radial blades: beams / wedges from a focal point ---- */
+function drawBlades(c,t,L,Wd,minD){
+  const N=Math.max(1,Math.round(S.bladeCount));
+  const fx=S.bladeFocusX*L*0.5, fy=S.bladeFocusY*Wd*0.5;
+  const R=(Math.hypot(L,Wd)+Math.hypot(fx,fy))*S.bladeLength*1.2;
+  const arc=S.bladeArc*Math.PI/180;
+  const full=Math.abs(S.bladeArc-360)<0.5;
+  const spin=t*S.speed*S.bladeSpin*0.3;
+  const slotA=arc/(full?N:Math.max(N,1));
+  const halfW=slotA*0.5*(1-clamp(S.bladeGap,0,0.95));
+  const r0=S.bladeInner*R;
+  const fixedHW=Math.max(minD*0.62*Math.sin(Math.max(halfW,0.002)),2);
+  const hwAt=r=>lerp(fixedHW, r*Math.sin(halfW), clamp(S.bladeTaper,0,1));
+  for(let i=0;i<N;i++){
+    const u=full? i/N : (N>1? i/(N-1)-0.5 : 0);
+    const a=(full? u*TAU : u*arc) + spin;
+    const ca=Math.cos(a), sa=Math.sin(a);
+    const px=-sa, py=ca;                       // perpendicular
+    const w0=hwAt(Math.max(r0,R*0.02)), w1=hwAt(R);
+    const p0x=fx+ca*r0, p0y=fy+sa*r0;
+    const p1x=fx+ca*R,  p1y=fy+sa*R;
+    c.beginPath();
+    c.moveTo(p0x+px*w0, p0y+py*w0);
+    c.lineTo(p1x+px*w1, p1y+py*w1);
+    c.lineTo(p1x-px*w1, p1y-py*w1);
+    c.lineTo(p0x-px*w0, p0y-py*w0);
+    c.closePath();
+    c.fillStyle = S.colorMode==='solid'
+      ? stepColor(i)
+      : segGradient(c,fx,fy,p1x,p1y,i*S.bandShift,t,14);
+    c.fill();
+  }
+}
+
+/* ---- tile grid: blocks fading in and out in a travelling wave ---- */
+function drawGrid(c,t,L,Wd){
+  const cols=Math.max(1,Math.round(S.gridCols)), rows=Math.max(1,Math.round(S.gridRows));
+  const cw=L/cols, ch=Wd/rows;
+  const gx=cw*S.gridGap*0.5, gy=ch*S.gridGap*0.5;
+  const ph=t*S.speed*S.gridFlow;
+  for(let r=0;r<rows;r++){
+    for(let k=0;k<cols;k++){
+      const parity=(r+k)%2;
+      const wave=Math.sin(k*S.gridWaveX + r*S.gridWaveY - ph + parity*Math.PI);
+      let a=(wave+1)/2;
+      a=smooth(clamp((a-0.5)/Math.max(S.gridSharp,0.02)+0.5,0,1));
+      if(a<=0.004) continue;
+      const x=-L/2+k*cw+gx, y=-Wd/2+r*ch+gy;
+      const w=cw-gx*2, h=ch-gy*2;
+      const dir=(S.gridMirror&&parity)?-1:1;
+      c.globalAlpha=a;
+      c.fillStyle = S.colorMode==='solid'
+        ? stepColor(r*cols+k)
+        : segGradient(c, dir>0?x:x+w, y, dir>0?x+w:x, y, (r*cols+k)*S.bandShift, t, 12);
+      rrect(c,x,y,w,h,S.gridRound*Math.min(w,h)*0.5);
+      c.fill();
+      c.globalAlpha=1;
+    }
+  }
+}
+
+/* ---- concentric rings / arcs ---- */
+function drawRings(c,t,L,Wd){
+  const N=Math.max(1,Math.round(S.ringCount));
+  const R=Math.hypot(L,Wd)*0.5;
+  const inner=S.ringInner*R;
+  const band=(R-inner)/N;
+  for(let i=N-1;i>=0;i--){
+    const r1=inner+band*(i+1)-band*S.ringGap*0.5;
+    const r0=inner+band*i+band*S.ringGap*0.5;
+    if(r1<=r0) continue;
+    const dir=i%2? -1:1;
+    const a0=t*S.speed*S.ringSpin*0.5*dir + i*S.ringStagger;
+    const sweep=clamp(S.ringSweep,0.02,1)*TAU;
+    c.beginPath();
+    c.arc(0,0,r1,a0,a0+sweep);
+    c.arc(0,0,r0,a0+sweep,a0,true);
+    c.closePath();
+    if(S.colorMode==='solid'){
+      c.fillStyle=stepColor(i);
+    }else{
+      const g=c.createLinearGradient(-r1,-r1,r1,r1);
+      for(let s=0;s<=14;s++){
+        const u=s/14;
+        g.addColorStop(u,colorAt(u*S.gradientScale + i*S.bandShift + t*S.colorDrift));
+      }
+      c.fillStyle=g;
+    }
+    c.fill();
+  }
+}
 
 /* =====================================================================
-   CONTROL PANEL (built from a schema)
+   FRAME COMPOSITION
+   ===================================================================== */
+function paint(c,w,h,t,dpr){
+  c.setTransform(dpr,0,0,dpr,0,0);
+
+  if(S.bgGradient){
+    const bgG=c.createLinearGradient(0,0,0,h);
+    bgG.addColorStop(0,S.bg); bgG.addColorStop(1,S.bg2);
+    c.fillStyle=bgG;
+  } else c.fillStyle=S.bg;
+  c.fillRect(0,0,w,h);
+
+  const effAngle=S.angle + S.spin*t;
+  const rad=effAngle*Math.PI/180;
+  const cs=Math.abs(Math.cos(rad)), sn=Math.abs(Math.sin(rad));
+  const zoomNow=Math.max(S.zoom*(1+S.pulse*Math.sin(t*S.pulseSpeed*TAU*0.2)),0.05);
+  const cover=(1.08+S.driftAmt*2.2)/zoomNow;
+  const L=(w*cs+h*sn)*cover, Wd=(w*sn+h*cs)*cover;
+  const minD=Math.min(w,h);
+  const ox=S.driftAmt*w*Math.cos(t*S.driftSpeed);
+  const oy=S.driftAmt*h*Math.sin(t*S.driftSpeed*0.8);
+
+  c.save();
+  c.translate(w/2+ox,h/2+oy);
+  c.rotate(rad);
+  c.scale((S.flipX?-1:1)*zoomNow,(S.flipY?-1:1)*zoomNow);
+  switch(S.variant){
+    case 'bars':   drawBars(c,t,L,Wd); break;
+    case 'steps':  drawSteps(c,t,L,Wd); break;
+    case 'fan':    drawFan(c,t,L,Wd,minD); break;
+    case 'blades': drawBlades(c,t,L,Wd,minD); break;
+    case 'grid':   drawGrid(c,t,L,Wd); break;
+    case 'rings':  drawRings(c,t,L,Wd); break;
+    default:       drawRibbons(c,t,L,Wd,minD);
+  }
+  c.restore();
+
+  if(S.grain>0){
+    c.save();
+    c.globalAlpha=S.grain;
+    c.globalCompositeOperation='overlay';
+    c.fillStyle=grainFor(c);
+    c.fillRect(0,0,w,h);
+    c.restore();
+  }
+}
+
+let forceDraw=true;
+let clock=0, lastNow=null;
+function frame(now){
+  requestAnimationFrame(frame);
+  if(lastNow===null) lastNow=now;
+  const dt=Math.min((now-lastNow)/1000,0.1);
+  lastNow=now;
+  if(!S.paused || recording) clock+=dt;
+  else if(!forceDraw) return;
+  forceDraw=false;
+  paint(ctx,W,H,clock,DPR);
+}
+
+/* =====================================================================
+   RECORDING — WebM / MP4 via MediaRecorder, GIF via an inline encoder
+   ===================================================================== */
+let recording=false;
+
+/* ---- minimal GIF89a encoder (median-cut palette + LZW, per-frame table) ---- */
+function quantize(data,maxColors){
+  const px=data.length/4;
+  const stride=Math.max(1,Math.floor(px/16000));
+  const pts=[];
+  for(let i=0;i<px;i+=stride){ const o=i*4; pts.push([data[o],data[o+1],data[o+2]]); }
+  const boxFrom=arr=>{
+    let rmin=255,rmax=0,gmin=255,gmax=0,bmin=255,bmax=0;
+    for(let i=0;i<arr.length;i++){
+      const p=arr[i];
+      if(p[0]<rmin)rmin=p[0]; if(p[0]>rmax)rmax=p[0];
+      if(p[1]<gmin)gmin=p[1]; if(p[1]>gmax)gmax=p[1];
+      if(p[2]<bmin)bmin=p[2]; if(p[2]>bmax)bmax=p[2];
+    }
+    const dr=rmax-rmin, dg=gmax-gmin, db=bmax-bmin;
+    return {pts:arr, axis:(dr>=dg&&dr>=db)?0:(dg>=db?1:2), range:Math.max(dr,dg,db)};
+  };
+  let boxes=[boxFrom(pts)];
+  while(boxes.length<maxColors){
+    let bi=-1,best=0;
+    for(let i=0;i<boxes.length;i++){
+      const b=boxes[i];
+      if(b.pts.length<2||b.range<=1) continue;
+      const score=b.range*Math.log(b.pts.length+1);
+      if(score>best){ best=score; bi=i; }
+    }
+    if(bi<0) break;
+    const b=boxes[bi], ax=b.axis;
+    b.pts.sort((p,q)=>p[ax]-q[ax]);
+    const mid=b.pts.length>>1;
+    boxes.splice(bi,1,boxFrom(b.pts.slice(0,mid)),boxFrom(b.pts.slice(mid)));
+  }
+  return boxes.map(b=>{
+    let r=0,g=0,bl=0; const n=b.pts.length||1;
+    for(let i=0;i<b.pts.length;i++){ r+=b.pts[i][0]; g+=b.pts[i][1]; bl+=b.pts[i][2]; }
+    return [Math.round(r/n),Math.round(g/n),Math.round(bl/n)];
+  });
+}
+
+const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+function mapToPalette(data,pal,w,h){
+  const idx=new Uint8Array(w*h);
+  const cache=new Int16Array(32768).fill(-1);
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=y*w+x, o=i*4;
+      const d=(BAYER[(y&3)*4+(x&3)]/16-0.47)*9;
+      const r=clamp(data[o]+d,0,255)|0, g=clamp(data[o+1]+d,0,255)|0, b=clamp(data[o+2]+d,0,255)|0;
+      const key=((r>>3)<<10)|((g>>3)<<5)|(b>>3);
+      let ci=cache[key];
+      if(ci<0){
+        let bd=1e12, bx=0;
+        for(let p=0;p<pal.length;p++){
+          const dr=r-pal[p][0], dg=g-pal[p][1], db=b-pal[p][2];
+          const dd=dr*dr*0.9+dg*dg*1.2+db*db*0.7;
+          if(dd<bd){ bd=dd; bx=p; }
+        }
+        ci=bx; cache[key]=ci;
+      }
+      idx[i]=ci;
+    }
+  }
+  return idx;
+}
+
+function lzwEncode(indices,minCodeSize){
+  /* Mirrors the reference GIF LZW compressor: a code is written at the
+     current width first, and the width only grows once the next free code
+     no longer fits — the decoder's table lags by exactly one entry. */
+  const out=[];
+  let cur=0,bits=0;
+  const clear=1<<minCodeSize, eoi=clear+1;
+  let codeSize=minCodeSize+1, maxcode=(1<<codeSize)-1, next=eoi+1;
+  let dict=new Map();
+  const push=code=>{
+    cur |= code<<bits; bits+=codeSize;
+    while(bits>=8){ out.push(cur&255); cur>>=8; bits-=8; }
+    if(next>maxcode && codeSize<12){ codeSize++; maxcode=(1<<codeSize)-1; }
+  };
+  push(clear);
+  let prev=indices[0];
+  for(let i=1;i<indices.length;i++){
+    const k=indices[i], key=(prev<<8)|k;
+    const found=dict.get(key);
+    if(found!==undefined){ prev=found; continue; }
+    push(prev);
+    if(next<4096){
+      dict.set(key,next);
+      next++;
+    }else{
+      push(clear);
+      dict=new Map();
+      next=eoi+1; codeSize=minCodeSize+1; maxcode=(1<<codeSize)-1;
+    }
+    prev=k;
+  }
+  push(prev);
+  push(eoi);
+  if(bits>0) out.push(cur&255);
+  return out;
+}
+
+function GifWriter(w,h,delayCs){
+  this.w=w; this.h=h; this.delay=delayCs; this.parts=[];
+  const head=[];
+  'GIF89a'.split('').forEach(ch=>head.push(ch.charCodeAt(0)));
+  head.push(w&255,(w>>8)&255,h&255,(h>>8)&255,0x00,0x00,0x00);   // no global table
+  // NETSCAPE2.0 infinite-loop extension
+  head.push(0x21,0xFF,0x0B);
+  'NETSCAPE2.0'.split('').forEach(ch=>head.push(ch.charCodeAt(0)));
+  head.push(0x03,0x01,0x00,0x00,0x00);
+  this.parts.push(new Uint8Array(head));
+}
+GifWriter.prototype.addFrame=function(rgba){
+  const w=this.w, h=this.h, d=this.delay;
+  const pal=quantize(rgba,256);
+  const idx=mapToPalette(rgba,pal,w,h);
+  const pre=[];
+  pre.push(0x21,0xF9,0x04,0x04,d&255,(d>>8)&255,0x00,0x00);       // graphic control
+  pre.push(0x2C,0,0,0,0,w&255,(w>>8)&255,h&255,(h>>8)&255,0x87);  // image descriptor + local table
+  for(let i=0;i<256;i++){
+    const c=pal[i]||[0,0,0];
+    pre.push(c[0],c[1],c[2]);
+  }
+  pre.push(8);                                                     // LZW minimum code size
+  const bytes=lzwEncode(idx,8);
+  for(let i=0;i<bytes.length;i+=255){
+    const n=Math.min(255,bytes.length-i);
+    pre.push(n);
+    for(let j=0;j<n;j++) pre.push(bytes[i+j]);
+  }
+  pre.push(0x00);
+  this.parts.push(new Uint8Array(pre));
+};
+GifWriter.prototype.finish=function(){
+  this.parts.push(new Uint8Array([0x3B]));
+  return new Blob(this.parts,{type:'image/gif'});
+};
+
+async function captureGIF(onProgress){
+  const fps=clamp(Math.round(S.recFps),5,30);
+  const n=Math.max(2,Math.round(fps*S.recDuration));
+  const gw=Math.round(S.recWidth/2)*2;
+  const gh=Math.max(2,Math.round(gw*(H/W)/2)*2);
+  const off=document.createElement('canvas');
+  off.width=gw; off.height=gh;
+  const oc=off.getContext('2d',{willReadFrequently:true});
+  const gif=new GifWriter(gw,gh,Math.max(2,Math.round(100/fps)));
+  const t0=clock;
+  for(let i=0;i<n;i++){
+    paint(oc,gw,gh,t0+i/fps,1);
+    gif.addFrame(oc.getImageData(0,0,gw,gh).data);
+    onProgress((i+1)/n);
+    await new Promise(r=>setTimeout(r,0));
+  }
+  return gif.finish();
+}
+
+function pickMime(list){
+  if(!window.MediaRecorder) return null;
+  for(const m of list) if(MediaRecorder.isTypeSupported(m)) return m;
+  return null;
+}
+async function captureVideo(onProgress){
+  const fps=clamp(Math.round(S.recFps),10,60);
+  const wantMp4=S.recFormat==='mp4';
+  let mime=pickMime(wantMp4
+    ? ['video/mp4;codecs=avc1.4d002a','video/mp4;codecs=avc1','video/mp4']
+    : ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']);
+  if(!mime && wantMp4){
+    mime=pickMime(['video/webm;codecs=vp9','video/webm']);
+    if(mime) toast('MP4 not supported here — recording WebM');
+  }
+  if(!mime) throw new Error('Video recording is not supported in this browser');
+  const stream=canvas.captureStream(fps);
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:16000000});
+  const chunks=[];
+  rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+  const stopped=new Promise(res=>{ rec.onstop=res; });
+  const t0=performance.now();
+  rec.start(200);
+  const timer=setInterval(()=>onProgress(clamp((performance.now()-t0)/(S.recDuration*1000),0,1)),100);
+  await new Promise(r=>setTimeout(r,S.recDuration*1000));
+  clearInterval(timer);
+  rec.stop();
+  await stopped;
+  stream.getTracks().forEach(tr=>tr.stop());
+  return new Blob(chunks,{type:mime.split(';')[0]});
+}
+
+async function saveFile(blob,name){
+  const dl=(window.claude&&window.claude.use)
+    ? await window.claude.use('downloads').catch(()=>null) : null;
+  if(dl){
+    try{ await dl.save({filename:name,data:blob}); toast('Saved '+name); }
+    catch(e){ toast(e&&e.code==='declined'?'Save cancelled':'Save failed'+(e&&e.code?' ('+e.code+')':'')); }
+    return;
+  }
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  toast('Exported '+name);
+}
+
+let recBtn=null, recBar=null, recFill=null;
+function setRecProgress(p){
+  if(recFill) recFill.style.width=Math.round(p*100)+'%';
+}
+function updateRecUI(){
+  if(!recBtn) return;
+  recBtn.textContent = recording ? 'Recording…' : '⏺ Record '+S.recFormat.toUpperCase();
+  recBtn.disabled=recording;
+  if(recBar) recBar.classList.toggle('on',recording);
+}
+async function doRecord(){
+  if(recording) return;
+  recording=true; setRecProgress(0); updateRecUI();
+  const wasPaused=S.paused;
+  S.paused=false;
+  try{
+    const isGif=S.recFormat==='gif';
+    const blob=isGif ? await captureGIF(setRecProgress) : await captureVideo(setRecProgress);
+    const ext=isGif?'gif':(blob.type.indexOf('mp4')>=0?'mp4':'webm');
+    const mb=blob.size/(1024*1024);
+    if(mb>16){
+      toast('File is '+mb.toFixed(1)+' MB — over the 16 MB limit. Shorten it or lower the size.');
+    }else{
+      await saveFile(blob,'flow-pattern.'+ext);
+    }
+  }catch(e){
+    toast(String((e&&e.message)||e));
+  }
+  S.paused=wasPaused;
+  recording=false; setRecProgress(0); updateRecUI();
+}
+
+/* =====================================================================
+   CONTROL PANEL
    ===================================================================== */
 const panel=document.getElementById('panel');
 
 const SCHEMA=[
   {sec:'Pattern', rows:[
-    {key:'variant', label:'Type', type:'select', opts:[['ribbons','Flowing ribbons'],['bars','Gradient bars'],['steps','Stepped wipe']]},
-    {custom:'presets'},
+    {key:'variant', label:'Type', type:'select',
+     opts:Object.keys(TYPE_LABEL).map(k=>[k,TYPE_LABEL[k]])},
+    {custom:'shapes'},
+  ]},
+  {sec:'Gradient', rows:[
+    {custom:'gradients'},
+    {custom:'palette'},
+    {key:'colorMode', label:'Fill style', type:'select',
+     opts:[['flow','Gradient blend'],['solid','Solid per shape']]},
+    {key:'gradientScale', label:'Gradient scale', type:'range', min:0.2, max:3, step:0.05, show:s=>s.colorMode==='flow'},
+    {key:'bandShift', label:'Shape offset', type:'range', min:0, max:1, step:0.01},
+    {key:'bg', label:'Background', type:'color'},
+    {key:'bgGradient', label:'Background fade', type:'check'},
+    {key:'bg2', label:'Background 2', type:'color', show:s=>s.bgGradient},
   ]},
   {sec:'Motion', rows:[
     {key:'speed', label:'Flow speed', type:'range', min:0, max:3, step:0.05},
     {key:'colorDrift', label:'Color drift', type:'range', min:0, max:0.5, step:0.005},
+    {key:'spin', label:'Spin', type:'range', min:-60, max:60, step:1, fmt:v=>v+'°/s'},
+    {key:'zoom', label:'Zoom', type:'range', min:0.3, max:2.5, step:0.02},
+    {key:'pulse', label:'Pulse', type:'range', min:0, max:0.6, step:0.02},
+    {key:'pulseSpeed', label:'Pulse rate', type:'range', min:0.05, max:3, step:0.05, show:s=>s.pulse>0},
+    {key:'driftAmt', label:'Wander', type:'range', min:0, max:0.4, step:0.01},
+    {key:'driftSpeed', label:'Wander rate', type:'range', min:0.05, max:2, step:0.05, show:s=>s.driftAmt>0},
     {key:'paused', label:'Pause', type:'check'},
   ]},
   {sec:'Ribbon shape', show:s=>s.variant==='ribbons', rows:[
@@ -532,13 +1016,11 @@ const SCHEMA=[
     {key:'stagger', label:'Band lag', type:'range', min:0, max:1.2, step:0.02},
     {key:'waveTaper', label:'Wave taper', type:'range', min:0, max:1, step:0.02},
     {key:'centerY', label:'Vertical shift', type:'range', min:-0.6, max:0.6, step:0.02},
-  ]},
-  {sec:'Flow spread', show:s=>s.variant==='ribbons', rows:[
-    {key:'spreadL', label:'Spread @ start', type:'range', min:0, max:2.5, step:0.02},
-    {key:'spreadR', label:'Spread @ end', type:'range', min:0, max:2.5, step:0.02},
+    {key:'spreadL', label:'Spread start', type:'range', min:0, max:2.5, step:0.02},
+    {key:'spreadR', label:'Spread end', type:'range', min:0, max:2.5, step:0.02},
     {key:'pinch', label:'Pinch amount', type:'range', min:0, max:1, step:0.02},
-    {key:'pinchPos', label:'Pinch position', type:'range', min:0, max:1, step:0.02},
-    {key:'pinchWidth', label:'Pinch width', type:'range', min:0.04, max:0.5, step:0.01},
+    {key:'pinchPos', label:'Pinch position', type:'range', min:0, max:1, step:0.02, show:s=>s.pinch>0},
+    {key:'pinchWidth', label:'Pinch width', type:'range', min:0.04, max:0.5, step:0.01, show:s=>s.pinch>0},
   ]},
   {sec:'Bars', show:s=>s.variant==='bars', rows:[
     {key:'barCount', label:'Bar count', type:'range', min:2, max:24, step:1},
@@ -549,71 +1031,85 @@ const SCHEMA=[
   ]},
   {sec:'Stepped wipe', show:s=>s.variant==='steps', rows:[
     {key:'stepRows', label:'Rows', type:'range', min:2, max:24, step:1},
-    {key:'stepProfile', label:'Edge profile', type:'select', opts:[['stair','Staircase'],['bulge','Bulge'],['valley','Valley'],['random','Scatter']]},
+    {key:'stepProfile', label:'Edge profile', type:'select',
+     opts:[['stair','Staircase'],['bulge','Bulge'],['valley','Valley'],['random','Scatter']]},
     {key:'stepStagger', label:'Step offset', type:'range', min:0, max:1, step:0.02},
     {key:'stepSoft', label:'Edge softness', type:'range', min:0, max:0.4, step:0.01},
     {key:'stepOverlap', label:'Wave overlap', type:'range', min:1, max:3, step:0.05},
     {key:'stepJitter', label:'Row jitter', type:'range', min:0, max:1, step:0.02},
   ]},
+  {sec:'Card fan', show:s=>s.variant==='fan', rows:[
+    {key:'fanCount', label:'Cards', type:'range', min:2, max:40, step:1},
+    {key:'fanSpread', label:'Fan spread', type:'range', min:10, max:360, step:2, fmt:v=>v+'°'},
+    {key:'fanPivot', label:'Pivot', type:'range', min:-1.5, max:1.5, step:0.05},
+    {key:'fanLength', label:'Card length', type:'range', min:0.1, max:2, step:0.02},
+    {key:'fanWidth', label:'Card width', type:'range', min:0.02, max:0.5, step:0.01},
+    {key:'fanGap', label:'Card outline', type:'range', min:0, max:0.4, step:0.01},
+    {key:'fanRound', label:'Corner round', type:'range', min:0, max:0.5, step:0.01},
+    {key:'fanSweep', label:'Fan sway', type:'range', min:0, max:1.5, step:0.02},
+    {key:'fanSpin', label:'Fan rotation', type:'range', min:-60, max:60, step:1, fmt:v=>v+'°/s'},
+    {key:'fanScatter', label:'Scatter', type:'range', min:0, max:1, step:0.02},
+  ]},
+  {sec:'Radial blades', show:s=>s.variant==='blades', rows:[
+    {key:'bladeCount', label:'Blades', type:'range', min:2, max:40, step:1},
+    {key:'bladeArc', label:'Arc covered', type:'range', min:20, max:360, step:2, fmt:v=>v+'°'},
+    {key:'bladeGap', label:'Gap', type:'range', min:0, max:0.9, step:0.02},
+    {key:'bladeTaper', label:'Wedge taper', type:'range', min:0, max:1, step:0.02},
+    {key:'bladeInner', label:'Inner hole', type:'range', min:0, max:0.6, step:0.01},
+    {key:'bladeLength', label:'Length', type:'range', min:0.2, max:1.6, step:0.02},
+    {key:'bladeSpin', label:'Spin rate', type:'range', min:-3, max:3, step:0.05},
+    {key:'bladeFocusX', label:'Focus X', type:'range', min:-1.2, max:1.2, step:0.05},
+    {key:'bladeFocusY', label:'Focus Y', type:'range', min:-1.2, max:1.2, step:0.05},
+  ]},
+  {sec:'Tile grid', show:s=>s.variant==='grid', rows:[
+    {key:'gridCols', label:'Columns', type:'range', min:1, max:24, step:1},
+    {key:'gridRows', label:'Rows', type:'range', min:1, max:24, step:1},
+    {key:'gridGap', label:'Tile gap', type:'range', min:0, max:0.6, step:0.01},
+    {key:'gridRound', label:'Corner round', type:'range', min:0, max:1, step:0.02},
+    {key:'gridWaveX', label:'Wave across', type:'range', min:0, max:3, step:0.05},
+    {key:'gridWaveY', label:'Wave down', type:'range', min:0, max:3, step:0.05},
+    {key:'gridSharp', label:'Fade softness', type:'range', min:0.02, max:1, step:0.02},
+    {key:'gridFlow', label:'Wave speed', type:'range', min:0, max:3, step:0.05},
+    {key:'gridMirror', label:'Mirror alternate tiles', type:'check'},
+  ]},
+  {sec:'Rings', show:s=>s.variant==='rings', rows:[
+    {key:'ringCount', label:'Rings', type:'range', min:1, max:24, step:1},
+    {key:'ringSweep', label:'Arc length', type:'range', min:0.05, max:1, step:0.01},
+    {key:'ringGap', label:'Ring gap', type:'range', min:0, max:0.8, step:0.02},
+    {key:'ringInner', label:'Inner hole', type:'range', min:0, max:0.7, step:0.01},
+    {key:'ringSpin', label:'Spin rate', type:'range', min:-3, max:3, step:0.05},
+    {key:'ringStagger', label:'Arc offset', type:'range', min:0, max:3, step:0.05},
+  ]},
   {sec:'Orientation', rows:[
     {key:'angle', label:'Rotation', type:'range', min:-180, max:180, step:1, fmt:v=>v+'°'},
-    {key:'flipX', label:'Mirror flow', type:'check'},
+    {key:'flipX', label:'Mirror', type:'check'},
     {key:'flipY', label:'Flip vertical', type:'check'},
-  ]},
-  {sec:'Colors', rows:[
-    {custom:'palette'},
-    {key:'colorMode', label:'Fill style', type:'select', opts:[['flow','Gradient along flow'],['solid','Solid per band']]},
-    {key:'gradientScale', label:'Gradient scale', type:'range', min:0.2, max:3, step:0.05, show:s=>s.colorMode==='flow'},
-    {key:'bandShift', label:'Band color shift', type:'range', min:0, max:1, step:0.01},
-    {key:'bg', label:'Background', type:'color'},
-    {key:'bgGradient', label:'Background gradient', type:'check'},
-    {key:'bg2', label:'Background 2', type:'color', show:s=>s.bgGradient},
   ]},
   {sec:'Texture', rows:[
     {key:'grain', label:'Grain', type:'range', min:0, max:1, step:0.02},
+  ]},
+  {sec:'Record', rows:[
+    {key:'recFormat', label:'Format', type:'select',
+     opts:[['webm','WebM video'],['mp4','MP4 video'],['gif','Animated GIF']]},
+    {key:'recDuration', label:'Duration', type:'range', min:1, max:15, step:0.5, fmt:v=>v+'s'},
+    {key:'recFps', label:'Frame rate', type:'range', min:5, max:60, step:1, fmt:v=>v+'fps'},
+    {key:'recWidth', label:'GIF width', type:'select', num:true,
+     opts:[[320,'320 px'],[480,'480 px'],[640,'640 px'],[800,'800 px']], show:s=>s.recFormat==='gif'},
+    {custom:'record'},
   ]},
   {sec:'Actions', rows:[
     {custom:'actions'},
   ]},
 ];
 
-const inputs={};   // key -> {el, def, valEl, rowEl}
-const sections=[]; // {el, show}
+const inputs={};
+const sections=[];
+let paletteWrap=null, gradWrap=null, shapeWrap=null;
 
 function fmtVal(def,v){
   if(def.fmt) return def.fmt(v);
   if(def.type==='range') return def.step>=1? String(v) : (+v).toFixed(def.step<0.01?3:2);
   return '';
-}
-
-function buildPanel(){
-  panel.innerHTML='';
-  const head=document.createElement('div');
-  head.id='panelHead';
-  head.innerHTML='<h1>Flow Pattern Studio</h1><p>Custom animated background patterns</p>';
-  panel.appendChild(head);
-
-  for(const sec of SCHEMA){
-    const secEl=document.createElement('div');
-    secEl.className='section';
-    const sh=document.createElement('div');
-    sh.className='secHead';
-    sh.innerHTML=`<h2>${sec.sec}</h2><span class="chev">▾</span>`;
-    sh.onclick=()=>secEl.classList.toggle('closed');
-    const body=document.createElement('div');
-    body.className='secBody';
-    secEl.append(sh,body);
-
-    for(const def of sec.rows){
-      if(def.custom==='presets'){ body.appendChild(buildPresets()); continue; }
-      if(def.custom==='palette'){ body.appendChild(buildPaletteEditor()); continue; }
-      if(def.custom==='actions'){ body.appendChild(buildActions()); continue; }
-      body.appendChild(buildRow(def));
-    }
-    panel.appendChild(secEl);
-    sections.push({el:secEl, show:sec.show});
-  }
-  syncUI();
 }
 
 function buildRow(def){
@@ -622,7 +1118,6 @@ function buildRow(def){
   const label=document.createElement('label');
   label.textContent=def.label;
   row.appendChild(label);
-
   let el;
   if(def.type==='range'){
     el=document.createElement('input');
@@ -640,11 +1135,12 @@ function buildRow(def){
     inputs[def.key]={el,def,rowEl:row};
   } else if(def.type==='select'){
     el=document.createElement('select');
-    for(const [v,txt] of def.opts){
-      const o=document.createElement('option');
-      o.value=v; o.textContent=txt; el.appendChild(o);
+    for(const o of def.opts){
+      const opt=document.createElement('option');
+      opt.value=o[0]; opt.textContent=o[1];
+      el.appendChild(opt);
     }
-    el.onchange=()=>{ S[def.key]=el.value; onChange(def.key); };
+    el.onchange=()=>{ S[def.key]=def.num? +el.value : el.value; onChange(def.key); };
     row.appendChild(el);
     inputs[def.key]={el,def,rowEl:row};
   } else if(def.type==='color'){
@@ -657,46 +1153,89 @@ function buildRow(def){
   return row;
 }
 
-function buildPresets(){
-  const wrap=document.createElement('div');
-  for(const [name,p] of Object.entries(PRESETS)){
+/* --- shape presets for the selected pattern type --- */
+function buildShapes(){
+  shapeWrap=document.createElement('div');
+  renderShapes();
+  return shapeWrap;
+}
+let shapeVariantShown=null;
+function renderShapes(){
+  if(!shapeWrap || shapeVariantShown===S.variant) return;
+  shapeVariantShown=S.variant;
+  shapeWrap.innerHTML='';
+  const list=SHAPES[S.variant]||{};
+  const lbl=document.createElement('div');
+  lbl.className='hint';
+  lbl.style.marginBottom='2px';
+  lbl.textContent='Shape presets — colors stay as they are';
+  shapeWrap.appendChild(lbl);
+  Object.keys(list).forEach(name=>{
     const b=document.createElement('button');
     b.className='presetBtn';
-    const dots=(p.palette||[]).slice(0,5).map(c=>`<i style="background:${c}"></i>`).join('');
-    b.innerHTML=`<span class="dots">${dots}</span><span>${name}</span>`;
-    b.onclick=()=>{ applyPreset(p); toast(`Preset: ${name}`); };
-    wrap.appendChild(b);
-  }
-  return wrap;
+    b.innerHTML='<span class="ico">◧</span><span>'+name+'</span>';
+    b.onclick=()=>{ applyShape(list[name]); toast(name); };
+    shapeWrap.appendChild(b);
+  });
 }
 
-let paletteWrap=null;
+/* --- gradient presets (independent of pattern type) --- */
+function buildGradients(){
+  gradWrap=document.createElement('div');
+  const lbl=document.createElement('div');
+  lbl.className='hint';
+  lbl.style.margin='0 0 4px';
+  lbl.textContent='Color presets — work with every pattern type';
+  const list=document.createElement('div');
+  list.className='gradList';
+  GRADIENTS.forEach(g=>{
+    const b=document.createElement('button');
+    b.className='gradChip';
+    b.style.background='linear-gradient(100deg,'+g.palette.join(',')+')';
+    b.innerHTML='<span>'+g.name+'</span>';
+    b.onclick=()=>{ applyGradient(g); toast(g.name); };
+    b.dataset.name=g.name;
+    list.appendChild(b);
+  });
+  gradWrap.append(lbl,list);
+  return gradWrap;
+}
+function markActiveGradient(){
+  if(!gradWrap) return;
+  const cur=S.palette.join(',').toLowerCase();
+  gradWrap.querySelectorAll('.gradChip').forEach(chip=>{
+    const g=GRADIENTS.find(x=>x.name===chip.dataset.name);
+    chip.classList.toggle('active', !!g && g.palette.join(',').toLowerCase()===cur);
+  });
+}
+
 function buildPaletteEditor(){
   paletteWrap=document.createElement('div');
-  const lbl=document.createElement('label');
-  lbl.style.cssText='color:var(--txt-dim);font-size:11.5px;';
-  lbl.textContent='Palette';
+  const lbl=document.createElement('div');
+  lbl.className='hint';
+  lbl.style.margin='10px 0 0';
+  lbl.textContent='Custom palette';
   const list=document.createElement('div');
   list.id='paletteList';
   paletteWrap.append(lbl,list);
   renderPalette();
   return paletteWrap;
 }
-
 function renderPalette(){
+  if(!paletteWrap) return;
   const list=paletteWrap.querySelector('#paletteList');
   list.innerHTML='';
-  S.palette.forEach((c,i)=>{
+  S.palette.forEach((col,i)=>{
     const sw=document.createElement('div');
     sw.className='swatch';
     const inp=document.createElement('input');
-    inp.type='color'; inp.value=c;
-    inp.oninput=()=>{ S.palette[i]=inp.value; cachePalette(); forceDraw=true; };
+    inp.type='color'; inp.value=col;
+    inp.oninput=()=>{ S.palette[i]=inp.value; cachePalette(); markActiveGradient(); forceDraw=true; };
     const rm=document.createElement('div');
     rm.className='rm'; rm.textContent='✕'; rm.title='Remove color';
     rm.onclick=()=>{
       if(S.palette.length<=2){ toast('Keep at least 2 colors'); return; }
-      S.palette.splice(i,1); cachePalette(); renderPalette(); forceDraw=true;
+      S.palette.splice(i,1); cachePalette(); renderPalette(); markActiveGradient(); forceDraw=true;
     };
     sw.append(inp,rm);
     list.appendChild(sw);
@@ -704,57 +1243,116 @@ function renderPalette(){
   const add=document.createElement('button');
   add.id='addColor'; add.textContent='+'; add.title='Add color';
   add.onclick=()=>{
-    const h=Math.floor(Math.random()*360);
-    S.palette.push(hslToHex(h,80,62));
-    cachePalette(); renderPalette(); forceDraw=true;
+    S.palette.push(hslToHex(Math.floor(Math.random()*360),80,62));
+    cachePalette(); renderPalette(); markActiveGradient(); forceDraw=true;
   };
   list.appendChild(add);
+}
+
+function buildRecord(){
+  const wrap=document.createElement('div');
+  recBtn=document.createElement('button');
+  recBtn.className='btn rec';
+  recBtn.style.width='100%';
+  recBtn.onclick=doRecord;
+  recBar=document.createElement('div');
+  recBar.id='recBar';
+  recFill=document.createElement('div');
+  recFill.id='recFill';
+  recBar.appendChild(recFill);
+  const hint=document.createElement('div');
+  hint.className='hint';
+  hint.textContent='Video records the live canvas in real time. GIF renders offscreen, so it is exact but slower. Files must stay under 16 MB.';
+  wrap.append(recBtn,recBar,hint);
+  updateRecUI();
+  return wrap;
 }
 
 function buildActions(){
   const wrap=document.createElement('div');
   wrap.className='btnRow';
-  const mk=(txt,fn,primary)=>{
+  const mk=(txt,fn,cls)=>{
     const b=document.createElement('button');
-    b.className='btn'+(primary?' primary':'');
+    b.className='btn'+(cls?' '+cls:'');
     b.textContent=txt; b.onclick=fn;
     wrap.appendChild(b);
   };
-  mk('🎲 Randomize',randomize,true);
+  mk('🎲 Randomize',randomize,'primary');
   mk('📷 Export PNG',exportPNG);
   mk('📋 Copy config',copyConfig);
   mk('📥 Paste config',pasteConfig);
-  mk('↺ Reset',()=>{ applyPreset(DEFAULTS); toast('Reset to defaults'); });
+  mk('↺ Reset',()=>{ applyAll(DEFAULTS); toast('Reset to defaults'); });
   return wrap;
 }
 
-/* sync all UI widgets from state */
+function buildPanel(){
+  panel.innerHTML='';
+  const head=document.createElement('div');
+  head.id='panelHead';
+  head.innerHTML='<h1>Flow Pattern Studio</h1><p>Custom animated background patterns</p>';
+  panel.appendChild(head);
+  for(const sec of SCHEMA){
+    const secEl=document.createElement('div');
+    secEl.className='section';
+    const sh=document.createElement('div');
+    sh.className='secHead';
+    sh.innerHTML='<h2>'+sec.sec+'</h2><span class="chev">▾</span>';
+    sh.onclick=()=>secEl.classList.toggle('closed');
+    const body=document.createElement('div');
+    body.className='secBody';
+    secEl.append(sh,body);
+    for(const def of sec.rows){
+      if(def.custom==='shapes'){ body.appendChild(buildShapes()); continue; }
+      if(def.custom==='gradients'){ body.appendChild(buildGradients()); continue; }
+      if(def.custom==='palette'){ body.appendChild(buildPaletteEditor()); continue; }
+      if(def.custom==='record'){ body.appendChild(buildRecord()); continue; }
+      if(def.custom==='actions'){ body.appendChild(buildActions()); continue; }
+      body.appendChild(buildRow(def));
+    }
+    panel.appendChild(secEl);
+    sections.push({el:secEl, show:sec.show});
+  }
+  syncUI();
+}
+
 function syncUI(){
-  for(const [key,rec] of Object.entries(inputs)){
-    const v=S[key];
+  for(const key of Object.keys(inputs)){
+    const rec=inputs[key], v=S[key];
     if(rec.def.type==='check') rec.el.checked=!!v;
     else rec.el.value=v;
     if(rec.valEl) rec.valEl.textContent=fmtVal(rec.def,v);
     rec.rowEl.style.display = rec.def.show && !rec.def.show(S) ? 'none' : '';
   }
-  for(const s of sections)
-    s.el.style.display = s.show && !s.show(S) ? 'none' : '';
-  if(paletteWrap) renderPalette();
+  for(const s of sections) s.el.style.display = s.show && !s.show(S) ? 'none' : '';
+  renderPalette();
+  markActiveGradient();
+  renderShapes();
+  updateRecUI();
 }
 
 function onChange(key){
   forceDraw=true;
-  if(key==='variant'||key==='bgGradient'||key==='colorMode') syncUI();
+  if(key==='variant'||key==='bgGradient'||key==='colorMode'||key==='pulse'
+     ||key==='driftAmt'||key==='pinch'||key==='recFormat') syncUI();
 }
 
-function applyPreset(p){
+/* ---------------- preset application ---------------- */
+function applyShape(p){ Object.assign(S,JSON.parse(JSON.stringify(p))); syncUI(); forceDraw=true; }
+function applyGradient(g){
+  S.palette=g.palette.slice();
+  S.bg=g.bg;
+  if(g.bg2!==undefined) S.bg2=g.bg2;
+  if(g.bgGradient!==undefined) S.bgGradient=g.bgGradient;
+  cachePalette(); syncUI(); forceDraw=true;
+}
+function applyAll(p){
   S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(JSON.stringify(p)));
   cachePalette(); syncUI(); forceDraw=true;
 }
 
 /* ---------------- actions ---------------- */
 function hslToHex(h,s,l){
-  s/=100;l/=100;
+  s/=100; l/=100;
   const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
   const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
   return '#'+[f(0),f(8),f(4)].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');
@@ -763,85 +1361,48 @@ const rnd=(a,b)=>a+Math.random()*(b-a);
 const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
 
 function randomize(){
-  const baseH=Math.floor(rnd(0,360));
-  const scheme=pick(['analogous','triadic','complement','rainbow']);
-  const n=Math.floor(rnd(4,8));
-  const pal=[];
-  for(let i=0;i<n;i++){
-    let h;
-    if(scheme==='analogous') h=baseH+i*rnd(18,32);
-    else if(scheme==='triadic') h=baseH+(i%3)*120+rnd(-12,12);
-    else if(scheme==='complement') h=baseH+(i%2)*180+rnd(-20,20);
-    else h=baseH+i*(360/n);
-    pal.push(hslToHex(((h%360)+360)%360, rnd(65,95), rnd(50,72)));
-  }
-  const bgH=(baseH+rnd(150,210))%360;
-  const variant=pick(['ribbons','ribbons','ribbons','bars','steps']);
-  const flow=pick(['converge','fan','pinch','even']);
-  const upd={
-    variant, palette:pal,
-    bg:hslToHex(bgH,rnd(35,70),rnd(6,14)),
-    bgGradient:Math.random()<0.4, bg2:hslToHex((bgH+20)%360,rnd(35,70),rnd(3,9)),
-    bands:Math.floor(rnd(4,12)), spacing:rnd(0.03,0.1), gap:Math.random()<0.5?0:rnd(0.02,0.25),
-    amplitude:rnd(0.04,0.24), frequency:rnd(0.4,1.6),
-    amplitude2:rnd(0.01,0.08), frequency2:rnd(1,3.5),
-    stagger:rnd(0.1,0.6), waveTaper:rnd(0.2,0.9), centerY:rnd(-0.15,0.15),
-    spreadL: flow==='fan'?rnd(0,0.08): flow==='converge'?rnd(1.1,2):rnd(0.8,1.4),
-    spreadR: flow==='fan'?rnd(1.2,2.2): flow==='converge'?rnd(0.03,0.15):rnd(0.8,1.4),
-    pinch: flow==='pinch'?rnd(0.6,0.95):0,
-    pinchPos:rnd(0.3,0.7), pinchWidth:rnd(0.1,0.3),
-    angle:pick([0,0,0,90,-90,rnd(-35,35)|0]),
-    flipX:Math.random()<0.3, flipY:Math.random()<0.3,
-    colorMode:Math.random()<0.8?'flow':'solid',
-    gradientScale:rnd(0.6,1.8), bandShift:rnd(0.05,0.25),
-    barCount:Math.floor(rnd(5,12)), barGap:rnd(0,0.15), barAlternate:Math.random()<0.6,
-    barSlide:rnd(0.2,0.7), barSoft:rnd(0.3,0.8),
-    stepRows:Math.floor(rnd(6,16)), stepProfile:pick(['stair','bulge','valley','random']),
-    stepStagger:rnd(0.15,0.6), stepSoft:rnd(0.04,0.2),
-    stepOverlap:rnd(1.1,2), stepJitter:rnd(0,0.4),
-    speed:rnd(0.4,1.4), colorDrift:rnd(0.02,0.15), grain:rnd(0,0.4),
-  };
-  S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),upd);
+  const variant=pick(Object.keys(TYPE_LABEL));
+  const grad=pick(GRADIENTS);
+  const names=Object.keys(SHAPES[variant]);
+  const shape=SHAPES[variant][pick(names)];
+  const base=JSON.parse(JSON.stringify(DEFAULTS));
+  Object.assign(base,{variant:variant},JSON.parse(JSON.stringify(shape)));
+  base.palette=grad.palette.slice();
+  base.bg=grad.bg;
+  base.bgGradient=Math.random()<0.35;
+  base.bg2=grad.bg2||grad.bg;
+  base.colorMode=Math.random()<0.8?'flow':'solid';
+  base.gradientScale=rnd(0.6,1.8);
+  base.bandShift=rnd(0.05,0.3);
+  base.colorDrift=rnd(0.01,0.14);
+  base.speed=rnd(0.4,1.4);
+  base.grain=rnd(0,0.4);
+  base.angle=pick([0,0,0,90,-90,Math.round(rnd(-40,40))]);
+  base.flipX=Math.random()<0.3;
+  base.flipY=Math.random()<0.3;
+  if(Math.random()<0.35) base.spin=rnd(-12,12);
+  if(Math.random()<0.3){ base.pulse=rnd(0.05,0.3); base.pulseSpeed=rnd(0.2,1.5); }
+  if(Math.random()<0.3){ base.driftAmt=rnd(0.03,0.15); base.driftSpeed=rnd(0.1,0.8); }
+  base.zoom=Math.random()<0.3? rnd(0.6,1.6) : 1;
+  S=base;
   cachePalette(); syncUI(); forceDraw=true;
   toast('Randomized ✨');
 }
 
 function exportPNG(){
-  canvas.toBlob(async b=>{
-    // in the claude.ai artifact viewer, downloads must go through the
-    // viewer-mediated save prompt; plain anchor downloads are inert there
-    const dl = window.claude && window.claude.use
-      ? await window.claude.use('downloads').catch(()=>null) : null;
-    if(dl){
-      try{ await dl.save({filename:'flow-pattern.png', data:b}); toast('PNG saved'); }
-      catch(e){ toast(e && e.code==='declined' ? 'Save cancelled' : 'Save failed'); }
-      return;
-    }
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(b);
-    a.download='flow-pattern.png';
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    toast('PNG exported');
-  },'image/png');
+  canvas.toBlob(b=>{ saveFile(b,'flow-pattern.png'); },'image/png');
 }
-
 function copyConfig(){
   const json=JSON.stringify(S,null,2);
-  (navigator.clipboard?navigator.clipboard.writeText(json):Promise.reject())
+  (navigator.clipboard? navigator.clipboard.writeText(json):Promise.reject())
     .then(()=>toast('Config copied to clipboard'))
     .catch(()=>{ window.prompt('Copy config JSON:',JSON.stringify(S)); });
 }
-
 function pasteConfig(){
   const raw=window.prompt('Paste config JSON:');
   if(!raw) return;
-  try{
-    const p=JSON.parse(raw);
-    S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),p);
-    cachePalette(); syncUI(); forceDraw=true;
-    toast('Config applied');
-  }catch(e){ toast('Invalid JSON'); }
+  try{ applyAll(JSON.parse(raw)); toast('Config applied'); }
+  catch(e){ toast('Invalid JSON'); }
 }
 
 /* ---------------- toast + panel toggle ---------------- */
@@ -851,21 +1412,30 @@ function toast(msg){
   el.textContent=msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>el.classList.remove('show'),1800);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
 }
 
 const toggleBtn=document.getElementById('toggleBtn');
-toggleBtn.onclick=()=>{
+function togglePanel(){
   panel.classList.toggle('hidden');
   toggleBtn.classList.toggle('open',!panel.classList.contains('hidden'));
-};
+}
+toggleBtn.onclick=togglePanel;
 window.addEventListener('keydown',e=>{
-  if(e.key==='h'||e.key==='H') toggleBtn.onclick();
-  if(e.key===' '&&e.target===document.body){ e.preventDefault(); S.paused=!S.paused; syncUI(); forceDraw=true; }
-  if(e.key==='r'||e.key==='R') randomize();
+  const typing=e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName||'');
+  if(e.key==='h'||e.key==='H'){ if(!typing) togglePanel(); }
+  if(e.key===' '&&!typing){ e.preventDefault(); S.paused=!S.paused; syncUI(); forceDraw=true; }
+  if((e.key==='r'||e.key==='R')&&!typing) randomize();
 });
 
+/* ---------------- boot ---------------- */
+resize();
+cachePalette();
 buildPanel();
+requestAnimationFrame(frame);
+
+/* exposed for automated checks */
+window.__studio={captureGIF,captureVideo,S:()=>S,setState:o=>{applyAll(o);}};
 </script>
 </body>
 </html>
