@@ -715,7 +715,16 @@ function randomize(){
 }
 
 function exportPNG(){
-  canvas.toBlob(b=>{
+  canvas.toBlob(async b=>{
+    // in the claude.ai artifact viewer, downloads must go through the
+    // viewer-mediated save prompt; plain anchor downloads are inert there
+    const dl = window.claude && window.claude.use
+      ? await window.claude.use('downloads').catch(()=>null) : null;
+    if(dl){
+      try{ await dl.save({filename:'flow-pattern.png', data:b}); toast('PNG saved'); }
+      catch(e){ toast(e && e.code==='declined' ? 'Save cancelled' : 'Save failed'); }
+      return;
+    }
     const a=document.createElement('a');
     a.href=URL.createObjectURL(b);
     a.download='flow-pattern.png';
