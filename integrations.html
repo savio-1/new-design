@@ -1732,10 +1732,35 @@ body.cq { margin: 0; }
 
     /* ── Live table ── */
     .cq-table.live-table {
-      --cq-cols: minmax(200px, 1.2fr) 170px 190px 150px 120px 120px 52px;
+      --cq-cols: minmax(200px, 1fr) 170px 150px 150px 120px 120px 96px;
     }
-    .live-app { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .live-app, .live-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .cq-logo-tile--sm .lg { width: 16px; height: 16px; }
+    /* Model hub's own pattern: a tag is grey at rest and takes its tone
+       when the row it's in is hovered or opened in the panel. */
+    .cq-row.is-selected { cursor: default; }
+
+    /* ── Live detail panel ──
+       The shell (.cq-panel, .cq-kv, .cq-section-label) is the system's
+       own fixed component; only its header — logo, name, app — is
+       specific to this module. */
+    .live-panel__head { display: flex; align-items: center; gap: 12px; padding: 0 16px 16px; }
+    .live-panel__head .cq-logo-tile { width: 40px; height: 40px; }
+    .live-panel__head .cq-logo-tile .lg { width: 26px; height: 26px; }
+    .live-panel__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .live-panel__title b { color: var(--text-primary); }
+    .live-panel__title span { color: var(--text-teritiary); }
+    .live-panel__actions { display: flex; align-items: center; gap: 8px; padding: 0 16px 20px; }
+    /* The system's .cq-panel is viewport-fixed (top:0), which floats over
+       this page's own header and blocks its controls (theme toggle, etc).
+       Anchored instead to the frame's own content area — below the 48px
+       header, inset 8px to match the frame's own edges — so the header
+       stays reachable and the panel reads as part of this frame rather
+       than a layer above the whole window. */
+    #livePanel {
+      top: 57px; right: 8px; bottom: 8px;
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    }
 
     /* ── Category + subcategory headers in the content ── */
     .cat-sec + .cat-sec { border-top: 1px solid var(--strokes-line-1); padding-top: 20px; margin-top: 24px; }
@@ -2001,7 +2026,15 @@ body.cq { margin: 0; }
                   <span id="createdByLabel">Created by: Anyone</span>
                   <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
                 </button>
-                <div class="cq-pop" id="createdByPop"><div class="cq-pop__list" id="createdByList"></div></div>
+                <div class="cq-pop" id="createdByPop">
+                  <div class="cq-pop__head">
+                    <label class="cq-search cq-search--sm">
+                      <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
+                      <input id="createdBySearch" class="cq-body2-reg" type="search" placeholder="Search people" aria-label="Search people" />
+                    </label>
+                  </div>
+                  <div class="cq-pop__list" id="createdByList"></div>
+                </div>
               </div>
               <div class="cq-filter-group">
                 <button class="cq-dropdown" id="sortByBtn" aria-expanded="false">
@@ -2037,6 +2070,24 @@ body.cq { margin: 0; }
     </div>
   </div>
 </div>
+
+<!-- ══ Live detail panel — opens on a row, closes on the same row,
+     Escape, or an outside click. Shell is the system's own .cq-panel;
+     only the header is this module's. ══ -->
+<aside class="cq-panel" id="livePanel" aria-label="Integration details" aria-hidden="true">
+  <div class="live-panel__head">
+    <span class="cq-logo-tile" id="panelLogo"></span>
+    <span class="live-panel__title">
+      <b class="cq-body1-med cq-truncate" id="panelName"></b>
+      <span class="cq-caption-reg cq-truncate" id="panelApp"></span>
+    </span>
+  </div>
+  <div id="panelBody"></div>
+  <div class="live-panel__actions">
+    <button class="cq-btn cq-btn--tonal" style="flex:1 1 auto">Open in app</button>
+    <button class="cq-btn cq-btn--ghost">Disconnect</button>
+  </div>
+</aside>
 
 </div>
 
@@ -2146,22 +2197,44 @@ const subOf = subId => catOf(subId).subs.find(s => s.id === subId);
    fact about the instance, not its identity, so it gets its own column
    rather than standing in for the name. */
 const LIVE = [
-  { name: 'Marketing Drive',    lg: 'gdrive',     appLabel: 'Google Drive', sub: 'documents',  creator: 'Priya Nair',  connected: 'Aug 12, 2026', ts: Date.parse('2026-08-12') },
-  { name: 'Release Notes Bot',  lg: 'slack',      appLabel: 'Slack',        sub: 'channels',   creator: 'You',         connected: 'Aug 20, 2026', ts: Date.parse('2026-08-20') },
-  { name: 'Support Tracker',    lg: 'jira',       appLabel: 'Jira',         sub: 'pm',         creator: 'Marcus Lee',  connected: 'Jul 30, 2026', ts: Date.parse('2026-07-30') },
-  { name: 'Analytics Warehouse',lg: 'snowflake',  appLabel: 'Snowflake',    sub: 'structured',  creator: 'Aria Chen',   connected: 'Jun 18, 2026', ts: Date.parse('2026-06-18') },
-  { name: 'Customer DB',        lg: 'postgres',   appLabel: 'PostgreSQL',   sub: 'structured',  creator: 'Aria Chen',   connected: 'May 2, 2026',  ts: Date.parse('2026-05-02') },
-  { name: 'Growth Repo',        lg: 'github',     appLabel: 'Github',       sub: 'repos',       creator: 'Marcus Lee',  connected: 'Apr 11, 2026', ts: Date.parse('2026-04-11') },
-  { name: 'Team Inbox',         lg: 'gmail',      appLabel: 'Gmail',        sub: 'channels',   creator: 'Priya Nair',  connected: 'Mar 9, 2026',  ts: Date.parse('2026-03-09') },
+  { id: 'marketing-drive', name: 'Marketing Drive', lg: 'gdrive', appLabel: 'Google Drive', sub: 'documents',
+    creator: 'Priya Nair', connected: 'Aug 12, 2026', ts: Date.parse('2026-08-12'),
+    desc: 'Syncs shared marketing folders into agent workflows.',
+    kv: [['Account', 'marketing@cogentiq.com'], ['Synced folders', '3'], ['Auth method', 'OAuth 2.0'], ['Last synced', '2 hours ago']] },
+  { id: 'release-notes-bot', name: 'Release Notes Bot', lg: 'slack', appLabel: 'Slack', sub: 'channels',
+    creator: 'You', connected: 'Aug 20, 2026', ts: Date.parse('2026-08-20'),
+    desc: 'Posts new release notes into the product channel.',
+    kv: [['Workspace', 'Cogentiq'], ['Channel', '#product-releases'], ['Auth method', 'OAuth 2.0']] },
+  { id: 'support-tracker', name: 'Support Tracker', lg: 'jira', appLabel: 'Jira', sub: 'pm',
+    creator: 'Marcus Lee', connected: 'Jul 30, 2026', ts: Date.parse('2026-07-30'),
+    desc: 'Tracks support escalations raised by the assistant.',
+    kv: [['Site', 'cogentiq.atlassian.net'], ['Project', 'SUP'], ['Auth method', 'OAuth 2.0']] },
+  { id: 'analytics-warehouse', name: 'Analytics Warehouse', lg: 'snowflake', appLabel: 'Snowflake', sub: 'structured',
+    creator: 'Aria Chen', connected: 'Jun 18, 2026', ts: Date.parse('2026-06-18'),
+    desc: 'Serves warehouse queries for the analytics assistant.',
+    kv: [['Account', 'cogentiq-analytics'], ['Warehouse', 'ANALYTICS_WH'], ['Auth method', 'Key pair']] },
+  { id: 'customer-db', name: 'Customer DB', lg: 'postgres', appLabel: 'PostgreSQL', sub: 'structured',
+    creator: 'Aria Chen', connected: 'May 2, 2026', ts: Date.parse('2026-05-02'),
+    desc: 'Read access to production customer records.',
+    kv: [['Host', 'db.cogentiq.internal'], ['Port', '5432'], ['Database', 'customers'], ['Auth method', 'Password']] },
+  { id: 'growth-repo', name: 'Growth Repo', lg: 'github', appLabel: 'Github', sub: 'repos',
+    creator: 'Marcus Lee', connected: 'Apr 11, 2026', ts: Date.parse('2026-04-11'),
+    desc: 'Lets agents open and review pull requests.',
+    kv: [['Organization', 'cogentiq-labs'], ['Repository', 'growth-experiments'], ['Auth method', 'OAuth 2.0']] },
+  { id: 'team-inbox', name: 'Team Inbox', lg: 'gmail', appLabel: 'Gmail', sub: 'channels',
+    creator: 'Priya Nair', connected: 'Mar 9, 2026', ts: Date.parse('2026-03-09'),
+    desc: 'Reads and drafts replies to support email.',
+    kv: [['Account', 'support@cogentiq.com'], ['Scope', 'Read & send'], ['Auth method', 'OAuth 2.0']] },
 ];
+const liveById = id => LIVE.find(it => it.id === id);
 
 const SORTS = [
   { key: 'recent', label: 'Recently connected', cmp: (a, b) => b.ts - a.ts },
-  { key: 'az',     label: 'Name A\u2013Z',      cmp: (a, b) => a.name.localeCompare(b.name) },
+  { key: 'az',     label: 'Name A–Z',      cmp: (a, b) => a.name.localeCompare(b.name) },
   { key: 'app',    label: 'App',                 cmp: (a, b) => a.appLabel.localeCompare(b.appLabel) },
 ];
 
-const liveState = { createdBy: 'Anyone', sort: 'recent', apps: new Set(), q: '', appQ: '' };
+const liveState = { createdBy: 'Anyone', createdByQ: '', sort: 'recent', apps: new Set(), q: '', appQ: '', selected: null };
 
 function liveVisible() {
   const q = liveState.q.trim().toLowerCase();
@@ -2177,9 +2250,13 @@ function liveVisible() {
 
 function tableRow(it) {
   const cat = catOf(it.sub), sub = subOf(it.sub);
+  const sel = liveState.selected === it.id;
   return `
-  <div class="cq-row" tabindex="0">
-    <div class="cq-cell"><span class="cq-body1-med cq-truncate">${it.name}</span></div>
+  <div class="cq-row cq-tint${sel ? ' is-selected' : ''}" tabindex="0" data-id="${it.id}">
+    <div class="cq-cell live-name">
+      <span class="cq-logo-tile cq-logo-tile--sm">${mark(it.lg)}</span>
+      <span class="cq-body1-med cq-truncate">${it.name}</span>
+    </div>
     <div class="cq-cell live-app">
       <span class="cq-logo-tile cq-logo-tile--sm">${mark(it.lg)}</span>
       <span class="cq-body2-reg cq-truncate">${it.appLabel}</span>
@@ -2191,7 +2268,7 @@ function tableRow(it) {
     </div>
     <div class="cq-cell cq-cell--muted cq-mono">${it.connected}</div>
     <div class="cq-cell"><span class="cq-status"><span class="cq-status--dot"></span>Connected</span></div>
-    <div class="cq-cell"><button class="cq-icon-btn cq-icon-btn--sm" aria-label="More actions"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-dots"/></svg></button></div>
+    <div class="cq-cell"><button class="cq-icon-btn cq-icon-btn--sm" data-noopen aria-label="More actions"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-dots"/></svg></button></div>
   </div>`;
 }
 
@@ -2205,11 +2282,54 @@ function renderTable() {
   wrap.innerHTML = `
     <div class="cq-table live-table">
       <div class="cq-thead">
-        <span>Name</span><span>App</span><span>Category</span><span>Created by</span><span>Connected</span><span>Status</span><span>Actions</span>
+        <span>Name</span><span>App</span><span>Tags</span><span>Created by</span><span>Connected</span><span>Status</span><span>Actions</span>
       </div>
       ${rows.map(tableRow).join('')}
     </div>`;
+  if (liveState.selected && !liveById(liveState.selected)) closePanel();
 }
+
+/* ── Detail panel — opens on a row, closes on the same row, Escape, or
+   an outside click. The kv rows past "Connected" are the one part that
+   differs per integration: what a database needs to show is not what a
+   channel needs to show. ── */
+function openPanel(id) {
+  const it = liveById(id);
+  if (!it) return;
+  const cat = catOf(it.sub), sub = subOf(it.sub);
+  liveState.selected = id;
+  $('panelLogo').innerHTML = mark(it.lg);
+  $('panelName').textContent = it.name;
+  $('panelApp').textContent = it.appLabel;
+  $('panelBody').innerHTML = `
+    <div class="cq-panel__section">
+      <span class="cq-section-label cq-caption-med">Overview</span>
+      <p class="cq-body2-reg" style="margin:0;color:var(--text-secondary)">${it.desc}</p>
+      <div class="cq-kv"><span class="cq-kv__k">Tags</span><span class="cq-kv__v"><span class="cq-tag is-tinted" data-tone="${cat.tone}">${sub.label}</span></span></div>
+      <div class="cq-kv"><span class="cq-kv__k">Created by</span><span class="cq-kv__v">${it.creator}</span></div>
+      <div class="cq-kv"><span class="cq-kv__k">Connected</span><span class="cq-kv__v">${it.connected}</span></div>
+      <div class="cq-kv"><span class="cq-kv__k">Status</span><span class="cq-kv__v"><span class="cq-status"><span class="cq-status--dot"></span>Connected</span></span></div>
+    </div>
+    <div class="cq-panel__section">
+      <span class="cq-section-label cq-caption-med">Configuration</span>
+      ${it.kv.map(([k, v]) => `<div class="cq-kv"><span class="cq-kv__k">${k}</span><span class="cq-kv__v cq-truncate">${v}</span></div>`).join('')}
+    </div>`;
+  $('livePanel').classList.add('is-open');
+  $('livePanel').setAttribute('aria-hidden', 'false');
+  renderTable();
+}
+function closePanel() {
+  liveState.selected = null;
+  $('livePanel').classList.remove('is-open');
+  $('livePanel').setAttribute('aria-hidden', 'true');
+  renderTable();
+}
+$('tableWrap').addEventListener('click', e => {
+  if (e.target.closest('[data-noopen]')) return;
+  const row = e.target.closest('.cq-row[data-id]');
+  if (!row) return;
+  row.dataset.id === liveState.selected ? closePanel() : openPanel(row.dataset.id);
+});
 
 /* ── Popovers: one open at a time, closed by an outside click or Escape ── */
 function closeAllPops() {
@@ -2230,12 +2350,22 @@ function wirePop(btnId, popId, onOpen) {
     }
   });
 }
-document.addEventListener('click', e => { if (!e.target.closest('.cq-filter-group')) closeAllPops(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPops(); });
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cq-filter-group')) closeAllPops();
+  if (liveState.selected && !e.target.closest('.cq-panel') && !e.target.closest('.cq-row[data-id]')) closePanel();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  closeAllPops();
+  if (liveState.selected) closePanel();
+});
 
 function renderCreatedByList() {
-  const names = ['Anyone', ...new Set(LIVE.map(it => it.creator))];
-  $('createdByList').innerHTML = names.map(n => `
+  const q = liveState.createdByQ.trim().toLowerCase();
+  const names = ['Anyone', ...new Set(LIVE.map(it => it.creator))].filter(n => n.toLowerCase().includes(q));
+  const list = $('createdByList');
+  if (!names.length) { list.innerHTML = `<div class="cq-pop__empty cq-body2-reg">No one matches</div>`; return; }
+  list.innerHTML = names.map(n => `
     <button class="cq-option${liveState.createdBy === n ? ' is-picked' : ''}" data-name="${n}">
       <span class="cq-option__label">${n}</span>
       <svg class="cq-option__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
@@ -2249,6 +2379,7 @@ $('createdByList').addEventListener('click', e => {
   closeAllPops();
   renderTable();
 });
+$('createdBySearch').addEventListener('input', e => { liveState.createdByQ = e.target.value; renderCreatedByList(); });
 
 function renderSortByList() {
   $('sortByList').innerHTML = SORTS.map(s => `
@@ -2291,10 +2422,9 @@ $('appList').addEventListener('click', e => {
 });
 $('appSearch').addEventListener('input', e => { liveState.appQ = e.target.value; renderAppList(); });
 
-wirePop('createdByBtn', 'createdByPop', renderCreatedByList);
+wirePop('createdByBtn', 'createdByPop', () => { $('createdBySearch').value = ''; liveState.createdByQ = ''; renderCreatedByList(); });
 wirePop('sortByBtn', 'sortByPop', renderSortByList);
 wirePop('appBtn', 'appPop', () => { $('appSearch').value = ''; liveState.appQ = ''; renderAppList(); });
-
 $('liveQ').addEventListener('input', e => { liveState.q = e.target.value; renderTable(); });
 
 /* ════ Banner ════
@@ -2411,6 +2541,7 @@ function applyTabView() {
   $('liveToolbar').hidden = !live;
   $('sections').hidden = live;
   $('tableWrap').hidden = !live;
+  if (!live && liveState.selected) closePanel();
   if (live) renderTable(); else render();
 }
 
