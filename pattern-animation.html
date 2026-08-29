@@ -169,8 +169,6 @@ const DEFAULTS = {
   palette: ['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42'],
   colorMode: 'flow',         // flow | solid
   gradientScale: 1.0, bandShift: 0.14,
-  // guides
-  guides: true, guideCount: 4, guideColor: '#e6a1c8', guideOpacity: 0.5, guideSpread: 1.6,
   // bars
   barCount: 7, barGap: 0.06, barAlternate: true, barSlide: 0.35, barSoft: 0.5,
   // effects
@@ -188,7 +186,6 @@ const PRESETS = {
     bg:'#0d1440', bgGradient:false, bg2:'#1b2a6b',
     palette:['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42'],
     colorMode:'flow', gradientScale:1.0, bandShift:0.14,
-    guides:false, guideCount:4, guideColor:'#e6a1c8', guideOpacity:0.4, guideSpread:1.6,
     speed:0.8, colorDrift:0.06, grain:0.22,
   },
   'Emerald Wave': {        // big rolling green wave with dashed guide lines
@@ -199,7 +196,6 @@ const PRESETS = {
     bg:'#0c3428', bgGradient:false, bg2:'#0a2820',
     palette:['#0f5b3f','#35d07f','#a5e83c','#d6f56a','#57e0a0'],
     colorMode:'flow', gradientScale:0.8, bandShift:0.1,
-    guides:true, guideCount:5, guideColor:'#d8b9a5', guideOpacity:0.55, guideSpread:1.5,
     speed:0.7, colorDrift:0.05, grain:0.2,
   },
   'Aurora Fan': {          // ribbons converging to an off-screen corner, navy + neon
@@ -210,7 +206,6 @@ const PRESETS = {
     bg:'#0d1b3d', bgGradient:true, bg2:'#091027',
     palette:['#ff9e6d','#f472b6','#3b82f6','#2dd4bf','#a855f7','#facc15','#fb7185'],
     colorMode:'flow', gradientScale:1.4, bandShift:0.19,
-    guides:true, guideCount:3, guideColor:'#f0a6d8', guideOpacity:0.45, guideSpread:1.4,
     speed:0.9, colorDrift:0.09, grain:0.25,
   },
   'Prism Bars': {          // vertical gradient bars with sliding colors
@@ -219,7 +214,7 @@ const PRESETS = {
     bg:'#050505', bgGradient:false, bg2:'#111',
     palette:['#f59e0b','#84cc16','#5eead4','#7c3aed','#2563eb','#ec4899','#ef4444','#eab308'],
     colorMode:'flow', gradientScale:1, bandShift:0.16,
-    guides:false, speed:0.6, colorDrift:0.08, grain:0.3,
+    speed:0.6, colorDrift:0.08, grain:0.3,
   },
   'Midnight Pinch': {      // symmetric flow squeezed through a mid-point waist
     variant:'ribbons', bands:10, spacing:0.05, gap:0.05, amplitude:0.07, frequency:1.1,
@@ -229,7 +224,6 @@ const PRESETS = {
     bg:'#101021', bgGradient:false, bg2:'#1a1a33',
     palette:['#22d3ee','#818cf8','#e879f9','#fb923c','#4ade80'],
     colorMode:'flow', gradientScale:1.2, bandShift:0.12,
-    guides:true, guideCount:3, guideColor:'#9aa4ff', guideOpacity:0.35, guideSpread:1.7,
     speed:1.0, colorDrift:0.07, grain:0.2,
   },
   'Vertical Cascade': {    // the whole flow rotated to run top → bottom
@@ -240,7 +234,7 @@ const PRESETS = {
     bg:'#160a26', bgGradient:true, bg2:'#0b0517',
     palette:['#f0abfc','#818cf8','#38bdf8','#fb923c','#f472b6'],
     colorMode:'flow', gradientScale:1.1, bandShift:0.15,
-    guides:false, speed:0.85, colorDrift:0.07, grain:0.22,
+    speed:0.85, colorDrift:0.07, grain:0.22,
   },
 };
 
@@ -360,27 +354,6 @@ function drawRibbons(t,L,Wd,minD){
       ? colorAt(i*S.bandShift + t*S.colorDrift)
       : bandGradient(i,t,L);
     ctx.fill();
-  }
-
-  // dashed guide lines beyond the stack
-  if(S.guides && S.guideCount>0){
-    ctx.save();
-    ctx.strokeStyle=S.guideColor;
-    ctx.globalAlpha=S.guideOpacity;
-    ctx.lineWidth=1;
-    ctx.setLineDash([2,6]);
-    for(let g=1;g<=S.guideCount;g++){
-      for(const side of [-1,1]){
-        const j = side<0 ? -g*S.guideSpread : N + g*S.guideSpread;
-        ctx.beginPath();
-        for(let k=0;k<=SEG;k++){
-          const y=edgeY(j,k/SEG,t,L,minD,nEdges);
-          k===0?ctx.moveTo(xAt(k),y):ctx.lineTo(xAt(k),y);
-        }
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
   }
 }
 
@@ -506,13 +479,6 @@ const SCHEMA=[
     {key:'bg', label:'Background', type:'color'},
     {key:'bgGradient', label:'Background gradient', type:'check'},
     {key:'bg2', label:'Background 2', type:'color', show:s=>s.bgGradient},
-  ]},
-  {sec:'Guide lines', show:s=>s.variant==='ribbons', rows:[
-    {key:'guides', label:'Show dashed guides', type:'check'},
-    {key:'guideCount', label:'Lines per side', type:'range', min:1, max:8, step:1, show:s=>s.guides},
-    {key:'guideSpread', label:'Line spacing', type:'range', min:0.5, max:4, step:0.1, show:s=>s.guides},
-    {key:'guideColor', label:'Line color', type:'color', show:s=>s.guides},
-    {key:'guideOpacity', label:'Line opacity', type:'range', min:0, max:1, step:0.02, show:s=>s.guides},
   ]},
   {sec:'Texture', rows:[
     {key:'grain', label:'Grain', type:'range', min:0, max:1, step:0.02},
@@ -689,7 +655,7 @@ function syncUI(){
 
 function onChange(key){
   forceDraw=true;
-  if(key==='variant'||key==='bgGradient'||key==='guides'||key==='colorMode') syncUI();
+  if(key==='variant'||key==='bgGradient'||key==='colorMode') syncUI();
 }
 
 function applyPreset(p){
@@ -739,9 +705,6 @@ function randomize(){
     flipX:Math.random()<0.3, flipY:Math.random()<0.3,
     colorMode:Math.random()<0.8?'flow':'solid',
     gradientScale:rnd(0.6,1.8), bandShift:rnd(0.05,0.25),
-    guides:Math.random()<0.5, guideCount:Math.floor(rnd(2,6)),
-    guideColor:hslToHex((baseH+rnd(-40,40)+360)%360,70,78), guideOpacity:rnd(0.25,0.6),
-    guideSpread:rnd(1.2,2.2),
     barCount:Math.floor(rnd(5,12)), barGap:rnd(0,0.15), barAlternate:Math.random()<0.6,
     barSlide:rnd(0.2,0.7), barSoft:rnd(0.3,0.8),
     speed:rnd(0.4,1.4), colorDrift:rnd(0.02,0.15), grain:rnd(0,0.4),
