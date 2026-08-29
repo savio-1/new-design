@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Pattern Studio</title>
+<style>
+  :root{
+    --panel-bg: rgba(16,18,28,.92);
+    --panel-border: rgba(255,255,255,.08);
+    --txt: #e8eaf2;
+    --txt-dim: #8b90a3;
+    --accent: #6c7bff;
+    --input-bg: rgba(255,255,255,.06);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#0a0d1c;
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+  #stage{ position:fixed; inset:0; display:block; }
+
+  /* ---------- control panel ---------- */
+  #panel{
+    position:fixed; top:0; right:0; height:100%; width:308px;
+    background:var(--panel-bg); backdrop-filter: blur(14px);
+    border-left:1px solid var(--panel-border);
+    color:var(--txt); font-size:12px;
+    overflow-y:auto; overscroll-behavior:contain;
+    transition:transform .35s cubic-bezier(.4,0,.2,1);
+    z-index:10; padding-bottom:32px;
+  }
+  #panel.hidden{ transform:translateX(100%); }
+  #panel::-webkit-scrollbar{ width:8px; }
+  #panel::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.12); border-radius:4px; }
+
+  #panelHead{
+    position:sticky; top:0; z-index:2;
+    background:var(--panel-bg); backdrop-filter: blur(14px);
+    padding:16px 18px 12px; border-bottom:1px solid var(--panel-border);
+  }
+  #panelHead h1{ font-size:13px; font-weight:600; letter-spacing:.4px; }
+  #panelHead p{ color:var(--txt-dim); font-size:11px; margin-top:2px; }
+
+  #toggleBtn{
+    position:fixed; top:14px; right:14px; z-index:11;
+    width:34px; height:34px; border-radius:9px; cursor:pointer;
+    background:rgba(16,18,28,.85); color:#cfd3e4;
+    border:1px solid var(--panel-border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px; backdrop-filter: blur(10px);
+    transition:right .35s cubic-bezier(.4,0,.2,1);
+  }
+  #toggleBtn.open{ right:322px; }
+  #toggleBtn:hover{ color:#fff; border-color:rgba(255,255,255,.25); }
+
+  .section{ border-bottom:1px solid var(--panel-border); }
+  .secHead{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 18px; cursor:pointer; user-select:none;
+  }
+  .secHead:hover{ background:rgba(255,255,255,.03); }
+  .secHead h2{ font-size:11px; font-weight:600; letter-spacing:1.1px; text-transform:uppercase; color:#b9bdd0; }
+  .secHead .chev{ color:var(--txt-dim); font-size:10px; transition:transform .2s; }
+  .section.closed .chev{ transform:rotate(-90deg); }
+  .secBody{ padding:4px 18px 14px; }
+  .section.closed .secBody{ display:none; }
+
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:9px 0; }
+  .row label{ flex:0 0 96px; color:var(--txt-dim); font-size:11.5px; line-height:1.25; }
+  .row .val{ flex:0 0 42px; text-align:right; color:var(--txt); font-variant-numeric:tabular-nums; font-size:10.5px; }
+
+  input[type=range]{ flex:1; -webkit-appearance:none; appearance:none; height:3px; border-radius:2px;
+    background:rgba(255,255,255,.14); outline:none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:12px; height:12px;
+    border-radius:50%; background:#fff; border:none;
+    box-shadow:0 1px 4px rgba(0,0,0,.5); }
+  input[type=range]::-moz-range-thumb{ width:12px; height:12px; border-radius:50%; background:#fff; border:none; }
+
+  select{
+    flex:1; background:var(--input-bg); color:var(--txt); border:1px solid var(--panel-border);
+    border-radius:6px; padding:5px 8px; font-size:11.5px; outline:none; cursor:pointer;
+  }
+  select option{ background:#171a28; }
+
+  input[type=checkbox]{ width:15px; height:15px; accent-color:var(--accent); cursor:pointer; }
+
+  input[type=color]{
+    -webkit-appearance:none; appearance:none; width:30px; height:24px; border:none; border-radius:6px;
+    background:none; cursor:pointer; padding:0;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper{ padding:0; }
+  input[type=color]::-webkit-color-swatch{ border:1px solid rgba(255,255,255,.2); border-radius:6px; }
+  input[type=color]::-moz-color-swatch{ border:1px solid rgba(255,255,255,.2); border-radius:6px; }
+
+  /* palette editor */
+  #paletteList{ display:flex; flex-wrap:wrap; gap:7px; margin:8px 0 4px; }
+  .swatch{ position:relative; }
+  .swatch input[type=color]{ width:34px; height:28px; }
+  .swatch .rm{
+    position:absolute; top:-6px; right:-6px; width:14px; height:14px; border-radius:50%;
+    background:#2a2e40; color:#aab; font-size:9px; line-height:13px; text-align:center;
+    cursor:pointer; border:1px solid rgba(255,255,255,.15); display:none;
+  }
+  .swatch:hover .rm{ display:block; }
+  #addColor{
+    width:34px; height:28px; border-radius:6px; border:1px dashed rgba(255,255,255,.3);
+    background:none; color:var(--txt-dim); font-size:15px; cursor:pointer;
+  }
+  #addColor:hover{ color:#fff; border-color:rgba(255,255,255,.5); }
+
+  .btnRow{ display:flex; flex-wrap:wrap; gap:7px; margin:9px 0 2px; }
+  .btn{
+    background:var(--input-bg); border:1px solid var(--panel-border); color:var(--txt);
+    border-radius:7px; padding:6px 11px; font-size:11px; cursor:pointer; flex:1 1 auto; text-align:center;
+    transition:background .15s;
+  }
+  .btn:hover{ background:rgba(255,255,255,.12); }
+  .btn.primary{ background:var(--accent); border-color:transparent; color:#fff; }
+  .btn.primary:hover{ background:#8090ff; }
+
+  .presetBtn{
+    display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+    background:var(--input-bg); border:1px solid var(--panel-border); color:var(--txt);
+    border-radius:8px; padding:7px 10px; font-size:11.5px; cursor:pointer; margin:5px 0;
+  }
+  .presetBtn:hover{ background:rgba(255,255,255,.1); }
+  .presetBtn .dots{ display:flex; gap:3px; flex-shrink:0; }
+  .presetBtn .dots i{ width:9px; height:9px; border-radius:50%; display:block; }
+
+  #toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(70px);
+    background:rgba(20,22,34,.95); color:#e8eaf2; font-size:12px; padding:9px 18px;
+    border-radius:8px; border:1px solid var(--panel-border); z-index:20;
+    transition:transform .3s; pointer-events:none;
+  }
+  #toast.show{ transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<button id="toggleBtn" class="open" title="Toggle controls">⚙</button>
+<div id="panel"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   Flow Pattern Studio — configurable ribbon / gradient-bar animations
+   ===================================================================== */
+
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d');
+
+/* ---------------- state ---------------- */
+const DEFAULTS = {
+  variant: 'ribbons',        // ribbons | bars
+  // motion
+  speed: 0.8, colorDrift: 0.06, paused: false,
+  // ribbon shape
+  bands: 7, spacing: 0.055, gap: 0.0,
+  amplitude: 0.10, frequency: 0.8,
+  amplitude2: 0.04, frequency2: 1.9,
+  stagger: 0.25, waveTaper: 0.55, centerY: 0.0,
+  // flow envelope
+  spreadL: 1.5, spreadR: 0.07, pinch: 0.0, pinchPos: 0.5, pinchWidth: 0.18,
+  // orientation
+  angle: 0, flipX: false, flipY: false,
+  // colors
+  bg: '#0d1440', bgGradient: false, bg2: '#1b2a6b',
+  palette: ['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42'],
+  colorMode: 'flow',         // flow | solid
+  gradientScale: 1.0, bandShift: 0.14,
+  // guides
+  guides: true, guideCount: 4, guideColor: '#e6a1c8', guideOpacity: 0.5, guideSpread: 1.6,
+  // bars
+  barCount: 7, barGap: 0.06, barAlternate: true, barSlide: 0.35, barSoft: 0.5,
+  // effects
+  grain: 0.25,
+};
+let S = JSON.parse(JSON.stringify(DEFAULTS));
+
+/* ---------------- presets (variations from the reference video/images) ---------------- */
+const PRESETS = {
+  'Silk Flow': {           // wide ribbons pinching to a thin beam (— "flows smoother")
+    variant:'ribbons', bands:7, spacing:0.058, gap:0, amplitude:0.10, frequency:0.75,
+    amplitude2:0.035, frequency2:1.7, stagger:0.22, waveTaper:0.6, centerY:0,
+    spreadL:1.55, spreadR:0.07, pinch:0, pinchPos:0.5, pinchWidth:0.18,
+    angle:0, flipX:false, flipY:false,
+    bg:'#0d1440', bgGradient:false, bg2:'#1b2a6b',
+    palette:['#2e9e9b','#a8d8f0','#f97316','#2f5fe0','#b7a7f5','#ff8c42'],
+    colorMode:'flow', gradientScale:1.0, bandShift:0.14,
+    guides:false, guideCount:4, guideColor:'#e6a1c8', guideOpacity:0.4, guideSpread:1.6,
+    speed:0.8, colorDrift:0.06, grain:0.22,
+  },
+  'Emerald Wave': {        // big rolling green wave with dashed guide lines
+    variant:'ribbons', bands:4, spacing:0.075, gap:0, amplitude:0.22, frequency:0.65,
+    amplitude2:0.05, frequency2:1.4, stagger:0.45, waveTaper:0.25, centerY:0.08,
+    spreadL:1.0, spreadR:1.15, pinch:0.25, pinchPos:0.35, pinchWidth:0.3,
+    angle:0, flipX:false, flipY:false,
+    bg:'#0c3428', bgGradient:false, bg2:'#0a2820',
+    palette:['#0f5b3f','#35d07f','#a5e83c','#d6f56a','#57e0a0'],
+    colorMode:'flow', gradientScale:0.8, bandShift:0.1,
+    guides:true, guideCount:5, guideColor:'#d8b9a5', guideOpacity:0.55, guideSpread:1.5,
+    speed:0.7, colorDrift:0.05, grain:0.2,
+  },
+  'Aurora Fan': {          // ribbons converging to an off-screen corner, navy + neon
+    variant:'ribbons', bands:9, spacing:0.09, gap:0.06, amplitude:0.12, frequency:0.45,
+    amplitude2:0.03, frequency2:1.2, stagger:0.35, waveTaper:0.85, centerY:0,
+    spreadL:0.02, spreadR:1.9, pinch:0, pinchPos:0.5, pinchWidth:0.18,
+    angle:-18, flipX:false, flipY:false,
+    bg:'#0d1b3d', bgGradient:true, bg2:'#091027',
+    palette:['#ff9e6d','#f472b6','#3b82f6','#2dd4bf','#a855f7','#facc15','#fb7185'],
+    colorMode:'flow', gradientScale:1.4, bandShift:0.19,
+    guides:true, guideCount:3, guideColor:'#f0a6d8', guideOpacity:0.45, guideSpread:1.4,
+    speed:0.9, colorDrift:0.09, grain:0.25,
+  },
+  'Prism Bars': {          // vertical gradient bars with sliding colors
+    variant:'bars', barCount:7, barGap:0.055, barAlternate:true, barSlide:0.4, barSoft:0.55,
+    angle:0, flipX:false, flipY:false,
+    bg:'#050505', bgGradient:false, bg2:'#111',
+    palette:['#f59e0b','#84cc16','#5eead4','#7c3aed','#2563eb','#ec4899','#ef4444','#eab308'],
+    colorMode:'flow', gradientScale:1, bandShift:0.16,
+    guides:false, speed:0.6, colorDrift:0.08, grain:0.3,
+  },
+  'Midnight Pinch': {      // symmetric flow squeezed through a mid-point waist
+    variant:'ribbons', bands:10, spacing:0.05, gap:0.05, amplitude:0.07, frequency:1.1,
+    amplitude2:0.03, frequency2:2.3, stagger:0.3, waveTaper:0.4, centerY:0,
+    spreadL:1.25, spreadR:1.25, pinch:0.88, pinchPos:0.5, pinchWidth:0.16,
+    angle:0, flipX:false, flipY:false,
+    bg:'#101021', bgGradient:false, bg2:'#1a1a33',
+    palette:['#22d3ee','#818cf8','#e879f9','#fb923c','#4ade80'],
+    colorMode:'flow', gradientScale:1.2, bandShift:0.12,
+    guides:true, guideCount:3, guideColor:'#9aa4ff', guideOpacity:0.35, guideSpread:1.7,
+    speed:1.0, colorDrift:0.07, grain:0.2,
+  },
+  'Vertical Cascade': {    // the whole flow rotated to run top → bottom
+    variant:'ribbons', bands:8, spacing:0.06, gap:0.03, amplitude:0.09, frequency:0.9,
+    amplitude2:0.04, frequency2:1.8, stagger:0.28, waveTaper:0.5, centerY:0,
+    spreadL:1.4, spreadR:0.12, pinch:0, pinchPos:0.5, pinchWidth:0.18,
+    angle:90, flipX:false, flipY:false,
+    bg:'#160a26', bgGradient:true, bg2:'#0b0517',
+    palette:['#f0abfc','#818cf8','#38bdf8','#fb923c','#f472b6'],
+    colorMode:'flow', gradientScale:1.1, bandShift:0.15,
+    guides:false, speed:0.85, colorDrift:0.07, grain:0.22,
+  },
+};
+
+/* ---------------- helpers ---------------- */
+const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
+const lerp  = (a,b,t)=>a+(b-a)*t;
+const smooth = t=>{ t=clamp(t,0,1); return t*t*(3-2*t); };
+const frac = v=>((v%1)+1)%1;
+
+function hexToRgb(h){
+  h=h.replace('#','');
+  if(h.length===3) h=h.split('').map(c=>c+c).join('');
+  return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];
+}
+const rgbStr=(r,g,b)=>`rgb(${r|0},${g|0},${b|0})`;
+
+let palRgb=[];
+function cachePalette(){ palRgb = S.palette.map(hexToRgb); }
+
+/* sample the palette as a smooth cyclic gradient, u in [0,1) */
+function colorAt(u){
+  const n=palRgb.length;
+  if(n===0) return 'rgb(255,255,255)';
+  if(n===1) return rgbStr(...palRgb[0]);
+  u=frac(u)*n;
+  const i=Math.floor(u), f=smooth(u-i);
+  const a=palRgb[i%n], b=palRgb[(i+1)%n];
+  return rgbStr(lerp(a[0],b[0],f), lerp(a[1],b[1],f), lerp(a[2],b[2],f));
+}
+
+/* ---------------- canvas sizing ---------------- */
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=W*DPR; canvas.height=H*DPR;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+}
+window.addEventListener('resize',resize);
+resize();
+
+/* ---------------- grain overlay ---------------- */
+const grainCv=document.createElement('canvas');
+grainCv.width=grainCv.height=160;
+{
+  const gctx=grainCv.getContext('2d');
+  const img=gctx.createImageData(160,160);
+  for(let i=0;i<img.data.length;i+=4){
+    const v=Math.random()*255;
+    img.data[i]=img.data[i+1]=img.data[i+2]=v;
+    img.data[i+3]=28;
+  }
+  gctx.putImageData(img,0,0);
+}
+let grainPattern=null;
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+
+/* spread envelope along the flow, u in [0,1] */
+function envelope(u){
+  let e=lerp(S.spreadL,S.spreadR,smooth(u));
+  if(S.pinch>0){
+    const d=(u-S.pinchPos)/Math.max(S.pinchWidth,0.02);
+    e*=1-S.pinch*Math.exp(-d*d*0.5);
+  }
+  return Math.max(e,0.004);
+}
+
+/* y position of ribbon edge j (can be fractional for guides) at u∈[0,1] */
+function edgeY(j,u,t,L,minD,nEdges){
+  const env=envelope(u);
+  const ampEnv=lerp(1,env,S.waveTaper);
+  const w1=S.amplitude *minD*Math.sin(2*Math.PI*(S.frequency *u)-t*S.speed     +j*S.stagger);
+  const w2=S.amplitude2*minD*Math.sin(2*Math.PI*(S.frequency2*u)+t*S.speed*0.63+j*S.stagger*1.7+2.1);
+  return S.centerY*minD + (w1+w2)*ampEnv + (j-nEdges/2)*S.spacing*minD*env;
+}
+
+function bandGradient(i,t,L){
+  const g=ctx.createLinearGradient(-L/2,0,L/2,0);
+  const STOPS=22;
+  for(let s=0;s<=STOPS;s++){
+    const uu=s/STOPS;
+    g.addColorStop(uu,colorAt(uu*S.gradientScale + i*S.bandShift + t*S.colorDrift));
+  }
+  return g;
+}
+
+function drawRibbons(t,L,Wd,minD){
+  const N=Math.max(1,Math.round(S.bands));
+  const nEdges=N;                 // N bands → N+1 edges, centered via j-(N)/2
+  const SEG=110;
+  // precompute edges
+  const edges=[];
+  for(let j=0;j<=N;j++){
+    const pts=new Float32Array(SEG+1);
+    for(let k=0;k<=SEG;k++) pts[k]=edgeY(j,k/SEG,t,L,minD,nEdges);
+    edges.push(pts);
+  }
+  const xAt=k=>-L/2+(k/SEG)*L;
+
+  for(let i=0;i<N;i++){
+    const top=edges[i], bot=edges[i+1];
+    ctx.beginPath();
+    for(let k=0;k<=SEG;k++){
+      const g=S.gap*0.5;
+      const y=lerp(top[k],bot[k],g);
+      k===0?ctx.moveTo(xAt(k),y):ctx.lineTo(xAt(k),y);
+    }
+    for(let k=SEG;k>=0;k--){
+      const g=S.gap*0.5;
+      ctx.lineTo(xAt(k),lerp(bot[k],top[k],g));
+    }
+    ctx.closePath();
+    ctx.fillStyle = S.colorMode==='solid'
+      ? colorAt(i*S.bandShift + t*S.colorDrift)
+      : bandGradient(i,t,L);
+    ctx.fill();
+  }
+
+  // dashed guide lines beyond the stack
+  if(S.guides && S.guideCount>0){
+    ctx.save();
+    ctx.strokeStyle=S.guideColor;
+    ctx.globalAlpha=S.guideOpacity;
+    ctx.lineWidth=1;
+    ctx.setLineDash([2,6]);
+    for(let g=1;g<=S.guideCount;g++){
+      for(const side of [-1,1]){
+        const j = side<0 ? -g*S.guideSpread : N + g*S.guideSpread;
+        ctx.beginPath();
+        for(let k=0;k<=SEG;k++){
+          const y=edgeY(j,k/SEG,t,L,minD,nEdges);
+          k===0?ctx.moveTo(xAt(k),y):ctx.lineTo(xAt(k),y);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+function drawBars(t,L,Wd){
+  const M=Math.max(2,Math.round(S.barCount));
+  const slot=L/M;
+  const gapPx=slot*S.barGap;
+  for(let k=0;k<M;k++){
+    const x0=-L/2+k*slot+gapPx/2;
+    const w=slot-gapPx;
+    const flip=S.barAlternate&&(k%2===1)?-1:1;
+    const g=ctx.createLinearGradient(0,-Wd/2*flip,0,Wd/2*flip);
+    const base=k*S.bandShift + t*S.colorDrift;
+    const slide=S.barSlide*Math.sin(t*S.speed*0.9 + k*1.7);
+    const c0=colorAt(base);
+    const c1=colorAt(base + 0.18 + slide*0.25);
+    const c2=colorAt(base + 0.42 + slide*0.4);
+    g.addColorStop(0,c0);
+    g.addColorStop(clamp(0.5+slide*S.barSoft,0.08,0.92),c1);
+    g.addColorStop(1,c2);
+    ctx.fillStyle=g;
+    ctx.fillRect(x0,-Wd/2,w,Wd);
+  }
+}
+
+function frame(now){
+  requestAnimationFrame(frame);
+  if(S.paused && !forceDraw) return;
+  forceDraw=false;
+  const t=now*0.001;
+
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // background
+  if(S.bgGradient){
+    const bgG=ctx.createLinearGradient(0,0,0,H);
+    bgG.addColorStop(0,S.bg); bgG.addColorStop(1,S.bg2);
+    ctx.fillStyle=bgG;
+  } else ctx.fillStyle=S.bg;
+  ctx.fillRect(0,0,W,H);
+
+  // rotated drawing frame that always covers the viewport
+  const rad=S.angle*Math.PI/180;
+  const c=Math.abs(Math.cos(rad)), s=Math.abs(Math.sin(rad));
+  const L =(W*c+H*s)*1.06;     // extent along flow
+  const Wd=(W*s+H*c)*1.06;     // extent across flow
+  const minD=Math.min(W,H);
+
+  ctx.save();
+  ctx.translate(W/2,H/2);
+  ctx.rotate(rad);
+  ctx.scale(S.flipX?-1:1, S.flipY?-1:1);
+
+  if(S.variant==='bars') drawBars(t,L,Wd);
+  else drawRibbons(t,L,Wd,minD);
+  ctx.restore();
+
+  // grain
+  if(S.grain>0){
+    if(!grainPattern) grainPattern=ctx.createPattern(grainCv,'repeat');
+    ctx.save();
+    ctx.globalAlpha=S.grain;
+    ctx.globalCompositeOperation='overlay';
+    ctx.fillStyle=grainPattern;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
+  }
+}
+let forceDraw=true;
+cachePalette();
+requestAnimationFrame(frame);
+
+/* =====================================================================
+   CONTROL PANEL (built from a schema)
+   ===================================================================== */
+const panel=document.getElementById('panel');
+
+const SCHEMA=[
+  {sec:'Pattern', rows:[
+    {key:'variant', label:'Type', type:'select', opts:[['ribbons','Flowing ribbons'],['bars','Gradient bars']]},
+    {custom:'presets'},
+  ]},
+  {sec:'Motion', rows:[
+    {key:'speed', label:'Flow speed', type:'range', min:0, max:3, step:0.05},
+    {key:'colorDrift', label:'Color drift', type:'range', min:0, max:0.5, step:0.005},
+    {key:'paused', label:'Pause', type:'check'},
+  ]},
+  {sec:'Ribbon shape', show:s=>s.variant==='ribbons', rows:[
+    {key:'bands', label:'Bands', type:'range', min:1, max:16, step:1},
+    {key:'spacing', label:'Band width', type:'range', min:0.01, max:0.2, step:0.002},
+    {key:'gap', label:'Band gap', type:'range', min:0, max:0.9, step:0.02},
+    {key:'amplitude', label:'Wave height', type:'range', min:0, max:0.5, step:0.005},
+    {key:'frequency', label:'Wave count', type:'range', min:0, max:3, step:0.05},
+    {key:'amplitude2', label:'Ripple height', type:'range', min:0, max:0.3, step:0.005},
+    {key:'frequency2', label:'Ripple count', type:'range', min:0, max:5, step:0.05},
+    {key:'stagger', label:'Band lag', type:'range', min:0, max:1.2, step:0.02},
+    {key:'waveTaper', label:'Wave taper', type:'range', min:0, max:1, step:0.02},
+    {key:'centerY', label:'Vertical shift', type:'range', min:-0.6, max:0.6, step:0.02},
+  ]},
+  {sec:'Flow spread', show:s=>s.variant==='ribbons', rows:[
+    {key:'spreadL', label:'Spread @ start', type:'range', min:0, max:2.5, step:0.02},
+    {key:'spreadR', label:'Spread @ end', type:'range', min:0, max:2.5, step:0.02},
+    {key:'pinch', label:'Pinch amount', type:'range', min:0, max:1, step:0.02},
+    {key:'pinchPos', label:'Pinch position', type:'range', min:0, max:1, step:0.02},
+    {key:'pinchWidth', label:'Pinch width', type:'range', min:0.04, max:0.5, step:0.01},
+  ]},
+  {sec:'Bars', show:s=>s.variant==='bars', rows:[
+    {key:'barCount', label:'Bar count', type:'range', min:2, max:24, step:1},
+    {key:'barGap', label:'Bar gap', type:'range', min:0, max:0.6, step:0.01},
+    {key:'barSlide', label:'Gradient slide', type:'range', min:0, max:1, step:0.02},
+    {key:'barSoft', label:'Gradient sway', type:'range', min:0, max:1, step:0.02},
+    {key:'barAlternate', label:'Alternate direction', type:'check'},
+  ]},
+  {sec:'Orientation', rows:[
+    {key:'angle', label:'Rotation', type:'range', min:-180, max:180, step:1, fmt:v=>v+'°'},
+    {key:'flipX', label:'Mirror flow', type:'check'},
+    {key:'flipY', label:'Flip vertical', type:'check'},
+  ]},
+  {sec:'Colors', rows:[
+    {custom:'palette'},
+    {key:'colorMode', label:'Fill style', type:'select', opts:[['flow','Gradient along flow'],['solid','Solid per band']]},
+    {key:'gradientScale', label:'Gradient scale', type:'range', min:0.2, max:3, step:0.05, show:s=>s.colorMode==='flow'},
+    {key:'bandShift', label:'Band color shift', type:'range', min:0, max:1, step:0.01},
+    {key:'bg', label:'Background', type:'color'},
+    {key:'bgGradient', label:'Background gradient', type:'check'},
+    {key:'bg2', label:'Background 2', type:'color', show:s=>s.bgGradient},
+  ]},
+  {sec:'Guide lines', show:s=>s.variant==='ribbons', rows:[
+    {key:'guides', label:'Show dashed guides', type:'check'},
+    {key:'guideCount', label:'Lines per side', type:'range', min:1, max:8, step:1, show:s=>s.guides},
+    {key:'guideSpread', label:'Line spacing', type:'range', min:0.5, max:4, step:0.1, show:s=>s.guides},
+    {key:'guideColor', label:'Line color', type:'color', show:s=>s.guides},
+    {key:'guideOpacity', label:'Line opacity', type:'range', min:0, max:1, step:0.02, show:s=>s.guides},
+  ]},
+  {sec:'Texture', rows:[
+    {key:'grain', label:'Grain', type:'range', min:0, max:1, step:0.02},
+  ]},
+  {sec:'Actions', rows:[
+    {custom:'actions'},
+  ]},
+];
+
+const inputs={};   // key -> {el, def, valEl, rowEl}
+const sections=[]; // {el, show}
+
+function fmtVal(def,v){
+  if(def.fmt) return def.fmt(v);
+  if(def.type==='range') return def.step>=1? String(v) : (+v).toFixed(def.step<0.01?3:2);
+  return '';
+}
+
+function buildPanel(){
+  panel.innerHTML='';
+  const head=document.createElement('div');
+  head.id='panelHead';
+  head.innerHTML='<h1>Flow Pattern Studio</h1><p>Custom animated background patterns</p>';
+  panel.appendChild(head);
+
+  for(const sec of SCHEMA){
+    const secEl=document.createElement('div');
+    secEl.className='section';
+    const sh=document.createElement('div');
+    sh.className='secHead';
+    sh.innerHTML=`<h2>${sec.sec}</h2><span class="chev">▾</span>`;
+    sh.onclick=()=>secEl.classList.toggle('closed');
+    const body=document.createElement('div');
+    body.className='secBody';
+    secEl.append(sh,body);
+
+    for(const def of sec.rows){
+      if(def.custom==='presets'){ body.appendChild(buildPresets()); continue; }
+      if(def.custom==='palette'){ body.appendChild(buildPaletteEditor()); continue; }
+      if(def.custom==='actions'){ body.appendChild(buildActions()); continue; }
+      body.appendChild(buildRow(def));
+    }
+    panel.appendChild(secEl);
+    sections.push({el:secEl, show:sec.show});
+  }
+  syncUI();
+}
+
+function buildRow(def){
+  const row=document.createElement('div');
+  row.className='row';
+  const label=document.createElement('label');
+  label.textContent=def.label;
+  row.appendChild(label);
+
+  let el;
+  if(def.type==='range'){
+    el=document.createElement('input');
+    el.type='range'; el.min=def.min; el.max=def.max; el.step=def.step;
+    const val=document.createElement('span');
+    val.className='val';
+    el.oninput=()=>{ S[def.key]=+el.value; val.textContent=fmtVal(def,+el.value); onChange(def.key); };
+    row.append(el,val);
+    inputs[def.key]={el,def,valEl:val,rowEl:row};
+  } else if(def.type==='check'){
+    el=document.createElement('input');
+    el.type='checkbox';
+    el.onchange=()=>{ S[def.key]=el.checked; onChange(def.key); };
+    row.appendChild(el);
+    inputs[def.key]={el,def,rowEl:row};
+  } else if(def.type==='select'){
+    el=document.createElement('select');
+    for(const [v,txt] of def.opts){
+      const o=document.createElement('option');
+      o.value=v; o.textContent=txt; el.appendChild(o);
+    }
+    el.onchange=()=>{ S[def.key]=el.value; onChange(def.key); };
+    row.appendChild(el);
+    inputs[def.key]={el,def,rowEl:row};
+  } else if(def.type==='color'){
+    el=document.createElement('input');
+    el.type='color';
+    el.oninput=()=>{ S[def.key]=el.value; onChange(def.key); };
+    row.appendChild(el);
+    inputs[def.key]={el,def,rowEl:row};
+  }
+  return row;
+}
+
+function buildPresets(){
+  const wrap=document.createElement('div');
+  for(const [name,p] of Object.entries(PRESETS)){
+    const b=document.createElement('button');
+    b.className='presetBtn';
+    const dots=(p.palette||[]).slice(0,5).map(c=>`<i style="background:${c}"></i>`).join('');
+    b.innerHTML=`<span class="dots">${dots}</span><span>${name}</span>`;
+    b.onclick=()=>{ applyPreset(p); toast(`Preset: ${name}`); };
+    wrap.appendChild(b);
+  }
+  return wrap;
+}
+
+let paletteWrap=null;
+function buildPaletteEditor(){
+  paletteWrap=document.createElement('div');
+  const lbl=document.createElement('label');
+  lbl.style.cssText='color:var(--txt-dim);font-size:11.5px;';
+  lbl.textContent='Palette';
+  const list=document.createElement('div');
+  list.id='paletteList';
+  paletteWrap.append(lbl,list);
+  renderPalette();
+  return paletteWrap;
+}
+
+function renderPalette(){
+  const list=paletteWrap.querySelector('#paletteList');
+  list.innerHTML='';
+  S.palette.forEach((c,i)=>{
+    const sw=document.createElement('div');
+    sw.className='swatch';
+    const inp=document.createElement('input');
+    inp.type='color'; inp.value=c;
+    inp.oninput=()=>{ S.palette[i]=inp.value; cachePalette(); forceDraw=true; };
+    const rm=document.createElement('div');
+    rm.className='rm'; rm.textContent='✕'; rm.title='Remove color';
+    rm.onclick=()=>{
+      if(S.palette.length<=2){ toast('Keep at least 2 colors'); return; }
+      S.palette.splice(i,1); cachePalette(); renderPalette(); forceDraw=true;
+    };
+    sw.append(inp,rm);
+    list.appendChild(sw);
+  });
+  const add=document.createElement('button');
+  add.id='addColor'; add.textContent='+'; add.title='Add color';
+  add.onclick=()=>{
+    const h=Math.floor(Math.random()*360);
+    S.palette.push(hslToHex(h,80,62));
+    cachePalette(); renderPalette(); forceDraw=true;
+  };
+  list.appendChild(add);
+}
+
+function buildActions(){
+  const wrap=document.createElement('div');
+  wrap.className='btnRow';
+  const mk=(txt,fn,primary)=>{
+    const b=document.createElement('button');
+    b.className='btn'+(primary?' primary':'');
+    b.textContent=txt; b.onclick=fn;
+    wrap.appendChild(b);
+  };
+  mk('🎲 Randomize',randomize,true);
+  mk('📷 Export PNG',exportPNG);
+  mk('📋 Copy config',copyConfig);
+  mk('📥 Paste config',pasteConfig);
+  mk('↺ Reset',()=>{ applyPreset(DEFAULTS); toast('Reset to defaults'); });
+  return wrap;
+}
+
+/* sync all UI widgets from state */
+function syncUI(){
+  for(const [key,rec] of Object.entries(inputs)){
+    const v=S[key];
+    if(rec.def.type==='check') rec.el.checked=!!v;
+    else rec.el.value=v;
+    if(rec.valEl) rec.valEl.textContent=fmtVal(rec.def,v);
+    rec.rowEl.style.display = rec.def.show && !rec.def.show(S) ? 'none' : '';
+  }
+  for(const s of sections)
+    s.el.style.display = s.show && !s.show(S) ? 'none' : '';
+  if(paletteWrap) renderPalette();
+}
+
+function onChange(key){
+  forceDraw=true;
+  if(key==='variant'||key==='bgGradient'||key==='guides'||key==='colorMode') syncUI();
+}
+
+function applyPreset(p){
+  S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(JSON.stringify(p)));
+  cachePalette(); syncUI(); forceDraw=true;
+}
+
+/* ---------------- actions ---------------- */
+function hslToHex(h,s,l){
+  s/=100;l/=100;
+  const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  return '#'+[f(0),f(8),f(4)].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');
+}
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+
+function randomize(){
+  const baseH=Math.floor(rnd(0,360));
+  const scheme=pick(['analogous','triadic','complement','rainbow']);
+  const n=Math.floor(rnd(4,8));
+  const pal=[];
+  for(let i=0;i<n;i++){
+    let h;
+    if(scheme==='analogous') h=baseH+i*rnd(18,32);
+    else if(scheme==='triadic') h=baseH+(i%3)*120+rnd(-12,12);
+    else if(scheme==='complement') h=baseH+(i%2)*180+rnd(-20,20);
+    else h=baseH+i*(360/n);
+    pal.push(hslToHex(((h%360)+360)%360, rnd(65,95), rnd(50,72)));
+  }
+  const bgH=(baseH+rnd(150,210))%360;
+  const variant=Math.random()<0.75?'ribbons':'bars';
+  const flow=pick(['converge','fan','pinch','even']);
+  const upd={
+    variant, palette:pal,
+    bg:hslToHex(bgH,rnd(35,70),rnd(6,14)),
+    bgGradient:Math.random()<0.4, bg2:hslToHex((bgH+20)%360,rnd(35,70),rnd(3,9)),
+    bands:Math.floor(rnd(4,12)), spacing:rnd(0.03,0.1), gap:Math.random()<0.5?0:rnd(0.02,0.25),
+    amplitude:rnd(0.04,0.24), frequency:rnd(0.4,1.6),
+    amplitude2:rnd(0.01,0.08), frequency2:rnd(1,3.5),
+    stagger:rnd(0.1,0.6), waveTaper:rnd(0.2,0.9), centerY:rnd(-0.15,0.15),
+    spreadL: flow==='fan'?rnd(0,0.08): flow==='converge'?rnd(1.1,2):rnd(0.8,1.4),
+    spreadR: flow==='fan'?rnd(1.2,2.2): flow==='converge'?rnd(0.03,0.15):rnd(0.8,1.4),
+    pinch: flow==='pinch'?rnd(0.6,0.95):0,
+    pinchPos:rnd(0.3,0.7), pinchWidth:rnd(0.1,0.3),
+    angle:pick([0,0,0,90,-90,rnd(-35,35)|0]),
+    flipX:Math.random()<0.3, flipY:Math.random()<0.3,
+    colorMode:Math.random()<0.8?'flow':'solid',
+    gradientScale:rnd(0.6,1.8), bandShift:rnd(0.05,0.25),
+    guides:Math.random()<0.5, guideCount:Math.floor(rnd(2,6)),
+    guideColor:hslToHex((baseH+rnd(-40,40)+360)%360,70,78), guideOpacity:rnd(0.25,0.6),
+    guideSpread:rnd(1.2,2.2),
+    barCount:Math.floor(rnd(5,12)), barGap:rnd(0,0.15), barAlternate:Math.random()<0.6,
+    barSlide:rnd(0.2,0.7), barSoft:rnd(0.3,0.8),
+    speed:rnd(0.4,1.4), colorDrift:rnd(0.02,0.15), grain:rnd(0,0.4),
+  };
+  S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),upd);
+  cachePalette(); syncUI(); forceDraw=true;
+  toast('Randomized ✨');
+}
+
+function exportPNG(){
+  canvas.toBlob(b=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);
+    a.download='flow-pattern.png';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    toast('PNG exported');
+  },'image/png');
+}
+
+function copyConfig(){
+  const json=JSON.stringify(S,null,2);
+  (navigator.clipboard?navigator.clipboard.writeText(json):Promise.reject())
+    .then(()=>toast('Config copied to clipboard'))
+    .catch(()=>{ window.prompt('Copy config JSON:',JSON.stringify(S)); });
+}
+
+function pasteConfig(){
+  const raw=window.prompt('Paste config JSON:');
+  if(!raw) return;
+  try{
+    const p=JSON.parse(raw);
+    S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),p);
+    cachePalette(); syncUI(); forceDraw=true;
+    toast('Config applied');
+  }catch(e){ toast('Invalid JSON'); }
+}
+
+/* ---------------- toast + panel toggle ---------------- */
+let toastTimer=null;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),1800);
+}
+
+const toggleBtn=document.getElementById('toggleBtn');
+toggleBtn.onclick=()=>{
+  panel.classList.toggle('hidden');
+  toggleBtn.classList.toggle('open',!panel.classList.contains('hidden'));
+};
+window.addEventListener('keydown',e=>{
+  if(e.key==='h'||e.key==='H') toggleBtn.onclick();
+  if(e.key===' '&&e.target===document.body){ e.preventDefault(); S.paused=!S.paused; syncUI(); forceDraw=true; }
+  if(e.key==='r'||e.key==='R') randomize();
+});
+
+buildPanel();
+</script>
+</body>
+</html>
