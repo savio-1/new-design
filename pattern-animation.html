@@ -152,7 +152,7 @@ const ctx = canvas.getContext('2d');
 
 /* ---------------- state ---------------- */
 const DEFAULTS = {
-  variant: 'ribbons',        // ribbons | bars
+  variant: 'ribbons',        // ribbons | bars | steps
   // motion
   speed: 0.8, colorDrift: 0.06, paused: false,
   // ribbon shape
@@ -171,6 +171,9 @@ const DEFAULTS = {
   gradientScale: 1.0, bandShift: 0.14,
   // bars
   barCount: 7, barGap: 0.06, barAlternate: true, barSlide: 0.35, barSoft: 0.5,
+  // stepped wipe
+  stepRows: 9, stepProfile: 'stair', stepStagger: 0.35, stepSoft: 0.12,
+  stepOverlap: 1.4, stepJitter: 0.12,
   // effects
   grain: 0.25,
 };
@@ -216,6 +219,15 @@ const PRESETS = {
     colorMode:'flow', gradientScale:1, bandShift:0.16,
     speed:0.6, colorDrift:0.08, grain:0.3,
   },
+  'Step Cascade': {        // chunky row-by-row color wipes sweeping the screen
+    variant:'steps', stepRows:9, stepProfile:'stair', stepStagger:0.4, stepSoft:0.12,
+    stepOverlap:1.4, stepJitter:0.1,
+    angle:0, flipX:false, flipY:false,
+    bg:'#122a75', bgGradient:false, bg2:'#0b1540',
+    palette:['#5b8def','#23d963','#122a75','#9bf07c'],
+    colorMode:'solid', gradientScale:1, bandShift:0.25,
+    speed:1.0, colorDrift:0, grain:0.12,
+  },
   'Midnight Pinch': {      // symmetric flow squeezed through a mid-point waist
     variant:'ribbons', bands:10, spacing:0.05, gap:0.05, amplitude:0.07, frequency:1.1,
     amplitude2:0.03, frequency2:2.3, stagger:0.3, waveTaper:0.4, centerY:0,
@@ -255,15 +267,16 @@ let palRgb=[];
 function cachePalette(){ palRgb = S.palette.map(hexToRgb); }
 
 /* sample the palette as a smooth cyclic gradient, u in [0,1) */
-function colorAt(u){
+function colorArrAt(u){
   const n=palRgb.length;
-  if(n===0) return 'rgb(255,255,255)';
-  if(n===1) return rgbStr(...palRgb[0]);
+  if(n===0) return [255,255,255];
+  if(n===1) return palRgb[0];
   u=frac(u)*n;
   const i=Math.floor(u), f=smooth(u-i);
   const a=palRgb[i%n], b=palRgb[(i+1)%n];
-  return rgbStr(lerp(a[0],b[0],f), lerp(a[1],b[1],f), lerp(a[2],b[2],f));
+  return [lerp(a[0],b[0],f), lerp(a[1],b[1],f), lerp(a[2],b[2],f)];
 }
+const colorAt=u=>rgbStr(...colorArrAt(u));
 
 /* ---------------- canvas sizing ---------------- */
 let W=0,H=0,DPR=1;
@@ -379,6 +392,73 @@ function drawBars(t,L,Wd){
   }
 }
 
+/* stepped wipe: successive gradient fields sweep across the screen, each
+   split into horizontal rows whose leading edges are offset into a
+   staircase / arc profile with a soft gradient edge */
+const hash01=n=>{ const s=Math.sin(n*127.1+311.7)*43758.5453; return s-Math.floor(s); };
+function drawSteps(t,L,Wd){
+  const R=Math.max(2,Math.round(S.stepRows));
+  const rowH=Wd/R;
+  const dur=Math.max(S.stepOverlap,1.01);           // sweep duration, in wave intervals
+  const tau=t*S.speed*0.22;
+  const softL=Math.max(S.stepSoft*L,1);
+  const maxOff=S.stepStagger*L + S.stepJitter*L*0.4;
+  const travel=L + maxOff + 2*softL;
+  const prof=r=>{
+    const u=R>1? r/(R-1):0;
+    let o;
+    switch(S.stepProfile){
+      case 'bulge':  o=1-Math.sin(Math.PI*u); break;
+      case 'valley': o=Math.sin(Math.PI*u); break;
+      case 'random': o=hash01(r); break;
+      default:       o=u;                           // stair
+    }
+    return o*S.stepStagger*L + hash01(r+57)*S.stepJitter*L*0.4;
+  };
+  // in solid mode each wave is one distinct palette color shading toward
+  // white, which keeps the steps crisp; flow mode blends along the palette
+  const layerCols=n=>{
+    if(S.colorMode==='solid'){
+      const len=palRgb.length;
+      const base=palRgb[(((n%len)+len)%len)|0];
+      const k=0.3+hash01(n*3.3)*0.25;
+      const lite=base.map(v=>v+(255-v)*k);
+      return hash01(n*7.7)<0.5? [base,lite] : [lite,base];
+    }
+    return [colorArrAt(n*S.bandShift), colorArrAt(n*S.bandShift+0.18)];
+  };
+
+  // base: the last fully completed wave
+  const n0=Math.floor(tau-dur);
+  const [b1,b2]=layerCols(n0);
+  const base=ctx.createLinearGradient(-L/2,0,L/2,0);
+  base.addColorStop(0,rgbStr(...b1)); base.addColorStop(1,rgbStr(...b2));
+  ctx.fillStyle=base;
+  ctx.fillRect(-L/2,-Wd/2,L,Wd);
+
+  // waves still sweeping, oldest first so newer edges layer on top
+  for(let n=n0+1;n<=Math.floor(tau);n++){
+    const p=(tau-n)/dur;
+    if(p<0||p>1) continue;
+    const [c1,c2]=layerCols(n);
+    const mix=(q)=>{ q=clamp(q,0,1); return [lerp(c1[0],c2[0],q),lerp(c1[1],c2[1],q),lerp(c1[2],c2[2],q)]; };
+    for(let r=0;r<R;r++){
+      const edge=-L/2 - softL + p*travel - prof(r);
+      const wEnd=Math.min(edge,L/2);
+      if(wEnd<=-L/2) continue;
+      const y=-Wd/2+r*rowH;
+      const q1=(edge-softL+L/2)/L, q2=(edge+L/2)/L;
+      const g=ctx.createLinearGradient(-L/2,0,L/2,0);
+      const m1=mix(q1), m2=mix(q2);
+      g.addColorStop(0,rgbStr(...c1));
+      g.addColorStop(clamp(q1,0,1),rgbStr(...m1));
+      g.addColorStop(clamp(q2,0.0001,1),`rgba(${m2[0]|0},${m2[1]|0},${m2[2]|0},0)`);
+      ctx.fillStyle=g;
+      ctx.fillRect(-L/2,y,wEnd+L/2,rowH+1);
+    }
+  }
+}
+
 function frame(now){
   requestAnimationFrame(frame);
   if(S.paused && !forceDraw) return;
@@ -407,6 +487,7 @@ function frame(now){
   ctx.scale(S.flipX?-1:1, S.flipY?-1:1);
 
   if(S.variant==='bars') drawBars(t,L,Wd);
+  else if(S.variant==='steps') drawSteps(t,L,Wd);
   else drawRibbons(t,L,Wd,minD);
   ctx.restore();
 
@@ -432,7 +513,7 @@ const panel=document.getElementById('panel');
 
 const SCHEMA=[
   {sec:'Pattern', rows:[
-    {key:'variant', label:'Type', type:'select', opts:[['ribbons','Flowing ribbons'],['bars','Gradient bars']]},
+    {key:'variant', label:'Type', type:'select', opts:[['ribbons','Flowing ribbons'],['bars','Gradient bars'],['steps','Stepped wipe']]},
     {custom:'presets'},
   ]},
   {sec:'Motion', rows:[
@@ -465,6 +546,14 @@ const SCHEMA=[
     {key:'barSlide', label:'Gradient slide', type:'range', min:0, max:1, step:0.02},
     {key:'barSoft', label:'Gradient sway', type:'range', min:0, max:1, step:0.02},
     {key:'barAlternate', label:'Alternate direction', type:'check'},
+  ]},
+  {sec:'Stepped wipe', show:s=>s.variant==='steps', rows:[
+    {key:'stepRows', label:'Rows', type:'range', min:2, max:24, step:1},
+    {key:'stepProfile', label:'Edge profile', type:'select', opts:[['stair','Staircase'],['bulge','Bulge'],['valley','Valley'],['random','Scatter']]},
+    {key:'stepStagger', label:'Step offset', type:'range', min:0, max:1, step:0.02},
+    {key:'stepSoft', label:'Edge softness', type:'range', min:0, max:0.4, step:0.01},
+    {key:'stepOverlap', label:'Wave overlap', type:'range', min:1, max:3, step:0.05},
+    {key:'stepJitter', label:'Row jitter', type:'range', min:0, max:1, step:0.02},
   ]},
   {sec:'Orientation', rows:[
     {key:'angle', label:'Rotation', type:'range', min:-180, max:180, step:1, fmt:v=>v+'°'},
@@ -687,7 +776,7 @@ function randomize(){
     pal.push(hslToHex(((h%360)+360)%360, rnd(65,95), rnd(50,72)));
   }
   const bgH=(baseH+rnd(150,210))%360;
-  const variant=Math.random()<0.75?'ribbons':'bars';
+  const variant=pick(['ribbons','ribbons','ribbons','bars','steps']);
   const flow=pick(['converge','fan','pinch','even']);
   const upd={
     variant, palette:pal,
@@ -707,6 +796,9 @@ function randomize(){
     gradientScale:rnd(0.6,1.8), bandShift:rnd(0.05,0.25),
     barCount:Math.floor(rnd(5,12)), barGap:rnd(0,0.15), barAlternate:Math.random()<0.6,
     barSlide:rnd(0.2,0.7), barSoft:rnd(0.3,0.8),
+    stepRows:Math.floor(rnd(6,16)), stepProfile:pick(['stair','bulge','valley','random']),
+    stepStagger:rnd(0.15,0.6), stepSoft:rnd(0.04,0.2),
+    stepOverlap:rnd(1.1,2), stepJitter:rnd(0,0.4),
     speed:rnd(0.4,1.4), colorDrift:rnd(0.02,0.15), grain:rnd(0,0.4),
   };
   S=Object.assign(JSON.parse(JSON.stringify(DEFAULTS)),upd);
