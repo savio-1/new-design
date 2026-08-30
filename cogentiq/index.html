@@ -1019,17 +1019,27 @@
        bare :root — the same way every other token on this page is
        keyed. Light is the override the header toggle stamps. */
     :root {
-      /* One rung deeper than light, so white type has something to sit
-         on while the panel keeps its chroma. */
-      --sky-cyan:   var(--cyan-500);
-      --sky-blue:   var(--blue-600);
-      --sky-indigo: var(--indigo-600);
-      --sky-purple: var(--purple-600);
-      --sky-pink:   var(--pink-600);
-      --sky-orange: var(--orange-600);
-      --sky-amber:  var(--orange-500);
-      --sky-veil:   rgba(18, 18, 18, .34);
-      --sky-scrim:  rgba(18, 18, 18, .19);
+      /* The sky is the one place the product runs its colour hot, so it
+         takes a ramp of its own rather than the interface rungs: those
+         are picked to sit under text at small sizes and go chalky when
+         a 76px blur averages them together. These are each family's
+         most saturated point instead — electric through the blues,
+         full violet, and a magenta that holds its chroma all the way
+         into the warm end rather than sliding to amber. */
+      --sky-cyan:   #0094ff;
+      --sky-blue:   #1668ff;
+      --sky-indigo: #4b34f0;
+      --sky-purple: #9b1ff0;
+      --sky-pink:   #ff1f96;
+      --sky-orange: #ff2461;
+      --sky-amber:  #ff4d3d;
+      /* Held back from what it was: every point of darkening here comes
+         straight off the panel's chroma, and the headline has its own
+         shadow for contrast. */
+      --sky-veil:   rgba(18, 18, 18, .20);
+      --sky-scrim:  rgba(18, 18, 18, .12);
+      --sky-bloom:      rgba(90, 170, 255, .42);
+      --sky-bloom-warm: rgba(255, 60, 160, .34);
       /* The panel the colour is painted on. Its depth is the only
          thing that decides how far down the page the gradient reaches:
          every stop in the bands, the hump and the wave is a percentage
@@ -1052,10 +1062,10 @@
          height: a short ramp ends somewhere the eye can find, and that
          reads as an edge. This one never finishes anywhere in particular. */
       --hump: radial-gradient(66% 104% at 50% -8%,
-                #000 0%, #000 20%,
-                rgba(0,0,0,.93) 32%, rgba(0,0,0,.76) 44%,
-                rgba(0,0,0,.52) 56%, rgba(0,0,0,.28) 68%,
-                rgba(0,0,0,.10) 80%, transparent 92%);
+                #000 0%, #000 24%,
+                rgba(0,0,0,.96) 36%, rgba(0,0,0,.84) 48%,
+                rgba(0,0,0,.62) 60%, rgba(0,0,0,.36) 71%,
+                rgba(0,0,0,.14) 82%, transparent 93%);
       /* One crest, tiled. An ellipse hung just above the tile's top
          edge, so the colour reaches lowest at the crest's centre and
          lifts away to either side — the hump again, at the scale of a
@@ -1066,19 +1076,25 @@
                 transparent 94%);
     }
     :root[data-mode="light"] {
-      /* The vivid rung of each family. */
-      --sky-cyan:   var(--cyan-450);
-      --sky-blue:   var(--blue-500);
-      --sky-indigo: var(--indigo-500);
-      --sky-purple: var(--purple-500);
-      --sky-pink:   var(--pink-400);
-      --sky-orange: var(--orange-500);
-      --sky-amber:  var(--yellow-400);
+      /* The same ramp a shade brighter — light mode lifts the panel
+         rather than washing it out, so the colour stays as saturated
+         as it is in dark and simply sits higher. */
+      --sky-cyan:   #45b0ff;
+      --sky-blue:   #2b7cff;
+      --sky-indigo: #5b46ff;
+      --sky-purple: #ab33ff;
+      --sky-pink:   #ff3d9e;
+      --sky-orange: #ff3d6e;
+      --sky-amber:  #ff6a4a;
       /* The hero type is white in both modes, so light keeps its colour
          vivid behind the words and darkens fractionally for contrast
          rather than washing back toward white. */
-      --sky-veil:   rgba(18, 18, 18, .15);
-      --sky-scrim:  rgba(18, 18, 18, .085);
+      --sky-veil:   rgba(18, 18, 18, .10);
+      --sky-scrim:  rgba(18, 18, 18, .055);
+      /* Light already sits high, so the bloom only has to keep the
+         panel from going chalky where the two glows overlap. */
+      --sky-bloom:      rgba(120, 190, 255, .28);
+      --sky-bloom-warm: rgba(255, 90, 175, .24);
     }
 
     /* The frame is the ground; the sky is a layer laid over its top. */
@@ -1106,7 +1122,7 @@
          library tokens and stay where they are; the lift happens here,
          once, so every band moves together and none of them drifts off
          its own hue. */
-      filter: blur(var(--band-blur)) saturate(1.38);
+      filter: blur(var(--band-blur)) saturate(1.62) brightness(1.14) contrast(1.04);
       /* An ellipse anchored above the top centre rather than a flat fade:
          every point below the middle is nearer its origin than a point out
          at the sides is, so the colour bulges lowest under the headline and
@@ -1133,11 +1149,16 @@
     }
     /* Cool at the top, warm at the bottom; each band overlaps its
        neighbour by one hue so the stack reads continuous. */
-    .band.n1 { --c1: var(--sky-cyan);   --c2: var(--sky-blue);   --c3: var(--sky-indigo); animation-delay: -0s;   }
-    .band.n2 { --c1: var(--sky-blue);   --c2: var(--sky-indigo); --c3: var(--sky-purple); animation-delay: -16s;  }
-    .band.n3 { --c1: var(--sky-indigo); --c2: var(--sky-purple); --c3: var(--sky-pink);   animation-delay: -8s;  }
-    .band.n4 { --c1: var(--sky-purple); --c2: var(--sky-pink);   --c3: var(--sky-orange); animation-delay: -12s;  }
-    .band.n5 { --c1: var(--sky-pink);   --c2: var(--sky-orange); --c3: var(--sky-amber);  animation-delay: -4s;  }
+    /* Not an even five: the blues carry the top in less depth than they
+       had, which walks the magenta up into the part of the panel the
+       hump still holds at full strength. Evenly split, the hottest
+       colour in the ramp only arrived where the mask had already taken
+       most of it away. */
+    .band.n1 { flex-grow: .80; --c1: var(--sky-cyan);   --c2: var(--sky-blue);   --c3: var(--sky-indigo); animation-delay: -0s;   }
+    .band.n2 { flex-grow: .90; --c1: var(--sky-blue);   --c2: var(--sky-indigo); --c3: var(--sky-purple); animation-delay: -16s;  }
+    .band.n3 { flex-grow: 1.02; --c1: var(--sky-indigo); --c2: var(--sky-purple); --c3: var(--sky-pink);   animation-delay: -8s;  }
+    .band.n4 { flex-grow: 1.14; --c1: var(--sky-purple); --c2: var(--sky-pink);   --c3: var(--sky-orange); animation-delay: -12s;  }
+    .band.n5 { flex-grow: 1.14; --c1: var(--sky-pink);   --c2: var(--sky-orange); --c3: var(--sky-amber);  animation-delay: -4s;  }
     @keyframes band-slide {
       from { --stop-1: 0%;  --stop-2: 50%; }
       to   { --stop-1: 11%; --stop-2: 61%; }
@@ -1150,6 +1171,21 @@
       background:
         radial-gradient(64% 52% at 50% 46%, var(--sky-veil), transparent 78%),
         linear-gradient(180deg, var(--sky-scrim), transparent 62%);
+    }
+
+    /* ── The bloom ───────────────────────────────────────────────
+       Screen, not a white overlay: it multiplies up whatever hue is
+       under it, so the blue reads as lit blue and the magenta as lit
+       magenta, instead of both being tinted toward the same white.
+       Two sources rather than one — the panel is wider than it is
+       tall, and a single centred glow leaves the sides looking flat. */
+    .hero-bloom {
+      position: absolute; inset: 0;
+      mix-blend-mode: screen;
+      pointer-events: none;
+      background:
+        radial-gradient(46% 38% at 50% 30%, var(--sky-bloom), transparent 72%),
+        radial-gradient(58% 34% at 38% 62%, var(--sky-bloom-warm), transparent 76%);
     }
 
     /* ── The wave at the water line ──────────────────────────────
@@ -1940,6 +1976,7 @@
                 <div class="wave w2"></div>
               </div>
               <canvas class="hero-glyphs" id="heroGlyphs"></canvas>
+              <div class="hero-bloom"></div>
               <div class="hero-veil"></div>
             </div>
 
