@@ -6,12 +6,10 @@ them: rail routing, the light/dark choice, and the profile menu with the
 dashboard background picker. One definition, five pages, so the chrome
 cannot drift page to page the way the panel did.
 """
-import json, pathlib, re
+import pathlib, re
 
 HERE = pathlib.Path(__file__).parent
 PAGES = pathlib.Path('/home/user/new-design/cogentiq')
-BG = json.loads((HERE / 'backgrounds.json').read_text())
-DEFAULT_BG = 'sunset'
 
 CSS = '''
 /* ── Profile menu ────────────────────────────────────────────────
@@ -76,8 +74,14 @@ CSS = '''
 
 /* Theme: three exclusive choices, so a segmented control rather than
    three rows — the options are short and comparing them is the point. */
+/* The track has to read as a recess in both themes. page-bg-2 is #ffffff
+   in light -- the same as the menu's own surface -- so the track vanished
+   there; page-bg-3 is the one that stays a step off the card either way,
+   and the hairline keeps its edge where the two are closest. */
 .cq-pm-seg { display: flex; gap: 3px; margin: 0 14px; padding: 3px;
-  background: var(--backgrounds-page-bg-2); border-radius: 9px; }
+  background: var(--backgrounds-page-bg-3);
+  border: 1px solid var(--strokes-line-1);
+  border-radius: 9px; }
 .cq-pm-seg button {
   flex: 1 1 0; height: 28px; border: 0; border-radius: 7px;
   background: none; color: var(--text-secondary);
@@ -87,38 +91,10 @@ CSS = '''
 .cq-pm-seg button:hover { color: var(--text-primary); }
 .cq-pm-seg button[aria-pressed="true"] {
   background: var(--backgrounds-card-bg-3); color: var(--text-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .18);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .18), 0 0 0 1px var(--strokes-line-1);
 }
 .cq-pm-seg button:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: 1px; }
 
-/* Backgrounds: the swatch is the label. Names sit under them because at
-   chip size four warm-to-cool ramps are hard to tell apart in a list. */
-.cq-pm-bgs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 0 14px; }
-.cq-pm-bg {
-  display: flex; flex-direction: column; gap: 5px; align-items: stretch;
-  padding: 0; border: 0; background: none; cursor: pointer;
-}
-.cq-pm-bg .sw {
-  height: 34px; border-radius: 7px; position: relative;
-  border: 1px solid var(--strokes-line-1);
-  box-shadow: inset 0 0 0 0 var(--text-coloured-blue);
-  transition: box-shadow .14s ease, transform .14s ease;
-}
-.cq-pm-bg:hover .sw { transform: translateY(-1px); }
-.cq-pm-bg[aria-pressed="true"] .sw {
-  box-shadow: inset 0 0 0 2px var(--text-coloured-blue), 0 0 0 1px var(--text-coloured-blue);
-}
-.cq-pm-bg .sw::after {
-  content: ""; position: absolute; right: 4px; bottom: 4px;
-  width: 12px; height: 12px; border-radius: 999px; opacity: 0;
-  background: var(--text-coloured-blue) center / 8px 8px no-repeat;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 4.9 8.6 9.5 3.9' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  transition: opacity .14s ease;
-}
-.cq-pm-bg[aria-pressed="true"] .sw::after { opacity: 1; }
-.cq-pm-bg .nm { font-size: 10.5px; color: var(--text-secondary); text-align: center; }
-.cq-pm-bg[aria-pressed="true"] .nm { color: var(--text-primary); }
-.cq-pm-bg:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: 2px; border-radius: 8px; }
 '''
 
 ICON = {
@@ -135,8 +111,6 @@ SNIPPET = '''
    to the product rather than to any one page, so all three are wired
    here: one definition, five pages. */
 (function () {
-  var BACKGROUNDS = __BG__;
-  var DEFAULT_BG = '__DEFBG__';
   var PAGES = {
     'home': 'index.html',
     'skills': 'skills.html',
@@ -172,8 +146,8 @@ SNIPPET = '''
      Two theme keys, not one: 'cq-theme' stays the resolved light/dark
      the pages' own code already reads at boot, and the preference —
      which may be 'system' — sits beside it. */
-  var K_MODE = 'cq-theme', K_PREF = 'cq-theme-pref', K_BG = 'cq-bg';
-  var syncedMode = null, pref = 'dark', bgId = DEFAULT_BG;
+  var K_MODE = 'cq-theme', K_PREF = 'cq-theme-pref';
+  var syncedMode = null, pref = 'dark';
   var media = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
 
   function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -194,22 +168,6 @@ SNIPPET = '''
       if (typeof window.applyMode === 'function') window.applyMode(mode);
       else root.dataset.mode = mode;
     }
-    paintBg();
-  }
-
-  /* The ramps live in the stylesheet per theme, so a fixed inline set
-     would freeze the sky in whichever theme it was chosen in. Re-applied
-     on every mode change instead, from the chosen ramp's own pair. */
-  function paintBg() {
-    var bg = BACKGROUNDS.filter(function (b) { return b.id === bgId; })[0];
-    if (!bg) return;
-    var set = root.dataset.mode === 'light' ? bg.light : bg.dark;
-    var bloom = root.dataset.mode === 'light' ? bg.bloomLight : bg.bloomDark;
-    Object.keys(set).forEach(function (slot) {
-      root.style.setProperty('--sky-' + slot, set[slot]);
-    });
-    root.style.setProperty('--sky-bloom', bloom[0]);
-    root.style.setProperty('--sky-bloom-warm', bloom[1]);
   }
 
   function setPref(p, quiet) {
@@ -221,13 +179,6 @@ SNIPPET = '''
     syncSeg();
     if (!quiet && inShell) parent.postMessage({ cqThemePref: p, cqTheme: mode }, '*');
   }
-  function setBg(id, quiet) {
-    bgId = id;
-    write(K_BG, id);
-    paintBg();
-    syncBgs();
-    if (!quiet && inShell) parent.postMessage({ cqBg: id }, '*');
-  }
 
   /* The page's own toggle still works and still means something: it is a
      direct light/dark choice, so it lands as an explicit preference. */
@@ -237,7 +188,6 @@ SNIPPET = '''
     syncedMode = mode;
     write(K_MODE, mode);
     if (pref === 'system') { pref = mode; write(K_PREF, mode); syncSeg(); }
-    paintBg();
     if (inShell) parent.postMessage({ cqTheme: mode, cqThemePref: pref }, '*');
   }).observe(root, { attributes: true, attributeFilter: ['data-mode'] });
 
@@ -249,23 +199,19 @@ SNIPPET = '''
     var d = e.data || {};
     if (d.cqThemePref) { pref = d.cqThemePref; syncSeg(); }
     if (d.cqTheme === 'light' || d.cqTheme === 'dark') paintMode(d.cqTheme);
-    if (d.cqBg) { bgId = d.cqBg; paintBg(); syncBgs(); }
   });
 
   /* ── The menu ──────────────────────────────────────────────────
      Attached to the header avatar that is already on every page, so the
      five headers keep their own markup and gain the same menu. */
   var avatar = document.querySelector('.header-avatar, .hdr-avatar');
-  var seg = null, bgBtns = [];
+  var seg = null;
 
   function syncSeg() {
     if (!seg) return;
     seg.querySelectorAll('button').forEach(function (b) {
       b.setAttribute('aria-pressed', String(b.dataset.pref === pref));
     });
-  }
-  function syncBgs() {
-    bgBtns.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.bg === bgId)); });
   }
 
   if (avatar) {
@@ -300,15 +246,6 @@ SNIPPET = '''
         '<button type="button" data-pref="dark" aria-pressed="false">Dark</button>' +
         '<button type="button" data-pref="system" aria-pressed="false">System</button>' +
       '</div>' +
-      '<div class="cq-pm-sec"><h4>Dashboard background</h4></div>' +
-      '<div class="cq-pm-bgs">' +
-        BACKGROUNDS.map(function (b) {
-          return '<button type="button" class="cq-pm-bg" data-bg="' + b.id + '" ' +
-            'aria-pressed="false" title="' + b.label + '">' +
-            '<span class="sw" style="background:linear-gradient(135deg,' + b.chip.join(',') + ')"></span>' +
-            '<span class="nm">' + b.name + '</span></button>';
-        }).join('') +
-      '</div>' +
       '<div class="cq-pm-rule"></div>' +
       '<a class="cq-pm-row" href="#" data-act="assistant" target="_blank" rel="noopener noreferrer">' +
         '<span class="lbl">Assistant platform</span>' + __IC_EXT__ + '</a>' +
@@ -317,7 +254,6 @@ SNIPPET = '''
     wrap.appendChild(menu);
 
     seg = menu.querySelector('.cq-pm-seg');
-    bgBtns = [].slice.call(menu.querySelectorAll('.cq-pm-bg'));
 
     var open = false;
     function setOpen(on) {
@@ -342,10 +278,6 @@ SNIPPET = '''
       var b = e.target.closest('button[data-pref]');
       if (b) setPref(b.dataset.pref);
     });
-    menu.querySelector('.cq-pm-bgs').addEventListener('click', function (e) {
-      var b = e.target.closest('button[data-bg]');
-      if (b) setBg(b.dataset.bg);
-    });
     menu.addEventListener('click', function (e) {
       var row = e.target.closest('[data-act]');
       if (!row) return;
@@ -360,13 +292,10 @@ SNIPPET = '''
      not share. */
   if (inShell) {
     parent.postMessage({ cqThemeRequest: true }, '*');
-    syncBgs(); syncSeg();
+    syncSeg();
   } else {
     var p = read(K_PREF);
-    var b = read(K_BG);
-    if (b && BACKGROUNDS.some(function (x) { return x.id === b; })) bgId = b;
     setPref(p === 'light' || p === 'dark' || p === 'system' ? p : (read(K_MODE) === 'light' ? 'light' : 'dark'), true);
-    syncBgs();
   }
 })();
 </script>
@@ -375,8 +304,6 @@ SNIPPET = '''
 def build():
     s = SNIPPET
     s = s.replace('__CSS__', CSS)
-    s = s.replace('__BG__', json.dumps(BG))
-    s = s.replace('__DEFBG__', DEFAULT_BG)
     s = s.replace('__IC_USER__', "'" + ICON['user'] + "'")
     s = s.replace('__IC_EXT__', "'" + ICON['ext'] + "'")
     s = s.replace('__IC_OUT__', "'" + ICON['out'] + "'")

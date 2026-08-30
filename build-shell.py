@@ -70,7 +70,6 @@ SHELL = '''<title>CogentIQ Platform</title>
   var busy = false;
   var theme = 'dark';
   var themePref = 'dark';
-  var background = 'sunset';
 
   function decode(b64) {
     var bin = atob(b64), bytes = new Uint8Array(bin.length);
@@ -83,7 +82,7 @@ SHELL = '''<title>CogentIQ Platform</title>
   function tellState(frame) {
     try {
       frame.contentWindow.postMessage(
-        { cqTheme: theme, cqThemePref: themePref, cqBg: background }, '*');
+        { cqTheme: theme, cqThemePref: themePref }, '*');
     } catch (e) { /* not ready */ }
   }
   function setTheme(mode) {
@@ -135,7 +134,6 @@ SHELL = '''<title>CogentIQ Platform</title>
     var data = e.data || {};
     if (typeof data.cqNav === 'string') show(data.cqNav);
     if (data.cqThemePref) themePref = data.cqThemePref;
-    if (data.cqBg) { background = data.cqBg; frames.forEach(tellState); }
     if (data.cqTheme === 'light' || data.cqTheme === 'dark') setTheme(data.cqTheme);
     if (data.cqThemeRequest) frames.forEach(tellState);
   });

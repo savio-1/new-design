@@ -7,10 +7,9 @@ about colour. Eight travel through two or three colour families, nine through fo
 five. `17-blue-red-orange` is the Figma stops (Orange/500, Red/500,
 Blue/500) read bottom-up, the way this panel is built.
 
-Four of them ship in the product as dashboard backgrounds, picked from the
-profile menu: 17 (Sunset), 10 (Ember), 12 (Daybreak) and 15 (Orchid). Those
-four are defined in `../../backgrounds.json` and injected by
-`../../inject-shell.py`; changing a ramp here means regenerating that too.
+The homepage ships 17 (the Figma stops), baked into the `--sky-*` tokens in
+`../index.html`. To change it, copy another ramp's stops out of
+`gen-variants.py` into those two blocks -- the dark run and the light one.
 
 Side-by-side: <https://claude.ai/code/artifact/9a99db46-a765-4924-84b9-20e8bbc5a166>
 
