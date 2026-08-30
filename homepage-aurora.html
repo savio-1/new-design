@@ -1734,29 +1734,36 @@
     /* The frame of light. Above everything in the panel and deaf to
        the pointer: it is light falling on the glass, not a surface. */
     .edge-glow {
-      position: absolute; inset: 0; z-index: 40;
+      /* Under the page, not over it: z-index 0 against the content's 1,
+         so the cards and the tutorial shelf sit on the light. */
+      position: absolute; inset: 0; z-index: 0;
       border-radius: 12px; overflow: hidden;
       pointer-events: none;
-      /* How far the light reaches into the page before the mask
-         extinguishes it. */
-      --edge-reach: clamp(90px, 11vw, 170px);
-      /* The falloff is bent, not straight: most of the light dies in
-         the first third of the reach, so the rim burns and the centre
-         stays void — a straight ramp read as four colour bars. */
+      /* How far up from the bottom edge the light reaches before the
+         mask extinguishes it. */
+      --edge-reach: clamp(150px, 26vh, 300px);
+      /* The light belongs to the bottom of the page alone. Two masks
+         multiplied: a bottom band whose falloff is bent so most of the
+         light dies in the first third of the climb, and a horizontal
+         fade that lets go of both sides — the glow is a shore, hottest
+         at the centre of the bottom edge, gone before the corners. */
       -webkit-mask-image:
-        linear-gradient(to right,  #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach), transparent calc(100% - var(--edge-reach)), rgba(0,0,0,.13) calc(100% - var(--edge-reach) * .68), rgba(0,0,0,.45) calc(100% - var(--edge-reach) * .34), #000),
-        linear-gradient(to bottom, #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach), transparent calc(100% - var(--edge-reach)), rgba(0,0,0,.13) calc(100% - var(--edge-reach) * .68), rgba(0,0,0,.45) calc(100% - var(--edge-reach) * .34), #000);
+        linear-gradient(to top, #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach)),
+        linear-gradient(to right, transparent, rgba(0,0,0,.55) 14%, #000 32%, #000 68%, rgba(0,0,0,.55) 86%, transparent);
       mask-image:
-        linear-gradient(to right,  #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach), transparent calc(100% - var(--edge-reach)), rgba(0,0,0,.13) calc(100% - var(--edge-reach) * .68), rgba(0,0,0,.45) calc(100% - var(--edge-reach) * .34), #000),
-        linear-gradient(to bottom, #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach), transparent calc(100% - var(--edge-reach)), rgba(0,0,0,.13) calc(100% - var(--edge-reach) * .68), rgba(0,0,0,.45) calc(100% - var(--edge-reach) * .34), #000);
-      /* The two bands union rather than intersect, so every edge is
-         lit and the corners — where they overlap — run hottest. */
-      -webkit-mask-composite: source-over;
-      mask-composite: add;
+        linear-gradient(to top, #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach)),
+        linear-gradient(to right, transparent, rgba(0,0,0,.55) 14%, #000 32%, #000 68%, rgba(0,0,0,.55) 86%, transparent);
+      -webkit-mask-composite: source-in;
+      mask-composite: intersect;
       mix-blend-mode: screen;
       animation: eg-breathe 12s ease-in-out infinite;
     }
     @keyframes eg-breathe { 0%, 100% { opacity: .78; } 50% { opacity: 1; } }
+
+    /* The page above the light: header already carries z-index 3;
+       the scroller's column takes 1 so everything it holds — hero,
+       cards, the tutorial shelf — passes over the glow. */
+    .content-wrapper.is-home .main-section { position: relative; z-index: 1; }
 
     /* The colour wheels. Squares large enough that their own rotation
        never uncovers a corner of the panel (175% of the panel's width
@@ -1839,8 +1846,11 @@
     }
     :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .header-search input { color: var(--text-primary); }
     :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .header-search input::placeholder { color: var(--text-teritiary); }
-    /* White grain has nothing to sit on over paper. */
-    :root[data-mode="light"] .hero-glyphs { visibility: hidden; }
+    /* The grain stays in light mode, but white has nothing to sit on
+       over paper — the canvas is inverted to ink and held back to a
+       whisper of grey, with its rungs re-tuned for the lighter ground. */
+    :root[data-mode="light"] { --glyph-1: .38; --glyph-2: .16; --glyph-3: .07; }
+    :root[data-mode="light"] .hero-glyphs { filter: invert(1); opacity: .55; }
 
     /* On the void the hero cards lose the sky that once cut them out;
        a whisper of ring gives their edge back. */
