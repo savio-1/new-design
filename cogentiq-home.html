@@ -1056,17 +1056,8 @@
                 #000 0%, rgba(0,0,0,.86) 34%,
                 rgba(0,0,0,.50) 58%, rgba(0,0,0,.18) 78%,
                 transparent 94%);
-      /* White in both modes, like the hero type: the dots sit on
-         saturated colour, where a grey ink reads as dirt rather than
-         as tooth. */
-      --hero-dot:   rgba(255, 255, 255, .62);
     }
     :root[data-mode="light"] {
-      /* White in both modes, like the hero type. Light's sky is the
-         paler of the two, so the white is carried at close to full
-         strength here — at dark's alpha it would wash out of the
-         upper half of the panel entirely. */
-      --hero-dot:   rgba(255, 255, 255, .92);
       /* The vivid rung of each family. */
       --sky-cyan:   var(--cyan-450);
       --sky-blue:   var(--blue-500);
@@ -1205,34 +1196,51 @@
     @keyframes wave-drift-a { from { transform: translateX(0); }    to { transform: translateX(-33.3333%); } }
     @keyframes wave-drift-b { from { transform: translateX(-20%); } to { transform: translateX(0); } }
 
-    /* A fine dot grid, the same pattern the rest of the Builder uses
-       on canvas surfaces. It runs the full depth of the panel now —
-       the sky is a canvas surface like any other — held down to a
-       whisper, so at rest it reads as tooth rather than as pattern. */
-    .hero-grid {
-      position: absolute; inset: 0; opacity: .13;
-      background-image: radial-gradient(var(--hero-dot) 1px, transparent 1.6px);
-      background-size: 22px 22px;
+    /* ── The glyph field ─────────────────────────────────────────
+       The canvas dots, promoted. Instead of a fixed pattern they are
+       a field of glyphs on a 7px lattice, each one taking its tone
+       from a slow three-dimensional noise: 16% of the field at full
+       strength, 16% one step down, the rest a whisper. Nothing in it
+       moves — what drifts is which dots are bright, which is why a
+       field this dense can animate without pulling the eye.
+
+       The pointer is the field's fourth input. It pulls the noise
+       value down inside a soft radius, promoting every glyph under
+       it a tone or two, so the dots are not revealed on hover so
+       much as lit — brightest under the cursor, falling off to the
+       ambient field within about 170px.
+
+       Ported from Glyph Field Studio with its settings carried over
+       as they were set there — shimmer, 0.40x speed, 0.115 field
+       scale, 22% grain, 7px cells, 44% element size, 16/16 tone
+       split, filled square — and only the palette swapped: three
+       alphas of white, because here the field sits on the sky rather
+       than on paper. */
+    :root {
+      --glyph-1: .88;   /* accent: the 16% the noise puts lowest */
+      --glyph-2: .34;   /* mid tone: the next 16% */
+      --glyph-3: .11;   /* base: the two thirds that are only tooth */
+    }
+    :root[data-mode="light"] {
+      /* Light's sky is the paler of the two and gives white less to
+         push against, so every rung is carried harder. */
+      --glyph-1: .96;
+      --glyph-2: .46;
+      --glyph-3: .17;
+    }
+    /* Under the veil, not over it. The veil is an ellipse of shade
+       centred on the headline, and putting the field beneath it hands
+       the field the same treatment the colour gets: quiet behind the
+       words, full strength out at the panel's edges where there is
+       nothing to read. */
+    .hero-glyphs {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      /* Out before the panel's own bottom edge, like the grid it
+         replaces, so the field never outlives the colour it sits on. */
       -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 68%, transparent 100%);
               mask-image: linear-gradient(180deg, #000 0%, #000 68%, transparent 100%);
-    }
-
-    /* The same grid again, uncovered only where the pointer is. The
-       layer is painted once and a soft round mask follows the cursor,
-       so the dots are never faded in and out — they are simply
-       revealed, which is what lets the response be this quiet and
-       still register. Opacity carries the arrival and the departure so
-       neither one snaps. */
-    .hero-dots {
-      position: absolute; inset: 0;
-      opacity: 0; transition: opacity .5s ease;
-      background-image: radial-gradient(var(--hero-dot) 1px, transparent 1.6px);
-      background-size: 22px 22px;
-      -webkit-mask-image: radial-gradient(190px 190px at var(--px, -400px) var(--py, -400px), #000 0%, rgba(0,0,0,.58) 42%, transparent 76%);
-              mask-image: radial-gradient(190px 190px at var(--px, -400px) var(--py, -400px), #000 0%, rgba(0,0,0,.58) 42%, transparent 76%);
       -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
     }
-    .hero-sky.is-lit .hero-dots { opacity: .34; }
 
     /* ── The column ─────────────────────────────────────────────── */
     .home-scroll {
@@ -1572,7 +1580,6 @@
     @media (prefers-reduced-motion: reduce) {
       .band { animation: none; transition: none; }
       .wave { animation: none; }
-      .hero-dots { transition: none; }
       .hero > *, .ground-inner > * { animation: none; }
       .rotor-word.is-out, .rotor-word.is-in { animation: none; }
       .rotor { transition: none; }
@@ -1850,9 +1857,8 @@
                 <div class="wave w1"></div>
                 <div class="wave w2"></div>
               </div>
+              <canvas class="hero-glyphs" id="heroGlyphs"></canvas>
               <div class="hero-veil"></div>
-              <div class="hero-grid"></div>
-              <div class="hero-dots"></div>
             </div>
 
             <div class="hero">
@@ -2083,49 +2089,280 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
     bands.style.setProperty('--multiplier', pct + '%');
   }
 
-  /* The pointer's other job: the dot grid is lit where the cursor is,
-     and the mask that does the lighting is placed in the sky's own
-     coordinates. The sky scrolls with the column, so its box is
-     measured once and re-measured only when something can have moved
-     it — a rect read on every pointermove would force layout at
-     pointer rate. Writes are batched into a frame for the same
-     reason. */
+  /* The pointer's other job is the glyph field's, and it wants the
+     cursor in the sky's own coordinates. The sky scrolls with the
+     column, so its box is measured once and re-measured only when
+     something can have moved it — a rect read on every pointermove
+     would force layout at pointer rate. */
   let box = null;
   const measure = () => { box = sky.getBoundingClientRect(); };
   scroller.addEventListener('scroll', measure, { passive: true });
   window.addEventListener('resize', measure);
   measure();
 
-  let frame = 0, px = 0, py = 0, lit = false;
-  function paint() {
-    frame = 0;
-    sky.style.setProperty('--px', px.toFixed(1) + 'px');
-    sky.style.setProperty('--py', py.toFixed(1) + 'px');
-  }
-  function light(e) {
-    if (!box || !box.height) measure();
-    px = e.clientX - box.left;
-    py = e.clientY - box.top;
-    /* Only while the pointer is over the panel: past its bottom edge
-       there is nothing left to reveal. */
-    const inside = py >= 0 && py <= box.height;
-    if (inside !== lit) { lit = inside; sky.classList.toggle('is-lit', inside); }
-    if (inside && !frame) frame = requestAnimationFrame(paint);
-  }
-  function dark() {
-    if (frame) { cancelAnimationFrame(frame); frame = 0; }
-    lit = false; sky.classList.remove('is-lit');
-  }
-
   home.addEventListener('pointermove', e => {
-    light(e);
+    if (!box || !box.height) measure();
+    const y = e.clientY - box.top;
+    /* Only while the pointer is over the panel: past its bottom edge
+       there is nothing left to light. */
+    window.__glyphPointer(e.clientX - box.left, y, y >= 0 && y <= box.height);
     if (reduced.matches) return;
     const half = window.innerWidth / 2;
     sweep(Math.max(-REACH, Math.min(REACH, (e.clientX - half) / half * REACH)).toFixed(2));
   });
   /* Back to rest when the pointer leaves, so the panel is never left
      parked at an extreme — and nothing is left lit behind it. */
-  home.addEventListener('pointerleave', () => { sweep(0); dark(); });
+  home.addEventListener('pointerleave', () => { sweep(0); window.__glyphPointer(0, 0, false); });
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   The glyph field.
+
+   A lattice of small filled squares laid over the sky, each one
+   choosing between three alphas of white by sampling a slow noise
+   at its own position. The dots never move and never fade in; what
+   travels is the boundary between the tones, which is what lets a
+   field this dense animate without ever asking to be looked at.
+
+   The engine is the one from Glyph Field Studio, carried over with
+   its settings intact:
+
+     shimmer          the noise is sampled in three dimensions, with
+                      time as the third — no direction, just drift
+     speed     0.40x  how fast time moves through it
+     field     0.115  cells per unit of noise; the size of a cloud
+     grain      22%   per-cell dither, so the tone edges break up
+                      into dots instead of reading as contours
+     cell       7px   the lattice
+     element    44%   glyph size as a fraction of the cell
+     tones   16 / 16  the share of the field at each of the top two
+                      alphas; the remainder is the base whisper
+     pointer     on   pulls the noise down inside ~170px, which
+                      promotes everything under the cursor a tone
+
+   Two things differ from the studio. The palette is three alphas of
+   one white rather than three inks, since the field sits on colour
+   here. And there is no shape mask — the studio gates the field to a
+   silhouette; the sky wants it edge to edge.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  const sky = $('heroSky');
+  const cv  = $('heroGlyphs');
+  if (!cv || !cv.getContext) return;
+  const ctx = cv.getContext('2d', { alpha: true });
+
+  const CELL = 7, ELEMENT = .44;
+  /* The element is U+25A0, the filled square, and the studio draws it
+     with fillText. Here it is drawn as the square it is. Its ink box
+     in the studio's mono face is about 0.65 of the em, which at these
+     numbers is 2px on a 7px lattice — exactly what the reference
+     renders. Measuring the glyph instead would be the more faithful
+     move if the measurement were worth anything: at a three-pixel
+     font size the metrics quantise, and the face that answers for
+     U+25A0 differs by platform, so the same page would come out with
+     a different lattice on each. A constant is both the true shape
+     and the stable one. */
+  const INK = .65;
+  const SPEED = .40, FIELD = .115, GRAIN = .22;
+  const MIX = .16, MID = .16;      /* accent share, mid-tone share */
+  const PULL = .85, REACH = 170;   /* the pointer's depth and radius, px */
+  const SEED = 11.3;
+  /* Past this the lattice coarsens a step at a time. A cell is a
+     noise sample and a glyph draw, so the count is the frame budget;
+     the panel is deep enough on a tall window to want the ceiling. */
+  const BUDGET = 46000;
+
+  /* ---- the noise, verbatim: a 3D value noise on a hashed lattice,
+          two octaves deep ---- */
+  function hash(x, y, z) {
+    let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(z | 0, 1442695041);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967295;
+  }
+  function smooth(a) { return a * a * (3 - 2 * a); }
+  function noise3(x, y, z) {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    const xf = smooth(x - xi), yf = smooth(y - yi), zf = smooth(z - zi);
+    const c000 = hash(xi, yi, zi),         c100 = hash(xi + 1, yi, zi);
+    const c010 = hash(xi, yi + 1, zi),     c110 = hash(xi + 1, yi + 1, zi);
+    const c001 = hash(xi, yi, zi + 1),     c101 = hash(xi + 1, yi, zi + 1);
+    const c011 = hash(xi, yi + 1, zi + 1), c111 = hash(xi + 1, yi + 1, zi + 1);
+    const x00 = c000 + (c100 - c000) * xf, x10 = c010 + (c110 - c010) * xf;
+    const x01 = c001 + (c101 - c001) * xf, x11 = c011 + (c111 - c011) * xf;
+    const y0 = x00 + (x10 - x00) * yf, y1 = x01 + (x11 - x01) * yf;
+    return y0 + (y1 - y0) * zf;
+  }
+  /* One octave of the noise along a whole row at once.
+     x advances by `step` per column while the noise lattice is coarse
+     against the cells — at a field scale of .115 one lattice cell
+     spans nearly nine columns — so the eight corner hashes only
+     change every few columns. Folding y and z in first collapses
+     those eight into two values per lattice column, and walking the
+     lattice across the row hands each step its predecessor's right
+     edge. Every column then costs one lerp instead of eight hashes:
+     the same numbers noise3 would return, for about a tenth of the
+     work. */
+  function octave(out, w, x0, step, y, z) {
+    const yi = Math.floor(y), zi = Math.floor(z);
+    const yf = smooth(y - yi), zf = smooth(z - zi);
+    const edge = xi => {
+      const a = hash(xi, yi, zi),     b = hash(xi, yi + 1, zi);
+      const c = hash(xi, yi, zi + 1), d = hash(xi, yi + 1, zi + 1);
+      const p = a + (b - a) * yf, q = c + (d - c) * yf;
+      return p + (q - p) * zf;
+    };
+    let xi = Math.floor(x0), A = edge(xi), B = edge(xi + 1), x = x0;
+    for (let c = 0; c < w; c++, x += step) {
+      const nx = Math.floor(x);
+      if (nx !== xi) {
+        if (nx === xi + 1) { A = B; B = edge(nx + 1); }
+        else { A = edge(nx); B = edge(nx + 1); }
+        xi = nx;
+      }
+      out[c] = A + (B - A) * smooth(x - xi);
+    }
+  }
+
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let W = 0, H = 0, dpr = 1, cell = CELL, cols = 0, rows = 0;
+  let dither = null, buckets = null, tone = ['', '', ''];
+  let oct1 = null, oct2 = null;              /* one row of each octave */
+  let colX = null, rowY = null;              /* each column's and row's edge */
+  let side = 0;                              /* the square, in CSS px */
+  let t = 0, last = 0, px = -1e5, py = -1e5, on = false, raf = 0;
+
+  const bucket = n => ({ xs: new Float32Array(n), ys: new Float32Array(n), n: 0 });
+
+  /* The three alphas live in the stylesheet with the rest of the
+     tokens, so the mode toggle moves them the way it moves every
+     other colour on the page. */
+  function readTones() {
+    const cs = getComputedStyle(document.documentElement);
+    for (let i = 0; i < 3; i++) {
+      const a = parseFloat(cs.getPropertyValue('--glyph-' + (i + 1))) || 0;
+      tone[i] = 'rgba(255,255,255,' + a + ')';
+    }
+  }
+  new MutationObserver(readTones).observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+
+  function resize() {
+    const r = sky.getBoundingClientRect();
+    W = Math.round(r.width); H = Math.round(r.height);
+    if (!W || !H) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+
+    cell = CELL;
+    cols = Math.max(4, Math.ceil(W / cell)); rows = Math.max(4, Math.ceil(H / cell));
+    while (cols * rows > BUDGET) { cell += 1; cols = Math.ceil(W / cell); rows = Math.ceil(H / cell); }
+
+    const n = cols * rows;
+    dither = new Float32Array(n);
+    for (let i = 0; i < n; i++) dither[i] = hash(i % cols, (i / cols) | 0, 91);
+    buckets = [bucket(n), bucket(n), bucket(n)];
+    oct1 = new Float32Array(cols); oct2 = new Float32Array(cols);
+    readTones();
+
+    /* Snapped to whole device pixels — position and size both. Two
+       CSS pixels landing on a half-pixel boundary is a four-pixel
+       grey smear, and a lattice of those reads as haze instead of as
+       dots. Snapped, every square is the same square. */
+    side = Math.max(1, Math.round(cell * ELEMENT * INK * dpr)) / dpr;
+    const snap = v => Math.round(v * dpr) / dpr;
+    colX = new Float32Array(cols); rowY = new Float32Array(rows);
+    for (let c = 0; c < cols; c++) colX[c] = snap(c * cell + (cell - side) * .5);
+    for (let r = 0; r < rows; r++) rowY[r] = snap(r * cell + (cell - side) * .5);
+    draw();
+  }
+
+  function draw() {
+    if (!cols || !rows) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const pcx = on ? px / cell : -1e5, pcy = on ? py / cell : -1e5;
+    const pr = Math.max(6, REACH / cell), pr2 = pr * pr;
+    const z = t * .42 + SEED;
+    const b0 = buckets[0], b1 = buckets[1], b2 = buckets[2];
+    const t2 = MIX + MID, g2 = GRAIN * .55;
+    b0.n = b1.n = b2.n = 0;
+
+    for (let r = 0; r < rows; r++) {
+      const ny = r * FIELD, cy = rowY[r], i0 = r * cols;
+      octave(oct1, cols, 0, FIELD, ny, z);
+      octave(oct2, cols, 5.2, FIELD * 2.13, ny * 2.13 - 3.7, z * 1.7);
+      /* The pointer's pull dies at two radii; outside that band the
+         row is the field alone. */
+      const dy = r - pcy, dy2 = dy * dy;
+      const span = on && dy2 < 4 * pr2 ? Math.sqrt(4 * pr2 - dy2) : -1;
+      const lo = span < 0 ? cols : Math.max(0, Math.ceil(pcx - span));
+      const hi = span < 0 ? cols : Math.min(cols, Math.floor(pcx + span) + 1);
+
+      for (let c = 0; c < cols; c++) {
+        let v = oct1[c] * .65 + oct2[c] * .35 + (dither[i0 + c] - .5) * g2;
+        if (c >= lo && c < hi) {
+          const dx = c - pcx, dd = (dx * dx + dy2) / pr2;
+          if (dd < 4) v -= PULL * Math.exp(-dd * 1.6);
+        }
+        const b = v < MIX ? b0 : (v < t2 ? b1 : b2);
+        b.xs[b.n] = colX[c]; b.ys[b.n] = cy; b.n++;
+      }
+    }
+
+    /* Faintest first, so the bright tones land on top of their own
+       neighbours rather than under them. */
+    for (const k of [2, 1, 0]) {
+      const b = buckets[k];
+      if (!b.n) continue;
+      ctx.beginPath();
+      for (let q = 0; q < b.n; q++) ctx.rect(b.xs[q], b.ys[q], side, side);
+      ctx.fillStyle = tone[k];
+      ctx.fill();
+    }
+  }
+
+  /* The noise crosses one lattice cell every six seconds at this
+     speed, so a frame of the field is worth about as much as the one
+     before it. Redrawing at thirty rather than sixty halves what the
+     page spends on it and changes nothing anyone can see — including
+     the pointer bloom, which lags by at most a frame. */
+  const STEP = 1000 / 30;
+  let drawn = 0;
+  function loop(ts) {
+    raf = requestAnimationFrame(loop);
+    if (!last) last = ts;
+    t += Math.min(.05, (ts - last) / 1000) * SPEED;
+    last = ts;
+    if (ts - drawn < STEP) return;
+    drawn = ts;
+    draw();
+  }
+
+  /* The pointer arrives from the sweep handler above, already in the
+     sky's coordinates. Held still, the field is redrawn on the next
+     frame anyway; stopped, it is redrawn once so the bloom clears. */
+  window.__glyphPointer = (x, y, inside) => {
+    px = x; py = y;
+    if (inside === on && !inside) return;
+    on = inside;
+    if (!raf) draw();
+  };
+
+  const start = () => {
+    if (reduced.matches) { draw(); return; }   /* the field, held still */
+    if (!raf) { last = 0; raf = requestAnimationFrame(loop); }
+  };
+  const stop = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+
+  window.addEventListener('resize', resize);
+  /* A tab in the background would keep the field on the main thread
+     for nothing. */
+  document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
+  reduced.addEventListener('change', () => { stop(); start(); });
+
+  resize();
+  start();
 })();
 
 /* ═══════════════════════════════════════════════════════════════
