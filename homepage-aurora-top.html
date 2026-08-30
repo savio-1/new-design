@@ -1053,7 +1053,11 @@
          both as a length here and as a fraction of the panel in the
          glyph field's mask below. Re-derived on every change of
          --hero-h so the product stays 36.4vh. */
-      --hero-share: .3922;
+      /* Raised from .3922: the set — greeting, headline, cards — now
+         sits on the panel's middle rather than its upper third, which
+         is where the Figma puts it. The glyph mask reads the same
+         number, so the grain follows the words down. */
+      --hero-share: .53;
       --band-blur:  76px;
       /* The bottom of the sky. An ellipse anchored above the top edge and
          narrower than the panel, so the colour hangs lowest at the centre
@@ -1404,53 +1408,98 @@
        card surface it had — there is no rung below white. */
     :root            { --home-card-bg: var(--backgrounds-page-bg-1); }
     :root[data-mode="light"] { --home-card-bg: var(--backgrounds-card-bg-2); }
+    /* The card and the drawer that opens beneath it are siblings, the
+       way the Figma builds them: the drawer is laid down first and the
+       card paints over it, so the drawer is hidden behind the card
+       until it slides out past the bottom edge. The wrap is what
+       carries :hover — hovering the drawer itself counts, so the thing
+       does not flicker shut when the pointer follows it down. */
+    .hero-cardwrap { position: relative; display: flex; }
+    .hero-cardwrap > .hero-card { flex: 1 1 auto; }
+
     .hero-card {
       position: relative;
       display: flex; flex-direction: column; align-items: flex-start; gap: 16px;
       padding: 22px 20px; border-radius: 20px;
       background: var(--home-card-bg);
-      /* No stroke: the card is dark enough against the sky to hold its
-         own edge, and a line around it only re-draws what the shadow
-         already says. Kept as a transparent border rather than dropped,
-         so the box is the same size it was and focus still has an edge
-         to colour. */
-      border: 1px solid transparent;
+      /* Transparent at rest and blue on hover, at the Figma's 1.4px so
+         the box is the same size in both states. */
+      border: 1.4px solid transparent;
       box-shadow: var(--shadow-pop);
       text-align: left;
-      transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+      transition: border-color .18s ease, box-shadow .18s ease;
     }
-    .hero-card:hover {
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-tiq);
+    /* No lift any more: the drawer is what answers the pointer, and a
+       card that rose while a drawer slid out from under it read as two
+       animations arguing. */
+    .hero-cardwrap:hover .hero-card {
+      border-color: var(--blue-600, #007be5);
+      box-shadow: 0 1px 1px rgba(0, 0, 0, .12);
     }
-    /* Keyboard focus keeps the blue: there it is the only thing saying
-       where you are. */
-    .hero-card:focus-visible {
-      border-color: var(--strokes-card-selected);
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-tiq);
-    }
+    .hero-cardwrap:hover .hero-name { color: var(--text-coloured-blue); }
+    /* Keyboard focus gets the same state the pointer gets. */
+    .hero-cardwrap:focus-within .hero-card { border-color: var(--blue-600, #007be5); }
+    .hero-cardwrap:focus-within .hero-name { color: var(--text-coloured-blue); }
     .hero-card:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 2px; }
+
+    /* ── The drawer ──────────────────────────────────────────────
+       Geometry off the Figma: 320 wide against the card's 318, so it
+       shows a hair either side; 84 tall, anchored 26px below the
+       card's bottom edge; 16px radius against the card's 20. It hides
+       by travelling that 26px back up behind the card. */
+    .hero-drawer {
+      position: absolute; left: -1px; right: -1px; bottom: -26px; height: 84px;
+      border-radius: 16px;
+      display: flex; align-items: flex-end; justify-content: center; gap: 4px;
+      padding-bottom: 5px;
+      color: var(--text-button-white, #fff);
+      opacity: 0; transform: translateY(-26px);
+      transition: opacity .2s ease, transform .28s cubic-bezier(.22, .8, .3, 1);
+    }
+    /* The gradient carries the Figma's 70%, not the label — there the
+       rect is the thing set back, and the caption on top of it stays
+       full white. */
+    .hero-drawer::before {
+      content: ''; position: absolute; inset: 0; border-radius: inherit;
+      background: linear-gradient(205.59deg,
+        var(--blue-300, #bde3ff) 27.77%, var(--blue-500, #0d99ff) 63.88%, var(--blue-600, #007be5) 100%);
+      opacity: .7;
+    }
+    .hero-drawer > * { position: relative; }
+    .hero-cardwrap:hover .hero-drawer,
+    .hero-cardwrap:focus-within .hero-drawer { opacity: 1; transform: none; }
     /* The Figma draws these two marks itself — they are artwork, not
        glyphs, so they carry their own gradient and sit unboxed rather
        than on one of the rail's coloured tiles. */
+    /* Both marks carry two lilac accents at rest — the ring fill and
+       the first stop of their gradient. The Figma's hover state has
+       neither: it runs the whole mark through the blue ramp instead.
+       The two colours are custom properties inside the symbols so the
+       swap is a property change on the tile, which is the one thing
+       that inherits through a <use> shadow tree. Registered as
+       <color> so they interpolate rather than jump. */
+    @property --fig-a1 { syntax: "<color>"; inherits: true; initial-value: #d9b8ff; }
+    @property --fig-a2 { syntax: "<color>"; inherits: true; initial-value: #dbddfc; }
     .hero-tile {
       width: 48px; height: 48px; flex: none;
       display: flex; align-items: center; justify-content: center;
+      --fig-a1: #d9b8ff; --fig-a2: #dbddfc;
+      transition: --fig-a1 .22s ease, --fig-a2 .22s ease;
+    }
+    .hero-cardwrap:hover .hero-tile,
+    .hero-cardwrap:focus-within .hero-tile {
+      --fig-a1: var(--blue-300, #bde3ff);
+      --fig-a2: var(--blue-500, #0d99ff);
     }
     .hero-tile .ic { width: 48px; height: 48px; }
-    .hero-copy { display: flex; flex-direction: column; gap: 4px; }
-    .hero-name { color: var(--text-primary); }
-    .hero-desc { color: var(--text-secondary); }
-    .hero-go {
-      position: absolute; top: 22px; right: 20px;
-      color: var(--text-teritiary);
-      opacity: 0; transform: translateX(-4px);
-      transition: opacity .18s ease, transform .18s ease, color .18s ease;
-    }
-    .hero-card:hover .hero-go, .hero-card:focus-visible .hero-go {
-      opacity: 1; transform: none; color: var(--text-coloured-blue);
-    }
+    /* 6px between the two lines as measured, not as declared: the line
+       boxes carry half-leading of their own — 4px under the 16/24 name
+       and 3px over the 14/20 description — so a plain 6px gap would
+       read as 13px of air. The leading is trimmed back by exactly that
+       much, which leaves the 6px being the gap you actually see. */
+    .hero-copy { display: flex; flex-direction: column; gap: 6px; }
+    .hero-name { color: var(--text-primary); margin-bottom: -4px; transition: color .18s ease; }
+    .hero-desc { color: var(--text-secondary); margin-top: -3px; }
 
     .home-more {
       width: 100%; margin-top: 40px;
@@ -1701,7 +1750,8 @@
       .hero > *, .ground-inner > * { animation: none; }
       .rotor-word.is-out, .rotor-word.is-in { animation: none; }
       .rotor { transition: none; }
-      .hero-card, .hero-go, .chip { transition: none; }
+      .hero-card, .hero-drawer, .hero-tile, .chip { transition: none; }
+      .hero-drawer { transform: none; }
     }
   </style>
 
@@ -1951,7 +2001,7 @@
 <g id="fa__Group 1686553221">
 <g id="fa__Group 1686553219">
 <g id="fa__Rectangle 142" filter="url(#fa__filter2_i_154_4256)">
-<path d="M6.75953 18.9995C9.94069 18.9995 12.5195 21.5784 12.5195 24.7595C12.5195 27.9407 9.94069 30.5195 6.75953 30.5195C3.57837 30.5195 0.99953 27.9407 0.999531 24.7595C0.999531 21.5784 3.57837 18.9995 6.75953 18.9995Z" fill="#DBDDFC" fill-opacity="0.8"/>
+<path d="M6.75953 18.9995C9.94069 18.9995 12.5195 21.5784 12.5195 24.7595C12.5195 27.9407 9.94069 30.5195 6.75953 30.5195C3.57837 30.5195 0.99953 27.9407 0.999531 24.7595C0.999531 21.5784 3.57837 18.9995 6.75953 18.9995Z" fill="var(--fig-a2, #DBDDFC)" fill-opacity="0.8"/>
 <path d="M12.0195 24.7593C12.0195 27.6642 9.66467 30.0189 6.75977 30.019C3.85475 30.019 1.5 27.6643 1.5 24.7593C1.50013 21.8544 3.85483 19.4995 6.75977 19.4995C9.6646 19.4996 12.0194 21.8544 12.0195 24.7593Z" stroke="white" stroke-opacity="0.2"/>
 </g>
 <circle id="fa__Ellipse 68" cx="6.76071" cy="24.7593" r="2.22171" transform="rotate(90 6.76071 24.7593)" fill="white"/>
@@ -1960,7 +2010,7 @@
 <g id="fa__Group 1686553223">
 <g id="fa__Group 1686553219_2">
 <g id="fa__Rectangle 142_2" filter="url(#fa__filter3_i_154_4256)">
-<path d="M39.7595 18.9995C42.9407 18.9995 45.5195 21.5784 45.5195 24.7595C45.5195 27.9407 42.9407 30.5195 39.7595 30.5195C36.5784 30.5195 33.9995 27.9407 33.9995 24.7595C33.9995 21.5784 36.5784 18.9995 39.7595 18.9995Z" fill="#DBDDFC" fill-opacity="0.8"/>
+<path d="M39.7595 18.9995C42.9407 18.9995 45.5195 21.5784 45.5195 24.7595C45.5195 27.9407 42.9407 30.5195 39.7595 30.5195C36.5784 30.5195 33.9995 27.9407 33.9995 24.7595C33.9995 21.5784 36.5784 18.9995 39.7595 18.9995Z" fill="var(--fig-a2, #DBDDFC)" fill-opacity="0.8"/>
 <path d="M45.0195 24.7593C45.0195 27.6642 42.6647 30.0189 39.7598 30.019C36.8547 30.019 34.5 27.6643 34.5 24.7593C34.5001 21.8544 36.8548 19.4995 39.7598 19.4995C42.6646 19.4996 45.0194 21.8544 45.0195 24.7593Z" stroke="white" stroke-opacity="0.2"/>
 </g>
 <circle id="fa__Ellipse 68_2" cx="39.7595" cy="24.759" r="1.97486" transform="rotate(90 39.7595 24.759)" fill="white"/>
@@ -1969,7 +2019,7 @@
 <g id="fa__Group 1686553224">
 <g id="fa__Group 1686553219_3">
 <g id="fa__Rectangle 142_3" filter="url(#fa__filter4_i_154_4256)">
-<path d="M39.7595 32.9995C42.9407 32.9995 45.5195 35.5784 45.5195 38.7595C45.5195 41.9407 42.9407 44.5195 39.7595 44.5195C36.5784 44.5195 33.9995 41.9407 33.9995 38.7595C33.9995 35.5784 36.5784 32.9995 39.7595 32.9995Z" fill="#DBDDFC" fill-opacity="0.8"/>
+<path d="M39.7595 32.9995C42.9407 32.9995 45.5195 35.5784 45.5195 38.7595C45.5195 41.9407 42.9407 44.5195 39.7595 44.5195C36.5784 44.5195 33.9995 41.9407 33.9995 38.7595C33.9995 35.5784 36.5784 32.9995 39.7595 32.9995Z" fill="var(--fig-a2, #DBDDFC)" fill-opacity="0.8"/>
 <path d="M45.0195 38.7593C45.0195 41.6642 42.6647 44.0189 39.7598 44.019C36.8547 44.019 34.5 41.6643 34.5 38.7593C34.5001 35.8544 36.8548 33.4995 39.7598 33.4995C42.6646 33.4996 45.0194 35.8544 45.0195 38.7593Z" stroke="white" stroke-opacity="0.2"/>
 </g>
 <circle id="fa__Ellipse 68_3" cx="39.9744" cy="38.9744" r="1.97486" transform="rotate(90 39.9744 38.9744)" fill="white"/>
@@ -1978,7 +2028,7 @@
 <g id="fa__Group 1686553225">
 <g id="fa__Group 1686553219_4">
 <g id="fa__Rectangle 142_4" filter="url(#fa__filter5_i_154_4256)">
-<path d="M39.7595 4.99951C42.9407 4.99951 45.5195 7.57835 45.5195 10.7595C45.5195 13.9407 42.9407 16.5195 39.7595 16.5195C36.5784 16.5195 33.9995 13.9407 33.9995 10.7595C33.9995 7.57835 36.5784 4.99951 39.7595 4.99951Z" fill="#DBDDFC" fill-opacity="0.8"/>
+<path d="M39.7595 4.99951C42.9407 4.99951 45.5195 7.57835 45.5195 10.7595C45.5195 13.9407 42.9407 16.5195 39.7595 16.5195C36.5784 16.5195 33.9995 13.9407 33.9995 10.7595C33.9995 7.57835 36.5784 4.99951 39.7595 4.99951Z" fill="var(--fig-a2, #DBDDFC)" fill-opacity="0.8"/>
 <path d="M45.0195 10.7593C45.0195 13.6642 42.6647 16.0189 39.7598 16.019C36.8547 16.019 34.5 13.6643 34.5 10.7593C34.5001 7.85437 36.8548 5.49951 39.7598 5.49951C42.6646 5.49964 45.0194 7.85445 45.0195 10.7593Z" stroke="white" stroke-opacity="0.2"/>
 </g>
 <circle id="fa__Ellipse 68_4" cx="39.9744" cy="10.9744" r="1.97486" transform="rotate(90 39.9744 10.9744)" fill="white"/>
@@ -2023,7 +2073,7 @@
 <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0"/>
 <feBlend mode="normal" in2="shape" result="effect1_innerShadow_154_4256"/>
 </filter><linearGradient id="fa__paint0_linear_154_4256" x1="8.33415" y1="38.1548" x2="46.3889" y2="27.1669" gradientUnits="userSpaceOnUse">
-<stop stop-color="#D9B8FF"/>
+<stop stop-color="var(--fig-a1, #D9B8FF)"/>
 <stop offset="0.5" stop-color="#0D99FF"/>
 <stop offset="1" stop-color="#007BE5"/>
 </linearGradient></defs></symbol><symbol id="ic-fig-assistant" viewBox="0 0 48 48" fill="none"><g id="fs__Frame 2147225409">
@@ -2034,7 +2084,7 @@
 </g>
 <g id="fs__Group_3">
 <g id="fs__Vector_2" filter="url(#fs__filter2_i_154_4256)">
-<path d="M34.7551 3H13.5306C9.92384 3 7 5.91195 7 9.50406V25.0463C7 28.6384 9.92384 31.5503 13.5306 31.5503H17.0048C18.1285 31.5503 19.1732 32.1258 19.7705 33.0737L21.3771 35.6231C22.6571 37.6541 25.6287 37.6541 26.9086 35.6231L28.5152 33.0737C29.1125 32.1258 30.1572 31.5503 31.2809 31.5503H34.7551C38.3619 31.5503 41.2857 28.6384 41.2857 25.0463V9.50406C41.2857 5.91195 38.3619 3 34.7551 3Z" fill="#DBDDFC" fill-opacity="0.6"/>
+<path d="M34.7551 3H13.5306C9.92384 3 7 5.91195 7 9.50406V25.0463C7 28.6384 9.92384 31.5503 13.5306 31.5503H17.0048C18.1285 31.5503 19.1732 32.1258 19.7705 33.0737L21.3771 35.6231C22.6571 37.6541 25.6287 37.6541 26.9086 35.6231L28.5152 33.0737C29.1125 32.1258 30.1572 31.5503 31.2809 31.5503H34.7551C38.3619 31.5503 41.2857 28.6384 41.2857 25.0463V9.50406C41.2857 5.91195 38.3619 3 34.7551 3Z" fill="var(--fig-a2, #DBDDFC)" fill-opacity="0.6"/>
 <path d="M13.5303 3.5H34.7549C38.0874 3.5 40.786 6.18993 40.7861 9.50391V25.0459C40.7861 28.36 38.0874 31.0508 34.7549 31.0508H31.2812C29.9865 31.0508 28.781 31.713 28.0918 32.8066L26.4854 35.3564C25.4016 37.0762 22.8836 37.0763 21.7998 35.3564L20.1934 32.8066C19.5041 31.7132 18.2995 31.0508 17.0049 31.0508H13.5303C10.1979 31.0506 7.5 28.3598 7.5 25.0459V9.50391C7.50009 6.19004 10.1979 3.50018 13.5303 3.5Z" stroke="white" stroke-opacity="0.2"/>
 </g>
 <path id="fs__Vector 2690" d="M29.1921 15.5L32.3915 20.9934C33.1681 22.3268 32.2062 24 30.6633 24H24.1426M29.1921 15.5L25.9528 9.9381C25.1852 8.62013 23.284 8.6119 22.505 9.92318L19.1921 15.5M29.1921 15.5H19.1921M29.1921 15.5L24.1426 24M19.1921 15.5L15.9375 20.9785C15.1455 22.3117 16.1063 24 17.657 24H24.1426M19.1921 15.5L24.1426 24" stroke="white" stroke-width="1.4"/>
@@ -2052,7 +2102,7 @@
 <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0"/>
 <feBlend mode="normal" in2="shape" result="effect1_innerShadow_154_4256"/>
 </filter><linearGradient id="fs__paint0_linear_154_4256" x1="5.71779" y1="41.4548" x2="50.5212" y2="28.1896" gradientUnits="userSpaceOnUse">
-<stop stop-color="#D9B8FF"/>
+<stop stop-color="var(--fig-a1, #D9B8FF)"/>
 <stop offset="0.5" stop-color="#0D99FF"/>
 <stop offset="1" stop-color="#007BE5"/>
 </linearGradient></defs></symbol><symbol id="ic-clock" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.6V8l2.3 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol></svg>
@@ -2184,9 +2234,6 @@
           <input class="t-body2-reg" type="search" placeholder="Search anything" aria-label="Search anything" />
         </label>
         <div class="header-actions">
-          <button class="icon-btn-32" title="Notifications">
-            <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-bell"/></svg>
-          </button>
           <button class="ws-dropdown">
             <span style="display:flex;align-items:center;gap:4px">
               <span class="avatar"><svg viewBox="0 0 20 20"><use href="#ic-avatarF"/></svg><span>F</span></span>
@@ -2242,23 +2289,33 @@
               <div class="ground-inner">
 
                 <div class="home-cards">
-                  <button class="hero-card" type="button">
-                    <span class="hero-tile"><svg class="ic" viewBox="0 0 48 48"><use href="#ic-fig-automation"/></svg></span>
-                    <span class="hero-copy">
-                      <span class="hero-name t-body1-med">Create automation</span>
-                      <span class="hero-desc t-body2-reg">Design an automation solution step by step</span>
+                  <div class="hero-cardwrap">
+                    <span class="hero-drawer" aria-hidden="true">
+                      <span class="hero-drawer-lbl t-caption1-med">Start automating</span>
+                      <svg class="ic" width="16" height="16" viewBox="0 0 20 20"><use href="#ic-arrowright"/></svg>
                     </span>
-                    <svg class="ic hero-go" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowright"/></svg>
-                  </button>
+                    <button class="hero-card" type="button">
+                      <span class="hero-tile"><svg class="ic" viewBox="0 0 48 48"><use href="#ic-fig-automation"/></svg></span>
+                      <span class="hero-copy">
+                        <span class="hero-name t-body1-med">Create automation</span>
+                        <span class="hero-desc t-body2-reg">Design an automation solution step by step</span>
+                      </span>
+                    </button>
+                  </div>
 
-                  <button class="hero-card" type="button">
-                    <span class="hero-tile"><svg class="ic" viewBox="0 0 48 48"><use href="#ic-fig-assistant"/></svg></span>
-                    <span class="hero-copy">
-                      <span class="hero-name t-body1-med">Create an AI Assistant</span>
-                      <span class="hero-desc t-body2-reg">Create a personalized chat assistant</span>
+                  <div class="hero-cardwrap">
+                    <span class="hero-drawer" aria-hidden="true">
+                      <span class="hero-drawer-lbl t-caption1-med">Build assistant</span>
+                      <svg class="ic" width="16" height="16" viewBox="0 0 20 20"><use href="#ic-arrowright"/></svg>
                     </span>
-                    <svg class="ic hero-go" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowright"/></svg>
-                  </button>
+                    <button class="hero-card" type="button">
+                      <span class="hero-tile"><svg class="ic" viewBox="0 0 48 48"><use href="#ic-fig-assistant"/></svg></span>
+                      <span class="hero-copy">
+                        <span class="hero-name t-body1-med">Create an AI Assistant</span>
+                        <span class="hero-desc t-body2-reg">Create a personalized chat assistant</span>
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <div class="home-more">
