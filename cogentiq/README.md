@@ -1,5 +1,8 @@
 # CogentIQ — combined product
 
+**Live link:** <https://claude.ai/code/artifact/d8e226d8-7179-4084-b412-b8353781c334> —
+all five pages in one place, switched via the platform rail.
+
 The five CogentIQ pages, built in separate sessions, combined into one navigable product.
 Open `index.html` (the Homepage) and use the left platform rail to switch pages:
 
