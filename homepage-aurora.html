@@ -1299,7 +1299,7 @@
 
          The falloff is bent rather than straight: a linear ramp across
          a grid of hard little squares shows its own edge. */
-      --fade: radial-gradient(68% calc((var(--hero-share) * 100% + 6%) / .66) at 50% -6%,
+      --fade: radial-gradient(52% calc((var(--hero-share) * 100% + 6%) / .66) at 50% -6%,
                 #000 0%, #000 66%,
                 rgba(0, 0, 0, .78) 74%, rgba(0, 0, 0, .42) 84%,
                 rgba(0, 0, 0, .14) 92%, transparent 100%);
@@ -1739,22 +1739,28 @@
       position: absolute; inset: 0; z-index: 0;
       border-radius: 12px; overflow: hidden;
       pointer-events: none;
-      /* How far up from the bottom edge the light reaches before the
-         mask extinguishes it. */
-      --edge-reach: clamp(150px, 26vh, 300px);
-      /* The light belongs to the bottom of the page alone. Two masks
-         multiplied: a bottom band whose falloff is bent so most of the
-         light dies in the first third of the climb, and a horizontal
-         fade that lets go of both sides — the glow is a shore, hottest
-         at the centre of the bottom edge, gone before the corners. */
+      /* How far the light reaches in from each edge before the mask
+         extinguishes it. */
+      --edge-reach: clamp(170px, 30vh, 340px);
+      --side-reach: clamp(90px, 10vw, 160px);
+      /* The light holds the bottom of the page: a bottom band and a
+         short column up each side, all of it clipped by a vertical
+         fade so nothing survives past about a quarter of the panel's
+         height. The three bands union — the bottom corners, where
+         side meets shore, run hottest — and the clip multiplies the
+         union, letting the side columns dissolve as they climb. */
       -webkit-mask-image:
-        linear-gradient(to top, #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach)),
-        linear-gradient(to right, transparent, rgba(0,0,0,.55) 14%, #000 32%, #000 68%, rgba(0,0,0,.55) 86%, transparent);
+        linear-gradient(to top, #000 10%, rgba(0,0,0,.55) 17%, transparent 27%),
+        linear-gradient(to right, #000, rgba(0,0,0,.45) calc(var(--side-reach) * .34), rgba(0,0,0,.13) calc(var(--side-reach) * .68), transparent var(--side-reach)),
+        linear-gradient(to left,  #000, rgba(0,0,0,.45) calc(var(--side-reach) * .34), rgba(0,0,0,.13) calc(var(--side-reach) * .68), transparent var(--side-reach)),
+        linear-gradient(to top,   #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach));
       mask-image:
-        linear-gradient(to top, #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach)),
-        linear-gradient(to right, transparent, rgba(0,0,0,.55) 14%, #000 32%, #000 68%, rgba(0,0,0,.55) 86%, transparent);
-      -webkit-mask-composite: source-in;
-      mask-composite: intersect;
+        linear-gradient(to top, #000 10%, rgba(0,0,0,.55) 17%, transparent 27%),
+        linear-gradient(to right, #000, rgba(0,0,0,.45) calc(var(--side-reach) * .34), rgba(0,0,0,.13) calc(var(--side-reach) * .68), transparent var(--side-reach)),
+        linear-gradient(to left,  #000, rgba(0,0,0,.45) calc(var(--side-reach) * .34), rgba(0,0,0,.13) calc(var(--side-reach) * .68), transparent var(--side-reach)),
+        linear-gradient(to top,   #000, rgba(0,0,0,.45) calc(var(--edge-reach) * .34), rgba(0,0,0,.13) calc(var(--edge-reach) * .68), transparent var(--edge-reach));
+      -webkit-mask-composite: source-in, source-over, source-over, source-over;
+      mask-composite: intersect, add, add, add;
       mix-blend-mode: screen;
       animation: eg-breathe 12s ease-in-out infinite;
     }
@@ -1835,8 +1841,7 @@
        the theme's own ink — the white-on-gradient overrides above no
        longer have a gradient to stand on. Dark keeps white: the void
        is darker than any card. */
-    :root[data-mode="light"] .hero-title,
-    :root[data-mode="light"] .rotor-word { color: var(--text-primary); }
+    :root[data-mode="light"] .hero-title { color: var(--text-primary); }
     :root[data-mode="light"] .hero-eyebrow { color: var(--text-secondary); }
     :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .header-left { color: var(--text-primary); }
     :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .header-search {
@@ -1849,16 +1854,43 @@
     /* The grain stays in light mode, but white has nothing to sit on
        over paper — the canvas is inverted to ink and held back to a
        whisper of grey, with its rungs re-tuned for the lighter ground. */
-    :root[data-mode="light"] { --glyph-1: .38; --glyph-2: .16; --glyph-3: .07; }
-    :root[data-mode="light"] .hero-glyphs { filter: invert(1); opacity: .55; }
+    :root[data-mode="light"] { --glyph-1: .38; --glyph-2: .16; --glyph-3: .07; --glyph-hover: 1; }
+    :root[data-mode="light"] .hero-glyphs { opacity: .55; }
+    :root { --glyph-hover: .95; }
 
     /* On the void the hero cards lose the sky that once cut them out;
        a whisper of ring gives their edge back. */
     .hero-card { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .06); }
     :root[data-mode="light"] .hero-card { box-shadow: none; }
 
+    /* The changing word wears the aurora itself — the same spectrum
+       as the shore below, slid slowly across the letters. The swap
+       animations re-declare it so entering and leaving words keep
+       their colour mid-flight. */
+    .rotor-word {
+      background: linear-gradient(100deg,
+        #64d2ff, #0a84ff 16%, #5e5ce6 34%, #bf5af2 50%, #ff2d92 66%, #ff9f0a 84%, #ffd60a);
+      background-size: 220% 100%;
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+      animation: rotor-aurora 7s linear infinite alternate;
+    }
+    @keyframes rotor-aurora {
+      from { background-position: 0% 50%; }
+      to   { background-position: 100% 50%; }
+    }
+    .rotor-word.is-out {
+      animation: rotor-out .34s cubic-bezier(.4, 0, 1, 1) forwards,
+                 rotor-aurora 7s linear infinite alternate;
+    }
+    .rotor-word.is-in {
+      animation: rotor-in .42s cubic-bezier(.22, .61, .36, 1) backwards,
+                 rotor-aurora 7s linear infinite alternate;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .edge-glow, .edge-glow-spin, .edge-glow-spin2, .edge-glow-rim { animation: none; }
+      .rotor-word { animation: none; background-position: 50% 50%; }
     }
   </style>
 </head>
@@ -2449,7 +2481,7 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
   const INK = .65;
   const SPEED = .40, FIELD = .115, GRAIN = .22;
   const MIX = .16, MID = .16;      /* accent share, mid-tone share */
-  const PULL = .85, REACH = 170;   /* the pointer's depth and radius, px */
+  const PULL = .85, REACH = 70;   /* the pointer's depth and radius, px */
   const SEED = 11.3;
   /* Past this the lattice coarsens a step at a time. A cell is a
      noise sample and a glyph draw, so the count is the frame budget;
@@ -2510,7 +2542,7 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
 
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let W = 0, H = 0, dpr = 1, cell = CELL, cols = 0, rows = 0;
-  let dither = null, buckets = null, tone = ['', '', ''];
+  let dither = null, buckets = null, tone = ['', '', '', ''];
   let oct1 = null, oct2 = null;              /* one row of each octave */
   let colX = null, rowY = null;              /* each column's and row's edge */
   let side = 0;                              /* the square, in CSS px */
@@ -2523,10 +2555,16 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
      other colour on the page. */
   function readTones() {
     const cs = getComputedStyle(document.documentElement);
+    /* On the void the grain is white; on paper it is drawn as ink
+       directly — an invert filter would have turned the hover's blue
+       into orange. */
+    const ink = document.documentElement.getAttribute('data-mode') === 'light' ? '17,17,17' : '255,255,255';
     for (let i = 0; i < 3; i++) {
       const a = parseFloat(cs.getPropertyValue('--glyph-' + (i + 1))) || 0;
-      tone[i] = 'rgba(255,255,255,' + a + ')';
+      tone[i] = 'rgba(' + ink + ',' + a + ')';
     }
+    /* The pointer's tone: the aurora's own blue, in both modes. */
+    tone[3] = 'rgba(10,132,255,' + (parseFloat(cs.getPropertyValue('--glyph-hover')) || .95) + ')';
   }
   new MutationObserver(readTones).observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
 
@@ -2544,7 +2582,7 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
     const n = cols * rows;
     dither = new Float32Array(n);
     for (let i = 0; i < n; i++) dither[i] = hash(i % cols, (i / cols) | 0, 91);
-    buckets = [bucket(n), bucket(n), bucket(n)];
+    buckets = [bucket(n), bucket(n), bucket(n), bucket(n)];
     oct1 = new Float32Array(cols); oct2 = new Float32Array(cols);
     readTones();
 
@@ -2568,9 +2606,9 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
     const pcx = on ? px / cell : -1e5, pcy = on ? py / cell : -1e5;
     const pr = Math.max(6, REACH / cell), pr2 = pr * pr;
     const z = t * .42 + SEED;
-    const b0 = buckets[0], b1 = buckets[1], b2 = buckets[2];
+    const b0 = buckets[0], b1 = buckets[1], b2 = buckets[2], b3 = buckets[3];
     const t2 = MIX + MID, g2 = GRAIN * .55;
-    b0.n = b1.n = b2.n = 0;
+    b0.n = b1.n = b2.n = b3.n = 0;
 
     for (let r = 0; r < rows; r++) {
       const ny = r * FIELD, cy = rowY[r], i0 = r * cols;
@@ -2585,18 +2623,21 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
 
       for (let c = 0; c < cols; c++) {
         let v = oct1[c] * .65 + oct2[c] * .35 + (dither[i0 + c] - .5) * g2;
+        /* Cells the pointer meaningfully reaches change colour, not
+           just tone — they take the aurora's blue. */
+        let pu = 0;
         if (c >= lo && c < hi) {
           const dx = c - pcx, dd = (dx * dx + dy2) / pr2;
-          if (dd < 4) v -= PULL * Math.exp(-dd * 1.6);
+          if (dd < 4) { pu = PULL * Math.exp(-dd * 1.6); v -= pu; }
         }
-        const b = v < MIX ? b0 : (v < t2 ? b1 : b2);
+        const b = pu > .14 ? b3 : (v < MIX ? b0 : (v < t2 ? b1 : b2));
         b.xs[b.n] = colX[c]; b.ys[b.n] = cy; b.n++;
       }
     }
 
     /* Faintest first, so the bright tones land on top of their own
        neighbours rather than under them. */
-    for (const k of [2, 1, 0]) {
+    for (const k of [2, 1, 0, 3]) {
       const b = buckets[k];
       if (!b.n) continue;
       ctx.beginPath();
