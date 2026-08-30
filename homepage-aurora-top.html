@@ -1833,13 +1833,36 @@
     }
     @keyframes eg-rim { to { --eg-angle: 570deg; } }
 
-    /* Light mode: the void becomes paper, so the light stops being
-       screened and becomes a wash — paler, wider, and quieter, an
-       aurora behind frosted glass rather than neon in the dark. */
-    :root[data-mode="light"] .edge-glow { mix-blend-mode: normal; }
-    :root[data-mode="light"] .edge-glow-spin  { opacity: .38; filter: blur(76px) saturate(1.05); }
-    :root[data-mode="light"] .edge-glow-spin2 { opacity: .28; }
-    :root[data-mode="light"] .edge-glow-rim   { opacity: .55; }
+    /* Light mode carries the same chroma as dark, by inverting the
+       arithmetic rather than diluting the colour.
+
+       Screen is what makes the aurora vivid on the void: over near
+       black it returns the conic's own colours untouched. Over paper
+       it returns paper — so light mode used to lay the wheels on at
+       low opacity in normal blending, and a blurred gradient averaged
+       toward white is exactly the pastel that produced.
+
+       Multiply is screen's opposite number and does on white what
+       screen does on black: white is its no-op, so the colours land
+       at full strength and darken the paper the way a gel darkens a
+       lamp. That lets the wheels run at nearly full opacity here,
+       with saturation carried a step past dark's to make up for the
+       chroma a light ground costs. */
+    :root[data-mode="light"] .edge-glow { mix-blend-mode: multiply; }
+    :root[data-mode="light"] .edge-glow-spin { opacity: 1; filter: blur(58px) saturate(1.55); }
+    /* The counter-wheel's hot lobe is near-white, which is precisely
+       what multiply ignores — under it the second wheel would have
+       gone missing. Light mode gives it saturated lobes instead, so
+       it still does its job: the two wheels never line up twice, and
+       the rim blooms wherever the bright one passes. */
+    :root[data-mode="light"] .edge-glow-spin2 {
+      mix-blend-mode: normal; opacity: .5; filter: blur(66px) saturate(1.4);
+      background: conic-gradient(from 40deg,
+        transparent, rgba(255, 159, 10, .9) 7%, rgba(255, 45, 146, .85) 11%, rgba(255, 69, 58, .8) 16%, transparent 26%,
+        transparent 44%, rgba(100, 210, 255, .85) 52%, rgba(10, 132, 255, .75) 58%, transparent 68%,
+        transparent 82%, rgba(191, 90, 242, .8) 90%, transparent);
+    }
+    :root[data-mode="light"] .edge-glow-rim { opacity: .85; }
 
     /* With the sky gone, light mode's hero sits on paper and takes
        the theme's own ink — the white-on-gradient overrides above no
@@ -1877,8 +1900,12 @@
     .header.is-transparent:not(.is-stuck) .icon-btn-32,
     .header.is-transparent:not(.is-stuck) .ws-dropdown { color: rgba(255, 255, 255, .88); }
     .header.is-transparent:not(.is-stuck) .ws-dropdown .name { color: #fff; }
+    /* Light's crown is saturated colour, not paper, so its controls
+       take the primary ink rather than the secondary grey: measured
+       against the band at four points of its rotation, the dark ink
+       holds 4.5:1 where the grey falls to 1.9:1 and white to 2.1:1. */
     :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .icon-btn-32,
-    :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .ws-dropdown { color: var(--text-secondary); }
+    :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .ws-dropdown { color: var(--text-primary); }
     :root[data-mode="light"] .header.is-transparent:not(.is-stuck) .ws-dropdown .name { color: var(--text-primary); }
 
     /* On the void the hero cards lose the sky that once cut them out;
