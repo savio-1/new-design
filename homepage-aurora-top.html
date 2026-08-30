@@ -1344,7 +1344,7 @@
     .hero-eyebrow {
       /* On the gradient in both modes, so both take white rather than a
          theme ink that would vanish into the colour. */
-      margin: 0 0 14px; color: rgba(255, 255, 255, .82);
+      margin: 0 0 4px; color: rgba(255, 255, 255, .82);
       font: 400 var(--fs-body-2)/var(--lh-body-2) var(--font-geist);
       letter-spacing: -0.64px;
     }
@@ -1700,10 +1700,19 @@
     /* Centred on the page, not on what is left over after the two side
        groups — those are different widths, and the field would sit off
        centre if it were laid out between them. */
-    .header-search {
+    /* The wrapper is what sits centred and what grows; the field
+       fills it. Width is the only thing that animates — the panel
+       under it is a separate layer that fades rather than resizing,
+       so nothing reflows while it opens. */
+    .header-searchwrap {
       position: absolute; left: 50%; transform: translateX(-50%);
+      width: 280px; z-index: 4;
+      transition: width .26s cubic-bezier(.22, .8, .3, 1);
+    }
+    .header-searchwrap.is-open { width: 460px; }
+    .header-search {
       display: flex; align-items: center; gap: 8px;
-      width: 280px; height: 32px; padding: 0 8px;
+      width: 100%; height: 32px; padding: 0 8px;
       border-radius: 8px;
       background: color-mix(in srgb, var(--backgrounds-card-bg-2) 62%, transparent);
       border: 1px solid var(--strokes-type-default);
@@ -1715,6 +1724,60 @@
     .header-search:focus-within { border-color: var(--strokes-type-focus); }
     .header-search input { flex: 1 1 auto; min-width: 0; color: var(--text-primary); }
     .header-search input::placeholder { color: var(--text-teritiary); }
+    /* Open, the field stops being a chip on the gradient and takes a
+       real surface — it now has a panel below it that has to read as
+       one object with it. */
+    .header-searchwrap.is-open .header-search {
+      background: var(--backgrounds-card-bg-5);
+      border-color: var(--strokes-type-focus);
+      -webkit-backdrop-filter: none; backdrop-filter: none;
+    }
+    .header-searchwrap.is-open .header-search input { color: var(--text-primary); }
+    .header-searchwrap.is-open .header-search input::placeholder { color: var(--text-teritiary); }
+    .header-searchwrap.is-open .header-search > .ic { color: var(--text-teritiary); }
+
+    .search-panel {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      padding: 6px;
+      background: var(--backgrounds-card-bg-5);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 12px;
+      box-shadow: var(--shadow-pop);
+      opacity: 0; transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity .16s ease, transform .2s cubic-bezier(.22, .8, .3, 1);
+    }
+    .header-searchwrap.is-open .search-panel {
+      opacity: 1; transform: none; pointer-events: auto;
+    }
+    .search-sec + .search-sec { margin-top: 2px; }
+    .search-sec-lbl {
+      margin: 0; padding: 8px 10px 4px;
+      color: var(--text-teritiary);
+      font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
+      letter-spacing: .04em; text-transform: uppercase;
+    }
+    .search-row {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 8px 10px; border-radius: 8px;
+      color: var(--text-primary); text-align: left;
+      transition: background .13s ease;
+    }
+    .search-row:hover, .search-row:focus-visible { background: var(--backgrounds-card-bg-4); }
+    .search-row .ic { flex: none; color: var(--text-teritiary); }
+    .search-row-txt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-row-tag {
+      flex: none; padding: 2px 8px; border-radius: 999px;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-card-default);
+      color: var(--text-teritiary);
+      font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
+    }
+    .search-empty {
+      padding: 14px 10px; color: var(--text-teritiary); text-align: center;
+    }
+    [hidden] { display: none !important; }
+
     .header.is-transparent .icon-btn-32:hover,
     .header.is-transparent .ws-dropdown:hover {
       background: color-mix(in srgb, var(--backgrounds-card-bg-2) 55%, transparent);
@@ -1849,7 +1912,8 @@
     .edge-glow-spin {
       background: conic-gradient(from 210deg,
         #0a84ff, #64d2ff 9%, #0a84ff 19%, #5e5ce6 31%, #7d5cf0 42%,
-        #bf5af2 53%, #ff6b5c 64%, #ff9f0a 72%, #c471ec 84%, #5e5ce6 92%, #0a84ff);
+        #bf5af2 52%, #ff6b5c 61%, #ff9f0a 68%, #ffab26 76%, #ff9f0a 82%,
+        #c471ec 89%, #5e5ce6 94%, #0a84ff);
       filter: blur(56px) saturate(1.15);
       opacity: .92;
       animation: eg-turn 31.7s linear infinite;
@@ -1862,8 +1926,9 @@
     .edge-glow-spin2 {
       background: conic-gradient(from 40deg,
         transparent, rgba(255, 214, 165, .85) 7%, rgba(255, 255, 255, .9) 11%, rgba(255, 159, 10, .7) 16%, transparent 26%,
-        transparent 44%, rgba(100, 210, 255, .75) 52%, rgba(10, 132, 255, .6) 58%, transparent 68%,
-        transparent 82%, rgba(191, 90, 242, .65) 90%, transparent);
+        transparent 44%, rgba(100, 210, 255, .75) 52%, rgba(10, 132, 255, .6) 58%, transparent 66%,
+        rgba(255, 159, 10, .62) 73%, transparent 80%,
+        rgba(191, 90, 242, .65) 90%, transparent);
       filter: blur(72px) saturate(1.02);
       mix-blend-mode: screen;
       opacity: .8;
@@ -1882,7 +1947,8 @@
       border-radius: 12px; padding: 1.5px;
       background: conic-gradient(from var(--eg-angle),
         #0a84ff, #64d2ff 9%, #0a84ff 19%, #5e5ce6 31%, #7d5cf0 42%,
-        #bf5af2 53%, #ff6b5c 64%, #ff9f0a 72%, #c471ec 84%, #5e5ce6 92%, #0a84ff);
+        #bf5af2 52%, #ff6b5c 61%, #ff9f0a 68%, #ffab26 76%, #ff9f0a 82%,
+        #c471ec 89%, #5e5ce6 94%, #0a84ff);
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
       -webkit-mask-composite: xor;
       mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -1918,8 +1984,9 @@
       mix-blend-mode: normal; opacity: .5; filter: blur(66px) saturate(1.19);
       background: conic-gradient(from 40deg,
         transparent, rgba(255, 159, 10, .9) 7%, rgba(255, 138, 76, .85) 11%, rgba(255, 69, 58, .8) 16%, transparent 26%,
-        transparent 44%, rgba(100, 210, 255, .85) 52%, rgba(10, 132, 255, .75) 58%, transparent 68%,
-        transparent 82%, rgba(191, 90, 242, .8) 90%, transparent);
+        transparent 44%, rgba(100, 210, 255, .85) 52%, rgba(10, 132, 255, .75) 58%, transparent 66%,
+        rgba(255, 159, 10, .7) 73%, transparent 80%,
+        rgba(191, 90, 242, .8) 90%, transparent);
     }
     :root[data-mode="light"] .edge-glow-rim { opacity: .85; }
 
@@ -2238,10 +2305,55 @@
       <!-- Header -->
       <header class="header is-transparent">
         <div class="header-left"><span class="t-body1-med">Home</span></div>
-        <label class="header-search">
-          <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
-          <input class="t-body2-reg" type="search" placeholder="Search anything" aria-label="Search anything" />
-        </label>
+        <div class="header-searchwrap" id="searchWrap">
+          <label class="header-search">
+            <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
+            <input class="t-body2-reg" type="search" id="searchInput" autocomplete="off"
+                   placeholder="Search anything" aria-label="Search anything"
+                   aria-expanded="false" aria-controls="searchPanel" />
+          </label>
+          <div class="search-panel" id="searchPanel">
+            <div class="search-sec" data-sec>
+              <p class="search-sec-lbl">Suggested</p>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_agent"/></svg>
+                <span class="search-row-txt">Invoice reconciliation agent</span>
+                <span class="search-row-tag">Agent</span>
+              </button>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg>
+                <span class="search-row-txt">Vendor onboarding automation</span>
+                <span class="search-row-tag">Automation</span>
+              </button>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>
+                <span class="search-row-txt">Claude Sonnet 4.5</span>
+                <span class="search-row-tag">Model</span>
+              </button>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg>
+                <span class="search-row-txt">NetSuite integration</span>
+                <span class="search-row-tag">Integration</span>
+              </button>
+            </div>
+            <div class="search-sec" data-sec>
+              <p class="search-sec-lbl">Recent searches</p>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-clock"/></svg>
+                <span class="search-row-txt">expense approval flow</span>
+              </button>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-clock"/></svg>
+                <span class="search-row-txt">contract summariser</span>
+              </button>
+              <button class="search-row t-body2-reg" type="button">
+                <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-clock"/></svg>
+                <span class="search-row-txt">quarterly close checklist</span>
+              </button>
+            </div>
+            <p class="search-empty t-body2-reg" data-empty hidden>No matches</p>
+          </div>
+        </div>
         <div class="header-actions">
           <button class="ws-dropdown">
             <span style="display:flex;align-items:center;gap:4px">
@@ -2306,7 +2418,7 @@
                     <button class="hero-card" type="button">
                       <span class="hero-tile"><svg class="ic" viewBox="0 0 48 48"><use href="#ic-fig-automation"/></svg></span>
                       <span class="hero-copy">
-                        <span class="hero-name t-body1-med">Create automation</span>
+                        <span class="hero-name t-body1-med">Build automation</span>
                         <span class="hero-desc t-body2-reg">Design an automation solution step by step</span>
                       </span>
                     </button>
@@ -2320,7 +2432,7 @@
                     <button class="hero-card" type="button">
                       <span class="hero-tile"><svg class="ic" viewBox="0 0 48 48"><use href="#ic-fig-assistant"/></svg></span>
                       <span class="hero-copy">
-                        <span class="hero-name t-body1-med">Create an AI Assistant</span>
+                        <span class="hero-name t-body1-med">Build an AI assistant</span>
                         <span class="hero-desc t-body2-reg">Create a personalized chat assistant</span>
                       </span>
                     </button>
@@ -2330,12 +2442,10 @@
                 <div class="home-more">
                   <span class="home-more-lbl">Start with</span>
                   <div class="home-chips">
-                    <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_toolsskills"/></svg>Tool</button>
-                    <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_skill"/></svg>Skill</button>
-                    <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_guardrails"/></svg>Guardrail</button>
+                    <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_agent"/></svg>Agent</button>
                     <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>Model</button>
                     <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg>Integration</button>
-                    <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_agent"/></svg>Agent</button>
+                    <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_toolsskills"/></svg>Tool</button>
                   </div>
                 </div>
 
@@ -2491,6 +2601,72 @@ $('themeToggle').addEventListener('click', () => {
   try { localStorage.setItem('cq-theme', next); } catch (e) { /* private mode */ }
 });
 applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
+
+/* ═══════════════════════════════════════════════════════════════
+   The search field.
+
+   Clicking it widens the field and drops a panel of suggestions and
+   recent searches. The panel is a sibling of the field rather than a
+   child of the label, so a click on a row is a click on a button and
+   not a second click on the input; the wrapper is what carries the
+   open state, which lets focus move between the two without the
+   panel closing under the pointer.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  const wrap  = $('searchWrap');
+  const input = $('searchInput');
+  const panel = $('searchPanel');
+  if (!wrap || !input || !panel) return;
+
+  const rows  = [...panel.querySelectorAll('.search-row')];
+  const secs  = [...panel.querySelectorAll('[data-sec]')];
+  const empty = panel.querySelector('[data-empty]');
+
+  function open() {
+    wrap.classList.add('is-open');
+    input.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    wrap.classList.remove('is-open');
+    input.setAttribute('aria-expanded', 'false');
+  }
+
+  /* Typing narrows both lists. A section whose rows have all gone is
+     hidden with its heading, so the panel never shows a label with
+     nothing under it. */
+  function filter() {
+    const q = input.value.trim().toLowerCase();
+    rows.forEach(r => {
+      const t = r.querySelector('.search-row-txt').textContent.toLowerCase();
+      r.hidden = q !== '' && !t.includes(q);
+    });
+    secs.forEach(s => {
+      s.hidden = ![...s.querySelectorAll('.search-row')].some(r => !r.hidden);
+    });
+    empty.hidden = secs.some(s => !s.hidden);
+  }
+
+  input.addEventListener('focus', open);
+  input.addEventListener('click', open);
+  input.addEventListener('input', () => { open(); filter(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { input.value = ''; filter(); close(); input.blur(); }
+  });
+
+  /* Closing is the pointer leaving the whole thing, not the input
+     losing focus — the row it went to is inside the wrapper. */
+  document.addEventListener('pointerdown', e => {
+    if (!wrap.contains(e.target)) close();
+  });
+  wrap.addEventListener('focusout', () => {
+    /* after the browser has moved focus, so the new holder is known */
+    setTimeout(() => { if (!wrap.contains(document.activeElement)) close(); }, 0);
+  });
+  rows.forEach(r => r.addEventListener('click', () => {
+    input.value = r.querySelector('.search-row-txt').textContent;
+    filter(); close();
+  }));
+})();
 
 /* The header is transparent over the gradient and opaque once the page
    has moved; 8px is enough to tell a settled page from a scrolled one. */
