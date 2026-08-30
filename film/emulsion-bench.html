@@ -1,0 +1,1371 @@
+<title>Emulsion Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* ---------------------------------------------------------------
+   Emulsion Bench
+   A grading suite keeps a neutral surround so the room never biases
+   the eye. The chrome here is deliberately desaturated: the only
+   saturated colour on screen should be the photograph.
+   --------------------------------------------------------------- */
+:root{
+  --bg:#DEDDDA; --surround:#CDCCC9; --panel:#F2F1EF; --panel2:#E7E6E3;
+  --line:#C7C5C1; --line2:#D9D7D3;
+  --ink:#1D1C1B; --dim:#6C6963; --faint:#8E8B85;
+  --accent:#8F5410; --accent-soft:#8F541022; --on-accent:#FFF8EE;
+  --track:#C2C0BC; --shadow:0 1px 2px #0000000f, 0 8px 24px #00000012;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141415; --surround:#1B1B1C; --panel:#1F1F21; --panel2:#26262A;
+    --line:#333336; --line2:#2A2A2D;
+    --ink:#E9E7E3; --dim:#918E88; --faint:#6E6B66;
+    --accent:#E0A055; --accent-soft:#E0A0551f; --on-accent:#1A1611;
+    --track:#37373B; --shadow:0 1px 2px #00000040, 0 10px 30px #00000055;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141415; --surround:#1B1B1C; --panel:#1F1F21; --panel2:#26262A;
+  --line:#333336; --line2:#2A2A2D;
+  --ink:#E9E7E3; --dim:#918E88; --faint:#6E6B66;
+  --accent:#E0A055; --accent-soft:#E0A0551f; --on-accent:#1A1611;
+  --track:#37373B; --shadow:0 1px 2px #00000040, 0 10px 30px #00000055;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font:400 14px/1.5 Archivo,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+
+/* ---------------- shell ---------------- */
+.app{display:grid;grid-template-rows:auto 1fr;height:100%;min-height:0}
+
+header{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:11px 18px;border-bottom:1px solid var(--line);background:var(--panel);
+}
+.wordmark{display:flex;align-items:baseline;gap:9px;margin-right:auto}
+.wordmark h1{
+  margin:0;font-size:16px;font-weight:700;letter-spacing:-.015em;
+}
+.wordmark .sub{
+  font:500 10px/1 "IBM Plex Mono",ui-monospace,monospace;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+}
+
+.btn{
+  background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  padding:7px 13px;cursor:pointer;font-size:13px;font-weight:500;
+  display:inline-flex;align-items:center;gap:7px;transition:border-color .13s,background .13s;
+}
+.btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.btn[disabled]{opacity:.45;cursor:default;border-color:var(--line);background:var(--panel2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+
+/* ---------------- three-column body ---------------- */
+.body{
+  display:grid;grid-template-columns:186px minmax(0,1fr) 306px;
+  min-height:0;overflow:hidden;
+}
+
+/* ---- preset rail ---- */
+.rail{
+  border-right:1px solid var(--line);background:var(--panel);
+  overflow-y:auto;min-height:0;padding:12px 10px 20px;
+}
+.rail h2,.pane h2{
+  margin:0 0 9px;font:500 10px/1 "IBM Plex Mono",ui-monospace,monospace;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+}
+.stockgroup{margin-bottom:16px}
+.stocks{display:flex;flex-direction:column;gap:6px}
+.stock{
+  display:flex;align-items:center;gap:9px;padding:5px;border-radius:6px;
+  border:1px solid transparent;background:none;cursor:pointer;text-align:left;width:100%;
+  transition:background .12s,border-color .12s;
+}
+.stock:hover{background:var(--panel2)}
+.stock[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.stock canvas{
+  width:46px;height:31px;border-radius:3px;display:block;flex:none;
+  background:var(--surround);border:1px solid var(--line2);
+}
+.stock .nm{font-size:12px;line-height:1.25;font-weight:500;letter-spacing:-.005em}
+.stock .yr{
+  font:400 9px/1.3 "IBM Plex Mono",ui-monospace,monospace;color:var(--faint);
+  letter-spacing:.04em;
+}
+
+/* ---- viewport ---- */
+.view{
+  background:var(--surround);display:flex;flex-direction:column;min-width:0;min-height:0;
+}
+.stage{
+  flex:1;min-height:0;display:grid;place-items:center;padding:20px;position:relative;
+}
+.holder{position:relative;max-width:100%;max-height:100%;line-height:0;box-shadow:var(--shadow)}
+canvas#cv{max-width:100%;max-height:100%;display:block;cursor:ew-resize;touch-action:none}
+.wipeline{
+  position:absolute;top:0;bottom:0;width:1px;background:#ffffffcc;pointer-events:none;
+  box-shadow:0 0 0 1px #00000055;
+}
+.wipeline::after{
+  content:"";position:absolute;top:50%;left:50%;width:22px;height:22px;margin:-11px 0 0 -11px;
+  border:1px solid #ffffffdd;border-radius:50%;background:#00000030;backdrop-filter:blur(3px);
+}
+.vtag{
+  position:absolute;top:9px;padding:3px 8px;border-radius:4px;pointer-events:none;
+  font:500 9px/1 "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.12em;
+  text-transform:uppercase;background:#0000008c;color:#fff;backdrop-filter:blur(4px);
+}
+.vtag.l{left:9px} .vtag.r{right:9px;color:#F2C489}
+.dropnote{
+  position:absolute;left:0;right:0;bottom:14px;display:grid;place-items:center;
+  pointer-events:none;font-size:12.5px;color:var(--dim);
+}
+.dropnote span{
+  background:var(--panel);border:1px dashed var(--line);border-radius:8px;padding:11px 18px;
+}
+.view.hot .dropnote span{border-color:var(--accent);color:var(--accent)}
+
+.statusbar{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:8px 16px;border-top:1px solid var(--line);background:var(--panel);
+  font:400 11px/1 "IBM Plex Mono",ui-monospace,monospace;color:var(--dim);
+  font-variant-numeric:tabular-nums;
+}
+.statusbar b{color:var(--ink);font-weight:500}
+.statusbar .sep{color:var(--line)}
+.wipefield{display:flex;align-items:center;gap:8px;margin-left:auto}
+.wipefield input{width:110px}
+
+/* ---- control stack ---- */
+.pane{
+  border-left:1px solid var(--line);background:var(--panel);
+  display:flex;flex-direction:column;min-height:0;
+}
+.tabs{display:flex;gap:2px;padding:9px 10px 0;border-bottom:1px solid var(--line)}
+.tab{
+  flex:1;background:none;border:0;border-bottom:2px solid transparent;
+  padding:7px 2px 8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--dim);
+  transition:color .12s,border-color .12s;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.panels{overflow-y:auto;min-height:0;flex:1;padding:14px 14px 24px}
+.panel{display:none;flex-direction:column;gap:15px}
+.panel.on{display:flex}
+.group{display:flex;flex-direction:column;gap:11px}
+.group+.group{padding-top:14px;border-top:1px solid var(--line2)}
+
+/* ---- sliders ---- */
+.ctl{display:flex;flex-direction:column;gap:5px}
+.ctl .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ctl label{font-size:12px;font-weight:500;letter-spacing:-.003em}
+.ctl .val{
+  font:400 11px/1 "IBM Plex Mono",ui-monospace,monospace;color:var(--dim);
+  font-variant-numeric:tabular-nums;cursor:pointer;
+}
+.ctl .val.moved{color:var(--accent)}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:16px;background:none;cursor:pointer;margin:0;
+}
+input[type=range]::-webkit-slider-runnable-track{height:3px;background:var(--track);border-radius:2px}
+input[type=range]::-moz-range-track{height:3px;background:var(--track);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--panel);border:1.5px solid var(--accent);margin-top:-5px;
+  transition:transform .1s;
+}
+input[type=range]::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:var(--panel);
+  border:1.5px solid var(--accent);
+}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.18)}
+
+/* ---- segmented ---- */
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.seg button{
+  background:var(--panel2);border:1px solid var(--line);border-radius:5px;
+  padding:6px 4px;cursor:pointer;font-size:11.5px;font-weight:500;color:var(--dim);
+  transition:.12s;
+}
+.seg button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"]{
+  border-color:var(--accent);color:var(--accent);background:var(--accent-soft);
+}
+.check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;cursor:pointer}
+.check input{accent-color:var(--accent);width:14px;height:14px;cursor:pointer}
+.hint{font-size:11px;line-height:1.45;color:var(--faint);margin:0}
+
+/* ---- toast ---- */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);
+  background:var(--panel);border:1px solid var(--line);border-radius:7px;
+  padding:9px 15px;font-size:13px;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:20;
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1080px){
+  .body{grid-template-columns:1fr;grid-template-rows:auto minmax(220px,1fr) auto;overflow-y:auto}
+  .rail{border-right:0;border-bottom:1px solid var(--line);padding:12px 14px}
+  .stockgroup{margin-bottom:12px}
+  .stocks{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .stock{width:auto;flex:none;flex-direction:column;gap:5px;align-items:flex-start}
+  .pane{border-left:0;border-top:1px solid var(--line)}
+  .panels{max-height:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="wordmark">
+      <h1>Emulsion Bench</h1>
+      <span class="sub">Film grading</span>
+    </div>
+    <button class="btn" id="openBtn">Open image</button>
+    <button class="btn" id="revertBtn">Reset to stock</button>
+    <button class="btn primary" id="saveBtn">Save image</button>
+  </header>
+
+  <div class="body">
+    <!-- Stocks are grouped the way a fridge shelf is: negative, reversal,
+         black &amp; white, process. The grouping carries real information. -->
+    <aside class="rail" id="rail"></aside>
+
+    <section class="view" id="view">
+      <div class="stage">
+        <div class="holder" id="holder">
+          <canvas id="cv"></canvas>
+          <div class="wipeline" id="wipeline"></div>
+          <div class="vtag l">Original</div>
+          <div class="vtag r" id="stockTag">Coastal Kodachrome</div>
+        </div>
+        <div class="dropnote" id="dropnote"><span>Drop a photo anywhere to grade it</span></div>
+      </div>
+      <div class="statusbar">
+        <span id="dims">—</span>
+        <span class="sep">/</span>
+        <span>Stock <b id="stockName">Coastal Kodachrome</b></span>
+        <span class="sep">/</span>
+        <span id="editcount">no edits</span>
+        <span class="wipefield">
+          <label for="wipe">Wipe</label>
+          <input type="range" id="wipe" min="0" max="100" value="100">
+        </span>
+      </div>
+    </section>
+
+    <aside class="pane">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true"  data-tab="tone">Tone</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="color">Colour</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="fx">Texture</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="blur">Blur</button>
+      </div>
+      <div class="panels">
+        <div class="panel on" id="panel-tone"></div>
+        <div class="panel"    id="panel-color"></div>
+        <div class="panel"    id="panel-fx"></div>
+        <div class="panel"    id="panel-blur"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Shaders
+   The film pipeline runs live in the fragment shader rather than as a
+   baked LUT, which is what makes every stage of the look editable.
+   ===================================================================== */
+
+// Everything downstream is render-to-texture, where row 0 is the BOTTOM of
+// the buffer. So the whole chain stays in GL orientation and the source
+// image is flipped once, at upload, to match it.
+const VS = `#version 300 es
+in vec2 p; out vec2 vUv;
+void main(){ vUv = p*0.5 + 0.5; gl_Position = vec4(p,0,1); }`;
+
+const HEAD = `#version 300 es
+precision highp float;
+in vec2 vUv; out vec4 outColor;
+const float PI = 3.14159265359;
+float luma(vec3 c){ return dot(c, vec3(0.2126,0.7152,0.0722)); }
+vec3 srgbToLin(vec3 c){
+  c = max(c, vec3(0.0));
+  return mix(c/12.92, pow((c+0.055)/1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+vec3 linToSrgb(vec3 c){
+  c = max(c, vec3(0.0));
+  return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+vec3 rgb2hsv(vec3 c){
+  vec4 K = vec4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+  vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+  float d = q.x - min(q.w, q.y);
+  return vec3(abs(q.z + (q.w-q.y)/(6.0*d+1e-10)), d/(q.x+1e-10), q.x);
+}
+vec3 hsv2rgb(vec3 c){
+  vec4 K = vec4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+  vec3 p = abs(fract(c.xxx + K.xyz)*6.0 - K.www);
+  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}`;
+
+/* ---- pass 1: grade (film look + every tonal / colour control) ---- */
+const FS_GRADE = HEAD + `
+uniform sampler2D uSrc;
+uniform float uExposure, uLook;
+uniform vec3  uTempGain;
+uniform float uFilmExp, uKnee, uContrast, uPivot, uHlDesat, uHlStart, uSat;
+uniform vec3  uWb, uShoulderK, uFloor, uCeil, uMonoW;
+uniform mat3  uCross;
+uniform float uMono;
+uniform float uZoneC[7], uZoneW[7], uZoneH[7], uZoneS[7], uZoneV[7];
+uniform float uBright, uUserContrast, uHi, uSh, uWh, uBl, uFade;
+uniform float uUserSat, uVib, uShHue, uShAmt, uHiHue, uHiAmt;
+
+vec3 filmLook(vec3 lin){
+  lin *= uFilmExp * uWb;
+  lin = max(uCross * lin, vec3(0.0));
+  // per-channel shoulder: identity below the knee, then each channel rolls
+  // toward its own asymptote, so highlights drift rather than clip
+  vec3 a = vec3(1.0 - uKnee);
+  vec3 rolled = uKnee + a*(1.0 - exp(-uShoulderK*(lin - uKnee)/a));
+  lin = mix(lin, rolled, step(vec3(uKnee), lin));
+  vec3 c = linToSrgb(lin);
+
+  vec3 hsv = rgb2hsv(c);
+  if(hsv.y > 1e-5){
+    float h = hsv.x*360.0;
+    float gate = min(1.0, hsv.y/0.16);
+    float w[7]; float total = 0.0;
+    for(int i=0;i<7;i++){
+      float d = abs(mod(h - uZoneC[i] + 180.0, 360.0) - 180.0);
+      float ww = d >= uZoneW[i] ? 0.0 : 0.5*(1.0 + cos(PI*d/uZoneW[i]));
+      ww *= gate; w[i] = ww; total += ww;
+    }
+    // smooth stand-in for max(total,1) so overlapping zones blend without
+    // a kink in the derivative where two windows meet
+    float norm = 1.0/(0.5*(total + 1.0 + sqrt((total-1.0)*(total-1.0) + 0.09)));
+    float dh = 0.0, ms = 1.0, mv = 1.0;
+    for(int i=0;i<7;i++){
+      float wn = w[i]*norm;
+      dh += uZoneH[i]*wn;
+      ms *= 1.0 + (uZoneS[i]-1.0)*wn;
+      mv *= 1.0 + (uZoneV[i]-1.0)*wn;
+    }
+    hsv.x = fract((h + dh)/360.0);
+    hsv.y = clamp(hsv.y*ms, 0.0, 1.0);
+    hsv.z = clamp(hsv.z*mv, 0.0, 1.0);
+    c = hsv2rgb(hsv);
+  }
+
+  float top = uPivot*pow(1.0/uPivot, uContrast);
+  c = uPivot*pow(max(c, vec3(1e-5))/uPivot, vec3(uContrast))/top;
+  c = uFloor + c*(uCeil - uFloor);
+
+  float y = luma(c);
+  if(y > uHlStart){
+    float t = clamp((y - uHlStart)/(1.0 - uHlStart), 0.0, 1.0);
+    t = t*t*(3.0 - 2.0*t);
+    c = mix(vec3(y), c, 1.0 - uHlDesat*t);
+  }
+  y = luma(c);
+  return mix(vec3(y), c, uSat);
+}
+
+void main(){
+  vec3 lin = srgbToLin(texture(uSrc, vUv).rgb);
+  lin *= exp2(uExposure) * uTempGain;
+
+  vec3 c = mix(linToSrgb(lin), filmLook(lin), uLook);
+  c = mix(c, vec3(dot(c, uMonoW)), uMono);
+
+  // tonal zones, each on a smooth luminance mask
+  float y = luma(c);
+  c += uSh*0.50*(1.0 - smoothstep(0.0, 0.55, y));
+  c += uHi*0.50*smoothstep(0.45, 1.0, y);
+  c += uBl*0.40*(1.0 - smoothstep(0.0, 0.28, y));
+  c += uWh*0.40*smoothstep(0.72, 1.0, y);
+  c = clamp(c, 0.0, 1.0);
+
+  c = clamp(c + uBright, 0.0, 1.0);
+  c = clamp((c - 0.45)*uUserContrast + 0.45, 0.0, 1.0);
+
+  y = luma(c);
+  float chroma = max(max(c.r,c.g),c.b) - min(min(c.r,c.g),c.b);
+  c = clamp(mix(vec3(y), c, uUserSat*(1.0 + uVib*(1.0 - chroma))), 0.0, 1.0);
+
+  y = luma(c);
+  c += (hsv2rgb(vec3(uShHue,1.0,1.0)) - 0.5)*uShAmt*(1.0 - smoothstep(0.0,0.6,y));
+  c += (hsv2rgb(vec3(uHiHue,1.0,1.0)) - 0.5)*uHiAmt*smoothstep(0.4,1.0,y);
+
+  c = uFade + c*(1.0 - uFade);
+  outColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+
+/* ---- separable gaussian, used for blur, halation and diffusion ---- */
+const FS_BLUR = HEAD + `
+uniform sampler2D uTex; uniform vec2 uDir; uniform float uSigma;
+void main(){
+  if(uSigma < 0.01){ outColor = texture(uTex, vUv); return; }
+  float st = uSigma*2.5/12.0;
+  vec3 sum = vec3(0.0); float wsum = 0.0;
+  for(int i=-12;i<=12;i++){
+    float off = float(i)*st;
+    float w = exp(-0.5*off*off/(uSigma*uSigma));
+    sum += texture(uTex, vUv + uDir*off).rgb * w;
+    wsum += w;
+  }
+  outColor = vec4(sum/wsum, 1.0);
+}`;
+
+/* ---- motion and zoom blur: one pass, sampled along a path ---- */
+const FS_PATH = HEAD + `
+uniform sampler2D uTex; uniform int uMode; uniform float uAmt, uAngle;
+void main(){
+  vec3 sum = vec3(0.0);
+  for(int i=0;i<24;i++){
+    float t = float(i)/23.0 - 0.5;
+    vec2 uv = uMode == 1
+      ? vUv + vec2(cos(uAngle), sin(uAngle))*t*uAmt
+      : vec2(0.5) + (vUv - vec2(0.5))*(1.0 + t*uAmt);
+    sum += texture(uTex, clamp(uv, 0.0, 1.0)).rgb;
+  }
+  outColor = vec4(sum/24.0, 1.0);
+}`;
+
+/* ---- bright pass feeding halation / diffusion ---- */
+const FS_BRIGHT = HEAD + `
+uniform sampler2D uTex; uniform float uThresh;
+void main(){
+  vec3 c = texture(uTex, vUv).rgb;
+  float m = smoothstep(uThresh, min(uThresh + 0.35, 1.0), luma(c));
+  outColor = vec4(c*m, 1.0);
+}`;
+
+/* ---- composite: focus mask, glow, grain, vignette, wipe ---- */
+const FS_COMP = HEAD + `
+uniform sampler2D uSharp, uBlur, uHal, uDiff, uSrc;
+uniform float uWipe, uAspect;
+uniform float uBlurMix, uTiltPos, uTiltW, uTiltAngle;
+uniform int   uBlurType;
+uniform float uHalAmt, uDiffAmt;
+uniform vec3  uHalTint;
+uniform float uGrain, uGrainScale, uGrainRough, uGrainColor;
+uniform float uVig, uVigFeather, uClarity;
+uniform vec2  uTexel;
+
+float hash(vec2 p){
+  p = fract(p*vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x*p.y);
+}
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f*f*(3.0 - 2.0*f);
+  return mix(mix(hash(i), hash(i+vec2(1,0)), f.x),
+             mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y);
+}
+float grainAt(vec2 p){
+  float n = 0.0, amp = 1.0, tot = 0.0, f = 1.0;
+  for(int i=0;i<3;i++){
+    n += amp*vnoise(p*f + float(i)*31.7);
+    tot += amp; amp *= uGrainRough; f *= 2.07;
+  }
+  return n/tot - 0.5;
+}
+
+void main(){
+  vec3 sharp = texture(uSharp, vUv).rgb;
+  vec3 col = sharp;
+
+  // depth-of-field mask: uniform for the global blurs, a band for tilt-shift
+  if(uBlurMix > 0.001){
+    float m = uBlurMix;
+    if(uBlurType == 4){
+      vec2 q = vUv - vec2(0.5, uTiltPos);
+      float d = abs(-q.x*sin(uTiltAngle) + q.y*cos(uTiltAngle));
+      m *= smoothstep(uTiltW, uTiltW*2.0 + 0.03, d);
+    }
+    col = mix(col, texture(uBlur, vUv).rgb, m);
+  }
+
+  if(uClarity != 0.0){
+    vec3 s = (texture(uSharp, vUv + vec2(uTexel.x,0)).rgb
+            + texture(uSharp, vUv - vec2(uTexel.x,0)).rgb
+            + texture(uSharp, vUv + vec2(0,uTexel.y)).rgb
+            + texture(uSharp, vUv - vec2(0,uTexel.y)).rgb)*0.25;
+    col += (col - s)*uClarity;
+  }
+
+  // halation is the red layer glowing back through the emulsion, so it is
+  // tinted and screened rather than added flat
+  if(uHalAmt > 0.001){
+    vec3 h = clamp(texture(uHal, vUv).rgb*uHalTint*uHalAmt, 0.0, 1.0);
+    col = 1.0 - (1.0 - col)*(1.0 - h);
+  }
+  if(uDiffAmt > 0.001){
+    vec3 d = clamp(texture(uDiff, vUv).rgb*uDiffAmt, 0.0, 1.0);
+    col = 1.0 - (1.0 - col)*(1.0 - d);
+  }
+
+  if(uVig != 0.0){
+    float r = length((vUv - 0.5)*vec2(uAspect, 1.0))/0.72;
+    col *= 1.0 - uVig*smoothstep(uVigFeather, 1.0, r);
+  }
+
+  // grain sits in midtones, the way it does on a print
+  if(uGrain > 0.001){
+    vec2 gp = vUv*vec2(uAspect, 1.0)*uGrainScale;
+    float y = luma(col);
+    float gw = mix(1.0, 4.0*y*(1.0 - y), 0.75);
+    vec3 n = uGrainColor > 0.5
+      ? vec3(grainAt(gp), grainAt(gp + 19.1), grainAt(gp + 41.7))
+      : vec3(grainAt(gp));
+    col += n*uGrain*gw;
+  }
+
+  col = clamp(col, 0.0, 1.0);
+  vec3 orig = texture(uSrc, vUv).rgb;
+  outColor = vec4(vUv.x < (1.0 - uWipe) ? orig : col, 1.0);
+}`;
+</script>
+
+<script>
+"use strict";
+/* =====================================================================
+   Film stocks
+   Zone centres and widths are shared; a stock only states how it bends
+   each hue band, plus its curve, floor/ceiling and default texture.
+   ===================================================================== */
+
+const ZONE_C = [2, 32, 58, 110, 180, 222, 305];      // red orange yellow green aqua blue magenta
+const ZONE_W = [40, 30, 30, 56, 46, 44, 44];
+
+const BASE = {
+  filmExp: 1.030, wb: [1.038, 1.000, 0.948],
+  cross: [0.936,0.052,0.012,  0.018,0.957,0.025,  0.016,0.062,0.922],
+  knee: 0.575, k: [1.55, 1.40, 1.26],
+  zh: [ 3.0,  3.5, -3.0, -16.0, -5.0,  -9.0,  4.0],
+  zs: [1.080,0.985,0.880, 0.925,1.205, 0.925,0.840],
+  zv: [0.940,1.005,1.010, 0.985,1.055, 1.010,0.985],
+  contrast: 1.055, pivot: 0.44,
+  floor: [0.0555,0.0670,0.0655], ceil: [0.9760,0.9690,0.9490],
+  hlDesat: 0.375, hlStart: 0.52, sat: 0.955,
+  mono: 0, monoW: [0.2126,0.7152,0.0722],
+};
+
+const S = (o) => Object.assign({}, BASE, o);
+
+const STOCKS = [
+  { id:'coastal', name:'Coastal Kodachrome', note:'Reference match', group:'Reference',
+    film:S({}), fx:{ grain:0.030, grainScale:900, halation:0.10, halRadius:0.9, diffusion:0 } },
+
+  { id:'portra', name:'Portra 400', note:'Kodak · negative', group:'Colour negative',
+    film:S({ wb:[1.045,1.000,0.955], contrast:1.010, sat:0.930,
+             zh:[2,4,-2,-12,-3,-6,3], zs:[0.98,1.00,0.86,0.80,1.06,0.86,0.82],
+             zv:[0.96,1.02,1.01,1.00,1.02,1.03,0.99],
+             floor:[0.062,0.072,0.070], ceil:[0.972,0.966,0.950], hlDesat:0.42 }),
+    fx:{ grain:0.038, grainScale:820, halation:0.12, halRadius:1.0, diffusion:0.05 } },
+
+  { id:'gold', name:'Kodak Gold 200', note:'Warm consumer neg', group:'Colour negative',
+    film:S({ wb:[1.075,1.000,0.905], contrast:1.070, sat:1.010,
+             zh:[4,6,-6,-20,-4,-8,4], zs:[1.06,1.10,1.02,0.86,1.10,0.88,0.86],
+             zv:[0.95,1.02,1.03,0.99,1.02,1.00,0.98],
+             floor:[0.060,0.064,0.058], ceil:[0.980,0.962,0.918], hlDesat:0.34 }),
+    fx:{ grain:0.045, grainScale:760, halation:0.16, halRadius:1.1, diffusion:0.06 } },
+
+  { id:'superia', name:'Fuji Superia 400', note:'Cool, green-leaning', group:'Colour negative',
+    film:S({ wb:[0.985,1.020,1.000], contrast:1.065, sat:0.985,
+             zh:[0,2,4,-4,2,-4,-4], zs:[0.94,0.96,0.94,1.06,1.10,0.98,0.80],
+             zv:[0.96,1.00,1.01,1.03,1.02,1.02,0.97],
+             floor:[0.052,0.066,0.064], ceil:[0.962,0.972,0.958], hlDesat:0.33 }),
+    fx:{ grain:0.052, grainScale:700, halation:0.09, halRadius:0.9, diffusion:0.04 } },
+
+  { id:'cinestill', name:'Cinestill 800T', note:'Tungsten · halation', group:'Colour negative',
+    film:S({ wb:[0.930,0.990,1.105], contrast:1.045, sat:1.010,
+             zh:[2,4,-4,-10,-2,-10,2], zs:[1.02,0.96,0.86,0.84,1.22,1.10,0.88],
+             zv:[0.94,1.00,1.00,0.98,1.04,1.06,0.98],
+             floor:[0.050,0.070,0.086], ceil:[0.968,0.960,0.958], hlDesat:0.30 }),
+    fx:{ grain:0.055, grainScale:720, halation:0.62, halRadius:1.9, diffusion:0.10 } },
+
+  { id:'ektachrome', name:'Ektachrome E100', note:'Clean reversal', group:'Reversal',
+    film:S({ wb:[0.995,1.000,1.020], contrast:1.115, sat:1.030,
+             zh:[1,2,-2,-8,-4,-6,2], zs:[1.06,1.02,0.96,0.96,1.14,1.12,0.94],
+             zv:[0.96,1.00,1.01,0.99,1.01,1.00,0.99],
+             floor:[0.030,0.034,0.038], ceil:[0.986,0.982,0.978],
+             hlDesat:0.24, knee:0.62 }),
+    fx:{ grain:0.020, grainScale:1000, halation:0.06, halRadius:0.8, diffusion:0 } },
+
+  { id:'velvia', name:'Velvia 50', note:'Saturated landscape', group:'Reversal',
+    film:S({ wb:[1.020,1.000,0.985], contrast:1.180, sat:1.210,
+             zh:[2,3,-4,-10,-6,-8,3], zs:[1.24,1.16,1.06,1.10,1.26,1.20,1.05],
+             zv:[0.92,0.99,1.00,0.96,1.00,0.96,0.97],
+             floor:[0.022,0.026,0.028], ceil:[0.988,0.982,0.972],
+             hlDesat:0.20, knee:0.64 }),
+    fx:{ grain:0.016, grainScale:1050, halation:0.05, halRadius:0.8, diffusion:0 } },
+
+  { id:'vision3', name:'Vision3 250D', note:'Neutral cine stock', group:'Cine',
+    film:S({ wb:[1.012,1.000,0.988], contrast:1.000, sat:0.985,
+             zh:[1,2,-2,-8,-3,-5,2], zs:[0.98,1.00,0.94,0.94,1.06,0.96,0.94],
+             zv:[0.98,1.00,1.00,1.00,1.01,1.02,0.99],
+             floor:[0.048,0.052,0.054], ceil:[0.968,0.964,0.956], hlDesat:0.30 }),
+    fx:{ grain:0.026, grainScale:900, halation:0.14, halRadius:1.1, diffusion:0.04 } },
+
+  { id:'tealorange', name:'Teal & Orange', note:'Modern blockbuster', group:'Cine',
+    film:S({ wb:[1.030,0.998,0.978], contrast:1.130, sat:1.050,
+             zh:[6,8,-10,-26,10,14,-6], zs:[1.06,1.18,0.72,0.62,1.30,1.24,0.78],
+             zv:[0.94,1.03,0.98,0.94,1.02,0.98,0.96],
+             floor:[0.042,0.058,0.068], ceil:[0.980,0.968,0.938], hlDesat:0.28 }),
+    fx:{ grain:0.018, grainScale:950, halation:0.18, halRadius:1.3, diffusion:0.05 } },
+
+  { id:'bleach', name:'Bleach Bypass', note:'Silver retained', group:'Process',
+    film:S({ wb:[1.010,1.000,0.995], contrast:1.320, sat:0.420,
+             zh:[0,0,0,-6,0,-4,0], zs:[0.70,0.66,0.58,0.50,0.72,0.66,0.60],
+             zv:[0.92,0.99,1.02,1.00,1.01,1.00,0.97],
+             floor:[0.030,0.032,0.034], ceil:[0.988,0.986,0.980],
+             hlDesat:0.20, knee:0.66 }),
+    fx:{ grain:0.055, grainScale:760, halation:0.10, halRadius:1.0, diffusion:0 } },
+
+  { id:'polaroid', name:'Polaroid 600', note:'Faded instant', group:'Process',
+    film:S({ wb:[1.055,1.000,0.975], contrast:0.930, sat:0.860,
+             zh:[6,8,-8,-18,-6,-14,8], zs:[0.90,0.92,0.78,0.70,0.92,0.74,0.96],
+             zv:[0.96,1.02,1.02,1.02,1.03,1.05,1.00],
+             floor:[0.135,0.128,0.140], ceil:[0.940,0.928,0.912],
+             hlDesat:0.46, knee:0.50 }),
+    fx:{ grain:0.042, grainScale:640, halation:0.20, halRadius:1.6, diffusion:0.24 } },
+
+  { id:'trix', name:'Tri-X 400', note:'Kodak · monochrome', group:'Black & white',
+    film:S({ contrast:1.190, sat:1.0, mono:1, monoW:[0.34,0.52,0.14],
+             floor:[0.048,0.048,0.048], ceil:[0.976,0.976,0.976],
+             hlDesat:0.0, knee:0.60 }),
+    fx:{ grain:0.075, grainScale:640, halation:0.06, halRadius:1.0, diffusion:0.04 } },
+
+  { id:'hp5', name:'HP5 Plus', note:'Ilford · matte mono', group:'Black & white',
+    film:S({ contrast:1.045, sat:1.0, mono:1, monoW:[0.30,0.56,0.14],
+             floor:[0.082,0.082,0.082], ceil:[0.946,0.946,0.946],
+             hlDesat:0.0, knee:0.55 }),
+    fx:{ grain:0.062, grainScale:600, halation:0.05, halRadius:1.0, diffusion:0.06 } },
+
+  { id:'technicolor', name:'Technicolor', note:'Three-strip dye', group:'Process',
+    film:S({ wb:[1.040,1.000,0.960], contrast:1.150, sat:1.250,
+             cross:[0.985,0.012,0.003, 0.006,0.988,0.006, 0.004,0.016,0.980],
+             zh:[4,2,-6,-14,-8,-10,6], zs:[1.34,1.14,0.98,1.06,1.22,1.26,1.12],
+             zv:[0.90,1.00,1.01,0.96,1.00,0.96,0.96],
+             floor:[0.036,0.038,0.042], ceil:[0.984,0.976,0.958],
+             hlDesat:0.22, knee:0.62 }),
+    fx:{ grain:0.024, grainScale:900, halation:0.14, halRadius:1.2, diffusion:0.06 } },
+];
+
+/* =====================================================================
+   Controls — declarative so the panels and the state stay in step
+   ===================================================================== */
+
+const pct  = v => Math.round(v*100) + '%';
+const sgn  = v => (v > 0 ? '+' : '') + Math.round(v*100);
+const CONTROLS = [
+  // --- tone ---
+  {tab:'tone', g:0, k:'exposure',    l:'Exposure',   min:-2,   max:2,   st:.01, d:0,   f:v=>(v>0?'+':'')+v.toFixed(2)+' EV'},
+  {tab:'tone', g:0, k:'brightness',  l:'Brightness', min:-.25, max:.25, st:.005,d:0,   f:sgn},
+  {tab:'tone', g:0, k:'contrast',    l:'Contrast',   min:.5,   max:1.8, st:.01, d:1,   f:v=>sgn(v-1)},
+  {tab:'tone', g:1, k:'highlights',  l:'Highlights', min:-.5,  max:.5,  st:.01, d:0,   f:sgn},
+  {tab:'tone', g:1, k:'shadows',     l:'Shadows',    min:-.5,  max:.5,  st:.01, d:0,   f:sgn},
+  {tab:'tone', g:1, k:'whites',      l:'Whites',     min:-.5,  max:.5,  st:.01, d:0,   f:sgn},
+  {tab:'tone', g:1, k:'blacks',      l:'Blacks',     min:-.5,  max:.5,  st:.01, d:0,   f:sgn},
+  {tab:'tone', g:2, k:'fade',        l:'Fade',       min:0,    max:.35, st:.005,d:0,   f:sgn},
+  {tab:'tone', g:2, k:'clarity',     l:'Clarity',    min:-1,   max:2,   st:.02, d:0,   f:sgn},
+
+  // --- colour ---
+  {tab:'color', g:0, k:'look',        l:'Stock strength', min:0, max:1.3, st:.01, d:1, f:pct},
+  {tab:'color', g:1, k:'temperature', l:'Temperature', min:-1, max:1, st:.01, d:0, f:sgn},
+  {tab:'color', g:1, k:'tint',        l:'Tint',        min:-1, max:1, st:.01, d:0, f:sgn},
+  {tab:'color', g:2, k:'saturation',  l:'Saturation',  min:0,  max:2, st:.01, d:1, f:v=>sgn(v-1)},
+  {tab:'color', g:2, k:'vibrance',    l:'Vibrance',    min:-1, max:1.5, st:.01, d:0, f:sgn},
+  {tab:'color', g:3, k:'shHue',  l:'Shadow tone',    min:0, max:1,  st:.005, d:.55, f:v=>Math.round(v*360)+'°', hue:1},
+  {tab:'color', g:3, k:'shAmt',  l:'Shadow strength',min:0, max:.5, st:.005, d:0,   f:sgn},
+  {tab:'color', g:3, k:'hiHue',  l:'Highlight tone', min:0, max:1,  st:.005, d:.09, f:v=>Math.round(v*360)+'°', hue:1},
+  {tab:'color', g:3, k:'hiAmt',  l:'Highlight strength',min:0,max:.5,st:.005,d:0,   f:sgn},
+
+  // --- texture ---
+  {tab:'fx', g:0, k:'grain',       l:'Grain',          min:0, max:.22, st:.002, d:.03, f:v=>Math.round(v*455)+''},
+  {tab:'fx', g:0, k:'grainScale',  l:'Grain fineness', min:300, max:1600, st:10, d:900, f:v=>Math.round((v-300)/13)+''},
+  {tab:'fx', g:0, k:'grainRough',  l:'Grain roughness',min:.2, max:.9, st:.01, d:.5, f:pct},
+  {tab:'fx', g:1, k:'halation',    l:'Halation',       min:0, max:1.2, st:.01, d:.1, f:pct},
+  {tab:'fx', g:1, k:'halRadius',   l:'Halation spread',min:.3, max:4,  st:.05, d:.9, f:v=>v.toFixed(1)+'×'},
+  {tab:'fx', g:1, k:'halThresh',   l:'Halation threshold',min:.3,max:.95,st:.01,d:.68,f:pct},
+  {tab:'fx', g:2, k:'diffusion',   l:'Diffusion',      min:0, max:.8, st:.01, d:0, f:pct},
+  {tab:'fx', g:2, k:'diffRadius',  l:'Diffusion spread',min:.5,max:5, st:.05, d:2.2, f:v=>v.toFixed(1)+'×'},
+  {tab:'fx', g:3, k:'vignette',    l:'Vignette',       min:-.6, max:.9, st:.01, d:0, f:sgn},
+  {tab:'fx', g:3, k:'vigFeather',  l:'Vignette feather',min:0, max:.9, st:.01, d:.35, f:pct},
+
+  // --- blur ---
+  {tab:'blur', g:1, k:'blurAmount', l:'Amount',        min:0, max:1, st:.01, d:0, f:pct},
+  {tab:'blur', g:1, k:'blurAngle',  l:'Angle',         min:0, max:360, st:1, d:0, f:v=>Math.round(v)+'°'},
+  {tab:'blur', g:2, k:'tiltPos',    l:'Focus position',min:0, max:1, st:.005, d:.5, f:pct},
+  {tab:'blur', g:2, k:'tiltWidth',  l:'Focus width',   min:.02, max:.5, st:.005, d:.14, f:pct},
+  {tab:'blur', g:2, k:'tiltAngle',  l:'Focus angle',   min:0, max:180, st:1, d:0, f:v=>Math.round(v)+'°'},
+];
+
+const BLUR_TYPES = [
+  {id:0, name:'None'}, {id:1, name:'Gaussian'}, {id:2, name:'Motion'},
+  {id:3, name:'Zoom'}, {id:4, name:'Tilt-shift'},
+];
+const TOGGLES = [
+  {tab:'fx', k:'grainColor', l:'Colour grain', d:0},
+];
+</script>
+
+<script>
+"use strict";
+/* =====================================================================
+   Application
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const cv = $('#cv');
+const gl = cv.getContext('webgl2',
+  {preserveDrawingBuffer:true, antialias:false, premultipliedAlpha:false});
+
+if(!gl){
+  document.querySelector('.stage').innerHTML =
+    '<p style="padding:30px;max-width:44ch;text-align:center;color:var(--dim)">' +
+    'This bench needs WebGL2, which this browser has turned off.</p>';
+  throw new Error('no webgl2');
+}
+
+/* half-float intermediates keep the multi-pass chain from banding */
+const HF = !!(gl.getExtension('EXT_color_buffer_half_float') ||
+              gl.getExtension('EXT_color_buffer_float'));
+const IFMT  = HF ? gl.RGBA16F : gl.RGBA8;
+const ITYPE = HF ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE;
+const MAXTEX = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 4096);
+
+function shader(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s) + '\n' + src.split('\n').slice(0,4).join('\n'));
+  return s;
+}
+function makeProg(fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, VS));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+  gl.bindAttribLocation(p, 0, 'p');
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return {p, cache:new Map()};
+}
+function U(pr, name){
+  if(!pr.cache.has(name)) pr.cache.set(name, gl.getUniformLocation(pr.p, name));
+  return pr.cache.get(name);
+}
+
+const P_GRADE  = makeProg(FS_GRADE);
+const P_BLUR   = makeProg(FS_BLUR);
+const P_PATH   = makeProg(FS_PATH);
+const P_BRIGHT = makeProg(FS_BRIGHT);
+const P_COMP   = makeProg(FS_COMP);
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const vb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+/* ---- render targets ---- */
+const SCRATCH = 7;   // housekeeping unit: never sampled by any shader
+function makeFBO(byteFmt){
+  const f = {fb:gl.createFramebuffer(), tex:gl.createTexture(), w:0, h:0, byte:!!byteFmt};
+  gl.activeTexture(gl.TEXTURE0 + SCRATCH);
+  gl.bindTexture(gl.TEXTURE_2D, f.tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return f;
+}
+function sizeFBO(f, w, h){
+  if(f.w === w && f.h === h) return f;
+  f.w = w; f.h = h;
+  gl.activeTexture(gl.TEXTURE0 + SCRATCH);
+  gl.bindTexture(gl.TEXTURE_2D, f.tex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, f.byte ? gl.RGBA8 : IFMT, w, h, 0, gl.RGBA,
+                f.byte ? gl.UNSIGNED_BYTE : ITYPE, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, f.tex, 0);
+  return f;
+}
+const fGrade = makeFBO(), fB1 = makeFBO(), fB2 = makeFBO(),
+      fH1 = makeFBO(), fH2 = makeFBO(), fD1 = makeFBO(), fD2 = makeFBO(),
+      fThumb = makeFBO(true);
+
+const blackTex = gl.createTexture();
+gl.activeTexture(gl.TEXTURE0 + SCRATCH);
+gl.bindTexture(gl.TEXTURE_2D, blackTex);
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+              new Uint8Array([0,0,0,255]));
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+const srcTex = gl.createTexture();
+gl.activeTexture(gl.TEXTURE0 + SCRATCH);
+gl.bindTexture(gl.TEXTURE_2D, srcTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+function bind(unit, tex){ gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex); }
+function target(f, w, h){
+  if(f){ sizeFBO(f, w, h); gl.bindFramebuffer(gl.FRAMEBUFFER, f.fb); }
+  else  { gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
+  gl.viewport(0, 0, w, h);
+}
+const tri = () => gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+/* ---- state ---- */
+let stock = STOCKS[0];
+let P = {}, stockBase = {};
+let imgW = 0, imgH = 0, wipe = 1, hasImage = false;
+let downloads = null;
+
+function defaults(){
+  const o = {blurType:0};
+  CONTROLS.forEach(c => o[c.k] = c.d);
+  TOGGLES.forEach(t => o[t.k] = t.d);
+  return o;
+}
+
+/* Kelvin-ish trim: warm lifts red and drops blue, tint trades green for magenta */
+function tempGain(t, g){
+  return [1 + t*0.16 - g*0.02, 1 - Math.abs(t)*0.01 + g*0.10, 1 - t*0.17 - g*0.02];
+}
+function colMajor(m){
+  return new Float32Array([m[0],m[3],m[6], m[1],m[4],m[7], m[2],m[5],m[8]]);
+}
+
+function setGrade(film, p){
+  const pr = P_GRADE;
+  gl.useProgram(pr.p);
+  gl.uniform1i(U(pr,'uSrc'), 0);
+  gl.uniform1f(U(pr,'uExposure'), p.exposure);
+  gl.uniform3fv(U(pr,'uTempGain'), tempGain(p.temperature, p.tint));
+  gl.uniform1f(U(pr,'uLook'), p.look);
+  gl.uniform1f(U(pr,'uFilmExp'), film.filmExp);
+  gl.uniform3fv(U(pr,'uWb'), film.wb);
+  gl.uniformMatrix3fv(U(pr,'uCross'), false, colMajor(film.cross));
+  gl.uniform1f(U(pr,'uKnee'), film.knee);
+  gl.uniform3fv(U(pr,'uShoulderK'), film.k);
+  gl.uniform1fv(U(pr,'uZoneC'), ZONE_C);
+  gl.uniform1fv(U(pr,'uZoneW'), ZONE_W);
+  gl.uniform1fv(U(pr,'uZoneH'), film.zh);
+  gl.uniform1fv(U(pr,'uZoneS'), film.zs);
+  gl.uniform1fv(U(pr,'uZoneV'), film.zv);
+  gl.uniform1f(U(pr,'uContrast'), film.contrast);
+  gl.uniform1f(U(pr,'uPivot'), film.pivot);
+  gl.uniform3fv(U(pr,'uFloor'), film.floor);
+  gl.uniform3fv(U(pr,'uCeil'), film.ceil);
+  gl.uniform1f(U(pr,'uHlDesat'), film.hlDesat);
+  gl.uniform1f(U(pr,'uHlStart'), film.hlStart);
+  gl.uniform1f(U(pr,'uSat'), film.sat);
+  gl.uniform1f(U(pr,'uMono'), film.mono);
+  gl.uniform3fv(U(pr,'uMonoW'), film.monoW);
+  gl.uniform1f(U(pr,'uBright'), p.brightness);
+  gl.uniform1f(U(pr,'uUserContrast'), p.contrast);
+  gl.uniform1f(U(pr,'uHi'), p.highlights);
+  gl.uniform1f(U(pr,'uSh'), p.shadows);
+  gl.uniform1f(U(pr,'uWh'), p.whites);
+  gl.uniform1f(U(pr,'uBl'), p.blacks);
+  gl.uniform1f(U(pr,'uFade'), p.fade);
+  gl.uniform1f(U(pr,'uUserSat'), p.saturation);
+  gl.uniform1f(U(pr,'uVib'), p.vibrance);
+  gl.uniform1f(U(pr,'uShHue'), p.shHue);
+  gl.uniform1f(U(pr,'uShAmt'), p.shAmt);
+  gl.uniform1f(U(pr,'uHiHue'), p.hiHue);
+  gl.uniform1f(U(pr,'uHiAmt'), p.hiAmt);
+}
+
+function gauss(src, a, b, w, h, sigma){
+  gl.useProgram(P_BLUR.p);
+  gl.uniform1i(U(P_BLUR,'uTex'), 1);
+  gl.uniform1f(U(P_BLUR,'uSigma'), sigma);
+  bind(1, src);
+  target(a, w, h);
+  gl.uniform2f(U(P_BLUR,'uDir'), 1/w, 0); tri();
+  bind(1, a.tex);
+  target(b, w, h);
+  gl.uniform2f(U(P_BLUR,'uDir'), 0, 1/h); tri();
+  return b.tex;
+}
+function glowChain(f1, f2, w, h, thresh, sigma){
+  gl.useProgram(P_BRIGHT.p);
+  gl.uniform1i(U(P_BRIGHT,'uTex'), 1);
+  gl.uniform1f(U(P_BRIGHT,'uThresh'), thresh);
+  bind(1, fGrade.tex);
+  target(f1, w, h); tri();
+  return gauss(f1.tex, f2, f1, w, h, sigma);
+}
+
+function draw(W, H, showWipe){
+  cv.width = W; cv.height = H;
+
+  // 1. grade
+  bind(0, srcTex);
+  setGrade(stock.film, P);
+  target(fGrade, W, H); tri();
+
+  // 2. blur
+  let blurTex = blackTex, blurMix = 0;
+  const bw = Math.max(4, W >> 1), bh = Math.max(4, H >> 1);
+  if(P.blurType !== 0 && P.blurAmount > 0.005){
+    blurMix = 1;
+    if(P.blurType === 1 || P.blurType === 4){
+      blurTex = gauss(fGrade.tex, fB1, fB2, bw, bh, P.blurAmount*0.055*bh);
+    } else {
+      gl.useProgram(P_PATH.p);
+      gl.uniform1i(U(P_PATH,'uTex'), 1);
+      gl.uniform1i(U(P_PATH,'uMode'), P.blurType === 2 ? 1 : 2);
+      gl.uniform1f(U(P_PATH,'uAmt'), P.blurAmount*(P.blurType === 2 ? 0.14 : 0.40));
+      gl.uniform1f(U(P_PATH,'uAngle'), P.blurAngle*Math.PI/180);
+      bind(1, fGrade.tex);
+      target(fB1, bw, bh); tri();
+      blurTex = fB1.tex;
+    }
+  }
+
+  // 3. halation and diffusion
+  const hw = Math.max(4, W >> 2), hh = Math.max(4, H >> 2);
+  let halTex = blackTex, difTex = blackTex;
+  if(P.halation > 0.005) halTex = glowChain(fH1, fH2, hw, hh, P.halThresh, P.halRadius*0.020*hh);
+  if(P.diffusion > 0.005) difTex = glowChain(fD1, fD2, hw, hh, 0.34, P.diffRadius*0.020*hh);
+
+  // 4. composite
+  const pr = P_COMP;
+  gl.useProgram(pr.p);
+  bind(1, fGrade.tex); bind(2, blurTex); bind(3, halTex); bind(4, difTex); bind(0, srcTex);
+  gl.uniform1i(U(pr,'uSharp'),1); gl.uniform1i(U(pr,'uBlur'),2);
+  gl.uniform1i(U(pr,'uHal'),3);   gl.uniform1i(U(pr,'uDiff'),4);
+  gl.uniform1i(U(pr,'uSrc'),0);
+  gl.uniform1f(U(pr,'uWipe'), showWipe ? wipe : 1);
+  gl.uniform1f(U(pr,'uAspect'), W/H);
+  gl.uniform2f(U(pr,'uTexel'), 1/W, 1/H);
+  gl.uniform1f(U(pr,'uBlurMix'), blurMix);
+  gl.uniform1i(U(pr,'uBlurType'), P.blurType);
+  gl.uniform1f(U(pr,'uTiltPos'), P.tiltPos);
+  gl.uniform1f(U(pr,'uTiltW'), P.tiltWidth);
+  gl.uniform1f(U(pr,'uTiltAngle'), P.tiltAngle*Math.PI/180);
+  gl.uniform1f(U(pr,'uHalAmt'), P.halation);
+  gl.uniform3f(U(pr,'uHalTint'), 1.0, 0.42, 0.30);
+  gl.uniform1f(U(pr,'uDiffAmt'), P.diffusion);
+  gl.uniform1f(U(pr,'uGrain'), P.grain);
+  gl.uniform1f(U(pr,'uGrainScale'), P.grainScale);
+  gl.uniform1f(U(pr,'uGrainRough'), P.grainRough);
+  gl.uniform1f(U(pr,'uGrainColor'), P.grainColor);
+  gl.uniform1f(U(pr,'uVig'), P.vignette);
+  gl.uniform1f(U(pr,'uVigFeather'), P.vigFeather);
+  gl.uniform1f(U(pr,'uClarity'), P.clarity);
+  target(null, W, H); tri();
+}
+
+let queued = false;
+function paint(){
+  if(queued) return;
+  queued = true;
+  requestAnimationFrame(() => { queued = false; draw(prevW, prevH, true); });
+}
+let prevW = 4, prevH = 4;
+function fitPreview(){
+  const cap = 1500;
+  const s = Math.min(1, cap/Math.max(imgW, imgH));
+  prevW = Math.max(4, Math.round(imgW*s));
+  prevH = Math.max(4, Math.round(imgH*s));
+}
+</script>
+
+<script>
+"use strict";
+/* =====================================================================
+   Interface
+   ===================================================================== */
+
+/* ---- control panels ---- */
+const rowFor = new Map();
+function buildPanels(){
+  for(const tab of ['tone','color','fx','blur']){
+    const host = $('#panel-' + tab);
+    const groups = new Map();
+    const groupEl = g => {
+      if(!groups.has(g)){
+        const d = document.createElement('div');
+        d.className = 'group';
+        groups.set(g, d); host.appendChild(d);
+      }
+      return groups.get(g);
+    };
+
+    if(tab === 'blur'){
+      const g = groupEl(0);
+      g.insertAdjacentHTML('beforeend', '<h2>Blur type</h2>');
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      seg.style.gridTemplateColumns = 'repeat(3,1fr)';
+      BLUR_TYPES.forEach(t => {
+        const b = document.createElement('button');
+        b.textContent = t.name;
+        b.setAttribute('aria-pressed', String(t.id === 0));
+        b.onclick = () => {
+          P.blurType = t.id;
+          seg.querySelectorAll('button').forEach((x,i) =>
+            x.setAttribute('aria-pressed', String(BLUR_TYPES[i].id === t.id)));
+          syncEnabled(); refreshCount(); paint();
+        };
+        seg.appendChild(b);
+      });
+      g.appendChild(seg);
+    }
+
+    for(const c of CONTROLS.filter(c => c.tab === tab)){
+      const g = groupEl(c.g);
+      const row = document.createElement('div');
+      row.className = 'ctl';
+      row.innerHTML =
+        '<div class="top"><label for="c-' + c.k + '">' + c.l + '</label>' +
+        '<span class="val" id="v-' + c.k + '" title="Click to reset"></span></div>' +
+        '<input type="range" id="c-' + c.k + '" min="' + c.min + '" max="' + c.max +
+        '" step="' + c.st + '">';
+      g.appendChild(row);
+      const inp = row.querySelector('input'), val = row.querySelector('.val');
+      inp.addEventListener('input', () => {
+        P[c.k] = parseFloat(inp.value); showVal(c); refreshCount(); paint();
+      });
+      val.addEventListener('click', () => {
+        P[c.k] = (c.k in stockBase) ? stockBase[c.k] : c.d;
+        inp.value = P[c.k]; showVal(c); refreshCount(); paint();
+      });
+      rowFor.set(c.k, {row, inp, val, c});
+    }
+
+    for(const t of TOGGLES.filter(t => t.tab === tab)){
+      const g = groupEl(0);
+      const lab = document.createElement('label');
+      lab.className = 'check';
+      lab.innerHTML = '<input type="checkbox" id="c-' + t.k + '"><span>' + t.l + '</span>';
+      g.appendChild(lab);
+      lab.querySelector('input').addEventListener('change', e => {
+        P[t.k] = e.target.checked ? 1 : 0; refreshCount(); paint();
+      });
+    }
+  }
+  $('#panel-blur').insertAdjacentHTML('beforeend',
+    '<p class="hint">Focus position, width and angle shape the sharp band, and apply to ' +
+    'tilt-shift only. Angle steers motion blur.</p>');
+  $('#panel-color').insertAdjacentHTML('beforeend',
+    '<p class="hint">Stock strength blends the film look against your ungraded frame. ' +
+    'Above 100% it pushes past the stock&rsquo;s calibration.</p>');
+}
+
+function showVal(c){
+  const r = rowFor.get(c.k);
+  r.val.textContent = c.f(P[c.k]);
+  const base = (c.k in stockBase) ? stockBase[c.k] : c.d;
+  r.val.classList.toggle('moved', Math.abs(P[c.k] - base) > 1e-6);
+}
+function syncAll(){
+  for(const c of CONTROLS){
+    const r = rowFor.get(c.k);
+    r.inp.value = P[c.k];
+    showVal(c);
+  }
+  for(const t of TOGGLES){
+    const el = document.getElementById('c-' + t.k);
+    if(el) el.checked = !!P[t.k];
+  }
+  document.querySelectorAll('.seg button').forEach((b,i) =>
+    b.setAttribute('aria-pressed', String(BLUR_TYPES[i].id === P.blurType)));
+  syncEnabled();
+}
+/* dim the controls a chosen blur type does not use */
+function syncEnabled(){
+  const onlyTilt = ['tiltPos','tiltWidth','tiltAngle'];
+  const needsAngle = P.blurType === 2;
+  for(const k of onlyTilt){
+    const r = rowFor.get(k);
+    const live = P.blurType === 4;
+    r.row.style.opacity = live ? 1 : .38;
+    r.inp.disabled = !live;
+  }
+  const a = rowFor.get('blurAngle');
+  a.row.style.opacity = needsAngle ? 1 : .38;
+  a.inp.disabled = !needsAngle;
+  const amt = rowFor.get('blurAmount');
+  amt.row.style.opacity = P.blurType === 0 ? .38 : 1;
+  amt.inp.disabled = P.blurType === 0;
+}
+function refreshCount(){
+  let n = 0;
+  for(const c of CONTROLS){
+    const base = (c.k in stockBase) ? stockBase[c.k] : c.d;
+    if(Math.abs(P[c.k] - base) > 1e-6) n++;
+  }
+  for(const t of TOGGLES) if((P[t.k]?1:0) !== (stockBase[t.k]?1:0)) n++;
+  if(P.blurType !== 0) n++;
+  $('#editcount').textContent = n === 0 ? 'no edits' : n + (n===1 ? ' edit' : ' edits');
+  $('#revertBtn').disabled = n === 0;
+}
+
+/* ---- stock rail ---- */
+const thumbCanvases = new Map();
+function buildRail(){
+  const rail = $('#rail');
+  const order = [];
+  for(const s of STOCKS) if(!order.includes(s.group)) order.push(s.group);
+  for(const grp of order){
+    const box = document.createElement('div');
+    box.className = 'stockgroup';
+    box.innerHTML = '<h2>' + grp + '</h2>';
+    const list = document.createElement('div');
+    list.className = 'stocks';
+    for(const s of STOCKS.filter(x => x.group === grp)){
+      const b = document.createElement('button');
+      b.className = 'stock';
+      b.setAttribute('aria-pressed', String(s.id === stock.id));
+      b.dataset.id = s.id;
+      const cvs = document.createElement('canvas');
+      cvs.width = 92; cvs.height = 62;
+      thumbCanvases.set(s.id, cvs);
+      const txt = document.createElement('span');
+      txt.innerHTML = '<span class="nm">' + s.name + '</span><br><span class="yr">' + s.note + '</span>';
+      b.append(cvs, txt);
+      b.onclick = () => selectStock(s.id);
+      list.appendChild(b);
+    }
+    box.appendChild(list);
+    rail.appendChild(box);
+  }
+}
+function selectStock(id){
+  stock = STOCKS.find(s => s.id === id) || STOCKS[0];
+  P = Object.assign(defaults(), stock.fx);
+  stockBase = Object.assign({}, P);
+  document.querySelectorAll('.stock').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  $('#stockName').textContent = stock.name;
+  $('#stockTag').textContent = stock.name;
+  syncAll(); refreshCount(); paint();
+}
+
+/* Thumbnails render the stock at its own defaults, so the rail shows the
+   look itself rather than whatever the frame has been pushed to. */
+function renderThumbs(){
+  const w = 92, h = 62;
+  const px = new Uint8Array(w*h*4);
+  for(const s of STOCKS){
+    const p = Object.assign(defaults(), s.fx);
+    bind(0, srcTex);
+    setGrade(s.film, p);
+    target(fThumb, w, h); tri();
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const cvs = thumbCanvases.get(s.id);
+    const ctx = cvs.getContext('2d');
+    const id = ctx.createImageData(w, h);
+    // readPixels returns bottom-up; flip into the 2d canvas
+    for(let y=0; y<h; y++){
+      const src = (h-1-y)*w*4, dst = y*w*4;
+      id.data.set(px.subarray(src, src + w*4), dst);
+    }
+    ctx.putImageData(id, 0, 0);
+  }
+}
+
+/* ---- image loading ---- */
+function uploadImage(src, w, h){
+  imgW = w; imgH = h;
+  const scale = Math.min(1, MAXTEX/Math.max(w, h));
+  let up = src;
+  if(scale < 1){
+    imgW = Math.round(w*scale); imgH = Math.round(h*scale);
+    const c = document.createElement('canvas');
+    c.width = imgW; c.height = imgH;
+    c.getContext('2d').drawImage(src, 0, 0, imgW, imgH);
+    up = c;
+  }
+  gl.activeTexture(gl.TEXTURE0 + SCRATCH);
+  gl.bindTexture(gl.TEXTURE_2D, srcTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, up);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  fitPreview();
+  cv.style.aspectRatio = imgW + ' / ' + imgH;
+  $('#dims').textContent = imgW + ' × ' + imgH;
+  renderThumbs();
+  paint();
+}
+function loadFile(f){
+  if(!f || !f.type.startsWith('image/')){ toast('That file is not an image'); return; }
+  const im = new Image();
+  im.onload = () => {
+    hasImage = true;
+    $('#dropnote').style.display = 'none';
+    uploadImage(im, im.naturalWidth, im.naturalHeight);
+    URL.revokeObjectURL(im.src);
+  };
+  im.onerror = () => toast('That image could not be opened');
+  im.src = URL.createObjectURL(f);
+}
+
+/* A reference board until a photo arrives: the patches a coastal frame
+   actually turns on, plus ramps for judging the curve. */
+function board(){
+  const w = 1280, h = 854, c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const x = c.getContext('2d');
+  const patches = [
+    ['#D7A582','Skin'], ['#966E58','Skin, shade'], ['#C8AF91','Sandstone'],
+    ['#3C3028','Rock shadow'], ['#46BEB9','Shallows'], ['#1E5082','Deep water'],
+    ['#55963C','Foliage'], ['#AACDE6','Sky'], ['#E6E6E6','Cloud'], ['#AA2D28','Red'],
+  ];
+  const cols = 5, pw = w/cols, ph = 250;
+  patches.forEach((p, i) => {
+    const px = (i%cols)*pw, py = Math.floor(i/cols)*ph;
+    x.fillStyle = p[0]; x.fillRect(px, py, pw, ph);
+    x.fillStyle = '#00000055';
+    x.font = '500 15px Archivo, sans-serif';
+    x.fillText(p[1], px + 14, py + ph - 16);
+  });
+  let g = x.createLinearGradient(0, 0, w, 0);
+  for(let i=0;i<=20;i++){ const v = Math.round(255*i/20); g.addColorStop(i/20, 'rgb('+v+','+v+','+v+')'); }
+  x.fillStyle = g; x.fillRect(0, 500, w, 120);
+  g = x.createLinearGradient(0, 0, w, 0);
+  ['#1E5A96','#2FA398','#8FBF63','#E0C27A','#D2793C','#9B2F2A'].forEach((s,i,a) =>
+    g.addColorStop(i/(a.length-1), s));
+  x.fillStyle = g; x.fillRect(0, 620, w, 120);
+  g = x.createLinearGradient(0, 0, w, 0);
+  ['#3A2418','#7A4E33','#B98561','#E0B48C','#F2D6BC','#FBECDF'].forEach((s,i,a) =>
+    g.addColorStop(i/(a.length-1), s));
+  x.fillStyle = g; x.fillRect(0, 740, w, 114);
+  return c;
+}
+
+/* ---- export ---- */
+async function saveImage(){
+  if(!downloads) return;
+  const btn = $('#saveBtn');
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = 'Preparing…';
+  try{
+    draw(imgW, imgH, false);                       // full resolution, no wipe
+    const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.94));
+    if(!blob) throw {code:'bad_request'};
+    const name = stock.name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    await downloads.save({filename: 'emulsion-bench-' + name + '.jpg', data: blob});
+    toast('Saved');
+  }catch(e){
+    const code = e && e.code;
+    if(code === 'declined')            toast('Save cancelled');
+    else if(code === 'too_large')      toast('That frame is too large to save — try a smaller image');
+    else if(code === 'rate_limited')   toast('A save is already open — finish that one first');
+    else if(code === 'unavailable' || code === 'not_granted'){
+      downloads = null; btn.style.display = 'none'; toast('Saving is not available here');
+    } else toast('That save did not go through');
+  }finally{
+    btn.textContent = label; btn.disabled = false;
+    draw(prevW, prevH, true);
+  }
+}
+
+let toastTimer;
+function toast(msg){
+  const t = $('#toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2400);
+}
+
+/* ---- wiring ---- */
+buildPanels();
+buildRail();
+selectStock('coastal');
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x =>
+      x.setAttribute('aria-selected', String(x === t)));
+    document.querySelectorAll('.panel').forEach(p =>
+      p.classList.toggle('on', p.id === 'panel-' + t.dataset.tab));
+  };
+});
+
+const wipeEl = $('#wipe'), wipeLine = $('#wipeline');
+function setWipe(v){
+  wipe = Math.min(1, Math.max(0, v));
+  wipeEl.value = Math.round(wipe*100);
+  wipeLine.style.left = ((1 - wipe)*100) + '%';
+  wipeLine.style.display = wipe >= 0.999 ? 'none' : 'block';
+  paint();
+}
+wipeEl.oninput = () => setWipe(wipeEl.value/100);
+let dragging = false;
+function dragWipe(e){
+  const r = cv.getBoundingClientRect();
+  setWipe(1 - (e.clientX - r.left)/r.width);
+}
+cv.addEventListener('pointerdown', e => {
+  dragging = true; cv.setPointerCapture(e.pointerId); dragWipe(e);
+});
+cv.addEventListener('pointermove', e => { if(dragging) dragWipe(e); });
+cv.addEventListener('pointerup',   e => { dragging = false; });
+cv.addEventListener('pointercancel', () => { dragging = false; });
+
+const picker = document.createElement('input');
+picker.type = 'file'; picker.accept = 'image/*';
+picker.onchange = () => { if(picker.files[0]) loadFile(picker.files[0]); picker.value = ''; };
+$('#openBtn').onclick = () => picker.click();
+$('#revertBtn').onclick = () => { selectStock(stock.id); toast('Back to ' + stock.name); };
+$('#saveBtn').onclick = saveImage;
+
+const view = $('#view');
+['dragenter','dragover'].forEach(t => window.addEventListener(t, e => {
+  e.preventDefault(); view.classList.add('hot');
+}));
+['dragleave','drop'].forEach(t => window.addEventListener(t, e => {
+  e.preventDefault(); if(t === 'drop' || e.target === document.documentElement) view.classList.remove('hot');
+}));
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+/* Saving is granted by the viewer, and resolves after first paint — so the
+   button only appears once we know it can actually do something. */
+const saveBtn = $('#saveBtn');
+saveBtn.style.display = 'none';
+if(window.claude && typeof window.claude.use === 'function'){
+  window.claude.use('downloads').then(d => {
+    if(d){ downloads = d; saveBtn.style.display = ''; }
+  }).catch(() => {});
+}
+
+const b = board();
+uploadImage(b, b.width, b.height);
+setWipe(1);
+</script>

@@ -100,3 +100,15 @@ in one of the reference frames and drag across the image to move the wipe.
 The LUT is baked in as an 8-bit volume for preview purposes only; the `.cube`
 files carry full float precision. Rendering is verified to match the reference
 pipeline to within 1/255.
+
+## Emulsion Bench
+
+`../film/emulsion-bench.html` is a live grading bench built on this same
+pipeline. Rather than baking `.cube` files, it runs the whole film pipeline in
+a fragment shader, so every stage is editable in place: exposure, brightness,
+contrast, highlights/shadows/whites/blacks, fade, clarity, temperature, tint,
+saturation, vibrance, split toning, grain, halation, diffusion, vignette and
+five blur types. It ships 14 film stocks, Coastal Kodachrome among them.
+
+The shader port is verified against `generate_lut.py` to within 1/255 — the two
+are the same transform, so a look dialled in on the bench matches the `.cube`.
