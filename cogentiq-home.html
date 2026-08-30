@@ -1373,7 +1373,12 @@
       display: flex; flex-direction: column; align-items: flex-start; gap: 16px;
       padding: 22px 20px; border-radius: 20px;
       background: var(--home-card-bg);
-      border: 1px solid var(--strokes-card-default);
+      /* No stroke: the card is dark enough against the sky to hold its
+         own edge, and a line around it only re-draws what the shadow
+         already says. Kept as a transparent border rather than dropped,
+         so the box is the same size it was and focus still has an edge
+         to colour. */
+      border: 1px solid transparent;
       box-shadow: var(--shadow-pop);
       text-align: left;
       transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
@@ -1416,13 +1421,21 @@
       display: flex; flex-direction: column; align-items: center; gap: 16px;
     }
     .home-more-lbl {
-      display: flex; align-items: center; gap: 12px; width: 100%;
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; width: 100%;
       color: var(--text-teritiary);
       font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
       letter-spacing: .72px; text-transform: uppercase; white-space: nowrap;
     }
+    /* Short rules rather than rules that run the width of the column.
+       A line only has to say the label is a divider; carried out to the
+       cards' own edges it stops being a mark on the label and starts
+       being a second horizontal edge across the page. Sized, not
+       stretched, so the group centres on the label and not on whatever
+       the two rules had left over. */
     .home-more-lbl::before, .home-more-lbl::after {
-      content: ""; flex: 1 1 auto; height: 1px; background: var(--strokes-line-1);
+      content: ""; flex: 0 0 auto; width: clamp(40px, 7vw, 88px);
+      height: 1px; background: var(--strokes-line-1);
     }
     .home-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
     .chip {
@@ -1611,6 +1624,29 @@
     .header.is-transparent .icon-btn-32:hover,
     .header.is-transparent .ws-dropdown:hover {
       background: color-mix(in srgb, var(--backgrounds-card-bg-2) 55%, transparent);
+    }
+
+    /* While the header is still on the sky, the field is a dark chip in
+       both modes and its ink comes with it. Light's sky is saturated
+       colour too, and a white field there reads as a hole punched in
+       the gradient rather than as something laid on it. Once the header
+       is stuck it has its own ground back and everything here returns
+       to the theme — which is why all of it is scoped to :not(.is-stuck)
+       rather than written into the base. */
+    .header.is-transparent:not(.is-stuck) .header-left { color: #fff; }
+    .header.is-transparent:not(.is-stuck) .header-search {
+      background: rgba(33, 33, 33, .58);
+      border-color: rgba(255, 255, 255, .18);
+      color: rgba(255, 255, 255, .62);
+    }
+    .header.is-transparent:not(.is-stuck) .header-search:hover {
+      background: rgba(33, 33, 33, .74);
+    }
+    .header.is-transparent:not(.is-stuck) .header-search input {
+      color: rgba(255, 255, 255, .94);
+    }
+    .header.is-transparent:not(.is-stuck) .header-search input::placeholder {
+      color: rgba(255, 255, 255, .62);
     }
 
     /* ── Arrival ────────────────────────────────────────────────── */
@@ -1942,7 +1978,7 @@
                 </div>
 
                 <div class="home-more">
-                  <span class="home-more-lbl">Or start from a building block</span>
+                  <span class="home-more-lbl">Start with</span>
                   <div class="home-chips">
                     <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_toolsskills"/></svg>Tool</button>
                     <button class="chip t-body2-reg" type="button"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_skill"/></svg>Skill</button>
