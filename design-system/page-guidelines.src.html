@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cogentiq Page Guidelines</title>
+  <meta name="description" content="How a Cogentiq module page is composed — what stays fixed and what each module chooses." />
+  <link rel="stylesheet" href="cogentiq-design-system.css" />
+  <link rel="stylesheet" href="docs-chrome.css" />
+  <style>
+    /* ── Page-guideline specifics ─────────────────────────────── */
+    .pg-fixed, .pg-free {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 1px 7px 1px 5px; border-radius: var(--radius-sm);
+      font: 500 11px/16px var(--font-geist); letter-spacing: -0.11px;
+      white-space: nowrap;
+    }
+    .pg-fixed { background: var(--backgrounds-badge-blue);  border: 1px solid var(--strokes-colour-blue);  color: var(--text-coloured-blue); }
+    .pg-free  { background: var(--backgrounds-badge-light-green); border: 1px solid var(--strokes-colour-light-green); color: var(--text-coloured-light-green); }
+    .pg-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+
+    /* Frame diagram — drawn with the real surface tokens, so the greys
+       you see are the greys a screen gets. Not to scale; each region
+       prints its true size instead. */
+    .pg-frame {
+      display: flex; gap: 6px; padding: 10px;
+      background: var(--backgrounds-page-bg-1);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: var(--radius-lg);
+    }
+    .pg-reg {
+      display: flex; flex-direction: column; gap: 3px; justify-content: center;
+      padding: 10px; border-radius: var(--radius-md);
+      border: 1px solid var(--strokes-line-3);
+      min-width: 0;
+    }
+    .pg-reg b { color: var(--text-primary); font: 500 12px/16px var(--font-geist); letter-spacing: -0.24px; }
+    .pg-reg span { color: var(--text-teritiary); font: 400 10px/14px var(--font-geist-mono); overflow: hidden; text-overflow: ellipsis; }
+    .pg-reg--rail    { flex: none; width: 92px; background: var(--backgrounds-page-bg-1); }
+    .pg-reg--sidebar { flex: none; width: 130px; background: var(--backgrounds-card-bg-5); }
+    .pg-reg--header  { background: var(--backgrounds-card-bg-5); }
+    .pg-reg--bar     { background: var(--backgrounds-card-bg-5); }
+    .pg-reg--content { background: var(--backgrounds-page-bg-4); min-height: 88px; }
+    .pg-reg--panel   { flex: none; width: 116px; background: var(--backgrounds-page-bg-2); }
+    .pg-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .pg-inner { flex: 1 1 auto; display: flex; gap: 6px; min-height: 0; }
+
+    /* Grid demos run at the real 1076px content width, scaled to fit,
+       so the column count shown is the one a screen actually gets. */
+    .pg-scale-box { overflow: hidden; }
+    .pg-scale { width: 1076px; transform: scale(.615); transform-origin: 0 0; }
+
+    .pg-rules { display: flex; flex-direction: column; gap: 1px; }
+    .pg-rule {
+      display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: baseline;
+      padding: 10px 12px; border-radius: var(--radius-md);
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-3);
+    }
+    .pg-rule dt { color: var(--text-primary); font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
+    .pg-rule dd { margin: 0; color: var(--text-teritiary); font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
+    .pg-rule dd code { font: 400 11px/16px var(--font-geist-mono); color: var(--text-secondary); }
+
+    .pg-check { display: flex; flex-direction: column; gap: 1px; counter-reset: step; }
+    .pg-step {
+      display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: baseline;
+      padding: 11px 12px; border-radius: var(--radius-md);
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-secondary);
+    }
+    .pg-step::before {
+      counter-increment: step; content: counter(step);
+      color: var(--text-coloured-blue);
+      font: 400 11px/20px var(--font-geist-mono); font-variant-numeric: tabular-nums;
+    }
+    .pg-step b { color: var(--text-primary); font-weight: 500; }
+
+    /* Card-anatomy callouts */
+    .pg-anat { display: flex; flex-direction: column; gap: 6px; }
+    .pg-anat-row { display: grid; grid-template-columns: 1fr 250px; gap: 14px; align-items: center; }
+    .pg-anat-note { color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); }
+    .pg-anat-note b { color: var(--text-secondary); font-weight: 400; }
+  </style>
+</head>
+<body>
+<div class="cq ds-root">
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3.75" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M10 2.5V4M10 16v1.5M17.5 10H16M4 10H2.5M15.3 4.7l-1.06 1.06M5.76 14.24L4.7 15.3M15.3 15.3l-1.06-1.06M5.76 5.76L4.7 4.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 20 20"><path d="M16.25 11.42A6.67 6.67 0 018.58 3.75a6.67 6.67 0 107.67 7.67z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 16 16"><g fill="currentColor"><circle cx="3.3" cy="8" r=".9"/><circle cx="8" cy="8" r=".9"/><circle cx="12.7" cy="8" r=".9"/></g></symbol>
+  <symbol id="i-brain" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.3a2.3 2.3 0 10-3.5 2 2.2 2.2 0 00.4 4.2 2.2 2.2 0 003.1 1.8Z"/><path d="M8 4.3a2.3 2.3 0 113.5 2 2.2 2.2 0 01-.4 4.2 2.2 2.2 0 01-3.1 1.8Z"/></g></symbol>
+  <symbol id="i-chev" viewBox="0 0 20 20"><path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<aside class="ds-index">
+  <div class="ds-brand">
+    <b class="cq-body1-med">Cogentiq</b>
+    <span class="cq-caption-reg">Page guidelines · v0.1</span>
+  </div>
+  <nav id="dsNav"></nav>
+</aside>
+
+<div class="ds-main">
+  <header class="ds-top">
+    <div class="ds-top-meta cq-body2-reg">
+      <span class="pg-fixed"><span class="pg-dot"></span>fixed</span>
+      <span class="pg-free"><span class="pg-dot"></span>module's choice</span>
+    </div>
+    <div class="cq-row-flex">
+      <span class="cq-caption-reg cq-text-tertiary" id="dsThemeName">Dark</span>
+      <button class="cq-icon-btn" id="dsTheme" aria-label="Switch theme">
+        <svg class="cq-ic" width="20" height="20"><use id="dsThemeIcon" href="#i-sun"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="ds-scroll" id="dsScroll">
+    <div class="ds-inner">
+
+      <section class="ds-sec" id="s-frame">
+        <div class="ds-sec-head">
+          <h2>The frame</h2>
+          <p>Every module page is the same frame: a rail, a sidebar, a header, a filters bar and a
+             scrolling content ground. A person moving between Models, Agents and Guardrails should
+             feel the chrome hold still and only the content change — so the surfaces and strokes
+             below are not a starting point to adapt, they are fixed.</p>
+        </div>
+
+        <div class="pg-frame">
+          <div class="pg-reg pg-reg--rail"><b>Rail</b><span>68px</span><span>page-bg-1</span></div>
+          <div class="pg-col">
+            <div class="pg-reg pg-reg--header"><b>Header</b><span>48px · card-bg-5</span></div>
+            <div class="pg-inner">
+              <div class="pg-reg pg-reg--sidebar"><b>Sidebar</b><span>240px</span><span>card-bg-5</span></div>
+              <div class="pg-col">
+                <div class="pg-reg pg-reg--bar"><b>Filters bar</b><span>60px · card-bg-5</span></div>
+                <div class="pg-reg pg-reg--content"><b>Content</b><span>page-bg-4 · scrolls</span></div>
+              </div>
+              <div class="pg-reg pg-reg--panel"><b>Detail panel</b><span>420px</span><span>page-bg-2</span></div>
+            </div>
+          </div>
+        </div>
+
+        <dl class="pg-rules">
+          <div class="pg-rule"><dt>Rail</dt><dd><code>68px</code> · <code>--backgrounds-page-bg-1</code>. Same icons, same order, on every page.</dd></div>
+          <div class="pg-rule"><dt>Frame</dt><dd>Inset <code>8px</code> from the rail and window edges, <code>1px --strokes-line-3</code>, radius <code>12px</code>. The inset is what gives the product its floating-panel look.</dd></div>
+          <div class="pg-rule"><dt>Header</dt><dd><code>48px</code> · <code>--backgrounds-card-bg-5</code>, bottom stroke <code>--strokes-line-3</code>. Module name, one line of description, then the account controls.</dd></div>
+          <div class="pg-rule"><dt>Sidebar</dt><dd><code>240px</code> · <code>--backgrounds-card-bg-5</code>, right stroke <code>--strokes-line-3</code>. Its contents are the module's to choose; its width and surface are not.</dd></div>
+          <div class="pg-rule"><dt>Filters bar</dt><dd><code>60px</code> · <code>--backgrounds-card-bg-5</code>, bottom stroke. Holds the page title, the count, and the primary action.</dd></div>
+          <div class="pg-rule"><dt>Content</dt><dd><code>--backgrounds-page-bg-4</code>, padding <code>16px 24px 24px</code>. The only region that scrolls. Its tint is what separates cards from the chrome in light mode.</dd></div>
+          <div class="pg-rule"><dt>Detail panel</dt><dd><code>420px</code> · <code>--backgrounds-page-bg-2</code>, left stroke, <code>--shadow-panel</code>. Overlays the content rather than pushing it.</dd></div>
+        </dl>
+
+        <div class="ds-bench">
+          <div class="ds-bench-demo is-block">
+<pre style="margin:0;overflow-x:auto" class="cq-mono cq-text-secondary">&lt;div class="cq-page"&gt;
+  &lt;aside class="cq-page__rail"&gt;…&lt;/aside&gt;
+  &lt;div class="cq-page__main"&gt;&lt;div class="cq-page__frame"&gt;
+    &lt;header class="cq-page__header"&gt;…&lt;/header&gt;
+    &lt;div class="cq-page__body"&gt;
+      &lt;nav class="cq-page__sidebar"&gt;…&lt;/nav&gt;
+      &lt;section class="cq-page__col"&gt;
+        &lt;div class="cq-page__bar"&gt;…&lt;/div&gt;
+        &lt;div class="cq-page__content"&gt;…&lt;/div&gt;
+      &lt;/section&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+          </div>
+          <div class="ds-bench-note">
+            <button class="ds-code" data-copy=".cq-page">.cq-page</button>
+            <em>the shell is real classes — copy the skeleton, fill the content</em>
+          </div>
+        </div>
+      </section>
+
+      <section class="ds-sec" id="s-grid">
+        <div class="ds-sec-head">
+          <h2>Cards per row</h2>
+          <p>The content area is <b>1076px</b> at the standard 1440 window. Rather than fixing a
+             column count, set a minimum card width and let the grid work it out — a module then
+             keeps its intended density on a wide screen and drops a column on a narrow one instead
+             of squeezing.</p>
+        </div>
+
+        <dl class="pg-rules">
+          <div class="pg-rule"><dt>Two per row</dt><dd><code>--cq-card-min: 430px</code> → cards of <b>532px</b>. Use when the card carries a sentence of description that needs room to read. This is the Model hub.</dd></div>
+          <div class="pg-rule"><dt>Three per row</dt><dd><code>--cq-card-min: 340px</code> → cards of <b>350px</b>. Use when the card is a short label and a couple of tags — tools, integrations, templates.</dd></div>
+          <div class="pg-rule"><dt>Never</dt><dd>a hard <code>repeat(3, 1fr)</code>. It survives 1440 and breaks everywhere else.</dd></div>
+        </dl>
+
+        <div class="ds-bench">
+          <div class="ds-bench-demo is-block">
+            <div class="pg-scale-box" id="grid2Box">
+              <div class="pg-scale" id="grid2"></div>
+            </div>
+          </div>
+          <div class="ds-bench-note">
+            <button class="ds-code" data-copy="--cq-card-min: 430px">--cq-card-min: 430px</button>
+            <em>2 up · 532px cards · shown at the real 1076px width</em>
+          </div>
+        </div>
+
+        <div class="ds-bench">
+          <div class="ds-bench-demo is-block">
+            <div class="pg-scale-box" id="grid3Box">
+              <div class="pg-scale" id="grid3"></div>
+            </div>
+          </div>
+          <div class="ds-bench-note">
+            <button class="ds-code" data-copy="cq-card-grid cq-card-grid--3up">.cq-card-grid--3up</button>
+            <em>3 up · 350px cards</em>
+          </div>
+        </div>
+      </section>
+
+      <section class="ds-sec" id="s-card">
+        <div class="ds-sec-head">
+          <h2>Card anatomy</h2>
+          <p>The card's shell is fixed so a grid of them reads as a grid. What sits inside the
+             middle is the module's — a model shows a description, a tool might show a version and
+             an owner, a template might show nothing at all.</p>
+        </div>
+
+        <div class="pg-anat">
+          <div class="pg-anat-row">
+            <div id="anatCard"></div>
+            <div class="ds-bench-note">
+              <button class="ds-code" data-copy=".cq-card">.cq-card</button>
+              <em>hover it — the tag row is the one part that must behave the same everywhere</em>
+            </div>
+          </div>
+        </div>
+
+        <dl class="pg-rules">
+          <div class="pg-rule"><dt><span class="pg-fixed"><span class="pg-dot"></span>fixed</span></dt><dd>Surface <code>--backgrounds-page-bg-2</code>, padding <code>16px</code>, radius <code>12px</code>, <code>--shadow-card</code>.</dd></div>
+          <div class="pg-rule"><dt><span class="pg-fixed"><span class="pg-dot"></span>fixed</span></dt><dd>Selected state: <code>1px --strokes-type-focus</code>. Hover: <code>--strokes-line-1</code>. Never a fill change — a filled hover fights the selected row.</dd></div>
+          <div class="pg-rule"><dt><span class="pg-fixed"><span class="pg-dot"></span>fixed</span></dt><dd>Top row: a <code>32px</code> logo tile then the title. Bottom row: tags left, identity and actions right.</dd></div>
+          <div class="pg-rule"><dt><span class="pg-fixed"><span class="pg-dot"></span>fixed</span></dt><dd>Tags are grey at rest and take their tone on hover or selection. Put <code>.cq-tint</code> on the card so a row and a card behave the same for the same content.</dd></div>
+          <div class="pg-rule"><dt><span class="pg-free"><span class="pg-dot"></span>free</span></dt><dd>Everything between those two rows — a description, a metric, a progress bar, nothing.</dd></div>
+          <div class="pg-rule"><dt><span class="pg-free"><span class="pg-dot"></span>free</span></dt><dd>Height. <code>120px</code> is the default; use <code>.cq-card--auto</code> when the content genuinely varies. Keep it constant within one grid.</dd></div>
+          <div class="pg-rule"><dt><span class="pg-free"><span class="pg-dot"></span>free</span></dt><dd>Which pills appear, and how many. One neutral id pill plus up to three tones reads well; past that the row wraps and the card stops scanning.</dd></div>
+        </dl>
+      </section>
+
+      <section class="ds-sec" id="s-views">
+        <div class="ds-sec-head">
+          <h2>Views &amp; the detail panel</h2>
+          <p>A module that lists things gets the same two views and the same way of opening one.
+             Reuse them rather than inventing a third — the toggle, the selected state and the
+             panel are muscle memory across the product.</p>
+        </div>
+
+        <dl class="pg-rules">
+          <div class="pg-rule"><dt>Grid ↔ table</dt><dd>Offer both when rows have more than three comparable fields. The toggle sits at the right of the filter row, <code>.cq-seg--icon</code>. Both views read the same filtered set, so switching mid-filter loses nothing.</dd></div>
+          <div class="pg-rule"><dt>Opening one</dt><dd>Click a card or a row to open the <code>420px</code> panel. Click the same one again, press Escape, or click outside to close. Selection lives on the item, not the panel, so both views show it.</dd></div>
+          <div class="pg-rule"><dt>Panel contents</dt><dd>Tags, title, description, actions, then <code>.cq-kv</code> rows under a <code>.cq-section-label</code>. Sections are the module's; the row shape is not.</dd></div>
+          <div class="pg-rule"><dt>Creating one</dt><dd>The primary action opens a modal, not a new page. Two steps where configuration is involved: what it is, then how it runs. The test pane only appears once there is something to test.</dd></div>
+          <div class="pg-rule"><dt>Empty states</dt><dd>Filters that match nothing say so in the content area and leave the chrome alone. Never blank the filters bar — the way back is the count and the controls.</dd></div>
+          <div class="pg-rule"><dt>The platform panel</dt><dd>Every module page carries it. Two states of one component — crunched at <code>68px</code>, opened at <code>240px</code>. It opens on hover and lays itself <em>over</em> the page: the shell holds a constant <code>68px</code> gutter, so nothing behind it reflows. A hover is not worth relaying out a page for, and content that shifts under the cursor is content you then have to find again. A module never restyles it, and never ships a third width. The item for the module's own section carries <code>.is-active</code>, and the panel opens on that section with every other category collapsed — one open at a time, at either width.</dd></div>
+          <div class="pg-rule"><dt>Offerings sold separately</dt><dd>Give one its own top-level row in the panel, below every category and under a rule, never a slot inside another category — a top-level row is the only one the one-open-category rule can never hide, and the rule separates an offering from the product's own sections without a second visual language. Off-plan it still shows, with a <code>.cq-rail-flag</code> pill when opened and a <code>.cq-rail-dot</code> on its tile when crunched. Keep the tile at full colour: greying it out reads "not for you", and the crunched panel is the default, so a highlight that lives in the label row is one nobody sees. The pill carries a slow sheen — one pass every few seconds, never continuous motion. Hovering the row opens a preview beside the panel: media, then what it does, then the CTA. The secondary action is a way forward — "Learn more", not "Not now"; a dismissal earns nothing and the card already closes when the pointer leaves. Open it on a dwell rather than a click; nobody clicks a thing they have not been sold yet, and hold the panel open while the preview is up so its buttons stay reachable.</dd></div>
+          <div class="pg-rule"><dt>Docking Tiq</dt><dd>Tiq opens as a floating bar beside whatever it belongs to, and can be docked to the right edge at the same <code>360px</code> width. Docking shifts the page — <code>padding-right</code> on the shell, and the detail panel's <code>right</code> — rather than covering it; the whole point of the taller surface is reading the answers against the content. Undock and close both put every offset back.</dd></div>
+        </dl>
+      </section>
+
+      <section class="ds-sec" id="s-new">
+        <div class="ds-sec-head">
+          <h2>Building a new module</h2>
+          <p>The order that avoids rework. Steps 1–3 are mechanical; the judgement is in 4 and 5.</p>
+        </div>
+        <div class="pg-check">
+          <div class="pg-step cq-body2-reg"><span><b>Copy the shell.</b> <code class="cq-mono">.cq-page</code> and its regions, unchanged. Do not restyle the chrome to suit the module.</span></div>
+          <div class="pg-step cq-body2-reg"><span><b>Name the page.</b> Header carries the module name and one line saying what it is for. The filters-bar title reflects the active sidebar filter — “All models” becomes “Claude models”.</span></div>
+          <div class="pg-step cq-body2-reg"><span><b>Fill the sidebar.</b> Whatever the module filters by. Keep “All …” first and make it the default.</span></div>
+          <div class="pg-step cq-body2-reg"><span><b>Choose the density.</b> Does the card need a sentence? Two per row. Is it a label and tags? Three. Decide before designing the card, not after.</span></div>
+          <div class="pg-step cq-body2-reg"><span><b>Design the card middle.</b> Keep the top and bottom rows; change only what sits between them. Check it at the smallest width the grid allows.</span></div>
+          <div class="pg-step cq-body2-reg"><span><b>Wire the panel.</b> Reuse <code class="cq-mono">.cq-kv</code> rows. If a value needs more than a row, it belongs in a tab, not a taller row.</span></div>
+          <div class="pg-step cq-body2-reg"><span><b>Check both themes</b> and the narrow window. If a colour only works in one, it is a literal that should have been a token.</span></div>
+        </div>
+      </section>
+
+      <section class="ds-sec" id="s-newchat">
+        <div class="ds-sec-head">
+          <h2>Using this in another chat</h2>
+          <p>This page and the component library are the living pair — both stay at the same address
+             as they grow. Give Claude both links and it has the tokens, the components and the
+             layout rules without anything pasted.</p>
+        </div>
+        <div class="ds-bench">
+          <div class="ds-bench-demo is-block">
+            <p class="cq-caption-med cq-text-tertiary" style="margin:0 0 8px;letter-spacing:.4px;text-transform:uppercase">Paste this to start a module</p>
+            <p class="cq-body2-reg" id="pgPrompt" style="margin:0;color:var(--text-secondary)"></p>
+          </div>
+          <div class="ds-bench-note">
+            <button class="ds-code" id="pgCopyPrompt">Copy the prompt</button>
+            <button class="ds-code" id="pgCopyLinks">Copy both links</button>
+            <em>swap &lt;module&gt; for what you are building</em>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="ds-toast cq-body2-reg" id="dsToast">Copied</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const root = document.documentElement;
+
+const DS_URL = 'https://claude.ai/code/artifact/edb3664e-d248-4a96-9e7b-894bad13157d';
+const PG_URL = 'https://claude.ai/code/artifact/32738800-342f-461d-9792-9852122f7dae';
+
+/* ── Sample cards, so the grid demos show real content ──────────── */
+const CARDS_2 = [
+  ['Bard model',    'Core concepts and regulations surrounding data protection.', [['Retention','blue'],['Social','indigo']]],
+  ['NovaMind X1',   'Explore essential principles and industry standards.',       [['Pipeline','green']]],
+  ['ChatGPT model', 'Core concepts and regulations surrounding data protection.', [['Retention','blue'],['Social','indigo']]],
+  ['Apex AI',       'Explore essential principles and industry standards.',       [['Events','indigo']]],
+];
+const CARDS_3 = [
+  ['Web search',   [['Tool','cyan']]],
+  ['SQL runner',   [['Tool','cyan'],['Data','blue']]],
+  ['File reader',  [['Tool','cyan']]],
+  ['Slack post',   [['Action','light-green']]],
+  ['Email draft',  [['Action','light-green']]],
+  ['Calendar',     [['Action','light-green']]],
+];
+
+const tagRow = tags => tags.map(([t, tone]) =>
+  `<span class="cq-tag" data-tone="${tone}">${esc(t)}</span>`).join('');
+
+const foot = tags => `
+  <span class="cq-card__foot">
+    <span class="cq-card__tags"><span class="cq-tag cq-tag--model">gpt4.0-mini</span>${tagRow(tags)}</span>
+    <span class="cq-row-flex" style="gap:6px">
+      <span class="cq-avatar">A</span>
+      <span class="cq-icon-btn cq-icon-btn--sm"><svg class="cq-ic" width="16" height="16"><use href="#i-dots"/></svg></span>
+    </span>
+  </span>`;
+
+const wideCard = ([name, desc, tags], sel) => `
+  <button class="cq-card cq-tint${sel ? ' is-selected' : ''}">
+    <span class="cq-card__head">
+      <span class="cq-card__title-row">
+        <span class="cq-logo-tile"><svg width="20" height="20"><use href="#i-brain"/></svg></span>
+        <span class="cq-card__title cq-body1-med">${esc(name)}</span>
+      </span>
+      <span class="cq-card__desc">${esc(desc)}</span>
+    </span>
+    ${foot(tags)}
+  </button>`;
+
+/* Three-up drops the description — that is the whole reason it fits. */
+const compactCard = ([name, tags]) => `
+  <button class="cq-card cq-tint">
+    <span class="cq-card__head">
+      <span class="cq-card__title-row">
+        <span class="cq-logo-tile"><svg width="20" height="20"><use href="#i-brain"/></svg></span>
+        <span class="cq-card__title cq-body1-med">${esc(name)}</span>
+      </span>
+    </span>
+    ${foot(tags)}
+  </button>`;
+
+/* The demos run at the real 1076px width and are scaled to fit, so the
+   column count on screen is the one a module actually gets. */
+function scaleBox(boxId, inner) {
+  const box = $(boxId), el = box.firstElementChild;
+  const factor = 0.615;
+  el.innerHTML = inner;
+  box.style.height = Math.round(el.scrollHeight * factor) + 'px';
+}
+
+function renderGrids() {
+  scaleBox('grid2Box',
+    `<div class="cq-card-grid" style="--cq-card-min:430px">${CARDS_2.map((c, i) => wideCard(c, i === 0)).join('')}</div>`);
+  scaleBox('grid3Box',
+    `<div class="cq-card-grid cq-card-grid--3up">${CARDS_3.map(compactCard).join('')}</div>`);
+  $('anatCard').innerHTML = `<div style="max-width:420px">${wideCard(CARDS_2[0], false)}</div>`;
+}
+
+/* ── Index ──────────────────────────────────────────────────────── */
+function renderNav() {
+  const secs = [...document.querySelectorAll('.ds-sec')];
+  $('dsNav').innerHTML = secs.map(s =>
+    `<a href="#${s.id}" data-sec="${s.id}">${esc(s.querySelector('h2').textContent.trim())}</a>`).join('');
+  const links = [...$('dsNav').querySelectorAll('a')];
+  const spy = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      links.forEach(a => a.classList.toggle('is-current', a.dataset.sec === e.target.id));
+    });
+  }, { root: $('dsScroll'), rootMargin: '0px 0px -70% 0px' });
+  secs.forEach(s => spy.observe(s));
+}
+
+/* ── Theme ──────────────────────────────────────────────────────── */
+function applyMode(mode) {
+  root.dataset.mode = mode;
+  const toLight = mode === 'dark';
+  $('dsThemeIcon').setAttribute('href', toLight ? '#i-sun' : '#i-moon');
+  $('dsThemeName').textContent = toLight ? 'Dark' : 'Light';
+  $('dsTheme').setAttribute('aria-label', toLight ? 'Switch to light' : 'Switch to dark');
+}
+$('dsTheme').addEventListener('click', () => {
+  const next = root.dataset.mode === 'dark' ? 'light' : 'dark';
+  applyMode(next);
+  try { localStorage.setItem('cq-ds-theme', next); } catch (e) { /* private mode */ }
+});
+
+/* ── Click any identifier to copy it ────────────────────────────── */
+let toastTimer;
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-copy]');
+  if (!el) return;
+  const text = el.dataset.copy;
+  const done = () => {
+    el.classList.add('is-copied');
+    setTimeout(() => el.classList.remove('is-copied'), 900);
+    $('dsToast').textContent = 'Copied';
+    $('dsToast').classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('dsToast').classList.remove('is-on'), 1400);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done); else done();
+});
+
+const PROMPT = `Build the <module> page for Cogentiq.
+Layout rules: ${PG_URL}
+Components and tokens: ${DS_URL}
+Read both, then use the cq- shell and component classes only. Add a token rather than hard-coding a colour, and support both themes.`;
+$('pgPrompt').textContent = PROMPT;
+$('pgCopyPrompt').dataset.copy = PROMPT;
+$('pgCopyLinks').dataset.copy = `${PG_URL}\n${DS_URL}`;
+
+renderNav();
+renderGrids();
+window.addEventListener('resize', renderGrids);
+
+let stored = null;
+try { stored = localStorage.getItem('cq-ds-theme'); } catch (e) { /* private mode */ }
+applyMode(stored === 'light' ? 'light' : 'dark');
+</script>
+</body>
+</html>

@@ -1900,8 +1900,8 @@
         <button class="rail-btn" title="Tools &amp; skills"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_toolsskills"/></svg></button>
         <button class="rail-btn" title="Skill"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_skill"/></svg></button>
         <button class="rail-btn" title="Integrations"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg></button>
-        <button class="rail-btn" title="Folder"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_folder"/></svg></button>
-        <button class="rail-btn is-active" title="Doc store" aria-current="page"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_file"/></svg></button>
+        <button class="rail-btn is-active" title="Doc store" aria-current="page"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_folder"/></svg></button>
+        <button class="rail-btn" title="Context"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_file"/></svg></button>
         <button class="rail-btn" title="Model hub"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg></button>
         <button class="rail-btn" title="Guardrails"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_guardrails"/></svg></button>
       </div>
@@ -2844,8 +2844,11 @@ render();
 </script>
 
 <script>
-/* Combined-product navigation: the platform rail is shared across the
-   CogentIQ pages, so wire its entries to the sibling page files. */
+/* ── Combined product · shared shell wiring ──────────────────────
+   The platform rail and the light/dark switch belong to the product,
+   not to any one page, so both are wired here: the rail routes to the
+   sibling pages, and a theme picked on any page is the theme every
+   other page opens in. */
 (function () {
   var PAGES = {
     'home': 'index.html',
@@ -2853,19 +2856,71 @@ render();
     'skill': 'skills.html',
     'integrations': 'integrations.html',
     'model hub': 'model-hub.html',
-    'context': 'doc-store.html',
     'doc store': 'doc-store.html'
   };
+  var root = document.documentElement;
+  var inShell = window.parent !== window;
+
+  function go(url) {
+    if (inShell) parent.postMessage({ cqNav: url }, '*');
+    else window.location.href = url;
+  }
+
   document.querySelectorAll('[aria-label="Platform"] button[title]').forEach(function (btn) {
     var url = PAGES[(btn.getAttribute('title') || '').trim().toLowerCase()];
     if (!url || btn.classList.contains('is-active')) return;
     btn.style.cursor = 'pointer';
-    btn.addEventListener('click', function () { window.location.href = url; });
+    btn.addEventListener('click', function () { go(url); });
   });
   var brand = document.querySelector('.rail-brand, .cq-rail-brand');
   if (brand && !/index\.html$|\/cogentiq\/?$/.test(location.pathname)) {
     brand.style.cursor = 'pointer';
-    brand.addEventListener('click', function () { window.location.href = 'index.html'; });
+    brand.addEventListener('click', function () { go('index.html'); });
+  }
+
+  /* ── One theme across the product ──────────────────────────────
+     Each page already owns a toggle that writes data-mode on <html>;
+     watching that attribute picks up every page's own switch without
+     reaching into its code. Standalone, the choice rides in
+     localStorage; inside the shell, the shell holds it, because
+     srcdoc frames each get their own opaque storage. */
+  var THEME_KEY = 'cq-theme';
+  var synced = null;
+
+  function readStored() {
+    try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+  }
+  function writeStored(mode) {
+    try { localStorage.setItem(THEME_KEY, mode); } catch (e) { /* private mode */ }
+  }
+  function paint(mode) {
+    /* Claim the value before writing it: MutationObserver delivers on a
+       microtask, so a flag set around the write would already be back
+       to false by the time the callback ran, and the frame would echo
+       the shell's own broadcast straight back at it. */
+    synced = mode;
+    if (root.dataset.mode === mode) return;
+    if (typeof window.applyMode === 'function') window.applyMode(mode);
+    else root.dataset.mode = mode;
+  }
+
+  new MutationObserver(function () {
+    var mode = root.dataset.mode === 'light' ? 'light' : 'dark';
+    if (mode === synced) return;
+    synced = mode;
+    writeStored(mode);
+    if (inShell) parent.postMessage({ cqTheme: mode }, '*');
+  }).observe(root, { attributes: true, attributeFilter: ['data-mode'] });
+
+  window.addEventListener('message', function (e) {
+    var mode = e.data && e.data.cqTheme;
+    if (mode === 'light' || mode === 'dark') paint(mode);
+  });
+
+  if (inShell) parent.postMessage({ cqThemeRequest: true }, '*');
+  else {
+    var stored = readStored();
+    if (stored === 'light' || stored === 'dark') paint(stored);
   }
 })();
 </script>
