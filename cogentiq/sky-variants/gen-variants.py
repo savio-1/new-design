@@ -133,6 +133,18 @@ VARIANTS = {
    light = ramp('cyan-400','blue-450','blue-500','indigo-500','indigo-450','purple-500','red-500'),
    bloom = ('rgba(53, 202, 240, .40)', 'rgba(220, 52, 18, .30)'),
    bloomL= ('rgba(117, 215, 240, .28)', 'rgba(255, 175, 163, .26)')),
+
+ # ── From the Figma stops: Orange/500 0%, Red/500 41%, Blue/500 76%.
+ #    Read bottom-up, the way this panel is built, that is blue at the
+ #    top running out through red into orange. Three stops carried on
+ #    seven, weighted the way the picker weights them: blue holds the
+ #    first half, red is the turn, orange lands last. ─────────────────
+ '17-blue-red-orange': dict(
+   label='Blue &rarr; Red &rarr; Orange',
+   dark  = ramp('blue-500','blue-500','blue-600','red-600','red-500','orange-600','orange-500'),
+   light = ramp('blue-450','blue-500','blue-600','red-500','red-400','orange-500','orange-400'),
+   bloom = ('rgba(13, 153, 255, .40)', 'rgba(255, 166, 41, .32)'),
+   bloomL= ('rgba(120, 190, 255, .28)', 'rgba(255, 196, 112, .26)')),
 }
 
 SLOTS = ['cyan','blue','indigo','purple','pink','orange','amber']

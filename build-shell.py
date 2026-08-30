@@ -69,6 +69,8 @@ SHELL = '''<title>CogentIQ Platform</title>
   var current = null;
   var busy = false;
   var theme = 'dark';
+  var themePref = 'dark';
+  var background = 'sunset';
 
   function decode(b64) {
     var bin = atob(b64), bytes = new Uint8Array(bin.length);
@@ -76,13 +78,18 @@ SHELL = '''<title>CogentIQ Platform</title>
     return new TextDecoder('utf-8').decode(bytes);
   }
 
-  function tellTheme(frame) {
-    try { frame.contentWindow.postMessage({ cqTheme: theme }, '*'); } catch (e) { /* not ready */ }
+  // One message carries the whole of what spans pages, so a frame that
+  // has just loaded is brought fully up to date in a single hop.
+  function tellState(frame) {
+    try {
+      frame.contentWindow.postMessage(
+        { cqTheme: theme, cqThemePref: themePref, cqBg: background }, '*');
+    } catch (e) { /* not ready */ }
   }
   function setTheme(mode) {
     theme = mode;
     document.body.dataset.mode = mode;
-    frames.forEach(tellTheme);
+    frames.forEach(tellState);
   }
 
   /* A frame that is still parsing paints white for a beat, and fading
@@ -97,7 +104,7 @@ SHELL = '''<title>CogentIQ Platform</title>
     var outgoing = frames[live];
 
     var reveal = function () {
-      tellTheme(incoming);
+      tellState(incoming);
       /* Two frames of grace: one for the swapped-in document to lay out,
          one for the browser to paint it, so the page rises in already
          drawn rather than arriving mid-paint. */
@@ -127,8 +134,10 @@ SHELL = '''<title>CogentIQ Platform</title>
   window.addEventListener('message', function (e) {
     var data = e.data || {};
     if (typeof data.cqNav === 'string') show(data.cqNav);
+    if (data.cqThemePref) themePref = data.cqThemePref;
+    if (data.cqBg) { background = data.cqBg; frames.forEach(tellState); }
     if (data.cqTheme === 'light' || data.cqTheme === 'dark') setTheme(data.cqTheme);
-    if (data.cqThemeRequest) frames.forEach(tellTheme);
+    if (data.cqThemeRequest) frames.forEach(tellState);
   });
 
   var initial = 'index.html';
