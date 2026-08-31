@@ -1701,7 +1701,9 @@ body.cq { margin: 0; }
       --red-100: #fff5f5;   --red-300: #ffc7c2;   --red-400: #ffafa3;
       --red-500: #f24822;   --red-600: #dc3412;   --red-900: #771208;
       --orange-500: #ffa629; --orange-900: #ce7012;
-      --green-600: #009951;  --green-700: #008043;
+      --green-500: #14ae5c;  --green-600: #009951;  --green-700: #008043;
+      --indigo-300: #c2c5fa;  --indigo-100: #f4f5ff;
+      --cyan-300: #b6ecf7;
       --cyan-500: #00a2c2;   --cyan-600: #0087a8;  --cyan-700: #047195;
       --indigo-600: #454de0;
       --purple-450: #bb7fff;
@@ -1992,19 +1994,29 @@ body.cq { margin: 0; }
     .mon-bar-filters { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .mon-bar-filters[hidden] { display: none; }
 
-    /* ── KPI cards with a sparkline ── */
+    /* ── KPI cards: the sparkline sits beside the figure, not under it ── */
     .mon-kpi { grid-column: span 3; gap: 8px; --glow-r: 130px; }
-    .mon-kpi__spark { height: 40px; margin-top: 2px; }
+    .mon-kpi__row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .mon-kpi__figures { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .mon-kpi__spark { flex: 0 1 46%; max-width: 190px; height: 54px; }
     .mon-kpi__spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    /* Direction, not series: a rising count reads green, a falling one
+       orange, so the trend is legible before the number is read. */
+    .mon-root { --spark-up: var(--green-500); --spark-down: var(--orange-500); }
+    :root[data-mode="light"] .mon-root { --spark-up: var(--green-700); --spark-down: var(--orange-800); }
 
     /* ── "Other artifacts in use": four counts, split by hairlines ── */
     .mon-others { grid-column: span 3; gap: 12px; --glow-r: 130px; }
-    .mon-others__grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+    /* minmax(0, 1fr), not 1fr: plain 1fr floors each column at its own
+       min-content, so "Guardrails" and "240" made their cells wider than
+       the rest. */
+    .mon-others__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .mon-others__cell {
       display: flex; flex-direction: column; gap: 2px;
-      padding-left: 12px; border-left: 1px solid var(--strokes-line-3);
+      padding: 0 10px; border-left: 1px solid var(--strokes-line-3);
     }
-    .mon-others__cell:first-child { padding-left: 0; border-left: 0; }
+    .mon-others__cell:first-child { border-left: 0; padding-left: 0; }
+    .mon-others__cell .cq-ic, .mon-others__n, .mon-others__lbl { align-self: flex-start; }
     .mon-others__cell .cq-ic { color: var(--text-teritiary); }
     .mon-others__n {
       font: 500 20px/24px var(--font-geist-mono); letter-spacing: -0.4px;
@@ -2020,66 +2032,81 @@ body.cq { margin: 0; }
 
     /* ── Top creators: podium left, leaderboard right ── */
     .mon-creators { grid-column: span 12; }
+    /* start, not end: the leaderboard begins at the top of the card and
+       the podium is given the board's height so both halves end level. */
     .mon-creators__body {
       display: grid; grid-template-columns: minmax(320px, 5fr) 7fr; gap: 24px;
-      margin-top: 12px; align-items: end;
+      margin-top: 12px; align-items: start;
     }
 
-    /* The podium. Bars grow from the floor on first paint — the ranking
-       is a result, so it arrives as one. */
-    .mon-podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: end; padding-top: 8px; }
-    .mon-pod { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+    /* ── The podium ────────────────────────────────────────────────
+       Three extruded columns, lifted from the Figma group: an isometric
+       top face (a rounded rhombus, drawn as SVG so it never skews) and a
+       front face whose top edge follows the rhombus's lower edges. Every
+       stop below is a ramp step off the same export — blue 600/500/300,
+       indigo 500/300/100, cyan 500/300 — and each body fades to nothing
+       at its foot, so the columns dissolve into the card in both themes.
+       The columns grow from the floor on arrival: the ranking is a
+       result, so it arrives as one. */
+    .mon-podium {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 28px; align-items: end; height: var(--pod-h, 300px);
+    }
+    .mon-pod { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; height: 100%; }
     .mon-pod__tag {
       display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
-      padding: 4px 10px 4px 4px; border-radius: var(--radius-full, 999px);
-      background: var(--backgrounds-page-bg-3);
-      border: 1px solid var(--strokes-line-3);
-      color: var(--text-primary);
+      padding: 4px 12px 4px 4px; border-radius: var(--radius-full, 999px);
+      background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%);
+      color: var(--white);
+      box-shadow: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, .2));
       opacity: 0; transform: translateY(6px);
-      transition: opacity .34s ease .16s, transform .34s ease .16s;
+      transition: opacity .34s ease .18s, transform .34s ease .18s;
     }
     .mon-pod__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mon-pod__bar {
+
+    /* The animated element. The cap hangs half its own height above it,
+       which is why the column carries that much top margin. */
+    .mon-pod__col {
       position: relative; width: 100%; height: 0;
-      border-radius: 10px 10px 0 0;
-      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      overflow: hidden;
+      margin-top: calc(var(--cap-h, 70px) / 2 + 6px);
       transition: height .8s cubic-bezier(.22, .8, .25, 1);
     }
-    /* The chevron cap from the wireframe, drawn as the bar's own top edge
-       rather than a second element, so the gradient stays continuous. */
-    .mon-pod__bar::before {
-      content: ""; position: absolute; inset: 0 0 auto; height: 14px;
-      background: var(--flag-sheen);
-      clip-path: polygon(0 100%, 50% 0, 100% 100%);
+    .mon-pod__cap {
+      position: absolute; left: 0; right: 0; top: calc(var(--cap-h, 70px) / -2);
+      height: var(--cap-h, 70px); pointer-events: none; z-index: 1;
     }
-    /* The inset rides on the label, not the bar: padding on the bar would
-       floor its height at 18px, so the column would never start from zero. */
+    .mon-pod__cap svg { display: block; width: 100%; height: 100%; }
+    .mon-pod__face {
+      position: absolute; inset: 0;
+      clip-path: polygon(0 0, 50% calc(var(--v, 34px) - 0.5px), 100% 0, 100% 100%, 0 100%);
+      display: flex; flex-direction: column; align-items: center;
+    }
     .mon-pod__count {
-      position: relative; margin-top: 18px; color: var(--white);
-      font: 500 var(--fs-caption)/1 var(--font-geist); letter-spacing: -0.24px;
-      opacity: 0; transition: opacity .3s ease .5s;
+      margin-top: calc(var(--v, 34px) + 6px);
+      color: var(--white);
+      font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+      opacity: 0; transition: opacity .3s ease .52s;
     }
-    .mon-pod__place {
-      position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
-      color: var(--white); opacity: .82;
-      font: 500 22px/1 var(--font-geist-mono);
-    }
-    .mon-pod[data-rank="1"] .mon-pod__bar { background: linear-gradient(180deg, var(--pod-1), color-mix(in srgb, var(--pod-1) 45%, transparent)); }
-    .mon-pod[data-rank="2"] .mon-pod__bar { background: linear-gradient(180deg, var(--pod-2), color-mix(in srgb, var(--pod-2) 45%, transparent)); }
-    .mon-pod[data-rank="3"] .mon-pod__bar { background: linear-gradient(180deg, var(--pod-3), color-mix(in srgb, var(--pod-3) 45%, transparent)); }
+    .mon-pod[data-rank="1"] .mon-pod__face { background: linear-gradient(180deg, var(--blue-600) 0%, color-mix(in srgb, var(--blue-500) 40%, transparent) 50%, color-mix(in srgb, var(--blue-300) 0%, transparent) 100%); }
+    .mon-pod[data-rank="2"] .mon-pod__face { background: linear-gradient(180deg, var(--indigo-500) 0%, color-mix(in srgb, var(--indigo-100) 0%, transparent) 73%); }
+    .mon-pod[data-rank="3"] .mon-pod__face { background: linear-gradient(180deg, var(--cyan-500) 0%, color-mix(in srgb, var(--cyan-300) 0%, transparent) 75%); }
 
-    .mon-podium.is-in .mon-pod__bar { height: var(--h); }
+    .mon-podium.is-in .mon-pod__col { height: var(--h); }
     .mon-podium.is-in .mon-pod__tag { opacity: 1; transform: none; }
     .mon-podium.is-in .mon-pod__count { opacity: 1; }
     /* Second place, then first, then third — the eye lands on the winner
        mid-sequence rather than at the end. */
-    .mon-podium .mon-pod:nth-child(1) .mon-pod__bar { transition-delay: .04s; }
-    .mon-podium .mon-pod:nth-child(2) .mon-pod__bar { transition-delay: .16s; }
-    .mon-podium .mon-pod:nth-child(3) .mon-pod__bar { transition-delay: .28s; }
+    .mon-podium .mon-pod:nth-child(1) .mon-pod__col { transition-delay: .04s; }
+    .mon-podium .mon-pod:nth-child(2) .mon-pod__col { transition-delay: .16s; }
+    .mon-podium .mon-pod:nth-child(3) .mon-pod__col { transition-delay: .28s; }
     @media (prefers-reduced-motion: reduce) {
-      .mon-pod__bar, .mon-pod__tag, .mon-pod__count { transition: none; }
+      .mon-pod__col, .mon-pod__tag, .mon-pod__count { transition: none; }
     }
+    /* One frame with transitions off, so a replay snaps back to the floor
+       instead of easing down from wherever the columns already stood. */
+    .mon-podium.no-anim .mon-pod__col,
+    .mon-podium.no-anim .mon-pod__tag,
+    .mon-podium.no-anim .mon-pod__count { transition: none; }
 
     /* Leaderboard */
     .mon-board.cq-table { --cq-cols: 64px minmax(150px, 1fr) 132px minmax(210px, 1.2fr); }
@@ -2429,12 +2456,16 @@ body.cq { margin: 0; }
                   <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg>
                   Automations published
                 </span>
-                <span class="mon-stat__value">210</span>
-                <span class="mon-stat__delta cq-caption-reg">
-                  <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
-                  <b>+18</b> this month
-                </span>
-                <div class="mon-kpi__spark" data-spark="automations" data-hue="var(--ser-automations)"></div>
+                <div class="mon-kpi__row">
+                  <div class="mon-kpi__figures">
+                    <span class="mon-stat__value">210</span>
+                    <span class="mon-stat__delta cq-caption-reg">
+                      <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
+                      <b>+18</b> this month
+                    </span>
+                  </div>
+                  <div class="mon-kpi__spark" data-spark="automations" data-dir="up"></div>
+                </div>
               </section>
 
               <section class="mon-card mon-kpi" aria-label="Agents created">
@@ -2442,12 +2473,16 @@ body.cq { margin: 0; }
                   <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_agent"/></svg>
                   Agents created
                 </span>
-                <span class="mon-stat__value">186</span>
-                <span class="mon-stat__delta cq-caption-reg">
-                  <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
-                  <b>+12</b> this month
-                </span>
-                <div class="mon-kpi__spark" data-spark="agents" data-hue="var(--ser-agents)"></div>
+                <div class="mon-kpi__row">
+                  <div class="mon-kpi__figures">
+                    <span class="mon-stat__value">186</span>
+                    <span class="mon-stat__delta cq-caption-reg">
+                      <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
+                      <b>+12</b> this month
+                    </span>
+                  </div>
+                  <div class="mon-kpi__spark" data-spark="agents" data-dir="up"></div>
+                </div>
               </section>
 
               <section class="mon-card mon-kpi" aria-label="Assistants deployed">
@@ -2455,12 +2490,16 @@ body.cq { margin: 0; }
                   <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_aiassistant"/></svg>
                   Assistants deployed
                 </span>
-                <span class="mon-stat__value">97</span>
-                <span class="mon-stat__delta cq-caption-reg">
-                  <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
-                  <b>+7</b> this month
-                </span>
-                <div class="mon-kpi__spark" data-spark="assistants" data-hue="var(--ser-assistants)"></div>
+                <div class="mon-kpi__row">
+                  <div class="mon-kpi__figures">
+                    <span class="mon-stat__value">97</span>
+                    <span class="mon-stat__delta cq-caption-reg">
+                      <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
+                      <b>+7</b> this month
+                    </span>
+                  </div>
+                  <div class="mon-kpi__spark" data-spark="assistants" data-dir="up"></div>
+                </div>
               </section>
 
               <section class="mon-card mon-others" aria-label="Other artifacts in use">
@@ -2747,8 +2786,8 @@ function drawVolume() {
         <text class="mon-axis" x="${PAD.l - 8}" y="${Y(v) + 3.5}" text-anchor="end">${v ? v.toLocaleString() : 0}</text>`).join('')}
       ${labelIdx.map((bi, i) => `<text class="mon-axis" x="${X(bi)}" y="${h - 6}" text-anchor="middle">${VOL_LABELS[i]}</text>`).join('')}
       <path d="${line(VOL_SUCCESS)} L ${X(n - 1)} ${Y(0)} L ${X(0)} ${Y(0)} Z" fill="url(#monFill)"/>
-      <path d="${line(VOL_SUCCESS)}" fill="none" stroke="var(--viz-success)" stroke-width="2" stroke-linecap="round"/>
-      <path d="${line(VOL_FAILED)}" fill="none" stroke="var(--viz-fail)" stroke-width="2" stroke-linecap="round"/>
+      <path d="${line(VOL_SUCCESS)}" fill="none" stroke="var(--viz-success)" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="${line(VOL_FAILED)}" fill="none" stroke="var(--viz-fail)" stroke-width="1.5" stroke-linecap="round"/>
       <line id="volCross" class="mon-cross" y1="${PAD.t}" y2="${PAD.t + ih}" x1="-9" x2="-9" visibility="hidden"/>
       <circle id="volDotS" r="4" fill="var(--viz-success)" stroke="var(--backgrounds-page-bg-2)" stroke-width="2" visibility="hidden"/>
       <circle id="volDotF" r="4" fill="var(--viz-fail)" stroke="var(--backgrounds-page-bg-2)" stroke-width="2" visibility="hidden"/>
@@ -2848,7 +2887,8 @@ function monoPath(pts) {
 /* ── Sparklines ── */
 function drawSparks() {
   document.querySelectorAll('[data-spark]').forEach(host => {
-    const d = SPARKS[host.dataset.spark], hue = host.dataset.hue;
+    const d = SPARKS[host.dataset.spark];
+    const hue = host.dataset.dir === 'down' ? 'var(--spark-down)' : 'var(--spark-up)';
     const w = host.clientWidth, h = host.clientHeight;
     if (w < 20 || h < 10) return;
     const lo = Math.min(...d) * 0.96, hi = Math.max(...d) * 1.02;
@@ -2861,7 +2901,7 @@ function drawSparks() {
           <stop offset="1" style="stop-color:${hue};stop-opacity:0"/>
         </linearGradient></defs>
         <path d="${monoPath(pts)} L ${w} ${h} L 0 ${h} Z" fill="url(#${id})"/>
-        <path d="${monoPath(pts)}" fill="none" stroke="${hue}" stroke-width="1.75" stroke-linecap="round"/>
+        <path d="${monoPath(pts)}" fill="none" stroke="${hue}" stroke-width="1.5" stroke-linecap="round"/>
         <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="2.75" fill="${hue}"/>
       </svg>`;
   });
@@ -2895,7 +2935,7 @@ function drawSeriesChart(hostId, cfg) {
                   fill="${s.hue}" fill-opacity=".26" stroke="none"/>`;
       /* Each band's own 2px top line doubles as the separator from the
          band above it, so adjacent fills never touch. */
-      marks += `<path d="${monoPath(upper)}" fill="none" stroke="${s.hue}" stroke-width="2"
+      marks += `<path d="${monoPath(upper)}" fill="none" stroke="${s.hue}" stroke-width="1.5"
                   stroke-linecap="round" stroke-linejoin="round"/>`;
     }
   } else {
@@ -2907,7 +2947,7 @@ function drawSeriesChart(hostId, cfg) {
                    <stop offset="1" style="stop-color:${s.hue};stop-opacity:.02"/></linearGradient>`;
         marks += `<path d="${monoPath(p)} L ${X(n - 1)} ${Y(0)} L ${X(0)} ${Y(0)} Z" fill="url(#g-${hostId}-${si})"/>`;
       }
-      marks += `<path d="${monoPath(p)}" fill="none" stroke="${s.hue}" stroke-width="2" stroke-linecap="round"/>`;
+      marks += `<path d="${monoPath(p)}" fill="none" stroke="${s.hue}" stroke-width="1.5" stroke-linecap="round"/>`;
     });
   }
 
@@ -2966,43 +3006,77 @@ function drawAdoptionCharts() {
   });
 }
 
-/* ── Podium: 2nd, 1st, 3rd, left to right ── */
+/* ── Podium: 2nd, 1st, 3rd, left to right ────────────────────────
+   The cap is the Figma path verbatim (Polygon 1 of each column group),
+   so the isometric top face keeps its exact rounded-rhombus geometry;
+   only the front face stretches as a column grows. */
+const CAP_PATH = 'M63.92 1.79C69.06-0.6 74.99-0.6 80.13 1.79L141.28 30.27C144.98 31.99 144.98 37.25 141.28 38.97L80.13 67.45C74.99 69.84 69.06 69.84 63.92 67.45L2.77 38.97C-0.92 37.25-0.92 31.99 2.77 30.27Z';
+/* Cap fill, right (deep) → left (pale), at the export's own ~252°. */
+const CAP_STOPS = {
+  1: [['0', 'var(--blue-600)'], ['0.5', 'var(--blue-500)'], ['1', 'var(--blue-300)']],
+  2: [['0', 'var(--indigo-500)'], ['1', 'var(--indigo-300)']],
+  3: [['0', 'var(--cyan-500)'], ['1', 'var(--cyan-300)']]
+};
+/* viewBox is the path's bounds plus the stroke-free margin its rounded
+   corners need; CAP_RATIO is that box's aspect, so height follows width. */
+const CAP_BOX = { x: -1.5, y: -1.5, w: 147.06, h: 72.24 };
+const CAP_RATIO = CAP_BOX.h / CAP_BOX.w;
+
 const PODIUM = (function () {
   const top3 = CREATORS.slice(0, 3);
   const order = [top3[1], top3[0], top3[2]];
   const ranks = [2, 1, 3];
   $('podium').innerHTML = order.map((c, i) => `
     <div class="mon-pod" data-rank="${ranks[i]}">
-      <span class="mon-pod__tag cq-caption-med">
+      <span class="mon-pod__tag cq-body2-med">
         <span class="cq-avatar" style="background:${c.bg}">${c.init}</span>
         <span class="mon-pod__name">${c.name}</span>
       </span>
-      <div class="mon-pod__bar">
-        <span class="mon-pod__count">${c.total} artifacts</span>
-        <span class="mon-pod__place">${ranks[i]}</span>
+      <div class="mon-pod__col">
+        <div class="mon-pod__face"><span class="mon-pod__count">${c.total} artifacts</span></div>
+        <div class="mon-pod__cap">
+          <svg viewBox="${CAP_BOX.x} ${CAP_BOX.y} ${CAP_BOX.w} ${CAP_BOX.h}" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="cap-${ranks[i]}" x1="136" y1="28" x2="8.4" y2="60.2" gradientUnits="userSpaceOnUse">
+                ${CAP_STOPS[ranks[i]].map(([o, col]) => `<stop offset="${o}" stop-color="${col}"/>`).join('')}
+              </linearGradient>
+            </defs>
+            <path d="${CAP_PATH}" fill="url(#cap-${ranks[i]})"/>
+          </svg>
+        </div>
       </div>
     </div>`).join('');
   return { order, top: top3[0].total };
 })();
 
-/* The winner's column reaches the bottom of the leaderboard beside it,
-   so the two halves of the card end level however many rows the board
-   carries; the other two scale against the winner's total. */
+/* The winner's column reaches the bottom of the leaderboard beside it, so
+   the two halves of the card end level however many rows the board carries;
+   the other two scale against the winner's total. */
 function scalePodium() {
+  const pod = $('podium');
   const board = document.querySelector('.mon-board');
-  const room = board ? board.offsetHeight - 46 : 220;
-  const max = Math.max(170, Math.min(room, 430));
-  $('podium').querySelectorAll('.mon-pod').forEach((pod, i) => {
-    const h = Math.round(max * PODIUM.order[i].total / PODIUM.top);
-    pod.querySelector('.mon-pod__bar').style.setProperty('--h', h + 'px');
+  const boardH = board ? board.offsetHeight : 300;
+  pod.style.setProperty('--pod-h', boardH + 'px');
+  pod.querySelectorAll('.mon-pod').forEach((el, i) => {
+    const col = el.querySelector('.mon-pod__col');
+    const capH = Math.round(col.clientWidth * CAP_RATIO);
+    /* Room for the tag, the cap's overhang and its own top margin. */
+    const reserve = el.querySelector('.mon-pod__tag').offsetHeight + capH / 2 + 10;
+    const max = Math.max(150, boardH - reserve);
+    col.style.setProperty('--cap-h', capH + 'px');
+    col.style.setProperty('--v', Math.round(capH * 0.4876) + 'px');
+    col.style.setProperty('--h', Math.round(max * PODIUM.order[i].total / PODIUM.top) + 'px');
   });
 }
 
 function playPodium() {
   const pod = $('podium');
+  pod.classList.add('no-anim');
   pod.classList.remove('is-in');
   scalePodium();
-  void pod.offsetWidth;               /* restart the transitions */
+  void pod.offsetHeight;              /* commit the collapsed state */
+  pod.classList.remove('no-anim');
+  void pod.offsetHeight;
   requestAnimationFrame(() => pod.classList.add('is-in'));
 }
 
