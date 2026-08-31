@@ -1873,28 +1873,32 @@ body.cq { margin: 0; }
       font: 400 10px/14px var(--font-geist-mono); letter-spacing: -0.1px;
     }
     .au-prev__meta .cq-ic { color: rgba(255, 255, 255, .4); }
+    /* One flag, top-right, and only when there is something to say. A
+       card that carries none is the normal case, which is what makes a
+       card that carries one worth looking at. */
     .au-prev__flag {
       position: absolute; right: 12px; top: 10px;
-      height: 18px; padding: 0 7px; border-radius: var(--radius-full);
-      display: inline-flex; align-items: center; gap: 4px;
-      background: rgba(255, 166, 41, .16);
-      border: 1px solid rgba(255, 166, 41, .38);
-      color: var(--orange-400c);
-      font: 400 10px/1 var(--font-geist-mono); letter-spacing: -0.1px;
-    }
-    /* State reads top-left, where the board has empty room. */
-    .au-prev__state {
-      position: absolute; left: 12px; top: 10px;
       height: 18px; padding: 0 7px 0 6px; border-radius: var(--radius-full);
       display: inline-flex; align-items: center; gap: 5px;
-      background: rgba(255, 255, 255, .07);
-      border: 1px solid rgba(255, 255, 255, .14);
-      color: rgba(255, 255, 255, .74);
       font: 400 10px/1 var(--font-geist); letter-spacing: -0.1px;
     }
-    .au-prev__state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
-    .au-prev__state[data-state="Active"] { color: #85e0a3; }
-    .au-prev__state[data-state="Draft"]  { color: rgba(255, 255, 255, .6); }
+    .au-prev__flag i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+    .au-prev__flag[data-tone="wait"] {
+      background: rgba(255, 166, 41, .16); border: 1px solid rgba(255, 166, 41, .38);
+      color: var(--orange-400c);
+    }
+    .au-prev__flag[data-tone="live"] {
+      background: rgba(20, 174, 92, .18); border: 1px solid rgba(20, 174, 92, .42);
+      color: #85e0a3;
+    }
+    /* The live dot breathes — it is the one thing on this screen that is
+       true only right now. */
+    .au-prev__flag[data-tone="live"] i { animation: au-pulse 2s ease-in-out infinite; }
+    @keyframes au-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    .au-prev__flag[data-tone="off"] {
+      background: rgba(255, 255, 255, .07); border: 1px solid rgba(255, 255, 255, .14);
+      color: rgba(255, 255, 255, .62);
+    }
 
     /* ── Title, description, and the footer row ── */
     .au-card__body { padding: 8px 16px 0; display: flex; flex-direction: column; gap: 4px; }
@@ -1911,8 +1915,15 @@ body.cq { margin: 0; }
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
     .au-tags { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+    .au-tags .cq-avatar { width: 20px; height: 20px; flex: none; }
     .au-card__end { display: inline-flex; align-items: center; gap: 6px; flex: none; }
     .au-card__end .cq-avatar { width: 20px; height: 20px; }
+
+    /* A marketplace card names its publisher and its reach where an
+       automation names its owner. */
+    .au-mk__by { color: var(--text-secondary); }
+    .au-mk__dot { width: 3px; height: 3px; border-radius: 50%; background: var(--strokes-line-1); flex: none; }
+    .au-mk__n { color: var(--text-teritiary); white-space: nowrap; flex: none; }
 
     /* ══════════════════════════════════════════════════════════════
        LIST VIEW — the same inventory one row deep. Not in the frame;
@@ -2290,7 +2301,24 @@ body.cq { margin: 0; }
             </button>
           </div>
 
+          <!-- The queue is no longer a tab, so it is reached from the row
+               that names it. It sits under its own label because it
+               changes the subject rather than narrowing it. -->
+          <div class="au-side" id="sideQueue">
+            <span class="au-side__label cq-caption-med">APPROVALS</span>
+            <button class="cq-nav-item" data-scope="queue">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-shield"/></svg>
+              <span class="cq-nav-item__label">Checkpoint queue</span>
+              <span class="au-side__n" id="nQueue">12</span>
+            </button>
+          </div>
+
           <div class="au-side" id="sideCk" role="tablist" aria-label="Checkpoint status" hidden>
+            <button class="cq-nav-item" id="ckBack">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(180deg)"><use href="#i-caret"/></svg>
+              <span class="cq-nav-item__label">Automations</span>
+            </button>
+            <span class="au-side__label cq-caption-med" style="padding-top:14px">CHECKPOINTS</span>
             <button class="cq-nav-item is-active" data-ck="all">
               <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-flow"/></svg>
               <span class="cq-nav-item__label">All checkpoints</span>
@@ -2312,6 +2340,8 @@ body.cq { margin: 0; }
               <span class="au-side__n">7</span>
             </button>
           </div>
+
+          <div class="au-side" id="sideMarket" role="tablist" aria-label="Marketplace category" hidden></div>
         </aside>
 
         <section class="cq-page__col">
@@ -2325,8 +2355,8 @@ body.cq { margin: 0; }
                       aria-controls="paneAutomations">
                 Automations <span class="au-seg-count">15</span>
               </button>
-              <button data-tab="approvals" role="tab" aria-selected="false" aria-controls="paneApprovals">
-                Checkpoint Approvals <span class="au-seg-count">12</span>
+              <button data-tab="marketplace" role="tab" aria-selected="false" aria-controls="paneMarket">
+                Marketplace <span class="au-seg-count" id="mkCount">9</span>
               </button>
             </div>
             <div class="au-bar__right">
@@ -2485,6 +2515,42 @@ body.cq { margin: 0; }
             </div>
           </div>
 
+          <!-- ══════════ Lens 2 · Marketplace ══════════
+               Published automations anyone in the workspace can start
+               from. Same card, same canvas thumbnail — a template is an
+               automation, so recognising one works the same way. What
+               changes is the footer: a publisher and an install count in
+               place of an owner, and the action to take it. -->
+          <div class="cq-page__content cq-scroll-y" id="paneMarket" role="tabpanel" hidden>
+            <div class="au-filters">
+              <div class="cq-filter-group">
+                <button class="cq-dropdown" id="mkSortBtn" aria-expanded="false">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-sliders"/></svg>
+                  <span id="mkSortLabel">Sort by: Most installed</span>
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                </button>
+                <div class="cq-pop" id="mkSortPop"><div class="cq-pop__list" id="mkSortList"></div></div>
+              </div>
+              <div class="cq-filter-group">
+                <button class="cq-dropdown" id="mkPubBtn" aria-expanded="false">
+                  <span>Publisher</span>
+                  <span class="cq-dropdown__badge" id="mkPubBadge">0</span>
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                </button>
+                <div class="cq-pop" id="mkPubPop"><div class="cq-pop__list" id="mkPubList"></div></div>
+              </div>
+            </div>
+
+            <div class="cq-card-grid au-grid" id="mkGrid"></div>
+
+            <div class="au-empty cq-body2-reg" id="mkEmpty" hidden>
+              <b class="cq-body1-med">Nothing in the marketplace matches</b>
+              Try a different search, category or publisher.
+            </div>
+
+            <p class="au-count cq-body2-reg" id="mkFoot"></p>
+          </div>
+
         </section>
       </div>
 
@@ -2511,9 +2577,9 @@ body.cq { margin: 0; }
       </div>
     </div>
     <div class="au-panel__actions">
-      <button class="cq-btn cq-btn--sm cq-btn--primary">
-        <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-pencil"/></svg>
-        Open in builder
+      <button class="cq-btn cq-btn--sm cq-btn--primary" id="pnPrimary">
+        <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-pencil" id="pnPrimaryIcon"/></svg>
+        <span id="pnPrimaryLabel">Open in builder</span>
       </button>
       <button class="cq-btn cq-btn--sm cq-btn--tonal" id="pnRun">
         <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-play"/></svg>
@@ -2599,10 +2665,10 @@ const AUTOS = [
   {
     name: 'Invoice Extraction Pipeline',
     desc: 'Reads supplier invoices out of the AP inbox, pulls line items and totals, and posts the approved ones to NetSuite.',
-    status: 'Active', hue: 'var(--text-coloured-indigo)', pending: 2,
+    status: 'Active', hue: 'var(--text-coloured-indigo)', pending: 5,
     trigger: 'Email received · AP inbox', schedule: 'On arrival',
     by: 'Sarah Chen', tags: ['finance', 'ocr'], runs: 1284, ok: 98.2,
-    avg: '1m 12s', cost: '$0.06', last: '2m ago', lastN: 2, created: 'Mar 4, 2026', version: 'v14',
+    avg: '1m 12s', cost: '$0.06', last: '7m ago', lastN: 7, created: 'Mar 4, 2026', version: 'v14',
     steps: [
       { k: 'email',      l: 'Invoice in',     s: 'ap@acme.co' },
       { k: 'model',      l: 'Extract fields', s: 'gpt-4o ocr' },
@@ -2615,7 +2681,7 @@ const AUTOS = [
   {
     name: 'Customer Onboarding',
     desc: 'Takes a signed order through provisioning, welcome mail and the first success check-in, pausing once for account review.',
-    status: 'Active', hue: 'var(--text-coloured-blue)', pending: 3,
+    status: 'Active', hue: 'var(--text-coloured-blue)', pending: 4,
     trigger: 'Webhook · Salesforce opportunity won', schedule: 'On event',
     by: 'Mike Torres', tags: ['crm', 'onboarding'], runs: 412, ok: 96.8,
     avg: '4m 05s', cost: '$0.21', last: '14m ago', lastN: 14, created: 'Jan 18, 2026', version: 'v27',
@@ -2646,7 +2712,7 @@ const AUTOS = [
   {
     name: 'Contract Review Agent',
     desc: 'Reads an inbound contract against the playbook, flags non-standard clauses, and routes anything material to legal.',
-    status: 'Active', hue: 'var(--purple-450)', pending: 1,
+    status: 'Active', hue: 'var(--purple-450)', pending: 3,
     trigger: 'Doc store · new file in /contracts', schedule: 'On upload',
     by: 'Priya Nair', tags: ['legal', 'review'], runs: 96, ok: 94.7,
     avg: '2m 48s', cost: '$0.44', last: '1h ago', lastN: 60, created: 'Apr 22, 2026', version: 'v6',
@@ -2662,10 +2728,10 @@ const AUTOS = [
   {
     name: 'Lead Scoring Engine',
     desc: 'Scores every new lead on fit and intent, enriches the record, and hands the top band straight to an AE.',
-    status: 'Active', hue: 'var(--text-coloured-green)', pending: 2,
+    status: 'Active', hue: 'var(--text-coloured-green)', pending: 0,
     trigger: 'Webhook · form submission', schedule: 'On event',
     by: 'James Liu', tags: ['growth', 'scoring'], runs: 2140, ok: 97.9,
-    avg: '3m 51s', cost: '$0.09', last: '4m ago', lastN: 4, created: 'Feb 9, 2026', version: 'v31',
+    avg: '3m 51s', cost: '$0.09', last: '22m ago', lastN: 22, created: 'Feb 9, 2026', version: 'v31',
     steps: [
       { k: 'webhook',    l: 'Form in',        s: 'marketo' },
       { k: 'data',       l: 'Enrich',         s: 'clearbit' },
@@ -2677,7 +2743,7 @@ const AUTOS = [
   {
     name: 'Stripe Payment Handler',
     desc: 'Reconciles Stripe events against invoices, retries soft failures, and escalates disputes for a human call.',
-    status: 'Active', hue: 'var(--orange-600)', pending: 1,
+    status: 'Active', hue: 'var(--orange-600)', pending: 0,
     trigger: 'Webhook · stripe events', schedule: 'On event',
     by: 'Sarah Chen', tags: ['finance', 'payments'], runs: 3610, ok: 99.1,
     avg: '0m 42s', cost: '$0.02', last: '1m ago', lastN: 1, created: 'Oct 14, 2025', version: 'v22',
@@ -2693,7 +2759,7 @@ const AUTOS = [
   {
     name: 'Vendor Onboarding Flow',
     desc: 'Collects vendor documents, runs the compliance screen, and opens the supplier record once procurement approves.',
-    status: 'Active', hue: 'var(--text-coloured-indigo)', pending: 2,
+    status: 'Active', hue: 'var(--text-coloured-indigo)', pending: 0,
     trigger: 'Form · vendor intake', schedule: 'On submission',
     by: 'Tom Weber', tags: ['procurement', 'compliance'], runs: 74, ok: 91.9,
     avg: '6m 20s', cost: '$0.38', last: '3h ago', lastN: 180, created: 'May 30, 2026', version: 'v4',
@@ -2709,7 +2775,7 @@ const AUTOS = [
   {
     name: 'Expense Audit Bot',
     desc: 'Samples submitted expenses, checks them against policy, and queues the exceptions for a manager decision.',
-    status: 'Active', hue: 'var(--text-coloured-cyan)', pending: 1,
+    status: 'Active', hue: 'var(--text-coloured-cyan)', pending: 0,
     trigger: 'Schedule · weekdays 07:00', schedule: 'Mon–Fri, 07:00',
     by: 'Anna Park', tags: ['finance', 'audit'], runs: 132, ok: 95.5,
     avg: '2m 04s', cost: '$0.11', last: '6h ago', lastN: 360, created: 'Jun 11, 2026', version: 'v8',
@@ -2766,10 +2832,10 @@ const AUTOS = [
   {
     name: 'HubSpot Contact Sync',
     desc: 'Two-way contact sync between HubSpot and the warehouse, with conflict resolution on the newest write.',
-    status: 'Paused', hue: 'var(--text-coloured-cyan)', pending: 0,
+    status: 'Active', hue: 'var(--text-coloured-cyan)', pending: 0,
     trigger: 'Schedule · every 30 min', schedule: 'Every 30 min',
     by: 'Tom Weber', tags: ['crm', 'sync'], runs: 96, ok: 88.5,
-    avg: '1m 55s', cost: '$0.14', last: '2d ago', lastN: 2880, created: 'Jul 7, 2025', version: 'v13',
+    avg: '1m 55s', cost: '$0.14', last: '24m ago', lastN: 24, created: 'Jul 7, 2025', version: 'v13',
     steps: [
       { k: 'schedule', l: 'Every 30 min',   s: 'cron' },
       { k: 'sync',     l: 'Pull HubSpot',   s: 'contacts' },
@@ -2780,10 +2846,10 @@ const AUTOS = [
   {
     name: 'PDF Text Extractor',
     desc: 'A shared building block — takes any PDF and returns clean text and tables for the automations downstream of it.',
-    status: 'Paused', hue: 'var(--purple-450)', pending: 0,
+    status: 'Active', hue: 'var(--purple-450)', pending: 0,
     trigger: 'Called by other automations', schedule: 'On call',
     by: 'Anna Park', tags: ['utility', 'ocr'], runs: 1490, ok: 93.1,
-    avg: '0m 26s', cost: '$0.01', last: '4d ago', lastN: 5760, created: 'Jun 2, 2025', version: 'v7',
+    avg: '0m 26s', cost: '$0.01', last: '2h ago', lastN: 120, created: 'Jun 2, 2025', version: 'v7',
     steps: [
       { k: 'trigger', l: 'File in',        s: 'sub-flow' },
       { k: 'tool',    l: 'OCR pages',      s: 'tesseract' },
@@ -2863,7 +2929,23 @@ function slot(step) {
   </span>`;
 }
 
-function canvas(a) {
+/* ── The flag ──
+   Three conditions are worth interrupting a scan: someone is blocked on
+   this automation, it is running right now, or it has been stopped. An
+   "Active" flag said nothing — twelve of the fifteen are active — so
+   the quiet majority carries none, and the first match wins so a card
+   never wears two. */
+const FLAGS = [
+  { is: a => a.pending > 0,           label: 'Awaiting approval', tone: 'wait' },
+  { is: a => isRunning(a),            label: 'Running',           tone: 'live' },
+  { is: a => a.status === 'Paused',   label: 'Paused',            tone: 'off'  }
+];
+function flag(a) {
+  const f = FLAGS.find(f => f.is(a));
+  return f ? `<span class="au-prev__flag" data-tone="${f.tone}"><i></i>${f.label}</span>` : '';
+}
+
+function canvas(a, withFlag = true) {
   const fits = a.steps.length <= SLOTS;
   const shown = fits ? a.steps : a.steps.slice(0, SLOTS - 1);
   const rest = a.steps.length - shown.length;
@@ -2875,9 +2957,7 @@ function canvas(a) {
   return `
   <div class="au-prev">
     <div class="au-prev__chain">${chain}</div>
-    <span class="au-prev__state" data-state="${a.status}"><i></i>${isRunning(a) ? 'Running' : a.status}</span>
-    ${a.pending ? `<span class="au-prev__flag">
-      <svg class="cq-ic" width="10" height="10" viewBox="0 0 16 16"><use href="#i-clock"/></svg>${a.pending} awaiting</span>` : ''}
+    ${withFlag ? flag(a) : ''}
     <span class="au-prev__meta">
       <svg class="cq-ic" width="11" height="11" viewBox="0 0 16 16"><use href="#i-flow"/></svg>
       ${a.steps.length} steps${cps ? ` · ${cps} checkpoint${cps > 1 ? 's' : ''}` : ''}
@@ -2966,6 +3046,149 @@ function rowHTML(a, i) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
+   THE MARKETPLACE
+   Published automations to start from. `steps` is shaped exactly like an
+   automation's, so the same canvas thumbnail renders it.
+   ════════════════════════════════════════════════════════════════════ */
+const PUBLISHERS = {
+  'Cogentiq':  { init: 'CQ', bg: 'var(--blue-600)' },
+  'Clearbit':  { init: 'CB', bg: 'var(--indigo-500)' },
+  'Zendesk':   { init: 'ZD', bg: 'var(--green-600)' },
+  'PagerDuty': { init: 'PD', bg: 'var(--orange-800)' },
+  'Snowflake': { init: 'SF', bg: '#047195' }
+};
+
+const MARKET = [
+  { name: 'Invoice Intake & Approval', cat: 'Finance', by: 'Cogentiq', installs: 4200,
+    hue: 'var(--text-coloured-indigo)', tags: ['finance', 'ocr'], updated: 'Aug 12, 2026',
+    desc: 'Reads invoices from a shared inbox, extracts totals, and holds anything over a threshold for a controller.',
+    steps: [{ k: 'email', l: 'Invoice in', s: 'shared inbox' }, { k: 'model', l: 'Extract fields', s: 'gpt-4o ocr' },
+            { k: 'branch', l: 'Over limit?', s: 'amount gate' }, { k: 'checkpoint', l: 'Finance OK', s: 'controllers' },
+            { k: 'action', l: 'Post to ERP', s: 'create bill' }] },
+  { name: 'Purchase Order Matching', cat: 'Finance', by: 'Cogentiq', installs: 2800,
+    hue: 'var(--text-coloured-cyan)', tags: ['finance', 'procurement'], updated: 'Jul 30, 2026',
+    desc: 'Matches incoming invoices to open purchase orders and queues the exceptions for a buyer to settle.',
+    steps: [{ k: 'webhook', l: 'Invoice in', s: 'ap feed' }, { k: 'data', l: 'Find PO', s: 'erp lookup' },
+            { k: 'tool', l: 'Three-way match', s: 'qty + price' }, { k: 'checkpoint', l: 'Buyer OK', s: 'exceptions' },
+            { k: 'action', l: 'Close PO', s: 'erp write' }] },
+  { name: 'Lead Enrichment & Routing', cat: 'Sales', by: 'Clearbit', installs: 6100,
+    hue: 'var(--text-coloured-green)', tags: ['sales', 'enrichment'], updated: 'Aug 20, 2026',
+    desc: 'Enriches every inbound lead, scores it against your fit model, and routes the top band to an owner.',
+    steps: [{ k: 'webhook', l: 'Form in', s: 'any form' }, { k: 'data', l: 'Enrich', s: 'clearbit' },
+            { k: 'model', l: 'Score fit', s: 'fit model' }, { k: 'sync', l: 'Route to CRM', s: 'owner rules' }] },
+  { name: 'Quote Approval Chain', cat: 'Sales', by: 'Cogentiq', installs: 1900,
+    hue: 'var(--purple-450)', tags: ['sales', 'approvals'], updated: 'Jun 18, 2026',
+    desc: 'Takes a drafted quote through discount review and countersignature, escalating by deal size.',
+    steps: [{ k: 'trigger', l: 'Quote drafted', s: 'cpq' }, { k: 'model', l: 'Check discount', s: 'policy' },
+            { k: 'checkpoint', l: 'Manager OK', s: 'if > 15%' }, { k: 'checkpoint', l: 'VP OK', s: 'if > 30%' },
+            { k: 'action', l: 'Send for sign', s: 'docusign' }] },
+  { name: 'Ticket Triage & First Reply', cat: 'Support', by: 'Zendesk', installs: 5400,
+    hue: 'var(--text-coloured-blue)', tags: ['support', 'triage'], updated: 'Aug 24, 2026',
+    desc: 'Classifies an incoming ticket, sets priority and queue, and drafts a first reply for an agent to send.',
+    steps: [{ k: 'webhook', l: 'Ticket in', s: 'zendesk' }, { k: 'model', l: 'Classify', s: 'gpt-4o-mini' },
+            { k: 'branch', l: 'Urgent?', s: 'sla rules' }, { k: 'checkpoint', l: 'Agent review', s: 'tier 1' },
+            { k: 'action', l: 'Set queue', s: 'zendesk' }] },
+  { name: 'CSAT Follow-up', cat: 'Support', by: 'Cogentiq', installs: 1200,
+    hue: 'var(--text-coloured-light-green)', tags: ['support', 'csat'], updated: 'May 9, 2026',
+    desc: 'Sends a survey after resolution, reads the free text, and opens a task on anything below par.',
+    steps: [{ k: 'schedule', l: 'On resolve', s: '+1 day' }, { k: 'notify', l: 'Send survey', s: 'email' },
+            { k: 'model', l: 'Read replies', s: 'sentiment' }, { k: 'action', l: 'Open task', s: 'if low' }] },
+  { name: 'Vendor Compliance Screen', cat: 'Operations', by: 'Cogentiq', installs: 980,
+    hue: 'var(--orange-600)', tags: ['operations', 'compliance'], updated: 'Aug 2, 2026',
+    desc: 'Collects vendor documents, runs the sanctions screen, and opens the supplier record on approval.',
+    steps: [{ k: 'trigger', l: 'Intake in', s: 'vendor form' }, { k: 'doc', l: 'Collect docs', s: 'w-9 + coi' },
+            { k: 'guard', l: 'Sanctions', s: 'ofac list' }, { k: 'model', l: 'Risk summary', s: 'gpt-4o' },
+            { k: 'checkpoint', l: 'Buyer OK', s: 'procurement' }, { k: 'action', l: 'Open supplier', s: 'erp' }] },
+  { name: 'Incident Digest', cat: 'Operations', by: 'PagerDuty', installs: 3300,
+    hue: 'var(--text-coloured-red)', tags: ['operations', 'oncall'], updated: 'Aug 16, 2026',
+    desc: 'Turns a night of alerts into one readable morning summary, grouped by service and root cause.',
+    steps: [{ k: 'schedule', l: 'Daily 07:00', s: 'weekdays' }, { k: 'data', l: 'Pull alerts', s: 'pagerduty' },
+            { k: 'model', l: 'Group + write', s: 'gpt-4o' }, { k: 'notify', l: 'Post digest', s: '#oncall' }] },
+  { name: 'Warehouse Sync Monitor', cat: 'Data', by: 'Snowflake', installs: 2100,
+    hue: 'var(--text-coloured-cyan)', tags: ['data', 'monitoring'], updated: 'Jul 21, 2026',
+    desc: 'Watches every scheduled load for freshness and row-count drift, and pages the owner when one slips.',
+    steps: [{ k: 'schedule', l: 'Every hour', s: 'cron' }, { k: 'data', l: 'Check loads', s: '18 tables' },
+            { k: 'guard', l: 'Freshness', s: 'thresholds' }, { k: 'branch', l: 'Drifted?', s: 'row counts' },
+            { k: 'notify', l: 'Page owner', s: 'pagerduty' }] }
+];
+
+const MK_CATS = ['Finance', 'Sales', 'Support', 'Operations', 'Data'];
+const MK_SORTS = [['installs', 'Most installed'], ['name', 'Name A–Z'], ['updated', 'Recently updated']];
+const ALL_PUBS = [...new Set(MARKET.map(m => m.by))].sort();
+const fmtInstalls = n => n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'k' : String(n);
+
+function marketCardHTML(m, i) {
+  const pub = PUBLISHERS[m.by];
+  return `
+  <article class="au-card cq-tint" tabindex="0" role="button" data-mk="${i}"
+           aria-label="${esc(m.name)} — open the template">
+    ${canvas(m, false)}
+    <div class="au-card__body">
+      <span class="au-card__name cq-body1-med cq-truncate">${esc(m.name)}</span>
+      <span class="au-card__desc cq-caption-reg">${esc(m.desc)}</span>
+    </div>
+    <div class="au-card__foot">
+      <span class="au-tags">
+        <span class="cq-avatar" style="background:${pub.bg}" title="${esc(m.by)}">${pub.init}</span>
+        <span class="au-mk__by cq-caption-reg cq-truncate">${esc(m.by)}</span>
+        <span class="au-mk__dot"></span>
+        <span class="au-mk__n cq-caption-reg">${fmtInstalls(m.installs)} installs</span>
+      </span>
+      <span class="au-card__end">
+        <button class="cq-btn cq-btn--sm cq-btn--tonal" data-use="${i}">Use template</button>
+      </span>
+    </div>
+  </article>`;
+}
+
+const mkState = { q: '', cat: 'all', pubs: new Set(), sort: 'installs' };
+
+function mkFiltered() {
+  const q = mkState.q.toLowerCase();
+  return MARKET.map((m, i) => ({ m, i })).filter(({ m }) =>
+    (mkState.cat === 'all' || m.cat === mkState.cat) &&
+    (!mkState.pubs.size || mkState.pubs.has(m.by)) &&
+    (!q || (m.name + ' ' + m.desc + ' ' + m.tags.join(' ') + ' ' + m.by).toLowerCase().includes(q))
+  ).sort((x, y) => mkState.sort === 'name' ? x.m.name.localeCompare(y.m.name)
+    : mkState.sort === 'updated' ? Date.parse(y.m.updated) - Date.parse(x.m.updated)
+    : y.m.installs - x.m.installs);
+}
+
+function renderMarket() {
+  const rows = mkFiltered();
+  $('mkGrid').innerHTML = rows.map(({ m, i }) => marketCardHTML(m, i)).join('');
+  $('mkGrid').hidden = !rows.length;
+  $('mkEmpty').hidden = rows.length > 0;
+  $('mkFoot').innerHTML = rows.length
+    ? `Showing <b>${rows.length}</b> of <b>${MARKET.length}</b> published automations` : '';
+  markSelected();
+}
+
+/* The category rows are built from the data, so a new template cannot
+   leave a count behind. */
+$('sideMarket').innerHTML = [
+  `<button class="cq-nav-item is-active" data-cat="all">
+     <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-spark"/></svg>
+     <span class="cq-nav-item__label">All templates</span>
+     <span class="au-side__n">${MARKET.length}</span>
+   </button>`,
+  `<span class="au-side__label cq-caption-med" style="padding-top:14px">CATEGORY</span>`,
+  ...MK_CATS.map(c => `
+   <button class="cq-nav-item" data-cat="${c}">
+     <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-layers"/></svg>
+     <span class="cq-nav-item__label">${c}</span>
+     <span class="au-side__n">${MARKET.filter(m => m.cat === c).length}</span>
+   </button>`)
+].join('');
+$('sideMarket').addEventListener('click', e => {
+  const btn = e.target.closest('.cq-nav-item[data-cat]');
+  if (!btn) return;
+  mkState.cat = btn.dataset.cat;
+  $('sideMarket').querySelectorAll('.cq-nav-item').forEach(b => b.classList.toggle('is-active', b === btn));
+  renderMarket();
+});
+
+/* ════════════════════════════════════════════════════════════════════
    AUTOMATIONS STATE
    scope comes from the sidebar, the three dropdowns narrow it further,
    and the search runs over the lot.
@@ -3010,21 +3233,24 @@ function renderAutos() {
   markSelected();
 }
 
-/* ── The sidebar. One row is active at a time across both groups, so
-      the scope always reads as a single answer. ── */
-function setScope(btn) {
-  auState.scope = btn.dataset.scope;
-  document.querySelectorAll('#sideAutos .cq-nav-item, #sideState .cq-nav-item')
+/* ── The sidebar. One row is active at a time across the groups, so the
+      scope always reads as a single answer. "Checkpoint queue" is the
+      one row that changes the subject rather than narrowing it. ── */
+function setScope(scope, btn) {
+  auState.scope = scope;
+  document.querySelectorAll('#sideAutos .cq-nav-item, #sideState .cq-nav-item, #sideQueue .cq-nav-item')
     .forEach(b => b.classList.toggle('is-active', b === btn));
-  renderAutos();
+  paint();
+  if (scope !== 'queue') renderAutos();
 }
-document.querySelectorAll('#sideAutos, #sideState').forEach(group =>
+document.querySelectorAll('#sideAutos, #sideState, #sideQueue').forEach(group =>
   group.addEventListener('click', e => {
     const btn = e.target.closest('.cq-nav-item[data-scope]');
-    if (btn) setScope(btn);
+    if (btn) setScope(btn.dataset.scope, btn);
   }));
-
-$('auQ').addEventListener('input', e => { auState.q = e.target.value; renderAutos(); });
+$('ckBack').addEventListener('click', () => {
+  setScope('all', document.querySelector('#sideAutos [data-scope="all"]'));
+});
 
 function setView(view) {
   auState.view = view;
@@ -3041,40 +3267,28 @@ $('viewListBtn').addEventListener('click', () => setView('list'));
 /* ════════════════════════════════════════════════════════════════════
    DETAIL PANEL — the whole flow, in order
    ════════════════════════════════════════════════════════════════════ */
-let openIdx = -1;
+/* The panel serves both lenses, so what is open is a kind as well as an
+   index — the marketplace grid and the inventory grid both index from
+   zero, and only the kind tells them apart. */
+const open = { kind: null, i: -1 };
 
-function openPanel(i) {
-  const a = AUTOS[i];
-  if (!a) return;
-  openIdx = i;
-  $('pnName').textContent = a.name;
-  $('pnDesc').textContent = a.desc;
-  $('pnIc').style.color = a.hue;
-  $('pnStatus').outerHTML = statusPill(a).replace('class="cq-status"', 'class="cq-status" id="pnStatus"');
-  $('pnRun').hidden = a.status === 'Draft';
-
-  /* The awaiting runs are spread over this automation's checkpoints,
-     front-loaded, so the per-step counts add back up to the number the
-     card and the approvals lens both quote — a rounded share per step
-     would show the same run twice on a two-checkpoint flow. */
-  const cps = cpCount(a);
-  const share = Array.from({ length: cps }, (_, k) =>
-    Math.floor(a.pending / cps) + (k < a.pending % cps ? 1 : 0));
-  let cpSeen = -1;
-
-  $('pnSteps').innerHTML = a.steps.map((s, n) => {
-    const m = KIND[s.k] || KIND.tool;
-    const isCp = s.k === 'checkpoint';
-    const waiting = isCp ? (share[++cpSeen] || 0) : 0;
+/* Both subjects share the flow rail; only the head and the key/value
+   list differ, so the steps are drawn once here. */
+function paintSteps(x, shares) {
+  let seen = -1;
+  $('pnSteps').innerHTML = x.steps.map((st, n) => {
+    const m = KIND[st.k] || KIND.tool;
+    const isCp = st.k === 'checkpoint';
+    const waiting = isCp && shares ? (shares[++seen] || 0) : 0;
     return `
     <div class="au-step" data-tone="${isCp ? 'orange' : m.tone}">
       <span class="au-step__ic"><svg class="cq-ic" width="15" height="15" viewBox="0 0 16 16"><use href="${m.ic}"/></svg></span>
       <div class="au-step__body">
         <div class="au-step__row">
-          <span class="au-step__label cq-body2-med">${esc(s.l)}</span>
+          <span class="au-step__label cq-body2-med">${esc(st.l)}</span>
           <span class="cq-badge" data-tone="${isCp ? 'orange' : 'grey'}">${esc(m.name)}</span>
         </div>
-        <span class="au-step__sub cq-caption-reg">Step ${n + 1} · ${esc(s.s)}</span>
+        <span class="au-step__sub cq-caption-reg">Step ${n + 1} · ${esc(st.s)}</span>
         ${waiting ? `
         <div class="au-step__cta">
           <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
@@ -3084,25 +3298,80 @@ function openPanel(i) {
       </div>
     </div>`;
   }).join('');
+}
 
-  $('pnKv').innerHTML = [
-    ['Trigger', a.trigger], ['Schedule', a.schedule], ['Owner', a.by],
-    ['Runs · 7 days', a.runs ? fmt(a.runs) : 'No runs yet'],
-    ['Success rate', a.runs ? a.ok.toFixed(1) + '%' : '—'],
-    ['Avg runtime', a.avg], ['Avg cost per run', a.cost],
-    ['Last run', a.last], ['Created', a.created], ['Version', a.version]
-  ].map(([k, v]) => `<div class="cq-kv"><span class="cq-kv__k">${esc(k)}</span><span class="cq-kv__v">${esc(v)}</span></div>`).join('');
+function paintKv(rows) {
+  $('pnKv').innerHTML = rows.map(([k, v]) =>
+    `<div class="cq-kv"><span class="cq-kv__k">${esc(k)}</span><span class="cq-kv__v">${esc(v)}</span></div>`).join('');
+}
 
-  $('pnTags').innerHTML = a.tags.map((t, n) =>
-    `<span class="cq-tag is-tinted" data-tone="${n ? 'cyan' : 'blue'}">${esc(t)}</span>`).join('');
-
+function showPanel() {
   $('auPanel').classList.add('is-open');
   $('auPanel').setAttribute('aria-hidden', 'false');
   markSelected();
 }
 
+function openTemplate(i) {
+  const m = MARKET[i];
+  if (!m) return;
+  open.kind = 'mk'; open.i = i;
+  $('pnName').textContent = m.name;
+  $('pnDesc').textContent = m.desc;
+  $('pnIc').style.color = m.hue;
+  $('pnStatus').outerHTML =
+    `<span class="cq-status" id="pnStatus" data-tone="grey">${esc(m.cat)}</span>`;
+  $('pnRun').hidden = true;
+  $('pnPrimaryLabel').textContent = 'Use template';
+  $('pnPrimaryIcon').setAttribute('href', '#i-plus');
+  paintSteps(m, null);
+  paintKv([
+    ['Publisher', m.by], ['Category', m.cat],
+    ['Installs', fmtInstalls(m.installs)],
+    ['Steps', String(m.steps.length)],
+    ['Human checkpoints', String(cpCount(m)) + (cpCount(m) ? '' : ' — none')],
+    ['Last updated', m.updated]
+  ]);
+  $('pnTags').innerHTML = m.tags.map((t, n) =>
+    `<span class="cq-tag is-tinted" data-tone="${n ? 'cyan' : 'blue'}">${esc(t)}</span>`).join('');
+  showPanel();
+}
+
+function openPanel(i) {
+  const a = AUTOS[i];
+  if (!a) return;
+  open.kind = 'auto'; open.i = i;
+  $('pnName').textContent = a.name;
+  $('pnDesc').textContent = a.desc;
+  $('pnIc').style.color = a.hue;
+  $('pnStatus').outerHTML = statusPill(a).replace('class="cq-status"', 'class="cq-status" id="pnStatus"');
+  $('pnRun').hidden = a.status === 'Draft';
+  $('pnPrimaryLabel').textContent = 'Open in builder';
+  $('pnPrimaryIcon').setAttribute('href', '#i-pencil');
+
+  /* The awaiting runs are spread over this automation's checkpoints,
+     front-loaded, so the per-step counts add back up to the number the
+     card and the queue both quote — a rounded share per step would show
+     the same run twice on a two-checkpoint flow. */
+  const cps = cpCount(a);
+  const share = Array.from({ length: cps }, (_, k) =>
+    Math.floor(a.pending / cps) + (k < a.pending % cps ? 1 : 0));
+  paintSteps(a, share);
+
+  paintKv([
+    ['Trigger', a.trigger], ['Schedule', a.schedule], ['Owner', a.by],
+    ['Runs · 7 days', a.runs ? fmt(a.runs) : 'No runs yet'],
+    ['Success rate', a.runs ? a.ok.toFixed(1) + '%' : '—'],
+    ['Avg runtime', a.avg], ['Avg cost per run', a.cost],
+    ['Last run', a.last], ['Created', a.created], ['Version', a.version]
+  ]);
+
+  $('pnTags').innerHTML = a.tags.map((t, n) =>
+    `<span class="cq-tag is-tinted" data-tone="${n ? 'cyan' : 'blue'}">${esc(t)}</span>`).join('');
+  showPanel();
+}
+
 function closePanel() {
-  openIdx = -1;
+  open.kind = null; open.i = -1;
   $('auPanel').classList.remove('is-open');
   $('auPanel').setAttribute('aria-hidden', 'true');
   markSelected();
@@ -3110,7 +3379,9 @@ function closePanel() {
 
 function markSelected() {
   document.querySelectorAll('#auGrid .au-card, #auRows .cq-row').forEach(el =>
-    el.classList.toggle('is-selected', Number(el.dataset.i) === openIdx));
+    el.classList.toggle('is-selected', open.kind === 'auto' && Number(el.dataset.i) === open.i));
+  document.querySelectorAll('#mkGrid .au-card').forEach(el =>
+    el.classList.toggle('is-selected', open.kind === 'mk' && Number(el.dataset.mk) === open.i));
 }
 
 function wireOpen(container) {
@@ -3131,17 +3402,31 @@ function wireOpen(container) {
 wireOpen($('auGrid'));
 wireOpen($('auRows'));
 
+$('mkGrid').addEventListener('click', e => {
+  /* "Use template" is the card's own action, not a way into the panel. */
+  if (e.target.closest('[data-use]')) { e.stopPropagation(); return; }
+  const host = e.target.closest('[data-mk]');
+  if (host) openTemplate(Number(host.dataset.mk));
+});
+$('mkGrid').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const host = e.target.closest('[data-mk]');
+  if (!host) return;
+  e.preventDefault();
+  openTemplate(Number(host.dataset.mk));
+});
+
 $('pnClose').addEventListener('click', closePanel);
 $('pnSteps').addEventListener('click', e => {
   if (e.target.closest('[data-goapprovals]')) { closePanel(); showTab('approvals'); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && openIdx >= 0) closePanel(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && open.i >= 0) closePanel(); });
 /* The panel overlays the content rather than insetting it, so clicking
    past it has to dismiss it — otherwise the right-hand third of the
    screen is simply unreachable while it is open. The card and row that
    opened it are excluded, or the same click would close it again. */
 document.addEventListener('click', e => {
-  if (openIdx < 0) return;
+  if (open.i < 0) return;
   if (e.target.closest('#auPanel, .au-card, #auRows .cq-row')) return;
   closePanel();
 });
@@ -3300,8 +3585,8 @@ function wireTrigger(btnId, popId) {
   $(popId).addEventListener('click', e => e.stopPropagation());
 }
 
-function wireMulti(btnId, popId, listId, badgeId, items, set) {
-  const paint = () => {
+function wireMulti(btnId, popId, listId, badgeId, items, set, redraw = renderAutos) {
+  const repaintOptions = () => {
     $(listId).innerHTML = items.map(v => `
       <button class="cq-option${set.has(v) ? ' is-checked' : ''}" data-v="${esc(v)}">
         <span class="cq-checkbox${set.has(v) ? ' is-checked' : ''}">
@@ -3312,36 +3597,36 @@ function wireMulti(btnId, popId, listId, badgeId, items, set) {
     $(badgeId).textContent = set.size;
     $(btnId).classList.toggle('has-count', set.size > 0);
   };
-  paint();
+  repaintOptions();
   wireTrigger(btnId, popId);
   $(listId).addEventListener('click', e => {
     const opt = e.target.closest('[data-v]');
     if (!opt) return;
     const v = opt.dataset.v;
     set.has(v) ? set.delete(v) : set.add(v);
-    paint();
-    renderAutos();
+    repaintOptions();
+    redraw();
   });
 }
 wireMulti('tagBtn', 'tagPop', 'tagList', 'tagBadge', ALL_TAGS, auState.tags);
 wireMulti('byBtn', 'byPop', 'byList', 'byBadge', ALL_BY, auState.by);
 
 function wireSingle(btnId, popId, listId, labelId, opts, prefix, get, onPick) {
-  const paint = () => {
+  const repaintOptions = () => {
     $(listId).innerHTML = opts.map(([id, label]) => `
       <button class="cq-option${get() === id ? ' is-picked' : ''}" data-v="${id}">
         <span class="cq-option__label">${label}</span>
         <svg class="cq-ic cq-option__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
       </button>`).join('');
   };
-  paint();
+  repaintOptions();
   wireTrigger(btnId, popId);
   $(listId).addEventListener('click', e => {
     const opt = e.target.closest('[data-v]');
     if (!opt) return;
     onPick(opt.dataset.v);
     $(labelId).textContent = prefix + opts.find(o => o[0] === opt.dataset.v)[1];
-    paint();
+    repaintOptions();
     $(popId).classList.remove('is-open');
     $(btnId).classList.remove('is-open');
     $(btnId).setAttribute('aria-expanded', 'false');
@@ -3351,6 +3636,9 @@ wireSingle('whenBtn', 'whenPop', 'whenList', 'whenLabel', WHENS, '', () => auSta
   v => { auState.when = v; renderAutos(); });
 wireSingle('ckSortBtn', 'ckSortPop', 'ckSortList', 'ckSortLabel', CK_SORTS, 'Sort by: ', () => ckState.sort,
   v => { ckState.sort = v; ckState.page = 1; renderCk(); });
+wireSingle('mkSortBtn', 'mkSortPop', 'mkSortList', 'mkSortLabel', MK_SORTS, 'Sort by: ', () => mkState.sort,
+  v => { mkState.sort = v; renderMarket(); });
+wireMulti('mkPubBtn', 'mkPubPop', 'mkPubList', 'mkPubBadge', ALL_PUBS, mkState.pubs, renderMarket);
 
 document.addEventListener('click', () => closePops(null));
 
@@ -3363,35 +3651,56 @@ function cqSegSync(seg) {
   thumb.style.width = active.offsetWidth + 'px';
   thumb.style.transform = `translateX(${active.offsetLeft - 4}px)`;
 }
+/* Three things can be on screen — the inventory, the checkpoint queue,
+   and the marketplace — but only two of them are lenses; the queue is a
+   sidebar row inside the first. One function decides all of it, so the
+   panes, the sidebar groups, the search and the action button can never
+   disagree about which is showing. */
+let lens = 'automations';
+
+function paint() {
+  const market = lens === 'marketplace';
+  const queue = !market && auState.scope === 'queue';
+  const grid = !market && !queue;
+
+  $('paneAutomations').hidden = !grid;
+  $('paneApprovals').hidden = !queue;
+  $('paneMarket').hidden = !market;
+
+  $('sideAutos').hidden = !grid;
+  $('sideState').hidden = !grid;
+  $('sideQueue').hidden = !grid;
+  $('sideCk').hidden = !queue;
+  $('sideMarket').hidden = !market;
+
+  /* One search field, three subjects: it carries whichever is up. */
+  const q = $('auQ');
+  q.placeholder = queue ? 'Search automation or creator'
+    : market ? 'Search the marketplace' : 'Search automations';
+  q.value = queue ? ckState.q : market ? mkState.q : auState.q;
+  $('newBtn').hidden = !grid;
+  if (!grid) closePanel();
+}
+
 function showTab(tab) {
-  const autos = tab === 'automations';
+  lens = tab;
   $('auTabs').querySelectorAll('[data-tab]').forEach(b => {
     const on = b.dataset.tab === tab;
     b.classList.toggle('is-active', on);
     b.setAttribute('aria-selected', String(on));
   });
   cqSegSync($('auTabs'));
-  $('paneAutomations').hidden = !autos;
-  $('paneApprovals').hidden = autos;
-  /* The sidebar belongs to whichever lens is showing, and so does the
-     search: one field, two subjects. */
-  $('sideAutos').hidden = !autos;
-  $('sideState').hidden = !autos;
-  $('sideCk').hidden = autos;
-  const q = $('auQ');
-  q.placeholder = autos ? 'Search automations' : 'Search automation or creator';
-  q.value = autos ? auState.q : ckState.q;
-  $('newBtn').hidden = !autos;
-  if (!autos) closePanel();
+  paint();
 }
 $('auTabs').addEventListener('click', e => {
   const btn = e.target.closest('[data-tab]');
   if (btn) showTab(btn.dataset.tab);
 });
-/* One search field serves both lenses, so it writes to whichever is up. */
 $('auQ').addEventListener('input', e => {
-  if ($('paneApprovals').hidden) return;
-  ckState.q = e.target.value; ckState.page = 1; renderCk();
+  const v = e.target.value;
+  if (!$('paneApprovals').hidden) { ckState.q = v; ckState.page = 1; renderCk(); }
+  else if (!$('paneMarket').hidden) { mkState.q = v; renderMarket(); }
+  else { auState.q = v; renderAutos(); }
 });
 addEventListener('resize', () => cqSegSync($('auTabs')));
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => cqSegSync($('auTabs')));
@@ -3449,10 +3758,14 @@ $('nRunning').textContent = AUTOS.filter(isRunning).length;
 document.querySelectorAll('#sideState .cq-nav-item').forEach(b => {
   b.querySelector('.au-side__n').textContent = AUTOS.filter(a => a.status === b.dataset.scope).length;
 });
+$('nQueue').textContent = CK.filter(r => r.status === 'Awaiting').length;
 document.querySelectorAll('#auTabs .au-seg-count')[0].textContent = AUTOS.length;
+$('mkCount').textContent = MARKET.length;
 
 renderAutos();
 renderCk();
+renderMarket();
+paint();
 cqSegSync($('auTabs'));
 </script>
 
