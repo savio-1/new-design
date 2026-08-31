@@ -2175,20 +2175,28 @@ body.cq { margin: 0; }
       gap: 24px; align-items: end; height: var(--pod-h, 268px);
     }
     .mon-pod { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; height: 100%; }
-    /* Name and count both ride on the column's own front face, below the
-       fold — so they travel up with it instead of floating above. */
+    /* Name and count sit on the column's flat top face, centred on the
+       rhombus. That face is only full-width along its own midline and
+       tapers fast either side, so both lines are compact and the stack
+       straddles the midline rather than being centred in the face's box. */
+    .mon-pod__label {
+      position: absolute; left: 3px; right: 3px; top: 0; z-index: 2;
+      transform: translateY(-46%);
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      pointer-events: none;
+    }
     .mon-pod__tag {
-      display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 12px);
-      margin-top: calc(var(--v, 34px) + 10px);
-      padding: 3px 10px 3px 3px; border-radius: var(--radius-full, 999px);
+      display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+      padding: 2px 8px 2px 2px; border-radius: var(--radius-full, 999px);
       background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%);
       color: var(--white);
+      font: 500 11px/16px var(--font-geist); letter-spacing: -0.22px;
       box-shadow: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, .2));
       opacity: 0; transform: translateY(6px);
       transition: opacity .34s ease .34s, transform .34s ease .34s;
     }
-    .mon-pod__tag .cq-avatar { width: 18px; height: 18px; font-size: 11px; }
-    .mon-pod__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mon-pod__tag .cq-avatar { width: 16px; height: 16px; font-size: 10px; }
+    .mon-pod__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     /* The animated element. The cap hangs half its own height above it,
        which is why the column carries that much top margin. */
@@ -2208,12 +2216,12 @@ body.cq { margin: 0; }
       display: flex; flex-direction: column; align-items: center;
     }
     .mon-pod__count {
-      margin-top: 6px;
       color: var(--white);
-      /* A short column puts this text over the pale end of its gradient,
-         where white alone stops carrying — the shadow holds it there. */
-      text-shadow: 0 1px 2px rgba(0, 0, 0, .32);
-      font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+      /* The top face carries its own gradient, pale on the left — the
+         shadow keeps white text legible right across it. */
+      text-shadow: 0 1px 2px rgba(0, 0, 0, .38);
+      font: 500 11px/15px var(--font-geist); letter-spacing: -0.22px;
+      white-space: nowrap;
       opacity: 0; transition: opacity .3s ease .52s;
     }
     /* The Figma export fades each column out at a different fraction of
@@ -3230,8 +3238,9 @@ const PODIUM = (function () {
   $('podium').innerHTML = order.map((c, i) => `
     <div class="mon-pod" data-rank="${ranks[i]}">
       <div class="mon-pod__col">
-        <div class="mon-pod__face">
-          <span class="mon-pod__tag cq-caption-med">
+        <div class="mon-pod__face"></div>
+        <div class="mon-pod__label">
+          <span class="mon-pod__tag">
             <span class="cq-avatar" style="background:${c.bg}">${initial(c.name)}</span>
             <span class="mon-pod__name">${c.name}</span>
           </span>
