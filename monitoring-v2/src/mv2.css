@@ -1,0 +1,507 @@
+/* ══════════════════════════════════════════════════════════════════════
+   MONITORING v2 · page language
+   ──────────────────────────────────────────────────────────────────────
+   A second visual direction for the Monitoring module. It composes the
+   cq- system's tokens and never restyles a cq- component; everything
+   here is new surface language sitting on the published tokens.
+
+   What changed from v1, and why
+     · Cards lost the radial glow ring. The reference set reads as a
+       report, not a console: hairline card, quiet head, generous air.
+     · KPI cards became one hairline-divided strip. Four bordered boxes
+       in a row spend four borders to say "these are peers"; a divided
+       strip says it with three hairlines.
+     · Every card head carries a mono eyebrow (uppercase, tracked) and
+       puts its controls on the right. The eyebrow is the module's
+       signature: it repeats at every scale and needs no chrome.
+     · Charts are redrawn — see mv2.js for the form-by-form reasoning.
+
+   Colour rule (unchanged from v1, and the reason both themes work):
+   every value is a token, and chart hues are ramp steps chosen per mode
+   against that mode's own card surface. Nothing here is eyeballed — the
+   categorical order, the two ordinal ramps and the status text steps
+   were each run through the dataviz validator, and the numbers they
+   cleared are recorded beside them below.
+   ══════════════════════════════════════════════════════════════════════ */
+
+html, body { height: 100%; margin: 0; }
+body { background: var(--backgrounds-page-bg-1); }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.mv-root { height: 100vh; overflow: hidden; }
+
+/* ── Ramp steps this direction needs ──────────────────────────────────
+   The shared sheet ships only the steps its own components use, and an
+   undefined custom property kills the whole declaration silently, so
+   every step used below is declared here. The named Figma steps keep
+   their names; the four marked "derived" are interpolated inside their
+   own family (hue and chroma held, lightness stepped) because the
+   published ramp has no step at the spacing the ordinal gates want —
+   see the ramp blocks further down. */
+:root {
+  --blue-300: #bde3ff;  --blue-400: #80caff;  --blue-450: #44aaf3;
+  --blue-700: #0768cf;  --blue-800: #034ac1;
+  --red-300: #ffc7c2;   --red-400: #ffafa3;   --red-500: #f24822;
+  --red-600: #dc3412;   --red-700: #b3260c;
+  --orange-500: #ffa629; --orange-900: #ce7012;
+  --orange-1000: #a85a10;   /* derived: warning as 12px text on white, 5.08:1 */
+  --green-500: #14ae5c;  --green-700: #008043;
+  --cyan-500: #00a2c2;
+  --indigo-500: #5860ed; --indigo-600: #454de0;
+}
+
+/* ══ 1 · CHART ROLES ═══════════════════════════════════════════════════
+   Dark first (the product default), light under the same mode flag the
+   semantic tokens use. Dark is *selected*, never an automatic flip: each
+   mode picks the steps that clear the checks against its own surface.
+
+   Categorical · identity, 4 slots, fixed order blue → orange → indigo →
+   cyan. Green and red are absent by design: they are reserved for
+   status, so a series can never impersonate "healthy" or "failing".
+     dark  #0d99ff #ce7012 #5860ed #00a2c2
+           adjacent CVD ΔE 15.9 · normal-vision 19.7 · contrast pass
+     light #007be5 #dd7c0e #454de0 #00a2c2
+           adjacent CVD ΔE 19.1 · normal-vision 23.2 · contrast pass
+   Slots are assigned in order and never cycled; a 5th automation folds
+   into "Other" rather than earning a generated hue.                    */
+.mv-root {
+  --cat-1: var(--blue-500);
+  --cat-2: var(--orange-900);
+  --cat-3: var(--indigo-500);
+  --cat-4: var(--cyan-500);
+
+  /* Status · reserved meaning, always shipped with an icon or a label.
+     These are the steps that clear 4.5:1 as 12px text on this mode's
+     card, because that is how they are mostly used — a delta, a row
+     label — not just as a mark. */
+  --st-good: var(--green-500);      /* 5.55:1 on #212121 */
+  --st-bad:  var(--red-400);        /* 9.13:1 */
+  --st-warn: var(--orange-500);     /* 8.23:1 */
+  /* The same three as marks, where a fill wants more body than text. */
+  --st-good-mark: var(--green-500);
+  --st-bad-mark:  var(--red-500);
+  --st-warn-mark: var(--orange-500);
+
+  /* Executions heatmap · sequential, one hue, 5 levels + a neutral zero.
+     Level 0 is "no runs" and sits outside the ramp: it is a surface
+     tile, not a value, so it must not read as the ramp's low end.
+       dark  ΔL .105, contrast 2.08 → 10.62:1, monotone, single hue
+       light ΔL .110, contrast 2.06 → 12.21:1
+     Both derived in-family: the published blue ramp bunches at the top
+     (blue-450→500 is ΔL .041) and fails the ordinal adjacency gate. */
+  --heat-0: var(--backgrounds-page-bg-3);
+  --heat-1: #035591;  --heat-2: #0173c2;  --heat-3: #2b94eb;
+  --heat-4: #69b5fe;  --heat-5: #aed6fe;
+
+  /* Failure share · sequential, red family, 4 steps. Red because the
+     quantity *is* failures — status semantics, not a series identity —
+     and graded because the segments are ordered biggest to smallest.
+       dark  ΔL .11, contrast 2.81 → 10.22:1
+       light ΔL .11, contrast 2.03 → 7.75:1                            */
+  --fail-1: #febfb4;  --fail-2: #fe8674;  --fail-3: #e05b4a;  --fail-4: #ba3728;
+
+  /* Chart chrome. Solid hairlines, one step off the surface — never
+     dashed: dashing reads as "projection" or "threshold" when it is
+     only a grid. */
+  --plot-grid: var(--strokes-line-3);
+  --plot-axis: var(--strokes-line-1);
+  --plot-ink:  var(--text-teritiary);
+  /* The wash under a line. Ref set puts a soft bloom behind the curve;
+     kept at a wash so the line stays the loudest thing in the plot. */
+  --haze-op: .30;
+}
+
+:root[data-mode="light"] .mv-root {
+  --cat-1: var(--blue-600);
+  --cat-2: #dd7c0e;                 /* orange-800 */
+  --cat-3: var(--indigo-600);
+  --cat-4: var(--cyan-500);
+
+  --st-good: var(--green-700);      /* 5.04:1 on #ffffff */
+  --st-bad:  var(--red-600);        /* 4.62:1 */
+  --st-warn: var(--orange-1000);    /* 5.08:1 */
+  --st-good-mark: var(--green-600);
+  --st-bad-mark:  var(--red-600);
+  --st-warn-mark: #dd7c0e;
+
+  --heat-1: #75bafd;  --heat-2: #2f97ef;  --heat-3: #0575c4;
+  --heat-4: #035591;  --heat-5: #013761;
+
+  --fail-1: #fe9c8c;  --fail-2: #ef6856;  --fail-3: #c84435;  --fail-4: #a21c10;
+
+  --haze-op: .22;
+}
+
+/* ══ 2 · SHELL ════════════════════════════════════════════════════════ */
+
+/* Header — module name left, account controls right. */
+.hdr-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.hdr-sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-actions { display: flex; align-items: center; gap: 8px; }
+.ws-pill {
+  height: 32px; display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 8px 0 6px; border-radius: var(--radius-md);
+  background: transparent; border: 1px solid transparent; color: var(--text-secondary);
+}
+.ws-pill:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-3); }
+.ws-pill .cq-ic { color: var(--text-teritiary); }
+.hdr-avatar { width: 32px; height: 32px; border-radius: 50%; display: block; }
+
+/* The bar carries a drop-shadow filter, which creates a stacking
+   context — popovers opened inside it paint under later cards at any
+   z-index unless the bar itself is lifted. */
+.mv-root .cq-page__bar { position: relative; z-index: 5; gap: 12px; }
+
+/* One filter row, above everything it scopes. Never per-card: two cards
+   filtered differently is two dashboards. */
+.mv-bar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.mv-refresh {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text-teritiary); white-space: nowrap;
+}
+.mv-live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--st-good-mark); animation: mv-pulse 1.8s ease-in-out infinite;
+}
+@keyframes mv-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+.mv-tab-live { display: inline-flex; align-items: center; margin-right: 6px; }
+.mv-tab-live i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--st-good-mark);
+  animation: mv-pulse 1.8s ease-in-out infinite;
+}
+
+/* ══ 3 · GRID + CARD ══════════════════════════════════════════════════ */
+
+.mv-grid {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px; align-content: start;
+  padding: 4px 0 24px;
+}
+.mv-span-4  { grid-column: span 4; }
+.mv-span-5  { grid-column: span 5; }
+.mv-span-7  { grid-column: span 7; }
+.mv-span-8  { grid-column: span 8; }
+.mv-span-12 { grid-column: span 12; }
+
+.mv-card {
+  background: var(--backgrounds-page-bg-2);
+  border: 1px solid var(--strokes-card-default);
+  border-radius: var(--radius-lg);
+  display: flex; flex-direction: column; min-width: 0;
+}
+
+/* Card head · mono eyebrow + optional icon, controls right. 46px so a
+   32px control sits in it with 7px of air either side. */
+.mv-card__head {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 46px; padding: 8px 16px;
+  border-bottom: 1px solid var(--strokes-line-3);
+}
+.mv-card__head--plain { border-bottom: 0; padding-bottom: 0; }
+.mv-eyebrow {
+  font-family: var(--font-geist-mono); font-size: 11px; line-height: 16px;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-secondary); white-space: nowrap;
+}
+.mv-card__head .cq-ic { color: var(--text-teritiary); flex: none; }
+.mv-head-right { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mv-card__body { padding: 16px; min-width: 0; flex: 1 1 auto; }
+.mv-card__body--flush { padding: 0; }
+.mv-card__foot {
+  border-top: 1px solid var(--strokes-line-3);
+  padding: 11px 16px; display: flex; align-items: center; gap: 10px;
+}
+/* The reference set links out with an underlined text link, not a
+   button — a footer action that doesn't compete with the card's data. */
+.mv-link {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--text-coloured-blue); text-decoration: underline;
+  text-underline-offset: 2px; font-size: var(--fs-body-3); line-height: var(--lh-body-3);
+}
+.mv-link:hover { text-decoration-thickness: 2px; }
+.mv-foot-note { color: var(--text-teritiary); margin-left: auto; }
+
+/* A pair of facts, hairline-divided like the strip, for a card whose
+   rows do not fill its height. */
+.mv-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px;
+  border-top: 1px solid var(--strokes-line-3); padding-top: 13px; }
+.mv-fact { min-width: 0; padding-right: 12px; }
+.mv-fact + .mv-fact { border-left: 1px solid var(--strokes-line-3); padding-left: 14px; padding-right: 0; }
+.mv-fact b { display: block; color: var(--text-primary); font-size: 18px; line-height: 24px; font-weight: 600;
+  font-variant-numeric: proportional-nums; }
+.mv-fact span { display: block; color: var(--text-teritiary); font-size: 12px; line-height: 16px; margin-top: 2px; }
+
+/* Segmented period control — the one filter each chart may carry, and
+   only because it changes the x-domain rather than the data slice. */
+.mv-seg2 {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--backgrounds-page-bg-3); border-radius: var(--radius-md);
+}
+.mv-seg2 button {
+  height: 24px; padding: 0 9px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text-teritiary);
+  font-family: var(--font-geist); font-size: 12px; line-height: 16px;
+}
+.mv-seg2 button:hover { color: var(--text-secondary); }
+.mv-seg2 button[aria-pressed="true"] {
+  background: var(--backgrounds-page-bg-2); color: var(--text-primary);
+  box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,.12));
+}
+
+/* ══ 4 · STAT STRIP ═══════════════════════════════════════════════════
+   One card, cells divided by hairlines. Peers separated by a rule read
+   as one instrument; four bordered boxes read as four things. */
+.mv-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.mv-stat { padding: 16px 18px; min-width: 0; border-left: 1px solid var(--strokes-line-3); }
+.mv-stat:first-child { border-left: 0; }
+.mv-stat__top { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.mv-stat__top .cq-ic { color: var(--text-teritiary); flex: none; }
+.mv-stat__val {
+  font-family: var(--font-geist); font-size: 30px; line-height: 36px; font-weight: 600;
+  color: var(--text-primary); letter-spacing: -.01em;
+  /* Proportional figures, not tabular: tabular gives every digit the
+     width of a 0, which makes a value like 1,847 look loose at 30px.
+     Tabular is for columns that must align — see .mv-num. */
+  font-variant-numeric: proportional-nums;
+}
+.mv-stat__val small { font-size: 18px; font-weight: 500; color: var(--text-secondary); }
+.mv-stat__foot { display: flex; align-items: baseline; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
+.mv-delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 12px; line-height: 16px; font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.mv-delta svg { flex: none; }
+.mv-delta[data-dir="good"] { color: var(--st-good); }
+.mv-delta[data-dir="bad"]  { color: var(--st-bad); }
+.mv-delta[data-dir="flat"] { color: var(--text-teritiary); }
+.mv-delta__vs { color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
+
+/* Every figure that sits in a column of figures. */
+.mv-num { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
+
+/* ══ 5 · PLOTS ════════════════════════════════════════════════════════ */
+
+.mv-plot { position: relative; width: 100%; }
+.mv-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mv-plot text { font-family: var(--font-geist); fill: var(--plot-ink); font-size: 11px; }
+.mv-plot .mv-tick { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
+.mv-gridline { stroke: var(--plot-grid); stroke-width: 1; shape-rendering: crispEdges; }
+.mv-baseline { stroke: var(--plot-axis); stroke-width: 1; shape-rendering: crispEdges; }
+.mv-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mv-haze { fill: none; stroke-width: 15; opacity: var(--haze-op); filter: blur(13px); }
+.mv-dot { r: 3.5; }
+/* A direct label sits on top of the curves it names, so it is painted
+   with a surface-coloured stroke *under* its own fill — the standard
+   halo. Without it the label competes with whatever line runs beneath. */
+.mv-plot .mv-peak {
+  paint-order: stroke fill;
+  stroke: var(--backgrounds-page-bg-2); stroke-width: 3.5px; stroke-linejoin: round;
+}
+/* Markers carry a 2px ring in the surface colour so they stay legible
+   where two series cross — the ring is the separator, not a border. */
+.mv-ring { fill: var(--backgrounds-page-bg-2); stroke-width: 2; }
+.mv-crosshair { stroke: var(--plot-axis); stroke-width: 1; shape-rendering: crispEdges; }
+.mv-hit { fill: transparent; cursor: crosshair; }
+
+/* Legend · always present at two or more series, and mirroring the mark:
+   a line-key for lines, a swatch for fills. */
+.mv-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
+.mv-legend__item { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.mv-legend__key { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.mv-legend__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.mv-legend__item.is-dim { opacity: .4; }
+
+/* Tooltip · values lead, series names follow. */
+.mv-tip {
+  position: fixed; z-index: 60; pointer-events: none; opacity: 0;
+  transition: opacity .1s linear;
+  background: var(--backgrounds-page-bg-2);
+  border: 1px solid var(--strokes-card-default);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
+  padding: 9px 11px; min-width: 148px;
+}
+.mv-tip.is-on { opacity: 1; }
+.mv-tip__head {
+  font-family: var(--font-geist-mono); font-size: 11px; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-teritiary); margin-bottom: 7px;
+}
+.mv-tip__row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.mv-tip__key { width: 12px; height: 2.5px; border-radius: 2px; flex: none; }
+.mv-tip__nm { color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.mv-tip__v {
+  margin-left: auto; color: var(--text-primary); font-weight: 600;
+  font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums;
+  font-size: 12px; line-height: 16px;
+}
+.mv-tip__rule { height: 1px; background: var(--strokes-line-3); margin: 7px -11px 0; }
+.mv-tip__tot { display: flex; gap: 8px; margin-top: 7px; }
+
+/* ══ 6 · SEGMENTED TRACK (part-to-whole) ══════════════════════════════
+   One track, segments in the graded ramp, 2px surface gaps doing the
+   separating. Replaces v1's donut: a ring is only honest at a glance
+   and these shares sit close together. */
+.mv-track { display: flex; gap: 2px; height: 10px; margin-bottom: 4px; }
+.mv-track__seg { border-radius: 2px; min-width: 3px; transition: opacity .12s linear; cursor: default; }
+.mv-track__seg:first-child { border-radius: 5px 2px 2px 5px; }
+.mv-track__seg:last-child  { border-radius: 2px 5px 5px 2px; }
+.mv-track.is-hovering .mv-track__seg { opacity: .38; }
+.mv-track.is-hovering .mv-track__seg.is-on { opacity: 1; }
+
+.mv-rows { display: flex; flex-direction: column; }
+.mv-row {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 10px; padding: 9px 0;
+  border-top: 1px solid var(--strokes-line-3);
+  cursor: default; transition: background .12s linear;
+  margin: 0 -6px; padding-left: 6px; padding-right: 6px; border-radius: 4px;
+}
+.mv-row:hover { background: var(--backgrounds-card-bg-4); }
+.mv-row__sw { width: 10px; height: 10px; border-radius: 3px; }
+.mv-row__nm { color: var(--text-primary); font-size: var(--fs-body-3); line-height: var(--lh-body-3); }
+.mv-row__nm span { display: block; color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
+.mv-row__v { color: var(--text-primary); font-weight: 600; font-size: var(--fs-body-3); }
+.mv-row__sh { color: var(--text-teritiary); font-size: 12px; min-width: 42px; text-align: right; }
+
+/* ══ 7 · HEATMAP ══════════════════════════════════════════════════════ */
+
+.mv-heat { display: flex; gap: 8px; }
+.mv-heat__dow {
+  display: grid; grid-template-rows: repeat(7, 20px); gap: 3px;
+  padding-top: 21px; flex: none;
+}
+.mv-heat__dow span {
+  font-family: var(--font-geist-mono); font-size: 10px; line-height: 1;
+  color: var(--text-teritiary); display: flex; align-items: center; height: 100%;
+}
+.mv-heat__scroll { flex: 1; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
+/* 24 equal columns across the card. Fixed 15px cells left two thirds of
+   a span-12 card empty; letting the columns share the width turns each
+   day into a readable band without changing the encoding. */
+.mv-heat__cols { display: grid; grid-template-columns: repeat(24, minmax(20px, 1fr)); gap: 3px; min-width: 520px; }
+.mv-heat__col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mv-heat__hd {
+  height: 18px; font-family: var(--font-geist-mono); font-size: 10px;
+  color: var(--text-teritiary); white-space: nowrap;
+}
+.mv-heat__cell {
+  width: auto; height: 20px; border-radius: 3px; background: var(--heat-0);
+  cursor: default; transition: transform .1s ease;
+}
+.mv-heat__cell[data-lv="1"] { background: var(--heat-1); }
+.mv-heat__cell[data-lv="2"] { background: var(--heat-2); }
+.mv-heat__cell[data-lv="3"] { background: var(--heat-3); }
+.mv-heat__cell[data-lv="4"] { background: var(--heat-4); }
+.mv-heat__cell[data-lv="5"] { background: var(--heat-5); }
+/* An hour that failed is a state, not a magnitude, so it leaves the
+   ramp and wears the status mark instead. */
+.mv-heat__cell[data-bad="1"] { background: var(--st-bad-mark); }
+.mv-heat__cell:hover { transform: scale(1.12); }
+.mv-scale { display: inline-flex; align-items: center; gap: 6px; color: var(--text-teritiary); font-size: 11px; }
+.mv-scale i { width: 11px; height: 11px; border-radius: 2px; display: block; }
+
+/* ══ 8 · TABLE ════════════════════════════════════════════════════════ */
+
+.mv-tbl { display: flex; flex-direction: column; }
+.mv-thead, .mv-trow {
+  display: grid; grid-template-columns: var(--mv-cols);
+  align-items: center; gap: 12px; padding: 0 16px;
+}
+.mv-thead {
+  height: 34px; background: var(--backgrounds-page-bg-3);
+  border-bottom: 1px solid var(--strokes-line-3);
+}
+.mv-thead span {
+  font-family: var(--font-geist-mono); font-size: 10px; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-teritiary); white-space: nowrap;
+}
+.mv-trow {
+  min-height: 52px; border-bottom: 1px solid var(--strokes-line-3);
+  transition: background .1s linear;
+}
+.mv-trow:last-child { border-bottom: 0; }
+.mv-trow:hover { background: var(--backgrounds-card-bg-4); }
+.mv-cell { min-width: 0; display: flex; align-items: center; gap: 8px; }
+.mv-cell--r { justify-content: flex-end; }
+.mv-nm { min-width: 0; }
+.mv-nm b {
+  display: block; font-weight: 500; color: var(--text-primary);
+  font-size: var(--fs-body-3); line-height: var(--lh-body-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mv-nm span {
+  display: block; color: var(--text-teritiary);
+  font-family: var(--font-geist-mono); font-size: 11px; line-height: 15px;
+}
+.mv-glyph { flex: none; }
+
+/* Status · a dot or glyph plus the word, never colour alone. */
+.mv-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; white-space: nowrap; }
+.mv-st i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.mv-st[data-s="ok"]   { color: var(--st-good); }
+.mv-st[data-s="ok"] i { background: var(--st-good-mark); }
+.mv-st[data-s="fail"]   { color: var(--st-bad); }
+.mv-st[data-s="fail"] i { background: var(--st-bad-mark); }
+.mv-st[data-s="run"]   { color: var(--text-coloured-blue); }
+.mv-st[data-s="run"] i { background: var(--text-coloured-blue); animation: mv-pulse 1.4s ease-in-out infinite; }
+
+/* Stage strip · where a run's duration went, in one 6px bar. A number
+   ("4.2s") says how long; this says which stage owned it. */
+.mv-stages { display: flex; gap: 2px; height: 6px; width: 100%; min-width: 40px; }
+.mv-stages__s { border-radius: 2px; min-width: 2px; }
+.mv-stages__s:nth-child(1) { background: var(--heat-2); }
+.mv-stages__s:nth-child(2) { background: var(--heat-3); }
+.mv-stages__s:nth-child(3) { background: var(--heat-4); }
+.mv-stages__s:nth-child(4) { background: var(--heat-5); }
+.mv-stages--fail .mv-stages__s:last-child { background: var(--st-bad-mark); }
+
+/* ══ 9 · APPROVAL TILES ═══════════════════════════════════════════════ */
+
+.mv-appr { display: flex; flex-direction: column; gap: 8px; }
+.mv-appr__t {
+  border: 1px solid var(--strokes-line-3); border-radius: var(--radius-md);
+  padding: 11px 12px; display: flex; flex-direction: column; gap: 7px;
+  transition: border-color .12s linear, background .12s linear;
+}
+.mv-appr__t:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-1); }
+.mv-appr__top { display: flex; align-items: center; gap: 8px; }
+.mv-appr__nm {
+  font-size: var(--fs-body-3); line-height: var(--lh-body-3); color: var(--text-primary);
+  font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.mv-appr__wait { margin-left: auto; flex: none; font-size: 12px; }
+.mv-appr__meta { display: flex; align-items: center; gap: 8px; color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
+.mv-appr__acts { display: flex; gap: 6px; }
+
+/* ══ 10 · QUIET PLACEHOLDER ═══════════════════════════════════════════
+   The three tabs this pass does not cover say so, rather than showing a
+   grid of invented numbers. */
+.mv-empty[hidden] { display: none; }
+.mv-empty {
+  min-height: 340px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; text-align: center;
+  border: 1px solid var(--strokes-card-default); border-radius: var(--radius-lg);
+  background: var(--backgrounds-page-bg-2); padding: 40px;
+}
+.mv-empty h3 { margin: 0; color: var(--text-primary); }
+.mv-empty p { margin: 0; max-width: 44ch; color: var(--text-teritiary); }
+
+/* ══ 11 · RESPONSIVE ══════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .mv-span-7, .mv-span-8 { grid-column: span 12; }
+  .mv-span-4, .mv-span-5 { grid-column: span 6; }
+}
+@media (max-width: 900px) {
+  .mv-span-4, .mv-span-5 { grid-column: span 12; }
+  .mv-strip { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mv-stat { border-left: 0; border-top: 1px solid var(--strokes-line-3); }
+  .mv-stat:nth-child(-n+2) { border-top: 0; }
+  .mv-stat:nth-child(odd) { border-right: 1px solid var(--strokes-line-3); }
+  /* Five cells in two columns leaves an orphan; its divider would rule
+     against nothing. */
+  .mv-stat:last-child:nth-child(odd) { border-right: 0; grid-column: 1 / -1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-live-dot, .mv-tab-live i, .mv-st[data-s="run"] i { animation: none; }
+  .mv-heat__cell:hover { transform: none; }
+}
