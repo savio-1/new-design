@@ -1816,68 +1816,133 @@ body.cq { margin: 0; }
       background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, .09) 1px, transparent 0);
       background-size: 16px 16px;
     }
-    /* A held pointer lifts the board a touch, the way a canvas responds
-       to being grabbed. Nothing else in the card moves. */
-    .au-prev__chain {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0 24px;
+    /* ── The board's contents ──
+       A snapshot of the automation's canvas, drawn from the builder's own
+       block vocabulary (Figma 27:48199 / 160:110862): a Start pill, the
+       type tag sitting above each block, the block's title and its one
+       configuration pill, and the If yes / If No fork under a decision.
+
+       Everything below is at the canvas's NATURAL size and then scaled
+       once by --cv-z, so the proportions are the builder's rather than a
+       set of thumbnail guesses. A long flow runs past the bottom edge
+       and fades, because that is what a canvas viewport does. */
+    .au-prev__board {
+      position: absolute; top: 0; left: 50%; z-index: 1;
+      transform: translateX(-50%) scale(var(--cv-z, .56));
+      transform-origin: top center;
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 14px;
       transition: transform .4s cubic-bezier(.22, .61, .36, 1);
     }
-    .au-card:hover .au-prev__chain { transform: scale(1.04); }
-
-    .au-slot { position: relative; flex: none; }
-    .au-node {
-      width: 20px; height: 20px; border-radius: 6px;
-      display: flex; align-items: center; justify-content: center;
-      background: #2b2b2b; border: 1px solid #545454;
-      transition: box-shadow .2s ease;
-    }
-    .au-node__dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-    /* The step that stops for a person is the one thing on this board a
-       reader is looking for, so it carries a ring as well as the hue. */
-    .au-slot[data-cp] .au-node { border-color: var(--orange-500); box-shadow: 0 0 0 3px rgba(255, 166, 41, .16); }
-
-    /* Labels are the canvas's, not the card's: they belong to the board
-       and appear when it is being looked at, so the thumbnail keeps the
-       frame's clean geometry at rest. */
-    .au-slot__lbl {
-      position: absolute; top: 26px; left: 50%; transform: translateX(-50%);
-      max-width: 74px; text-align: center;
-      color: rgba(255, 255, 255, .72);
-      font: 400 9px/12px var(--font-geist-mono); letter-spacing: -0.09px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      opacity: 0; transition: opacity .22s ease;
+    .au-card:hover .au-prev__board { transform: translateX(-50%) scale(calc(var(--cv-z, .56) * 1.04)); }
+    /* Only a flow that really runs past the bottom edge gets the fade —
+       most of them fit, and a gradient over a board with room to spare
+       reads as a smudge rather than as more canvas below. */
+    .au-prev::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 46px; z-index: 2;
+      background: linear-gradient(to bottom, rgba(33, 33, 33, 0), rgba(33, 33, 33, .92) 64%, #212121);
+      opacity: 0; transition: opacity .2s ease;
       pointer-events: none;
     }
-    .au-card:hover .au-slot__lbl { opacity: 1; }
-    .au-slot[data-cp] .au-slot__lbl { color: var(--orange-400c); }
+    .au-prev.is-clipped::after { opacity: 1; }
 
-    .au-link {
-      flex: 0 1 40px; min-width: 8px; height: 0; margin: 0 12px;
-      border-top: 1px dashed #545454;
+    .au-cv-start {
+      height: 28px; padding: 0 12px 0 10px; border-radius: var(--radius-full);
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #2e2e2e; border: 1px solid #4a4a4a;
+      color: #fff; font: 500 13px/1 var(--font-geist); letter-spacing: -0.26px;
     }
-    .au-more {
-      flex: none; height: 20px; padding: 0 7px; border-radius: var(--radius-full);
-      display: inline-flex; align-items: center;
-      background: #2b2b2b; border: 1px dashed #545454;
-      color: rgba(255, 255, 255, .6);
-      font: 400 10px/1 var(--font-geist-mono); letter-spacing: -0.1px;
+    .au-cv-start svg { color: #85e0a3; }
+
+    /* The connector: a hairline with an arrowhead, dashed when it stands
+       in for steps the viewport had no room to draw. */
+    .au-cv-link { width: 240px; height: 30px; position: relative; flex: none; }
+    .au-cv-link::before {
+      content: ""; position: absolute; left: 50%; top: 0; bottom: 6px; width: 0;
+      border-left: 1px solid #4a4a4a;
     }
+    .au-cv-link--skip::before { border-left-style: dashed; }
+    .au-cv-link::after {
+      content: ""; position: absolute; left: 50%; bottom: 0;
+      transform: translateX(-50%);
+      border: 4px solid transparent; border-top: 6px solid #4a4a4a;
+    }
+
+    .au-cv-node { width: 240px; flex: none; padding-top: 10px; position: relative; }
+    .au-cv-tag {
+      position: absolute; top: 0; left: 10px; z-index: 1;
+      height: 20px; padding: 0 7px 0 6px; border-radius: 6px;
+      display: inline-flex; align-items: center; gap: 4px;
+      font: 500 12px/1 var(--font-geist); letter-spacing: -0.24px;
+      white-space: nowrap;
+    }
+    .au-cv-box {
+      border-radius: 10px; padding: 11px 12px;
+      background: #1b1b1b; border: 1px solid #3a3a3a;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .au-cv-title {
+      color: #fff; font: 400 14px/20px var(--font-geist); letter-spacing: -0.28px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    /* The configuration line. On the builder's canvas this is a wide
+       field-like pill for a decision or a code block and a chip for the
+       rest, so the shape carries the block's kind as much as the tag. */
+    .au-cv-pill {
+      height: 26px; padding: 0 10px; border-radius: 8px;
+      display: flex; align-items: center; gap: 6px;
+      background: #262626; border: 1px solid #3a3a3a;
+      color: #bdbdbd; font: 400 12px/1 var(--font-geist); letter-spacing: -0.24px;
+      min-width: 0;
+    }
+    .au-cv-pill--wide { justify-content: flex-start; }
+    .au-cv-pill--chip { align-self: flex-start; border-radius: var(--radius-full); height: 24px; }
+    .au-cv-pill--code { font-family: var(--font-geist-mono); font-size: 11px; color: #7fe3ff; }
+    .au-cv-pill span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .au-cv-pill .cq-ic { color: #8c8c8c; flex: none; }
+    /* Reviewers on a human checkpoint, as the canvas shows them. */
+    .au-cv-who { display: flex; align-items: center; gap: 6px; }
+    .au-cv-who__p {
+      height: 24px; padding: 0 8px 0 3px; border-radius: var(--radius-full);
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #262626; border: 1px solid #3a3a3a;
+      color: #e0e0e0; font: 400 12px/1 var(--font-geist); letter-spacing: -0.24px;
+    }
+    .au-cv-who__a {
+      width: 18px; height: 18px; border-radius: 50%; flex: none;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; font: 400 10px/1 var(--font-geist);
+    }
+
+    /* ── The fork under a decision ── */
+    .au-cv-fork { width: 520px; flex: none; }
+    .au-cv-fork__lines { position: relative; height: 52px; }
+    .au-cv-fork__lines svg { display: block; width: 100%; height: 100%; }
+    .au-cv-fork__lbl {
+      position: absolute; top: 16px;
+      color: #e0e0e0; font: 400 12px/1 var(--font-geist); letter-spacing: -0.24px;
+    }
+    .au-cv-fork__lbl--y { right: 52%; }
+    .au-cv-fork__lbl--n { left: 52%; }
+    .au-cv-fork__kids { display: flex; gap: 40px; }
 
     /* What the geometry alone cannot say, in the canvas's own corners. */
     .au-prev__meta {
-      position: absolute; left: 12px; bottom: 10px;
+      position: absolute; left: 10px; bottom: 9px; z-index: 3;
+      height: 18px; padding: 0 7px; border-radius: var(--radius-full);
       display: inline-flex; align-items: center; gap: 5px;
-      color: rgba(255, 255, 255, .5);
-      font: 400 10px/14px var(--font-geist-mono); letter-spacing: -0.1px;
+      background: rgba(24, 24, 24, .82);
+      border: 1px solid rgba(255, 255, 255, .1);
+      -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+      color: rgba(255, 255, 255, .58);
+      font: 400 10px/1 var(--font-geist-mono); letter-spacing: -0.1px;
     }
     .au-prev__meta .cq-ic { color: rgba(255, 255, 255, .4); }
     /* One flag, top-right, and only when there is something to say. A
        card that carries none is the normal case, which is what makes a
        card that carries one worth looking at. */
     .au-prev__flag {
-      position: absolute; right: 12px; top: 10px;
+      position: absolute; right: 12px; top: 10px; z-index: 3;
       height: 18px; padding: 0 7px 0 6px; border-radius: var(--radius-full);
       display: inline-flex; align-items: center; gap: 5px;
       font: 400 10px/1 var(--font-geist); letter-spacing: -0.1px;
@@ -1958,64 +2023,6 @@ body.cq { margin: 0; }
 
     .au-count { margin-top: 16px; color: var(--text-teritiary); }
     .au-count b { color: var(--text-secondary); font-weight: 500; }
-
-    /* ══════════════════════════════════════════════════════════════
-       CHECKPOINT APPROVALS — the Monitoring design, unchanged except
-       that its status filter now lives in the page's sidebar.
-       ══════════════════════════════════════════════════════════════ */
-    .au-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-    .au-stat {
-      position: relative;
-      display: flex; flex-direction: column; gap: 12px; min-width: 0;
-      padding: 16px; border-radius: var(--radius-lg);
-      background: var(--backgrounds-page-bg-2);
-      border: 1px solid var(--strokes-line-3);
-      filter: var(--shadow-card);
-      text-align: left;
-    }
-    .au-stat::after {
-      content: ""; position: absolute; inset: -1px; border-radius: inherit;
-      padding: 1.5px;
-      background: radial-gradient(var(--glow-r, 130px) circle at var(--gx, 50%) var(--gy, 0%),
-        var(--orange-500), var(--purple-450) 38%, var(--blue-450) 62%, transparent 80%);
-      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor;
-              mask-composite: exclude;
-      opacity: 0; transition: opacity .25s ease;
-      pointer-events: none;
-    }
-    .au-stat:hover::after { opacity: 1; }
-    .au-stat__top { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
-    .au-stat__row { display: flex; align-items: center; gap: 10px; }
-    .au-stat__value {
-      font: 500 28px/32px var(--font-geist-mono); letter-spacing: -0.56px;
-      color: var(--text-primary); font-variant-numeric: tabular-nums;
-    }
-
-    .ck-table.cq-table { --cq-cols: minmax(240px, 1fr) 150px 100px 150px 170px 120px; }
-    .ck-table .cq-row { height: 56px; cursor: default; }
-    .ck-num { font-family: var(--font-geist-mono); font-size: var(--fs-caption); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-    .ck-wait--hot { color: var(--text-coloured-orange); }
-    .ck-creator { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-secondary); }
-    .ck-creator--none { color: var(--text-teritiary); }
-    .ck-table .cq-btn--sm { height: 28px; }
-
-    .au-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
-    .au-foot__count { color: var(--text-teritiary); }
-    .au-foot__count b { color: var(--text-secondary); font-weight: 500; }
-    .au-pager { display: inline-flex; align-items: center; gap: 4px; }
-    .au-page {
-      min-width: 32px; height: 32px; padding: 0 6px;
-      display: inline-flex; align-items: center; justify-content: center;
-      border: 1px solid transparent; border-radius: var(--radius-md);
-      background: none; color: var(--text-secondary);
-      font: 500 var(--fs-body-3)/1 var(--font-geist); letter-spacing: -0.56px;
-      font-variant-numeric: tabular-nums;
-    }
-    .au-page:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
-    .au-page.is-active { background: var(--backgrounds-button-primary); color: var(--text-button-white); }
-    .au-page:disabled { opacity: .4; cursor: default; }
-    .au-page:disabled:hover { background: none; color: var(--text-secondary); }
 
     /* ══════════════════════════════════════════════════════════════
        DETAIL PANEL — the whole flow, for when the thumbnail's nodes
@@ -2282,62 +2289,26 @@ body.cq { margin: 0; }
             </button>
           </div>
 
-          <div class="au-side" id="sideState">
-            <span class="au-side__label cq-caption-med">STATE</span>
-            <button class="cq-nav-item" data-scope="Active">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-play"/></svg>
-              <span class="cq-nav-item__label">Active</span>
-              <span class="au-side__n">10</span>
+          <!-- Type is how the automation is published — "Run automation
+               as Job | Live" in the publish dialog. It is a dimension of
+               its own, so it narrows whichever scope is selected above
+               rather than replacing it. -->
+          <div class="au-side" id="sideType" role="tablist" aria-label="Automation type">
+            <span class="au-side__label cq-caption-med">TYPE</span>
+            <button class="cq-nav-item is-active" data-type="all">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-layers"/></svg>
+              <span class="cq-nav-item__label">All types</span>
+              <span class="au-side__n" id="nTypeAll">15</span>
             </button>
-            <button class="cq-nav-item" data-scope="Paused">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-pause"/></svg>
-              <span class="cq-nav-item__label">Paused</span>
-              <span class="au-side__n">3</span>
-            </button>
-            <button class="cq-nav-item" data-scope="Draft">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-pencil"/></svg>
-              <span class="cq-nav-item__label">Draft</span>
-              <span class="au-side__n">2</span>
-            </button>
-          </div>
-
-          <!-- The queue is no longer a tab, so it is reached from the row
-               that names it. It sits under its own label because it
-               changes the subject rather than narrowing it. -->
-          <div class="au-side" id="sideQueue">
-            <span class="au-side__label cq-caption-med">APPROVALS</span>
-            <button class="cq-nav-item" data-scope="queue">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-shield"/></svg>
-              <span class="cq-nav-item__label">Checkpoint queue</span>
-              <span class="au-side__n" id="nQueue">12</span>
-            </button>
-          </div>
-
-          <div class="au-side" id="sideCk" role="tablist" aria-label="Checkpoint status" hidden>
-            <button class="cq-nav-item" id="ckBack">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="transform:rotate(180deg)"><use href="#i-caret"/></svg>
-              <span class="cq-nav-item__label">Automations</span>
-            </button>
-            <span class="au-side__label cq-caption-med" style="padding-top:14px">CHECKPOINTS</span>
-            <button class="cq-nav-item is-active" data-ck="all">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-flow"/></svg>
-              <span class="cq-nav-item__label">All checkpoints</span>
-              <span class="au-side__n">47</span>
-            </button>
-            <button class="cq-nav-item" data-ck="Awaiting">
+            <button class="cq-nav-item" data-type="Job">
               <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-              <span class="cq-nav-item__label">Awaiting</span>
-              <span class="au-side__n">12</span>
+              <span class="cq-nav-item__label">Job</span>
+              <span class="au-side__n" id="nJob">6</span>
             </button>
-            <button class="cq-nav-item" data-ck="Approved">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
-              <span class="cq-nav-item__label">Approved</span>
-              <span class="au-side__n">28</span>
-            </button>
-            <button class="cq-nav-item" data-ck="Rejected">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-alert"/></svg>
-              <span class="cq-nav-item__label">Rejected</span>
-              <span class="au-side__n">7</span>
+            <button class="cq-nav-item" data-type="Live">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-bolt"/></svg>
+              <span class="cq-nav-item__label">Live</span>
+              <span class="au-side__n" id="nLive">9</span>
             </button>
           </div>
 
@@ -2429,90 +2400,6 @@ body.cq { margin: 0; }
             </div>
 
             <p class="au-count cq-body2-reg" id="auCount"></p>
-          </div>
-
-          <!-- ══════════ Lens 2 · Checkpoint approvals ══════════
-               The Monitoring approvals design, brought over whole. Its
-               status filter is the only thing that moved: it is now the
-               sidebar, so the page has one filter mechanism, not two. -->
-          <div class="cq-page__content cq-scroll-y" id="paneApprovals" role="tabpanel" hidden>
-
-            <div class="au-stats">
-              <section class="au-stat" aria-label="Total checkpoints">
-                <div class="au-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-flow"/></svg>
-                  Total checkpoints
-                </div>
-                <div class="au-stat__row">
-                  <span class="au-stat__value">47</span>
-                  <span class="cq-badge" data-tone="grey">last 7 days</span>
-                </div>
-              </section>
-              <section class="au-stat" aria-label="Awaiting review">
-                <div class="au-stat__top cq-caption-reg">
-                  <span style="color:var(--text-coloured-orange)"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg></span>
-                  Awaiting review
-                </div>
-                <div class="au-stat__row">
-                  <span class="au-stat__value">12</span>
-                  <span class="cq-badge" data-tone="orange">avg 18m</span>
-                </div>
-              </section>
-              <section class="au-stat" aria-label="Approved">
-                <div class="au-stat__top cq-caption-reg">
-                  <span style="color:var(--text-coloured-green)"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg></span>
-                  Approved
-                </div>
-                <div class="au-stat__row">
-                  <span class="au-stat__value">28</span>
-                  <span class="cq-badge" data-tone="green">59.6%</span>
-                </div>
-              </section>
-              <section class="au-stat" aria-label="Rejected">
-                <div class="au-stat__top cq-caption-reg">
-                  <span style="color:var(--text-coloured-red)"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-alert"/></svg></span>
-                  Rejected
-                </div>
-                <div class="au-stat__row">
-                  <span class="au-stat__value">7</span>
-                  <span class="cq-badge" data-tone="red">14.9%</span>
-                </div>
-              </section>
-            </div>
-
-            <div class="au-filters">
-              <div class="cq-filter-group">
-                <button class="cq-dropdown" id="ckSortBtn" aria-expanded="false">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-sliders"/></svg>
-                  <span id="ckSortLabel">Sort by: Newest</span>
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                </button>
-                <div class="cq-pop" id="ckSortPop"><div class="cq-pop__list" id="ckSortList"></div></div>
-              </div>
-              <button class="cq-dropdown">
-                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-                <span>Last 7 days</span>
-                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-              </button>
-            </div>
-
-            <div class="cq-table ck-table">
-              <div class="cq-thead">
-                <span>Automation name</span><span>Requested at</span><span>Wait time</span>
-                <span>Status</span><span>Creator</span><span></span>
-              </div>
-              <div id="ckRows"></div>
-            </div>
-
-            <div class="au-empty cq-body2-reg" id="ckEmpty" hidden>
-              <b class="cq-body1-med">No checkpoints match</b>
-              Try a different search or status.
-            </div>
-
-            <div class="au-foot">
-              <span class="au-foot__count cq-body2-reg" id="ckCount"></span>
-              <div class="au-pager" id="ckPager"></div>
-            </div>
           </div>
 
           <!-- ══════════ Lens 2 · Marketplace ══════════
@@ -2637,7 +2524,7 @@ const KIND = {
   tool:       { ic: '#i-gears',   tone: 'cyan',   name: 'Tool' },
   data:       { ic: '#i-db',      tone: 'cyan',   name: 'Data' },
   sync:       { ic: '#i-refresh', tone: 'cyan',   name: 'Sync' },
-  branch:     { ic: '#i-branch',  tone: 'purple', name: 'Condition' },
+  branch:     { ic: '#i-branch',  tone: 'purple', name: 'Decision' },
   guard:      { ic: '#ic-pp_guardrails', tone: 'purple', name: 'Guardrail' },
   checkpoint: { ic: '#i-shield',  tone: 'orange', name: 'Human checkpoint' },
   action:     { ic: '#i-extlink', tone: 'green',  name: 'Action' },
@@ -2663,7 +2550,7 @@ const PEOPLE = {
    ════════════════════════════════════════════════════════════════════ */
 const AUTOS = [
   {
-    name: 'Invoice Extraction Pipeline',
+    name: 'Invoice Extraction Pipeline', type: 'Live',
     desc: 'Reads supplier invoices out of the AP inbox, pulls line items and totals, and posts the approved ones to NetSuite.',
     status: 'Active', hue: 'var(--text-coloured-indigo)', pending: 5,
     trigger: 'Email received · AP inbox', schedule: 'On arrival',
@@ -2679,7 +2566,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Customer Onboarding',
+    name: 'Customer Onboarding', type: 'Live',
     desc: 'Takes a signed order through provisioning, welcome mail and the first success check-in, pausing once for account review.',
     status: 'Active', hue: 'var(--text-coloured-blue)', pending: 4,
     trigger: 'Webhook · Salesforce opportunity won', schedule: 'On event',
@@ -2696,7 +2583,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Data Pipeline Sync',
+    name: 'Data Pipeline Sync', type: 'Job',
     desc: 'Hourly warehouse sync — pulls the source deltas, validates the schema, and lands them in Snowflake.',
     status: 'Active', hue: 'var(--text-coloured-cyan)', pending: 0,
     trigger: 'Schedule · hourly', schedule: 'Every hour, :05',
@@ -2710,7 +2597,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Contract Review Agent',
+    name: 'Contract Review Agent', type: 'Live',
     desc: 'Reads an inbound contract against the playbook, flags non-standard clauses, and routes anything material to legal.',
     status: 'Active', hue: 'var(--purple-450)', pending: 3,
     trigger: 'Doc store · new file in /contracts', schedule: 'On upload',
@@ -2726,7 +2613,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Lead Scoring Engine',
+    name: 'Lead Scoring Engine', type: 'Live',
     desc: 'Scores every new lead on fit and intent, enriches the record, and hands the top band straight to an AE.',
     status: 'Active', hue: 'var(--text-coloured-green)', pending: 0,
     trigger: 'Webhook · form submission', schedule: 'On event',
@@ -2741,7 +2628,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Stripe Payment Handler',
+    name: 'Stripe Payment Handler', type: 'Live',
     desc: 'Reconciles Stripe events against invoices, retries soft failures, and escalates disputes for a human call.',
     status: 'Active', hue: 'var(--orange-600)', pending: 0,
     trigger: 'Webhook · stripe events', schedule: 'On event',
@@ -2757,7 +2644,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Vendor Onboarding Flow',
+    name: 'Vendor Onboarding Flow', type: 'Live',
     desc: 'Collects vendor documents, runs the compliance screen, and opens the supplier record once procurement approves.',
     status: 'Active', hue: 'var(--text-coloured-indigo)', pending: 0,
     trigger: 'Form · vendor intake', schedule: 'On submission',
@@ -2773,7 +2660,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Expense Audit Bot',
+    name: 'Expense Audit Bot', type: 'Job',
     desc: 'Samples submitted expenses, checks them against policy, and queues the exceptions for a manager decision.',
     status: 'Active', hue: 'var(--text-coloured-cyan)', pending: 0,
     trigger: 'Schedule · weekdays 07:00', schedule: 'Mon–Fri, 07:00',
@@ -2788,7 +2675,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Email Campaign Trigger',
+    name: 'Email Campaign Trigger', type: 'Job',
     desc: 'Watches segment membership and fires the matching lifecycle campaign, holding back anyone in an active sequence.',
     status: 'Active', hue: 'var(--text-coloured-blue)', pending: 0,
     trigger: 'Segment change · lifecycle', schedule: 'Every 15 min',
@@ -2802,7 +2689,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Slack Notification Bot',
+    name: 'Slack Notification Bot', type: 'Live',
     desc: 'Turns pipeline and incident events into one readable Slack post per channel, deduped across sources.',
     status: 'Active', hue: 'var(--text-coloured-green)', pending: 0,
     trigger: 'Event bus · ops topics', schedule: 'On event',
@@ -2815,7 +2702,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Report Generator',
+    name: 'Report Generator', type: 'Job',
     desc: 'Builds the weekly executive pack from the warehouse, with a review stop before it reaches the distribution list.',
     status: 'Paused', hue: 'var(--orange-600)', pending: 0,
     trigger: 'Schedule · Mondays 06:00', schedule: 'Weekly, Mon 06:00',
@@ -2830,7 +2717,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'HubSpot Contact Sync',
+    name: 'HubSpot Contact Sync', type: 'Job',
     desc: 'Two-way contact sync between HubSpot and the warehouse, with conflict resolution on the newest write.',
     status: 'Active', hue: 'var(--text-coloured-cyan)', pending: 0,
     trigger: 'Schedule · every 30 min', schedule: 'Every 30 min',
@@ -2844,7 +2731,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'PDF Text Extractor',
+    name: 'PDF Text Extractor', type: 'Live',
     desc: 'A shared building block — takes any PDF and returns clean text and tables for the automations downstream of it.',
     status: 'Active', hue: 'var(--purple-450)', pending: 0,
     trigger: 'Called by other automations', schedule: 'On call',
@@ -2857,7 +2744,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Ticket Triage Agent',
+    name: 'Ticket Triage Agent', type: 'Live',
     desc: 'Reads an incoming support ticket, sets priority and queue, and drafts the first reply for an agent to send.',
     status: 'Draft', hue: 'var(--text-coloured-indigo)', pending: 0,
     trigger: 'Webhook · Zendesk ticket created', schedule: 'Not scheduled',
@@ -2871,7 +2758,7 @@ const AUTOS = [
     ]
   },
   {
-    name: 'Churn Alert Notifier',
+    name: 'Churn Alert Notifier', type: 'Job',
     desc: 'Watches usage decay against the churn model and opens a save-play task for the owning CSM.',
     status: 'Draft', hue: 'var(--text-coloured-green)', pending: 0,
     trigger: 'Schedule · daily 08:00', schedule: 'Not scheduled',
@@ -2903,30 +2790,151 @@ function statusPill(a) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   THE CANVAS THUMBNAIL
-   The frame draws three 20px nodes on a 64px pitch joined by dashed
-   40px lines, centred on the board. Real flows run three to seven
-   steps, so the links shrink to fit and anything past five collapses
-   into a chip — the pitch is the frame's whenever the flow is the
-   frame's length.
+   THE CANVAS SNAPSHOT
+   The preview is the automation's own canvas, drawn with the builder's
+   blocks (Figma 27:48199 / 160:110862) at their natural size and scaled
+   once to fit the card. Two or three blocks land inside the viewport and
+   the rest runs past the bottom edge, which is what a canvas viewport
+   does — the count in the corner says how many there are in all.
 
-   The dot hues are literal rather than tokens: this element keeps the
-   builder board's dark ground in both themes, so the theme's text and
-   stroke values do not apply inside it.
+   The hues here are literal rather than tokens: the board keeps the
+   builder's dark ground in both themes, so the theme's values do not
+   apply inside it.
    ════════════════════════════════════════════════════════════════════ */
-const DOT = {
-  blue: '#0d99ff', indigo: '#5860ed', purple: '#9747ff', cyan: '#35caf0',
-  green: '#14ae5c', 'light-green': '#7cb342', orange: '#ffa629', grey: '#9e9e9e'
+const TAG = {
+  blue:          { bg: '#0e2f52', bd: '#1c5c96', fg: '#8ecaff' },
+  indigo:        { bg: '#26247a', bd: '#3f3cc4', fg: '#c2c5fa' },
+  purple:        { bg: '#3d1a68', bd: '#6b2fb5', fg: '#e4ccff' },
+  cyan:          { bg: '#0d3b4d', bd: '#17708f', fg: '#7fe3ff' },
+  green:         { bg: '#0d3524', bd: '#1a6b45', fg: '#85e0a3' },
+  'light-green': { bg: '#24391a', bd: '#4a7030', fg: '#c5e1a5' },
+  orange:        { bg: '#4d2a06', bd: '#8a4a0e', fg: '#ffc470' },
+  grey:          { bg: '#2b2b2b', bd: '#4a4a4a', fg: '#bdbdbd' },
+  /* The builder gives the human checkpoint a magenta tag of its own, and
+     it earns one: amber on this page means "something is waiting", which
+     is a different fact from "a person is in this flow". */
+  pink:          { bg: '#4d0f2b', bd: '#961f56', fg: '#ff9ec4' }
 };
-const SLOTS = 5;
+const tagTone = k => k === 'checkpoint' ? 'pink' : (KIND[k] || KIND.tool).tone;
 
-function slot(step) {
+/* A starting zoom, replaced per card by fitBoards() once the board has
+   laid out at its natural size. Capped, so a three-step flow does not
+   balloon to twice the block size of a forked one. */
+const CV_ZOOM = 0.56;
+const CV_ZOOM_MAX = 0.62;
+/* And a floor: a forked flow is tall enough that fitting it whole would
+   halve its blocks against every other card on the wall. Below this it
+   keeps the zoom and lets the fork run past the edge instead, which is
+   the trade a canvas viewport makes too. */
+const CV_ZOOM_MIN = 0.46;
+
+/* The board is drawn at the canvas's own dimensions and scaled once, so
+   the zoom that fits it can only be known after layout. offsetWidth and
+   offsetHeight are the pre-transform box, which is exactly the natural
+   size needed. A flow that still does not fit at the cap keeps its
+   overflow and gets the fade. */
+function fitBoards(scope) {
+  scope.querySelectorAll('.au-prev').forEach(prev => {
+    const bd = prev.querySelector('.au-prev__board');
+    if (!bd) return;
+    const natW = bd.offsetWidth, natH = bd.offsetHeight;
+    if (!natW || !natH) return;
+    /* The readout occupies the bottom strip, so the flow stops above it
+       rather than passing behind it. */
+    const availW = prev.clientWidth - 24, availH = prev.clientHeight - 34;
+    const z = Math.max(CV_ZOOM_MIN, Math.min(CV_ZOOM_MAX, availW / natW, availH / natH));
+    bd.style.setProperty('--cv-z', z.toFixed(3));
+    prev.classList.toggle('is-clipped', natH * z > availH + 1);
+  });
+}
+
+function cvStart() {
+  return `<span class="au-cv-start">
+    <svg class="cq-ic" width="13" height="13" viewBox="0 0 16 16"><use href="#i-play"/></svg>Start</span>`;
+}
+function cvLink(skip) {
+  return `<span class="au-cv-link${skip ? ' au-cv-link--skip' : ''}" aria-hidden="true"></span>`;
+}
+
+/* The block's second line is its configuration, and its shape is the
+   kind: a wide field for a decision, a mono field for code, reviewer
+   chips for a checkpoint, a chip for everything else. */
+function cvConfig(step) {
+  const k = step.k;
+  if (k === 'checkpoint') {
+    const who = ['Savio Govindu', 'Hemavathi'];
+    const bg = ['var(--purple-600)', 'var(--orange-800)'];
+    return `<span class="au-cv-who">${who.map((n, i) =>
+      `<span class="au-cv-who__p"><span class="au-cv-who__a" style="background:${bg[i]}">${n[0]}</span>${esc(n)}</span>`).join('')}</span>`;
+  }
+  if (k === 'branch' || k === 'guard') {
+    return `<span class="au-cv-pill au-cv-pill--wide">
+      <svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-pencil"/></svg>
+      <span>Whenever ${esc(step.s)}</span></span>`;
+  }
+  if (k === 'tool' || k === 'doc') {
+    return `<span class="au-cv-pill au-cv-pill--wide au-cv-pill--code">
+      <svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-code"/></svg>
+      <span>def run(${esc(step.s.split(' ')[0])})…</span></span>`;
+  }
+  const m = KIND[k] || KIND.tool;
+  return `<span class="au-cv-pill au-cv-pill--chip">
+    <svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16" style="color:${TAG[tagTone(k)].fg}"><use href="${m.ic}"/></svg>
+    <span>${esc(step.s)}</span></span>`;
+}
+
+function cvNode(step) {
   const m = KIND[step.k] || KIND.tool;
-  const cp = step.k === 'checkpoint';
-  return `<span class="au-slot"${cp ? ' data-cp' : ''}>
-    <span class="au-node" style="color:${cp ? DOT.orange : DOT[m.tone]}"><span class="au-node__dot"></span></span>
-    <span class="au-slot__lbl">${esc(step.l)}</span>
+  const t = TAG[tagTone(step.k)];
+  return `<span class="au-cv-node">
+    <span class="au-cv-tag" style="background:${t.bg};border:1px solid ${t.bd};color:${t.fg}">
+      <svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="${m.ic}"/></svg>${esc(m.name)}</span>
+    <span class="au-cv-box">
+      <span class="au-cv-title">${esc(step.l)}</span>
+      ${cvConfig(step)}
+    </span>
   </span>`;
+}
+
+function cvFork(yes, no) {
+  return `<span class="au-cv-fork">
+    <span class="au-cv-fork__lines">
+      <svg viewBox="0 0 520 52" fill="none" aria-hidden="true">
+        <path d="M260 0v14q0 12-12 12H132q-12 0-12 12v14" stroke="#4a4a4a" stroke-width="1"/>
+        <path d="M260 0v14q0 12 12 12h116q12 0 12 12v14" stroke="#4a4a4a" stroke-width="1"/>
+      </svg>
+      <span class="au-cv-fork__lbl au-cv-fork__lbl--y">If yes</span>
+      <span class="au-cv-fork__lbl au-cv-fork__lbl--n">If No</span>
+    </span>
+    <span class="au-cv-fork__kids">${cvNode(yes)}${cvNode(no)}</span>
+  </span>`;
+}
+
+/* Which blocks the viewport gets. The first step always, then the step
+   that matters most — a decision opens a fork, and a human checkpoint is
+   the thing a reader is looking for — even when it sits further down the
+   flow. A gap skipped that way is drawn as a dashed connector, so the
+   snapshot never implies the two blocks are adjacent. */
+function cvBoard(x) {
+  const st = x.steps;
+  const parts = [cvStart()];
+  let i = 0, drawn = 0;
+
+  const notable = st.findIndex((s, n) => n > 0 && (s.k === 'branch' || s.k === 'checkpoint'));
+  while (i < st.length && drawn < 2) {
+    const s = st[i];
+    if (s.k === 'branch' && st[i + 1] && st[i + 2]) {
+      parts.push(cvLink(i > (drawn ? i : 0)), cvNode(s), cvLink(false), cvFork(st[i + 1], st[i + 2]));
+      drawn = 2;
+      break;
+    }
+    /* After the first block, jump to the notable one if there is one. */
+    const next = drawn === 1 && notable > i ? notable : i;
+    parts.push(cvLink(next !== i), cvNode(st[next]));
+    drawn++;
+    i = next + 1;
+  }
+  return parts.join('');
 }
 
 /* ── The flag ──
@@ -2946,21 +2954,14 @@ function flag(a) {
 }
 
 function canvas(a, withFlag = true) {
-  const fits = a.steps.length <= SLOTS;
-  const shown = fits ? a.steps : a.steps.slice(0, SLOTS - 1);
-  const rest = a.steps.length - shown.length;
-  const link = '<span class="au-link" aria-hidden="true"></span>';
-  let chain = shown.map(slot).join(link);
-  if (rest > 0) chain += link + `<span class="au-more">+${rest}</span>`;
-
   const cps = cpCount(a);
   return `
   <div class="au-prev">
-    <div class="au-prev__chain">${chain}</div>
+    <div class="au-prev__board" style="--cv-z:${CV_ZOOM}">${cvBoard(a)}</div>
     ${withFlag ? flag(a) : ''}
     <span class="au-prev__meta">
       <svg class="cq-ic" width="11" height="11" viewBox="0 0 16 16"><use href="#i-flow"/></svg>
-      ${a.steps.length} steps${cps ? ` · ${cps} checkpoint${cps > 1 ? 's' : ''}` : ''}
+      ${a.type} · ${a.steps.length} steps${cps ? ` · ${cps} checkpoint${cps > 1 ? 's' : ''}` : ''}
     </span>
   </div>`;
 }
@@ -3059,52 +3060,52 @@ const PUBLISHERS = {
 };
 
 const MARKET = [
-  { name: 'Invoice Intake & Approval', cat: 'Finance', by: 'Cogentiq', installs: 4200,
+  { name: 'Invoice Intake & Approval', type: 'Live', cat: 'Finance', by: 'Cogentiq', installs: 4200,
     hue: 'var(--text-coloured-indigo)', tags: ['finance', 'ocr'], updated: 'Aug 12, 2026',
     desc: 'Reads invoices from a shared inbox, extracts totals, and holds anything over a threshold for a controller.',
     steps: [{ k: 'email', l: 'Invoice in', s: 'shared inbox' }, { k: 'model', l: 'Extract fields', s: 'gpt-4o ocr' },
             { k: 'branch', l: 'Over limit?', s: 'amount gate' }, { k: 'checkpoint', l: 'Finance OK', s: 'controllers' },
             { k: 'action', l: 'Post to ERP', s: 'create bill' }] },
-  { name: 'Purchase Order Matching', cat: 'Finance', by: 'Cogentiq', installs: 2800,
+  { name: 'Purchase Order Matching', type: 'Live', cat: 'Finance', by: 'Cogentiq', installs: 2800,
     hue: 'var(--text-coloured-cyan)', tags: ['finance', 'procurement'], updated: 'Jul 30, 2026',
     desc: 'Matches incoming invoices to open purchase orders and queues the exceptions for a buyer to settle.',
     steps: [{ k: 'webhook', l: 'Invoice in', s: 'ap feed' }, { k: 'data', l: 'Find PO', s: 'erp lookup' },
             { k: 'tool', l: 'Three-way match', s: 'qty + price' }, { k: 'checkpoint', l: 'Buyer OK', s: 'exceptions' },
             { k: 'action', l: 'Close PO', s: 'erp write' }] },
-  { name: 'Lead Enrichment & Routing', cat: 'Sales', by: 'Clearbit', installs: 6100,
+  { name: 'Lead Enrichment & Routing', type: 'Live', cat: 'Sales', by: 'Clearbit', installs: 6100,
     hue: 'var(--text-coloured-green)', tags: ['sales', 'enrichment'], updated: 'Aug 20, 2026',
     desc: 'Enriches every inbound lead, scores it against your fit model, and routes the top band to an owner.',
     steps: [{ k: 'webhook', l: 'Form in', s: 'any form' }, { k: 'data', l: 'Enrich', s: 'clearbit' },
             { k: 'model', l: 'Score fit', s: 'fit model' }, { k: 'sync', l: 'Route to CRM', s: 'owner rules' }] },
-  { name: 'Quote Approval Chain', cat: 'Sales', by: 'Cogentiq', installs: 1900,
+  { name: 'Quote Approval Chain', type: 'Live', cat: 'Sales', by: 'Cogentiq', installs: 1900,
     hue: 'var(--purple-450)', tags: ['sales', 'approvals'], updated: 'Jun 18, 2026',
     desc: 'Takes a drafted quote through discount review and countersignature, escalating by deal size.',
     steps: [{ k: 'trigger', l: 'Quote drafted', s: 'cpq' }, { k: 'model', l: 'Check discount', s: 'policy' },
             { k: 'checkpoint', l: 'Manager OK', s: 'if > 15%' }, { k: 'checkpoint', l: 'VP OK', s: 'if > 30%' },
             { k: 'action', l: 'Send for sign', s: 'docusign' }] },
-  { name: 'Ticket Triage & First Reply', cat: 'Support', by: 'Zendesk', installs: 5400,
+  { name: 'Ticket Triage & First Reply', type: 'Live', cat: 'Support', by: 'Zendesk', installs: 5400,
     hue: 'var(--text-coloured-blue)', tags: ['support', 'triage'], updated: 'Aug 24, 2026',
     desc: 'Classifies an incoming ticket, sets priority and queue, and drafts a first reply for an agent to send.',
     steps: [{ k: 'webhook', l: 'Ticket in', s: 'zendesk' }, { k: 'model', l: 'Classify', s: 'gpt-4o-mini' },
             { k: 'branch', l: 'Urgent?', s: 'sla rules' }, { k: 'checkpoint', l: 'Agent review', s: 'tier 1' },
             { k: 'action', l: 'Set queue', s: 'zendesk' }] },
-  { name: 'CSAT Follow-up', cat: 'Support', by: 'Cogentiq', installs: 1200,
+  { name: 'CSAT Follow-up', type: 'Job', cat: 'Support', by: 'Cogentiq', installs: 1200,
     hue: 'var(--text-coloured-light-green)', tags: ['support', 'csat'], updated: 'May 9, 2026',
     desc: 'Sends a survey after resolution, reads the free text, and opens a task on anything below par.',
     steps: [{ k: 'schedule', l: 'On resolve', s: '+1 day' }, { k: 'notify', l: 'Send survey', s: 'email' },
             { k: 'model', l: 'Read replies', s: 'sentiment' }, { k: 'action', l: 'Open task', s: 'if low' }] },
-  { name: 'Vendor Compliance Screen', cat: 'Operations', by: 'Cogentiq', installs: 980,
+  { name: 'Vendor Compliance Screen', type: 'Live', cat: 'Operations', by: 'Cogentiq', installs: 980,
     hue: 'var(--orange-600)', tags: ['operations', 'compliance'], updated: 'Aug 2, 2026',
     desc: 'Collects vendor documents, runs the sanctions screen, and opens the supplier record on approval.',
     steps: [{ k: 'trigger', l: 'Intake in', s: 'vendor form' }, { k: 'doc', l: 'Collect docs', s: 'w-9 + coi' },
             { k: 'guard', l: 'Sanctions', s: 'ofac list' }, { k: 'model', l: 'Risk summary', s: 'gpt-4o' },
             { k: 'checkpoint', l: 'Buyer OK', s: 'procurement' }, { k: 'action', l: 'Open supplier', s: 'erp' }] },
-  { name: 'Incident Digest', cat: 'Operations', by: 'PagerDuty', installs: 3300,
+  { name: 'Incident Digest', type: 'Job', cat: 'Operations', by: 'PagerDuty', installs: 3300,
     hue: 'var(--text-coloured-red)', tags: ['operations', 'oncall'], updated: 'Aug 16, 2026',
     desc: 'Turns a night of alerts into one readable morning summary, grouped by service and root cause.',
     steps: [{ k: 'schedule', l: 'Daily 07:00', s: 'weekdays' }, { k: 'data', l: 'Pull alerts', s: 'pagerduty' },
             { k: 'model', l: 'Group + write', s: 'gpt-4o' }, { k: 'notify', l: 'Post digest', s: '#oncall' }] },
-  { name: 'Warehouse Sync Monitor', cat: 'Data', by: 'Snowflake', installs: 2100,
+  { name: 'Warehouse Sync Monitor', type: 'Job', cat: 'Data', by: 'Snowflake', installs: 2100,
     hue: 'var(--text-coloured-cyan)', tags: ['data', 'monitoring'], updated: 'Jul 21, 2026',
     desc: 'Watches every scheduled load for freshness and row-count drift, and pages the owner when one slips.',
     steps: [{ k: 'schedule', l: 'Every hour', s: 'cron' }, { k: 'data', l: 'Check loads', s: '18 tables' },
@@ -3161,6 +3162,7 @@ function renderMarket() {
   $('mkEmpty').hidden = rows.length > 0;
   $('mkFoot').innerHTML = rows.length
     ? `Showing <b>${rows.length}</b> of <b>${MARKET.length}</b> published automations` : '';
+  fitBoards($('mkGrid'));
   markSelected();
 }
 
@@ -3193,7 +3195,7 @@ $('sideMarket').addEventListener('click', e => {
    scope comes from the sidebar, the three dropdowns narrow it further,
    and the search runs over the lot.
    ════════════════════════════════════════════════════════════════════ */
-const auState = { q: '', scope: 'all', tags: new Set(), by: new Set(), when: 'any', view: 'card' };
+const auState = { q: '', scope: 'all', type: 'all', tags: new Set(), by: new Set(), when: 'any', view: 'card' };
 const WHENS = [['any', 'All time'], ['1d', 'Last 24 hours'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days']];
 const WHEN_MAX = { any: Infinity, '1d': 1440, '7d': 10080, '30d': 43200 };
 const ALL_TAGS = [...new Set(AUTOS.flatMap(a => a.tags))].sort();
@@ -3211,6 +3213,7 @@ function auFiltered() {
   const q = auState.q.toLowerCase();
   return AUTOS.map((a, i) => ({ a, i })).filter(({ a }) =>
     inScope(a) &&
+    (auState.type === 'all' || a.type === auState.type) &&
     (!auState.tags.size || a.tags.some(t => auState.tags.has(t))) &&
     (!auState.by.size || auState.by.has(a.by)) &&
     a.lastN <= WHEN_MAX[auState.when] &&
@@ -3230,26 +3233,26 @@ function renderAutos() {
   $('auCount').innerHTML = rows.length
     ? `Showing <b>${rows.length}</b> of <b>${AUTOS.length}</b> automations${pend ? ` · <b>${pend}</b> waiting on a person` : ''}`
     : '';
+  fitBoards($('auGrid'));
   markSelected();
 }
 
-/* ── The sidebar. One row is active at a time across the groups, so the
-      scope always reads as a single answer. "Checkpoint queue" is the
-      one row that changes the subject rather than narrowing it. ── */
-function setScope(scope, btn) {
-  auState.scope = scope;
-  document.querySelectorAll('#sideAutos .cq-nav-item, #sideState .cq-nav-item, #sideQueue .cq-nav-item')
-    .forEach(b => b.classList.toggle('is-active', b === btn));
-  paint();
-  if (scope !== 'queue') renderAutos();
-}
-document.querySelectorAll('#sideAutos, #sideState, #sideQueue').forEach(group =>
-  group.addEventListener('click', e => {
-    const btn = e.target.closest('.cq-nav-item[data-scope]');
-    if (btn) setScope(btn.dataset.scope, btn);
-  }));
-$('ckBack').addEventListener('click', () => {
-  setScope('all', document.querySelector('#sideAutos [data-scope="all"]'));
+/* ── The sidebar. Two dimensions, each single-select and each with its
+      own "all": the scope narrows by what is happening, the type by how
+      the automation was published. They combine. ── */
+$('sideAutos').addEventListener('click', e => {
+  const btn = e.target.closest('.cq-nav-item[data-scope]');
+  if (!btn) return;
+  auState.scope = btn.dataset.scope;
+  $('sideAutos').querySelectorAll('.cq-nav-item').forEach(b => b.classList.toggle('is-active', b === btn));
+  renderAutos();
+});
+$('sideType').addEventListener('click', e => {
+  const btn = e.target.closest('.cq-nav-item[data-type]');
+  if (!btn) return;
+  auState.type = btn.dataset.type;
+  $('sideType').querySelectorAll('.cq-nav-item').forEach(b => b.classList.toggle('is-active', b === btn));
+  renderAutos();
 });
 
 function setView(view) {
@@ -3386,7 +3389,10 @@ function markSelected() {
 
 function wireOpen(container) {
   container.addEventListener('click', e => {
-    if (e.target.closest('[data-review]')) { e.stopPropagation(); showTab('approvals'); return; }
+    /* The checkpoint queue is its own screen in the product, so a row
+       that has someone waiting links out to it rather than swapping this
+       page's content under the reader. */
+    if (e.target.closest('[data-review]')) { e.stopPropagation(); go('checkpoints.html'); return; }
     if (e.target.closest('[data-more]')) { e.stopPropagation(); return; }
     const host = e.target.closest('[data-i]');
     if (host) openPanel(Number(host.dataset.i));
@@ -3418,7 +3424,7 @@ $('mkGrid').addEventListener('keydown', e => {
 
 $('pnClose').addEventListener('click', closePanel);
 $('pnSteps').addEventListener('click', e => {
-  if (e.target.closest('[data-goapprovals]')) { closePanel(); showTab('approvals'); }
+  if (e.target.closest('[data-goapprovals]')) { closePanel(); go('checkpoints.html'); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && open.i >= 0) closePanel(); });
 /* The panel overlays the content rather than insetting it, so clicking
@@ -3429,132 +3435,6 @@ document.addEventListener('click', e => {
   if (open.i < 0) return;
   if (e.target.closest('#auPanel, .au-card, #auRows .cq-row')) return;
   closePanel();
-});
-
-/* ════════════════════════════════════════════════════════════════════
-   TAB 2 · CHECKPOINT APPROVALS
-   The rows, the paging and the status vocabulary are the approvals
-   design from Monitoring — the same 47 checkpoints, 12 of them still
-   waiting, which is the number the first tab's tile and the tab label
-   both quote.
-   ════════════════════════════════════════════════════════════════════ */
-const HUES = ['var(--text-coloured-blue)', 'var(--purple-450)', 'var(--text-coloured-green)',
-              'var(--orange-600)', 'var(--text-coloured-cyan)', 'var(--text-coloured-indigo)'];
-
-const BASE = [
-  ['Invoice Extraction Pipeline', 'Jul 15, 2:25 PM', 8,     'Awaiting', null],
-  ['Data Pipeline Sync',          'Jul 15, 1:50 PM', 43,    'Approved', 'Sarah Chen'],
-  ['Customer Onboarding',         'Jul 15, 12:30 PM', 135,  'Approved', 'Mike Torres'],
-  ['Report Generator',            'Jul 14, 4:45 PM', 1560,  'Rejected', 'Anna Park'],
-  ['Email Campaign Trigger',      'Jul 14, 3:10 PM', 1740,  'Approved', 'James Liu'],
-  ['Lead Scoring Engine',         'Jul 14, 11:00 AM', 1980, 'Awaiting', 'James Liu'],
-  ['Slack Notification Bot',      'Jul 13, 9:20 AM', 3540,  'Rejected', 'Sarah Chen'],
-  ['PDF Text Extractor',          'Jul 13, 8:15 AM', 3600,  'Approved', 'Mike Torres'],
-  ['HubSpot Contact Sync',        'Jul 12, 5:30 PM', 4500,  'Awaiting', null],
-  ['Stripe Payment Handler',      'Jul 12, 2:00 PM', 4680,  'Approved', 'Anna Park']
-];
-const GEN_NAMES = ['Vendor Onboarding Flow', 'Contract Review Agent', 'Expense Audit Bot',
-  'Churn Alert Notifier', 'Quote Approval Chain', 'Refund Screening Flow', 'Ticket Triage Agent',
-  'Payroll Sync Pipeline', 'SLA Breach Watcher', 'Inventory Reorder Bot', 'Ad Spend Guard',
-  'CRM Dedupe Sweep', 'NPS Digest Builder'];
-const GEN_TIMES = ['Jul 12, 11:40 AM', 'Jul 12, 10:05 AM', 'Jul 12, 9:12 AM', 'Jul 12, 8:30 AM'];
-/* 37 more rows: 9 awaiting, 23 approved, 5 rejected to land on 12/28/7. */
-const GEN_STATUS = [];
-for (let i = 0; i < 37; i++) {
-  GEN_STATUS.push(i % 7 === 2 ? 'Rejected' : (i % 4 === 1 || i === 34) ? 'Awaiting' : 'Approved');
-}
-const CREATORS = Object.keys(PEOPLE);
-const CK = BASE.map((r, i) => ({ name: r[0], at: r[1], wait: r[2], status: r[3], by: r[4], hue: HUES[i % 6], order: i }));
-for (let i = 0; i < 37; i++) {
-  const status = GEN_STATUS[i];
-  CK.push({
-    name: GEN_NAMES[i % GEN_NAMES.length] + (i >= GEN_NAMES.length ? ' ' + (Math.floor(i / GEN_NAMES.length) + 1) : ''),
-    at: GEN_TIMES[i % GEN_TIMES.length],
-    wait: 4800 + i * 55,
-    status,
-    by: status === 'Awaiting' && i % 3 === 0 ? null : CREATORS[i % CREATORS.length],
-    hue: HUES[(i + 3) % 6],
-    order: 10 + i
-  });
-}
-
-const fmtWait = m => m < 60 ? `${m}m`
-  : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60 ? (m % 60) + 'm' : ''}`.trim()
-  : `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60) ? Math.floor((m % 1440) / 60) + 'h' : ''}`.trim();
-
-const CK_META = {
-  Awaiting: { tone: 'orange', icon: '' },
-  Approved: { tone: 'green',  icon: '#i-check' },
-  Rejected: { tone: 'red',    icon: '#i-alert' }
-};
-
-const ckState = { q: '', filter: 'all', sort: 'newest', page: 1 };
-const PER = 10;
-const CK_SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['wait', 'Longest wait']];
-
-function ckFiltered() {
-  let rows = CK.filter(r =>
-    (ckState.filter === 'all' || r.status === ckState.filter) &&
-    (!ckState.q || (r.name + ' ' + (r.by || 'Unassigned')).toLowerCase().includes(ckState.q.toLowerCase())));
-  if (ckState.sort === 'oldest') rows = rows.slice().sort((a, b) => b.order - a.order);
-  else if (ckState.sort === 'wait') rows = rows.slice().sort((a, b) => b.wait - a.wait);
-  return rows;
-}
-
-function renderCk() {
-  const rows = ckFiltered();
-  const pages = Math.max(1, Math.ceil(rows.length / PER));
-  ckState.page = Math.min(ckState.page, pages);
-  const slice = rows.slice((ckState.page - 1) * PER, ckState.page * PER);
-
-  $('ckRows').innerHTML = slice.map(r => {
-    const meta = CK_META[r.status];
-    const person = r.by ? PEOPLE[r.by] : null;
-    return `
-    <div class="cq-row" tabindex="0">
-      <div class="cq-cell">
-        <span class="au-row-ic" style="color:${r.hue}"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg></span>
-        <span class="cq-body2-med cq-truncate">${esc(r.name)}</span>
-      </div>
-      <div class="cq-cell cq-cell--muted cq-caption-reg">${r.at}</div>
-      <div class="cq-cell ck-num${r.status === 'Awaiting' ? ' ck-wait--hot' : ''}">${fmtWait(r.wait)}</div>
-      <div class="cq-cell"><span class="cq-status" data-tone="${meta.tone}">${meta.icon
-        ? `<svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="${meta.icon}"/></svg>`
-        : '<span class="cq-status--dot"></span>'}${r.status}</span></div>
-      <div class="cq-cell">${person
-        ? `<span class="ck-creator cq-caption-reg"><span class="cq-avatar" style="background:${person.bg}">${person.init}</span>${esc(r.by)}</span>`
-        : '<span class="ck-creator ck-creator--none cq-caption-reg">Unassigned</span>'}</div>
-      <div class="cq-cell au-cell--end">${r.status === 'Awaiting'
-        ? '<button class="cq-btn cq-btn--sm cq-btn--primary">Review</button>'
-        : '<button class="cq-btn cq-btn--sm cq-btn--tonal-2">View output</button>'}</div>
-    </div>`;
-  }).join('');
-
-  $('ckEmpty').hidden = rows.length > 0;
-  const from = rows.length ? (ckState.page - 1) * PER + 1 : 0;
-  const to = Math.min(ckState.page * PER, rows.length);
-  $('ckCount').innerHTML = `Showing <b>${from}–${to}</b> of <b>${rows.length}</b> results`;
-
-  let pager = `<button class="au-page" data-p="prev" aria-label="Previous page" ${ckState.page === 1 ? 'disabled' : ''}>‹</button>`;
-  for (let p = 1; p <= pages; p++) pager += `<button class="au-page${p === ckState.page ? ' is-active' : ''}" data-p="${p}">${p}</button>`;
-  pager += `<button class="au-page" data-p="next" aria-label="Next page" ${ckState.page === pages ? 'disabled' : ''}>›</button>`;
-  $('ckPager').innerHTML = pager;
-}
-
-$('ckPager').addEventListener('click', e => {
-  const btn = e.target.closest('.au-page');
-  if (!btn || btn.disabled) return;
-  const p = btn.dataset.p;
-  ckState.page = p === 'prev' ? ckState.page - 1 : p === 'next' ? ckState.page + 1 : Number(p);
-  renderCk();
-});
-$('sideCk').addEventListener('click', e => {
-  const btn = e.target.closest('.cq-nav-item[data-ck]');
-  if (!btn) return;
-  ckState.filter = btn.dataset.ck;
-  ckState.page = 1;
-  $('sideCk').querySelectorAll('.cq-nav-item').forEach(b => b.classList.toggle('is-active', b === btn));
-  renderCk();
 });
 
 /* ════════════════════════════════════════════════════════════════════
@@ -3634,8 +3514,6 @@ function wireSingle(btnId, popId, listId, labelId, opts, prefix, get, onPick) {
 }
 wireSingle('whenBtn', 'whenPop', 'whenList', 'whenLabel', WHENS, '', () => auState.when,
   v => { auState.when = v; renderAutos(); });
-wireSingle('ckSortBtn', 'ckSortPop', 'ckSortList', 'ckSortLabel', CK_SORTS, 'Sort by: ', () => ckState.sort,
-  v => { ckState.sort = v; ckState.page = 1; renderCk(); });
 wireSingle('mkSortBtn', 'mkSortPop', 'mkSortList', 'mkSortLabel', MK_SORTS, 'Sort by: ', () => mkState.sort,
   v => { mkState.sort = v; renderMarket(); });
 wireMulti('mkPubBtn', 'mkPubPop', 'mkPubList', 'mkPubBadge', ALL_PUBS, mkState.pubs, renderMarket);
@@ -3651,35 +3529,27 @@ function cqSegSync(seg) {
   thumb.style.width = active.offsetWidth + 'px';
   thumb.style.transform = `translateX(${active.offsetLeft - 4}px)`;
 }
-/* Three things can be on screen — the inventory, the checkpoint queue,
-   and the marketplace — but only two of them are lenses; the queue is a
-   sidebar row inside the first. One function decides all of it, so the
-   panes, the sidebar groups, the search and the action button can never
-   disagree about which is showing. */
+/* One function decides the whole switch, so the panes, the sidebar
+   groups, the search and the action button can never disagree about
+   which lens is showing. */
 let lens = 'automations';
 
 function paint() {
   const market = lens === 'marketplace';
-  const queue = !market && auState.scope === 'queue';
-  const grid = !market && !queue;
 
-  $('paneAutomations').hidden = !grid;
-  $('paneApprovals').hidden = !queue;
+  $('paneAutomations').hidden = market;
   $('paneMarket').hidden = !market;
 
-  $('sideAutos').hidden = !grid;
-  $('sideState').hidden = !grid;
-  $('sideQueue').hidden = !grid;
-  $('sideCk').hidden = !queue;
+  $('sideAutos').hidden = market;
+  $('sideType').hidden = market;
   $('sideMarket').hidden = !market;
 
-  /* One search field, three subjects: it carries whichever is up. */
+  /* One search field, two subjects: it carries whichever is up. */
   const q = $('auQ');
-  q.placeholder = queue ? 'Search automation or creator'
-    : market ? 'Search the marketplace' : 'Search automations';
-  q.value = queue ? ckState.q : market ? mkState.q : auState.q;
-  $('newBtn').hidden = !grid;
-  if (!grid) closePanel();
+  q.placeholder = market ? 'Search the marketplace' : 'Search automations';
+  q.value = market ? mkState.q : auState.q;
+  $('newBtn').hidden = market;
+  if (market) closePanel();
 }
 
 function showTab(tab) {
@@ -3698,23 +3568,19 @@ $('auTabs').addEventListener('click', e => {
 });
 $('auQ').addEventListener('input', e => {
   const v = e.target.value;
-  if (!$('paneApprovals').hidden) { ckState.q = v; ckState.page = 1; renderCk(); }
-  else if (!$('paneMarket').hidden) { mkState.q = v; renderMarket(); }
+  if (!$('paneMarket').hidden) { mkState.q = v; renderMarket(); }
   else { auState.q = v; renderAutos(); }
 });
-addEventListener('resize', () => cqSegSync($('auTabs')));
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => cqSegSync($('auTabs')));
-
-/* ════ Gradient stroke follows the pointer along each stat card ════ */
-document.querySelectorAll('.au-stat').forEach(card => {
-  /* The glow rides the nearest horizontal edge, so hovering below
-     centre lights the bottom stroke rather than the whole ring. */
-  card.addEventListener('pointermove', e => {
-    const r = card.getBoundingClientRect();
-    const y = e.clientY - r.top;
-    card.style.setProperty('--gx', (e.clientX - r.left) + 'px');
-    card.style.setProperty('--gy', (y < r.height / 2 ? 0 : r.height) + 'px');
-  });
+let fitT;
+addEventListener('resize', () => {
+  cqSegSync($('auTabs'));
+  clearTimeout(fitT);
+  fitT = setTimeout(() => { fitBoards($('auGrid')); fitBoards($('mkGrid')); }, 120);
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+  cqSegSync($('auTabs'));
+  fitBoards($('auGrid'));
+  fitBoards($('mkGrid'));
 });
 
 /* ════ Platform panel: hover to open, one category open at a time ════ */
@@ -3755,15 +3621,13 @@ applyMode(stored === 'light' ? 'light' : 'dark');
 $('nAll').textContent = AUTOS.length;
 $('nWaiting').textContent = AUTOS.filter(a => a.pending > 0).length;
 $('nRunning').textContent = AUTOS.filter(isRunning).length;
-document.querySelectorAll('#sideState .cq-nav-item').forEach(b => {
-  b.querySelector('.au-side__n').textContent = AUTOS.filter(a => a.status === b.dataset.scope).length;
-});
-$('nQueue').textContent = CK.filter(r => r.status === 'Awaiting').length;
+$('nTypeAll').textContent = AUTOS.length;
+$('nJob').textContent = AUTOS.filter(a => a.type === 'Job').length;
+$('nLive').textContent = AUTOS.filter(a => a.type === 'Live').length;
 document.querySelectorAll('#auTabs .au-seg-count')[0].textContent = AUTOS.length;
 $('mkCount').textContent = MARKET.length;
 
 renderAutos();
-renderCk();
 renderMarket();
 paint();
 cqSegSync($('auTabs'));
