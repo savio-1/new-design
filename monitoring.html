@@ -1701,6 +1701,9 @@ body.cq { margin: 0; }
       --red-100: #fff5f5;   --red-300: #ffc7c2;   --red-400: #ffafa3;
       --red-500: #f24822;   --red-600: #dc3412;   --red-900: #771208;
       --orange-500: #ffa629; --orange-900: #ce7012;
+      --green-600: #009951;  --green-700: #008043;
+      --cyan-500: #00a2c2;   --cyan-600: #0087a8;  --cyan-700: #047195;
+      --indigo-600: #454de0;
       --purple-450: #bb7fff;
       /* Tonal-2 button family: text tokens are published; the ground is
          derived the way tonal-1 pairs with its disabled twin. */
@@ -1956,6 +1959,145 @@ body.cq { margin: 0; }
     @media (max-width: 720px) {
       .mon-stat { grid-column: span 12; }
     }
+
+    /* ══════════════════════════════════════════════════════════════
+       ADOPTION — the fourth lens: what the workspace is building and
+       who is building it. Series hues are ramp steps validated against
+       each theme's card surface; the stack paints blue → green → purple
+       because blue beside purple is the one pair a deutan reader cannot
+       separate at these steps.
+       ══════════════════════════════════════════════════════════════ */
+    .mon-root {
+      --ser-automations: var(--blue-500);
+      --ser-agents:      var(--green-600);
+      --ser-assistants:  var(--purple-500);
+      --ser-dau:         var(--cyan-500);
+      --ser-mau:         var(--indigo-500);
+      --pod-1: var(--blue-500);
+      --pod-2: var(--indigo-500);
+      --pod-3: var(--cyan-500);
+    }
+    :root[data-mode="light"] .mon-root {
+      --ser-automations: var(--blue-700);
+      --ser-agents:      var(--green-700);
+      --ser-assistants:  var(--purple-600);
+      --ser-dau:         var(--cyan-600);
+      --ser-mau:         var(--indigo-600);
+      --pod-1: var(--blue-600);
+      --pod-2: var(--indigo-600);
+      --pod-3: var(--cyan-600);
+    }
+
+    /* ── Bar filters (Adoption only) ── */
+    .mon-bar-filters { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .mon-bar-filters[hidden] { display: none; }
+
+    /* ── KPI cards with a sparkline ── */
+    .mon-kpi { grid-column: span 3; gap: 8px; --glow-r: 130px; }
+    .mon-kpi__spark { height: 40px; margin-top: 2px; }
+    .mon-kpi__spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+    /* ── "Other artifacts in use": four counts, split by hairlines ── */
+    .mon-others { grid-column: span 3; gap: 12px; --glow-r: 130px; }
+    .mon-others__grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .mon-others__cell {
+      display: flex; flex-direction: column; gap: 2px;
+      padding-left: 12px; border-left: 1px solid var(--strokes-line-3);
+    }
+    .mon-others__cell:first-child { padding-left: 0; border-left: 0; }
+    .mon-others__cell .cq-ic { color: var(--text-teritiary); }
+    .mon-others__n {
+      font: 500 20px/24px var(--font-geist-mono); letter-spacing: -0.4px;
+      color: var(--text-primary); font-variant-numeric: tabular-nums;
+    }
+    .mon-others__lbl { color: var(--text-teritiary); }
+
+    /* ── The two adoption charts ── */
+    .mon-trend, .mon-dau { grid-column: span 6; }
+    .mon-plot { position: relative; flex: 1 1 auto; min-height: 236px; margin-top: 8px; }
+    .mon-plot svg { display: block; width: 100%; height: 100%; }
+    .mon-legend--foot { margin-top: 10px; justify-content: center; width: 100%; }
+
+    /* ── Top creators: podium left, leaderboard right ── */
+    .mon-creators { grid-column: span 12; }
+    .mon-creators__body {
+      display: grid; grid-template-columns: minmax(320px, 5fr) 7fr; gap: 24px;
+      margin-top: 12px; align-items: end;
+    }
+
+    /* The podium. Bars grow from the floor on first paint — the ranking
+       is a result, so it arrives as one. */
+    .mon-podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: end; padding-top: 8px; }
+    .mon-pod { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+    .mon-pod__tag {
+      display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+      padding: 4px 10px 4px 4px; border-radius: var(--radius-full, 999px);
+      background: var(--backgrounds-page-bg-3);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-primary);
+      opacity: 0; transform: translateY(6px);
+      transition: opacity .34s ease .16s, transform .34s ease .16s;
+    }
+    .mon-pod__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mon-pod__bar {
+      position: relative; width: 100%; height: 0;
+      border-radius: 10px 10px 0 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      overflow: hidden;
+      transition: height .8s cubic-bezier(.22, .8, .25, 1);
+    }
+    /* The chevron cap from the wireframe, drawn as the bar's own top edge
+       rather than a second element, so the gradient stays continuous. */
+    .mon-pod__bar::before {
+      content: ""; position: absolute; inset: 0 0 auto; height: 14px;
+      background: var(--flag-sheen);
+      clip-path: polygon(0 100%, 50% 0, 100% 100%);
+    }
+    /* The inset rides on the label, not the bar: padding on the bar would
+       floor its height at 18px, so the column would never start from zero. */
+    .mon-pod__count {
+      position: relative; margin-top: 18px; color: var(--white);
+      font: 500 var(--fs-caption)/1 var(--font-geist); letter-spacing: -0.24px;
+      opacity: 0; transition: opacity .3s ease .5s;
+    }
+    .mon-pod__place {
+      position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+      color: var(--white); opacity: .82;
+      font: 500 22px/1 var(--font-geist-mono);
+    }
+    .mon-pod[data-rank="1"] .mon-pod__bar { background: linear-gradient(180deg, var(--pod-1), color-mix(in srgb, var(--pod-1) 45%, transparent)); }
+    .mon-pod[data-rank="2"] .mon-pod__bar { background: linear-gradient(180deg, var(--pod-2), color-mix(in srgb, var(--pod-2) 45%, transparent)); }
+    .mon-pod[data-rank="3"] .mon-pod__bar { background: linear-gradient(180deg, var(--pod-3), color-mix(in srgb, var(--pod-3) 45%, transparent)); }
+
+    .mon-podium.is-in .mon-pod__bar { height: var(--h); }
+    .mon-podium.is-in .mon-pod__tag { opacity: 1; transform: none; }
+    .mon-podium.is-in .mon-pod__count { opacity: 1; }
+    /* Second place, then first, then third — the eye lands on the winner
+       mid-sequence rather than at the end. */
+    .mon-podium .mon-pod:nth-child(1) .mon-pod__bar { transition-delay: .04s; }
+    .mon-podium .mon-pod:nth-child(2) .mon-pod__bar { transition-delay: .16s; }
+    .mon-podium .mon-pod:nth-child(3) .mon-pod__bar { transition-delay: .28s; }
+    @media (prefers-reduced-motion: reduce) {
+      .mon-pod__bar, .mon-pod__tag, .mon-pod__count { transition: none; }
+    }
+
+    /* Leaderboard */
+    .mon-board.cq-table { --cq-cols: 64px minmax(150px, 1fr) 132px minmax(210px, 1.2fr); }
+    .mon-board .cq-row { height: 48px; cursor: default; }
+    .mon-board__place { font: 500 var(--fs-body-3)/1 var(--font-geist-mono); color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
+    .mon-board .cq-row[data-top="1"] .mon-board__place { color: var(--pod-1); }
+    .mon-board .cq-row[data-top="2"] .mon-board__place { color: var(--pod-2); }
+    .mon-board .cq-row[data-top="3"] .mon-board__place { color: var(--pod-3); }
+    .mon-board__total { font-family: var(--font-geist-mono); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .mon-board__mix { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; min-width: 0; }
+    .mon-board__mix span { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .mon-board__mix .mix-others { color: var(--text-teritiary); }
+
+    @media (max-width: 1220px) {
+      .mon-kpi, .mon-others { grid-column: span 6; }
+      .mon-trend, .mon-dau { grid-column: span 12; }
+      .mon-creators__body { grid-template-columns: 1fr; align-items: stretch; }
+    }
   </style>
 
 
@@ -1991,6 +2133,7 @@ body.cq { margin: 0; }
 <svg class="sprite" aria-hidden="true">
   <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.7" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M8 7.4v3.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r=".9" fill="currentColor"/></symbol>
   <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.7" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M8 4.9V8l2.1 1.3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 16 16"><path d="M9.6 2.4h4v4M6.4 13.6h-4v-4M13.6 2.4 9.2 6.8M2.4 13.6l4.4-4.4" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-dollar" viewBox="0 0 16 16"><path d="M8 2.2v11.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10.6 5.2A2.2 2.2 0 0 0 8.5 4h-1a1.9 1.9 0 0 0 0 3.9h1.2a2 2 0 0 1 0 4.1H7.4a2.2 2.2 0 0 1-2.1-1.3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-arrow-up" viewBox="0 0 12 12"><path d="M6 9.5v-7M2.9 5.6L6 2.5l3.1 3.1" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
@@ -2134,7 +2277,19 @@ body.cq { margin: 0; }
               <button data-tab="performance" role="tab" aria-selected="false">Performance</button>
               <button data-tab="adoption" role="tab" aria-selected="false">Adoption</button>
             </div>
-            <span class="mon-bar-note cq-caption-reg">Updated just now · refreshes every 30s</span>
+            <span class="mon-bar-note cq-caption-reg" id="barNote">Updated just now · refreshes every 30s</span>
+            <div class="mon-bar-filters" id="barFilters" hidden>
+              <button class="cq-dropdown">
+                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-people"/></svg>
+                <span>All users</span>
+                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+              </button>
+              <button class="cq-dropdown">
+                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
+                <span>Last month</span>
+                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+              </button>
+            </div>
           </div>
 
           <div class="cq-page__content cq-scroll-y">
@@ -2265,7 +2420,134 @@ body.cq { margin: 0; }
 
             </div>
 
-            <!-- The other three lenses aren't drawn yet; an honest quiet
+
+            <!-- ══ Adoption ══ -->
+            <div class="mon-grid" id="monAdoption" hidden>
+
+              <section class="mon-card mon-kpi" aria-label="Automations published">
+                <span class="mon-stat__label cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg>
+                  Automations published
+                </span>
+                <span class="mon-stat__value">210</span>
+                <span class="mon-stat__delta cq-caption-reg">
+                  <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
+                  <b>+18</b> this month
+                </span>
+                <div class="mon-kpi__spark" data-spark="automations" data-hue="var(--ser-automations)"></div>
+              </section>
+
+              <section class="mon-card mon-kpi" aria-label="Agents created">
+                <span class="mon-stat__label cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_agent"/></svg>
+                  Agents created
+                </span>
+                <span class="mon-stat__value">186</span>
+                <span class="mon-stat__delta cq-caption-reg">
+                  <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
+                  <b>+12</b> this month
+                </span>
+                <div class="mon-kpi__spark" data-spark="agents" data-hue="var(--ser-agents)"></div>
+              </section>
+
+              <section class="mon-card mon-kpi" aria-label="Assistants deployed">
+                <span class="mon-stat__label cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_aiassistant"/></svg>
+                  Assistants deployed
+                </span>
+                <span class="mon-stat__value">97</span>
+                <span class="mon-stat__delta cq-caption-reg">
+                  <svg class="cq-ic" width="12" height="12" viewBox="0 0 12 12"><use href="#i-arrow-up"/></svg>
+                  <b>+7</b> this month
+                </span>
+                <div class="mon-kpi__spark" data-spark="assistants" data-hue="var(--ser-assistants)"></div>
+              </section>
+
+              <section class="mon-card mon-others" aria-label="Other artifacts in use">
+                <span class="mon-stat__label cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_frame1"/></svg>
+                  Other artifacts in use
+                </span>
+                <div class="mon-others__grid">
+                  <div class="mon-others__cell">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_toolsskills"/></svg>
+                    <span class="mon-others__n">41</span>
+                    <span class="mon-others__lbl cq-caption-reg">Tools</span>
+                  </div>
+                  <div class="mon-others__cell">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_file"/></svg>
+                    <span class="mon-others__n">14</span>
+                    <span class="mon-others__lbl cq-caption-reg">Context</span>
+                  </div>
+                  <div class="mon-others__cell">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_skill"/></svg>
+                    <span class="mon-others__n">240</span>
+                    <span class="mon-others__lbl cq-caption-reg">Skills</span>
+                  </div>
+                  <div class="mon-others__cell">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_guardrails"/></svg>
+                    <span class="mon-others__n">31</span>
+                    <span class="mon-others__lbl cq-caption-reg">Guardrails</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="mon-card mon-trend" aria-label="Artifact creation trend">
+                <div class="mon-card__head">
+                  <div>
+                    <span class="mon-card__title cq-body1-med">Artifact creation trend</span>
+                    <span class="mon-card__sub cq-caption-reg">Artifacts created by type, this half</span>
+                  </div>
+                  <button class="cq-icon-btn" title="Expand" aria-label="Expand chart">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-expand"/></svg>
+                  </button>
+                </div>
+                <div class="mon-plot" id="trendPlot"></div>
+                <div class="mon-legend mon-legend--foot cq-caption-reg">
+                  <span class="mon-legend__item"><i class="mon-legend__swatch" style="background:var(--ser-automations)"></i>Automations</span>
+                  <span class="mon-legend__item"><i class="mon-legend__swatch" style="background:var(--ser-agents)"></i>Agents</span>
+                  <span class="mon-legend__item"><i class="mon-legend__swatch" style="background:var(--ser-assistants)"></i>Assistants</span>
+                </div>
+              </section>
+
+              <section class="mon-card mon-dau" aria-label="Daily and monthly active users">
+                <div class="mon-card__head">
+                  <div>
+                    <span class="mon-card__title cq-body1-med">DAU / MAU</span>
+                    <span class="mon-card__sub cq-caption-reg">Daily and monthly active users</span>
+                  </div>
+                  <button class="cq-icon-btn" title="Expand" aria-label="Expand chart">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-expand"/></svg>
+                  </button>
+                </div>
+                <div class="mon-plot" id="dauPlot"></div>
+                <div class="mon-legend mon-legend--foot cq-caption-reg">
+                  <span class="mon-legend__item"><i class="mon-legend__swatch" style="background:var(--ser-dau)"></i>DAU</span>
+                  <span class="mon-legend__item"><i class="mon-legend__swatch" style="background:var(--ser-mau)"></i>MAU</span>
+                </div>
+              </section>
+
+              <section class="mon-card mon-creators" aria-label="Top creators">
+                <div class="mon-card__head">
+                  <div>
+                    <span class="mon-card__title cq-body1-med">Top creators</span>
+                    <span class="mon-card__sub cq-caption-reg">Top builders in this workspace</span>
+                  </div>
+                </div>
+                <div class="mon-creators__body">
+                  <div class="mon-podium" id="podium" aria-hidden="true"></div>
+                  <div class="cq-table mon-board">
+                    <div class="cq-thead">
+                      <span>Place</span><span>Creator</span><span>Total created</span><span>Artifact-wise count</span>
+                    </div>
+                    <div id="boardRows"></div>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+
+            <!-- The two remaining lenses aren't drawn yet; an honest quiet
                  state beats a fake chart. -->
             <div class="mon-empty cq-body2-reg" id="monEmpty" hidden>
               <b class="cq-body1-med" id="monEmptyTitle">Usage &amp; Performance</b>
@@ -2518,9 +2800,234 @@ addEventListener('resize', () => { clearTimeout(volT); volT = setTimeout(drawVol
   g.addEventListener('mouseleave', tipHide);
 })();
 
+
+/* ════ ADOPTION ═══════════════════════════════════════════════════
+   Three lenses on the same half-year: what got built (stacked trend),
+   who is using it (DAU/MAU), and who is building it (top creators). */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+/* Eighteen points — three a month — so the lines carry real texture
+   between the month ticks. Stacked bottom → top. */
+const TREND = {
+  automations: [22, 23, 24, 26, 27, 28, 29, 30, 31, 33, 34, 35, 36, 37, 38, 39, 39, 40],
+  agents:      [12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 17, 18, 18, 19, 19, 19],
+  assistants:  [14, 14, 15, 15, 15, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 19]
+};
+/* MAU is the envelope DAU sits inside — the wireframe drew them the
+   other way round, which no active-user pair can be. */
+const DAU = [150, 152, 158, 160, 165, 168, 172, 175, 180, 186, 190, 196, 205, 212, 220, 228, 238, 248];
+const MAU = [415, 420, 428, 435, 440, 448, 455, 462, 470, 478, 486, 492, 500, 508, 515, 522, 530, 540];
+
+const SPARKS = {
+  automations: [148, 152, 150, 158, 163, 160, 168, 174, 179, 176, 184, 190, 195, 201, 198, 205, 210],
+  agents:      [128, 131, 136, 134, 141, 145, 149, 147, 154, 158, 163, 167, 171, 168, 175, 181, 186],
+  assistants:  [62, 64, 63, 68, 71, 70, 74, 77, 79, 78, 83, 86, 88, 91, 90, 94, 97]
+};
+
+const CREATORS = [
+  { name: 'Savio Govindu',   init: 'SG', bg: 'var(--blue-600)',   total: 240, mix: [96, 58, 62, 24] },
+  { name: 'Hemavathi M',     init: 'HM', bg: 'var(--indigo-500)', total: 163, mix: [70, 38, 41, 14] },
+  { name: 'Aashutosh Bhatt', init: 'AB', bg: 'var(--cyan-600)',   total: 120, mix: [50, 28, 30, 12] },
+  { name: 'Mira Kapoor',     init: 'MK', bg: 'var(--purple-600)', total: 118, mix: [48, 27, 31, 12] },
+  { name: 'Luca Bianchi',    init: 'LB', bg: 'var(--green-600)',  total: 109, mix: [45, 25, 28, 11] },
+  { name: 'Amara Okafor',    init: 'AO', bg: 'var(--orange-800)', total: 102, mix: [42, 24, 26, 10] },
+  { name: 'Theo Lindqvist',  init: 'TL', bg: 'var(--blue-700)',   total:  96, mix: [40, 22, 24, 10] },
+  { name: 'Priya Nair',      init: 'PN', bg: 'var(--indigo-600)', total:  88, mix: [36, 20, 23,  9] },
+  { name: 'Tom Weber',       init: 'TW', bg: 'var(--cyan-700)',   total:  81, mix: [33, 19, 21,  8] },
+  { name: 'Sarah Chen',      init: 'SC', bg: 'var(--purple-500)', total:  74, mix: [30, 17, 19,  8] }
+];
+
+/* ── Shared path helpers ── */
+function monoPath(pts) {
+  return pts.map(([x, y], i) => {
+    if (!i) return `M ${x} ${y}`;
+    const [px, py] = pts[i - 1], c = (x - px) / 2;
+    return `C ${px + c} ${py} ${x - c} ${y} ${x} ${y}`;
+  }).join(' ');
+}
+
+/* ── Sparklines ── */
+function drawSparks() {
+  document.querySelectorAll('[data-spark]').forEach(host => {
+    const d = SPARKS[host.dataset.spark], hue = host.dataset.hue;
+    const w = host.clientWidth, h = host.clientHeight;
+    if (w < 20 || h < 10) return;
+    const lo = Math.min(...d) * 0.96, hi = Math.max(...d) * 1.02;
+    const pts = d.map((v, i) => [(i / (d.length - 1)) * w, h - ((v - lo) / (hi - lo)) * (h - 5) - 2.5]);
+    const id = 'sp-' + host.dataset.spark;
+    host.innerHTML =
+      `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true">
+        <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" style="stop-color:${hue};stop-opacity:.26"/>
+          <stop offset="1" style="stop-color:${hue};stop-opacity:0"/>
+        </linearGradient></defs>
+        <path d="${monoPath(pts)} L ${w} ${h} L 0 ${h} Z" fill="url(#${id})"/>
+        <path d="${monoPath(pts)}" fill="none" stroke="${hue}" stroke-width="1.75" stroke-linecap="round"/>
+        <circle cx="${pts[pts.length - 1][0]}" cy="${pts[pts.length - 1][1]}" r="2.75" fill="${hue}"/>
+      </svg>`;
+  });
+}
+
+/* ── Stacked trend + DAU/MAU: one renderer, two configurations ── */
+function drawSeriesChart(hostId, cfg) {
+  const host = $(hostId);
+  const w = host.clientWidth, h = host.clientHeight;
+  if (w < 60 || h < 60) return;
+  const PAD = { l: 40, r: 10, t: 8, b: 22 };
+  const iw = w - PAD.l - PAD.r, ih = h - PAD.t - PAD.b;
+  const n = cfg.series[0].data.length;
+  const X = i => PAD.l + (i / (n - 1)) * iw;
+  const Y = v => PAD.t + ih - (v / cfg.yMax) * ih;
+  const pts = d => d.map((v, i) => [X(i), Y(v)]);
+
+  let marks = '', defs = '';
+  if (cfg.stacked) {
+    /* Cumulative tops, painted back to front, each band separated from
+       the one below by a 2px surface gap so the boundaries stay legible. */
+    const tops = [];
+    cfg.series.forEach((s, si) => {
+      tops.push(s.data.map((v, i) => v + (si ? tops[si - 1][i] : 0)));
+    });
+    for (let si = cfg.series.length - 1; si >= 0; si--) {
+      const s = cfg.series[si];
+      const upper = pts(tops[si]);
+      const lower = si ? pts(tops[si - 1]).slice().reverse() : [[X(n - 1), Y(0)], [X(0), Y(0)]];
+      marks += `<path d="${monoPath(upper)} L ${lower[0][0]} ${lower[0][1]} ${lower.slice(1).map(p => `L ${p[0]} ${p[1]}`).join(' ')} Z"
+                  fill="${s.hue}" fill-opacity=".26" stroke="none"/>`;
+      /* Each band's own 2px top line doubles as the separator from the
+         band above it, so adjacent fills never touch. */
+      marks += `<path d="${monoPath(upper)}" fill="none" stroke="${s.hue}" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+  } else {
+    cfg.series.forEach((s, si) => {
+      const p = pts(s.data);
+      if (s.fill) {
+        defs += `<linearGradient id="g-${hostId}-${si}" x1="0" y1="0" x2="0" y2="1">
+                   <stop offset="0" style="stop-color:${s.hue};stop-opacity:.22"/>
+                   <stop offset="1" style="stop-color:${s.hue};stop-opacity:.02"/></linearGradient>`;
+        marks += `<path d="${monoPath(p)} L ${X(n - 1)} ${Y(0)} L ${X(0)} ${Y(0)} Z" fill="url(#g-${hostId}-${si})"/>`;
+      }
+      marks += `<path d="${monoPath(p)}" fill="none" stroke="${s.hue}" stroke-width="2" stroke-linecap="round"/>`;
+    });
+  }
+
+  host.innerHTML =
+    `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${cfg.label}">
+      <defs>${defs}</defs>
+      ${cfg.ticks.map(v => `<line class="mon-grid-line" x1="${PAD.l}" x2="${w - PAD.r}" y1="${Y(v)}" y2="${Y(v)}"/>
+        <text class="mon-axis" x="${PAD.l - 8}" y="${Y(v) + 3.5}" text-anchor="end">${v}</text>`).join('')}
+      ${MONTHS.map((m, i) => `<text class="mon-axis" x="${X(i * 3)}" y="${h - 5}" text-anchor="${i ? 'middle' : 'start'}">${m}</text>`).join('')}
+      ${marks}
+      <line id="${hostId}-cross" class="mon-cross" y1="${PAD.t}" y2="${PAD.t + ih}" x1="-9" x2="-9" visibility="hidden"/>
+      <g id="${hostId}-dots"></g>
+      <rect id="${hostId}-hit" x="${PAD.l}" y="${PAD.t}" width="${iw}" height="${ih}" fill="transparent"/>
+    </svg>`;
+
+  const hit = $(hostId + '-hit'), cross = $(hostId + '-cross'), dots = $(hostId + '-dots');
+  hit.addEventListener('mousemove', e => {
+    const box = hit.getBoundingClientRect();
+    const i = Math.max(0, Math.min(n - 1, Math.round((e.clientX - box.left) / box.width * (n - 1))));
+    const x = X(i);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('visibility', 'visible');
+    let run = 0;
+    dots.innerHTML = cfg.series.map(s => {
+      run = cfg.stacked ? run + s.data[i] : s.data[i];
+      return `<circle cx="${x}" cy="${Y(run)}" r="4" fill="${s.hue}" stroke="var(--backgrounds-page-bg-2)" stroke-width="2"/>`;
+    }).join('');
+    tipShow(`<b>${MONTHS[Math.floor(i / 3)]}, week ${(i % 3) + 1}</b>` +
+      cfg.series.map(s => `<span class="mon-tip__row"><i style="background:${s.hue}"></i>${s.name} <b>${s.data[i].toLocaleString()}</b></span>`).join(''),
+      e.clientX, e.clientY);
+  });
+  hit.addEventListener('mouseleave', () => {
+    cross.setAttribute('visibility', 'hidden');
+    dots.innerHTML = '';
+    tipHide();
+  });
+}
+
+function drawAdoptionCharts() {
+  drawSparks();
+  drawSeriesChart('trendPlot', {
+    label: 'Artifacts created by type, January to June',
+    yMax: 80, ticks: [0, 20, 40, 60, 80], stacked: true,
+    series: [
+      { name: 'Automations', hue: 'var(--ser-automations)', data: TREND.automations },
+      { name: 'Agents',      hue: 'var(--ser-agents)',      data: TREND.agents },
+      { name: 'Assistants',  hue: 'var(--ser-assistants)',  data: TREND.assistants }
+    ]
+  });
+  drawSeriesChart('dauPlot', {
+    label: 'Daily and monthly active users, January to June',
+    yMax: 600, ticks: [0, 150, 300, 450, 600],
+    series: [
+      { name: 'MAU', hue: 'var(--ser-mau)', data: MAU, fill: true },
+      { name: 'DAU', hue: 'var(--ser-dau)', data: DAU, fill: true }
+    ]
+  });
+}
+
+/* ── Podium: 2nd, 1st, 3rd, left to right ── */
+const PODIUM = (function () {
+  const top3 = CREATORS.slice(0, 3);
+  const order = [top3[1], top3[0], top3[2]];
+  const ranks = [2, 1, 3];
+  $('podium').innerHTML = order.map((c, i) => `
+    <div class="mon-pod" data-rank="${ranks[i]}">
+      <span class="mon-pod__tag cq-caption-med">
+        <span class="cq-avatar" style="background:${c.bg}">${c.init}</span>
+        <span class="mon-pod__name">${c.name}</span>
+      </span>
+      <div class="mon-pod__bar">
+        <span class="mon-pod__count">${c.total} artifacts</span>
+        <span class="mon-pod__place">${ranks[i]}</span>
+      </div>
+    </div>`).join('');
+  return { order, top: top3[0].total };
+})();
+
+/* The winner's column reaches the bottom of the leaderboard beside it,
+   so the two halves of the card end level however many rows the board
+   carries; the other two scale against the winner's total. */
+function scalePodium() {
+  const board = document.querySelector('.mon-board');
+  const room = board ? board.offsetHeight - 46 : 220;
+  const max = Math.max(170, Math.min(room, 430));
+  $('podium').querySelectorAll('.mon-pod').forEach((pod, i) => {
+    const h = Math.round(max * PODIUM.order[i].total / PODIUM.top);
+    pod.querySelector('.mon-pod__bar').style.setProperty('--h', h + 'px');
+  });
+}
+
+function playPodium() {
+  const pod = $('podium');
+  pod.classList.remove('is-in');
+  scalePodium();
+  void pod.offsetWidth;               /* restart the transitions */
+  requestAnimationFrame(() => pod.classList.add('is-in'));
+}
+
+/* ── Leaderboard ── */
+const MIX_ICONS = ['#ic-pp_automation', '#ic-pp_agent', '#ic-pp_aiassistant'];
+$('boardRows').innerHTML = CREATORS.map((c, i) => `
+  <div class="cq-row" data-top="${i + 1}" tabindex="0">
+    <div class="cq-cell"><span class="mon-board__place">${i + 1}</span></div>
+    <div class="cq-cell">
+      <span class="cq-avatar" style="background:${c.bg}">${c.init}</span>
+      <span class="cq-body2-med cq-truncate">${c.name}</span>
+    </div>
+    <div class="cq-cell"><span class="mon-board__total cq-body2-med">${c.total}</span></div>
+    <div class="cq-cell">
+      <span class="mon-board__mix cq-caption-reg">
+        ${MIX_ICONS.map((ic, k) => `<span title="${['Automations', 'Agents', 'Assistants'][k]}">
+          <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="${ic}"/></svg>${c.mix[k]}</span>`).join('')}
+        <span class="mix-others">Others ${c.mix[3]}</span>
+      </span>
+    </div>
+  </div>`).join('');
+
 /* ════ Tabs ════
-   Only Activity is drawn; the other lenses show a quiet placeholder
-   rather than pretending. */
+   Activity and Adoption are drawn; the other two show a quiet
+   placeholder rather than pretending. */
 function cqSegSync(seg) {
   if (!seg) return;
   const thumb = seg.querySelector(':scope > .cq-seg__thumb');
@@ -2536,14 +3043,33 @@ document.querySelectorAll('#monTabs [data-tab]').forEach(btn => btn.addEventList
     b.setAttribute('aria-selected', on);
   });
   cqSegSync($('monTabs'));
-  const live = btn.dataset.tab === 'activity';
-  $('monActivity').hidden = !live;
-  $('monEmpty').hidden = live;
-  if (!live) $('monEmptyTitle').textContent = btn.textContent;
-  if (live) drawVolume();
+  showTab(btn.dataset.tab, btn.textContent);
 }));
+
+function showTab(tab, label) {
+  const activity = tab === 'activity', adoption = tab === 'adoption';
+  $('monActivity').hidden = !activity;
+  $('monAdoption').hidden = !adoption;
+  $('monEmpty').hidden = activity || adoption;
+  $('barNote').hidden = !activity;
+  $('barFilters').hidden = !adoption;
+  if (!activity && !adoption) $('monEmptyTitle').textContent = label;
+  /* Charts size themselves off their container, which has no width
+     while the pane is hidden — so they are drawn on the way in. */
+  if (activity) drawVolume();
+  if (adoption) { drawAdoptionCharts(); playPodium(); }
+}
 window.addEventListener('resize', () => cqSegSync($('monTabs')));
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cqSegSync($('monTabs')); drawVolume(); });
+let adoT;
+addEventListener('resize', () => {
+  if ($('monAdoption').hidden) return;
+  clearTimeout(adoT); adoT = setTimeout(() => { drawAdoptionCharts(); scalePodium(); }, 120);
+});
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
+  cqSegSync($('monTabs'));
+  drawVolume();
+  if (!$('monAdoption').hidden) drawAdoptionCharts();
+});
 
 /* ════ Platform panel: hover to open, one category open at a time ════ */
 const rail = $('rail');
