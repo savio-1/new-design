@@ -1703,13 +1703,41 @@ body.cq { margin: 0; }
     .lb-stat__n { font: 500 20px/24px var(--font-geist-mono); color: var(--text-primary); font-variant-numeric: tabular-nums; }
     .lb-stat__l { color: var(--text-teritiary); }
 
-    /* ── Podium card ── */
+    /* ── Podium card ───────────────────────────────────────────────
+       The three columns are blue, indigo and cyan, so the ground behind
+       them is lit in the same three hues rather than left flat: a wide
+       wash rising from the floor where the columns stand, and a cooler
+       one over each shoulder. Percentages are lower in light mode — the
+       same mix reads twice as strong on white. */
     .lb-card {
+      position: relative; overflow: hidden;
       padding: 16px 16px 20px; border-radius: var(--radius-lg);
       background: var(--backgrounds-page-bg-2);
       border: 1px solid var(--strokes-line-3);
       filter: var(--shadow-card);
       margin-bottom: 16px;
+      --wash-floor: 18%;
+      --wash-side: 11%;
+      --floor-line: 30%;
+    }
+    :root[data-mode="light"] .lb-card { --wash-floor: 12%; --wash-side: 8%; --floor-line: 20%; }
+    /* z-index: -1 keeps the wash above the card's own ground but under its
+       content — the card is already a stacking context via its filter. */
+    .lb-card::before {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(130% 82% at 50% 112%, color-mix(in srgb, var(--blue-500) var(--wash-floor), transparent) 0%, transparent 64%),
+        radial-gradient(58% 62% at 14% 4%, color-mix(in srgb, var(--indigo-500) var(--wash-side), transparent) 0%, transparent 72%),
+        radial-gradient(54% 58% at 90% 8%, color-mix(in srgb, var(--cyan-500) var(--wash-side), transparent) 0%, transparent 74%);
+    }
+    /* The floor the columns stand on, drawn as light rather than a rule. */
+    .lb-podium-wrap { position: relative; }
+    .lb-podium-wrap::after {
+      content: ""; position: absolute; left: -6%; right: -6%; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent,
+        color-mix(in srgb, var(--blue-400, var(--blue-500)) var(--floor-line), transparent) 22%,
+        color-mix(in srgb, var(--blue-400, var(--blue-500)) var(--floor-line), transparent) 78%, transparent);
+      pointer-events: none;
     }
     .lb-card__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
     .lb-card__title { color: var(--text-primary); }
