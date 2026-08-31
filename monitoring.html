@@ -2149,9 +2149,8 @@ body.cq { margin: 0; }
       display: grid; grid-template-columns: minmax(320px, 5fr) 7fr; gap: 24px;
       margin-top: 12px; align-items: start;
     }
-    .mon-creators__col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
     .mon-creators__link {
-      align-self: flex-start;
+      flex: none; align-self: center;
       display: inline-flex; align-items: center; gap: 6px;
       background: none; border: 0; padding: 0; cursor: pointer;
       color: var(--text-coloured-blue);
@@ -2217,9 +2216,14 @@ body.cq { margin: 0; }
       font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
       opacity: 0; transition: opacity .3s ease .52s;
     }
-    .mon-pod[data-rank="1"] .mon-pod__face { background: linear-gradient(180deg, var(--blue-600) 0%, color-mix(in srgb, var(--blue-500) 40%, transparent) 50%, color-mix(in srgb, var(--blue-300) 0%, transparent) 100%); }
-    .mon-pod[data-rank="2"] .mon-pod__face { background: linear-gradient(180deg, var(--indigo-500) 0%, color-mix(in srgb, var(--indigo-100) 0%, transparent) 73%); }
-    .mon-pod[data-rank="3"] .mon-pod__face { background: linear-gradient(180deg, var(--cyan-500) 0%, color-mix(in srgb, var(--cyan-300) 0%, transparent) 75%); }
+    /* The Figma export fades each column out at a different fraction of
+       its own height — 73%, 75%, 100% — because there the columns run off
+       the bottom of the card and never show a foot. Ours stand on a
+       floor, so all three share one fade shape and keep the same residual
+       at 100%: the feet then land on a single line whatever the heights. */
+    .mon-pod[data-rank="1"] .mon-pod__face { background: linear-gradient(180deg, var(--blue-600) 0%, color-mix(in srgb, var(--blue-500) 45%, transparent) 52%, color-mix(in srgb, var(--blue-300) 16%, transparent) 100%); }
+    .mon-pod[data-rank="2"] .mon-pod__face { background: linear-gradient(180deg, var(--indigo-500) 0%, color-mix(in srgb, var(--indigo-400, var(--indigo-300)) 45%, transparent) 52%, color-mix(in srgb, var(--indigo-300) 16%, transparent) 100%); }
+    .mon-pod[data-rank="3"] .mon-pod__face { background: linear-gradient(180deg, var(--cyan-500) 0%, color-mix(in srgb, var(--cyan-400) 45%, transparent) 52%, color-mix(in srgb, var(--cyan-300) 16%, transparent) 100%); }
 
     .mon-podium.is-in .mon-pod__col { height: var(--h); }
     .mon-podium.is-in .mon-pod__tag { opacity: 1; transform: none; }
@@ -2752,20 +2756,18 @@ body.cq { margin: 0; }
                     <span class="mon-card__title cq-body1-med">Top creators</span>
                     <span class="mon-card__sub cq-caption-reg">Top builders in this workspace</span>
                   </div>
+                  <button class="mon-creators__link" id="boardAll" type="button">
+                    View leaderboard across all workspaces
+                    <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-arrow-right"/></svg>
+                  </button>
                 </div>
                 <div class="mon-creators__body">
                   <div class="mon-podium" id="podium" aria-hidden="true"></div>
-                  <div class="mon-creators__col">
-                    <button class="mon-creators__link" id="boardAll" type="button">
-                      View leaderboard across all workspaces
-                      <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-arrow-right"/></svg>
-                    </button>
-                    <div class="cq-table mon-board">
-                      <div class="cq-thead">
-                        <span>Place</span><span>Creator</span><span>Total created</span><span>Artifact-wise count</span>
-                      </div>
-                      <div class="mon-board__scroll cq-scroll-y" id="boardRows"></div>
+                  <div class="cq-table mon-board">
+                    <div class="cq-thead">
+                      <span>Place</span><span>Creator</span><span>Total created</span><span>Artifact-wise count</span>
                     </div>
+                    <div class="mon-board__scroll cq-scroll-y" id="boardRows"></div>
                   </div>
                 </div>
               </section>
@@ -3256,10 +3258,10 @@ const PODIUM = (function () {
 function scalePodium() {
   const pod = $('podium');
   const board = document.querySelector('.mon-board');
-  /* Capped rather than simply matched: on a narrow window the card
-     stacks, and a podium as tall as a ten-row board would open a hole
-     above the table. */
-  const boardH = Math.min(board ? board.offsetHeight : 300, 300);
+  /* Matched to the board so the columns stand on the same line the table
+     ends on, and capped so a stacked (narrow-window) card does not open a
+     hole above the table. */
+  const boardH = Math.min(board ? board.offsetHeight : 300, 320);
   pod.style.setProperty('--pod-h', boardH + 'px');
   pod.querySelectorAll('.mon-pod').forEach((el, i) => {
     const col = el.querySelector('.mon-pod__col');
