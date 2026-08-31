@@ -1835,20 +1835,19 @@ body { background: var(--backgrounds-page-bg-1); }
 /* ── Ramp steps this direction needs ──────────────────────────────────
    The shared sheet ships only the steps its own components use, and an
    undefined custom property kills the whole declaration silently, so
-   every step used below is declared here. The named Figma steps keep
-   their names; the four marked "derived" are interpolated inside their
-   own family (hue and chroma held, lightness stepped) because the
-   published ramp has no step at the spacing the ordinal gates want —
-   see the ramp blocks further down. */
+   every step used below is declared here. All of them are published
+   Figma values from the same Colours_latest export, identical in both
+   themes like every other palette value — nothing on this page is an
+   interpolated or eyeballed colour. */
 :root {
-  --blue-300: #bde3ff;  --blue-400: #80caff;  --blue-450: #44aaf3;
-  --blue-700: #0768cf;  --blue-800: #034ac1;
-  --red-300: #ffc7c2;   --red-400: #ffafa3;   --red-500: #f24822;
-  --red-600: #dc3412;   --red-700: #b3260c;
+  --blue-200: #e5f4ff;  --blue-300: #bde3ff;  --blue-400: #80caff;
+  --blue-450: #44aaf3;  --blue-700: #0768cf;  --blue-800: #034ac1;
+  --blue-900: #093077;  --blue-1000: #0d193f;
+  --red-100: #fff5f5;   --red-300: #ffc7c2;   --red-400: #ffafa3;
+  --red-500: #f24822;   --red-600: #dc3412;   --red-900: #771208;
   --orange-500: #ffa629; --orange-900: #ce7012;
-  --orange-1000: #a85a10;   /* derived: warning as 12px text on white, 5.08:1 */
   --green-500: #14ae5c;  --green-700: #008043;
-  --cyan-500: #00a2c2;
+  --cyan-300: #b6ecf7;   --cyan-500: #00a2c2;  --cyan-700: #047195;
   --indigo-500: #5860ed; --indigo-600: #454de0;
 }
 
@@ -1887,20 +1886,28 @@ body { background: var(--backgrounds-page-bg-1); }
   /* Executions heatmap · sequential, one hue, 5 levels + a neutral zero.
      Level 0 is "no runs" and sits outside the ramp: it is a surface
      tile, not a value, so it must not read as the ramp's low end.
-       dark  ΔL .105, contrast 2.08 → 10.62:1, monotone, single hue
-       light ΔL .110, contrast 2.06 → 12.21:1
-     Both derived in-family: the published blue ramp bunches at the top
-     (blue-450→500 is ΔL .041) and fails the ordinal adjacency gate. */
+     These are published blue steps, chosen as the set that also clears
+     the ordinal gates — monotone lightness, adjacent ΔL ≥ .06, and the
+     surface-adjacent end still ≥ 2:1. On dark, more is brighter.
+       dark  blue-700 → blue-200
+       light blue-450 → blue-1000                                      */
   --heat-0: var(--backgrounds-page-bg-3);
-  --heat-1: #035591;  --heat-2: #0173c2;  --heat-3: #2b94eb;
-  --heat-4: #69b5fe;  --heat-5: #aed6fe;
+  --heat-1: var(--blue-700);  --heat-2: var(--blue-500);
+  --heat-3: var(--blue-400);  --heat-4: var(--blue-300);
+  --heat-5: var(--blue-200);
 
-  /* Failure share · sequential, red family, 4 steps. Red because the
-     quantity *is* failures — status semantics, not a series identity —
-     and graded because the segments are ordered biggest to smallest.
-       dark  ΔL .11, contrast 2.81 → 10.22:1
-       light ΔL .11, contrast 2.03 → 7.75:1                            */
-  --fail-1: #febfb4;  --fail-2: #fe8674;  --fail-3: #e05b4a;  --fail-4: #ba3728;
+  /* The stage strip on a run row · the same hue, held a step back from
+     the heatmap so the two grids never read as one scale. */
+  --stage-1: var(--blue-800);  --stage-2: var(--blue-600);
+  --stage-3: var(--blue-450);  --stage-4: var(--blue-300);
+
+  /* Red badge family · the library publishes blue, indigo, green, cyan
+     and light-green and no red, so this one pair is derived in exactly
+     the same key from the published red ramp: darkest step as ground,
+     mid step as stroke, light step as ink. */
+  --backgrounds-badge-red: #2b0a08;
+  --strokes-colour-red:    var(--red-900);
+  --text-coloured-red:     var(--red-400);
 
   /* Chart chrome. Solid hairlines, one step off the surface — never
      dashed: dashing reads as "projection" or "threshold" when it is
@@ -1926,10 +1933,16 @@ body { background: var(--backgrounds-page-bg-1); }
   --st-bad-mark:  var(--red-600);
   --st-warn-mark: #dd7c0e;
 
-  --heat-1: #75bafd;  --heat-2: #2f97ef;  --heat-3: #0575c4;
-  --heat-4: #035591;  --heat-5: #013761;
+  --heat-1: var(--blue-450);  --heat-2: var(--blue-600);
+  --heat-3: var(--blue-800);  --heat-4: var(--blue-900);
+  --heat-5: var(--blue-1000);
 
-  --fail-1: #fe9c8c;  --fail-2: #ef6856;  --fail-3: #c84435;  --fail-4: #a21c10;
+  --stage-1: var(--blue-300);  --stage-2: var(--blue-450);
+  --stage-3: var(--blue-600);  --stage-4: var(--blue-800);
+
+  --backgrounds-badge-red: var(--red-100);
+  --strokes-colour-red:    var(--red-300);
+  --text-coloured-red:     var(--red-600);
 
   --haze-op: .22;
 }
@@ -2033,31 +2046,37 @@ body { background: var(--backgrounds-page-bg-1); }
   font-variant-numeric: proportional-nums; }
 .mv-fact span { display: block; color: var(--text-teritiary); font-size: 12px; line-height: 16px; margin-top: 2px; }
 
-/* Segmented period control — the one filter each chart may carry, and
-   only because it changes the x-domain rather than the data slice. */
-.mv-seg2 {
-  display: inline-flex; padding: 2px; gap: 2px;
-  background: var(--backgrounds-page-bg-3); border-radius: var(--radius-md);
-}
-.mv-seg2 button {
-  height: 24px; padding: 0 9px; border: 0; border-radius: 6px; cursor: pointer;
-  background: transparent; color: var(--text-teritiary);
-  font-family: var(--font-geist); font-size: 12px; line-height: 16px;
-}
-.mv-seg2 button:hover { color: var(--text-secondary); }
-.mv-seg2 button[aria-pressed="true"] {
-  background: var(--backgrounds-page-bg-2); color: var(--text-primary);
-  box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,.12));
-}
-
 /* ══ 4 · STAT STRIP ═══════════════════════════════════════════════════
    One card, cells divided by hairlines. Peers separated by a rule read
    as one instrument; four bordered boxes read as four things. */
 .mv-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .mv-stat { padding: 16px 18px; min-width: 0; border-left: 1px solid var(--strokes-line-3); }
 .mv-stat:first-child { border-left: 0; }
-.mv-stat__top { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
-.mv-stat__top .cq-ic { color: var(--text-teritiary); flex: none; }
+.mv-stat__top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+
+/* The system's gradient tile, reused wherever this page names a thing:
+   a figure's subject in the strip, an automation in a run row. It is the
+   product's own colour device, so the page gets colour from the library
+   rather than from choices of its own. */
+.mv-tile {
+  --tile: 24px;
+  width: var(--tile); height: var(--tile); flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 7px; color: var(--white);
+}
+.mv-tile .cq-ic { width: 14px; height: 14px; }
+
+/* The library ships gradient tiles for blue, purple, indigo, orange,
+   green and teal — and teal is green-600 → green-500 → cyan-400, which
+   reads green. Two problems with that on this page: the automation whose
+   categorical slot is cyan would wear a green tile while its own segment
+   in the failure track stayed cyan, and a green identity tile sits one
+   step from the green "Success" status pill in the next column. So the
+   cyan tile is built in the published family's exact construction —
+   same angle, same three stops — from published cyan steps. */
+.mv-grad-cyan {
+  background-image: linear-gradient(225.24deg, var(--cyan-700) 8.84%, var(--cyan-500) 54.42%, var(--cyan-300) 100%);
+}
 .mv-stat__val {
   font-family: var(--font-geist); font-size: 30px; line-height: 36px; font-weight: 600;
   color: var(--text-primary); letter-spacing: -.01em;
@@ -2082,39 +2101,9 @@ body { background: var(--backgrounds-page-bg-1); }
 /* Every figure that sits in a column of figures. */
 .mv-num { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
 
-/* ══ 5 · PLOTS ════════════════════════════════════════════════════════ */
-
-.mv-plot { position: relative; width: 100%; }
-.mv-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
-.mv-plot text { font-family: var(--font-geist); fill: var(--plot-ink); font-size: 11px; }
-.mv-plot .mv-tick { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
-.mv-gridline { stroke: var(--plot-grid); stroke-width: 1; shape-rendering: crispEdges; }
-.mv-baseline { stroke: var(--plot-axis); stroke-width: 1; shape-rendering: crispEdges; }
-.mv-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.mv-haze { fill: none; stroke-width: 15; opacity: var(--haze-op); filter: blur(13px); }
-.mv-dot { r: 3.5; }
-/* A direct label sits on top of the curves it names, so it is painted
-   with a surface-coloured stroke *under* its own fill — the standard
-   halo. Without it the label competes with whatever line runs beneath. */
-.mv-plot .mv-peak {
-  paint-order: stroke fill;
-  stroke: var(--backgrounds-page-bg-2); stroke-width: 3.5px; stroke-linejoin: round;
-}
-/* Markers carry a 2px ring in the surface colour so they stay legible
-   where two series cross — the ring is the separator, not a border. */
-.mv-ring { fill: var(--backgrounds-page-bg-2); stroke-width: 2; }
-.mv-crosshair { stroke: var(--plot-axis); stroke-width: 1; shape-rendering: crispEdges; }
-.mv-hit { fill: transparent; cursor: crosshair; }
-
-/* Legend · always present at two or more series, and mirroring the mark:
-   a line-key for lines, a swatch for fills. */
-.mv-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
-.mv-legend__item { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; line-height: 16px; }
-.mv-legend__key { width: 14px; height: 3px; border-radius: 2px; flex: none; }
-.mv-legend__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.mv-legend__item.is-dim { opacity: .4; }
-
-/* Tooltip · values lead, series names follow. */
+/* ══ 5 · TOOLTIP ══════════════════════════════════════════════════════
+   Shared by the failure track, the stage strips and the heatmap cells.
+   Values lead, series names follow. */
 .mv-tip {
   position: fixed; z-index: 60; pointer-events: none; opacity: 0;
   transition: opacity .1s linear;
@@ -2137,7 +2126,6 @@ body { background: var(--backgrounds-page-bg-1); }
   font-size: 12px; line-height: 16px;
 }
 .mv-tip__rule { height: 1px; background: var(--strokes-line-3); margin: 7px -11px 0; }
-.mv-tip__tot { display: flex; gap: 8px; margin-top: 7px; }
 
 /* ══ 6 · SEGMENTED TRACK (part-to-whole) ══════════════════════════════
    One track, segments in the graded ramp, 2px surface gaps doing the
@@ -2158,7 +2146,7 @@ body { background: var(--backgrounds-page-bg-1); }
   cursor: default; transition: background .12s linear;
   margin: 0 -6px; padding-left: 6px; padding-right: 6px; border-radius: 4px;
 }
-.mv-row:hover { background: var(--backgrounds-card-bg-4); }
+.mv-row:hover, .mv-row.is-on { background: var(--backgrounds-card-bg-4); }
 .mv-row__sw { width: 10px; height: 10px; border-radius: 3px; }
 .mv-row__nm { color: var(--text-primary); font-size: var(--fs-body-3); line-height: var(--lh-body-3); }
 .mv-row__nm span { display: block; color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
@@ -2169,7 +2157,7 @@ body { background: var(--backgrounds-page-bg-1); }
 
 .mv-heat { display: flex; gap: 8px; }
 .mv-heat__dow {
-  display: grid; grid-template-rows: repeat(7, 20px); gap: 3px;
+  display: grid; grid-template-rows: repeat(var(--rows, 14), 16px); gap: 3px;
   padding-top: 21px; flex: none;
 }
 .mv-heat__dow span {
@@ -2187,7 +2175,7 @@ body { background: var(--backgrounds-page-bg-1); }
   color: var(--text-teritiary); white-space: nowrap;
 }
 .mv-heat__cell {
-  width: auto; height: 20px; border-radius: 3px; background: var(--heat-0);
+  width: auto; height: 16px; border-radius: 3px; background: var(--heat-0);
   cursor: default; transition: transform .1s ease;
 }
 .mv-heat__cell[data-lv="1"] { background: var(--heat-1); }
@@ -2237,33 +2225,60 @@ body { background: var(--backgrounds-page-bg-1); }
 }
 .mv-glyph { flex: none; }
 
-/* Status · a dot or glyph plus the word, never colour alone. */
-.mv-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; white-space: nowrap; }
-.mv-st i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
-.mv-st[data-s="ok"]   { color: var(--st-good); }
-.mv-st[data-s="ok"] i { background: var(--st-good-mark); }
-.mv-st[data-s="fail"]   { color: var(--st-bad); }
-.mv-st[data-s="fail"] i { background: var(--st-bad-mark); }
-.mv-st[data-s="run"]   { color: var(--text-coloured-blue); }
-.mv-st[data-s="run"] i { background: var(--text-coloured-blue); animation: mv-pulse 1.4s ease-in-out infinite; }
+/* Status · the system's own pill, tinted ground and coloured ink from
+   the published badge families, and always a glyph or dot beside the
+   word so state never rests on colour alone. The pill's tinted ground is
+   also what makes the library's coloured ink legible — those steps are
+   picked to sit on their badge fill, not on a bare card. */
+.mv-st { height: 22px; gap: 5px; padding: 0 8px 0 6px; border: 1px solid transparent; }
+.mv-st .cq-ic { width: 13px; height: 13px; }
+.mv-st[data-tone="green"] {
+  background: var(--backgrounds-badge-green); border-color: var(--strokes-colour-green);
+  color: var(--text-coloured-green);
+}
+.mv-st[data-tone="blue"] {
+  background: var(--backgrounds-badge-blue); border-color: var(--strokes-colour-blue);
+  color: var(--text-coloured-blue);
+}
+.mv-st[data-tone="red"] {
+  background: var(--backgrounds-badge-red); border-color: var(--strokes-colour-red);
+  color: var(--text-coloured-red);
+}
+.mv-st__live { width: 7px; height: 7px; animation: mv-pulse 1.4s ease-in-out infinite; }
+
+/* Orange has no published badge family either; the tag borrows the
+   ramp's own text step, which is what the tinted tag variants do. */
+.mv-tag { height: 18px; }
+.mv-tag--orange { color: var(--st-warn); border-color: var(--st-warn); }
+
+.mv-ago { color: var(--text-teritiary); font-size: 12px; }
 
 /* Stage strip · where a run's duration went, in one 6px bar. A number
    ("4.2s") says how long; this says which stage owned it. */
 .mv-stages { display: flex; gap: 2px; height: 6px; width: 100%; min-width: 40px; }
 .mv-stages__s { border-radius: 2px; min-width: 2px; }
-.mv-stages__s:nth-child(1) { background: var(--heat-2); }
-.mv-stages__s:nth-child(2) { background: var(--heat-3); }
-.mv-stages__s:nth-child(3) { background: var(--heat-4); }
-.mv-stages__s:nth-child(4) { background: var(--heat-5); }
+.mv-stages__s:nth-child(1) { background: var(--stage-1); }
+.mv-stages__s:nth-child(2) { background: var(--stage-2); }
+.mv-stages__s:nth-child(3) { background: var(--stage-3); }
+.mv-stages__s:nth-child(4) { background: var(--stage-4); }
 .mv-stages--fail .mv-stages__s:last-child { background: var(--st-bad-mark); }
 
 /* ══ 9 · APPROVAL TILES ═══════════════════════════════════════════════ */
 
 .mv-appr { display: flex; flex-direction: column; gap: 8px; }
 .mv-appr__t {
+  --accent: var(--strokes-line-1);
+  position: relative; overflow: hidden;
   border: 1px solid var(--strokes-line-3); border-radius: var(--radius-md);
-  padding: 11px 12px; display: flex; flex-direction: column; gap: 7px;
+  padding: 11px 12px 11px 14px; display: flex; flex-direction: column; gap: 8px;
   transition: border-color .12s linear, background .12s linear;
+}
+/* A 3px rule in the automation's own hue: the same colour its runs wear
+   in the table above, so a checkpoint is visibly traceable to its source
+   without reading a word. */
+.mv-appr__t::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--accent);
 }
 .mv-appr__t:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-1); }
 .mv-appr__top { display: flex; align-items: center; gap: 8px; }
@@ -2271,7 +2286,17 @@ body { background: var(--backgrounds-page-bg-1); }
   font-size: var(--fs-body-3); line-height: var(--lh-body-3); color: var(--text-primary);
   font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
-.mv-appr__wait { margin-left: auto; flex: none; font-size: 12px; }
+.mv-appr__wait {
+  margin-left: auto; flex: none; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 4px;
+  color: var(--text-teritiary);
+}
+.mv-appr__wait .cq-ic { width: 13px; height: 13px; }
+/* Only the wait time escalates, so it carries the tile's one status
+   colour — with a clock glyph beside it, never colour alone. */
+.mv-appr__wait[data-tone="warn"] { color: var(--st-warn); }
+.mv-appr__wait[data-tone="bad"]  { color: var(--st-bad); }
+.mv-appr__who { color: var(--text-teritiary); }
 .mv-appr__meta { display: flex; align-items: center; gap: 8px; color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
 .mv-appr__acts { display: flex; gap: 6px; }
 
@@ -2482,15 +2507,11 @@ body { background: var(--backgrounds-page-bg-1); }
      round caps, no fills. -->
 <svg class="sprite" aria-hidden="true">
   <symbol id="i-arrow-down" viewBox="0 0 12 12"><path d="M6 2.5v7M2.9 6.4 6 9.5l3.1-3.1" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-  <symbol id="i-flat" viewBox="0 0 12 12"><path d="M2.5 6h7" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
   <symbol id="i-filter" viewBox="0 0 16 16"><path d="M2.6 4h10.8M4.6 8h6.8M6.6 12h2.8" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
-  <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.3 7.3a5.3 5.3 0 1 0-1.6 4.2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M13.4 3.6v3.7h-3.6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-zap" viewBox="0 0 16 16"><path d="M9.1 1.9 3.8 9.1h3.4l-.5 5 5.4-7.2H8.7l.4-5Z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></symbol>
   <symbol id="i-gauge" viewBox="0 0 16 16"><path d="M2.6 12a6.2 6.2 0 1 1 10.8 0" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M8 8.6 10.8 6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
-  <symbol id="i-pct" viewBox="0 0 16 16"><circle cx="5.1" cy="5.1" r="1.9" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="10.9" cy="10.9" r="1.9" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M12.4 3.6 3.6 12.4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
   <symbol id="i-shield" viewBox="0 0 16 16"><path d="M8 1.9 3.3 3.6v4.1c0 2.7 1.9 5.1 4.7 6.4 2.8-1.3 4.7-3.7 4.7-6.4V3.6L8 1.9Z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M5.9 7.9 7.4 9.5l2.8-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-grid" viewBox="0 0 16 16"><rect x="2.4" y="2.4" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="9" y="2.4" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="2.4" y="9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="9" y="9" width="4.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
-  <symbol id="i-split" viewBox="0 0 16 16"><path d="M2.4 8h11.2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M5.6 4.4 2 8l3.6 3.6M10.4 4.4 14 8l-3.6 3.6" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </svg>
 
 <!-- ══ Platform rail — monitoring only ══════════════════════════════════
@@ -2592,59 +2613,18 @@ body { background: var(--backgrounds-page-bg-1); }
               <!-- ── The five headline figures ──────────────────────────
                    One card, hairline-divided. Four bordered boxes spend
                    four borders saying "these are peers"; three hairlines
-                   say it and leave the figures the loudest thing. -->
+                   say it and leave the figures the loudest thing. Each
+                   cell wears one of the system's gradient tiles, so the
+                   row's colour comes from the library. -->
               <section class="mv-card mv-span-12" aria-label="Today at a glance">
                 <div class="mv-strip" id="mvStrip"></div>
               </section>
 
-              <!-- ── Hero chart · volume over error rate ────────────────
-                   Two panels sharing one x domain, each with its own y.
-                   v1 put both measures on one plot with two y-scales,
-                   which invents a correlation out of an arbitrary
-                   alignment of the two scales. -->
-              <section class="mv-card mv-span-8" aria-label="Executions and error rate">
-                <div class="mv-card__head">
-                  <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-chart"/></svg>
-                  <span class="mv-eyebrow">Executions per hour</span>
-                  <div class="mv-head-right">
-                    <div class="mv-legend" id="mvVolLegend"></div>
-                    <div class="mv-seg2" id="mvVolPeriod" role="group" aria-label="Range">
-                      <button type="button" aria-pressed="true">24h</button>
-                      <button type="button" aria-pressed="false">7d</button>
-                      <button type="button" aria-pressed="false">30d</button>
-                    </div>
-                  </div>
-                </div>
-                <div class="mv-card__body">
-                  <div class="mv-plot" id="mvVolPlot"></div>
-                </div>
-              </section>
-
-              <!-- ── Failure share ─────────────────────────────────────
-                   A segmented track, not a donut: four shares this close
-                   together are not readable as arcs, and the rows below
-                   carry the counts a ring would hide in a tooltip. -->
-              <section class="mv-card mv-span-4" aria-label="Where failures came from">
-                <div class="mv-card__head">
-                  <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-alert"/></svg>
-                  <span class="mv-eyebrow">Failure share</span>
-                  <div class="mv-head-right">
-                    <span class="mv-eyebrow" id="mvFailNote"></span>
-                  </div>
-                </div>
-                <div class="mv-card__body">
-                  <div class="mv-track" id="mvFailTrack"></div>
-                  <div class="mv-rows" id="mvFailRows"></div>
-                  <div class="mv-facts" id="mvFailFacts"></div>
-                </div>
-                <div class="mv-card__foot">
-                  <button class="mv-link" type="button">Open failure report</button>
-                </div>
-              </section>
-
-              <!-- ── Live executions ───────────────────────────────────
-                   The stage strip is the new column: a duration says how
-                   long a run took, the strip says which stage owned it. -->
+              <!-- ── The two lists lead ─────────────────────────────────
+                   These are what an operator came to act on: what is
+                   running right now, and what is waiting on them. They
+                   sit directly under the figures; everything below is
+                   context you read after acting. -->
               <section class="mv-card mv-span-8" aria-label="Live executions">
                 <div class="mv-card__head">
                   <span class="mv-live-dot" aria-hidden="true"></span>
@@ -2654,7 +2634,7 @@ body { background: var(--backgrounds-page-bg-1); }
                   </div>
                 </div>
                 <div class="mv-card__body mv-card__body--flush">
-                  <div class="mv-tbl" style="--mv-cols: minmax(150px,1.5fr) 96px minmax(74px,1fr) 62px 62px 74px 66px">
+                  <div class="mv-tbl" style="--mv-cols: minmax(170px,1.5fr) 108px minmax(70px,1fr) 60px 60px 72px 66px">
                     <div class="mv-thead" role="row">
                       <span>Automation</span>
                       <span>Status</span>
@@ -2673,12 +2653,11 @@ body { background: var(--backgrounds-page-bg-1); }
                 </div>
               </section>
 
-              <!-- ── Checkpoints waiting on a human ───────────────────── -->
               <section class="mv-card mv-span-4" aria-label="Human checkpoints">
                 <div class="mv-card__head">
                   <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-shield"/></svg>
-                  <span class="mv-eyebrow">Awaiting approval</span>
-                  <div class="mv-head-right"><span class="mv-eyebrow">4 of 12</span></div>
+                  <span class="mv-eyebrow">Awaiting your approval</span>
+                  <div class="mv-head-right"><span class="cq-badge" data-tone="blue">4 of 12</span></div>
                 </div>
                 <div class="mv-card__body">
                   <div class="mv-appr" id="mvApprList"></div>
@@ -2688,15 +2667,39 @@ body { background: var(--backgrounds-page-bg-1); }
                 </div>
               </section>
 
+              <!-- ── Failure share ─────────────────────────────────────
+                   A segmented track, not a donut: four shares this close
+                   together are not readable as arcs, and the rows below
+                   carry the counts a ring would hide in a tooltip. The
+                   segments wear each automation's own hue — the same one
+                   its runs wear in the table above. -->
+              <section class="mv-card mv-span-4" aria-label="Where failures came from">
+                <div class="mv-card__head">
+                  <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16" style="color:var(--st-warn)"><use href="#i-alert"/></svg>
+                  <span class="mv-eyebrow">Failure share</span>
+                  <div class="mv-head-right">
+                    <span class="mv-eyebrow" id="mvFailNote"></span>
+                  </div>
+                </div>
+                <div class="mv-card__body">
+                  <div class="mv-track" id="mvFailTrack"></div>
+                  <div class="mv-rows" id="mvFailRows"></div>
+                  <div class="mv-facts" id="mvFailFacts"></div>
+                </div>
+                <div class="mv-card__foot">
+                  <button class="mv-link" type="button">Open failure report</button>
+                </div>
+              </section>
+
               <!-- ── When runs happen ──────────────────────────────────
                    Weekday × hour. A grid of magnitudes is exactly what a
-                   heatmap is for, on a one-hue sequential ramp; the two
-                   red cells are a state, not a magnitude, so they leave
-                   the ramp. -->
-              <section class="mv-card mv-span-12" aria-label="Executions by weekday and hour">
+                   heatmap is for, on a one-hue sequential ramp of
+                   published blue steps; the two red cells are a state,
+                   not a magnitude, so they leave the ramp. -->
+              <section class="mv-card mv-span-8" aria-label="Executions by day and hour">
                 <div class="mv-card__head">
                   <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-grid"/></svg>
-                  <span class="mv-eyebrow">When runs happen · last 7 days</span>
+                  <span class="mv-eyebrow">When runs happen · last 14 days</span>
                   <div class="mv-head-right">
                     <span class="mv-scale" id="mvHeatScale"></span>
                     <span class="mv-scale"><i style="background:var(--st-bad-mark)"></i>Incident</span>
@@ -2738,32 +2741,19 @@ body { background: var(--backgrounds-page-bg-1); }
 /* ══════════════════════════════════════════════════════════════════════
    MONITORING v2 · Activity
    ──────────────────────────────────────────────────────────────────────
-   Charts are hand-drawn inline SVG — no library. Every renderer sizes
-   itself off its host's measured width, so nothing is drawn while its
-   pane is hidden (a hidden pane has no width to scale against) and
-   everything redraws on resize and after the webfont swaps in.
+   The two lists lead. Live executions and the checkpoints waiting on a
+   human are what an operator opens this page to act on, so they sit
+   directly under the figures; the failure breakdown and the heatmap are
+   context you read after acting, and follow.
 
-   Why each form is what it is — the reasoning, not just the result:
+   Colour follows the entity, not the chart. Each automation owns one
+   published Cogentiq hue — slot 1..4 — and wears it everywhere it
+   appears: its tile in the run table, its segment in the failure track,
+   its accent on a checkpoint tile. So "the orange one" means Lead router
+   on every card, and removing a series never repaints the survivors.
 
-   · Executions over time → smooth multi-line, one line per automation.
-     Identity is the job (which automation is moving), so this is the
-     one categorical chart on the page, capped at 4 series.
-   · Error rate → its own panel under the volume plot, sharing the x
-     domain. v1 drew volume and error rate on one plot with two y-scales;
-     the alignment of two scales is arbitrary, so such a chart invents a
-     correlation. Two stacked panels, one y each, say the same thing
-     honestly.
-   · Failure share → one segmented track + rows, not a donut. A ring is
-     only readable at a glance, and these four shares sit close together.
-   · When runs happen → heatmap. A grid of magnitudes is what a heatmap
-     is for, and a sequential one-hue ramp is the safe encoding.
-   · Duration → a stage strip per row, not another number. "4.2s" says
-     how long; the strip says which stage owned it.
-   · The five headline figures → a stat strip. A single value is a
-     figure, never a one-bar bar chart.
-
-   Every value a tooltip shows is also on the page without hovering —
-   axis ticks, direct labels, or the row it belongs to.
+   Everything a tooltip shows is also on the page without hovering, in a
+   row, a legend or a scale.
    ══════════════════════════════════════════════════════════════════════ */
 (function () {
 'use strict';
@@ -2783,17 +2773,22 @@ function rng(seed) {
 var HOURS = 24;
 var hourLabel = function (h) { return String(h).padStart(2, '0') + ':00'; };
 
-/* Four automations — slots 1..4 in fixed order. A 5th would fold into
-   "Other" rather than take a generated hue. */
+/* The four automations and the hue each one owns. `grad` is the system's
+   gradient-tile class for that automation's icon; `tone` is the
+   published badge family nearest the same hue. Orange has no badge
+   family in the library, hence the null — and cyan has no gradient tile,
+   hence the one mv-grad-* class, built in the library's own key. */
 var SERIES = [
-  { key: 'invoice',  name: 'Invoice sync',      slot: 1, base: 50, amp: 20, seed: 11 },
-  { key: 'lead',     name: 'Lead router',       slot: 2, base: 37, amp: 16, seed: 23 },
-  { key: 'doc',      name: 'Doc extraction',    slot: 3, base: 27, amp: 13, seed: 37 },
-  { key: 'onboard',  name: 'Onboarding bot',    slot: 4, base: 18, amp: 9,  seed: 51 }
+  { key: 'invoice', name: 'Invoice sync',   slot: 1, grad: 'cq-grad-blue',   tone: 'blue',   base: 50, amp: 20, seed: 11 },
+  { key: 'lead',    name: 'Lead router',    slot: 2, grad: 'cq-grad-orange', tone: null,     base: 37, amp: 16, seed: 23 },
+  { key: 'doc',     name: 'Doc extraction', slot: 3, grad: 'cq-grad-indigo', tone: 'indigo', base: 27, amp: 13, seed: 37 },
+  { key: 'onboard', name: 'Onboarding bot', slot: 4, grad: 'mv-grad-cyan',   tone: 'cyan',   base: 18, amp: 9,  seed: 51 }
 ];
+var BY_KEY = {};
+SERIES.forEach(function (s) { BY_KEY[s.key] = s; });
 
 /* A working-day shape: quiet overnight, a morning ramp, an afternoon
-   peak. Shared by every series so the curves read as one workload. */
+   peak. Shared by every series so the day reads as one workload. */
 function dayShape(h) {
   if (h < 5) return 0.22;
   if (h < 9) return 0.22 + (h - 5) * 0.17;
@@ -2807,12 +2802,12 @@ SERIES.forEach(function (s) {
   var r = rng(s.seed);
   s.vals = [];
   for (var h = 0; h < HOURS; h++) {
-    var v = s.base * dayShape(h) + (r() - 0.45) * s.amp;
-    s.vals.push(Math.max(0, Math.round(v)));
+    s.vals.push(Math.max(0, Math.round(s.base * dayShape(h) + (r() - 0.45) * s.amp)));
   }
 });
 
-/* Error rate, in percent — one series, its own panel. */
+/* Error rate per hour. No longer plotted, but still the source of the
+   day's failure count, so every figure stays derived rather than typed. */
 var ERR = (function () {
   var r = rng(97), out = [];
   for (var h = 0; h < HOURS; h++) {
@@ -2825,21 +2820,18 @@ var ERR = (function () {
 var totalExec = SERIES.reduce(function (a, s) {
   return a + s.vals.reduce(function (x, y) { return x + y; }, 0);
 }, 0);
-/* Failures derived from the same arrays, so the strip, the error panel
-   and the failure card can never disagree. */
 var totalFail = (function () {
   var f = 0;
   for (var h = 0; h < HOURS; h++) {
-    var hourTotal = SERIES.reduce(function (a, s) { return a + s.vals[h]; }, 0);
-    f += hourTotal * ERR[h] / 100;
+    f += SERIES.reduce(function (a, s) { return a + s.vals[h]; }, 0) * ERR[h] / 100;
   }
   return Math.round(f);
 })();
+var peakErr = Math.max.apply(null, ERR);
 
 /* ── Small helpers ────────────────────────────────────────────────────
-   Every insertion of a name or label goes through text(), never an
-   innerHTML string: series and automation names are data, and data is
-   never markup. */
+   Every name and label goes in through text(), never an innerHTML
+   string: automation names are data, and data is never markup. */
 function el(tag, attrs, parent) {
   var n = document.createElementNS(svgNS, tag);
   if (attrs) for (var k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
@@ -2854,57 +2846,26 @@ function html(tag, cls, parent) {
 }
 function text(node, str) { node.appendChild(document.createTextNode(String(str))); return node; }
 function icon(parent, id, size) {
-  var s = el('svg', { class: 'cq-ic', width: size || 16, height: size || 16, viewBox: '0 0 ' + (size || 16) + ' ' + (size || 16) }, parent);
+  var s = el('svg', { class: 'cq-ic', width: size || 16, height: size || 16,
+    viewBox: '0 0 ' + (size || 16) + ' ' + (size || 16) }, parent);
   el('use', { href: '#' + id }, s);
   return s;
+}
+/* A gradient tile with a glyph on it — the rail's own device, reused at
+   the sizes this page needs. */
+function tile(parent, grad, iconId, size) {
+  var t = html('span', 'mv-tile ' + grad, parent);
+  if (size) t.style.setProperty('--tile', size + 'px');
+  icon(t, iconId, 14);
+  return t;
 }
 var fmt = function (n) { return n.toLocaleString('en-US'); };
 var pct = function (n, d) { return n.toFixed(d === undefined ? 1 : d) + '%'; };
 var cat = function (slot) { return 'var(--cat-' + slot + ')'; };
 
-/* Monotone cubic through the points — a smooth curve that never
-   overshoots into a value the data does not contain, which a plain
-   cardinal spline will happily do (and then reads as a dip that isn't
-   there). */
-function mono(pts) {
-  var n = pts.length;
-  if (n < 2) return '';
-  if (n === 2) return 'M' + pts[0][0] + ',' + pts[0][1] + 'L' + pts[1][0] + ',' + pts[1][1];
-  var dx = [], dy = [], m = [], i;
-  for (i = 0; i < n - 1; i++) { dx.push(pts[i + 1][0] - pts[i][0]); dy.push(pts[i + 1][1] - pts[i][1]); }
-  var slope = dx.map(function (d, k) { return d ? dy[k] / d : 0; });
-  m.push(slope[0]);
-  for (i = 1; i < n - 1; i++) {
-    if (slope[i - 1] * slope[i] <= 0) m.push(0);
-    else {
-      var w1 = 2 * dx[i] + dx[i - 1], w2 = dx[i] + 2 * dx[i - 1];
-      m.push((w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i]));
-    }
-  }
-  m.push(slope[n - 2]);
-  var d = 'M' + pts[0][0] + ',' + pts[0][1];
-  for (i = 0; i < n - 1; i++) {
-    var h = dx[i];
-    d += 'C' + (pts[i][0] + h / 3) + ',' + (pts[i][1] + m[i] * h / 3) +
-         ' ' + (pts[i + 1][0] - h / 3) + ',' + (pts[i + 1][1] - m[i + 1] * h / 3) +
-         ' ' + pts[i + 1][0] + ',' + pts[i + 1][1];
-  }
-  return d;
-}
-
-/* Clean axis ticks — 0 / 10 / 20, never 0 / 8.33 / 16.67. */
-function ticks(max, count) {
-  var raw = max / count, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
-  var stepN = norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1;
-  var step = stepN * mag, out = [];
-  for (var v = 0; v <= max + step * 0.001; v += step) out.push(+v.toFixed(6));
-  return out;
-}
-
 /* ── Tooltip ──────────────────────────────────────────────────────────
-   One node for the whole page. Values lead and labels follow: the
-   reader already knows which series they are pointing at and wants the
-   number, which is the legend's hierarchy inverted. */
+   One node for the page. Values lead and names follow — the reader
+   already knows what they are pointing at and wants the number. */
 var tip = $('mvTip');
 function tipShow(x, y, headStr, rows, foot) {
   while (tip.firstChild) tip.removeChild(tip.firstChild);
@@ -2922,8 +2883,6 @@ function tipShow(x, y, headStr, rows, foot) {
     text(html('span', 'mv-tip__v', f), foot.value);
   }
   tip.classList.add('is-on');
-  /* Place it clear of the pointer, then pull it back inside the viewport
-     rather than letting it run off the right or bottom edge. */
   var r = tip.getBoundingClientRect();
   var left = x + 14, top = y - r.height / 2;
   if (left + r.width > innerWidth - 8) left = x - r.width - 14;
@@ -2933,17 +2892,21 @@ function tipShow(x, y, headStr, rows, foot) {
 }
 function tipHide() { tip.classList.remove('is-on'); }
 
-/* ══ 1 · STAT STRIP ═══════════════════════════════════════════════════ */
+/* ══ 1 · STAT STRIP ═══════════════════════════════════════════════════
+   Each figure takes one of the system's gradient tiles, so the row
+   carries the product's colour instead of five grey glyphs. The tile hue
+   is the figure's *subject*; sentiment is the delta's colour right
+   underneath, and the two are never confused. */
 var STATS = [
-  { icon: 'i-zap',    label: 'Executions today', value: fmt(totalExec),
+  { grad: 'cq-grad-blue',   icon: 'i-zap',    label: 'Executions today', value: fmt(totalExec),
     delta: '12.4%', dir: 'good', vs: 'vs yesterday' },
-  { icon: 'i-check',  label: 'Success rate',
+  { grad: 'cq-grad-green',  icon: 'i-check',  label: 'Success rate',
     value: pct(100 - totalFail / totalExec * 100), delta: '0.4pp', dir: 'good', vs: 'vs yesterday' },
-  { icon: 'i-alert',  label: 'Failed runs', value: fmt(totalFail),
+  { grad: 'cq-grad-orange', icon: 'i-alert',  label: 'Failed runs', value: fmt(totalFail),
     delta: '6', dir: 'good', down: true, vs: 'vs yesterday' },
-  { icon: 'i-gauge',  label: 'Median duration', value: '4.2', unit: 's',
+  { grad: 'cq-grad-indigo', icon: 'i-gauge',  label: 'Median duration', value: '4.2', unit: 's',
     delta: '0.3s', dir: 'bad', vs: 'vs 7-day median' },
-  { icon: 'i-dollar', label: 'Cost today', value: '$127.40',
+  { grad: 'cq-grad-purple', icon: 'i-dollar', label: 'Cost today', value: '$127.40',
     delta: '8.1%', dir: 'bad', vs: 'vs yesterday' }
 ];
 
@@ -2952,7 +2915,7 @@ function renderStrip() {
   STATS.forEach(function (s) {
     var cell = html('div', 'mv-stat', host);
     var top = html('div', 'mv-stat__top', cell);
-    icon(top, s.icon, 14);
+    tile(top, s.grad, s.icon);
     text(html('span', 'mv-eyebrow', top), s.label);
 
     var val = html('div', 'mv-stat__val', cell);
@@ -2962,211 +2925,152 @@ function renderStrip() {
     var foot = html('div', 'mv-stat__foot', cell);
     var d = html('span', 'mv-delta', foot);
     d.dataset.dir = s.dir;
-    /* The arrow is the direction the number moved; the colour is whether
+    /* The arrow is which way the number moved; the colour is whether
        that direction is good here. Fewer failures is an arrow down and
-       still green — the two channels are not the same thing. */
-    var up = s.down ? false : (s.dir === 'good' ? true : true);
-    if (s.down) up = false;
-    icon(d, up ? 'i-arrow-up' : 'i-arrow-down', 12).setAttribute('viewBox', '0 0 12 12');
+       still green — two channels, two meanings. */
+    icon(d, s.down ? 'i-arrow-down' : 'i-arrow-up', 12).setAttribute('viewBox', '0 0 12 12');
     text(html('span', null, d), s.delta);
     text(html('span', 'mv-delta__vs', foot), s.vs);
   });
 }
 
-/* ══ 2 · VOLUME + ERROR RATE (one card, two panels, shared x) ═════════ */
-var focusKey = null;   /* legend hover → emphasis */
-
-function drawVolume() {
-  var host = $('mvVolPlot');
-  if (!host) return;
-  var W = host.clientWidth;
-  if (W < 80) return;
-
-  var padL = 46, padR = 20, padT = 22;
-  var volH = 200, gapH = 34, errH = 74, axisH = 22;
-  var H = padT + volH + gapH + errH + axisH;
-  var plotW = W - padL - padR;
-
-  var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img',
-    'aria-label': 'Executions per hour by automation, with error rate below, last 24 hours' });
-
-  /* The haze is a blurred copy of each line; clip it so a 13px blur
-     cannot bleed out over the card's padding and pick up its edge. */
-  var defs = el('defs', null, svg);
-  var clip = el('clipPath', { id: 'mvVolClip' }, defs);
-  el('rect', { x: padL - 10, y: padT - 10, width: plotW + 20, height: volH + 20 }, clip);
-
-  var maxV = 0;
-  SERIES.forEach(function (s) { s.vals.forEach(function (v) { if (v > maxV) maxV = v; }); });
-  var tk = ticks(maxV * 1.12, 4), top = tk[tk.length - 1];
-  var x = function (i) { return padL + (plotW * i) / (HOURS - 1); };
-  var yV = function (v) { return padT + volH - (v / top) * volH; };
-
-  /* Grid — solid hairlines, one step off the surface. */
-  tk.forEach(function (t) {
-    el('line', { class: 'mv-gridline', x1: padL, x2: padL + plotW, y1: yV(t), y2: yV(t) }, svg);
-    var lb = el('text', { class: 'mv-tick', x: padL - 9, y: yV(t) + 4, 'text-anchor': 'end' }, svg);
-    text(lb, fmt(t));
-  });
-
-  var hazeG = el('g', { 'clip-path': 'url(#mvVolClip)' }, svg);
-  var lineG = el('g', null, svg);
-  var labelG = el('g', null, svg);
-
-  SERIES.forEach(function (s) {
-    var pts = s.vals.map(function (v, i) { return [x(i), yV(v)]; });
-    var d = mono(pts);
-    s._d = d; s._pts = pts;
-    el('path', { class: 'mv-haze', d: d, stroke: cat(s.slot) }, hazeG);
-    s._line = el('path', { class: 'mv-line', d: d, stroke: cat(s.slot) }, lineG);
-  });
-
-  /* Direct labels · each series at its own peak. End labels would all
-     land in the same 40px at the right edge, where these four lines
-     converge; a peak is a distinct x per series, so identity is direct
-     without a single label having to be nudged off its own line. */
-  var placed = [];
-  SERIES.forEach(function (s) {
-    var peakV = Math.max.apply(null, s.vals), pi = s.vals.indexOf(peakV);
-    var lx = x(pi), ly = yV(peakV) - 11;
-    var halfW = s.name.length * 3.3;
-    /* Keep it inside the plot and off any label already placed. */
-    lx = Math.max(padL + halfW, Math.min(lx, padL + plotW - halfW));
-    for (var guard = 0; guard < 4; guard++) {
-      var clash = placed.some(function (q) {
-        return Math.abs(q.x - lx) < halfW + q.halfW && Math.abs(q.y - ly) < 13;
-      });
-      if (!clash) break;
-      ly -= 14;
-    }
-    if (ly < padT + 8) ly = padT + 8;
-    placed.push({ x: lx, y: ly, halfW: halfW });
-    el('circle', { class: 'mv-ring', cx: x(pi), cy: yV(peakV), r: 4, stroke: cat(s.slot) }, labelG);
-    var t = el('text', { class: 'mv-peak', x: lx, y: ly, 'text-anchor': 'middle',
-      fill: 'var(--text-secondary)', 'font-weight': 500 }, labelG);
-    text(t, s.name);
-    s._label = t;
-  });
-
-  /* ── Error-rate panel · own y axis, same x ── */
-  var errTop = padT + volH + gapH;
-  var maxE = Math.max.apply(null, ERR);
-  var eTop = Math.ceil(maxE / 2) * 2, etk = [];
-  for (var ev = 0; ev <= eTop; ev += 2) etk.push(ev);
-  var yE = function (v) { return errTop + errH - (v / eTop) * errH; };
-
-  var sep = el('text', { x: padL, y: errTop - 9, class: 'mv-tick', fill: 'var(--text-teritiary)' }, svg);
-  text(sep, 'Error rate  ·  %');
-
-  etk.forEach(function (t) {
-    if (t === 0) return;
-    el('line', { class: 'mv-gridline', x1: padL, x2: padL + plotW, y1: yE(t), y2: yE(t) }, svg);
-    var lb = el('text', { class: 'mv-tick', x: padL - 9, y: yE(t) + 4, 'text-anchor': 'end' }, svg);
-    text(lb, t);
-  });
-  el('line', { class: 'mv-baseline', x1: padL, x2: padL + plotW, y1: yE(0), y2: yE(0) }, svg);
-
-  var ePts = ERR.map(function (v, i) { return [x(i), yE(v)]; });
-  var eD = mono(ePts);
-  /* A single series wants a fill for weight, at a wash — never a
-     saturated block. */
-  var grad = el('linearGradient', { id: 'mvErrFill', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: '0%', 'stop-color': 'var(--st-bad-mark)', 'stop-opacity': .22 }, grad);
-  el('stop', { offset: '100%', 'stop-color': 'var(--st-bad-mark)', 'stop-opacity': .02 }, grad);
-  el('path', { d: eD + 'L' + x(HOURS - 1) + ',' + yE(0) + 'L' + x(0) + ',' + yE(0) + 'Z',
-    fill: 'url(#mvErrFill)', stroke: 'none' }, svg);
-  el('path', { class: 'mv-line', d: eD, stroke: 'var(--st-bad-mark)' }, svg);
-
-  /* The one direct label the panel needs: the peak. */
-  var peak = ERR.indexOf(maxE);
-  el('circle', { class: 'mv-ring', cx: x(peak), cy: yE(maxE), r: 4, stroke: 'var(--st-bad-mark)' }, svg);
-  var pl = el('text', { x: x(peak), y: yE(maxE) - 10, 'text-anchor': 'middle',
-    fill: 'var(--st-bad)', 'font-weight': 600 }, svg);
-  text(pl, pct(maxE));
-
-  /* ── x axis, under the lower panel only ── */
-  for (var h = 0; h < HOURS; h += 4) {
-    var t2 = el('text', { class: 'mv-tick', x: x(h), y: errTop + errH + 16,
-      'text-anchor': h === 0 ? 'start' : 'middle' }, svg);
-    text(t2, hourLabel(h));
-  }
-
-  /* ── Crosshair layer ──
-     The reader aims at an hour, never at a 2px line, so the hit area is
-     the whole plot and the crosshair snaps to the nearest hour. */
-  var cross = el('g', { opacity: 0 }, svg);
-  var cLine = el('line', { class: 'mv-crosshair', y1: padT, y2: errTop + errH }, cross);
-  var cDots = SERIES.map(function (s) {
-    return el('circle', { class: 'mv-ring', r: 4.5, stroke: cat(s.slot) }, cross);
-  });
-  var cErr = el('circle', { class: 'mv-ring', r: 4, stroke: 'var(--st-bad-mark)' }, cross);
-
-  var hit = el('rect', { class: 'mv-hit', x: padL - 12, y: padT - 8,
-    width: plotW + 24, height: volH + gapH + errH + 8 }, svg);
-
-  function at(ev) {
-    var box = svg.getBoundingClientRect();
-    var scale = W / box.width;
-    var px = (ev.clientX - box.left) * scale;
-    var i = Math.round(((px - padL) / plotW) * (HOURS - 1));
-    return Math.max(0, Math.min(HOURS - 1, i));
-  }
-  function move(ev) {
-    var i = at(ev);
-    cross.setAttribute('opacity', 1);
-    cLine.setAttribute('x1', x(i)); cLine.setAttribute('x2', x(i));
-    SERIES.forEach(function (s, k) {
-      cDots[k].setAttribute('cx', x(i)); cDots[k].setAttribute('cy', yV(s.vals[i]));
-    });
-    cErr.setAttribute('cx', x(i)); cErr.setAttribute('cy', yE(ERR[i]));
-    var rows = SERIES.map(function (s) {
-      return { color: cat(s.slot), name: s.name, value: fmt(s.vals[i]) };
-    });
-    rows.push({ color: 'var(--st-bad-mark)', name: 'Error rate', value: pct(ERR[i], 2) });
-    var tot = SERIES.reduce(function (a, s) { return a + s.vals[i]; }, 0);
-    tipShow(ev.clientX, ev.clientY, hourLabel(i) + ' – ' + hourLabel((i + 1) % 24),
-      rows, { name: 'Total runs', value: fmt(tot) });
-  }
-  hit.addEventListener('pointermove', move);
-  hit.addEventListener('pointerleave', function () { cross.setAttribute('opacity', 0); tipHide(); });
-
-  host.replaceChildren(svg);
-  applyFocus();
-}
-
-/* Legend hover → emphasis. One series in its own hue, the rest dimmed:
-   the most underused form, and the honest answer to "which line is
-   Lead router". */
-function applyFocus() {
-  SERIES.forEach(function (s) {
-    var on = !focusKey || focusKey === s.key;
-    if (s._line) s._line.style.opacity = on ? 1 : 0.18;
-    if (s._label) s._label.style.opacity = on ? 1 : 0.3;
-  });
-  document.querySelectorAll('#mvVolLegend .mv-legend__item').forEach(function (it) {
-    it.classList.toggle('is-dim', !!focusKey && it.dataset.key !== focusKey);
-  });
-}
-
-function renderVolLegend() {
-  var host = $('mvVolLegend');
-  SERIES.forEach(function (s) {
-    var it = html('span', 'mv-legend__item', host);
-    it.dataset.key = s.key;
-    html('i', 'mv-legend__key', it).style.background = cat(s.slot);
-    text(it, s.name);
-    it.addEventListener('pointerenter', function () { focusKey = s.key; applyFocus(); });
-    it.addEventListener('pointerleave', function () { focusKey = null; applyFocus(); });
-  });
-}
-
-/* ══ 3 · FAILURE SHARE ════════════════════════════════════════════════ */
-var FAILS = [
-  { name: 'Doc extraction',  reason: 'Timeout · model call',      w: 17 },
-  { name: 'Invoice sync',    reason: 'Schema mismatch',           w: 11 },
-  { name: 'Lead router',     reason: 'Rate limited · CRM',        w: 8 },
-  { name: 'Onboarding bot',  reason: 'Guardrail blocked output',  w: 6 }
+/* ══ 2 · LIVE EXECUTIONS ══════════════════════════════════════════════
+   The list an operator acts on, so it leads the page. Two things carry
+   colour: the automation's own gradient tile, and the status pill, which
+   uses the system's published badge families. */
+var LIVE = [
+  { key: 'invoice', id: 'run_8f21c4', st: 'ok',   trig: 'Webhook',  dur: 3.4, cost: 0.18, ago: '12s ago', stages: [.28, .34, .22, .16] },
+  { key: 'doc',     id: 'run_8f21c1', st: 'fail', trig: 'Schedule', dur: 8.9, cost: 0.41, ago: '38s ago', stages: [.18, .22, .18, .42] },
+  { key: 'lead',    id: 'run_8f21be', st: 'run',  trig: 'Webhook',  dur: 2.1, cost: 0.09, ago: 'running', stages: [.4, .35, .25] },
+  { key: 'onboard', id: 'run_8f21bb', st: 'ok',   trig: 'Manual',   dur: 5.2, cost: 0.27, ago: '1m ago',  stages: [.22, .41, .2, .17] },
+  { key: 'invoice', id: 'run_8f21b7', st: 'ok',   trig: 'Webhook',  dur: 3.1, cost: 0.17, ago: '2m ago',  stages: [.3, .3, .24, .16] },
+  { key: 'lead',    id: 'run_8f21b2', st: 'run',  trig: 'Schedule', dur: 1.4, cost: 0.06, ago: 'running', stages: [.55, .45] },
+  { key: 'doc',     id: 'run_8f21ae', st: 'ok',   trig: 'Schedule', dur: 6.7, cost: 0.33, ago: '3m ago',  stages: [.2, .26, .3, .24] },
+  { key: 'onboard', id: 'run_8f21a9', st: 'fail', trig: 'Manual',   dur: 7.4, cost: 0.31, ago: '4m ago',  stages: [.19, .24, .21, .36] }
 ];
+/* Status pill tones. Success and Running take published badge families;
+   Failed has none to take — the library publishes blue, indigo, green,
+   cyan and light-green only — so its ground and stroke are derived in
+   exactly the same key, from the published red ramp. */
+var ST = {
+  ok:   { label: 'Success', tone: 'green', glyph: 'i-check' },
+  fail: { label: 'Failed',  tone: 'red',   glyph: 'i-alert' },
+  run:  { label: 'Running', tone: 'blue',  glyph: null }
+};
+var STAGE_NAMES = ['Trigger', 'Retrieve', 'Model', 'Write'];
+
+function renderLive() {
+  var host = $('mvLiveRows');
+  var slowest = LIVE.reduce(function (a, r) { return Math.max(a, r.dur); }, 0);
+
+  LIVE.forEach(function (r) {
+    var s = BY_KEY[r.key], st = ST[r.st];
+    var row = html('div', 'mv-trow', host);
+
+    var c1 = html('div', 'mv-cell', row);
+    tile(c1, s.grad, 'i-zap', 26);
+    var nm = html('div', 'mv-nm', c1);
+    text(html('b', null, nm), s.name);
+    text(html('span', null, nm), r.id + ' · ' + r.trig);
+
+    var c2 = html('div', 'mv-cell', row);
+    var pill = html('span', 'cq-status mv-st', c2);
+    pill.dataset.tone = st.tone;
+    if (st.glyph) icon(pill, st.glyph, 13);
+    else html('i', 'cq-status--dot mv-st__live', pill);
+    text(html('span', null, pill), st.label);
+
+    /* Stage strip · width proportional to this run's share of the
+       slowest run, so a long run looks long before you read the number. */
+    var c3 = html('div', 'mv-cell', row);
+    var strip = html('div', r.st === 'fail' ? 'mv-stages mv-stages--fail' : 'mv-stages', c3);
+    strip.style.width = Math.max(24, (r.dur / slowest) * 100) + '%';
+    r.stages.forEach(function (frac, k) {
+      var seg = html('div', 'mv-stages__s', strip);
+      seg.style.flex = frac + ' 1 0';
+      seg.setAttribute('aria-hidden', 'true');
+      seg.addEventListener('pointerenter', function (ev) {
+        var last = k === r.stages.length - 1;
+        tipShow(ev.clientX, ev.clientY, r.id, [{
+          color: r.st === 'fail' && last ? 'var(--st-bad-mark)' : 'var(--stage-' + (k + 1) + ')',
+          name: STAGE_NAMES[k] || 'Stage ' + (k + 1),
+          value: (r.dur * frac).toFixed(1) + 's'
+        }], { name: 'Total', value: r.dur.toFixed(1) + 's' });
+      });
+      seg.addEventListener('pointerleave', tipHide);
+    });
+
+    text(html('div', 'mv-cell mv-cell--r mv-num', row), r.dur.toFixed(1) + 's');
+    text(html('div', 'mv-cell mv-cell--r mv-num', row), '$' + r.cost.toFixed(2));
+    text(html('div', 'mv-cell mv-cell--r mv-ago', row), r.ago);
+
+    var c7 = html('div', 'mv-cell mv-cell--r', row);
+    var btn = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', c7);
+    btn.type = 'button';
+    text(btn, r.st === 'fail' ? 'Trace' : 'View');
+  });
+
+  text($('mvLiveNote'), 'Showing ' + LIVE.length + ' of ' + fmt(totalExec) + ' today');
+}
+
+/* ══ 3 · CHECKPOINTS ══════════════════════════════════════════════════
+   The other list that leads. Each tile takes its automation's hue as a
+   left accent, so a checkpoint reads as the same colour as the runs it
+   came from. The wait time is the only thing on the tile that
+   escalates, so it is the only status colour on it. */
+var APPROVALS = [
+  { nm: 'Refund over $5,000',           key: 'invoice', asked: 'Billing agent',  wait: '42m', tone: 'bad'  },
+  { nm: 'Vendor contract · Acme Co.',   key: 'invoice', asked: 'Invoice sync',   wait: '18m', tone: 'warn' },
+  { nm: 'Outbound email · 240 leads',   key: 'lead',    asked: 'Lead router',    wait: '6m',  tone: 'ok'   },
+  { nm: 'Schema change · orders table', key: 'doc',     asked: 'Doc extraction', wait: '3m',  tone: 'ok'   }
+];
+
+function renderApprovals() {
+  var host = $('mvApprList');
+  APPROVALS.forEach(function (a) {
+    var s = BY_KEY[a.key];
+    var t = html('div', 'mv-appr__t', host);
+    t.style.setProperty('--accent', cat(s.slot));
+
+    var top = html('div', 'mv-appr__top', t);
+    text(html('div', 'mv-appr__nm', top), a.nm);
+    var w = html('span', 'mv-appr__wait mv-num', top);
+    w.dataset.tone = a.tone;
+    icon(w, 'i-clock', 13);
+    text(html('span', null, w), a.wait);
+
+    var meta = html('div', 'mv-appr__meta', t);
+    var tag = html('span', 'cq-tag mv-tag', meta);
+    if (s.tone) { tag.dataset.tone = s.tone; tag.classList.add('is-tinted'); }
+    else tag.classList.add('mv-tag--orange');
+    text(tag, a.asked);
+    text(html('span', 'mv-appr__who', meta), 'needs your approval');
+
+    var acts = html('div', 'mv-appr__acts', t);
+    var rev = html('button', 'cq-btn cq-btn--primary cq-btn--s', acts);
+    rev.type = 'button'; text(rev, 'Review');
+    var re = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', acts);
+    re.type = 'button'; text(re, 'Reassign');
+  });
+}
+
+/* ══ 4 · FAILURE SHARE ════════════════════════════════════════════════
+   A segmented track, not a donut — four shares this close are not
+   readable as arcs. The segments wear each automation's own hue rather
+   than tints of one red: the categories here *are* the automations, they
+   appear in the table above in exactly those colours, and "which one is
+   failing" is the question the card answers. That these are failures is
+   said by the card's title and its alert glyph, not by painting the
+   whole card red. */
+var FAILS = [
+  { key: 'doc',     reason: 'Timeout · model call',     w: 17 },
+  { key: 'invoice', reason: 'Schema mismatch',          w: 11 },
+  { key: 'lead',    reason: 'Rate limited · CRM',       w: 8 },
+  { key: 'onboard', reason: 'Guardrail blocked output', w: 6 }
+];
+/* Counts are apportioned from the same totalFail the strip shows, the
+   last row absorbing the rounding, so the breakdown can never sum to a
+   different number than the headline. */
 (function apportion() {
   var wSum = FAILS.reduce(function (a, f) { return a + f.w; }, 0), run = 0;
   FAILS.forEach(function (f, i) {
@@ -3180,180 +3084,101 @@ function renderFailures() {
   var sum = FAILS.reduce(function (a, f) { return a + f.n; }, 0);
   var segs = [];
 
-  FAILS.forEach(function (f, i) {
+  FAILS.forEach(function (f) {
     var seg = html('div', 'mv-track__seg', track);
     seg.style.flex = f.n + ' 1 0';
-    seg.style.background = 'var(--fail-' + (FAILS.length - i) + ')';
+    seg.style.background = cat(BY_KEY[f.key].slot);
     seg.setAttribute('role', 'presentation');
     segs.push(seg);
   });
 
   FAILS.forEach(function (f, i) {
+    var s = BY_KEY[f.key];
     var row = html('div', 'mv-row', rows);
-    html('i', 'mv-row__sw', row).style.background = 'var(--fail-' + (FAILS.length - i) + ')';
+    html('i', 'mv-row__sw', row).style.background = cat(s.slot);
     var nm = html('div', 'mv-row__nm', row);
-    text(nm, f.name);
+    text(nm, s.name);
     text(html('span', null, nm), f.reason);
     text(html('span', 'mv-row__v mv-num', row), f.n);
     text(html('span', 'mv-row__sh mv-num', row), pct(f.n / sum * 100, 0));
 
-    /* Hovering a row lights its segment, and hovering a segment lights
-       its row — the two are one control. */
+    /* Row and segment are one control: hovering either lights both. */
     function on() {
       track.classList.add('is-hovering');
       segs[i].classList.add('is-on');
-      row.style.background = 'var(--backgrounds-card-bg-4)';
+      row.classList.add('is-on');
     }
     function off() {
       track.classList.remove('is-hovering');
       segs[i].classList.remove('is-on');
-      row.style.background = '';
+      row.classList.remove('is-on');
     }
     row.addEventListener('pointerenter', on);
     row.addEventListener('pointerleave', off);
     segs[i].addEventListener('pointerenter', function (ev) {
       on();
       tipShow(ev.clientX, ev.clientY, 'Failed runs today',
-        [{ color: 'var(--fail-' + (FAILS.length - i) + ')', name: f.name, value: fmt(f.n) }],
+        [{ color: cat(s.slot), name: s.name, value: fmt(f.n) }],
         { name: 'Share of failures', value: pct(f.n / sum * 100, 0) });
     });
     segs[i].addEventListener('pointerleave', function () { off(); tipHide(); });
   });
 
-  text($('mvFailNote'), fmt(sum) + ' of ' + fmt(totalExec) + ' runs failed today');
+  text($('mvFailNote'), fmt(sum) + ' of ' + fmt(totalExec) + ' failed');
 
-  /* Two facts the rows do not carry, in the space under them. */
   var facts = $('mvFailFacts');
   [['26 of ' + fmt(sum), 'retried automatically'],
-   ['6.4s', 'median time to failure']].forEach(function (f) {
+   [pct(peakErr), 'peak error rate, 14:00']].forEach(function (f) {
     var d = html('div', 'mv-fact', facts);
     text(html('b', null, d), f[0]);
     text(html('span', null, d), f[1]);
   });
 }
 
-/* ══ 4 · LIVE EXECUTIONS ══════════════════════════════════════════════ */
-var LIVE = [
-  { nm: 'Invoice sync',     id: 'run_8f21c4', st: 'ok',   dur: 3.4, cost: 0.18, ago: '12s ago',  stages: [.28, .34, .22, .16] },
-  { nm: 'Doc extraction',   id: 'run_8f21c1', st: 'fail', dur: 8.9, cost: 0.41, ago: '38s ago',  stages: [.18, .22, .18, .42] },
-  { nm: 'Lead router',      id: 'run_8f21be', st: 'run',  dur: 2.1, cost: 0.09, ago: 'running',  stages: [.4, .35, .25] },
-  { nm: 'Onboarding bot',   id: 'run_8f21bb', st: 'ok',   dur: 5.2, cost: 0.27, ago: '1m ago',   stages: [.22, .41, .2, .17] },
-  { nm: 'Invoice sync',     id: 'run_8f21b7', st: 'ok',   dur: 3.1, cost: 0.17, ago: '2m ago',   stages: [.3, .3, .24, .16] },
-  { nm: 'Lead router',      id: 'run_8f21b2', st: 'run',  dur: 1.4, cost: 0.06, ago: 'running',  stages: [.55, .45] },
-  { nm: 'Doc extraction',   id: 'run_8f21ae', st: 'ok',   dur: 6.7, cost: 0.33, ago: '3m ago',   stages: [.2, .26, .3, .24] },
-  { nm: 'Onboarding bot',   id: 'run_8f21a9', st: 'fail', dur: 7.4, cost: 0.31, ago: '4m ago',   stages: [.19, .24, .21, .36] }
-];
-var ST_LABEL = { ok: 'Success', fail: 'Failed', run: 'Running' };
-var STAGE_NAMES = ['Trigger', 'Retrieve', 'Model', 'Write'];
-
-function renderLive() {
-  var host = $('mvLiveRows');
-  var slowest = LIVE.reduce(function (a, r) { return Math.max(a, r.dur); }, 0);
-
-  LIVE.forEach(function (r) {
-    var row = html('div', 'mv-trow', host);
-
-    var c1 = html('div', 'mv-cell', row);
-    var nm = html('div', 'mv-nm', c1);
-    text(html('b', null, nm), r.nm);
-    text(html('span', null, nm), r.id);
-
-    var c2 = html('div', 'mv-cell', row);
-    var st = html('span', 'mv-st', c2);
-    st.dataset.s = r.st;
-    html('i', null, st);
-    text(html('span', null, st), ST_LABEL[r.st]);
-
-    /* Stage strip · width proportional to this run's share of the
-       slowest run, so a long run is visibly long before you read it. */
-    var c3 = html('div', 'mv-cell', row);
-    var strip = html('div', r.st === 'fail' ? 'mv-stages mv-stages--fail' : 'mv-stages', c3);
-    strip.style.width = Math.max(22, (r.dur / slowest) * 100) + '%';
-    r.stages.forEach(function (frac, k) {
-      var s = html('div', 'mv-stages__s', strip);
-      s.style.flex = frac + ' 1 0';
-      s.setAttribute('aria-hidden', 'true');
-      s.addEventListener('pointerenter', function (ev) {
-        var last = k === r.stages.length - 1;
-        tipShow(ev.clientX, ev.clientY, r.id, [{
-          color: r.st === 'fail' && last ? 'var(--st-bad-mark)' : 'var(--heat-' + (k + 2) + ')',
-          name: STAGE_NAMES[k] || 'Stage ' + (k + 1),
-          value: (r.dur * frac).toFixed(1) + 's'
-        }], { name: 'Total', value: r.dur.toFixed(1) + 's' });
-      });
-      s.addEventListener('pointerleave', tipHide);
-    });
-
-    text(html('div', 'mv-cell mv-cell--r mv-num', row), r.dur.toFixed(1) + 's');
-    text(html('div', 'mv-cell mv-cell--r mv-num', row), '$' + r.cost.toFixed(2));
-    var c6 = html('div', 'mv-cell mv-cell--r', row);
-    c6.style.color = 'var(--text-teritiary)';
-    c6.style.fontSize = '12px';
-    text(c6, r.ago);
-
-    var c7 = html('div', 'mv-cell mv-cell--r', row);
-    var btn = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', c7);
-    btn.type = 'button';
-    text(btn, r.st === 'fail' ? 'Trace' : 'View');
-  });
-
-  text($('mvLiveNote'), 'Showing ' + LIVE.length + ' of ' + fmt(totalExec) + ' today');
-}
-
-/* ══ 5 · APPROVALS ════════════════════════════════════════════════════ */
-var APPROVALS = [
-  { nm: 'Vendor contract · Acme Co.',   who: 'Invoice sync',    wait: '18m', tone: 'warn' },
-  { nm: 'Refund over $5,000',           who: 'Billing agent',   wait: '42m', tone: 'bad' },
-  { nm: 'Outbound email · 240 leads',   who: 'Lead router',     wait: '6m',  tone: 'ok' },
-  { nm: 'Schema change · orders table', who: 'Doc extraction',  wait: '3m',  tone: 'ok' }
-];
-
-function renderApprovals() {
-  var host = $('mvApprList');
-  APPROVALS.forEach(function (a) {
-    var t = html('div', 'mv-appr__t', host);
-    var top = html('div', 'mv-appr__top', t);
-    icon(top, 'i-shield', 16).style.color = 'var(--text-teritiary)';
-    text(html('div', 'mv-appr__nm', top), a.nm);
-    var w = html('span', 'mv-appr__wait mv-num', top);
-    w.style.color = a.tone === 'bad' ? 'var(--st-bad)' : a.tone === 'warn' ? 'var(--st-warn)' : 'var(--text-teritiary)';
-    text(w, 'waiting ' + a.wait);
-
-    var meta = html('div', 'mv-appr__meta', t);
-    text(html('span', null, meta), a.who);
-
-    var acts = html('div', 'mv-appr__acts', t);
-    var rev = html('button', 'cq-btn cq-btn--primary cq-btn--s', acts);
-    rev.type = 'button'; text(rev, 'Review');
-    var skip = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', acts);
-    skip.type = 'button'; text(skip, 'Reassign');
-  });
-}
-
-/* ══ 6 · HEATMAP ══════════════════════════════════════════════════════
-   When runs happen: weekday × hour. Level 0 is "no runs" and sits
-   outside the ramp — a surface tile, not the ramp's low end. */
-var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-var HEAT = (function () {
-  var r = rng(404), grid = [];
-  for (var d = 0; d < 7; d++) {
-    var row = [], weekend = d > 4;
-    for (var h = 0; h < 24; h++) {
-      var shape = dayShape(h) * (weekend ? 0.28 : 1);
-      var v = Math.round(shape * 46 * (0.65 + r() * 0.7));
-      row.push(Math.max(0, v));
-    }
-    grid.push(row);
+/* ══ 5 · HEATMAP ══════════════════════════════════════════════════════
+   Day × hour. Sequential, one hue, five levels, plus a neutral zero that
+   sits outside the ramp because "no runs" is a surface, not a value. */
+var DAYS = 14;
+/* Fourteen days, not seven. Seven rows left two thirds of the card
+   empty, and a fortnight is where a weekly rhythm actually becomes
+   visible — you can see last Wednesday as well as this one. Rows are
+   labelled with the weekday and the date, so the pattern and the
+   specific incident day are both readable. */
+var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+var HEAT_ROWS = (function () {
+  /* A fixed end date, so the grid is stable across reloads. */
+  var end = new Date(2026, 7, 31), out = [];
+  for (var i = DAYS - 1; i >= 0; i--) {
+    var d = new Date(end.getFullYear(), end.getMonth(), end.getDate() - i);
+    out.push({ date: d, dow: d.getDay(),
+               label: DOW[d.getDay()] + ' ' + d.getDate() });
   }
-  /* The afternoon incident, so the heatmap and the error panel tell the
-     same story about the same two hours. */
-  grid[2][14] = -1; grid[2][15] = -1;
-  return grid;
+  return out;
+})();
+var HEAT = (function () {
+  var r = rng(404);
+  return HEAT_ROWS.map(function (row) {
+    var weekend = row.dow === 0 || row.dow === 6;
+    var out = [];
+    for (var h = 0; h < 24; h++) {
+      out.push(Math.max(0, Math.round(dayShape(h) * (weekend ? 0.28 : 1) * 46 * (0.65 + r() * 0.7))));
+    }
+    return out;
+  });
+})();
+/* The afternoon incident, on the most recent Wednesday, so the heatmap
+   and the peak-error-rate fact tell the same story about the same two
+   hours. */
+(function markIncident() {
+  for (var i = HEAT_ROWS.length - 1; i >= 0; i--) {
+    if (HEAT_ROWS[i].dow === 3) { HEAT[i][14] = -1; HEAT[i][15] = -1; return; }
+  }
 })();
 
 function renderHeat() {
   var dowHost = $('mvHeatDow'), colHost = $('mvHeatCols');
-  DOW.forEach(function (d) { text(html('span', null, dowHost), d); });
+  HEAT_ROWS.forEach(function (row) { text(html('span', null, dowHost), row.label); });
+  dowHost.style.setProperty('--rows', DAYS);
 
   var maxV = 0;
   HEAT.forEach(function (row) { row.forEach(function (v) { if (v > maxV) maxV = v; }); });
@@ -3362,31 +3187,30 @@ function renderHeat() {
     var col = html('div', 'mv-heat__col', colHost);
     var hd = html('div', 'mv-heat__hd', col);
     if (h % 3 === 0) text(hd, String(h).padStart(2, '0'));
-    for (var d = 0; d < 7; d++) {
-      (function (d, h) {
+    for (var d = 0; d < DAYS; d++) {
+      (function (d, h, col) {
         var v = HEAT[d][h];
         var cell = html('div', 'mv-heat__cell', col);
-        if (v < 0) { cell.dataset.bad = '1'; }
-        else if (v > 0) { cell.dataset.lv = Math.min(5, Math.ceil(v / maxV * 5)); }
+        if (v < 0) cell.dataset.bad = '1';
+        else if (v > 0) cell.dataset.lv = Math.min(5, Math.ceil(v / maxV * 5));
         cell.addEventListener('pointerenter', function (ev) {
-          tipShow(ev.clientX, ev.clientY, DOW[d] + ' · ' + hourLabel(h),
-            v < 0
-              ? [{ color: 'var(--st-bad-mark)', name: 'Failed window', value: 'incident' }]
-              : [{ color: 'var(--heat-3)', name: 'Runs', value: fmt(v) }]);
+          tipShow(ev.clientX, ev.clientY, HEAT_ROWS[d].label + ' · ' + hourLabel(h),
+            v < 0 ? [{ color: 'var(--st-bad-mark)', name: 'Failed window', value: 'incident' }]
+                  : [{ color: 'var(--heat-3)', name: 'Runs', value: fmt(v) }]);
         });
         cell.addEventListener('pointerleave', tipHide);
-      })(d, h);
+      })(d, h, col);
     }
   }
 
-  /* Scale legend — the ramp is a continuous encoding, so it needs one. */
+  /* A continuous scale needs its legend. */
   var sc = $('mvHeatScale');
   text(html('span', null, sc), 'Fewer');
   for (var lv = 1; lv <= 5; lv++) html('i', null, sc).style.background = 'var(--heat-' + lv + ')';
   text(html('span', null, sc), 'More');
 }
 
-/* ══ 7 · TABS ═════════════════════════════════════════════════════════ */
+/* ══ 6 · TABS ═════════════════════════════════════════════════════════ */
 function showTab(tab, label) {
   var isActivity = tab === 'activity';
   $('mvActivity').hidden = !isActivity;
@@ -3396,11 +3220,7 @@ function showTab(tab, label) {
     while (t.firstChild) t.removeChild(t.firstChild);
     text(t, label.trim());
   }
-  /* Drawn on the way in: a hidden pane has no width to size an SVG
-     against, so a chart drawn there comes out 0 wide. */
-  if (isActivity) drawVolume();
 }
-
 document.querySelectorAll('#mvTabs [data-tab]').forEach(function (btn) {
   btn.addEventListener('click', function () {
     document.querySelectorAll('#mvTabs [data-tab]').forEach(function (b) {
@@ -3412,17 +3232,7 @@ document.querySelectorAll('#mvTabs [data-tab]').forEach(function (btn) {
   });
 });
 
-/* Period control — changes the x-domain, not the data slice, which is
-   why it may live in the card rather than the page filter row. */
-document.querySelectorAll('#mvVolPeriod button').forEach(function (b) {
-  b.addEventListener('click', function () {
-    document.querySelectorAll('#mvVolPeriod button').forEach(function (o) {
-      o.setAttribute('aria-pressed', String(o === b));
-    });
-  });
-});
-
-/* ══ 8 · SHELL ════════════════════════════════════════════════════════ */
+/* ══ 7 · SHELL ════════════════════════════════════════════════════════ */
 var rail = $('rail'), railT;
 rail.addEventListener('mouseenter', function () {
   clearTimeout(railT); railT = setTimeout(function () { rail.classList.add('is-open'); }, 140);
@@ -3435,8 +3245,7 @@ $('railCollapse').addEventListener('click', function (e) {
 });
 rail.querySelectorAll('.cq-rail-ghead[aria-expanded]').forEach(function (head) {
   head.addEventListener('click', function () {
-    var open = head.getAttribute('aria-expanded') === 'true';
-    head.setAttribute('aria-expanded', String(!open));
+    head.setAttribute('aria-expanded', String(head.getAttribute('aria-expanded') !== 'true'));
   });
 });
 
@@ -3448,9 +3257,6 @@ window.applyMode = function (mode) {
   $('themeIcon').setAttribute('href', dark ? '#i-sun' : '#i-moon');
   $('themeToggle').title = dark ? 'Switch to light mode' : 'Switch to dark mode';
   $('themeToggle').setAttribute('aria-label', $('themeToggle').title);
-  /* The ring on a marker is painted in the surface colour, and the
-     surface just changed. */
-  if (!$('mvActivity').hidden) drawVolume();
 };
 $('themeToggle').addEventListener('click', function () {
   var next = root.dataset.mode === 'dark' ? 'light' : 'dark';
@@ -3460,26 +3266,13 @@ $('themeToggle').addEventListener('click', function () {
 var stored = null;
 try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
 
-/* ══ 9 · BOOT ═════════════════════════════════════════════════════════ */
+/* ══ 8 · BOOT ═════════════════════════════════════════════════════════ */
 renderStrip();
-renderVolLegend();
-renderFailures();
 renderLive();
 renderApprovals();
+renderFailures();
 renderHeat();
 window.applyMode(stored === 'light' ? 'light' : 'dark');
-drawVolume();
-
-var rT;
-window.addEventListener('resize', function () {
-  clearTimeout(rT);
-  rT = setTimeout(function () { if (!$('mvActivity').hidden) drawVolume(); }, 120);
-});
-/* Geist arrives after first paint and every label measured before then
-   was measured against the fallback face. */
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
-  drawVolume();
-});
 })();
 
 </script>
