@@ -35,6 +35,7 @@ PAGES = {
             "automations — the Activity lens of the Monitoring module."
         ),
         "rail": "MON",
+        "artifact_title": "Cogentiq Activity Monitor",
     },
 }
 
@@ -100,6 +101,39 @@ def build(name: str, spec: dict) -> None:
     path = OUT / name
     path.write_text(doc, encoding="utf-8")
     print(f"  {name}  {len(doc) / 1024:.0f}KB")
+    build_artifact(name, spec, head, body)
+
+
+def build_artifact(name: str, spec: dict, head: str, body: str) -> None:
+    """The same page, shaped for the Artifact wrapper.
+
+    The wrapper supplies <!doctype>, <html>, <head> and <body>, so the file
+    must carry only the page's own <title>, styles, markup and scripts. The
+    dark default that build() puts on the <html> tag is set by the page's
+    own boot code instead, which is where the stored preference is read
+    anyway.
+    """
+    head = head.replace(
+        f"<title>{spec['title']}</title>", f"<title>{spec['artifact_title']}</title>"
+    )
+    head = head.replace('<meta charset="UTF-8" />\n  ', "")
+    head = head.replace(
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n  ', ""
+    )
+    frag = (
+        head
+        + "\n"
+        + body
+        + "\n<script>\n"
+        + read("mv2.js")
+        + "\n</script>\n<script>\n"
+        + read("shell.js")
+        + "\n</script>\n"
+    )
+    out = OUT / "artifact" / name
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(frag, encoding="utf-8")
+    print(f"  artifact/{name}  {len(frag) / 1024:.0f}KB")
 
 
 if __name__ == "__main__":
