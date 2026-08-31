@@ -1773,7 +1773,21 @@ body.cq { margin: 0; }
     /* ── Table ── */
     .lb-table.cq-table { --cq-cols: 76px minmax(180px, 1.4fr) 150px 130px minmax(200px, 1fr) 110px; }
     .lb-table .cq-row { height: 52px; cursor: default; }
-    .lb-scroll { max-height: calc(100vh - 520px); min-height: 220px; overflow-y: auto; }
+    /* No inner scroller: the table shows a full page of rows and the page
+       itself scrolls, the same way the checkpoints table behaves. */
+    .lb-foot__pager { display: inline-flex; align-items: center; gap: 4px; }
+    .lb-page {
+      min-width: 32px; height: 32px; padding: 0 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid transparent; border-radius: var(--radius-md);
+      background: none; color: var(--text-secondary);
+      font: 500 var(--fs-body-3)/1 var(--font-geist); letter-spacing: -0.56px;
+      font-variant-numeric: tabular-nums; cursor: pointer;
+    }
+    .lb-page:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    .lb-page.is-active { background: var(--backgrounds-button-primary); color: var(--text-button-white); }
+    .lb-page:disabled { opacity: .4; cursor: default; }
+    .lb-page:disabled:hover { background: none; color: var(--text-secondary); }
     .lb-rank { font: 500 var(--fs-body-3)/1 var(--font-geist-mono); color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
     .cq-row[data-top="1"] .lb-rank { color: var(--blue-500); }
     .cq-row[data-top="2"] .lb-rank { color: var(--indigo-500); }
@@ -2091,12 +2105,13 @@ body.cq { margin: 0; }
               <div class="cq-thead">
                 <span>Rank</span><span>Builder</span><span>Workspace</span><span>Artifacts</span><span>Artifact-wise count</span><span>Last active</span>
               </div>
-              <div class="lb-scroll cq-scroll-y" id="lbRows"></div>
+              <div id="lbRows"></div>
             </div>
             <div class="lb-empty cq-body2-reg" id="lbEmpty" hidden>No builders match that search.</div>
 
             <div class="lb-foot">
               <span class="lb-foot__count cq-body2-reg" id="lbCount"></span>
+              <div class="lb-foot__pager" id="lbPager"></div>
             </div>
 
           </div>
@@ -2250,7 +2265,8 @@ function playPodium() {
 /* ════ Table ════ */
 const MIX_ICONS = ['#ic-pp_automation', '#ic-pp_agent', '#ic-pp_aiassistant'];
 const MIX_NAMES = ['Automations', 'Agents', 'Assistants'];
-const state = { q: '', ws: 'all', sort: 'total' };
+const state = { q: '', ws: 'all', sort: 'total', page: 1 };
+const PER = 20;
 
 function rows() {
   let list = PEOPLE.map((p, i) => ({ ...p, rank: i + 1 }))
@@ -2263,7 +2279,10 @@ function rows() {
 
 function render() {
   const list = rows();
-  $('lbRows').innerHTML = list.map(p => `
+  const pages = Math.max(1, Math.ceil(list.length / PER));
+  state.page = Math.min(state.page, pages);
+  const slice = list.slice((state.page - 1) * PER, state.page * PER);
+  $('lbRows').innerHTML = slice.map(p => `
     <div class="cq-row" data-top="${p.rank}" tabindex="0">
       <div class="cq-cell"><span class="lb-rank">${p.rank}</span></div>
       <div class="cq-cell">
@@ -2282,10 +2301,25 @@ function render() {
       <div class="cq-cell cq-cell--muted cq-caption-reg">${p.active}</div>
     </div>`).join('');
   $('lbEmpty').hidden = list.length > 0;
-  $('lbCount').innerHTML = `Showing <b>${list.length}</b> of <b>${PEOPLE.length}</b> builders`;
+  const from = list.length ? (state.page - 1) * PER + 1 : 0;
+  $('lbCount').innerHTML = `Showing <b>${from}–${Math.min(state.page * PER, list.length)}</b> of <b>${list.length}</b> builders`;
+
+  let pager = `<button class="lb-page" data-p="prev" aria-label="Previous page" ${state.page === 1 ? 'disabled' : ''}>‹</button>`;
+  for (let i = 1; i <= pages; i++) pager += `<button class="lb-page${i === state.page ? ' is-active' : ''}" data-p="${i}">${i}</button>`;
+  pager += `<button class="lb-page" data-p="next" aria-label="Next page" ${state.page === pages ? 'disabled' : ''}>›</button>`;
+  $('lbPager').innerHTML = pages > 1 ? pager : '';
 }
 
-$('lbQ').addEventListener('input', e => { state.q = e.target.value; render(); });
+$('lbPager').addEventListener('click', e => {
+  const btn = e.target.closest('.lb-page');
+  if (!btn || btn.disabled) return;
+  const p = btn.dataset.p;
+  state.page = p === 'prev' ? state.page - 1 : p === 'next' ? state.page + 1 : Number(p);
+  render();
+  document.querySelector('.cq-page__content').scrollTo({ top: 0, behavior: 'smooth' });
+})
+
+$('lbQ').addEventListener('input', e => { state.q = e.target.value; state.page = 1; render(); });
 
 /* ── Two dropdowns, one behaviour ── */
 function buildPop(popId, items, current, onPick) {
@@ -2322,11 +2356,13 @@ const WS_ITEMS = [['all', 'All workspaces']].concat(WORKSPACES.map(w => [w, w]))
 const SORT_ITEMS = [['total', 'Artifacts created'], ['name', 'Name'], ['workspace', 'Workspace']];
 function refreshPops() {
   buildPop('wsPop', WS_ITEMS, state.ws, (id, label) => {
-    state.ws = id; $('wsLabel').textContent = label === 'All workspaces' ? label : 'Workspace: ' + label;
+    state.ws = id; state.page = 1;
+    $('wsLabel').textContent = label === 'All workspaces' ? label : 'Workspace: ' + label;
     refreshPops(); render();
   });
   buildPop('sortPop', SORT_ITEMS, state.sort, (id, label) => {
-    state.sort = id; $('sortLabel').textContent = 'Sort by: ' + label;
+    state.sort = id; state.page = 1;
+    $('sortLabel').textContent = 'Sort by: ' + label;
     refreshPops(); render();
   });
 }
