@@ -36,7 +36,7 @@ them, because the shared parts had already drifted — hence the assembler.
 |---|---|
 | `src/cq-base.css` | The published Cogentiq sheet, verbatim (`design-system/cogentiq-design-system.css` on `claude/cogentiq-combine-pages-rv39kk`). Never edit here — edit it there and re-copy. |
 | `src/mv2.css` | The new page language. Composes cq- tokens; restyles no cq- component. |
-| `src/mv2.js` | Data, chart renderers, interactions. |
+| `src/mv2.js` | Data, renderers, interactions. One seeded generator feeds every figure. |
 | `src/shell.js` | Profile menu + theme preference, with v1's `PAGES` map removed. |
 | `src/rail.html` | Monitoring-only rail; `__RAIL_ACT_*__` slots are filled per page by `build.py`. |
 | `src/monitoring.body.html` | The Activity page's markup. |
@@ -48,7 +48,6 @@ them, because the shared parts had already drifted — hence the assembler.
 |---|---|---|
 | Cards with a pointer-tracking radial glow ring | Hairline card, mono eyebrow head, controls right | The references read as a report, not a console |
 | 3 bordered KPI cards | One hairline-divided strip of 5 figures | Four borders to say "these are peers"; three hairlines say it quieter |
-| Volume **and** error rate on one plot, two y-scales | Two stacked panels, shared x, one y each | Two y-scales align arbitrarily, so such a chart invents a correlation |
 | Donut for top failing automations | Segmented track + rows with counts | Four shares this close are not readable as arcs |
 | Volume chart above the lists | No volume chart; the lists lead | Removed on request — the page is for acting first, reading second |
 | 7 days × 12 two-hour cells | 14 days × 24 hours, filling the card | The old grid left two thirds of the card empty, and a fortnight is where the weekly rhythm becomes visible |
