@@ -24,7 +24,7 @@
       --backgrounds-card-bg-3:            #ffffff;
       --backgrounds-card-bg-4:            #f5f5f5;
       --backgrounds-card-bg-5:            #ffffff;
-      --backgrounds-card-bg-6:            #fafafa;
+      --backgrounds-card-bg-6:            #f1f1f1;  /* raised off #fafafa so it reads inside a white card */
       --backgrounds-table-select:         #e5f4ff;
       --backgrounds-type-search-default:  #f5f5f5;
       --backgrounds-button-primary:       #0d99ff;
@@ -76,11 +76,22 @@
       --shadow-rail:    8px 0 28px rgba(18, 18, 18, .14);
       --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
       --flag-sheen:     rgba(13, 153, 255, .28);
+      --scroll-thumb:       rgba(18, 18, 18, .18);
+      --scroll-thumb-hover: rgba(18, 18, 18, .30);
+      --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
+      --scrim:          rgba(18, 18, 18, .18);
+      --backgrounds-badge-green:  #ebffee;
+      --strokes-colour-green:     #aff4c6;
+      --text-coloured-green:      #14ae5c;
+      --backgrounds-badge-purple: #f7f0ff;
+      --strokes-colour-purple:    #e4ccff;
+      --text-coloured-purple:     #8638e5;
 
       /* Layout constants straight off the frame -------------------- */
       --rail-w:      68px;
       --rail-w-open: 240px;
       --sidebar-w:   240px;
+      --panel-w:     420px;
       --radius-md:   8px;
       --white:       #ffffff;
     }
@@ -131,6 +142,16 @@
       --shadow-rail:    8px 0 28px rgba(0, 0, 0, .38);
       --gradient-blue-wash: linear-gradient(90deg, rgba(62, 99, 116, 0) 46%, rgba(62, 99, 116, 1) 86%);
       --flag-sheen:     rgba(255, 255, 255, .30);
+      --scroll-thumb:       rgba(255, 255, 255, .16);
+      --scroll-thumb-hover: rgba(255, 255, 255, .28);
+      --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .4);
+      --scrim:          rgba(18, 18, 18, .5);
+      --backgrounds-badge-green:  #031d11;
+      --strokes-colour-green:     #0a3a22;
+      --text-coloured-green:      #85e0a3;
+      --backgrounds-badge-purple: #17092b;
+      --strokes-colour-purple:    #3d1a66;
+      --text-coloured-purple:     #c9a3ff;
     }
 
     /* Body1/Med, Body2/Reg … as reusable type ramps */
@@ -159,6 +180,21 @@
     input  { font: inherit; color: inherit; background: none; border: 0; outline: 0; }
     button:focus-visible, input:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 2px; }
     .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+    /* One scroller for the whole page: a thin track that only shows its
+       thumb, darkening slightly on hover. Firefox gets the same via
+       scrollbar-width/color; the thumb colour is a token so both themes
+       follow. */
+    .cq-scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+    .cq-scroll-y::-webkit-scrollbar { width: 10px; height: 10px; }
+    .cq-scroll-y::-webkit-scrollbar-track { background: transparent; }
+    .cq-scroll-y::-webkit-scrollbar-thumb {
+      background: var(--scroll-thumb);
+      border: 3px solid transparent; background-clip: content-box;
+      border-radius: 8px;
+    }
+    .cq-scroll-y::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); background-clip: content-box; }
+    .cq-scroll-y::-webkit-scrollbar-corner { background: transparent; }
     .ic { display: block; flex: none; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition: none !important; animation: none !important; }
@@ -484,7 +520,6 @@
       border-right: 1px solid var(--strokes-line-3);
       padding: 20px 12px 24px;
       display: flex; flex-direction: column; gap: 16px;
-      overflow-y: auto;
       filter: var(--shadow-sidebar);
     }
     .side-options { display: flex; flex-direction: column; }
@@ -509,7 +544,10 @@
     .side-item.is-active .sic { color: var(--text-coloured-blue); }
     .side-item.is-active:hover { background: var(--backgrounds-table-select); }
 
-    /* "What is a context bundle?" — pinned to the sidebar foot */
+    /* "What is a context bundle?" — pinned to the sidebar foot.
+       Starts minimised so the artifact list owns the sidebar on arrival,
+       then opens itself once the page has settled. The header is the
+       toggle, so whoever closes it decides when it comes back. */
     .ctx-info {
       margin-top: auto; flex: none;
       background: var(--backgrounds-card-bg-5);
@@ -519,6 +557,29 @@
       padding: 12px;
       display: flex; flex-direction: column; gap: 10px;
     }
+    .ctx-toggle {
+      display: flex; align-items: center; gap: 6px; width: 100%;
+      color: var(--text-primary); text-align: left;
+    }
+    .ctx-toggle .ctx-q { flex: 1 1 auto; min-width: 0; font: 500 12px/16px var(--font-geist); letter-spacing: -0.36px; }
+    .ctx-toggle .ctx-chev { flex: none; color: var(--text-teritiary); transition: transform .24s cubic-bezier(.4, 0, .2, 1); }
+    .ctx-info.is-open .ctx-toggle .ctx-chev { transform: rotate(180deg); }
+    .ctx-mini {
+      flex: none; width: 28px; height: 25.6px;
+      display: none;
+    }
+    .ctx-info:not(.is-open) .ctx-mini { display: block; }
+    /* Collapsed: the illustration panel and the body fold away, and the
+       card keeps only its toggle row. Height is animated off a measured
+       max-height set in script, so the transition works with content of
+       any length. */
+    .ctx-body {
+      display: flex; flex-direction: column; gap: 10px;
+      overflow: hidden;
+      max-height: 0; opacity: 0;
+      transition: max-height .34s cubic-bezier(.4, 0, .2, 1), opacity .24s ease;
+    }
+    .ctx-info.is-open .ctx-body { opacity: 1; }
     .ctx-hero {
       border-radius: 12px; padding: 10px 0;
       display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center;
@@ -585,9 +646,7 @@
     .search-field input::placeholder { color: var(--text-teritiary); }
 
     /* Scroll region */
-    .studio-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--backgrounds-page-bg-4); }
-    .studio-scroll::-webkit-scrollbar { width: 10px; }
-    .studio-scroll::-webkit-scrollbar-thumb { background: var(--strokes-type-default); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }
+    .studio-scroll { flex: 1 1 auto; min-height: 0; background: var(--backgrounds-page-bg-4); }
 
     /* ══════════════════════════════════════════════════════════════
        HERO — "The Enterprise AI Context Layer"
@@ -613,6 +672,23 @@
       -webkit-mask-image: radial-gradient(120% 130% at 12% 120%, #000 0%, transparent 62%);
               mask-image: radial-gradient(120% 130% at 12% 120%, #000 0%, transparent 62%);
     }
+    /* A second copy of the same grid, brighter, revealed only in a soft
+       pool around the pointer. Same cell size and phase as the layer
+       above, so the dots light up in place rather than a new grid fading
+       in over the old one. The pool follows the cursor through two
+       custom properties; opacity carries the fade in and out, so nothing
+       animates while the pointer is still. */
+    .hero__glow {
+      position: absolute; inset: 0; pointer-events: none;
+      background-image: radial-gradient(rgba(255, 255, 255, .95) 1px, transparent 1.5px);
+      background-size: 18px 18px;
+      opacity: 0;
+      transition: opacity .45s ease;
+      -webkit-mask-image: radial-gradient(circle 150px at var(--mx, -999px) var(--my, -999px), #000 0%, rgba(0,0,0,.45) 45%, transparent 78%);
+              mask-image: radial-gradient(circle 150px at var(--mx, -999px) var(--my, -999px), #000 0%, rgba(0,0,0,.45) 45%, transparent 78%);
+    }
+    .hero:hover .hero__glow { opacity: .5; }
+    @media (hover: none) { .hero__glow { display: none; } }
     .hero::after {
       /* light rays fanning up from the base, as in the frame's Lines */
       content: ""; position: absolute; inset: -40% -10%; pointer-events: none;
@@ -674,7 +750,13 @@
       transition: transform .15s ease, box-shadow .15s ease;
     }
     .quick:hover .tile { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(18, 18, 18, .16); }
-    .quick .cap { font: 500 12px/16px var(--font-geist); letter-spacing: -0.24px; color: #121212; max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* The hero keeps its gradient in both themes, so its captions are
+       always on the dark end of it — white reads in light and dark alike. */
+    .quick .cap {
+      font: 500 12px/16px var(--font-geist); letter-spacing: -0.24px;
+      color: #ffffff; text-shadow: 0 1px 2px rgba(18, 18, 18, .22);
+      max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
 
     /* ══════════════════════════════════════════════════════════════
        CONTEXT BUNDLES
@@ -725,6 +807,135 @@
     .bundles-empty { padding: 8px 32px 0; color: var(--text-teritiary); display: none; }
     .bundles-empty.is-visible { display: block; }
 
+
+    /* ══════════════════════════════════════════════════════════════
+       BUNDLE DETAIL PANEL  (420px overlay on the right edge)
+       Same component as the Model hub and Skills panels: a fixed
+       overlay that slides in, a bordered head with the title and
+       actions, then token-ruled sections.
+       ══════════════════════════════════════════════════════════════ */
+    .panel {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 60;
+      width: var(--panel-w); max-width: 100vw;
+      display: flex; flex-direction: column; align-items: flex-start;
+      padding: 20px 0 16px;
+      background: var(--backgrounds-page-bg-2);
+      border-left: 1px solid var(--strokes-line-3);
+      box-shadow: var(--shadow-panel);
+      transform: translateX(100%);
+      visibility: hidden;
+      transition: transform .28s cubic-bezier(.4, 0, .2, 1), visibility .28s;
+    }
+    .panel.is-open { transform: translateX(0); visibility: visible; }
+
+    .panel-head {
+      width: 100%; flex: none;
+      display: flex; flex-direction: column; gap: 16px;
+      padding: 8px 16px 20px;
+      border-bottom: 1px solid var(--strokes-line-1);
+    }
+    .panel-tags-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .panel-close { width: 16px; height: 16px; color: var(--text-teritiary); flex: none; }
+    .panel-close:hover { color: var(--text-primary); }
+    .panel-title-block { display: flex; flex-direction: column; gap: 6px; }
+    .panel-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .panel-title { color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .panel-desc { color: var(--text-teritiary); margin: 0; }
+    .panel-actions { display: flex; align-items: center; gap: 12px; }
+    .panel-actions .btn-primary { height: 32px; padding: 6px 12px; flex: 1 1 auto; }
+    .panel-actions .btn-tonal {
+      height: 32px; padding: 6px 12px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      background: var(--backgrounds-button-tonal-1);
+      color: var(--text-button-tonal-1);
+    }
+    .panel-actions .btn-tonal:hover { filter: brightness(1.04); }
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 8px 12px; border-radius: 8px;
+      background: var(--backgrounds-button-primary);
+      color: var(--text-button-white);
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+
+    /* Sections scroll as one column below the fixed head. */
+    .panel-body { width: 100%; flex: 1 1 auto; min-height: 0; }
+    .panel-section {
+      width: 100%;
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 20px 16px;
+      border-bottom: 1px solid var(--strokes-line-1);
+    }
+    .panel-section:last-child { border-bottom: 0; }
+    .section-header { color: var(--text-teritiary); margin: 0; }
+    .rows { display: flex; flex-direction: column; }
+    .row {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--strokes-line-3);
+    }
+    .row:last-child { border-bottom: 0; }
+    .row .k { color: var(--text-teritiary); }
+    .row .v { color: var(--text-secondary); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row .v.who { display: flex; align-items: center; gap: 6px; }
+    .who-avatar { position: relative; width: 20px; height: 20px; flex: none; }
+    .who-avatar span {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #fff; font: 400 10px/14px var(--font-geist); letter-spacing: -0.2px;
+    }
+
+    /* A layer is a group of artifacts, so the layer badge heads the group
+       rather than repeating on every row. */
+    .layer-group { display: flex; flex-direction: column; gap: 6px; }
+    .layer-group + .layer-group { margin-top: 16px; }
+    .layer-head { display: flex; align-items: center; gap: 8px; }
+    .pl-badge {
+      height: 20px; flex: none;
+      display: flex; align-items: center; gap: 4px;
+      padding: 0 8px; border-radius: 6px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .pl-badge::before { content: ""; width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: currentColor; }
+    .pl-badge[data-layer="domain"]       { background: var(--backgrounds-badge-blue);   border-color: var(--strokes-colour-blue);   color: var(--text-coloured-blue); }
+    .pl-badge[data-layer="organization"] { background: var(--backgrounds-badge-green);  border-color: var(--strokes-colour-green);  color: var(--text-coloured-green); }
+    .pl-badge[data-layer="solution"]     { background: var(--backgrounds-badge-purple); border-color: var(--strokes-colour-purple); color: var(--text-coloured-purple); }
+    .layer-note { color: var(--text-teritiary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .art-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px; border-radius: 8px;
+      background: var(--backgrounds-card-bg-6);
+      border: 1px solid var(--strokes-line-3);
+    }
+    .art-row + .art-row { margin-top: 6px; }
+    .art-ic { flex: none; }
+    .art-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+    .art-text .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .art-text .ty { color: var(--text-teritiary); }
+    .ver-pill {
+      flex: none; height: 20px;
+      display: flex; align-items: center; padding: 0 6px; border-radius: 6px;
+      background: var(--backgrounds-page-bg-4);
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+    .panel-empty { color: var(--text-teritiary); }
+
+    /* Transparent: the panel is a detail view, not a modal — the page
+       behind it stays legible, the scrim only catches the outside click. */
+    .scrim { position: fixed; inset: 0; z-index: 50; background: transparent; display: none; }
+    .scrim.is-open { display: block; }
+
+    .bundle-card.is-selected {
+      border-color: var(--strokes-card-selected);
+      box-shadow: 0 0 0 1px var(--strokes-card-selected), var(--shadow-card-hover);
+    }
+
+    @media (max-width: 520px) {
+      .panel { width: 100vw; }
+    }
+
     /* ── Responsive ─────────────────────────────────────────────── */
     @media (max-width: 1280px) {
       .hero { flex-direction: column; align-items: stretch; padding: 28px 32px 24px; gap: 24px; }
@@ -753,6 +964,7 @@
   </style>
 
 <svg class="sprite" aria-hidden="true">
+<symbol id="ic-close" viewBox="0 0 16 16" fill="none"><g id="close__Close" clip-path="url(#close__clip0_0_121)"><g id="close__Vector"></g><path id="close__Vector_2" d="M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="close__Vector_3" d="M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="close__clip0_0_121"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-pp_chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="ic-pp_closepanel" viewBox="0 0 20 20" fill="none"><path d="M3.33333 5C3.33333 4.55797 3.50893 4.13405 3.82149 3.82149C4.13405 3.50893 4.55797 3.33333 5 3.33333H15C15.442 3.33333 15.8659 3.50893 16.1785 3.82149C16.4911 4.13405 16.6667 4.55797 16.6667 5V15C16.6667 15.442 16.4911 15.8659 16.1785 16.1785C15.8659 16.4911 15.442 16.6667 15 16.6667H5C4.55797 16.6667 4.13405 16.4911 3.82149 16.1785C3.50893 15.8659 3.33333 15.442 3.33333 15V5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 3.33333V16.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 8.33333L10.8333 10L12.5 11.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="ic-pp_contextstudio" viewBox="0 0 16 16" fill="none"><path d="M14 8L8 12L2 8M14 10.6667L8 14.6667L2 10.6667M14 5.33333L8 9.33333L2 5.33333L8 1.33333L14 5.33333Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -945,7 +1157,7 @@
       <div class="main-section">
 
         <!-- Context sidebar -->
-        <nav class="sidebar" aria-label="Context artifacts">
+        <nav class="sidebar cq-scroll-y" aria-label="Context artifacts">
           <div class="side-options">
             <button class="side-item t-body2-med is-active" aria-current="page">
               <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-studio"/></svg>
@@ -978,10 +1190,15 @@
           </div>
 
           <!-- Context layers explainer -->
-          <aside class="ctx-info" aria-label="What is a context bundle?">
+          <aside class="ctx-info" id="ctxInfo" aria-label="What is a context bundle?">
+            <button class="ctx-toggle" id="ctxToggle" aria-expanded="false" aria-controls="ctxBody">
+              <svg class="ic ctx-mini" viewBox="0 0 68 55.1555" aria-hidden="true"><use href="#cx-illus"/></svg>
+              <span class="ctx-q">What is a context bundle?</span>
+              <svg class="ic ctx-chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pp_chevron"/></svg>
+            </button>
+            <div class="ctx-body" id="ctxBody">
             <div class="ctx-hero">
               <svg class="ic illus" viewBox="0 0 68 55.1555" aria-hidden="true"><use href="#cx-illus"/></svg>
-              <span class="q">What is a context bundle?</span>
             </div>
             <div class="ctx-copy">
               <p>Context artifacts are organized in three layers:</p>
@@ -1013,6 +1230,7 @@
               <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-play"/></svg>
               Learn more
             </button>
+            </div>
           </aside>
         </nav>
 
@@ -1032,11 +1250,12 @@
             </div>
           </div>
 
-          <div class="studio-scroll">
+          <div class="studio-scroll cq-scroll-y">
 
             <!-- Hero -->
             <div class="hero-band">
-              <div class="hero">
+              <div class="hero" id="hero">
+                <span class="hero__glow" id="heroGlow" aria-hidden="true"></span>
                 <div class="hero-copy">
                   <h2>The Enterprise AI Context Layer</h2>
                 </div>
@@ -1104,19 +1323,125 @@
   </div>
 </div>
 
+
+<div class="scrim" id="scrim"></div>
+
+<!-- ══ Bundle detail panel ══════════════════════════════════════════ -->
+<aside class="panel" id="panel" aria-label="Bundle details" aria-hidden="true">
+  <div class="panel-head">
+    <div class="panel-tags-row">
+      <button class="panel-close" id="panelClose" aria-label="Close details">
+        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
+      </button>
+    </div>
+    <div class="panel-title-block">
+      <div class="panel-title-row">
+        <svg class="ic" id="panelIcon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><use href="#cx-b-indigo"/></svg>
+        <span class="panel-title t-subhead2-med" id="panelTitle">Customer Support</span>
+      </div>
+      <p class="panel-desc t-body2-reg" id="panelDesc"></p>
+    </div>
+    <div class="panel-actions">
+      <button class="btn-primary t-body2-med">
+        <svg class="ic" width="20" height="20" viewBox="0 0 24 24"><use href="#cx-stack3d"/></svg>
+        Attach to assistant
+      </button>
+      <button class="btn-tonal t-body2-med">
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-edit20"/></svg>
+        Edit
+      </button>
+    </div>
+  </div>
+
+  <div class="panel-body cq-scroll-y">
+    <section class="panel-section">
+      <p class="section-header t-caption1-med">DETAILS</p>
+      <div class="rows" id="panelMeta"></div>
+    </section>
+
+    <section class="panel-section">
+      <p class="section-header t-caption1-med" id="panelArtHeader">ARTIFACTS</p>
+      <div id="panelArtifacts"></div>
+    </section>
+  </div>
+</aside>
+
 <script>
 'use strict';
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 
 /* ── Context bundles ────────────────────────────────────────────── */
+/* An artifact is one cell of the bundle's selection matrix: a type, the
+   layer it was picked from, and the pinned version. Types carry the same
+   icons and one-liners the create screen lists them with. */
+const TYPES = {
+  glossary:  { label: 'Glossary',        note: 'Standard terms and definitions',   icon: 'cx-book20'   },
+  ontology:  { label: 'Ontology',        note: 'Relationships and hierarchies',    icon: 'cx-branch20' },
+  data:      { label: 'Data Binding',    note: 'Connections to data sources',      icon: 'cx-db20'     },
+  prompts:   { label: 'Prompts',         note: 'Pre-configured prompt templates',  icon: 'cx-edit20'   },
+  tools:     { label: 'Tool Binding',    note: 'Integrations with external APIs',  icon: 'cx-tool20'   },
+  rules:     { label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-shield20' },
+};
+const LAYERS = [
+  { key: 'domain',       label: 'Domain',       note: 'How the domain works, universally'   },
+  { key: 'organization', label: 'Organization', note: 'How this enterprise works, specifically' },
+  { key: 'solution',     label: 'Solution',     note: 'How a specific problem is solved'    },
+];
+
 const BUNDLES = [
-  { icon: 'cx-b-indigo', size: 24, name: 'Customer Support',          desc: 'This bundle is created for Microsoft business data reference', count: '12 artifacts', book: false, owner: 'S' },
-  { icon: 'cx-b-green',  size: 23, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S' },
-  { icon: 'cx-b-lgreen', size: 23, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S' },
-  { icon: 'cx-b-orange', size: 24, name: 'Marketing Analytics Bundle', desc: 'Comprehensive insights for campaign performance',             count: '12 artifacts', book: true,  owner: 'M' },
-  { icon: 'cx-b-purple', size: 24, name: 'Marketing Analytics',       desc: 'Comprehensive insights for campaign performance',              count: '12 artifacts', book: true,  owner: 'M' },
-  { icon: 'cx-b-blue',   size: 24, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S' },
+  { icon: 'cx-b-indigo', size: 24, name: 'Customer Support',          desc: 'This bundle is created for Microsoft business data reference', count: '12 artifacts', book: false, owner: 'S',
+    creator: 'Savio Govindu', created: 'Aug 12, 2026', updated: 'Aug 28, 2026',
+    artifacts: [
+      { layer: 'domain',       type: 'glossary', name: 'Customer Glossary',        version: 'v2.1' },
+      { layer: 'domain',       type: 'ontology', name: 'Support Ontology',         version: 'v1.4' },
+      { layer: 'organization', type: 'data',     name: 'Zendesk Tickets',          version: 'v3.0' },
+      { layer: 'organization', type: 'prompts',  name: 'Tier-1 Reply Templates',   version: 'v1.2' },
+      { layer: 'organization', type: 'tools',    name: 'Zendesk API',              version: 'v2.0' },
+      { layer: 'solution',     type: 'rules',    name: 'Refund Approval Policy',   version: 'v1.1' },
+    ] },
+  { icon: 'cx-b-green',  size: 23, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S',
+    creator: 'Savio Govindu', created: 'Jul 28, 2026', updated: 'Aug 19, 2026',
+    artifacts: [
+      { layer: 'domain',       type: 'glossary', name: 'Customer Glossary',        version: 'v2.0' },
+      { layer: 'organization', type: 'data',     name: 'CRM Accounts',            version: 'v1.7' },
+      { layer: 'organization', type: 'tools',    name: 'Teams Notifier',          version: 'v1.0' },
+      { layer: 'solution',     type: 'rules',    name: 'Escalation Rules',        version: 'v2.3' },
+    ] },
+  { icon: 'cx-b-lgreen', size: 23, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S',
+    creator: 'Priya Nair', created: 'Jul 28, 2026', updated: 'Aug 14, 2026',
+    artifacts: [
+      { layer: 'domain',       type: 'glossary', name: 'Product Glossary',        version: 'v1.9' },
+      { layer: 'domain',       type: 'ontology', name: 'Product Taxonomy',        version: 'v1.1' },
+      { layer: 'organization', type: 'data',     name: 'Product Inventory',       version: 'v12.0' },
+      { layer: 'solution',     type: 'prompts',  name: 'Returns Playbook',        version: 'v1.0' },
+    ] },
+  { icon: 'cx-b-orange', size: 24, name: 'Marketing Analytics Bundle', desc: 'Comprehensive insights for campaign performance',             count: '12 artifacts', book: true,  owner: 'M',
+    creator: 'Maya Fernandes', created: 'Jun 30, 2026', updated: 'Aug 25, 2026',
+    artifacts: [
+      { layer: 'domain',       type: 'glossary', name: 'Marketing Glossary',      version: 'v3.2' },
+      { layer: 'domain',       type: 'ontology', name: 'Channel Ontology',        version: 'v2.0' },
+      { layer: 'organization', type: 'data',     name: 'Campaign Warehouse',      version: 'v4.1' },
+      { layer: 'organization', type: 'tools',    name: 'GA4 Connector',           version: 'v1.6' },
+      { layer: 'solution',     type: 'prompts',  name: 'Attribution Briefs',      version: 'v1.3' },
+      { layer: 'solution',     type: 'rules',    name: 'Brand Voice Policy',      version: 'v2.2' },
+    ] },
+  { icon: 'cx-b-purple', size: 24, name: 'Marketing Analytics',       desc: 'Comprehensive insights for campaign performance',              count: '12 artifacts', book: true,  owner: 'M',
+    creator: 'Maya Fernandes', created: 'Jun 18, 2026', updated: 'Aug 21, 2026',
+    artifacts: [
+      { layer: 'domain',       type: 'glossary', name: 'Marketing Glossary',      version: 'v3.1' },
+      { layer: 'organization', type: 'data',     name: 'Ad Spend Ledger',         version: 'v2.8' },
+      { layer: 'organization', type: 'prompts',  name: 'Weekly Digest Prompt',    version: 'v1.5' },
+      { layer: 'solution',     type: 'rules',    name: 'Spend Guardrails',        version: 'v1.0' },
+    ] },
+  { icon: 'cx-b-blue',   size: 24, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S',
+    creator: 'Savio Govindu', created: 'Aug 02, 2026', updated: 'Aug 29, 2026',
+    artifacts: [
+      { layer: 'domain',       type: 'ontology', name: 'Account Hierarchy',       version: 'v1.2' },
+      { layer: 'organization', type: 'data',     name: 'Entitlements Table',      version: 'v1.9' },
+      { layer: 'organization', type: 'tools',    name: 'Jira Bridge',             version: 'v3.4' },
+      { layer: 'solution',     type: 'rules',    name: 'SLA Policy',              version: 'v2.1' },
+    ] },
 ];
 
 function bundleCard(b) {
@@ -1124,7 +1449,7 @@ function bundleCard(b) {
     ? '<svg class="ic" width="12" height="12" viewBox="0 0 20 20"><use href="#cx-book12"/></svg>'
     : '';
   return `
-    <button class="bundle-card">
+    <button class="bundle-card" data-i="${b.i}" aria-haspopup="dialog">
       <span class="bc-head">
         <svg class="ic" width="${b.size}" height="${b.size}" viewBox="0 0 ${b.size} ${b.size}"><use href="#${b.icon}"/></svg>
         <span class="name t-body2-med">${b.name}</span>
@@ -1139,14 +1464,156 @@ function bundleCard(b) {
     </button>`;
 }
 
+BUNDLES.forEach((b, i) => { b.i = i; });
+let selected = null;
+
 function renderBundles(query) {
   const q = (query || '').trim().toLowerCase();
   const hits = BUNDLES.filter((b) => !q || b.name.toLowerCase().includes(q) || b.desc.toLowerCase().includes(q));
   $('bundleGrid').innerHTML = hits.map(bundleCard).join('');
   $('bundlesEmpty').classList.toggle('is-visible', hits.length === 0);
+  markSelected();
+}
+
+function markSelected() {
+  $('bundleGrid').querySelectorAll('.bundle-card').forEach((el) => {
+    el.classList.toggle('is-selected', Number(el.dataset.i) === selected);
+  });
 }
 
 $('bundleSearch').addEventListener('input', (e) => renderBundles(e.target.value));
+
+/* ── Bundle detail panel ─────────────────────────────────────────────
+   The panel reads the bundle's selection matrix: artifacts grouped by
+   the layer they were picked from, each showing its type and the pinned
+   version — the same shape the create screen builds. */
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function metaRows(b) {
+  const initial = esc(b.creator.trim().charAt(0).toUpperCase());
+  return [
+    ['Created by', `<span class="v who t-body2-reg"><span class="who-avatar"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-avatar16"/></svg><span>${initial}</span></span>${esc(b.creator)}</span>`],
+    ['Created', `<span class="v t-body2-reg">${esc(b.created)}</span>`],
+    ['Last updated', `<span class="v t-body2-reg">${esc(b.updated)}</span>`],
+    ['Artifacts', `<span class="v t-body2-reg">${b.artifacts.length}</span>`],
+  ].map(([k, v]) => `<div class="row"><span class="k t-body2-reg">${k}</span>${v}</div>`).join('');
+}
+
+function artifactGroups(b) {
+  return LAYERS.map((layer) => {
+    const items = b.artifacts.filter((a) => a.layer === layer.key);
+    if (!items.length) return '';
+    const rows = items.map((a) => {
+      const t = TYPES[a.type];
+      return `<div class="art-row">
+        <svg class="ic art-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#${t.icon}"/></svg>
+        <span class="art-text">
+          <span class="nm t-body2-med">${esc(a.name)}</span>
+          <span class="ty t-caption1-reg">${esc(t.label)} · ${esc(t.note)}</span>
+        </span>
+        <span class="ver-pill t-caption1-reg">${esc(a.version)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="layer-group">
+      <div class="layer-head">
+        <span class="pl-badge t-caption1-med" data-layer="${layer.key}">${layer.label}</span>
+        <span class="layer-note t-caption1-reg">${esc(layer.note)}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function openPanel(i) {
+  const b = BUNDLES[i];
+  if (!b) return;
+  selected = i;
+  markSelected();
+  $('panelIcon').querySelector('use').setAttribute('href', '#' + b.icon);
+  $('panelTitle').textContent = b.name;
+  $('panelDesc').textContent = b.desc;
+  $('panelMeta').innerHTML = metaRows(b);
+  $('panelArtHeader').textContent = `ARTIFACTS · ${b.artifacts.length}`;
+  $('panelArtifacts').innerHTML = artifactGroups(b)
+    || '<p class="panel-empty t-body2-reg">No artifacts in this bundle yet.</p>';
+  $('panel').classList.add('is-open');
+  $('panel').setAttribute('aria-hidden', 'false');
+  $('scrim').classList.add('is-open');
+  $('panelClose').focus();
+}
+
+function closePanel() {
+  selected = null;
+  markSelected();
+  $('panel').classList.remove('is-open');
+  $('panel').setAttribute('aria-hidden', 'true');
+  $('scrim').classList.remove('is-open');
+}
+
+$('bundleGrid').addEventListener('click', (e) => {
+  const card = e.target.closest('.bundle-card');
+  if (!card) return;
+  const i = Number(card.dataset.i);
+  if (i === selected) { closePanel(); return; }
+  openPanel(i);
+});
+$('panelClose').addEventListener('click', closePanel);
+$('scrim').addEventListener('click', closePanel);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && selected !== null) closePanel();
+});
+
+/* ── Hero: the dot grid lights up under the pointer ──────────────────
+   Coordinates are written to custom properties on the glow layer and
+   read by its mask, so the pool follows the cursor without a re-layout.
+   Reads are throttled to one per frame. */
+(() => {
+  const hero = $('hero'), glow = $('heroGlow');
+  let queued = false, x = 0, y = 0;
+  hero.addEventListener('pointermove', (e) => {
+    const r = hero.getBoundingClientRect();
+    x = e.clientX - r.left; y = e.clientY - r.top;
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      glow.style.setProperty('--mx', x + 'px');
+      glow.style.setProperty('--my', y + 'px');
+    });
+  });
+})();
+
+/* ── The explainer opens itself once the page has settled ────────────
+   Collapsed on arrival so the artifact list owns the sidebar, then
+   revealed after a beat and left open. A manual toggle cancels the
+   timer, so the card never reopens over someone who just closed it. */
+(() => {
+  const card = $('ctxInfo'), body = $('ctxBody'), btn = $('ctxToggle');
+  let timer = null;
+
+  function setOpen(open) {
+    card.classList.toggle('is-open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
+  }
+
+  btn.addEventListener('click', () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    setOpen(!card.classList.contains('is-open'));
+  });
+
+  /* Content can reflow (fonts, wrapping) while open — keep the cap true. */
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      if (card.classList.contains('is-open')) body.style.maxHeight = body.scrollHeight + 'px';
+    }).observe(body);
+  }
+
+  setOpen(false);
+  timer = setTimeout(() => { timer = null; setOpen(true); }, 4500);
+})();
 
 /* ── Platform panel: hover to open, one category open at a time ──── */
 const rail = $('rail');
