@@ -1,28 +1,61 @@
-# Cogentiq Builder — Context Studio
+# Cogentiq Builder — Context Studio & Create bundle
 
-Implementation of the Figma frame **“Context- glossary”**
-(file `Cq3g1NA1RzLfySk1EM2n2V`, node **2296-537913**) on the Cogentiq design system.
+Two pages on the Cogentiq design system, implemented from Figma file
+`Cq3g1NA1RzLfySk1EM2n2V`:
 
-Open `context-studio.html` directly in a browser — no build step, no dependencies.
+| Page | Figma node |
+|---|---|
+| **Context Studio** — `context-studio.html` | **2296-537913** (“Context- glossary”) |
+| **Create new bundle** — `create-bundle.html` | **2175-12558** |
+
+The Studio page’s “Create Context bundle” card links to the second page; its back link
+and Cancel button return. Open either file directly in a browser — no build step, no
+dependencies.
 
 ---
 
 ## Files
 
+Shared layer, linked by both pages:
+
 | File | What it holds |
 |---|---|
-| `context-studio.html` | Document, icon sprite, page markup |
-| `context-studio.css` | All styles: design tokens, both themes, every component |
-| `context-studio.js` | All interactions and animations, plus the demo data fixtures |
+| `cogentiq.css` | Design tokens (light + dark), type ramps, reset, app shell, platform panel, shared form controls |
+| `cogentiq.js` | Platform-panel behaviour and the theme toggle. Defines `$` and `root` |
 
-Nothing else is required. The only external request is Google Fonts (Geist + Geist Mono);
-if your app already loads Geist, drop the `<link>` tags.
+Per page — link the shared file **first**, then the page file:
 
-### The icon sprite
+| File | What it holds |
+|---|---|
+| `context-studio.html` / `.css` / `.js` | The Studio page: hero, bundle grid, detail panel |
+| `create-bundle.html` / `.css` / `.js` | The create page: form, how-it-works, selection matrix, artifact picker |
+
+Each HTML file carries its own icon sprite. The only external request is Google Fonts
+(Geist + Geist Mono); if your app already loads Geist, drop the `<link>` tags.
+
+**Load order matters.** `cogentiq.js` declares `$` and `root`; the page scripts use them
+and must come after it. Both are `defer`, so document order is execution order.
+
+---
+
+## Layer hierarchy — house rule
+
+Wherever the three context layers appear, they are shown **narrowest scope first:**
+
+> **Solution › Organization › Domain**
+
+This holds in the Studio page’s sidebar explainer, in its bundle detail panel, and in the
+create page’s matrix columns. Each page declares the order once in a `LAYERS` array in its
+own script and every list is rendered from it — no CSS and no markup assumes a position.
+Change that array and every list follows.
+
+---
+
+## The icon sprite
 
 Every icon is an exported Figma asset, inlined once at the top of `<body>` and referenced
 with `<use href="#id">`. Prefixes: `ic-pp_*` platform panel, `ic-*` shared UI, `cx-*`
-Context Studio specifics.
+Context Studio, `cb-*` Create bundle.
 
 To move it to a partial, cut the `<svg class="sprite">` block into its own file and include
 it server-side at the top of `<body>`. **Do not** switch to an external
@@ -36,8 +69,9 @@ which is how the sidebar items, rail and hero tiles get their colours.
 Light is the mode the frame is designed in, and the default. The header toggle stamps
 `data-mode="dark"` on `<html>` and remembers the choice in `localStorage` under `cq-theme`.
 
-All colour lives in two token blocks at the top of the CSS — `:root` (light) and
-`:root[data-mode="dark"]`. Token names match the Figma variables one-for-one, so a value
+All colour lives in two token blocks at the top of `cogentiq.css` — `:root` (light) and
+`:root[data-mode="dark"]`; `create-bundle.css` adds a handful of its own in the same shape.
+Token names match the Figma variables one-for-one, so a value
 changed in Figma maps to exactly one line here. **Components never hard-code a colour**;
 if a value is missing, add a token rather than a literal.
 
@@ -66,6 +100,18 @@ Three exceptions, which are deliberate and documented in place:
 | Bundle grid | `.bundle-grid`, `.bundle-card` | Three columns, dropping to two then one. Count chip uses the Model hub card-tag style. |
 | Detail panel | `.panel` | 420px right-edge overlay, same component as the Model hub and Skills panels. |
 
+### Create new bundle
+
+| Region | Selector | Notes |
+|---|---|---|
+| Breadcrumb | `.crumb` | Back chevron, “Context studio / Create new bundle”. |
+| Form | `.cb-form` | Bundle name and description, both required. |
+| How it works | `.cb-how` | Three tiles plus “Watch tutorial”. |
+| Section head | `.cb-sec` | Title, description, and the “Max 1 of each type per layer” pill. |
+| Matrix | `.cb-matrix`, `.cb-col`, `.cb-cell` | Four equal columns: the artifact-type spine, then one column per layer. CSS `subgrid` keeps every row on one baseline; where it is unsupported the columns fall back to their own flow. |
+| Picker | `.cb-pop` | Fixed-position popover, placed in script. |
+| Footer | `.cb-foot` | Live count, Cancel, Create Bundle. |
+
 ### Hero background
 
 The frame’s gradient art is a large exported composite. It is rebuilt in CSS instead
@@ -78,7 +124,8 @@ asset — nothing else depends on them.
 
 ## Interactions and animations
 
-Everything below is implemented in `context-studio.js`; timings are exact.
+Timings below are exact. §1 lives in `cogentiq.js`; §2–5 in `context-studio.js`;
+§6 in `create-bundle.js`.
 
 ### 1 · Platform panel
 
@@ -132,14 +179,38 @@ than a second grid fading in over the first.
 The “Search bundles” field filters the grid live on `input`, matching name and description.
 An empty-state line shows when nothing matches.
 
-### 6 · Reduced motion
+### 6 · Create bundle — the selection matrix
+
+- Clicking a **Select** cell opens the artifact picker anchored under it; the cell takes the
+  dashed-blue active state. Clicking the same cell again closes it.
+- The popover is fixed-position: it **flips above** the cell when there is no room below and
+  **shifts inward** near a viewport edge. It is repositioned on resize and on scroll
+  (captured, because the scrolling element is `.cb-scroll`, not the window).
+- Search filters the list. Clicking an artifact **expands its versions** — `max-height`
+  measured after paint, **280ms** — and the chevron rotates 90°. One row open at a time.
+- Picking a version fills the cell with the artifact name and a version pill, closes the
+  popover and returns focus to the cell.
+- **Max 1 of each type per layer** is enforced by the data shape: `selection[type][layer]`
+  holds a single value, so picking again replaces. The **×** on a filled cell clears it.
+- The footer count is live. **Create Bundle** stays disabled until there is a name, a
+  description and at least one artifact.
+- A required field turns red only after it has been used and left empty, so the form is
+  never red before use.
+- Closes on the ×, an outside click, or **Escape**; Escape returns focus to the cell.
+
+One implementation note worth keeping: the picker’s click handler re-renders the list,
+which detaches the clicked node. The document-level outside-click handler therefore checks
+`e.target.isConnected` and the picker handler calls `stopPropagation()` — without both, a
+click inside the popover reads as a click outside and closes it.
+
+### 7 · Reduced motion
 
 `@media (prefers-reduced-motion: reduce)` disables every transition and animation, and the
 hero glow layer is hidden outright.
 
 ---
 
-## Data shape
+## Data shape — Context Studio
 
 The fixtures at the top of the JS mirror the create-bundle screen (node **2175-12558**):
 a bundle is a matrix of **artifact type × layer**, one artifact per cell, each pinned to a
@@ -173,6 +244,23 @@ place when you wire real data — bundle names and descriptions are user input.
 
 ---
 
+## Data shape — create bundle
+
+`LAYERS`, `TYPES` and `CATALOG` at the top of `create-bundle.js` drive the whole matrix.
+A selection is `selection[typeKey][layerKey] = { name, version }` — one artifact per cell.
+
+```js
+CATALOG.glossary = [
+  { name: 'Customer Glossary', sub: 'Standard business terms and definitions',
+    versions: [ { v: 'v2.1', date: 'Aug 12, 2026', latest: true },
+                { v: 'v2.0', date: 'Jul 28, 2026' } ] },
+];
+```
+
+Versions are newest-first; the one flagged `latest` gets the badge. `New` and
+`Create Bundle` are left as empty handlers for you to wire.
+---
+
 ## Accessibility
 
 Already in place: `aria-expanded` on both the rail categories and the explainer toggle,
@@ -189,7 +277,9 @@ Two things worth doing when this becomes a real page:
 
 ---
 
-## Two notes on the design
+---
+
+## Notes on the design
 
 1. **Active rail item.** The Figma frame shows the *brain* icon selected in the rail, which
    in the design system’s current naming is **Model Hub**. Since this is the Context page,
@@ -197,8 +287,12 @@ Two things worth doing when this becomes a real page:
    the Figma selection back.
 
 2. **Artifact type copy.** The create-bundle frame labels *Data Binding* “Pre-configured
-   prompt templates” and *Prompts* “Connections to data sources” — these look swapped. The
-   `TYPES` map uses the sensible pairing. Worth confirming with the designer.
+   prompt templates” and *Prompts* “Connections to data sources” — these look swapped. Both
+   pages use the sensible pairing (Data Binding → connections, Prompts → templates). Worth
+   confirming with the designer.
+
+3. **Layer order vs. Figma.** The Figma matrix shows the columns as Domain, Organization,
+   Solution. Per the house rule above they are rendered Solution, Organization, Domain.
 
 ---
 

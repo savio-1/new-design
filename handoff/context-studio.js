@@ -1,77 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════════
-   COGENTIQ BUILDER · CONTEXT STUDIO
-   Interactions. No dependencies — plain ES2017, loaded with `defer`.
+   CONTEXT STUDIO — page behaviour. Loads after cogentiq.js, which
+   defines $ and root and owns the rail and the theme toggle.
 
-   ───────────────────────────────────────────────────────────────────
-   INTERACTION / ANIMATION SPEC   (all of it is implemented below)
-   ───────────────────────────────────────────────────────────────────
-   1 · PLATFORM PANEL (left rail)
-       - Crunched to 68px by default; opens to 240px on hover after a
-         140ms delay, closes 200ms after the pointer leaves. The delays
-         stop the panel flickering as the cursor crosses it.
-       - Width animates 260ms cubic-bezier(.4,0,.2,1). Labels are laid
-         out at full width the whole time and clipped by the rail, so
-         opening never reflows a row.
-       - The collapse button closes it immediately.
-       - Category headers toggle on click, ONE OPEN AT A TIME: opening
-         one closes the others. Chevron rotates 180deg over 220ms.
-       - Context Studio is a leaf category (no children) and sits below
-         every other category under a rule. Its tile gradient rotates on
-         a 6s loop, speeding to 1.4s on hover.
-
-   2 · HERO - pointer-tracked dot highlight
-       - Two identical dot grids are stacked. The base grid is dim; the
-         second (.hero__glow) is bright and revealed only through a
-         150px radial mask centred on the cursor.
-       - Cursor position is written to --mx / --my on the glow layer,
-         throttled to one write per animation frame.
-       - The layer fades 0 -> .5 over 450ms on hover, so the dots
-         brighten in a soft pool rather than the whole band changing.
-       - Disabled under (hover: none) and prefers-reduced-motion.
-
-   3 · EXPLAINER CARD - "What is a context bundle?"
-       - Starts MINIMISED so the artifact list owns the sidebar on
-         arrival, then opens ITSELF after 4500ms and stays open.
-       - The header row is the toggle. Clicking it CANCELS the timer, so
-         the card never re-opens over someone who just closed it.
-       - Height animates from a max-height measured in script (works
-         with content of any length); a ResizeObserver keeps the cap
-         true if the content reflows while open.
-
-   4 · BUNDLE GRID -> DETAIL PANEL
-       - Clicking a card opens the 420px right-edge panel; clicking the
-         same card again closes it. Cards lift 2px on hover and take a
-         blue ring while selected.
-       - The panel slides in with transform 280ms
-         cubic-bezier(.4,0,.2,1) over a transparent scrim that only
-         catches the outside click.
-       - Closes on: the x button, a click outside, Escape, or
-         re-clicking the open card. Focus moves to the x on open.
-       - Contents render from the BUNDLES array: name, description,
-         creator, dates, and the artifacts grouped by layer.
-
-   5 · SEARCH
-       - The "Search bundles" field filters the grid live on input,
-         matching name and description; an empty-state line shows when
-         nothing matches.
-
-   6 · THEME
-       - The header toggle swaps data-mode on <html> and remembers the
-         choice in localStorage under "cq-theme" (wrapped in try/catch
-         for private-mode browsers). Light is the default.
-
-   ───────────────────────────────────────────────────────────────────
-   DATA
-     BUNDLES / TYPES / LAYERS below are demo fixtures shaped to match
-     the create-bundle screen (node 2175-12558): a bundle is a matrix
-     of artifact TYPE x LAYER, one artifact per cell, each pinned to a
-     version. Replace them with your API payload - the render functions
-     read nothing else.
+   1 · HERO dot highlight — a bright copy of the dot grid revealed
+       through a 150px mask centred on the cursor, written to --mx/--my
+       once per animation frame and faded 0 -> .5 over 450ms.
+   2 · EXPLAINER CARD — minimised on arrival, opens itself after
+       4500ms. The header toggles it and cancels the timer.
+   3 · BUNDLE GRID -> DETAIL PANEL — click a card to open the 420px
+       panel (280ms slide); closes on the x, outside click, Escape, or
+       re-clicking the card.
+   4 · SEARCH — filters the grid live on input.
    ═══════════════════════════════════════════════════════════════════ */
-
-'use strict';
-const $ = (id) => document.getElementById(id);
-const root = document.documentElement;
 
 /* ── Context bundles ────────────────────────────────────────────── */
 /* An artifact is one cell of the bundle's selection matrix: a type, the
@@ -85,10 +25,13 @@ const TYPES = {
   tools:     { label: 'Tool Binding',    note: 'Integrations with external APIs',  icon: 'cx-tool20'   },
   rules:     { label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-shield20' },
 };
+/* House order for the three context layers, narrowest scope first:
+   Solution > Organization > Domain. Everything that lists the layers
+   reads this array, so the hierarchy is stated in one place. */
 const LAYERS = [
-  { key: 'domain',       label: 'Domain'       },
-  { key: 'organization', label: 'Organization' },
   { key: 'solution',     label: 'Solution'     },
+  { key: 'organization', label: 'Organization' },
+  { key: 'domain',       label: 'Domain'       },
 ];
 
 const BUNDLES = [
@@ -312,43 +255,5 @@ document.addEventListener('keydown', (e) => {
   setOpen(false);
   timer = setTimeout(() => { timer = null; setOpen(true); }, 4500);
 })();
-
-/* ── Platform panel: hover to open, one category open at a time ──── */
-const rail = $('rail');
-let railT;
-rail.addEventListener('mouseenter', () => {
-  clearTimeout(railT); railT = setTimeout(() => rail.classList.add('is-open'), 140);
-});
-rail.addEventListener('mouseleave', () => {
-  clearTimeout(railT); railT = setTimeout(() => rail.classList.remove('is-open'), 200);
-});
-$('railCollapse').addEventListener('click', (e) => {
-  e.stopPropagation(); rail.classList.remove('is-open');
-});
-rail.querySelectorAll('.cq-rail-ghead[aria-expanded]').forEach((head) => {
-  head.addEventListener('click', () => {
-    const open = head.getAttribute('aria-expanded') === 'true';
-    rail.querySelectorAll('.cq-rail-ghead[aria-expanded]').forEach((h) => h.setAttribute('aria-expanded', 'false'));
-    head.setAttribute('aria-expanded', String(!open));
-  });
-});
-
-/* ── Theme ──────────────────────────────────────────────────────── */
-function applyMode(mode) {
-  root.dataset.mode = mode;
-  const dark = mode === 'dark';
-  $('themeIcon').querySelector('use').setAttribute('href', dark ? '#ic-sun' : '#ic-moon');
-  const label = dark ? 'Switch to light mode' : 'Switch to dark mode';
-  $('themeToggle').setAttribute('title', label);
-  $('themeToggle').setAttribute('aria-label', label);
-}
-$('themeToggle').addEventListener('click', () => {
-  const next = root.dataset.mode === 'dark' ? 'light' : 'dark';
-  applyMode(next);
-  try { localStorage.setItem('cq-theme', next); } catch (e) { /* private mode */ }
-});
-let stored = null;
-try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
-applyMode(stored === 'dark' ? 'dark' : 'light');
 
 renderBundles('');

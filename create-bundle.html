@@ -1,29 +1,927 @@
-<!DOCTYPE html>
-<html lang="en" data-mode="light">
-<head>
-  <meta charset="utf-8" />
+<meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cogentiq Builder — Context Studio</title>
-  <meta name="description" content="The enterprise AI context layer — bundle glossary, ontology, bindings, prompts and policies into sets an assistant can use." />
+  <title>Cogentiq Builder — New Context Bundle</title>
+  <meta name="description" content="Build a context bundle: name it, then pick one artifact per type from each layer — Solution, Organization and Domain." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="cogentiq.css" />
-  <link rel="stylesheet" href="context-studio.css" />
-</head>
-<body>
+  <style>
+    /* ══════════════════════════════════════════════════════════════
+       DESIGN VARIABLES — taken verbatim from the Figma library
+       (Cogentiq · Builder, "Context- glossary"). Light is the mode
+       the frame is designed in; the header toggle stamps
+       data-mode="dark" to switch.
+       ══════════════════════════════════════════════════════════════ */
+    :root {
+      /* Backgrounds ------------------------------------------------ */
+      --backgrounds-page-bg-1:            #fafafa;
+      --backgrounds-page-bg-2:            #ffffff;
+      --backgrounds-page-bg-3:            #f5f5f5;
+      --backgrounds-page-bg-4:            #f0f0f0;
+      --backgrounds-card-bg-2:            #ffffff;
+      --backgrounds-card-bg-3:            #ffffff;
+      --backgrounds-card-bg-4:            #f5f5f5;
+      --backgrounds-card-bg-5:            #ffffff;
+      --backgrounds-card-bg-6:            #f1f1f1;  /* raised off #fafafa so it reads inside a white card */
+      --backgrounds-table-select:         #e5f4ff;
+      --backgrounds-type-search-default:  #f5f5f5;
+      --backgrounds-button-primary:       #0d99ff;
+      --backgrounds-button-tonal-1:       #e5f4ff;
+      --backgrounds-badge-blue:           #f2f9ff;
+      --backgrounds-badge-indigo:         #f0f1fe;
 
-<!-- ═══════════════════════════════════════════════════════════════════
-     ICON SPRITE — exported Figma assets, inlined once and referenced
-     with <use href="#id"> so the glyphs inherit currentColor.
-     Prefixes: ic-pp_* platform panel · ic-* shared UI · cx-* Context
-     Studio · cb-* Create bundle.
-     Do NOT switch to an external <use href="icons.svg#id"> reference:
-     the glyphs would stop inheriting currentColor.
-     ═══════════════════════════════════════════════════════════════════ -->
+      /* Strokes ---------------------------------------------------- */
+      --strokes-card-default:     #eeeeee;
+      --strokes-card-selected:    #0d99ff;
+      --strokes-type-default:     #e0e0e0;
+      --strokes-type-focus:       #0d99ff;
+      --strokes-line-1:           #eeeeee;
+      --strokes-line-2:           #e0e0e0;
+      --strokes-line-3:           #f5f5f5;
+      --strokes-icon-default:     #616161;
+      --strokes-colour-blue:      #e5f4ff;
+
+      /* Text ------------------------------------------------------- */
+      --text-primary:              #121212;
+      --text-secondary:            #616161;
+      --text-teritiary:            #8c8c8c;
+      --text-coloured-blue:        #0d99ff;
+      --text-button-white:         #ffffff;
+      --text-button-tonal-1:       #007be5;
+
+      /* Palette (rail gradients + badge dots) ----------------------- */
+      --blue-300: #bde3ff;  --blue-500: #0d99ff;  --blue-600: #007be5;
+      --purple-300: #e4ccff; --purple-400: #d9b8ff; --purple-450: #bb7fff; --purple-500: #9747ff; --purple-600: #8638e5;
+      --indigo-300: #c2c5fa; --indigo-500: #5860ed; --indigo-600: #454de0;
+      --orange-300: #fcd19c; --orange-600: #fc9e24; --orange-800: #dd7c0e;
+      --green-300: #aff4c6;  --green-500: #14ae5c;  --green-600: #009951;
+
+      /* Type ------------------------------------------------------- */
+      --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-geist: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --fs-caption:  12px;   /* Type/Font Size/Body/Caption */
+      --fs-body-3:   14px;   /* Type/Font Size/Body/Body 3 */
+      --fs-body-2:   16px;   /* Type/Font Size/Body/Body 2 */
+      --lh-body-2:   24px;   /* Type/Line Height/Body/Body 2 */
+      --lh-body-3:   20px;   /* Type/Line Height/Body/Body 3 */
+
+      /* Effects ---------------------------------------------------- */
+      --shadow-sidebar: drop-shadow(1px 0 1px rgba(18, 18, 18, .06));
+      --shadow-bar:     drop-shadow(0 1px 1px rgba(18, 18, 18, .06));
+      --shadow-card:    0 1px 3px rgba(18, 18, 18, .16);
+      --shadow-card-hover: 0 4px 12px rgba(18, 18, 18, .14);
+      --shadow-info:    0 4px 4px rgba(0, 0, 0, .12);
+      --shadow-badge:   0 0 1px 1px rgba(0, 0, 0, .12);
+      --shadow-rail:    8px 0 28px rgba(18, 18, 18, .14);
+      --gradient-blue-wash: linear-gradient(90deg, rgba(188, 235, 249, 0) 46%, rgba(188, 235, 249, 1) 86%);
+      --flag-sheen:     rgba(13, 153, 255, .28);
+      --scroll-thumb:       rgba(18, 18, 18, .18);
+      --scroll-thumb-hover: rgba(18, 18, 18, .30);
+      --art-row-bg:     #f5f5f5;
+      --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(18, 18, 18, .08), 0 2px 16px rgba(33, 33, 33, .10);
+      --backgrounds-disabled-tonal-1: #e5f4ff;
+      --text-disabled-tonal-1:        #80caff;
+      --strokes-checkbox-default:     #bdbdbd;
+      --strokes-checkbox-focus:       #0d99ff;
+      --cyan-400:                     #35caf0;
+      --backgrounds-badge-orange: #fff6e9;
+      --type-ink-glossary: #0d99ff;  --type-ink-ontology: #9747ff;
+      --type-ink-data:     #00a2c2;  --type-ink-prompts:  #5860ed;
+      --type-ink-tools:    #e91e63;  --type-ink-rules:    #689f38;
+      --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
+      --scrim:          rgba(18, 18, 18, .18);
+      --backgrounds-badge-green:  #ebffee;
+      --strokes-colour-green:     #aff4c6;
+      --text-coloured-green:      #14ae5c;
+      --backgrounds-badge-purple: #f7f0ff;
+      --strokes-colour-purple:    #e4ccff;
+      --text-coloured-purple:     #8638e5;
+
+      /* Layout constants straight off the frame -------------------- */
+      --rail-w:      68px;
+      --rail-w-open: 240px;
+      --sidebar-w:   240px;
+      --panel-w:     420px;
+      --radius-md:   8px;
+      --white:       #ffffff;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       DARK MODE — the same Figma variables in their dark values,
+       as published for the library's dark frames.
+       ══════════════════════════════════════════════════════════════ */
+    :root[data-mode="dark"] {
+      --backgrounds-page-bg-1:            #121212;
+      --backgrounds-page-bg-2:            #212121;
+      --backgrounds-page-bg-3:            #1b1b1b;
+      --backgrounds-page-bg-4:            #121212;
+      --backgrounds-card-bg-2:            #212121;
+      --backgrounds-card-bg-3:            #323232;
+      --backgrounds-card-bg-4:            #323232;
+      --backgrounds-card-bg-5:            #1b1b1b;
+      --backgrounds-card-bg-6:            #212121;
+      --backgrounds-table-select:         #0d193f;
+      --backgrounds-type-search-default:  #121212;
+      --backgrounds-button-primary:       #0d99ff;
+      --backgrounds-button-tonal-1:       #093077;
+      --backgrounds-badge-blue:           #09112b;
+      --backgrounds-badge-indigo:         #0b0f2e;
+
+      --strokes-card-default:     #424242;
+      --strokes-card-selected:    #0d99ff;
+      --strokes-type-default:     #424242;
+      --strokes-type-focus:       #007be5;
+      --strokes-line-1:           #424242;
+      --strokes-line-2:           #424242;
+      --strokes-line-3:           #323232;
+      --strokes-icon-default:     #9e9e9e;
+      --strokes-colour-blue:      #093077;
+
+      --text-primary:              #ffffff;
+      --text-secondary:            #bdbdbd;
+      --text-teritiary:            #8c8c8c;
+      --text-coloured-blue:        #44aaf3;
+      --text-button-tonal-1:       #80caff;
+
+      --shadow-sidebar: drop-shadow(1px 0 1px rgba(18, 18, 18, .12));
+      --shadow-bar:     drop-shadow(0 1px 1px rgba(18, 18, 18, .12));
+      --shadow-card:    0 1px 3px rgba(0, 0, 0, .4);
+      --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, .4);
+      --shadow-info:    0 4px 4px rgba(0, 0, 0, .4);
+      --shadow-badge:   0 0 1px 1px rgba(0, 0, 0, .4);
+      --shadow-rail:    8px 0 28px rgba(0, 0, 0, .38);
+      --gradient-blue-wash: linear-gradient(90deg, rgba(62, 99, 116, 0) 46%, rgba(62, 99, 116, 1) 86%);
+      --flag-sheen:     rgba(255, 255, 255, .30);
+      --scroll-thumb:       rgba(255, 255, 255, .16);
+      --scroll-thumb-hover: rgba(255, 255, 255, .28);
+      --art-row-bg:     #2c2c2c;
+      --shadow-pop:     0 -1px 2px rgba(0, 0, 0, .04), 0 4px 8px rgba(0, 0, 0, .12), 0 2px 16px rgba(33, 33, 33, .16);
+      --backgrounds-disabled-tonal-1: #093077;
+      --text-disabled-tonal-1:        #0768cf;
+      --strokes-checkbox-default:     #616161;
+      --strokes-checkbox-focus:       #0d99ff;
+      --cyan-400:                     #35caf0;
+      --backgrounds-badge-orange: #2a1a05;
+      --type-ink-glossary: #44aaf3;  --type-ink-ontology: #bb7fff;
+      --type-ink-data:     #35caf0;  --type-ink-prompts:  #a0a5f7;
+      --type-ink-tools:    #f06292;  --type-ink-rules:    #aed581;
+      --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .4);
+      --scrim:          rgba(18, 18, 18, .5);
+      --backgrounds-badge-green:  #031d11;
+      --strokes-colour-green:     #0a3a22;
+      --text-coloured-green:      #85e0a3;
+      --backgrounds-badge-purple: #17092b;
+      --strokes-colour-purple:    #3d1a66;
+      --text-coloured-purple:     #c9a3ff;
+    }
+
+    /* Body1/Med, Body2/Reg … as reusable type ramps */
+    .t-subhead1-med { font: 500 24px/32px var(--font-geist); letter-spacing: -0.96px; }
+    .t-subhead2-med { font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px; }
+    .t-body2-med    { font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
+    .t-body2-reg    { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
+    .t-caption1-med { font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px; }
+    .t-caption1-reg { font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px; }
+    .t-caption2-med { font: 500 10px/14px var(--font-geist); letter-spacing: -0.2px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       RESET
+       ══════════════════════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--backgrounds-page-bg-1);
+      color: var(--text-primary);
+      font-family: var(--font-geist);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+    input  { font: inherit; color: inherit; background: none; border: 0; outline: 0; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 2px; }
+    .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+    /* One scroller for the whole page: a thin track that only shows its
+       thumb, darkening slightly on hover. Firefox gets the same via
+       scrollbar-width/color; the thumb colour is a token so both themes
+       follow. */
+    .cq-scroll-y { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+    .cq-scroll-y::-webkit-scrollbar { width: 10px; height: 10px; }
+    .cq-scroll-y::-webkit-scrollbar-track { background: transparent; }
+    .cq-scroll-y::-webkit-scrollbar-thumb {
+      background: var(--scroll-thumb);
+      border: 3px solid transparent; background-clip: content-box;
+      border-radius: 8px;
+    }
+    .cq-scroll-y::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); background-clip: content-box; }
+    .cq-scroll-y::-webkit-scrollbar-corner { background: transparent; }
+    .ic { display: block; flex: none; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       APP SHELL   (Figma frame "Context- glossary" · 1440 × 820)
+       ══════════════════════════════════════════════════════════════ */
+    /* The gutter is constant because .cq-rail overlays rather than pushes. */
+    .app { display: flex; height: 100vh; height: 100dvh; padding-left: var(--rail-w); background: var(--backgrounds-page-bg-1); }
+
+    /* ══════════════════════════════════════════════════════════════
+       PLATFORM PANEL  ·  Cogentiq design system (latest)
+       Ported verbatim from the design-system build: a 68px rail that
+       opens to 240px on hover, with labelled categories, one category
+       open at a time, and Context Studio as its own offering row.
+       ══════════════════════════════════════════════════════════════ */
+    .cq-rail {
+      position: fixed; left: 0; top: 0; bottom: 0; z-index: 80;
+      width: var(--rail-w);
+      background: var(--backgrounds-page-bg-1);
+      display: flex; flex-direction: column; align-items: stretch; gap: 16px;
+      padding: 8px 16px;
+      overflow-x: hidden; overflow-y: auto;
+      transition: width .26s cubic-bezier(.4, 0, .2, 1), box-shadow .26s ease;
+    }
+    .cq-rail.is-open { width: var(--rail-w-open); box-shadow: var(--shadow-rail); }
+    .cq-rail::-webkit-scrollbar { width: 0; }
+
+    /* Labels are laid out at their real width the whole time and clipped
+       by the rail; animating width instead would reflow every row. */
+    .cq-rail-lbl {
+      flex: 1 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      text-align: left;
+      font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+      color: var(--text-primary);
+    }
+    .cq-rail:not(.is-open) .cq-rail-lbl { display: none; }
+
+    /* ── Header: logo, wordmark, collapse ── */
+    .cq-rail-head {
+      flex: none; display: flex; align-items: center; justify-content: space-between;
+      gap: 6px; padding: 8px 0;
+    }
+    .cq-rail-brand { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; }
+    .cq-rail:not(.is-open) .cq-rail-brand { justify-content: center; }
+    .cq-rail-logo {
+      position: relative; flex: none;
+      width: 32px; height: 32px; border-radius: 100px; overflow: hidden;
+      background: var(--backgrounds-page-bg-2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--strokes-icon-default);
+    }
+    .cq-rail-wordmark {
+      font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px;
+      color: var(--text-primary);
+    }
+    .cq-rail-collapse {
+      flex: none; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--strokes-icon-default);
+      transition: color .15s ease;
+    }
+    .cq-rail-collapse:hover { color: var(--text-primary); }
+    .cq-rail:not(.is-open) .cq-rail-collapse { display: none; }
+
+    .cq-rail-group { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+
+    /* ── Marketplace ── */
+    .cq-rail-market {
+      position: relative;
+      width: 100%; height: 36px; flex: none;
+      border-radius: 8px; overflow: hidden;
+      background: var(--backgrounds-card-bg-3);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 0 12px;
+    }
+    .cq-rail:not(.is-open) .cq-rail-market { padding: 0; }
+    /* Opened only: at 36px the art already fills the tile. */
+    .cq-rail.is-open .cq-rail-market { background-image: var(--gradient-blue-wash); }
+    .cq-rail-market .bg { position: absolute; inset: 0; overflow: hidden; }
+    .cq-rail-market .bg svg { position: absolute; }
+    .cq-rail-market .mark { position: relative; flex: none; width: 24px; height: 15.6px; }
+    .cq-rail-market .cq-rail-lbl { position: relative; font-weight: 500; }
+    /* Zero-height in the component, with the stroke drawn above it — a 1px
+       box here would add a row and push everything below out of rhythm. */
+    .cq-rail-rule { position: relative; width: 100%; height: 0; flex: none; }
+    .cq-rail-rule::before {
+      content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+      background: var(--strokes-line-1);
+    }
+
+    /* ── Items ── */
+    .cq-rail-btn {
+      width: 100%; height: 36px; flex: none;
+      border-radius: 8px; padding: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      color: var(--strokes-icon-default);
+      transition: background .15s ease, color .15s ease;
+    }
+    .cq-rail-btn > .cq-ic { flex: none; }
+    /* Hover draws a rectangle, not just a fill — at 68px the icons have
+       no labels to hit-test against, so the row needs to say where it
+       begins and ends. The border comes out of the padding exactly as it
+       does on an active item, so nothing shifts by a pixel. */
+    .cq-rail-btn:hover {
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      padding: 7px;
+      color: var(--text-secondary);
+    }
+    .cq-rail-btn.is-active {
+      background: var(--backgrounds-button-tonal-1);
+      /* Figma strokes sit inside the box, so the padding absorbs the border
+         and the icon stays on the same 8px line as every other item. */
+      border: 1px solid var(--strokes-card-selected);
+      padding: 7px;
+      color: var(--text-coloured-blue);
+    }
+    .cq-rail-btn.is-active .cq-rail-lbl { color: var(--text-coloured-blue); font-weight: 500; }
+    .cq-rail-stack { display: flex; flex-direction: column; align-items: stretch; }
+
+    /* ── Group header ── */
+    .cq-rail-ghead {
+      position: relative;
+      width: 100%; height: 24px; flex: none;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    /* A category header is 24px of tile and label with no box of its own,
+       and it is a control. The rectangle is drawn by a pseudo-element
+       rather than by padding a fixed-height row, so it can overhang the
+       24px without touching layout — and the children are lifted above
+       it, since a positioned pseudo would otherwise paint over them. */
+    .cq-rail-ghead::before {
+      content: ""; position: absolute; inset: -6px -8px; z-index: 0;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .cq-rail-ghead:hover::before {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-card-default);
+    }
+    .cq-rail-ghead > * { position: relative; z-index: 1; }
+    .cq-rail-tile {
+      flex: none;
+      width: 24px; height: 24px; border-radius: 6px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+    }
+    .cq-rail-ghead .cq-rail-lbl { font-weight: 500; }
+    .cq-rail-chev {
+      flex: none; color: var(--text-teritiary);
+      transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+    }
+    .cq-rail-ghead[aria-expanded="true"] .cq-rail-chev { transform: rotate(180deg); }
+    .cq-rail:not(.is-open) .cq-rail-chev { display: none; }
+    /* Collapsing a group hides its items at either width — the crunched
+       panel shows a collapsed group as its tile alone, same as opened. */
+    .cq-rail-ghead[aria-expanded="false"] + .cq-rail-stack { display: none; }
+
+    /* ── Context Studio: a category with no children ─────────────
+       It sits at category level rather than inside Library because it is
+       an offering in its own right — and because a top-level row is the
+       only one the one-open-category rule can never hide. Every Build or
+       Library child collapses away; this one is always on screen, which
+       is what a separate offering needs. */
+    .cq-rail-ghead--leaf { position: relative; }
+    .cq-rail-tile-wrap { position: relative; flex: none; display: flex; }
+
+    /* Locked, the tile stays full colour. A greyed-out tile reads "not for
+       you"; the point here is the opposite. The dot does the work instead
+       — and it has to, because the panel is crunched by default, where a
+       label-row pill would never be seen. */
+    .cq-rail-dot {
+      display: none;
+      position: absolute; top: -2px; right: -2px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-coloured-blue);
+      box-shadow: 0 0 0 2px var(--backgrounds-page-bg-1);
+    }
+    /* The pill carries the Context tile's own gradient rather than the
+       generic blue badge, so the row's two coloured things read as one
+       offering instead of two unrelated accents. The gradient is static
+       here even though the tile's turns: two rotations six pixels apart
+       is noise, and the pill already has its own motion in the sheen
+       below. No border — a stroke on a saturated fill only muddies it,
+       and dropping it buys the 1px back as padding. */
+    .cq-rail-flag {
+      display: none;
+      position: relative; overflow: hidden;
+      flex: none; height: 18px; padding: 0 8px; border-radius: 9px;
+      align-items: center;
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      color: var(--text-button-white);
+      font: 500 11px/1 var(--font-geist); letter-spacing: -0.11px;
+    }
+    /* A glint that crosses the pill every few seconds, with a long hold
+       between passes. Constant motion in a nav panel is nagging; one
+       periodic pass reads as emphasis and then gets out of the way. */
+    .cq-rail-flag::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(100deg, transparent 32%, var(--flag-sheen) 50%, transparent 68%);
+      transform: translateX(-100%);
+      animation: cq-flag-sheen 3.4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes cq-flag-sheen {
+      0%, 58% { transform: translateX(-100%); }
+      100%    { transform: translateX(200%); }
+    }
+
+    .cq-rail-group.is-locked .cq-rail-dot { display: block; }
+    .cq-rail-group.is-locked .cq-rail-flag { display: inline-flex; }
+    .cq-rail:not(.is-open) .cq-rail-flag { display: none; }
+
+    /* An offering sits below every category, under a rule of its own. `order`
+       sends it past them without moving it out of category order in the markup,
+       so reading order and tab order still follow the sections. The rule does
+       the separating: an offering is not one of the product's own sections, and
+       a line says so without a second visual language. */
+    .cq-rail-group--offering { order: 1; }
+
+
+    .cq-grad-blue   { background-image: linear-gradient(225.24deg, var(--blue-600) 8.84%, var(--blue-500) 54.42%, var(--blue-300) 100%); }
+    .cq-grad-purple { background-image: linear-gradient(225.24deg, var(--purple-600) 8.84%, var(--purple-500) 54.42%, var(--purple-300) 100%); }
+    .cq-grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
+    .cq-grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
+    .cq-grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
+    .cq-grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
+    /* Context's tile ships its own gradient in the component (2906:507591)
+       rather than composing the shared ramp trio — kept verbatim. A
+       background-position drift turned out unreadable at 24px: two of
+       the three stops are close blues, so most positions along the
+       gradient look the same colour and only a narrow band ever showed
+       the purple. Rotating the whole gradient plane instead sweeps
+       every stop through the tile on every lap, which is the same
+       trick as spinning a background-gradient element — the paint is
+       oversized (inset -50%, so it never uncovers a corner as it turns)
+       and sits on a ::before under the icon, which stays upright.
+       Hovering the row quickens the spin — the one hover-driven speed
+       change in the panel, since it is also the one tile whose colour
+       is the entire point of hovering it. Reduced motion holds it
+       still either way. */
+    .cq-grad-context { position: relative; overflow: hidden; background-image: none; }
+    .cq-grad-context::before {
+      content: ""; position: absolute; inset: -50%;
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      animation: cq-ctx-grad-spin 6s linear infinite;
+    }
+    .cq-rail-ghead--leaf:hover .cq-grad-context::before,
+    .cq-upsell-head:hover .cq-grad-context::before {
+      animation-duration: 1.4s;
+    }
+    @keyframes cq-ctx-grad-spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cq-grad-context::before { animation: none; }
+    }
+    /* The glyph is a flex item, not a positioned one, and a flex item's
+       implicit stacking tier does not reliably beat an absolutely
+       positioned ::before with the same auto z-index — Chromium paints
+       the spin on top of it. Lifted explicitly rather than left to that
+       tie-break. */
+    .cq-grad-context > svg { position: relative; z-index: 1; }
+
+    /* ── Main content ───────────────────────────────────────────── */
+    .main { flex: 1 1 auto; min-width: 0; padding: 8px 8px 8px 0; }
+    .content-wrapper {
+      height: 100%;
+      display: flex; flex-direction: column;
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 12px;
+      box-shadow: 0 1px 4px 1px rgba(0, 0, 0, .08);
+      overflow: hidden;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      flex: none; height: 48px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 12px 16px;
+      background: var(--backgrounds-card-bg-5);
+      border-bottom: 1px solid var(--strokes-line-3);
+    }
+    .header-left { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 12px; }
+    .header-left .sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .icon-btn-32 {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-teritiary);
+      transition: background .15s ease;
+    }
+    .icon-btn-32:hover { background: var(--backgrounds-card-bg-4); }
+    .ws-dropdown {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px; border-radius: 8px;
+      color: var(--text-teritiary);
+      transition: background .15s ease;
+    }
+    .ws-dropdown:hover { background: var(--backgrounds-card-bg-4); }
+    .ws-dropdown .name { color: var(--text-primary); }
+    .avatar { position: relative; width: 20px; height: 20px; flex: none; }
+    .avatar svg { width: 20px; height: 20px; }
+    .avatar span {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+    }
+    .header-avatar { width: 32px; height: 32px; border-radius: 100px; display: block; }
+
+    /* ── Main section ───────────────────────────────────────────── */
+    .main-section { flex: 1 1 auto; min-height: 0; display: flex; }
+
+    /* ══════════════════════════════════════════════════════════════
+       SHARED FORM CONTROLS — used by this page and by Create bundle
+       ══════════════════════════════════════════════════════════════ */
+    .search-field {
+      width: 239px; height: 36px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px; border-radius: 8px;
+      background: var(--backgrounds-type-search-default);
+      border: 1px solid var(--strokes-type-default);
+      color: var(--text-teritiary);
+      transition: border-color .15s ease;
+    }
+    .search-field:focus-within { border-color: var(--strokes-type-focus); }
+    .search-field input { flex: 1 1 auto; min-width: 0; color: var(--text-primary); }
+    .search-field input::placeholder { color: var(--text-teritiary); }
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 8px 12px; border-radius: 8px;
+      background: var(--backgrounds-button-primary);
+      color: var(--text-button-white);
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+
+    /* ══════════════════════════════════════════════════════════════
+       CREATE NEW BUNDLE — page-specific styles
+       (Figma node 2175-12558)
+
+       LAYER ORDER — house rule
+       The three context layers are always shown narrowest scope first:
+       Solution › Organization › Domain. The matrix columns are built
+       from the LAYERS array in the script, so the order is stated once
+       there and this file never assumes a position.
+       ══════════════════════════════════════════════════════════════ */
+
+    /* ── Header: back + breadcrumb ───────────────────────────────── */
+    .crumb { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .crumb-back {
+      width: 24px; height: 24px; flex: none; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary);
+      transition: background .15s ease, color .15s ease;
+    }
+    .crumb-back:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    .crumb a { color: var(--text-teritiary); text-decoration: none; transition: color .15s ease; }
+    .crumb a:hover { color: var(--text-secondary); }
+    .crumb .sep { color: var(--strokes-line-2); }
+    .crumb .here { color: var(--text-primary); }
+
+    /* ── Scroll ground ──────────────────────────────────────────── */
+    .cb-scroll {
+      flex: 1 1 auto; min-height: 0;
+      background: var(--backgrounds-page-bg-4);
+      display: flex; flex-direction: column; gap: 20px;
+      padding: 20px 0 24px;
+    }
+
+    /* ── Row 1: the form and the explainer, side by side ────────── */
+    .cb-top { display: flex; align-items: stretch; gap: 20px; padding: 0 24px; }
+
+    .cb-card {
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 16px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .cb-form { flex: 1 1 auto; min-width: 0; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .cb-form h1 { margin: 0; color: var(--text-primary); }
+    .cb-field { display: flex; flex-direction: column; gap: 6px; }
+    .cb-label { color: var(--text-primary); }
+    /* The asterisk is the only red on the page, so it does not need a
+       tone token — it is not a status, it is punctuation. */
+    .cb-label .req { color: #e5484d; }
+    .cb-input,
+    .cb-textarea {
+      width: 100%;
+      padding: 10px 12px; border-radius: 8px;
+      background: var(--backgrounds-type-search-default);
+      border: 1px solid var(--strokes-type-default);
+      color: var(--text-primary);
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .cb-textarea { min-height: 68px; resize: vertical; font: inherit; }
+    .cb-input::placeholder, .cb-textarea::placeholder { color: var(--text-teritiary); }
+    .cb-input:focus, .cb-textarea:focus {
+      border-color: var(--strokes-type-focus);
+      background: var(--backgrounds-page-bg-2);
+      outline: none;
+    }
+    /* Shown only once someone has left a required field empty, so the
+       form is never red before it has been used. */
+    .cb-field.is-invalid .cb-input,
+    .cb-field.is-invalid .cb-textarea { border-color: #e5484d; }
+
+    /* ── How it works ───────────────────────────────────────────── */
+    .cb-how { flex: none; width: 600px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .cb-how-eyebrow { color: var(--text-teritiary); text-transform: uppercase; letter-spacing: .04em; }
+    .cb-how-list { display: flex; flex-direction: column; gap: 12px; }
+    .cb-how-row { display: flex; align-items: flex-start; gap: 10px; }
+    .cb-how-tile {
+      width: 24px; height: 24px; flex: none; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .cb-how-tile[data-tone="blue"]   { background: var(--backgrounds-badge-blue); }
+    .cb-how-tile[data-tone="purple"] { background: var(--backgrounds-badge-purple); }
+    .cb-how-tile[data-tone="orange"] { background: var(--backgrounds-badge-orange); }
+    .cb-how-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .cb-how-text .ttl { color: var(--text-primary); }
+    .cb-how-text .sub { color: var(--text-secondary); }
+    .cb-tutorial {
+      align-self: flex-start;
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 12px;
+      background: var(--backgrounds-button-tonal-1);
+      color: var(--text-coloured-blue);
+      transition: filter .15s ease;
+    }
+    .cb-tutorial:hover { filter: brightness(1.04); }
+
+    /* ── Matrix section head ────────────────────────────────────── */
+    .cb-sec { display: flex; align-items: flex-start; gap: 16px; padding: 0 24px; }
+    .cb-sec-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .cb-sec-text h2 { margin: 0; color: var(--text-primary); }
+    .cb-sec-text p { margin: 0; color: var(--text-teritiary); }
+    .cb-hint {
+      flex: none;
+      display: flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 12px; border-radius: 100px;
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-2);
+      color: var(--text-secondary);
+    }
+    .cb-hint .ic { color: var(--text-teritiary); }
+
+    /* ══ THE MATRIX ═════════════════════════════════════════════════
+       Four columns of equal width: the artifact-type spine, then one
+       column per layer. Built as a grid rather than a table so a row's
+       four cells share a height while each column keeps its own card
+       background and radius.
+       ═══════════════════════════════════════════════════════════════ */
+    .cb-matrix {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding: 0 24px;
+      align-items: start;
+    }
+    .cb-col {
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 16px;
+      padding-top: 20px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: subgrid;
+      grid-row: span 7;
+    }
+    /* subgrid keeps every column's rows on the same baseline. Where it
+       is unsupported the columns fall back to their own flow, which
+       still reads correctly — only the row alignment is lost. */
+    @supports not (grid-template-rows: subgrid) {
+      .cb-col { display: flex; flex-direction: column; grid-row: auto; }
+      .cb-matrix { align-items: stretch; }
+    }
+
+    .cb-col-head {
+      display: flex; flex-direction: column; gap: 8px;
+      padding: 0 16px 12px;
+      border-bottom: 1px solid var(--strokes-line-1);
+    }
+    .cb-col-head .row { display: flex; align-items: center; gap: 8px; }
+    .cb-col-head .ttl { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cb-col-head .sub { color: var(--text-teritiary); }
+    .cb-dia { flex: none; width: 26px; height: 17px; }
+
+    /* Spine cell: the artifact type and what it is for. */
+    .cb-type {
+      display: flex; flex-direction: column; gap: 2px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--strokes-line-1);
+    }
+    .cb-type:last-child { border-bottom: 0; }
+    .cb-type .row { display: flex; align-items: center; gap: 8px; }
+    .cb-type .nm { color: var(--text-primary); }
+    .cb-type .sub { color: var(--text-teritiary); }
+
+    /* A layer cell holds the dashed picker, or the artifact once picked. */
+    .cb-cellwrap { padding: 12px 16px; display: flex; }
+    .cb-cell {
+      position: relative;
+      width: 100%; min-height: 50px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px; border-radius: 12px;
+      border: 1px dashed var(--strokes-line-2);
+      color: var(--text-teritiary);
+      text-align: left;
+      transition: border-color .15s ease, background .15s ease, color .15s ease;
+    }
+    .cb-cell:hover { border-color: var(--strokes-icon-default); color: var(--text-secondary); }
+    .cb-cell .lbl { flex: 1 1 auto; min-width: 0; }
+    .cb-cell .plus { flex: none; color: var(--strokes-checkbox-default); transition: color .15s ease; }
+    .cb-cell:hover .plus { color: var(--text-secondary); }
+    /* Open: the cell that owns the picker. Dashed blue with a tonal
+       fill, exactly as the frame shows the active cell. */
+    .cb-cell.is-open {
+      border-color: var(--strokes-card-selected);
+      background: var(--backgrounds-button-tonal-1);
+      color: var(--text-coloured-blue);
+    }
+    .cb-cell.is-open .plus { color: var(--text-coloured-blue); }
+    /* Filled: a solid card, because it now holds content rather than
+       inviting a choice. */
+    .cb-cell.is-filled {
+      border-style: solid;
+      border-color: var(--strokes-colour-blue);
+      background: var(--backgrounds-badge-blue);
+      color: var(--text-primary);
+      cursor: default;
+    }
+    .cb-cell.is-filled:hover { border-color: var(--strokes-card-selected); }
+    .cb-picked { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .cb-picked .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cb-picked .meta { display: flex; align-items: center; gap: 6px; color: var(--text-teritiary); }
+    .cb-ver {
+      flex: none; height: 16px;
+      display: flex; align-items: center; padding: 0 6px; border-radius: 12px;
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-card-default);
+      font: 400 11px/normal var(--font-geist-mono); letter-spacing: -0.11px;
+      color: var(--text-teritiary);
+      font-variant-numeric: tabular-nums;
+    }
+    .cb-clear {
+      flex: none; width: 20px; height: 20px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-teritiary);
+      transition: background .15s ease, color .15s ease;
+    }
+    .cb-clear:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+
+    /* ── Footer bar ─────────────────────────────────────────────── */
+    .cb-foot {
+      flex: none;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 12px 24px;
+      background: var(--backgrounds-card-bg-5);
+      border-top: 1px solid var(--strokes-line-3);
+      box-shadow: 0 -1px 1px rgba(18, 18, 18, .06);
+    }
+    .cb-foot .count { color: var(--text-secondary); }
+    .cb-foot .count strong { color: var(--text-primary); font-weight: 500; }
+    .cb-foot-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-ghost {
+      height: 36px; padding: 0 16px; border-radius: 8px; text-decoration: none;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-line-2);
+      color: var(--text-secondary);
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .btn-ghost:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-icon-default); }
+    .cb-foot .btn-primary { height: 36px; padding: 0 16px; }
+    .btn-primary:disabled { background: var(--backgrounds-disabled-tonal-1); color: var(--text-disabled-tonal-1); cursor: not-allowed; filter: none; }
+
+    /* ══ ARTIFACT PICKER ════════════════════════════════════════════
+       A popover anchored under the cell that opened it, positioned in
+       script so it can flip up or shift left near a viewport edge.
+       ═══════════════════════════════════════════════════════════════ */
+    .cb-pop {
+      position: fixed; z-index: 70;
+      width: 412px; max-width: calc(100vw - 24px);
+      display: none; flex-direction: column; gap: 8px;
+      padding: 12px;
+      background: var(--backgrounds-card-bg-3);
+      border: 1px solid var(--strokes-card-default);
+      border-radius: 16px;
+      box-shadow: var(--shadow-pop);
+      opacity: 0; transform: translateY(-4px);
+      transition: opacity .16s ease, transform .18s cubic-bezier(.2, .8, .2, 1);
+    }
+    .cb-pop.is-open { display: flex; }
+    .cb-pop.is-shown { opacity: 1; transform: none; }
+    .cb-pop-head { display: flex; align-items: center; gap: 10px; }
+    .cb-pop-head .search-field { flex: 1 1 auto; width: auto; height: 36px; }
+    .cb-pop-new { height: 36px; padding: 0 12px; border-radius: 8px; flex: none; }
+
+    .cb-pop-list {
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 340px; overflow-y: auto;
+      margin: 0 -4px; padding: 0 4px;
+    }
+    .cb-art {
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 12px;
+      background: var(--backgrounds-page-bg-2);
+      overflow: hidden;
+    }
+    .cb-art.is-expanded { border-color: var(--strokes-line-2); }
+    .cb-art-head {
+      width: 100%;
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      text-align: left;
+      transition: background .15s ease;
+    }
+    .cb-art-head:hover { background: var(--backgrounds-card-bg-4); }
+    .cb-art-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+    .cb-art-text .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cb-art-text .sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cb-art-count {
+      flex: none; height: 20px;
+      display: flex; align-items: center; padding: 0 8px; border-radius: 12px;
+      background: var(--backgrounds-page-bg-4);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .cb-art-chev { flex: none; color: var(--text-teritiary); transition: transform .22s cubic-bezier(.4, 0, .2, 1); }
+    .cb-art.is-expanded .cb-art-chev { transform: rotate(90deg); }
+
+    /* Version list — collapsed to zero height, animated open like the
+       explainer card so it works at any length. */
+    .cb-vers {
+      background: var(--backgrounds-card-bg-4);
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height .28s cubic-bezier(.4, 0, .2, 1);
+    }
+    .cb-ver-row {
+      width: 100%;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      text-align: left;
+      color: var(--text-primary);
+      transition: background .15s ease;
+    }
+    .cb-ver-row:hover { background: var(--backgrounds-table-select); }
+    .cb-ver-row .v { flex: none; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .cb-ver-row .spacer { flex: 1 1 auto; }
+    .cb-ver-row .date { flex: none; color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
+    .cb-latest {
+      flex: none; height: 18px;
+      display: flex; align-items: center; padding: 0 8px; border-radius: 100px;
+      background: var(--backgrounds-page-bg-2);
+      border: 1px solid var(--strokes-card-selected);
+      color: var(--text-coloured-blue);
+    }
+    .cb-ver-row.is-current { background: var(--backgrounds-table-select); }
+    .cb-pop-empty { padding: 12px; color: var(--text-teritiary); }
+
+    /* ── Responsive ─────────────────────────────────────────────── */
+    @media (max-width: 1240px) {
+      .cb-how { width: 380px; }
+    }
+    @media (max-width: 1060px) {
+      .cb-top { flex-direction: column; }
+      .cb-how { width: 100%; }
+      /* Below this the four columns stop fitting; the matrix scrolls
+         sideways in its own container so the page body never does. */
+      .cb-matrix {
+        grid-template-columns: repeat(4, 260px);
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+    }
+    @media (max-width: 760px) {
+      .cb-scroll { padding: 12px 0 16px; }
+      .cb-top, .cb-sec, .cb-matrix { padding-left: 12px; padding-right: 12px; }
+      .cb-foot { flex-direction: column; align-items: stretch; }
+      .cb-foot-actions > * { flex: 1 1 auto; }
+    }
+  </style>
+
 <svg class="sprite" aria-hidden="true">
+<symbol id="cb-arrowleft" viewBox="0 0 20 20" fill="none"><g id="cb-arrowleft__Arrow_left" clip-path="url(#cb-arrowleft__clip0_0_551)"> <g id="cb-arrowleft__Vector"> </g> <path id="cb-arrowleft__Vector_2" d="M12.5 5L7.5 10L12.5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> </g> <defs> <clipPath id="cb-arrowleft__clip0_0_551"> <rect width="20" height="20" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-info" viewBox="0 0 20 20" fill="none"><g id="cb-info__Info" clip-path="url(#cb-info__clip0_0_667)"> <g id="cb-info__Vector"> </g> <path id="cb-info__Vector_2" d="M2.5 10C2.5 10.9849 2.69399 11.9602 3.0709 12.8701C3.44781 13.7801 4.00026 14.6069 4.6967 15.3033C5.39314 15.9997 6.21993 16.5522 7.12987 16.9291C8.03982 17.306 9.01509 17.5 10 17.5C10.9849 17.5 11.9602 17.306 12.8701 16.9291C13.7801 16.5522 14.6069 15.9997 15.3033 15.3033C15.9997 14.6069 16.5522 13.7801 16.9291 12.8701C17.306 11.9602 17.5 10.9849 17.5 10C17.5 8.01088 16.7098 6.10322 15.3033 4.6967C13.8968 3.29018 11.9891 2.5 10 2.5C8.01088 2.5 6.10322 3.29018 4.6967 4.6967C3.29018 6.10322 2.5 8.01088 2.5 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> <path id="cb-info__Vector_3" d="M10 7.5H10.0083" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> <path id="cb-info__Vector_4" d="M9.16667 10H10V13.3333H10.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> </g> <defs> <clipPath id="cb-info__clip0_0_667"> <rect width="20" height="20" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-plus" viewBox="0 0 20 20" fill="none"><g id="cb-plus__Plus" clip-path="url(#cb-plus__clip0_0_460)"> <g id="cb-plus__Vector"> </g> <path id="cb-plus__Vector_2" d="M10 4.16667V15.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> <path id="cb-plus__Vector_3" d="M4.16667 10H15.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> </g> <defs> <clipPath id="cb-plus__clip0_0_460"> <rect width="20" height="20" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-typegrid" viewBox="0 0 16 16" fill="none"><g id="cb-typegrid__Frame" clip-path="url(#cb-typegrid__clip0_0_407)"> <g id="cb-typegrid__Vector"> </g> <path id="cb-typegrid__Vector_2" d="M12.6667 2.66667V13.3333H4.66667C4.31304 13.3333 3.97391 13.1929 3.72386 12.9428C3.47381 12.6928 3.33333 12.3536 3.33333 12V4C3.33333 3.64638 3.47381 3.30724 3.72386 3.05719C3.97391 2.80714 4.31304 2.66667 4.66667 2.66667H12.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> <path id="cb-typegrid__Vector_3" d="M12.6667 10.6667H4.66667C4.31304 10.6667 3.97391 10.8071 3.72386 11.0572C3.47381 11.3072 3.33333 11.6464 3.33333 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> <path id="cb-typegrid__Vector_4" d="M6 5.33333H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> </g> <defs> <clipPath id="cb-typegrid__clip0_0_407"> <rect width="16" height="16" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-chevdown" viewBox="0 0 16 16" fill="none"><g id="cb-chevdown__Arrow_down" clip-path="url(#cb-chevdown__clip0_0_404)"> <g id="cb-chevdown__Vector"> </g> <path id="cb-chevdown__Vector_2" d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> </g> <defs> <clipPath id="cb-chevdown__clip0_0_404"> <rect width="16" height="16" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-chevright" viewBox="0 0 16 16" fill="none"><g id="cb-chevright__Arrow_right" clip-path="url(#cb-chevright__clip0_0_398)"> <g id="cb-chevright__Vector"> </g> <path id="cb-chevright__Vector_2" d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/> </g> <defs> <clipPath id="cb-chevright__clip0_0_398"> <rect width="16" height="16" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-checksquare" viewBox="0 0 12 12" fill="none"><g id="cb-checksquare__check-square" clip-path="url(#cb-checksquare__clip0_0_568)"> <path id="cb-checksquare__Vector" d="M10.5 5.328V9.5C10.5 9.76522 10.3946 10.0196 10.2071 10.2071C10.0196 10.3946 9.76522 10.5 9.5 10.5H2.5C2.23478 10.5 1.98043 10.3946 1.79289 10.2071C1.60536 10.0196 1.5 9.76522 1.5 9.5V2.5C1.5 2.23478 1.60536 1.98043 1.79289 1.79289C1.98043 1.60536 2.23478 1.5 2.5 1.5H8.672M4.5 5.5L6 7L11 2" stroke="#0D99FF" stroke-width="1.2" stroke-linecap="round"/> </g> <defs> <clipPath id="cb-checksquare__clip0_0_568"> <rect width="12" height="12" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-grid" viewBox="0 0 12 12" fill="none"><g id="cb-grid__grid" clip-path="url(#cb-grid__clip0_0_526)"> <path id="cb-grid__Vector" d="M1.5 4.5H10.5M1.5 7.5H10.5M4.5 1.5V10.5M7.5 1.5V10.5M2.5 1.5H9.5C10.0523 1.5 10.5 1.94772 10.5 2.5V9.5C10.5 10.0523 10.0523 10.5 9.5 10.5H2.5C1.94772 10.5 1.5 10.0523 1.5 9.5V2.5C1.5 1.94772 1.94772 1.5 2.5 1.5Z" stroke="#9747FF" stroke-width="1.2" stroke-linecap="round"/> </g> <defs> <clipPath id="cb-grid__clip0_0_526"> <rect width="12" height="12" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-link" viewBox="0 0 12 12" fill="none"><g id="cb-link__link" clip-path="url(#cb-link__clip0_0_538)"> <path id="cb-link__Vector" d="M5.00008 6.49998C5.21481 6.78704 5.48876 7.02457 5.80335 7.19645C6.11795 7.36833 6.46583 7.47054 6.8234 7.49615C7.18098 7.52176 7.53987 7.47016 7.87575 7.34487C8.21163 7.21958 8.51664 7.02351 8.77008 6.76998L10.2701 5.26998C10.7255 4.79847 10.9775 4.16697 10.9718 3.51148C10.9661 2.85598 10.7031 2.22895 10.2396 1.76543C9.77611 1.30191 9.14907 1.03899 8.49358 1.03329C7.83809 1.0276 7.20659 1.27958 6.73508 1.73498L5.87508 2.58998M7.00018 5.50011C6.78545 5.21305 6.5115 4.97552 6.1969 4.80364C5.88231 4.63176 5.53443 4.52955 5.17685 4.50394C4.81928 4.47833 4.46039 4.52993 4.12451 4.65522C3.78863 4.78051 3.48362 4.97657 3.23018 5.23011L1.73018 6.73011C1.27478 7.20161 1.0228 7.83312 1.02849 8.48861C1.03419 9.1441 1.29711 9.77114 1.76063 10.2347C2.22415 10.6982 2.85118 10.9611 3.50668 10.9668C4.16217 10.9725 4.79367 10.7205 5.26518 10.2651L6.12018 9.41011" stroke="#DD7C0E" stroke-width="1.2" stroke-linecap="round"/> </g> <defs> <clipPath id="cb-link__clip0_0_538"> <rect width="12" height="12" fill="white"/> </clipPath> </defs></symbol>
+<symbol id="cb-dia-blue" viewBox="0 0 43 28" fill="none"><g id="cb-dia-blue__Vector" filter="url(#cb-dia-blue__filter0_d_0_472)"> <path d="M18.3399 0.747973C20.0852 -0.249326 22.9148 -0.249324 24.6601 0.747975L37.691 8.19423C38.545 8.68223 38.9812 9.3186 38.9994 9.95813C39.0184 10.6256 38.5823 11.2965 37.691 11.8058L34.0028 13.9133L24.6601 19.252C22.9148 20.2493 20.0852 20.2493 18.3399 19.252L8.98518 13.9065L5.30895 11.8058C4.41768 11.2965 3.98156 10.6256 4.0006 9.95813C4.01884 9.3186 4.45496 8.68223 5.30896 8.19423L18.3399 0.747973Z" fill="#44AAF3"/> </g> <defs> <filter id="cb-dia-blue__filter0_d_0_472" x="0" y="0" width="43" height="28" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"> <feFlood flood-opacity="0" result="BackgroundImageFix"/> <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/> <feOffset dy="4"/> <feGaussianBlur stdDeviation="2"/> <feComposite in2="hardAlpha" operator="out"/> <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/> <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_472"/> <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_472" result="shape"/> </filter> </defs></symbol>
+<symbol id="cb-dia-green" viewBox="0 0 43 28" fill="none"><g id="cb-dia-green__Vector" filter="url(#cb-dia-green__filter0_d_0_455)"> <path d="M18.3399 0.747973C20.0852 -0.249326 22.9148 -0.249324 24.6601 0.747975L37.691 8.19423C38.545 8.68223 38.9812 9.3186 38.9994 9.95813C39.0184 10.6256 38.5823 11.2965 37.691 11.8058L34.0028 13.9133L24.6601 19.252C22.9148 20.2493 20.0852 20.2493 18.3399 19.252L8.98518 13.9065L5.30895 11.8058C4.41768 11.2965 3.98156 10.6256 4.0006 9.95813C4.01884 9.3186 4.45496 8.68223 5.30896 8.19423L18.3399 0.747973Z" fill="#AED581"/> </g> <defs> <filter id="cb-dia-green__filter0_d_0_455" x="0" y="0" width="43" height="28" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"> <feFlood flood-opacity="0" result="BackgroundImageFix"/> <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/> <feOffset dy="4"/> <feGaussianBlur stdDeviation="2"/> <feComposite in2="hardAlpha" operator="out"/> <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/> <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_455"/> <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_455" result="shape"/> </filter> </defs></symbol>
+<symbol id="cb-dia-purple" viewBox="0 0 43 28" fill="none"><g id="cb-dia-purple__Vector" filter="url(#cb-dia-purple__filter0_d_0_432)"> <path d="M18.3399 0.747973C20.0852 -0.249326 22.9148 -0.249324 24.6601 0.747975L37.691 8.19423C38.545 8.68223 38.9812 9.3186 38.9994 9.95813C39.0184 10.6256 38.5823 11.2965 37.691 11.8058L34.0028 13.9133L24.6601 19.252C22.9148 20.2493 20.0852 20.2493 18.3399 19.252L8.98518 13.9065L5.30895 11.8058C4.41768 11.2965 3.98156 10.6256 4.0006 9.95813C4.01884 9.3186 4.45496 8.68223 5.30896 8.19423L18.3399 0.747973Z" fill="#D9B8FF"/> </g> <defs> <filter id="cb-dia-purple__filter0_d_0_432" x="0" y="0" width="43" height="28" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"> <feFlood flood-opacity="0" result="BackgroundImageFix"/> <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/> <feOffset dy="4"/> <feGaussianBlur stdDeviation="2"/> <feComposite in2="hardAlpha" operator="out"/> <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0"/> <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_432"/> <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_432" result="shape"/> </filter> </defs></symbol>
+<symbol id="ic-plus" viewBox="0 0 20 20" fill="none"><g id="plus__Plus" clip-path="url(#plus__clip0_0_31)"><g id="plus__Vector"></g><path id="plus__Vector_2" d="M10 4.16667V15.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="plus__Vector_3" d="M4.16667 10H15.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="plus__clip0_0_31"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-editpen" viewBox="0 0 20 20" fill="none"><g id="editpen__Edit" clip-path="url(#editpen__clip0_0_103)"><g id="editpen__Vector"></g><path id="editpen__Vector_2" d="M3.33333 16.6667H6.66667L15.4167 7.91667C15.6355 7.6978 15.8092 7.43796 15.9276 7.15199C16.0461 6.86603 16.107 6.55953 16.107 6.25C16.107 5.94047 16.0461 5.63397 15.9276 5.34801C15.8092 5.06204 15.6355 4.8022 15.4167 4.58333C15.1978 4.36446 14.938 4.19085 14.652 4.0724C14.366 3.95394 14.0595 3.89298 13.75 3.89298C13.4405 3.89298 13.134 3.95394 12.848 4.0724C12.562 4.19085 12.3022 4.36446 12.0833 4.58333L3.33333 13.3333V16.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="editpen__Vector_3" d="M11.25 5.41667L14.5833 8.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="editpen__clip0_0_103"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-close" viewBox="0 0 16 16" fill="none"><g id="close__Close" clip-path="url(#close__clip0_0_121)"><g id="close__Vector"></g><path id="close__Vector_2" d="M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="close__Vector_3" d="M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="close__clip0_0_121"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-pp_chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -194,11 +1092,17 @@
       <!-- Header -->
       <header class="header">
         <div class="header-left">
-          <span class="t-subhead2-med">Context</span>
-          <span class="sub t-caption1-reg">The semantic layer your assistants read from — glossary, ontology, bindings, prompts and policies.</span>
+          <nav class="crumb" aria-label="Breadcrumb">
+            <a class="crumb-back" href="context-studio.html" aria-label="Back to Context studio">
+              <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cb-arrowleft"/></svg>
+            </a>
+            <a class="t-body2-reg" href="context-studio.html">Context studio</a>
+            <span class="sep" aria-hidden="true">/</span>
+            <span class="here t-subhead2-med">Create new bundle</span>
+          </nav>
         </div>
         <div class="header-actions">
-          <button class="icon-btn-32" title="Notifications">
+          <button class="icon-btn-32" title="Notifications" aria-label="Notifications">
             <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-bell"/></svg>
           </button>
           <button class="ws-dropdown">
@@ -215,213 +1119,477 @@
         </div>
       </header>
 
-      <div class="main-section">
+      <div class="cb-scroll cq-scroll-y">
 
-        <!-- Context sidebar -->
-        <nav class="sidebar cq-scroll-y" aria-label="Context artifacts">
-          <div class="side-options">
-            <button class="side-item t-body2-med is-active" aria-current="page">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-studio"/></svg>
-              <span class="lbl">Studio</span>
-            </button>
-            <button class="side-item t-body2-reg">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-glossary"/></svg>
-              <span class="lbl">Glossary</span>
-            </button>
-            <button class="side-item t-body2-reg">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-ontology"/></svg>
-              <span class="lbl">Ontology</span>
-            </button>
-            <button class="side-item t-body2-reg">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-databind"/></svg>
-              <span class="lbl">Data Binding</span>
-            </button>
-            <button class="side-item t-body2-reg">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-toolbind"/></svg>
-              <span class="lbl">Tool Binding</span>
-            </button>
-            <button class="side-item t-body2-reg">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-prompts"/></svg>
-              <span class="lbl">Prompts</span>
-            </button>
-            <button class="side-item t-body2-reg">
-              <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-rules"/></svg>
-              <span class="lbl">Rules &amp; Policies</span>
-            </button>
-          </div>
+        <!-- ── The form, and what a bundle is for ──────────────────── -->
+        <div class="cb-top">
+          <section class="cb-card cb-form">
+            <h1 class="t-subhead1-med">New bundle</h1>
 
-          <!-- Context layers explainer -->
-          <aside class="ctx-info" id="ctxInfo" aria-label="What is a context bundle?">
-            <button class="ctx-toggle" id="ctxToggle" aria-expanded="false" aria-controls="ctxBody">
-              <svg class="ic ctx-mini" viewBox="0 0 68 55.1555" aria-hidden="true"><use href="#cx-illus"/></svg>
-              <span class="ctx-q">What is a context bundle?</span>
-              <svg class="ic ctx-chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pp_chevron"/></svg>
-            </button>
-            <div class="ctx-body" id="ctxBody">
-            <div class="ctx-hero">
-              <svg class="ic illus" viewBox="0 0 68 55.1555" aria-hidden="true"><use href="#cx-illus"/></svg>
+            <div class="cb-field" id="fieldName">
+              <label class="cb-label t-body2-reg" for="bundleName">Bundle Name <span class="req">*</span></label>
+              <input class="cb-input t-body2-reg" id="bundleName" type="text"
+                     placeholder="e.g. Customer Support Master Context" required />
             </div>
-            <div class="ctx-copy">
-              <p>Context artifacts are organized in three layers:</p>
-              <div class="ctx-layers">
-                <div class="ctx-layer">
-                  <span class="layer-badge t-caption2-med">
-                    <svg class="ic" width="8" height="8" viewBox="0 0 8 8"><use href="#cx-dot-sol"/></svg>
-                    Solution
-                  </span>
-                  <p>Artifacts tailored to a specific solution</p>
-                </div>
-                <div class="ctx-layer">
-                  <span class="layer-badge t-caption2-med">
-                    <svg class="ic" width="8" height="8" viewBox="0 0 8 8"><use href="#cx-dot-org"/></svg>
-                    Organization
-                  </span>
-                  <p>Artifacts shared across your org</p>
-                </div>
-                <div class="ctx-layer">
-                  <span class="layer-badge t-caption2-med">
-                    <svg class="ic" width="8" height="8" viewBox="0 0 8 8"><use href="#cx-dot-dom"/></svg>
-                    Domain
-                  </span>
-                  <p>Artifacts specific to a topic area</p>
-                </div>
+
+            <div class="cb-field" id="fieldDesc">
+              <label class="cb-label t-body2-reg" for="bundleDesc">Description <span class="req">*</span></label>
+              <textarea class="cb-textarea t-body2-reg" id="bundleDesc" rows="3"
+                        placeholder="Brief explanation of what this collection of artifacts represent" required></textarea>
+            </div>
+          </section>
+
+          <aside class="cb-card cb-how" aria-label="How it works">
+            <p class="cb-how-eyebrow t-caption1-med" style="margin:0">How it works</p>
+            <div class="cb-how-list">
+              <div class="cb-how-row">
+                <span class="cb-how-tile" data-tone="blue">
+                  <svg class="ic" width="12" height="12" viewBox="0 0 12 12"><use href="#cb-checksquare"/></svg>
+                </span>
+                <span class="cb-how-text">
+                  <span class="ttl t-body2-med">Pick one per type</span>
+                  <span class="sub t-caption1-reg">Select exactly one artifact per type (e.g. Glossary, ontology) from each layer: Sol, Org, and Dom.</span>
+                </span>
+              </div>
+              <div class="cb-how-row">
+                <span class="cb-how-tile" data-tone="purple">
+                  <svg class="ic" width="12" height="12" viewBox="0 0 12 12"><use href="#cb-grid"/></svg>
+                </span>
+                <span class="cb-how-text">
+                  <span class="ttl t-body2-med">Build your matrix</span>
+                  <span class="sub t-caption1-reg">Combine selections across layers to form a complete context bundle tailored to a specific use case.</span>
+                </span>
+              </div>
+              <div class="cb-how-row">
+                <span class="cb-how-tile" data-tone="orange">
+                  <svg class="ic" width="12" height="12" viewBox="0 0 12 12"><use href="#cb-link"/></svg>
+                </span>
+                <span class="cb-how-text">
+                  <span class="ttl t-body2-med">Reuse everywhere</span>
+                  <span class="sub t-caption1-reg">Attach the bundle to any assistant or agent. One bundle gives it all the context it needs.</span>
+                </span>
               </div>
             </div>
-            <button class="ctx-learn">
+            <button class="cb-tutorial t-caption1-med">
               <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-play"/></svg>
-              Learn more
+              Watch tutorial
             </button>
-            </div>
           </aside>
-        </nav>
+        </div>
 
-        <!-- Studio -->
-        <section class="studio">
-
-          <div class="filters-bar">
-            <div class="title-block">
-              <h1 class="t-subhead1-med">Studio <span class="count">(12)</span></h1>
-              <span class="desc t-body2-reg">Create context bundles your assistants can use.</span>
-            </div>
-            <div class="bar-actions">
-              <label class="search-field">
-                <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
-                <input id="bundleSearch" class="t-body2-reg" type="search" placeholder="Search bundles" aria-label="Search bundles" />
-              </label>
-            </div>
+        <!-- ── Artifact selection matrix ───────────────────────────── -->
+        <div class="cb-sec">
+          <div class="cb-sec-text">
+            <h2 class="t-subhead2-med">Artifact Selection Matrix</h2>
+            <p class="t-body2-reg">Map specialized domain knowledge, standards, and rules across your execution scopes.</p>
           </div>
+          <span class="cb-hint t-body2-reg">
+            <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cb-info"/></svg>
+            Max 1 of each type per layer
+          </span>
+        </div>
 
-          <div class="studio-scroll cq-scroll-y">
-
-            <!-- Hero -->
-            <div class="hero-band">
-              <div class="hero" id="hero">
-                <span class="hero__glow" id="heroGlow" aria-hidden="true"></span>
-                <div class="hero-copy">
-                  <h2>The Enterprise AI Context Layer</h2>
-                </div>
-                <div class="hero-create">
-                  <a class="cta-card" href="create-bundle.html">
-                    <span class="lead">
-                      <span class="cta-tile"><svg class="ic" width="24" height="24" viewBox="0 0 24 24"><use href="#cx-stack3d"/></svg></span>
-                      <span class="cta-copy">
-                        <span class="ttl">Create Context bundle</span>
-                        <span class="sub">Group related artifacts into one reusable set.</span>
-                      </span>
-                    </span>
-                    <svg class="ic go" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-arrowright"/></svg>
-                  </a>
-                  <div class="or-divider" aria-hidden="true">
-                    <span class="line l"></span>
-                    <span class="word">OR CREATE</span>
-                    <span class="line r"></span>
-                  </div>
-                  <div class="quick-grid">
-                    <button class="quick" data-kind="glossary">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-glossary"/></svg></span>
-                      <span class="cap">Glossary</span>
-                    </button>
-                    <button class="quick" data-kind="ontology">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-ontology"/></svg></span>
-                      <span class="cap">Ontology</span>
-                    </button>
-                    <button class="quick" data-kind="data">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-databind"/></svg></span>
-                      <span class="cap">Data binding</span>
-                    </button>
-                    <button class="quick" data-kind="tools">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-toolbind"/></svg></span>
-                      <span class="cap">Tool binding</span>
-                    </button>
-                    <button class="quick" data-kind="prompts">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-prompts"/></svg></span>
-                      <span class="cap">Prompts</span>
-                    </button>
-                    <button class="quick" data-kind="rules">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-rules"/></svg></span>
-                      <span class="cap">Policies</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Context bundles -->
-            <section class="bundles" aria-label="Context bundles">
-              <div class="bundles-head">
-                <h3 class="t-subhead2-med">Context bundles</h3>
-                <p>List of context bundles created in this workspace</p>
-              </div>
-              <div class="bundle-grid" id="bundleGrid"></div>
-              <p class="bundles-empty t-body2-reg" id="bundlesEmpty">No bundles match your search.</p>
-            </section>
-
-          </div>
-        </section>
-
+        <!-- Columns are rendered from LAYERS so the house order
+             (Solution › Organization › Domain) lives in one place. -->
+        <div class="cb-matrix" id="matrix"></div>
       </div>
+
+      <!-- ── Footer ─────────────────────────────────────────────── -->
+      <div class="cb-foot">
+        <span class="count t-body2-reg"><strong id="selCount">0</strong> artifacts selected in total</span>
+        <div class="cb-foot-actions">
+          <a class="btn-ghost t-body2-med" href="context-studio.html">Cancel</a>
+          <button class="btn-primary t-body2-med" id="createBtn" disabled>Create Bundle</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
 
+<!-- ══ Artifact picker ═══════════════════════════════════════════════ -->
+<div class="cb-pop" id="pop" role="dialog" aria-label="Select an artifact" aria-modal="false">
+  <div class="cb-pop-head">
+    <label class="search-field">
+      <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
+      <input id="popSearch" class="t-body2-reg" type="search" placeholder="Search artifacts…" aria-label="Search artifacts" />
+    </label>
+    <button class="btn-primary cb-pop-new t-body2-med" id="popNew">
+      <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>
+      New
+    </button>
+  </div>
+  <div class="cb-pop-list" id="popList"></div>
+</div>
 
-<div class="scrim" id="scrim"></div>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const root = document.documentElement;
 
-<!-- ══ Bundle detail panel ══════════════════════════════════════════ -->
-<aside class="panel" id="panel" aria-label="Bundle details" aria-hidden="true">
-  <div class="panel-head">
-    <div class="panel-title-block">
-      <div class="panel-title-row">
-        <svg class="ic" id="panelIcon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><use href="#cx-b-indigo"/></svg>
-        <span class="panel-title t-subhead2-med" id="panelTitle">Customer Support</span>
-        <button class="panel-close" id="panelClose" aria-label="Close details">
-          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
-        </button>
+/* ── Create new bundle ───────────────────────────────────────────────
+   A bundle is a matrix of artifact TYPE × LAYER with at most one
+   artifact per cell, each pinned to a version. */
+
+/* House order for the three context layers, narrowest scope first:
+   Solution > Organization > Domain. The matrix columns, the picker and
+   any future summary all read this array, so the hierarchy is stated
+   once. */
+const LAYERS = [
+  { key: 'solution',     label: 'Solution layer',     note: 'How a specific problem is solved',       dia: 'cb-dia-purple' },
+  { key: 'organization', label: 'Organization layer', note: 'How this enterprise works, specifically', dia: 'cb-dia-green'  },
+  { key: 'domain',       label: 'Domain layer',       note: 'How the domain works, universally',      dia: 'cb-dia-blue'   },
+];
+
+const TYPES = [
+  { key: 'glossary', label: 'Glossary',         note: 'Standard terms and definitions',  icon: 'cx-glossary' },
+  { key: 'ontology', label: 'Ontology',         note: 'Relationships and hierarchies',   icon: 'cx-ontology' },
+  { key: 'data',     label: 'Data Binding',     note: 'Connections to data sources',     icon: 'cx-databind' },
+  { key: 'prompts',  label: 'Prompts',          note: 'Pre-configured prompt templates', icon: 'cx-prompts'  },
+  { key: 'tools',    label: 'Tool Binding',     note: 'Integrations with external APIs',  icon: 'cx-toolbind' },
+  { key: 'rules',    label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-rules'    },
+];
+
+/* The artifacts on offer, per type. Versions are newest-first; the one
+   flagged `latest` gets the badge. Replace with your API payload — the
+   render functions read nothing else. */
+const CATALOG = {
+  glossary: [
+    { name: 'Customer Glossary',  sub: 'Standard business terms and definitions',
+      versions: [ { v: 'v2.1', date: 'Aug 12, 2026', latest: true }, { v: 'v2.0', date: 'Jul 28, 2026' }, { v: 'v1.4', date: 'Jun 02, 2026' } ] },
+    { name: 'Marketing Glossary', sub: 'Campaign and channel vocabulary',
+      versions: [ { v: 'v3.2', date: 'Aug 20, 2026', latest: true }, { v: 'v3.1', date: 'Jul 11, 2026' }, { v: 'v3.0', date: 'May 30, 2026' } ] },
+    { name: 'Product Inventory',  sub: 'List of available items with stock counts',
+      versions: [ { v: 'v12.0', date: 'Aug 25, 2026', latest: true }, { v: 'v11.4', date: 'Aug 01, 2026' } ] },
+    { name: 'Employee Directory', sub: 'Contact details and roles of all staff',
+      versions: [ { v: 'v5.0', date: 'Aug 09, 2026', latest: true }, { v: 'v4.8', date: 'Jul 04, 2026' } ] },
+  ],
+  ontology: [
+    { name: 'Support Ontology',  sub: 'Ticket, case and resolution relationships',
+      versions: [ { v: 'v1.4', date: 'Aug 14, 2026', latest: true }, { v: 'v1.3', date: 'Jul 22, 2026' } ] },
+    { name: 'Channel Ontology',  sub: 'Paid, owned and earned channel hierarchy',
+      versions: [ { v: 'v2.0', date: 'Aug 03, 2026', latest: true }, { v: 'v1.9', date: 'Jun 18, 2026' } ] },
+    { name: 'Account Hierarchy', sub: 'Parent, subsidiary and site structure',
+      versions: [ { v: 'v1.2', date: 'Jul 30, 2026', latest: true } ] },
+  ],
+  data: [
+    { name: 'Zendesk Tickets',    sub: 'Live ticket stream with SLA fields',
+      versions: [ { v: 'v3.0', date: 'Aug 22, 2026', latest: true }, { v: 'v2.7', date: 'Jul 15, 2026' } ] },
+    { name: 'Campaign Warehouse', sub: 'Spend, impressions and conversions',
+      versions: [ { v: 'v4.1', date: 'Aug 18, 2026', latest: true }, { v: 'v4.0', date: 'Jul 09, 2026' } ] },
+    { name: 'Entitlements Table', sub: 'Plan, seat and feature entitlements',
+      versions: [ { v: 'v1.9', date: 'Aug 06, 2026', latest: true } ] },
+  ],
+  prompts: [
+    { name: 'Tier-1 Reply Templates', sub: 'First-response drafts by ticket reason',
+      versions: [ { v: 'v1.2', date: 'Aug 11, 2026', latest: true }, { v: 'v1.1', date: 'Jul 19, 2026' } ] },
+    { name: 'Attribution Briefs',     sub: 'Weekly performance narrative prompts',
+      versions: [ { v: 'v1.3', date: 'Aug 24, 2026', latest: true } ] },
+    { name: 'Returns Playbook',       sub: 'Step-by-step returns handling prompts',
+      versions: [ { v: 'v1.0', date: 'Jul 02, 2026', latest: true } ] },
+  ],
+  tools: [
+    { name: 'Zendesk API',   sub: 'Read and update tickets',
+      versions: [ { v: 'v2.0', date: 'Aug 16, 2026', latest: true }, { v: 'v1.8', date: 'Jun 27, 2026' } ] },
+    { name: 'GA4 Connector', sub: 'Query campaign and audience reports',
+      versions: [ { v: 'v1.6', date: 'Aug 21, 2026', latest: true } ] },
+    { name: 'Jira Bridge',   sub: 'Raise and track engineering escalations',
+      versions: [ { v: 'v3.4', date: 'Aug 05, 2026', latest: true }, { v: 'v3.3', date: 'Jul 12, 2026' } ] },
+  ],
+  rules: [
+    { name: 'Refund Approval Policy', sub: 'Thresholds and approver matrix',
+      versions: [ { v: 'v1.1', date: 'Aug 13, 2026', latest: true } ] },
+    { name: 'Escalation Rules',       sub: 'When and how to escalate a case',
+      versions: [ { v: 'v2.3', date: 'Aug 19, 2026', latest: true }, { v: 'v2.2', date: 'Jul 08, 2026' } ] },
+    { name: 'Brand Voice Policy',     sub: 'Tone, claims and disclosure rules',
+      versions: [ { v: 'v2.2', date: 'Aug 23, 2026', latest: true } ] },
+  ],
+};
+
+/* selection[typeKey][layerKey] = { name, version } — one per cell, which
+   is what "Max 1 of each type per layer" means. */
+const selection = {};
+TYPES.forEach((t) => { selection[t.key] = {}; });
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/* ── Matrix ──────────────────────────────────────────────────────── */
+function cellInner(typeKey, layerKey) {
+  const picked = selection[typeKey][layerKey];
+  if (!picked) {
+    return `<span class="lbl t-body2-reg">Select</span>
+            <svg class="ic plus" width="20" height="20" viewBox="0 0 20 20"><use href="#cb-plus"/></svg>`;
+  }
+  return `<span class="cb-picked">
+            <span class="nm t-body2-med">${esc(picked.name)}</span>
+            <span class="meta"><span class="cb-ver">${esc(picked.version)}</span></span>
+          </span>
+          <span class="cb-clear" role="button" tabindex="0" data-clear="1"
+                aria-label="Remove ${esc(picked.name)}">
+            <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
+          </span>`;
+}
+
+function renderMatrix() {
+  const spine = `
+    <div class="cb-col" data-col="type">
+      <div class="cb-col-head">
+        <div class="row">
+          <svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-studio"/></svg>
+          <span class="ttl t-subhead2-med">Artifact type</span>
+        </div>
+        <span class="sub t-body2-reg">Select an artifact from any type</span>
       </div>
-      <p class="panel-desc t-body2-reg" id="panelDesc"></p>
-    </div>
-    <div class="panel-actions">
-      <button class="btn-primary t-body2-med">
-        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-editpen"/></svg>
-        Edit bundle
+      ${TYPES.map((t) => `
+        <div class="cb-type">
+          <div class="row">
+            <svg class="ic" width="20" height="20" viewBox="0 0 16 16" style="color:var(--type-ink-${t.key})"><use href="#${t.icon}"/></svg>
+            <span class="nm t-subhead2-med">${esc(t.label)}</span>
+          </div>
+          <span class="sub t-caption1-reg">${esc(t.note)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  const cols = LAYERS.map((layer) => `
+    <div class="cb-col" data-col="${layer.key}">
+      <div class="cb-col-head">
+        <div class="row">
+          <svg class="cb-dia" viewBox="0 0 43 28" aria-hidden="true"><use href="#${layer.dia}"/></svg>
+          <span class="ttl t-subhead2-med">${esc(layer.label)}</span>
+        </div>
+        <span class="sub t-body2-reg">${esc(layer.note)}</span>
+      </div>
+      ${TYPES.map((t) => {
+        const filled = !!selection[t.key][layer.key];
+        return `<div class="cb-cellwrap">
+          <button class="cb-cell${filled ? ' is-filled' : ''}"
+                  data-type="${t.key}" data-layer="${layer.key}"
+                  aria-haspopup="dialog"
+                  aria-label="${esc(t.label)}, ${esc(layer.label)}">
+            ${cellInner(t.key, layer.key)}
+          </button>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+
+  $('matrix').innerHTML = spine + cols;
+}
+
+function refreshCount() {
+  const n = TYPES.reduce((sum, t) => sum + Object.keys(selection[t.key]).length, 0);
+  $('selCount').textContent = n;
+  $('createBtn').disabled = !(n > 0 && $('bundleName').value.trim() && $('bundleDesc').value.trim());
+  return n;
+}
+
+/* ── Picker ──────────────────────────────────────────────────────── */
+let open = null;        /* { typeKey, layerKey, cell } */
+let expanded = null;    /* index of the expanded artifact */
+
+function artifactRows(typeKey, layerKey, query) {
+  const q = (query || '').trim().toLowerCase();
+  const list = (CATALOG[typeKey] || []).filter(
+    (a) => !q || a.name.toLowerCase().includes(q) || a.sub.toLowerCase().includes(q));
+  if (!list.length) return '<p class="cb-pop-empty t-body2-reg">No artifacts match that search.</p>';
+
+  const current = selection[typeKey][layerKey];
+  return list.map((a, i) => {
+    const isOpen = expanded === i;
+    const vers = a.versions.map((v) => `
+      <button class="cb-ver-row${current && current.name === a.name && current.version === v.v ? ' is-current' : ''}"
+              data-pick="${i}" data-v="${esc(v.v)}">
+        <span class="v t-body2-reg">${esc(v.v)}</span>
+        <span class="spacer"></span>
+        ${v.latest ? '<span class="cb-latest t-caption1-med">Latest</span>' : ''}
+        <span class="date t-caption1-reg">${esc(v.date)}</span>
+      </button>`).join('');
+    return `<div class="cb-art${isOpen ? ' is-expanded' : ''}" data-i="${i}">
+      <button class="cb-art-head" data-toggle="${i}" aria-expanded="${isOpen}">
+        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#cb-typegrid"/></svg>
+        <span class="cb-art-text">
+          <span class="nm t-body2-med">${esc(a.name)}</span>
+          <span class="sub t-caption1-reg">${esc(a.sub)}</span>
+        </span>
+        <span class="cb-art-count t-caption1-reg">${a.versions.length} vers.</span>
+        <svg class="ic cb-art-chev" width="16" height="16" viewBox="0 0 16 16"><use href="#cb-chevright"/></svg>
       </button>
-    </div>
-  </div>
+      <div class="cb-vers" data-vers="${i}">${vers}</div>
+    </div>`;
+  }).join('');
+}
 
-  <div class="panel-body cq-scroll-y">
-    <section class="panel-section">
-      <p class="section-header t-caption1-med">DETAILS</p>
-      <div class="rows" id="panelMeta"></div>
-    </section>
+function paintPicker() {
+  $('popList').innerHTML = artifactRows(open.typeKey, open.layerKey, $('popSearch').value);
+  /* Height is measured after paint so the version list animates from a
+     real number rather than a guess. */
+  const box = $('popList').querySelector(`.cb-vers[data-vers="${expanded}"]`);
+  if (box) box.style.maxHeight = box.scrollHeight + 'px';
+}
 
-    <section class="panel-section">
-      <p class="section-header t-caption1-med" id="panelArtHeader">ARTIFACTS</p>
-      <div id="panelArtifacts"></div>
-    </section>
-  </div>
-</aside>
+/* The popover is fixed-position: it sits under its cell, flips above
+   when there is no room below, and shifts inside the viewport edges. */
+function placePicker() {
+  const pop = $('pop');
+  const r = open.cell.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  const M = 12;
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(M, Math.min(left, window.innerWidth - w - M));
+  let top = r.bottom + 8;
+  if (top + h > window.innerHeight - M) {
+    const above = r.top - 8 - h;
+    top = above >= M ? above : Math.max(M, window.innerHeight - h - M);
+  }
+  pop.style.left = Math.round(left) + 'px';
+  pop.style.top = Math.round(top) + 'px';
+}
 
-<script src="cogentiq.js" defer></script>
-<script src="context-studio.js" defer></script>
-</body>
-</html>
+function openPicker(cell) {
+  closePicker();
+  open = { typeKey: cell.dataset.type, layerKey: cell.dataset.layer, cell };
+  expanded = null;
+  cell.classList.add('is-open');
+  $('popSearch').value = '';
+  const pop = $('pop');
+  pop.classList.add('is-open');
+  paintPicker();
+  placePicker();
+  requestAnimationFrame(() => pop.classList.add('is-shown'));
+  $('popSearch').focus();
+}
+
+function closePicker() {
+  if (!open) return;
+  open.cell.classList.remove('is-open');
+  $('pop').classList.remove('is-open', 'is-shown');
+  open = null;
+  expanded = null;
+}
+
+function pick(artIndex, version) {
+  const art = (CATALOG[open.typeKey] || [])[artIndex];
+  if (!art) return;
+  selection[open.typeKey][open.layerKey] = { name: art.name, version };
+  const { typeKey, layerKey } = open;
+  closePicker();
+  renderMatrix();
+  refreshCount();
+  /* Keep the keyboard on the cell that was just filled. */
+  const cell = $('matrix').querySelector(`.cb-cell[data-type="${typeKey}"][data-layer="${layerKey}"]`);
+  if (cell) cell.focus();
+}
+
+/* ── Wiring ──────────────────────────────────────────────────────── */
+$('matrix').addEventListener('click', (e) => {
+  const clear = e.target.closest('[data-clear]');
+  if (clear) {
+    const cell = clear.closest('.cb-cell');
+    delete selection[cell.dataset.type][cell.dataset.layer];
+    closePicker();
+    renderMatrix();
+    refreshCount();
+    return;
+  }
+  const cell = e.target.closest('.cb-cell');
+  if (!cell) return;
+  if (open && open.cell === cell) { closePicker(); return; }
+  openPicker(cell);
+});
+
+/* The remove affordance inside a cell is a span (a button inside a
+   button is invalid), so it takes its own keyboard handling. */
+$('matrix').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const clear = e.target.closest('[data-clear]');
+  if (!clear) return;
+  e.preventDefault();
+  clear.click();
+});
+
+$('popList').addEventListener('click', (e) => {
+  /* This handler re-renders the list, which detaches e.target. The
+     document-level outside-click handler below would then see a node
+     that is no longer inside #pop and close the picker, so the event
+     stops here. */
+  e.stopPropagation();
+  const ver = e.target.closest('[data-pick]');
+  if (ver) { pick(Number(ver.dataset.pick), ver.dataset.v); return; }
+  const head = e.target.closest('[data-toggle]');
+  if (!head) return;
+  const i = Number(head.dataset.toggle);
+  expanded = expanded === i ? null : i;
+  paintPicker();
+  placePicker();
+});
+
+$('popSearch').addEventListener('input', () => { expanded = null; paintPicker(); placePicker(); });
+$('popNew').addEventListener('click', () => { /* hook up your create-artifact flow */ });
+
+document.addEventListener('click', (e) => {
+  if (!open) return;
+  /* A node detached by a re-render cannot be tested for containment;
+     it came from inside the picker, so it is never an outside click. */
+  if (!e.target.isConnected) return;
+  if (e.target.closest('#pop, .cb-cell')) return;
+  closePicker();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && open) { const c = open.cell; closePicker(); c.focus(); }
+});
+window.addEventListener('resize', () => { if (open) placePicker(); });
+/* Capture phase: the scroll happens on .cb-scroll, not the window. */
+window.addEventListener('scroll', () => { if (open) placePicker(); }, true);
+
+/* Required fields turn red only once they have been used and left empty. */
+[['bundleName', 'fieldName'], ['bundleDesc', 'fieldDesc']].forEach(([input, field]) => {
+  $(input).addEventListener('input', () => { $(field).classList.remove('is-invalid'); refreshCount(); });
+  $(input).addEventListener('blur', () => {
+    $(field).classList.toggle('is-invalid', !$(input).value.trim());
+  });
+});
+
+$('createBtn').addEventListener('click', () => { /* hook up your submit */ });
+
+renderMatrix();
+refreshCount();
+
+/* ── Platform panel: hover to open, one category open at a time ──── */
+const rail = $('rail');
+let railT;
+rail.addEventListener('mouseenter', () => {
+  clearTimeout(railT); railT = setTimeout(() => rail.classList.add('is-open'), 140);
+});
+rail.addEventListener('mouseleave', () => {
+  clearTimeout(railT); railT = setTimeout(() => rail.classList.remove('is-open'), 200);
+});
+$('railCollapse').addEventListener('click', (e) => {
+  e.stopPropagation(); rail.classList.remove('is-open');
+});
+rail.querySelectorAll('.cq-rail-ghead[aria-expanded]').forEach((head) => {
+  head.addEventListener('click', () => {
+    const open = head.getAttribute('aria-expanded') === 'true';
+    rail.querySelectorAll('.cq-rail-ghead[aria-expanded]').forEach((h) => h.setAttribute('aria-expanded', 'false'));
+    head.setAttribute('aria-expanded', String(!open));
+  });
+});
+
+/* ── Theme ──────────────────────────────────────────────────────── */
+function applyMode(mode) {
+  root.dataset.mode = mode;
+  const dark = mode === 'dark';
+  $('themeIcon').querySelector('use').setAttribute('href', dark ? '#ic-sun' : '#ic-moon');
+  const label = dark ? 'Switch to light mode' : 'Switch to dark mode';
+  $('themeToggle').setAttribute('title', label);
+  $('themeToggle').setAttribute('aria-label', label);
+}
+$('themeToggle').addEventListener('click', () => {
+  const next = root.dataset.mode === 'dark' ? 'light' : 'dark';
+  applyMode(next);
+  try { localStorage.setItem('cq-theme', next); } catch (e) { /* private mode */ }
+});
+let stored = null;
+try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
+applyMode(stored === 'dark' ? 'dark' : 'light');
+</script>
