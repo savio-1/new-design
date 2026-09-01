@@ -1,13 +1,18 @@
 # Monitoring v2 — a second direction
 
 A new look and feel for the Monitoring module, built from the reference set
-(analytics-report dashboards: mono eyebrow labels, hairline-divided figures,
-segmented tracks, calendar heatmaps).
+(analytics-report dashboards: soft multi-line charts, mono eyebrow labels,
+hairline-divided figures, segmented tracks).
+
+**Minimal on purpose.** Five cards, 39 painted marks, one screen at 1512×1000.
+An earlier pass had six cards, gradient tiles on thirteen elements, filled
+status pills, coloured accent bars and a 336-cell heatmap; it read as busy. The
+rule applied since: colour and ink where they carry data, nothing where they
+only decorate.
 
 **The two lists lead.** Live executions and the checkpoints waiting on a human
 are what an operator opens this page to act on, so they sit directly under the
-figures. The failure breakdown and the heatmap are context you read after
-acting, and follow.
+figures. The two visualizations follow as context.
 
 **Standalone by design.** The rail carries the Monitor group and nothing
 else — no Home, no Build/Library/Evaluate, no Marketplace pill, and no
@@ -18,8 +23,12 @@ Monitoring.
 quiet placeholder; Checkpoints and Leaderboard are not built in this
 direction yet, so their rail leaves and the footer links are inert.
 
-**Layout:** figures strip → live executions (8) + checkpoints (4) → failure
-share (4) + heatmap (8).
+**Layout:** four figures (12) → live executions (8) + checkpoints (4) →
+executions per hour (8) + failure share (4).
+
+Three visualization forms, one each: a smooth multi-line with a haze wash for
+the shape of the day, a segmented part-to-whole track for where the failures
+sat, and a stage strip per run row for where a run's time went.
 
 ## Build
 
@@ -47,68 +56,53 @@ them, because the shared parts had already drifted — hence the assembler.
 | v1 | v2 | Why |
 |---|---|---|
 | Cards with a pointer-tracking radial glow ring | Hairline card, mono eyebrow head, controls right | The references read as a report, not a console |
-| 3 bordered KPI cards | One hairline-divided strip of 5 figures | Four borders to say "these are peers"; three hairlines say it quieter |
+| 3 bordered KPI cards | One hairline-divided strip of 4 figures | Four borders to say "these are peers"; three hairlines say it quieter |
+| Volume **and** error rate on one plot, two y-scales | One plot, one y axis | Two y-scales align arbitrarily, so such a chart invents a correlation. The day's error rate is a figure in the strip instead |
 | Donut for top failing automations | Segmented track + rows with counts | Four shares this close are not readable as arcs |
-| Volume chart above the lists | No volume chart; the lists lead | Removed on request — the page is for acting first, reading second |
-| 7 days × 12 two-hour cells | 14 days × 24 hours, filling the card | The old grid left two thirds of the card empty, and a fortnight is where the weekly rhythm becomes visible |
-| Grey glyphs on the KPI cards | The system's gradient tiles | Colour from the library rather than from choices of this page's own |
-| One hue per chart | One hue per **automation**, page-wide | An automation wears the same colour in the table, the failure track and its checkpoint tile |
+| Stacked-area trend | Smooth multi-line with a haze wash | Identity is the job; the wash is the reference set's signature |
 | Duration as a number | Number **plus** a stage strip per row | "4.2s" says how long; the strip says which stage owned it |
+| Podium, heatmap, 6 cards | 5 cards | Element count was the thing that made the page feel heavy |
+
+### What was cut, and what it would take to bring back
+
+Each of these is a one-line change in `src/`, kept out because of element count
+rather than because it was wrong:
+
+- **Executions heatmap** (weekday or day × hour) — 168–336 cells, over a third
+  of the page's marks. The single biggest lever on how busy the page feels.
+- **Error-rate panel** under the chart — a second plot sharing the x axis.
+- **Gradient tiles** on the figures and every run row — 13 coloured tiles.
+- **Filled status pills** and **coloured accent bars** on checkpoint tiles.
+- **Median duration** figure, the **per-run cost** column, and the failure
+  card's two footer facts.
 
 ## Colour
 
-Every value is a published Cogentiq token or ramp step — nothing on the page is
-an interpolated or eyeballed colour. Dark is *selected*, not a flip of light:
-each mode picks the steps that work against its own card surface.
+Every value is a token; chart hues are ramp steps picked per mode against that
+mode's own card surface. Dark is *selected*, not a flip of light. All of it was
+run through the dataviz validator rather than eyeballed:
 
-| Role | Dark (`#212121`) | Light (`#ffffff`) |
-|---|---|---|
-| Automation identity ×4 | blue-500 · orange-900 · indigo-500 · cyan-500 | blue-600 · orange-800 · indigo-600 · cyan-500 |
-| Heatmap, 5 levels + neutral zero | blue-700 → blue-200 | blue-450 → blue-1000 |
-| Stage strip | blue-800 → blue-300 | blue-300 → blue-800 |
-| Status pills | published badge families: green, blue (+ derived red) | same |
-| Gradient tiles | `cq-grad-{blue,green,orange,indigo,purple}` (+ derived cyan) | same |
+| Role | Dark (`#212121`) | Light (`#ffffff`) | Cleared |
+|---|---|---|---|
+| Categorical ×4 (blue → orange → indigo → cyan) | `#0d99ff #ce7012 #5860ed #00a2c2` | `#007be5 #dd7c0e #454de0 #00a2c2` | adjacent CVD ΔE 15.9 / 19.1 · normal-vision 19.7 / 23.2 · contrast pass |
+| Failure share, 4 steps | `#ba3728 → #febfb4` | `#a21c10 → #fe9c8c` | monotone, ΔL .11, light-end 2.03:1 |
+| Stage strip | blue ramp, 4 steps | same, reversed | — |
+| Status as 12px text | green-500 / red-400 / orange-500 | green-700 / red-600 / `#a85a10` | ≥ 4.5:1 WCAG text |
 
-**Colour follows the entity.** Each automation owns one hue and wears it
-everywhere — its gradient tile in the run table, its segment in the failure
-track, its 3px accent on a checkpoint tile. So "the orange one" means Lead
-router on every card, and removing a series never repaints the survivors.
+Green and red never appear as categorical slots: they are reserved for status,
+so a series can never impersonate "healthy" or "failing".
 
-Green and red never appear as an automation's identity hue: they are reserved
-for status, so a series can never impersonate "healthy" or "failing".
+Colour is restricted to marks that carry data — the four chart lines, the
+failure track's segments, the stage strips, and the status dots. The gradient
+tiles, filled pills and accent bars from the busier pass are gone: they were
+colour doing decoration, which is what made the page loud.
 
-### The three places the library has no token, and what was done
-
-The library is missing exactly three things this page needs. Each is derived in
-the library's own construction rather than invented:
-
-1. **No red badge family.** Published families are blue, indigo, green, cyan and
-   light-green. The `Failed` status pill takes a red trio built the same way as
-   the published pairs: darkest ramp step as ground, mid step as stroke, light
-   step as ink.
-2. **No cyan gradient tile.** `cq-grad-teal` is green-600 → green-500 →
-   cyan-400, which reads *green* — so the automation whose identity hue is cyan
-   would wear a green tile while its own failure segment stayed cyan, and a
-   green identity tile would sit one column from the green `Success` pill.
-   `.mv-grad-cyan` uses the published family's exact angle and three stops, from
-   published cyan steps.
-3. **No orange badge family or coloured-text token.** The warning tag and the
-   escalating wait time take the orange ramp's own step, always with a glyph
-   beside them so state never rests on colour alone.
-
-### One contrast trade-off, made deliberately
-
-Published `orange-900` (`#ce7012`) as 12px text on white is **3.53:1** — under
-the 4.5:1 WCAG minimum for small text. Every use is paired with a clock or
-alert glyph, which is the documented mitigation for warning colours, but if you
-want the number to clear 4.5:1 the fix is a darker step (`#a85a10`, 5.08:1) that
-the library does not currently publish. Say the word and I'll either switch to
-it or take it to the Figma library as a new `orange-1000`.
-
-Also worth knowing: the library's own `--text-coloured-*` steps are low-contrast
-on a bare card in light mode (`--text-coloured-blue` is blue-500, ~2.6:1 on
-white). They are picked to sit on their badge fill, which is why every use of
-them here is inside a `cq-badge` or `cq-status` rather than as loose text.
+The failure ramp and the light-mode warning step are **derived** in their own
+family (hue and chroma held, lightness stepped) because the published ramp has
+no step at the spacing the ordinal gates want. Worth knowing for the library:
+v1's heatmap ramp fails both the adjacency gate (`blue-450`→`500` is ΔL .041)
+and the light-end contrast floor, and there is no published red badge family or
+orange coloured-text token.
 
 ## Verification
 
@@ -133,7 +127,7 @@ breakdown and the table's "of N today" cannot disagree.
    mid-card and the bottom reads as unfinished.
 4. **A gradient named for a hue may not read as that hue.** `cq-grad-teal` is
    two greens and a cyan; it reads green. Check the stops, not the name.
-5. **The extracted design-system sheet is a superset of v1's inlined copy** —
+6. **The extracted design-system sheet is a superset of v1's inlined copy** —
    it already ships `.cq-btn--tonal-2` and a 24px `.cq-btn--s`, both of which
    v1 had to derive locally. It has no `.cq-seg__thumb`, though: this sheet
    paints the active tab directly, so no thumb-positioning code is needed.

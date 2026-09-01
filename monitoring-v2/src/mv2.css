@@ -32,19 +32,20 @@ body { background: var(--backgrounds-page-bg-1); }
 /* ── Ramp steps this direction needs ──────────────────────────────────
    The shared sheet ships only the steps its own components use, and an
    undefined custom property kills the whole declaration silently, so
-   every step used below is declared here. All of them are published
-   Figma values from the same Colours_latest export, identical in both
-   themes like every other palette value — nothing on this page is an
-   interpolated or eyeballed colour. */
+   every step used below is declared here. The named Figma steps keep
+   their names; the four marked "derived" are interpolated inside their
+   own family (hue and chroma held, lightness stepped) because the
+   published ramp has no step at the spacing the ordinal gates want —
+   see the ramp blocks further down. */
 :root {
-  --blue-200: #e5f4ff;  --blue-300: #bde3ff;  --blue-400: #80caff;
-  --blue-450: #44aaf3;  --blue-700: #0768cf;  --blue-800: #034ac1;
-  --blue-900: #093077;  --blue-1000: #0d193f;
-  --red-100: #fff5f5;   --red-300: #ffc7c2;   --red-400: #ffafa3;
-  --red-500: #f24822;   --red-600: #dc3412;   --red-900: #771208;
+  --blue-300: #bde3ff;  --blue-400: #80caff;  --blue-450: #44aaf3;
+  --blue-700: #0768cf;  --blue-800: #034ac1;
+  --red-300: #ffc7c2;   --red-400: #ffafa3;   --red-500: #f24822;
+  --red-600: #dc3412;   --red-700: #b3260c;
   --orange-500: #ffa629; --orange-900: #ce7012;
+  --orange-1000: #a85a10;   /* derived: warning as 12px text on white, 5.08:1 */
   --green-500: #14ae5c;  --green-700: #008043;
-  --cyan-300: #b6ecf7;   --cyan-500: #00a2c2;  --cyan-700: #047195;
+  --cyan-500: #00a2c2;
   --indigo-500: #5860ed; --indigo-600: #454de0;
 }
 
@@ -83,28 +84,20 @@ body { background: var(--backgrounds-page-bg-1); }
   /* Executions heatmap · sequential, one hue, 5 levels + a neutral zero.
      Level 0 is "no runs" and sits outside the ramp: it is a surface
      tile, not a value, so it must not read as the ramp's low end.
-     These are published blue steps, chosen as the set that also clears
-     the ordinal gates — monotone lightness, adjacent ΔL ≥ .06, and the
-     surface-adjacent end still ≥ 2:1. On dark, more is brighter.
-       dark  blue-700 → blue-200
-       light blue-450 → blue-1000                                      */
+       dark  ΔL .105, contrast 2.08 → 10.62:1, monotone, single hue
+       light ΔL .110, contrast 2.06 → 12.21:1
+     Both derived in-family: the published blue ramp bunches at the top
+     (blue-450→500 is ΔL .041) and fails the ordinal adjacency gate. */
   --heat-0: var(--backgrounds-page-bg-3);
-  --heat-1: var(--blue-700);  --heat-2: var(--blue-500);
-  --heat-3: var(--blue-400);  --heat-4: var(--blue-300);
-  --heat-5: var(--blue-200);
+  --heat-1: #035591;  --heat-2: #0173c2;  --heat-3: #2b94eb;
+  --heat-4: #69b5fe;  --heat-5: #aed6fe;
 
-  /* The stage strip on a run row · the same hue, held a step back from
-     the heatmap so the two grids never read as one scale. */
-  --stage-1: var(--blue-800);  --stage-2: var(--blue-600);
-  --stage-3: var(--blue-450);  --stage-4: var(--blue-300);
-
-  /* Red badge family · the library publishes blue, indigo, green, cyan
-     and light-green and no red, so this one pair is derived in exactly
-     the same key from the published red ramp: darkest step as ground,
-     mid step as stroke, light step as ink. */
-  --backgrounds-badge-red: #2b0a08;
-  --strokes-colour-red:    var(--red-900);
-  --text-coloured-red:     var(--red-400);
+  /* Failure share · sequential, red family, 4 steps. Red because the
+     quantity *is* failures — status semantics, not a series identity —
+     and graded because the segments are ordered biggest to smallest.
+       dark  ΔL .11, contrast 2.81 → 10.22:1
+       light ΔL .11, contrast 2.03 → 7.75:1                            */
+  --fail-1: #febfb4;  --fail-2: #fe8674;  --fail-3: #e05b4a;  --fail-4: #ba3728;
 
   /* Chart chrome. Solid hairlines, one step off the surface — never
      dashed: dashing reads as "projection" or "threshold" when it is
@@ -130,16 +123,10 @@ body { background: var(--backgrounds-page-bg-1); }
   --st-bad-mark:  var(--red-600);
   --st-warn-mark: #dd7c0e;
 
-  --heat-1: var(--blue-450);  --heat-2: var(--blue-600);
-  --heat-3: var(--blue-800);  --heat-4: var(--blue-900);
-  --heat-5: var(--blue-1000);
+  --heat-1: #75bafd;  --heat-2: #2f97ef;  --heat-3: #0575c4;
+  --heat-4: #035591;  --heat-5: #013761;
 
-  --stage-1: var(--blue-300);  --stage-2: var(--blue-450);
-  --stage-3: var(--blue-600);  --stage-4: var(--blue-800);
-
-  --backgrounds-badge-red: var(--red-100);
-  --strokes-colour-red:    var(--red-300);
-  --text-coloured-red:     var(--red-600);
+  --fail-1: #fe9c8c;  --fail-2: #ef6856;  --fail-3: #c84435;  --fail-4: #a21c10;
 
   --haze-op: .22;
 }
@@ -233,15 +220,22 @@ body { background: var(--backgrounds-page-bg-1); }
 .mv-link:hover { text-decoration-thickness: 2px; }
 .mv-foot-note { color: var(--text-teritiary); margin-left: auto; }
 
-/* A pair of facts, hairline-divided like the strip, for a card whose
-   rows do not fill its height. */
-.mv-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px;
-  border-top: 1px solid var(--strokes-line-3); padding-top: 13px; }
-.mv-fact { min-width: 0; padding-right: 12px; }
-.mv-fact + .mv-fact { border-left: 1px solid var(--strokes-line-3); padding-left: 14px; padding-right: 0; }
-.mv-fact b { display: block; color: var(--text-primary); font-size: 18px; line-height: 24px; font-weight: 600;
-  font-variant-numeric: proportional-nums; }
-.mv-fact span { display: block; color: var(--text-teritiary); font-size: 12px; line-height: 16px; margin-top: 2px; }
+/* Segmented period control — the one filter each chart may carry, and
+   only because it changes the x-domain rather than the data slice. */
+.mv-seg2 {
+  display: inline-flex; padding: 2px; gap: 2px;
+  background: var(--backgrounds-page-bg-3); border-radius: var(--radius-md);
+}
+.mv-seg2 button {
+  height: 24px; padding: 0 9px; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text-teritiary);
+  font-family: var(--font-geist); font-size: 12px; line-height: 16px;
+}
+.mv-seg2 button:hover { color: var(--text-secondary); }
+.mv-seg2 button[aria-pressed="true"] {
+  background: var(--backgrounds-page-bg-2); color: var(--text-primary);
+  box-shadow: var(--shadow-card, 0 1px 2px rgba(0,0,0,.12));
+}
 
 /* ══ 4 · STAT STRIP ═══════════════════════════════════════════════════
    One card, cells divided by hairlines. Peers separated by a rule read
@@ -249,31 +243,8 @@ body { background: var(--backgrounds-page-bg-1); }
 .mv-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .mv-stat { padding: 16px 18px; min-width: 0; border-left: 1px solid var(--strokes-line-3); }
 .mv-stat:first-child { border-left: 0; }
-.mv-stat__top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-
-/* The system's gradient tile, reused wherever this page names a thing:
-   a figure's subject in the strip, an automation in a run row. It is the
-   product's own colour device, so the page gets colour from the library
-   rather than from choices of its own. */
-.mv-tile {
-  --tile: 24px;
-  width: var(--tile); height: var(--tile); flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 7px; color: var(--white);
-}
-.mv-tile .cq-ic { width: 14px; height: 14px; }
-
-/* The library ships gradient tiles for blue, purple, indigo, orange,
-   green and teal — and teal is green-600 → green-500 → cyan-400, which
-   reads green. Two problems with that on this page: the automation whose
-   categorical slot is cyan would wear a green tile while its own segment
-   in the failure track stayed cyan, and a green identity tile sits one
-   step from the green "Success" status pill in the next column. So the
-   cyan tile is built in the published family's exact construction —
-   same angle, same three stops — from published cyan steps. */
-.mv-grad-cyan {
-  background-image: linear-gradient(225.24deg, var(--cyan-700) 8.84%, var(--cyan-500) 54.42%, var(--cyan-300) 100%);
-}
+.mv-stat__top { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.mv-stat__top .cq-ic { color: var(--text-teritiary); flex: none; }
 .mv-stat__val {
   font-family: var(--font-geist); font-size: 30px; line-height: 36px; font-weight: 600;
   color: var(--text-primary); letter-spacing: -.01em;
@@ -298,9 +269,39 @@ body { background: var(--backgrounds-page-bg-1); }
 /* Every figure that sits in a column of figures. */
 .mv-num { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
 
-/* ══ 5 · TOOLTIP ══════════════════════════════════════════════════════
-   Shared by the failure track, the stage strips and the heatmap cells.
-   Values lead, series names follow. */
+/* ══ 5 · PLOTS ════════════════════════════════════════════════════════ */
+
+.mv-plot { position: relative; width: 100%; }
+.mv-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mv-plot text { font-family: var(--font-geist); fill: var(--plot-ink); font-size: 11px; }
+.mv-plot .mv-tick { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
+.mv-gridline { stroke: var(--plot-grid); stroke-width: 1; shape-rendering: crispEdges; }
+.mv-baseline { stroke: var(--plot-axis); stroke-width: 1; shape-rendering: crispEdges; }
+.mv-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mv-haze { fill: none; stroke-width: 15; opacity: var(--haze-op); filter: blur(13px); }
+.mv-dot { r: 3.5; }
+/* A direct label sits on top of the curves it names, so it is painted
+   with a surface-coloured stroke *under* its own fill — the standard
+   halo. Without it the label competes with whatever line runs beneath. */
+.mv-plot .mv-peak {
+  paint-order: stroke fill;
+  stroke: var(--backgrounds-page-bg-2); stroke-width: 3.5px; stroke-linejoin: round;
+}
+/* Markers carry a 2px ring in the surface colour so they stay legible
+   where two series cross — the ring is the separator, not a border. */
+.mv-ring { fill: var(--backgrounds-page-bg-2); stroke-width: 2; }
+.mv-crosshair { stroke: var(--plot-axis); stroke-width: 1; shape-rendering: crispEdges; }
+.mv-hit { fill: transparent; cursor: crosshair; }
+
+/* Legend · always present at two or more series, and mirroring the mark:
+   a line-key for lines, a swatch for fills. */
+.mv-legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
+.mv-legend__item { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; line-height: 16px; }
+.mv-legend__key { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.mv-legend__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.mv-legend__item.is-dim { opacity: .4; }
+
+/* Tooltip · values lead, series names follow. */
 .mv-tip {
   position: fixed; z-index: 60; pointer-events: none; opacity: 0;
   transition: opacity .1s linear;
@@ -323,6 +324,7 @@ body { background: var(--backgrounds-page-bg-1); }
   font-size: 12px; line-height: 16px;
 }
 .mv-tip__rule { height: 1px; background: var(--strokes-line-3); margin: 7px -11px 0; }
+.mv-tip__tot { display: flex; gap: 8px; margin-top: 7px; }
 
 /* ══ 6 · SEGMENTED TRACK (part-to-whole) ══════════════════════════════
    One track, segments in the graded ramp, 2px surface gaps doing the
@@ -343,49 +345,12 @@ body { background: var(--backgrounds-page-bg-1); }
   cursor: default; transition: background .12s linear;
   margin: 0 -6px; padding-left: 6px; padding-right: 6px; border-radius: 4px;
 }
-.mv-row:hover, .mv-row.is-on { background: var(--backgrounds-card-bg-4); }
+.mv-row:hover { background: var(--backgrounds-card-bg-4); }
 .mv-row__sw { width: 10px; height: 10px; border-radius: 3px; }
 .mv-row__nm { color: var(--text-primary); font-size: var(--fs-body-3); line-height: var(--lh-body-3); }
 .mv-row__nm span { display: block; color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
 .mv-row__v { color: var(--text-primary); font-weight: 600; font-size: var(--fs-body-3); }
 .mv-row__sh { color: var(--text-teritiary); font-size: 12px; min-width: 42px; text-align: right; }
-
-/* ══ 7 · HEATMAP ══════════════════════════════════════════════════════ */
-
-.mv-heat { display: flex; gap: 8px; }
-.mv-heat__dow {
-  display: grid; grid-template-rows: repeat(var(--rows, 14), 16px); gap: 3px;
-  padding-top: 21px; flex: none;
-}
-.mv-heat__dow span {
-  font-family: var(--font-geist-mono); font-size: 10px; line-height: 1;
-  color: var(--text-teritiary); display: flex; align-items: center; height: 100%;
-}
-.mv-heat__scroll { flex: 1; min-width: 0; overflow-x: auto; padding-bottom: 2px; }
-/* 24 equal columns across the card. Fixed 15px cells left two thirds of
-   a span-12 card empty; letting the columns share the width turns each
-   day into a readable band without changing the encoding. */
-.mv-heat__cols { display: grid; grid-template-columns: repeat(24, minmax(20px, 1fr)); gap: 3px; min-width: 520px; }
-.mv-heat__col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.mv-heat__hd {
-  height: 18px; font-family: var(--font-geist-mono); font-size: 10px;
-  color: var(--text-teritiary); white-space: nowrap;
-}
-.mv-heat__cell {
-  width: auto; height: 16px; border-radius: 3px; background: var(--heat-0);
-  cursor: default; transition: transform .1s ease;
-}
-.mv-heat__cell[data-lv="1"] { background: var(--heat-1); }
-.mv-heat__cell[data-lv="2"] { background: var(--heat-2); }
-.mv-heat__cell[data-lv="3"] { background: var(--heat-3); }
-.mv-heat__cell[data-lv="4"] { background: var(--heat-4); }
-.mv-heat__cell[data-lv="5"] { background: var(--heat-5); }
-/* An hour that failed is a state, not a magnitude, so it leaves the
-   ramp and wears the status mark instead. */
-.mv-heat__cell[data-bad="1"] { background: var(--st-bad-mark); }
-.mv-heat__cell:hover { transform: scale(1.12); }
-.mv-scale { display: inline-flex; align-items: center; gap: 6px; color: var(--text-teritiary); font-size: 11px; }
-.mv-scale i { width: 11px; height: 11px; border-radius: 2px; display: block; }
 
 /* ══ 8 · TABLE ════════════════════════════════════════════════════════ */
 
@@ -422,60 +387,33 @@ body { background: var(--backgrounds-page-bg-1); }
 }
 .mv-glyph { flex: none; }
 
-/* Status · the system's own pill, tinted ground and coloured ink from
-   the published badge families, and always a glyph or dot beside the
-   word so state never rests on colour alone. The pill's tinted ground is
-   also what makes the library's coloured ink legible — those steps are
-   picked to sit on their badge fill, not on a bare card. */
-.mv-st { height: 22px; gap: 5px; padding: 0 8px 0 6px; border: 1px solid transparent; }
-.mv-st .cq-ic { width: 13px; height: 13px; }
-.mv-st[data-tone="green"] {
-  background: var(--backgrounds-badge-green); border-color: var(--strokes-colour-green);
-  color: var(--text-coloured-green);
-}
-.mv-st[data-tone="blue"] {
-  background: var(--backgrounds-badge-blue); border-color: var(--strokes-colour-blue);
-  color: var(--text-coloured-blue);
-}
-.mv-st[data-tone="red"] {
-  background: var(--backgrounds-badge-red); border-color: var(--strokes-colour-red);
-  color: var(--text-coloured-red);
-}
-.mv-st__live { width: 7px; height: 7px; animation: mv-pulse 1.4s ease-in-out infinite; }
-
-/* Orange has no published badge family either; the tag borrows the
-   ramp's own text step, which is what the tinted tag variants do. */
-.mv-tag { height: 18px; }
-.mv-tag--orange { color: var(--st-warn); border-color: var(--st-warn); }
-
-.mv-ago { color: var(--text-teritiary); font-size: 12px; }
+/* Status · a dot or glyph plus the word, never colour alone. */
+.mv-st { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; white-space: nowrap; }
+.mv-st i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.mv-st[data-s="ok"]   { color: var(--st-good); }
+.mv-st[data-s="ok"] i { background: var(--st-good-mark); }
+.mv-st[data-s="fail"]   { color: var(--st-bad); }
+.mv-st[data-s="fail"] i { background: var(--st-bad-mark); }
+.mv-st[data-s="run"]   { color: var(--text-coloured-blue); }
+.mv-st[data-s="run"] i { background: var(--text-coloured-blue); animation: mv-pulse 1.4s ease-in-out infinite; }
 
 /* Stage strip · where a run's duration went, in one 6px bar. A number
    ("4.2s") says how long; this says which stage owned it. */
 .mv-stages { display: flex; gap: 2px; height: 6px; width: 100%; min-width: 40px; }
 .mv-stages__s { border-radius: 2px; min-width: 2px; }
-.mv-stages__s:nth-child(1) { background: var(--stage-1); }
-.mv-stages__s:nth-child(2) { background: var(--stage-2); }
-.mv-stages__s:nth-child(3) { background: var(--stage-3); }
-.mv-stages__s:nth-child(4) { background: var(--stage-4); }
+.mv-stages__s:nth-child(1) { background: var(--heat-2); }
+.mv-stages__s:nth-child(2) { background: var(--heat-3); }
+.mv-stages__s:nth-child(3) { background: var(--heat-4); }
+.mv-stages__s:nth-child(4) { background: var(--heat-5); }
 .mv-stages--fail .mv-stages__s:last-child { background: var(--st-bad-mark); }
 
 /* ══ 9 · APPROVAL TILES ═══════════════════════════════════════════════ */
 
 .mv-appr { display: flex; flex-direction: column; gap: 8px; }
 .mv-appr__t {
-  --accent: var(--strokes-line-1);
-  position: relative; overflow: hidden;
   border: 1px solid var(--strokes-line-3); border-radius: var(--radius-md);
-  padding: 11px 12px 11px 14px; display: flex; flex-direction: column; gap: 8px;
+  padding: 11px 12px; display: flex; flex-direction: column; gap: 7px;
   transition: border-color .12s linear, background .12s linear;
-}
-/* A 3px rule in the automation's own hue: the same colour its runs wear
-   in the table above, so a checkpoint is visibly traceable to its source
-   without reading a word. */
-.mv-appr__t::before {
-  content: ''; position: absolute; inset: 0 auto 0 0; width: 3px;
-  background: var(--accent);
 }
 .mv-appr__t:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-1); }
 .mv-appr__top { display: flex; align-items: center; gap: 8px; }
@@ -483,17 +421,7 @@ body { background: var(--backgrounds-page-bg-1); }
   font-size: var(--fs-body-3); line-height: var(--lh-body-3); color: var(--text-primary);
   font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
 }
-.mv-appr__wait {
-  margin-left: auto; flex: none; font-size: 12px;
-  display: inline-flex; align-items: center; gap: 4px;
-  color: var(--text-teritiary);
-}
-.mv-appr__wait .cq-ic { width: 13px; height: 13px; }
-/* Only the wait time escalates, so it carries the tile's one status
-   colour — with a clock glyph beside it, never colour alone. */
-.mv-appr__wait[data-tone="warn"] { color: var(--st-warn); }
-.mv-appr__wait[data-tone="bad"]  { color: var(--st-bad); }
-.mv-appr__who { color: var(--text-teritiary); }
+.mv-appr__wait { margin-left: auto; flex: none; font-size: 12px; }
 .mv-appr__meta { display: flex; align-items: center; gap: 8px; color: var(--text-teritiary); font-size: 12px; line-height: 16px; }
 .mv-appr__acts { display: flex; gap: 6px; }
 
@@ -528,5 +456,4 @@ body { background: var(--backgrounds-page-bg-1); }
 
 @media (prefers-reduced-motion: reduce) {
   .mv-live-dot, .mv-tab-live i, .mv-st[data-s="run"] i { animation: none; }
-  .mv-heat__cell:hover { transform: none; }
 }

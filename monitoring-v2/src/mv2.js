@@ -1,19 +1,32 @@
 /* ══════════════════════════════════════════════════════════════════════
    MONITORING v2 · Activity
    ──────────────────────────────────────────────────────────────────────
-   The two lists lead. Live executions and the checkpoints waiting on a
-   human are what an operator opens this page to act on, so they sit
-   directly under the figures; the failure breakdown and the heatmap are
-   context you read after acting, and follow.
+   Charts are hand-drawn inline SVG — no library. Every renderer sizes
+   itself off its host's measured width, so nothing is drawn while its
+   pane is hidden (a hidden pane has no width to scale against) and
+   everything redraws on resize and after the webfont swaps in.
 
-   Colour follows the entity, not the chart. Each automation owns one
-   published Cogentiq hue — slot 1..4 — and wears it everywhere it
-   appears: its tile in the run table, its segment in the failure track,
-   its accent on a checkpoint tile. So "the orange one" means Lead router
-   on every card, and removing a series never repaints the survivors.
+   Why each form is what it is — the reasoning, not just the result:
 
-   Everything a tooltip shows is also on the page without hovering, in a
-   row, a legend or a scale.
+   · Executions over time → smooth multi-line, one line per automation.
+     Identity is the job (which automation is moving), so this is the
+     one categorical chart on the page, capped at 4 series.
+   · Error rate → its own panel under the volume plot, sharing the x
+     domain. v1 drew volume and error rate on one plot with two y-scales;
+     the alignment of two scales is arbitrary, so such a chart invents a
+     correlation. Two stacked panels, one y each, say the same thing
+     honestly.
+   · Failure share → one segmented track + rows, not a donut. A ring is
+     only readable at a glance, and these four shares sit close together.
+   · When runs happen → heatmap. A grid of magnitudes is what a heatmap
+     is for, and a sequential one-hue ramp is the safe encoding.
+   · Duration → a stage strip per row, not another number. "4.2s" says
+     how long; the strip says which stage owned it.
+   · The five headline figures → a stat strip. A single value is a
+     figure, never a one-bar bar chart.
+
+   Every value a tooltip shows is also on the page without hovering —
+   axis ticks, direct labels, or the row it belongs to.
    ══════════════════════════════════════════════════════════════════════ */
 (function () {
 'use strict';
@@ -33,22 +46,17 @@ function rng(seed) {
 var HOURS = 24;
 var hourLabel = function (h) { return String(h).padStart(2, '0') + ':00'; };
 
-/* The four automations and the hue each one owns. `grad` is the system's
-   gradient-tile class for that automation's icon; `tone` is the
-   published badge family nearest the same hue. Orange has no badge
-   family in the library, hence the null — and cyan has no gradient tile,
-   hence the one mv-grad-* class, built in the library's own key. */
+/* Four automations — slots 1..4 in fixed order. A 5th would fold into
+   "Other" rather than take a generated hue. */
 var SERIES = [
-  { key: 'invoice', name: 'Invoice sync',   slot: 1, grad: 'cq-grad-blue',   tone: 'blue',   base: 50, amp: 20, seed: 11 },
-  { key: 'lead',    name: 'Lead router',    slot: 2, grad: 'cq-grad-orange', tone: null,     base: 37, amp: 16, seed: 23 },
-  { key: 'doc',     name: 'Doc extraction', slot: 3, grad: 'cq-grad-indigo', tone: 'indigo', base: 27, amp: 13, seed: 37 },
-  { key: 'onboard', name: 'Onboarding bot', slot: 4, grad: 'mv-grad-cyan',   tone: 'cyan',   base: 18, amp: 9,  seed: 51 }
+  { key: 'invoice',  name: 'Invoice sync',      slot: 1, base: 50, amp: 20, seed: 11 },
+  { key: 'lead',     name: 'Lead router',       slot: 2, base: 37, amp: 16, seed: 23 },
+  { key: 'doc',      name: 'Doc extraction',    slot: 3, base: 27, amp: 13, seed: 37 },
+  { key: 'onboard',  name: 'Onboarding bot',    slot: 4, base: 18, amp: 9,  seed: 51 }
 ];
-var BY_KEY = {};
-SERIES.forEach(function (s) { BY_KEY[s.key] = s; });
 
 /* A working-day shape: quiet overnight, a morning ramp, an afternoon
-   peak. Shared by every series so the day reads as one workload. */
+   peak. Shared by every series so the curves read as one workload. */
 function dayShape(h) {
   if (h < 5) return 0.22;
   if (h < 9) return 0.22 + (h - 5) * 0.17;
@@ -62,12 +70,12 @@ SERIES.forEach(function (s) {
   var r = rng(s.seed);
   s.vals = [];
   for (var h = 0; h < HOURS; h++) {
-    s.vals.push(Math.max(0, Math.round(s.base * dayShape(h) + (r() - 0.45) * s.amp)));
+    var v = s.base * dayShape(h) + (r() - 0.45) * s.amp;
+    s.vals.push(Math.max(0, Math.round(v)));
   }
 });
 
-/* Error rate per hour. No longer plotted, but still the source of the
-   day's failure count, so every figure stays derived rather than typed. */
+/* Error rate, in percent — one series, its own panel. */
 var ERR = (function () {
   var r = rng(97), out = [];
   for (var h = 0; h < HOURS; h++) {
@@ -80,18 +88,21 @@ var ERR = (function () {
 var totalExec = SERIES.reduce(function (a, s) {
   return a + s.vals.reduce(function (x, y) { return x + y; }, 0);
 }, 0);
+/* Failures derived from the same arrays, so the strip, the error panel
+   and the failure card can never disagree. */
 var totalFail = (function () {
   var f = 0;
   for (var h = 0; h < HOURS; h++) {
-    f += SERIES.reduce(function (a, s) { return a + s.vals[h]; }, 0) * ERR[h] / 100;
+    var hourTotal = SERIES.reduce(function (a, s) { return a + s.vals[h]; }, 0);
+    f += hourTotal * ERR[h] / 100;
   }
   return Math.round(f);
 })();
-var peakErr = Math.max.apply(null, ERR);
 
 /* ── Small helpers ────────────────────────────────────────────────────
-   Every name and label goes in through text(), never an innerHTML
-   string: automation names are data, and data is never markup. */
+   Every insertion of a name or label goes through text(), never an
+   innerHTML string: series and automation names are data, and data is
+   never markup. */
 function el(tag, attrs, parent) {
   var n = document.createElementNS(svgNS, tag);
   if (attrs) for (var k in attrs) if (attrs[k] !== null && attrs[k] !== undefined) n.setAttribute(k, attrs[k]);
@@ -106,26 +117,57 @@ function html(tag, cls, parent) {
 }
 function text(node, str) { node.appendChild(document.createTextNode(String(str))); return node; }
 function icon(parent, id, size) {
-  var s = el('svg', { class: 'cq-ic', width: size || 16, height: size || 16,
-    viewBox: '0 0 ' + (size || 16) + ' ' + (size || 16) }, parent);
+  var s = el('svg', { class: 'cq-ic', width: size || 16, height: size || 16, viewBox: '0 0 ' + (size || 16) + ' ' + (size || 16) }, parent);
   el('use', { href: '#' + id }, s);
   return s;
-}
-/* A gradient tile with a glyph on it — the rail's own device, reused at
-   the sizes this page needs. */
-function tile(parent, grad, iconId, size) {
-  var t = html('span', 'mv-tile ' + grad, parent);
-  if (size) t.style.setProperty('--tile', size + 'px');
-  icon(t, iconId, 14);
-  return t;
 }
 var fmt = function (n) { return n.toLocaleString('en-US'); };
 var pct = function (n, d) { return n.toFixed(d === undefined ? 1 : d) + '%'; };
 var cat = function (slot) { return 'var(--cat-' + slot + ')'; };
 
+/* Monotone cubic through the points — a smooth curve that never
+   overshoots into a value the data does not contain, which a plain
+   cardinal spline will happily do (and then reads as a dip that isn't
+   there). */
+function mono(pts) {
+  var n = pts.length;
+  if (n < 2) return '';
+  if (n === 2) return 'M' + pts[0][0] + ',' + pts[0][1] + 'L' + pts[1][0] + ',' + pts[1][1];
+  var dx = [], dy = [], m = [], i;
+  for (i = 0; i < n - 1; i++) { dx.push(pts[i + 1][0] - pts[i][0]); dy.push(pts[i + 1][1] - pts[i][1]); }
+  var slope = dx.map(function (d, k) { return d ? dy[k] / d : 0; });
+  m.push(slope[0]);
+  for (i = 1; i < n - 1; i++) {
+    if (slope[i - 1] * slope[i] <= 0) m.push(0);
+    else {
+      var w1 = 2 * dx[i] + dx[i - 1], w2 = dx[i] + 2 * dx[i - 1];
+      m.push((w1 + w2) / (w1 / slope[i - 1] + w2 / slope[i]));
+    }
+  }
+  m.push(slope[n - 2]);
+  var d = 'M' + pts[0][0] + ',' + pts[0][1];
+  for (i = 0; i < n - 1; i++) {
+    var h = dx[i];
+    d += 'C' + (pts[i][0] + h / 3) + ',' + (pts[i][1] + m[i] * h / 3) +
+         ' ' + (pts[i + 1][0] - h / 3) + ',' + (pts[i + 1][1] - m[i + 1] * h / 3) +
+         ' ' + pts[i + 1][0] + ',' + pts[i + 1][1];
+  }
+  return d;
+}
+
+/* Clean axis ticks — 0 / 10 / 20, never 0 / 8.33 / 16.67. */
+function ticks(max, count) {
+  var raw = max / count, mag = Math.pow(10, Math.floor(Math.log10(raw))), norm = raw / mag;
+  var stepN = norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1;
+  var step = stepN * mag, out = [];
+  for (var v = 0; v <= max + step * 0.001; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+
 /* ── Tooltip ──────────────────────────────────────────────────────────
-   One node for the page. Values lead and names follow — the reader
-   already knows what they are pointing at and wants the number. */
+   One node for the whole page. Values lead and labels follow: the
+   reader already knows which series they are pointing at and wants the
+   number, which is the legend's hierarchy inverted. */
 var tip = $('mvTip');
 function tipShow(x, y, headStr, rows, foot) {
   while (tip.firstChild) tip.removeChild(tip.firstChild);
@@ -143,6 +185,8 @@ function tipShow(x, y, headStr, rows, foot) {
     text(html('span', 'mv-tip__v', f), foot.value);
   }
   tip.classList.add('is-on');
+  /* Place it clear of the pointer, then pull it back inside the viewport
+     rather than letting it run off the right or bottom edge. */
   var r = tip.getBoundingClientRect();
   var left = x + 14, top = y - r.height / 2;
   if (left + r.width > innerWidth - 8) left = x - r.width - 14;
@@ -152,21 +196,15 @@ function tipShow(x, y, headStr, rows, foot) {
 }
 function tipHide() { tip.classList.remove('is-on'); }
 
-/* ══ 1 · STAT STRIP ═══════════════════════════════════════════════════
-   Each figure takes one of the system's gradient tiles, so the row
-   carries the product's colour instead of five grey glyphs. The tile hue
-   is the figure's *subject*; sentiment is the delta's colour right
-   underneath, and the two are never confused. */
+/* ══ 1 · STAT STRIP ═══════════════════════════════════════════════════ */
 var STATS = [
-  { grad: 'cq-grad-blue',   icon: 'i-zap',    label: 'Executions today', value: fmt(totalExec),
+  { icon: 'i-zap',    label: 'Executions today', value: fmt(totalExec),
     delta: '12.4%', dir: 'good', vs: 'vs yesterday' },
-  { grad: 'cq-grad-green',  icon: 'i-check',  label: 'Success rate',
+  { icon: 'i-check',  label: 'Success rate',
     value: pct(100 - totalFail / totalExec * 100), delta: '0.4pp', dir: 'good', vs: 'vs yesterday' },
-  { grad: 'cq-grad-orange', icon: 'i-alert',  label: 'Failed runs', value: fmt(totalFail),
+  { icon: 'i-alert',  label: 'Failed runs', value: fmt(totalFail),
     delta: '6', dir: 'good', down: true, vs: 'vs yesterday' },
-  { grad: 'cq-grad-indigo', icon: 'i-gauge',  label: 'Median duration', value: '4.2', unit: 's',
-    delta: '0.3s', dir: 'bad', vs: 'vs 7-day median' },
-  { grad: 'cq-grad-purple', icon: 'i-dollar', label: 'Cost today', value: '$127.40',
+  { icon: 'i-dollar', label: 'Cost today', value: '$127.40',
     delta: '8.1%', dir: 'bad', vs: 'vs yesterday' }
 ];
 
@@ -175,7 +213,7 @@ function renderStrip() {
   STATS.forEach(function (s) {
     var cell = html('div', 'mv-stat', host);
     var top = html('div', 'mv-stat__top', cell);
-    tile(top, s.grad, s.icon);
+    icon(top, s.icon, 14);
     text(html('span', 'mv-eyebrow', top), s.label);
 
     var val = html('div', 'mv-stat__val', cell);
@@ -185,152 +223,134 @@ function renderStrip() {
     var foot = html('div', 'mv-stat__foot', cell);
     var d = html('span', 'mv-delta', foot);
     d.dataset.dir = s.dir;
-    /* The arrow is which way the number moved; the colour is whether
+    /* The arrow is the direction the number moved; the colour is whether
        that direction is good here. Fewer failures is an arrow down and
-       still green — two channels, two meanings. */
-    icon(d, s.down ? 'i-arrow-down' : 'i-arrow-up', 12).setAttribute('viewBox', '0 0 12 12');
+       still green — the two channels are not the same thing. */
+    var up = s.down ? false : (s.dir === 'good' ? true : true);
+    if (s.down) up = false;
+    icon(d, up ? 'i-arrow-up' : 'i-arrow-down', 12).setAttribute('viewBox', '0 0 12 12');
     text(html('span', null, d), s.delta);
     text(html('span', 'mv-delta__vs', foot), s.vs);
   });
 }
 
-/* ══ 2 · LIVE EXECUTIONS ══════════════════════════════════════════════
-   The list an operator acts on, so it leads the page. Two things carry
-   colour: the automation's own gradient tile, and the status pill, which
-   uses the system's published badge families. */
-var LIVE = [
-  { key: 'invoice', id: 'run_8f21c4', st: 'ok',   trig: 'Webhook',  dur: 3.4, cost: 0.18, ago: '12s ago', stages: [.28, .34, .22, .16] },
-  { key: 'doc',     id: 'run_8f21c1', st: 'fail', trig: 'Schedule', dur: 8.9, cost: 0.41, ago: '38s ago', stages: [.18, .22, .18, .42] },
-  { key: 'lead',    id: 'run_8f21be', st: 'run',  trig: 'Webhook',  dur: 2.1, cost: 0.09, ago: 'running', stages: [.4, .35, .25] },
-  { key: 'onboard', id: 'run_8f21bb', st: 'ok',   trig: 'Manual',   dur: 5.2, cost: 0.27, ago: '1m ago',  stages: [.22, .41, .2, .17] },
-  { key: 'invoice', id: 'run_8f21b7', st: 'ok',   trig: 'Webhook',  dur: 3.1, cost: 0.17, ago: '2m ago',  stages: [.3, .3, .24, .16] },
-  { key: 'lead',    id: 'run_8f21b2', st: 'run',  trig: 'Schedule', dur: 1.4, cost: 0.06, ago: 'running', stages: [.55, .45] },
-  { key: 'doc',     id: 'run_8f21ae', st: 'ok',   trig: 'Schedule', dur: 6.7, cost: 0.33, ago: '3m ago',  stages: [.2, .26, .3, .24] },
-  { key: 'onboard', id: 'run_8f21a9', st: 'fail', trig: 'Manual',   dur: 7.4, cost: 0.31, ago: '4m ago',  stages: [.19, .24, .21, .36] }
-];
-/* Status pill tones. Success and Running take published badge families;
-   Failed has none to take — the library publishes blue, indigo, green,
-   cyan and light-green only — so its ground and stroke are derived in
-   exactly the same key, from the published red ramp. */
-var ST = {
-  ok:   { label: 'Success', tone: 'green', glyph: 'i-check' },
-  fail: { label: 'Failed',  tone: 'red',   glyph: 'i-alert' },
-  run:  { label: 'Running', tone: 'blue',  glyph: null }
-};
-var STAGE_NAMES = ['Trigger', 'Retrieve', 'Model', 'Write'];
+/* ══ 2 · VOLUME + ERROR RATE (one card, two panels, shared x) ═════════ */
+var focusKey = null;   /* legend hover → emphasis */
 
-function renderLive() {
-  var host = $('mvLiveRows');
-  var slowest = LIVE.reduce(function (a, r) { return Math.max(a, r.dur); }, 0);
+function drawVolume() {
+  var host = $('mvVolPlot');
+  if (!host) return;
+  var W = host.clientWidth;
+  if (W < 80) return;
 
-  LIVE.forEach(function (r) {
-    var s = BY_KEY[r.key], st = ST[r.st];
-    var row = html('div', 'mv-trow', host);
+  var padL = 42, padR = 16, padT = 14, plotH = 214, axisH = 22;
+  var H = padT + plotH + axisH;
+  var plotW = W - padL - padR;
 
-    var c1 = html('div', 'mv-cell', row);
-    tile(c1, s.grad, 'i-zap', 26);
-    var nm = html('div', 'mv-nm', c1);
-    text(html('b', null, nm), s.name);
-    text(html('span', null, nm), r.id + ' · ' + r.trig);
+  var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img',
+    'aria-label': 'Executions per hour by automation, last 24 hours' });
 
-    var c2 = html('div', 'mv-cell', row);
-    var pill = html('span', 'cq-status mv-st', c2);
-    pill.dataset.tone = st.tone;
-    if (st.glyph) icon(pill, st.glyph, 13);
-    else html('i', 'cq-status--dot mv-st__live', pill);
-    text(html('span', null, pill), st.label);
+  /* The haze is a blurred copy of each line; clip it so a 13px blur
+     cannot bleed out over the card's padding and pick up its edge. */
+  var defs = el('defs', null, svg);
+  var clip = el('clipPath', { id: 'mvVolClip' }, defs);
+  el('rect', { x: padL - 10, y: padT - 10, width: plotW + 20, height: plotH + 20 }, clip);
 
-    /* Stage strip · width proportional to this run's share of the
-       slowest run, so a long run looks long before you read the number. */
-    var c3 = html('div', 'mv-cell', row);
-    var strip = html('div', r.st === 'fail' ? 'mv-stages mv-stages--fail' : 'mv-stages', c3);
-    strip.style.width = Math.max(24, (r.dur / slowest) * 100) + '%';
-    r.stages.forEach(function (frac, k) {
-      var seg = html('div', 'mv-stages__s', strip);
-      seg.style.flex = frac + ' 1 0';
-      seg.setAttribute('aria-hidden', 'true');
-      seg.addEventListener('pointerenter', function (ev) {
-        var last = k === r.stages.length - 1;
-        tipShow(ev.clientX, ev.clientY, r.id, [{
-          color: r.st === 'fail' && last ? 'var(--st-bad-mark)' : 'var(--stage-' + (k + 1) + ')',
-          name: STAGE_NAMES[k] || 'Stage ' + (k + 1),
-          value: (r.dur * frac).toFixed(1) + 's'
-        }], { name: 'Total', value: r.dur.toFixed(1) + 's' });
-      });
-      seg.addEventListener('pointerleave', tipHide);
+  var maxV = 0;
+  SERIES.forEach(function (s) { s.vals.forEach(function (v) { if (v > maxV) maxV = v; }); });
+  var tk = ticks(maxV * 1.12, 4), top = tk[tk.length - 1];
+  var x = function (i) { return padL + (plotW * i) / (HOURS - 1); };
+  var y = function (v) { return padT + plotH - (v / top) * plotH; };
+
+  /* Three gridlines, not five. Solid hairlines, one step off the
+     surface — never dashed: dashing reads as a threshold. */
+  tk.forEach(function (t) {
+    el('line', { class: 'mv-gridline', x1: padL, x2: padL + plotW, y1: y(t), y2: y(t) }, svg);
+    text(el('text', { class: 'mv-tick', x: padL - 9, y: y(t) + 4, 'text-anchor': 'end' }, svg), fmt(t));
+  });
+
+  var hazeG = el('g', { 'clip-path': 'url(#mvVolClip)' }, svg);
+  var lineG = el('g', null, svg);
+
+  SERIES.forEach(function (s) {
+    var d = mono(s.vals.map(function (v, i) { return [x(i), y(v)]; }));
+    el('path', { class: 'mv-haze', d: d, stroke: cat(s.slot) }, hazeG);
+    s._line = el('path', { class: 'mv-line', d: d, stroke: cat(s.slot) }, lineG);
+    s._label = null;
+  });
+
+  /* Four hour marks. The tooltip names the exact hour, so the axis only
+     has to orient the reader. */
+  for (var h = 0; h < HOURS; h += 6) {
+    text(el('text', { class: 'mv-tick', x: x(h), y: padT + plotH + 17,
+      'text-anchor': h === 0 ? 'start' : 'middle' }, svg), hourLabel(h));
+  }
+
+  /* ── Crosshair ──
+     The reader aims at an hour, never at a 2px line, so the hit area is
+     the whole plot and the crosshair snaps to the nearest hour. */
+  var cross = el('g', { opacity: 0 }, svg);
+  var cLine = el('line', { class: 'mv-crosshair', y1: padT, y2: padT + plotH }, cross);
+  var cDots = SERIES.map(function (s) {
+    return el('circle', { class: 'mv-ring', r: 4.5, stroke: cat(s.slot) }, cross);
+  });
+  var hit = el('rect', { class: 'mv-hit', x: padL - 12, y: padT - 8,
+    width: plotW + 24, height: plotH + 12 }, svg);
+
+  function at(ev) {
+    var box = svg.getBoundingClientRect();
+    var px = (ev.clientX - box.left) * (W / box.width);
+    return Math.max(0, Math.min(HOURS - 1, Math.round(((px - padL) / plotW) * (HOURS - 1))));
+  }
+  hit.addEventListener('pointermove', function (ev) {
+    var i = at(ev);
+    cross.setAttribute('opacity', 1);
+    cLine.setAttribute('x1', x(i)); cLine.setAttribute('x2', x(i));
+    SERIES.forEach(function (s, k) {
+      cDots[k].setAttribute('cx', x(i)); cDots[k].setAttribute('cy', y(s.vals[i]));
     });
-
-    text(html('div', 'mv-cell mv-cell--r mv-num', row), r.dur.toFixed(1) + 's');
-    text(html('div', 'mv-cell mv-cell--r mv-num', row), '$' + r.cost.toFixed(2));
-    text(html('div', 'mv-cell mv-cell--r mv-ago', row), r.ago);
-
-    var c7 = html('div', 'mv-cell mv-cell--r', row);
-    var btn = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', c7);
-    btn.type = 'button';
-    text(btn, r.st === 'fail' ? 'Trace' : 'View');
+    tipShow(ev.clientX, ev.clientY, hourLabel(i) + ' – ' + hourLabel((i + 1) % 24),
+      SERIES.map(function (s) { return { color: cat(s.slot), name: s.name, value: fmt(s.vals[i]) }; }),
+      { name: 'Total runs', value: fmt(SERIES.reduce(function (a, s) { return a + s.vals[i]; }, 0)) });
   });
+  hit.addEventListener('pointerleave', function () { cross.setAttribute('opacity', 0); tipHide(); });
 
-  text($('mvLiveNote'), 'Showing ' + LIVE.length + ' of ' + fmt(totalExec) + ' today');
+  host.replaceChildren(svg);
+  applyFocus();
 }
 
-/* ══ 3 · CHECKPOINTS ══════════════════════════════════════════════════
-   The other list that leads. Each tile takes its automation's hue as a
-   left accent, so a checkpoint reads as the same colour as the runs it
-   came from. The wait time is the only thing on the tile that
-   escalates, so it is the only status colour on it. */
-var APPROVALS = [
-  { nm: 'Refund over $5,000',           key: 'invoice', asked: 'Billing agent',  wait: '42m', tone: 'bad'  },
-  { nm: 'Vendor contract · Acme Co.',   key: 'invoice', asked: 'Invoice sync',   wait: '18m', tone: 'warn' },
-  { nm: 'Outbound email · 240 leads',   key: 'lead',    asked: 'Lead router',    wait: '6m',  tone: 'ok'   },
-  { nm: 'Schema change · orders table', key: 'doc',     asked: 'Doc extraction', wait: '3m',  tone: 'ok'   }
-];
-
-function renderApprovals() {
-  var host = $('mvApprList');
-  APPROVALS.forEach(function (a) {
-    var s = BY_KEY[a.key];
-    var t = html('div', 'mv-appr__t', host);
-    t.style.setProperty('--accent', cat(s.slot));
-
-    var top = html('div', 'mv-appr__top', t);
-    text(html('div', 'mv-appr__nm', top), a.nm);
-    var w = html('span', 'mv-appr__wait mv-num', top);
-    w.dataset.tone = a.tone;
-    icon(w, 'i-clock', 13);
-    text(html('span', null, w), a.wait);
-
-    var meta = html('div', 'mv-appr__meta', t);
-    var tag = html('span', 'cq-tag mv-tag', meta);
-    if (s.tone) { tag.dataset.tone = s.tone; tag.classList.add('is-tinted'); }
-    else tag.classList.add('mv-tag--orange');
-    text(tag, a.asked);
-    text(html('span', 'mv-appr__who', meta), 'needs your approval');
-
-    var acts = html('div', 'mv-appr__acts', t);
-    var rev = html('button', 'cq-btn cq-btn--primary cq-btn--s', acts);
-    rev.type = 'button'; text(rev, 'Review');
-    var re = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', acts);
-    re.type = 'button'; text(re, 'Reassign');
+/* Legend hover → emphasis. One series in its own hue, the rest dimmed:
+   the most underused form, and the honest answer to "which line is
+   Lead router". */
+function applyFocus() {
+  SERIES.forEach(function (s) {
+    var on = !focusKey || focusKey === s.key;
+    if (s._line) s._line.style.opacity = on ? 1 : 0.18;
+  });
+  document.querySelectorAll('#mvVolLegend .mv-legend__item').forEach(function (it) {
+    it.classList.toggle('is-dim', !!focusKey && it.dataset.key !== focusKey);
   });
 }
 
-/* ══ 4 · FAILURE SHARE ════════════════════════════════════════════════
-   A segmented track, not a donut — four shares this close are not
-   readable as arcs. The segments wear each automation's own hue rather
-   than tints of one red: the categories here *are* the automations, they
-   appear in the table above in exactly those colours, and "which one is
-   failing" is the question the card answers. That these are failures is
-   said by the card's title and its alert glyph, not by painting the
-   whole card red. */
+function renderVolLegend() {
+  var host = $('mvVolLegend');
+  SERIES.forEach(function (s) {
+    var it = html('span', 'mv-legend__item', host);
+    it.dataset.key = s.key;
+    html('i', 'mv-legend__key', it).style.background = cat(s.slot);
+    text(it, s.name);
+    it.addEventListener('pointerenter', function () { focusKey = s.key; applyFocus(); });
+    it.addEventListener('pointerleave', function () { focusKey = null; applyFocus(); });
+  });
+}
+
+/* ══ 3 · FAILURE SHARE ════════════════════════════════════════════════ */
 var FAILS = [
-  { key: 'doc',     reason: 'Timeout · model call',     w: 17 },
-  { key: 'invoice', reason: 'Schema mismatch',          w: 11 },
-  { key: 'lead',    reason: 'Rate limited · CRM',       w: 8 },
-  { key: 'onboard', reason: 'Guardrail blocked output', w: 6 }
+  { name: 'Doc extraction',  reason: 'Timeout · model call',      w: 17 },
+  { name: 'Invoice sync',    reason: 'Schema mismatch',           w: 11 },
+  { name: 'Lead router',     reason: 'Rate limited · CRM',        w: 8 },
+  { name: 'Onboarding bot',  reason: 'Guardrail blocked output',  w: 6 }
 ];
-/* Counts are apportioned from the same totalFail the strip shows, the
-   last row absorbing the rounding, so the breakdown can never sum to a
-   different number than the headline. */
 (function apportion() {
   var wSum = FAILS.reduce(function (a, f) { return a + f.w; }, 0), run = 0;
   FAILS.forEach(function (f, i) {
@@ -344,133 +364,144 @@ function renderFailures() {
   var sum = FAILS.reduce(function (a, f) { return a + f.n; }, 0);
   var segs = [];
 
-  FAILS.forEach(function (f) {
+  FAILS.forEach(function (f, i) {
     var seg = html('div', 'mv-track__seg', track);
     seg.style.flex = f.n + ' 1 0';
-    seg.style.background = cat(BY_KEY[f.key].slot);
+    seg.style.background = 'var(--fail-' + (FAILS.length - i) + ')';
     seg.setAttribute('role', 'presentation');
     segs.push(seg);
   });
 
   FAILS.forEach(function (f, i) {
-    var s = BY_KEY[f.key];
     var row = html('div', 'mv-row', rows);
-    html('i', 'mv-row__sw', row).style.background = cat(s.slot);
+    html('i', 'mv-row__sw', row).style.background = 'var(--fail-' + (FAILS.length - i) + ')';
     var nm = html('div', 'mv-row__nm', row);
-    text(nm, s.name);
+    text(nm, f.name);
     text(html('span', null, nm), f.reason);
     text(html('span', 'mv-row__v mv-num', row), f.n);
     text(html('span', 'mv-row__sh mv-num', row), pct(f.n / sum * 100, 0));
 
-    /* Row and segment are one control: hovering either lights both. */
+    /* Hovering a row lights its segment, and hovering a segment lights
+       its row — the two are one control. */
     function on() {
       track.classList.add('is-hovering');
       segs[i].classList.add('is-on');
-      row.classList.add('is-on');
+      row.style.background = 'var(--backgrounds-card-bg-4)';
     }
     function off() {
       track.classList.remove('is-hovering');
       segs[i].classList.remove('is-on');
-      row.classList.remove('is-on');
+      row.style.background = '';
     }
     row.addEventListener('pointerenter', on);
     row.addEventListener('pointerleave', off);
     segs[i].addEventListener('pointerenter', function (ev) {
       on();
       tipShow(ev.clientX, ev.clientY, 'Failed runs today',
-        [{ color: cat(s.slot), name: s.name, value: fmt(f.n) }],
+        [{ color: 'var(--fail-' + (FAILS.length - i) + ')', name: f.name, value: fmt(f.n) }],
         { name: 'Share of failures', value: pct(f.n / sum * 100, 0) });
     });
     segs[i].addEventListener('pointerleave', function () { off(); tipHide(); });
   });
 
   text($('mvFailNote'), fmt(sum) + ' of ' + fmt(totalExec) + ' failed');
+}
 
-  var facts = $('mvFailFacts');
-  [['26 of ' + fmt(sum), 'retried automatically'],
-   [pct(peakErr), 'peak error rate, 14:00']].forEach(function (f) {
-    var d = html('div', 'mv-fact', facts);
-    text(html('b', null, d), f[0]);
-    text(html('span', null, d), f[1]);
+/* ══ 4 · LIVE EXECUTIONS ══════════════════════════════════════════════ */
+var LIVE = [
+  { nm: 'Invoice sync',     id: 'run_8f21c4', st: 'ok',   dur: 3.4, cost: 0.18, ago: '12s ago',  stages: [.28, .34, .22, .16] },
+  { nm: 'Doc extraction',   id: 'run_8f21c1', st: 'fail', dur: 8.9, cost: 0.41, ago: '38s ago',  stages: [.18, .22, .18, .42] },
+  { nm: 'Lead router',      id: 'run_8f21be', st: 'run',  dur: 2.1, cost: 0.09, ago: 'running',  stages: [.4, .35, .25] },
+  { nm: 'Onboarding bot',   id: 'run_8f21bb', st: 'ok',   dur: 5.2, cost: 0.27, ago: '1m ago',   stages: [.22, .41, .2, .17] },
+  { nm: 'Invoice sync',     id: 'run_8f21b7', st: 'ok',   dur: 3.1, cost: 0.17, ago: '2m ago',   stages: [.3, .3, .24, .16] },
+  { nm: 'Lead router',      id: 'run_8f21b2', st: 'run',  dur: 1.4, cost: 0.06, ago: 'running',  stages: [.55, .45] }
+];
+var ST_LABEL = { ok: 'Success', fail: 'Failed', run: 'Running' };
+var STAGE_NAMES = ['Trigger', 'Retrieve', 'Model', 'Write'];
+
+function renderLive() {
+  var host = $('mvLiveRows');
+  var slowest = LIVE.reduce(function (a, r) { return Math.max(a, r.dur); }, 0);
+
+  LIVE.forEach(function (r) {
+    var row = html('div', 'mv-trow', host);
+
+    var c1 = html('div', 'mv-cell', row);
+    var nm = html('div', 'mv-nm', c1);
+    text(html('b', null, nm), r.nm);
+    text(html('span', null, nm), r.id);
+
+    var c2 = html('div', 'mv-cell', row);
+    var st = html('span', 'mv-st', c2);
+    st.dataset.s = r.st;
+    html('i', null, st);
+    text(html('span', null, st), ST_LABEL[r.st]);
+
+    /* Stage strip · width proportional to this run's share of the
+       slowest run, so a long run is visibly long before you read it. */
+    var c3 = html('div', 'mv-cell', row);
+    var strip = html('div', r.st === 'fail' ? 'mv-stages mv-stages--fail' : 'mv-stages', c3);
+    strip.style.width = Math.max(22, (r.dur / slowest) * 100) + '%';
+    r.stages.forEach(function (frac, k) {
+      var s = html('div', 'mv-stages__s', strip);
+      s.style.flex = frac + ' 1 0';
+      s.setAttribute('aria-hidden', 'true');
+      s.addEventListener('pointerenter', function (ev) {
+        var last = k === r.stages.length - 1;
+        tipShow(ev.clientX, ev.clientY, r.id, [{
+          color: r.st === 'fail' && last ? 'var(--st-bad-mark)' : 'var(--heat-' + (k + 2) + ')',
+          name: STAGE_NAMES[k] || 'Stage ' + (k + 1),
+          value: (r.dur * frac).toFixed(1) + 's'
+        }], { name: 'Total', value: r.dur.toFixed(1) + 's' });
+      });
+      s.addEventListener('pointerleave', tipHide);
+    });
+
+    text(html('div', 'mv-cell mv-cell--r mv-num', row), r.dur.toFixed(1) + 's');
+    var c5 = html('div', 'mv-cell mv-cell--r', row);
+    c5.style.color = 'var(--text-teritiary)';
+    c5.style.fontSize = '12px';
+    text(c5, r.ago);
+
+    var c7 = html('div', 'mv-cell mv-cell--r', row);
+    var btn = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', c7);
+    btn.type = 'button';
+    text(btn, r.st === 'fail' ? 'Trace' : 'View');
+  });
+
+  text($('mvLiveNote'), 'Showing ' + LIVE.length + ' of ' + fmt(totalExec) + ' today');
+}
+
+/* ══ 5 · APPROVALS ════════════════════════════════════════════════════ */
+var APPROVALS = [
+  { nm: 'Vendor contract · Acme Co.',   who: 'Invoice sync',    wait: '18m', tone: 'warn' },
+  { nm: 'Refund over $5,000',           who: 'Billing agent',   wait: '42m', tone: 'bad' },
+  { nm: 'Outbound email · 240 leads',   who: 'Lead router',     wait: '6m',  tone: 'ok' }
+];
+
+function renderApprovals() {
+  var host = $('mvApprList');
+  APPROVALS.forEach(function (a) {
+    var t = html('div', 'mv-appr__t', host);
+    var top = html('div', 'mv-appr__top', t);
+    icon(top, 'i-shield', 16).style.color = 'var(--text-teritiary)';
+    text(html('div', 'mv-appr__nm', top), a.nm);
+    var w = html('span', 'mv-appr__wait mv-num', top);
+    w.style.color = a.tone === 'bad' ? 'var(--st-bad)' : a.tone === 'warn' ? 'var(--st-warn)' : 'var(--text-teritiary)';
+    text(w, 'waiting ' + a.wait);
+
+    var meta = html('div', 'mv-appr__meta', t);
+    text(html('span', null, meta), a.who);
+
+    var acts = html('div', 'mv-appr__acts', t);
+    var rev = html('button', 'cq-btn cq-btn--primary cq-btn--s', acts);
+    rev.type = 'button'; text(rev, 'Review');
+    var skip = html('button', 'cq-btn cq-btn--tonal-2 cq-btn--s', acts);
+    skip.type = 'button'; text(skip, 'Reassign');
   });
 }
 
-/* ══ 5 · HEATMAP ══════════════════════════════════════════════════════
-   Day × hour. Sequential, one hue, five levels, plus a neutral zero that
-   sits outside the ramp because "no runs" is a surface, not a value. */
-var DAYS = 14;
-/* Fourteen days, not seven. Seven rows left two thirds of the card
-   empty, and a fortnight is where a weekly rhythm actually becomes
-   visible — you can see last Wednesday as well as this one. Rows are
-   labelled with the weekday and the date, so the pattern and the
-   specific incident day are both readable. */
-var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-var HEAT_ROWS = (function () {
-  /* A fixed end date, so the grid is stable across reloads. */
-  var end = new Date(2026, 7, 31), out = [];
-  for (var i = DAYS - 1; i >= 0; i--) {
-    var d = new Date(end.getFullYear(), end.getMonth(), end.getDate() - i);
-    out.push({ date: d, dow: d.getDay(),
-               label: DOW[d.getDay()] + ' ' + d.getDate() });
-  }
-  return out;
-})();
-var HEAT = (function () {
-  var r = rng(404);
-  return HEAT_ROWS.map(function (row) {
-    var weekend = row.dow === 0 || row.dow === 6;
-    var out = [];
-    for (var h = 0; h < 24; h++) {
-      out.push(Math.max(0, Math.round(dayShape(h) * (weekend ? 0.28 : 1) * 46 * (0.65 + r() * 0.7))));
-    }
-    return out;
-  });
-})();
-/* The afternoon incident, on the most recent Wednesday, so the heatmap
-   and the peak-error-rate fact tell the same story about the same two
-   hours. */
-(function markIncident() {
-  for (var i = HEAT_ROWS.length - 1; i >= 0; i--) {
-    if (HEAT_ROWS[i].dow === 3) { HEAT[i][14] = -1; HEAT[i][15] = -1; return; }
-  }
-})();
-
-function renderHeat() {
-  var dowHost = $('mvHeatDow'), colHost = $('mvHeatCols');
-  HEAT_ROWS.forEach(function (row) { text(html('span', null, dowHost), row.label); });
-  dowHost.style.setProperty('--rows', DAYS);
-
-  var maxV = 0;
-  HEAT.forEach(function (row) { row.forEach(function (v) { if (v > maxV) maxV = v; }); });
-
-  for (var h = 0; h < 24; h++) {
-    var col = html('div', 'mv-heat__col', colHost);
-    var hd = html('div', 'mv-heat__hd', col);
-    if (h % 3 === 0) text(hd, String(h).padStart(2, '0'));
-    for (var d = 0; d < DAYS; d++) {
-      (function (d, h, col) {
-        var v = HEAT[d][h];
-        var cell = html('div', 'mv-heat__cell', col);
-        if (v < 0) cell.dataset.bad = '1';
-        else if (v > 0) cell.dataset.lv = Math.min(5, Math.ceil(v / maxV * 5));
-        cell.addEventListener('pointerenter', function (ev) {
-          tipShow(ev.clientX, ev.clientY, HEAT_ROWS[d].label + ' · ' + hourLabel(h),
-            v < 0 ? [{ color: 'var(--st-bad-mark)', name: 'Failed window', value: 'incident' }]
-                  : [{ color: 'var(--heat-3)', name: 'Runs', value: fmt(v) }]);
-        });
-        cell.addEventListener('pointerleave', tipHide);
-      })(d, h, col);
-    }
-  }
-
-  /* A continuous scale needs its legend. */
-  var sc = $('mvHeatScale');
-  text(html('span', null, sc), 'Fewer');
-  for (var lv = 1; lv <= 5; lv++) html('i', null, sc).style.background = 'var(--heat-' + lv + ')';
-  text(html('span', null, sc), 'More');
-}
-
-/* ══ 6 · TABS ═════════════════════════════════════════════════════════ */
+/* ══ 7 · TABS ═════════════════════════════════════════════════════════ */
 function showTab(tab, label) {
   var isActivity = tab === 'activity';
   $('mvActivity').hidden = !isActivity;
@@ -480,7 +511,11 @@ function showTab(tab, label) {
     while (t.firstChild) t.removeChild(t.firstChild);
     text(t, label.trim());
   }
+  /* Drawn on the way in: a hidden pane has no width to size an SVG
+     against, so a chart drawn there comes out 0 wide. */
+  if (isActivity) drawVolume();
 }
+
 document.querySelectorAll('#mvTabs [data-tab]').forEach(function (btn) {
   btn.addEventListener('click', function () {
     document.querySelectorAll('#mvTabs [data-tab]').forEach(function (b) {
@@ -492,7 +527,17 @@ document.querySelectorAll('#mvTabs [data-tab]').forEach(function (btn) {
   });
 });
 
-/* ══ 7 · SHELL ════════════════════════════════════════════════════════ */
+/* Period control — changes the x-domain, not the data slice, which is
+   why it may live in the card rather than the page filter row. */
+document.querySelectorAll('#mvVolPeriod button').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('#mvVolPeriod button').forEach(function (o) {
+      o.setAttribute('aria-pressed', String(o === b));
+    });
+  });
+});
+
+/* ══ 8 · SHELL ════════════════════════════════════════════════════════ */
 var rail = $('rail'), railT;
 rail.addEventListener('mouseenter', function () {
   clearTimeout(railT); railT = setTimeout(function () { rail.classList.add('is-open'); }, 140);
@@ -505,7 +550,8 @@ $('railCollapse').addEventListener('click', function (e) {
 });
 rail.querySelectorAll('.cq-rail-ghead[aria-expanded]').forEach(function (head) {
   head.addEventListener('click', function () {
-    head.setAttribute('aria-expanded', String(head.getAttribute('aria-expanded') !== 'true'));
+    var open = head.getAttribute('aria-expanded') === 'true';
+    head.setAttribute('aria-expanded', String(!open));
   });
 });
 
@@ -517,6 +563,9 @@ window.applyMode = function (mode) {
   $('themeIcon').setAttribute('href', dark ? '#i-sun' : '#i-moon');
   $('themeToggle').title = dark ? 'Switch to light mode' : 'Switch to dark mode';
   $('themeToggle').setAttribute('aria-label', $('themeToggle').title);
+  /* The ring on a marker is painted in the surface colour, and the
+     surface just changed. */
+  if (!$('mvActivity').hidden) drawVolume();
 };
 $('themeToggle').addEventListener('click', function () {
   var next = root.dataset.mode === 'dark' ? 'light' : 'dark';
@@ -526,11 +575,23 @@ $('themeToggle').addEventListener('click', function () {
 var stored = null;
 try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
 
-/* ══ 8 · BOOT ═════════════════════════════════════════════════════════ */
+/* ══ 9 · BOOT ═════════════════════════════════════════════════════════ */
 renderStrip();
+renderVolLegend();
+renderFailures();
 renderLive();
 renderApprovals();
-renderFailures();
-renderHeat();
 window.applyMode(stored === 'light' ? 'light' : 'dark');
+drawVolume();
+
+var rT;
+window.addEventListener('resize', function () {
+  clearTimeout(rT);
+  rT = setTimeout(function () { if (!$('mvActivity').hidden) drawVolume(); }, 120);
+});
+/* Geist arrives after first paint and every label measured before then
+   was measured against the fallback face. */
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
+  drawVolume();
+});
 })();
