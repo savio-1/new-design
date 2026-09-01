@@ -284,6 +284,16 @@
   @keyframes shine{from{background-position:200% 0}to{background-position:-100% 0}}
   .grp-note{padding-inline:24px;font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
 
+  /* chip rows: glossary synonyms & parent terms, data-binding columns */
+  .term-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px}
+  .tm-label{font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary);flex:none}
+  .tm-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+  .tm-group+.tm-label{margin-left:6px}
+  .term-chip{padding:2px 7px;border-radius:6px;background:var(--bg-card-1);
+    border:1px solid var(--line-1);font:var(--cap1);letter-spacing:-.24px;
+    color:var(--text-secondary);white-space:nowrap}
+  .term-chip.mono{font-family:var(--mono);font-size:11px;letter-spacing:0}
+
   /* groups crunch to just their header; chevron rotates to point right */
   .grp-fold{display:grid;grid-template-rows:0fr;opacity:0;
     transition:grid-template-rows .35s var(--ease),opacity .3s ease}
@@ -421,7 +431,10 @@ const GRAPH_OVERLAY_CSS = '<style>#fullscr{display:none!important}</style>';
 function svg(name, size) {
   const ic = ICONS[name];
   if (!ic) return '';
-  return `<svg viewBox="${ic.vb}" width="${size}" height="${size}" aria-hidden="true">${ic.body}</svg>`;
+  /* the Figma exports carried fill="none" on their root <svg>, and these
+     bodies inherit it; without it every stroked path fills default black */
+  return `<svg viewBox="${ic.vb}" width="${size}" height="${size}" fill="none" `
+    + `aria-hidden="true">${ic.body}</svg>`;
 }
 document.querySelectorAll('[data-icon]').forEach((el) => {
   el.innerHTML = svg(el.dataset.icon, Number(el.dataset.size) || 16);
@@ -437,11 +450,14 @@ const GROUPS = [
     note:'Found 3 definitions that match',
     rows:[
       { icon:'bookrow14', name:'Annual Recurring Revenue', open:true,
-        def:'Revenue retained from existing customers including expansion' },
+        def:'Revenue retained from existing customers including expansion',
+        synonyms:['ARR','Recurring revenue'], parents:['Revenue metrics'] },
       { icon:'bookrow14', name:'Customer Churn Rate',
-        def:'Percentage of customers who cancel within a period' },
+        def:'Percentage of customers who cancel within a period',
+        synonyms:['Churn rate','Attrition'], parents:['Retention metrics'] },
       { icon:'bookrow14', name:'Net Revenue Retention', badge:'Low relavance',
-        def:'Recurring revenue kept after churn, downgrades and expansion' },
+        def:'Recurring revenue kept after churn, downgrades and expansion',
+        synonyms:['NRR','Net dollar retention'], parents:['Retention metrics'] },
     ]},
   { icon:'ontology', iconSize:16, label:'How some terms are related',
     activities:['Now looking for relations between the terms','Searching for the relations'],
@@ -455,8 +471,11 @@ const GROUPS = [
     note:'Pulled 2 live sources from Snowflake',
     rows:[
       { icon:'warehouse', name:'Revenue figures', tag:'Snowflake',
-        desc:'Live revenue data from company warehouse' },
-      { icon:'warehouse', name:'Customer accounts', tag:'Snowflake' },
+        desc:'Live revenue data from company warehouse',
+        columns:['invoice_date','net_revenue','currency'] },
+      { icon:'warehouse', name:'Customer accounts', tag:'Snowflake',
+        desc:'Account master with plan and renewal state',
+        columns:['account_id','plan_tier','renewal_date'] },
     ]},
   { icon:'warehouse', iconSize:16, label:'Applying rules and policies',
     activities:['Checking your disclosure and privacy rules'],
@@ -528,6 +547,21 @@ function el(tag, cls, parent) {
   if (cls) n.className = cls;
   if (parent) parent.append(n);
   return n;
+}
+
+/** label + chip groups: "Synonyms: ARR  Recurring revenue" */
+function termMeta(host, groups, mono = false) {
+  const present = groups.filter(([, items]) => items && items.length);
+  if (!present.length) return null;
+  const wrap = el('div', 'term-meta', host);
+  for (const [label, items] of present) {
+    el('span', 'tm-label', wrap).textContent = label + ':';
+    const g = el('span', 'tm-group', wrap);
+    for (const t of items) {
+      el('span', 'term-chip' + (mono ? ' mono' : ''), g).textContent = t;
+    }
+  }
+  return wrap;
 }
 
 /** append words one at a time, each resolving out of blur, with a trailing caret */
@@ -665,6 +699,8 @@ async function buildGroup(host, g, mine) {
     }
     if (r.tag) el('span', 'row-tag', top).textContent = r.tag;
     if (r.desc) el('div', 'row-desc', main).textContent = r.desc;
+    /* a data binding names the columns it actually reads from the table */
+    if (r.columns) termMeta(main, [['Columns', r.columns]], true);
     if (r.def) {
       row.classList.add('row-toggle');
       row.setAttribute('role', 'button');
@@ -675,6 +711,7 @@ async function buildGroup(host, g, mine) {
       const foldWrap = el('div', 'row-fold' + (r.open ? ' open' : ''), main);
       const inner = el('div', '', foldWrap);
       el('div', 'row-desc', inner).textContent = r.def;
+      termMeta(inner, [['Synonyms', r.synonyms], ['Parent terms', r.parents]]);
       const toggle = () => {
         const open = foldWrap.classList.toggle('open');
         c.innerHTML = svg(open ? 'chev12' : 'chevr12', 12);
