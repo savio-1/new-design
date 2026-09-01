@@ -1712,6 +1712,10 @@ body.cq { margin: 0; }
       --backgrounds-badge-purple: #1c0d33;
       --strokes-colour-purple:    #4b1f87;
       --text-coloured-purple:     var(--purple-300);
+      /* The builder's own colour for a human checkpoint. */
+      --backgrounds-badge-pink:   #3d0d24;
+      --strokes-colour-pink:      #7a1a45;
+      --text-coloured-pink:       #ff9ec4;
     }
     :root[data-mode="light"] {
       --backgrounds-button-tonal-2: #eeeeee;
@@ -1724,6 +1728,9 @@ body.cq { margin: 0; }
       --backgrounds-badge-purple: #f7f0ff;
       --strokes-colour-purple:    var(--purple-300);
       --text-coloured-purple:     #7a2ed6;
+      --backgrounds-badge-pink:   #fff0f6;
+      --strokes-colour-pink:      #ffc2d9;
+      --text-coloured-pink:       #c2185b;
     }
 
     .cq-btn--tonal-2 { background: var(--backgrounds-button-tonal-2); color: var(--text-button-tonal-2); }
@@ -2048,41 +2055,40 @@ body.cq { margin: 0; }
     .au-panel__actions { display: flex; align-items: center; gap: 8px; }
     .au-panel__actions .cq-btn { flex: 1 1 auto; }
 
-    .au-steps { display: flex; flex-direction: column; }
-    .au-step { position: relative; display: flex; gap: 12px; padding-bottom: 14px; }
-    .au-step:last-child { padding-bottom: 0; }
-    .au-step::before {
-      content: ""; position: absolute; left: 13px; top: 28px; bottom: 0;
-      width: 1px; background: var(--strokes-line-1);
+    /* ── The awaiting-approval block ──
+       A human checkpoint is pink on this page and something waiting is
+       amber, so the block wears both: pink for what the step is, amber
+       for the fact that it is holding runs. */
+    .au-ck { display: flex; flex-direction: column; gap: 10px; }
+    .au-ck + .au-ck { margin-top: 10px; }
+    .au-ck__box {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 12px; border-radius: var(--radius-md);
+      background: var(--backgrounds-page-bg-3);
+      border: 1px solid var(--strokes-line-1);
     }
-    .au-step:last-child::before { display: none; }
-    .au-step__ic {
-      width: 28px; height: 28px; flex: none; z-index: 1;
+    .au-ck__top { display: flex; align-items: flex-start; gap: 10px; }
+    .au-ck__ic {
+      width: 28px; height: 28px; flex: none;
       display: inline-flex; align-items: center; justify-content: center;
       border-radius: var(--radius-sm);
-      background: var(--backgrounds-badge-blue);
-      border: 1px solid var(--strokes-colour-blue);
-      color: var(--text-coloured-blue);
+      background: var(--backgrounds-badge-pink);
+      border: 1px solid var(--strokes-colour-pink);
+      color: var(--text-coloured-pink);
     }
-    .au-step[data-tone="indigo"] .au-step__ic { background: var(--backgrounds-badge-indigo); border-color: var(--strokes-colour-indigo); color: var(--text-coloured-indigo); }
-    .au-step[data-tone="cyan"]   .au-step__ic { background: var(--backgrounds-badge-cyan);   border-color: var(--strokes-colour-cyan);   color: var(--text-coloured-cyan); }
-    .au-step[data-tone="green"]  .au-step__ic { background: var(--backgrounds-badge-green);  border-color: var(--strokes-colour-green);  color: var(--text-coloured-green); }
-    .au-step[data-tone="purple"] .au-step__ic { background: var(--backgrounds-badge-purple); border-color: var(--strokes-colour-purple); color: var(--text-coloured-purple); }
-    .au-step[data-tone="grey"]   .au-step__ic { background: var(--backgrounds-badge-grey);   border-color: var(--strokes-colour-grey);   color: var(--text-secondary); }
-    .au-step[data-tone="orange"] .au-step__ic { background: var(--backgrounds-badge-orange); border-color: var(--strokes-colour-orange); color: var(--text-coloured-orange); }
-    .au-step__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding-top: 2px; }
-    .au-step__row { display: flex; align-items: center; gap: 8px; }
-    .au-step__label { color: var(--text-primary); }
-    .au-step__sub { color: var(--text-teritiary); }
-    .au-step__cta {
-      margin-top: 6px;
+    .au-ck__id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .au-ck__name { color: var(--text-primary); }
+    .au-ck__sub { color: var(--text-teritiary); }
+    /* The count and the action are one statement, so they share a row —
+       two stacked full-width primaries read as two separate demands. */
+    .au-ck__wait {
       display: flex; align-items: center; gap: 8px;
-      padding: 8px 10px; border-radius: var(--radius-md);
+      padding: 6px 6px 6px 10px; border-radius: var(--radius-md);
       background: var(--backgrounds-badge-orange);
       border: 1px solid var(--strokes-colour-orange);
       color: var(--text-coloured-orange);
     }
-    .au-step__cta .cq-btn { margin-left: auto; }
+    .au-ck__wait .cq-btn { margin-left: auto; height: 28px; }
   </style>
 
 
@@ -2478,9 +2484,12 @@ body.cq { margin: 0; }
     </div>
   </div>
 
-  <div class="cq-panel__section">
-    <span class="cq-section-label cq-caption-med">FLOW</span>
-    <div class="au-steps" id="pnSteps"></div>
+  <!-- Only shown when this automation has runs sitting at a human
+       checkpoint. The whole flow is on the card's canvas; what the panel
+       is for is the one thing a reader can act on. -->
+  <div class="cq-panel__section" id="pnWaitSec" hidden>
+    <span class="cq-section-label cq-caption-med">AWAITING APPROVAL</span>
+    <div id="pnWait"></div>
   </div>
 
   <div class="cq-panel__section">
@@ -2532,13 +2541,18 @@ const KIND = {
   doc:        { ic: '#i-doc',     tone: 'grey',   name: 'Document' }
 };
 
+/* Avatars carry a single letter — the name sits beside them wherever one
+   is shown, so a second initial only crowded a 20px circle. Derived from
+   the name rather than stored, so the two can never disagree. */
+const initial = name => String(name).trim().charAt(0).toUpperCase();
+
 const PEOPLE = {
-  'Sarah Chen':  { init: 'SC', bg: 'var(--indigo-500)' },
-  'Mike Torres': { init: 'MT', bg: 'var(--green-600)' },
-  'Anna Park':   { init: 'AP', bg: '#047195' },
-  'James Liu':   { init: 'JL', bg: 'var(--orange-800)' },
-  'Priya Nair':  { init: 'PN', bg: 'var(--purple-600)' },
-  'Tom Weber':   { init: 'TW', bg: 'var(--blue-600)' }
+  'Sarah Chen':  { bg: 'var(--indigo-500)' },
+  'Mike Torres': { bg: 'var(--green-600)' },
+  'Anna Park':   { bg: '#047195' },
+  'James Liu':   { bg: 'var(--orange-800)' },
+  'Priya Nair':  { bg: 'var(--purple-600)' },
+  'Tom Weber':   { bg: 'var(--blue-600)' }
 };
 
 /* ════════════════════════════════════════════════════════════════════
@@ -2865,7 +2879,7 @@ function cvConfig(step) {
     const who = ['Savio Govindu', 'Hemavathi'];
     const bg = ['var(--purple-600)', 'var(--orange-800)'];
     return `<span class="au-cv-who">${who.map((n, i) =>
-      `<span class="au-cv-who__p"><span class="au-cv-who__a" style="background:${bg[i]}">${n[0]}</span>${esc(n)}</span>`).join('')}</span>`;
+      `<span class="au-cv-who__p"><span class="au-cv-who__a" style="background:${bg[i]}">${initial(n)}</span>${esc(n)}</span>`).join('')}</span>`;
   }
   if (k === 'branch' || k === 'guard') {
     return `<span class="au-cv-pill au-cv-pill--wide">
@@ -2960,8 +2974,8 @@ function canvas(a, withFlag = true) {
     <div class="au-prev__board" style="--cv-z:${CV_ZOOM}">${cvBoard(a)}</div>
     ${withFlag ? flag(a) : ''}
     <span class="au-prev__meta">
-      <svg class="cq-ic" width="11" height="11" viewBox="0 0 16 16"><use href="#i-flow"/></svg>
-      ${a.type} · ${a.steps.length} steps${cps ? ` · ${cps} checkpoint${cps > 1 ? 's' : ''}` : ''}
+      <svg class="cq-ic" width="11" height="11" viewBox="0 0 16 16"><use href="${a.type === 'Job' ? '#i-clock' : '#i-bolt'}"/></svg>
+      ${a.type}${cps ? ` · ${cps} checkpoint${cps > 1 ? 's' : ''}` : ''}
     </span>
   </div>`;
 }
@@ -2981,7 +2995,7 @@ function cardHTML(a, i) {
         ${a.tags.map((t, n) => `<span class="cq-tag" data-tone="${n ? 'cyan' : 'blue'}">${esc(t)}</span>`).join('')}
       </span>
       <span class="au-card__end">
-        <span class="cq-avatar" style="background:${person.bg}" title="${esc(a.by)}">${person.init}</span>
+        <span class="cq-avatar" style="background:${person.bg}" title="${esc(a.by)}">${initial(a.by)}</span>
         <button class="cq-icon-btn cq-icon-btn--sm" aria-label="More actions" data-more="1">
           <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-dots"/></svg>
         </button>
@@ -3052,11 +3066,11 @@ function rowHTML(a, i) {
    automation's, so the same canvas thumbnail renders it.
    ════════════════════════════════════════════════════════════════════ */
 const PUBLISHERS = {
-  'Cogentiq':  { init: 'CQ', bg: 'var(--blue-600)' },
-  'Clearbit':  { init: 'CB', bg: 'var(--indigo-500)' },
-  'Zendesk':   { init: 'ZD', bg: 'var(--green-600)' },
-  'PagerDuty': { init: 'PD', bg: 'var(--orange-800)' },
-  'Snowflake': { init: 'SF', bg: '#047195' }
+  'Cogentiq':  { bg: 'var(--blue-600)' },
+  'Clearbit':  { bg: 'var(--indigo-500)' },
+  'Zendesk':   { bg: 'var(--green-600)' },
+  'PagerDuty': { bg: 'var(--orange-800)' },
+  'Snowflake': { bg: '#047195' }
 };
 
 const MARKET = [
@@ -3130,7 +3144,7 @@ function marketCardHTML(m, i) {
     </div>
     <div class="au-card__foot">
       <span class="au-tags">
-        <span class="cq-avatar" style="background:${pub.bg}" title="${esc(m.by)}">${pub.init}</span>
+        <span class="cq-avatar" style="background:${pub.bg}" title="${esc(m.by)}">${initial(m.by)}</span>
         <span class="au-mk__by cq-caption-reg cq-truncate">${esc(m.by)}</span>
         <span class="au-mk__dot"></span>
         <span class="au-mk__n cq-caption-reg">${fmtInstalls(m.installs)} installs</span>
@@ -3275,32 +3289,44 @@ $('viewListBtn').addEventListener('click', () => setView('list'));
    zero, and only the kind tells them apart. */
 const open = { kind: null, i: -1 };
 
-/* Both subjects share the flow rail; only the head and the key/value
-   list differ, so the steps are drawn once here. */
-function paintSteps(x, shares) {
-  let seen = -1;
-  $('pnSteps').innerHTML = x.steps.map((st, n) => {
-    const m = KIND[st.k] || KIND.tool;
-    const isCp = st.k === 'checkpoint';
-    const waiting = isCp && shares ? (shares[++seen] || 0) : 0;
+/* The card's canvas already shows the flow, so the panel does not draw
+   it again. What it draws instead is the one thing on this automation a
+   reader can act on: the human checkpoints currently holding runs, one
+   block each, with the counts adding up to the number the card quotes. */
+function paintWaiting(a) {
+  const cps = a.steps.filter(st => st.k === 'checkpoint');
+  if (!a.pending || !cps.length) {
+    $('pnWaitSec').hidden = true;
+    $('pnWait').innerHTML = '';
+    return;
+  }
+  /* Front-loaded, so the per-checkpoint counts sum back to a.pending
+     rather than each rounding up to the same number. */
+  const share = cps.map((_, k) =>
+    Math.floor(a.pending / cps.length) + (k < a.pending % cps.length ? 1 : 0));
+
+  $('pnWait').innerHTML = cps.map((st, k) => {
+    const n = share[k];
+    if (!n) return '';
     return `
-    <div class="au-step" data-tone="${isCp ? 'orange' : m.tone}">
-      <span class="au-step__ic"><svg class="cq-ic" width="15" height="15" viewBox="0 0 16 16"><use href="${m.ic}"/></svg></span>
-      <div class="au-step__body">
-        <div class="au-step__row">
-          <span class="au-step__label cq-body2-med">${esc(st.l)}</span>
-          <span class="cq-badge" data-tone="${isCp ? 'orange' : 'grey'}">${esc(m.name)}</span>
+    <div class="au-ck">
+      <div class="au-ck__box">
+        <div class="au-ck__top">
+          <span class="au-ck__ic"><svg class="cq-ic" width="15" height="15" viewBox="0 0 16 16"><use href="#i-shield"/></svg></span>
+          <span class="au-ck__id">
+            <span class="au-ck__name cq-body2-med cq-truncate">${esc(st.l)}</span>
+            <span class="au-ck__sub cq-caption-reg cq-truncate">Human checkpoint · ${esc(st.s)}</span>
+          </span>
         </div>
-        <span class="au-step__sub cq-caption-reg">Step ${n + 1} · ${esc(st.s)}</span>
-        ${waiting ? `
-        <div class="au-step__cta">
+        <div class="au-ck__wait">
           <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-          <span class="cq-caption-med">${waiting} run${waiting > 1 ? 's' : ''} awaiting approval</span>
+          <span class="cq-caption-med">${n} run${n > 1 ? 's' : ''} awaiting approval</span>
           <button class="cq-btn cq-btn--sm cq-btn--primary" data-goapprovals="1">Review</button>
-        </div>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
+  $('pnWaitSec').hidden = false;
 }
 
 function paintKv(rows) {
@@ -3326,7 +3352,8 @@ function openTemplate(i) {
   $('pnRun').hidden = true;
   $('pnPrimaryLabel').textContent = 'Use template';
   $('pnPrimaryIcon').setAttribute('href', '#i-plus');
-  paintSteps(m, null);
+  /* A template holds no runs, so it never has anything awaiting. */
+  paintWaiting({ pending: 0, steps: [] });
   paintKv([
     ['Publisher', m.by], ['Category', m.cat],
     ['Installs', fmtInstalls(m.installs)],
@@ -3351,17 +3378,12 @@ function openPanel(i) {
   $('pnPrimaryLabel').textContent = 'Open in builder';
   $('pnPrimaryIcon').setAttribute('href', '#i-pencil');
 
-  /* The awaiting runs are spread over this automation's checkpoints,
-     front-loaded, so the per-step counts add back up to the number the
-     card and the queue both quote — a rounded share per step would show
-     the same run twice on a two-checkpoint flow. */
-  const cps = cpCount(a);
-  const share = Array.from({ length: cps }, (_, k) =>
-    Math.floor(a.pending / cps) + (k < a.pending % cps ? 1 : 0));
-  paintSteps(a, share);
+  paintWaiting(a);
 
   paintKv([
-    ['Trigger', a.trigger], ['Schedule', a.schedule], ['Owner', a.by],
+    ['Type', a.type], ['Trigger', a.trigger], ['Schedule', a.schedule], ['Owner', a.by],
+    ['Steps', String(a.steps.length)],
+    ['Human checkpoints', cpCount(a) ? String(cpCount(a)) : 'None'],
     ['Runs · 7 days', a.runs ? fmt(a.runs) : 'No runs yet'],
     ['Success rate', a.runs ? a.ok.toFixed(1) + '%' : '—'],
     ['Avg runtime', a.avg], ['Avg cost per run', a.cost],
@@ -3423,7 +3445,7 @@ $('mkGrid').addEventListener('keydown', e => {
 });
 
 $('pnClose').addEventListener('click', closePanel);
-$('pnSteps').addEventListener('click', e => {
+$('pnWait').addEventListener('click', e => {
   if (e.target.closest('[data-goapprovals]')) { closePanel(); go('checkpoints.html'); }
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && open.i >= 0) closePanel(); });
