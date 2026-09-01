@@ -294,6 +294,21 @@
     color:var(--text-secondary);white-space:nowrap}
   .term-chip.mono{font-family:var(--mono);font-size:11px;letter-spacing:0}
 
+  /* a data-binding card is a table: its qualified name, then every column
+     it reads with the type and a value from it */
+  .row-table{margin-top:2px;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:0;color:var(--text-tertiary)}
+  .col-table{margin-top:7px;padding-top:7px;border-top:1px solid var(--line-3);
+    display:grid;grid-template-columns:max-content max-content 1fr;
+    gap:5px 16px;align-items:baseline}
+  .col-h{font:var(--cap2);letter-spacing:.06em;text-transform:uppercase;
+    color:var(--text-tertiary)}
+  .col-name{font-family:var(--mono);font-size:11px;letter-spacing:0;color:var(--text-primary)}
+  .col-type{font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
+  .col-sample{font-family:var(--mono);font-size:11px;letter-spacing:0;
+    color:var(--text-secondary);font-variant-numeric:tabular-nums;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
   /* groups crunch to just their header; chevron rotates to point right */
   .grp-fold{display:grid;grid-template-rows:0fr;opacity:0;
     transition:grid-template-rows .35s var(--ease),opacity .3s ease}
@@ -472,10 +487,20 @@ const GROUPS = [
     rows:[
       { icon:'warehouse', name:'Revenue figures', tag:'Snowflake',
         desc:'Live revenue data from company warehouse',
-        columns:['invoice_date','net_revenue','currency'] },
+        table:'ANALYTICS.FINANCE.FCT_REVENUE_DAILY',
+        columns:[
+          { name:'invoice_date', type:'date',    sample:'2024-11-30' },
+          { name:'net_revenue',  type:'numeric', sample:'182,450.00' },
+          { name:'currency',     type:'text',    sample:'USD' },
+        ]},
       { icon:'warehouse', name:'Customer accounts', tag:'Snowflake',
         desc:'Account master with plan and renewal state',
-        columns:['account_id','plan_tier','renewal_date'] },
+        table:'ANALYTICS.CRM.DIM_ACCOUNT',
+        columns:[
+          { name:'account_id',   type:'text', sample:'ACC-40912' },
+          { name:'plan_tier',    type:'text', sample:'Enterprise' },
+          { name:'renewal_date', type:'date', sample:'2025-04-01' },
+        ]},
     ]},
   { icon:'warehouse', iconSize:16, label:'Applying rules and policies',
     activities:['Checking your disclosure and privacy rules'],
@@ -547,6 +572,20 @@ function el(tag, cls, parent) {
   if (cls) n.className = cls;
   if (parent) parent.append(n);
   return n;
+}
+
+/** the columns a binding reads, each with its type and a value from it */
+function colTable(host, columns) {
+  const t = el('div', 'col-table', host);
+  for (const h of ['Column', 'Type', 'Value']) {
+    el('span', 'col-h', t).textContent = h;
+  }
+  for (const c of columns) {
+    el('span', 'col-name', t).textContent = c.name;
+    el('span', 'col-type', t).textContent = c.type;
+    el('span', 'col-sample', t).textContent = c.sample;
+  }
+  return t;
 }
 
 /** label + chip groups: "Synonyms: ARR  Recurring revenue" */
@@ -699,8 +738,9 @@ async function buildGroup(host, g, mine) {
     }
     if (r.tag) el('span', 'row-tag', top).textContent = r.tag;
     if (r.desc) el('div', 'row-desc', main).textContent = r.desc;
-    /* a data binding names the columns it actually reads from the table */
-    if (r.columns) termMeta(main, [['Columns', r.columns]], true);
+    /* a data binding is a table: name it, then show the columns it reads */
+    if (r.table) el('div', 'row-table', main).textContent = r.table;
+    if (r.columns) colTable(main, r.columns);
     if (r.def) {
       row.classList.add('row-toggle');
       row.setAttribute('role', 'button');
