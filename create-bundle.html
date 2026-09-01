@@ -90,6 +90,7 @@
       --type-ink-glossary: #0d99ff;  --type-ink-ontology: #9747ff;
       --type-ink-data:     #00a2c2;  --type-ink-prompts:  #5860ed;
       --type-ink-tools:    #e91e63;  --type-ink-rules:    #689f38;
+      --backgrounds-icon-blue-2:      #0d99ff33;
       --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
       --scrim:          rgba(18, 18, 18, .18);
       --backgrounds-badge-green:  #ebffee;
@@ -167,6 +168,7 @@
       --type-ink-glossary: #44aaf3;  --type-ink-ontology: #bb7fff;
       --type-ink-data:     #35caf0;  --type-ink-prompts:  #a0a5f7;
       --type-ink-tools:    #f06292;  --type-ink-rules:    #aed581;
+      --backgrounds-icon-blue-2:      #0d99ff33;
       --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .4);
       --scrim:          rgba(18, 18, 18, .5);
       --backgrounds-badge-green:  #031d11;
@@ -549,7 +551,13 @@
       color: var(--text-teritiary);
       transition: border-color .15s ease;
     }
-    .search-field:focus-within { border-color: var(--strokes-type-focus); }
+    /* The wrapper owns the focus ring: the reset's outline would draw a
+       second box inside the field, around the type area only. */
+    .search-field input:focus-visible { outline: none; }
+    .search-field:focus-within {
+      border-color: var(--strokes-type-focus);
+      box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
+    }
     .search-field input { flex: 1 1 auto; min-width: 0; color: var(--text-primary); }
     .search-field input::placeholder { color: var(--text-teritiary); }
     .btn-primary {
@@ -625,10 +633,12 @@
     }
     .cb-textarea { min-height: 68px; resize: vertical; font: inherit; }
     .cb-input::placeholder, .cb-textarea::placeholder { color: var(--text-teritiary); }
-    .cb-input:focus, .cb-textarea:focus {
+    .cb-input:focus, .cb-textarea:focus,
+    .cb-input:focus-visible, .cb-textarea:focus-visible {
       border-color: var(--strokes-type-focus);
       background: var(--backgrounds-page-bg-2);
       outline: none;
+      box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
     }
     /* Shown only once someone has left a required field empty, so the
        form is never red before it has been used. */
@@ -759,17 +769,26 @@
       border-bottom: 1px solid var(--strokes-line-1);
     }
     .cb-cellwrap:last-child { border-bottom: 0; }
+    /* 48px whether empty or filled — the row must not resize when
+       something is chosen. */
     .cb-cell {
       position: relative;
-      width: 100%; min-height: 50px;
+      width: 100%; height: 48px;
       display: flex; align-items: center; gap: 8px;
-      padding: 8px; border-radius: 12px;
+      padding: 0 10px; border-radius: 12px;
+      background: var(--backgrounds-type-search-default);
       border: 1px dashed var(--strokes-line-2);
       color: var(--text-teritiary);
       text-align: left;
       transition: border-color .15s ease, background .15s ease, color .15s ease;
     }
-    .cb-cell:hover { border-color: var(--strokes-icon-default); color: var(--text-secondary); }
+    /* Design-system hover for a control on a card: one step of grey and
+       the border a shade darker. No lift. */
+    .cb-cell:hover {
+      background: var(--backgrounds-page-bg-4);
+      border-color: var(--strokes-line-1);
+      color: var(--text-secondary);
+    }
     .cb-cell .lbl { flex: 1 1 auto; min-width: 0; }
     .cb-cell .plus { flex: none; color: var(--strokes-checkbox-default); transition: color .15s ease; }
     .cb-cell:hover .plus { color: var(--text-secondary); }
@@ -788,12 +807,11 @@
       border-color: var(--strokes-colour-blue);
       background: var(--backgrounds-badge-blue);
       color: var(--text-primary);
-      cursor: default;
     }
-    .cb-cell.is-filled:hover { border-color: var(--strokes-card-selected); }
-    .cb-picked { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-    .cb-picked .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cb-picked .meta { display: flex; align-items: center; gap: 6px; color: var(--text-teritiary); }
+    .cb-cell.is-filled:hover { background: var(--backgrounds-badge-blue); border-color: var(--strokes-card-selected); }
+    /* One line, so the filled cell is the same height as an empty one. */
+    .cb-picked { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; }
+    .cb-picked .nm { min-width: 0; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cb-ver {
       flex: none; height: 16px;
       display: flex; align-items: center; padding: 0 6px; border-radius: 12px;
@@ -841,9 +859,9 @@
        ═══════════════════════════════════════════════════════════════ */
     .cb-pop {
       position: fixed; z-index: 70;
-      /* Wide enough that an artifact description reads in full at the
-         body ramp — the frame sets 412px against 12px captions. */
-      width: 456px; max-width: calc(100vw - 24px);
+      /* The frame's width. Descriptions sit at the caption ramp so they
+         still read in full at this size. */
+      width: 404px; max-width: calc(100vw - 24px);
       display: none; flex-direction: column; gap: 8px;
       padding: 12px;
       background: var(--backgrounds-card-bg-3);
@@ -879,8 +897,12 @@
       text-align: left;
       transition: background .15s ease, border-color .15s ease;
     }
-    .cb-art-head:hover { border-color: var(--strokes-icon-default); }
-    .cb-art-head .ic:first-child { color: var(--text-secondary); }
+    /* Design-system card hover: the border darkens a shade, plus a step
+       of grey because this row is a menu option as well as a card. */
+    .cb-art-head:hover {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-line-1);
+    }
     .cb-art-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .cb-art-text .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cb-art-text .sub { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -924,7 +946,10 @@
     /* The row the pick would land on: the pinned version if there is
        one, otherwise the latest. */
     .cb-ver-row.is-current { background: var(--backgrounds-table-select); }
-    .cb-ver-row:hover { background: var(--backgrounds-button-tonal-1); }
+    /* Neutral hover, as the design system's list rows use. The marked row
+       keeps its own fill. */
+    .cb-ver-row:hover { background: var(--backgrounds-page-bg-4); }
+    .cb-ver-row.is-current:hover { background: var(--backgrounds-table-select); }
     .cb-pop-empty { padding: 12px; color: var(--text-teritiary); }
 
     /* ── Responsive ─────────────────────────────────────────────── */
@@ -1294,6 +1319,10 @@ const TYPES = [
   { key: 'rules',    label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-rules'    },
 ];
 
+/* Keyed for lookup — the picker renders an artifact with the icon and
+   colour of the type it belongs to. */
+const TYPE_BY_KEY = Object.fromEntries(TYPES.map((t) => [t.key, t]));
+
 /* The artifacts on offer, per type. Versions are newest-first; the one
    flagged `latest` gets the badge. Replace with your API payload — the
    render functions read nothing else. */
@@ -1366,9 +1395,12 @@ function cellInner(typeKey, layerKey) {
     return `<span class="lbl t-body2-reg">Select</span>
             <svg class="ic plus" width="20" height="20" viewBox="0 0 20 20"><use href="#cb-plus"/></svg>`;
   }
-  return `<span class="cb-picked">
+  const t = TYPE_BY_KEY[typeKey];
+  return `<svg class="ic" width="16" height="16" viewBox="0 0 16 16"
+               style="color:var(--type-ink-${typeKey})"><use href="#${t.icon}"/></svg>
+          <span class="cb-picked">
             <span class="nm t-body2-med">${esc(picked.name)}</span>
-            <span class="meta"><span class="cb-ver">${esc(picked.version)}</span></span>
+            <span class="cb-ver">${esc(picked.version)}</span>
           </span>
           <span class="cb-clear" role="button" tabindex="0" data-clear="1"
                 aria-label="Remove ${esc(picked.name)}">
@@ -1390,7 +1422,7 @@ function renderMatrix() {
         <div class="cb-type">
           <div class="row">
             <svg class="ic" width="20" height="20" viewBox="0 0 16 16" style="color:var(--type-ink-${t.key})"><use href="#${t.icon}"/></svg>
-            <span class="nm t-subhead2-med">${esc(t.label)}</span>
+            <span class="nm t-body1-med">${esc(t.label)}</span>
           </div>
           <span class="sub t-caption1-reg">${esc(t.note)}</span>
         </div>`).join('')}
@@ -1439,6 +1471,7 @@ function artifactRows(typeKey, layerKey, query) {
   if (!list.length) return '<p class="cb-pop-empty t-body2-reg">No artifacts match that search.</p>';
 
   const current = selection[typeKey][layerKey];
+  const type = TYPE_BY_KEY[typeKey];
   return list.map((a, i) => {
     const isOpen = expanded === i;
     /* One row is marked as where a pick would land: the version already
@@ -1455,10 +1488,11 @@ function artifactRows(typeKey, layerKey, query) {
       </button>`).join('');
     return `<div class="cb-art${isOpen ? ' is-expanded' : ''}" data-i="${i}">
       <button class="cb-art-head" data-toggle="${i}" aria-expanded="${isOpen}">
-        <svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cb-typegrid"/></svg>
+        <svg class="ic" width="20" height="20" viewBox="0 0 16 16"
+             style="color:var(--type-ink-${typeKey})"><use href="#${type.icon}"/></svg>
         <span class="cb-art-text">
           <span class="nm t-body1-med">${esc(a.name)}</span>
-          <span class="sub t-body2-reg">${esc(a.sub)}</span>
+          <span class="sub t-caption1-reg">${esc(a.sub)}</span>
         </span>
         <span class="cb-art-count t-body2-reg">${a.versions.length} vers.</span>
         <svg class="ic cb-art-chev" width="16" height="16" viewBox="0 0 16 16"><use href="#cb-chevright"/></svg>
