@@ -689,19 +689,39 @@
     .cb-matrix {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
+      /* No column gap: the three layer columns butt together to form one
+         card, so the only gap is the one the spine sets for itself. */
+      column-gap: 0;
       padding: 0 24px;
       align-items: start;
     }
     .cb-col {
       background: var(--backgrounds-page-bg-2);
-      border: 1px solid var(--strokes-line-3);
-      border-radius: 16px;
+      border-top: 1px solid var(--strokes-line-3);
+      border-bottom: 1px solid var(--strokes-line-3);
       padding-top: 20px;
       overflow: hidden;
       display: grid;
       grid-template-rows: subgrid;
       grid-row: span 7;
+    }
+    /* The artifact-type spine is a card of its own. */
+    .cb-col--spine {
+      border-left: 1px solid var(--strokes-line-3);
+      border-right: 1px solid var(--strokes-line-3);
+      border-radius: 16px;
+      margin-right: 12px;
+    }
+    /* The three layers share one card: the outer edges carry the border
+       and the rounding, and each inner edge is a divider. */
+    .cb-col--layer { border-left: 1px solid var(--strokes-line-1); }
+    .cb-col--layer.is-first {
+      border-left: 1px solid var(--strokes-line-3);
+      border-top-left-radius: 16px; border-bottom-left-radius: 16px;
+    }
+    .cb-col--layer.is-last {
+      border-right: 1px solid var(--strokes-line-3);
+      border-top-right-radius: 16px; border-bottom-right-radius: 16px;
     }
     /* subgrid keeps every column's rows on the same baseline. Where it
        is unsupported the columns fall back to their own flow, which
@@ -724,7 +744,7 @@
     /* Spine cell: the artifact type and what it is for. */
     .cb-type {
       display: flex; flex-direction: column; gap: 2px;
-      padding: 12px 16px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--strokes-line-1);
     }
     .cb-type:last-child { border-bottom: 0; }
@@ -735,7 +755,7 @@
     /* A layer cell holds the dashed picker, or the artifact once picked.
        Ruled like the type spine so a row reads straight across. */
     .cb-cellwrap {
-      padding: 12px 16px; display: flex;
+      padding: 10px 16px; display: flex;
       border-bottom: 1px solid var(--strokes-line-1);
     }
     .cb-cellwrap:last-child { border-bottom: 0; }
@@ -1358,7 +1378,7 @@ function cellInner(typeKey, layerKey) {
 
 function renderMatrix() {
   const spine = `
-    <div class="cb-col" data-col="type">
+    <div class="cb-col cb-col--spine" data-col="type">
       <div class="cb-col-head">
         <div class="row">
           <svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-studio"/></svg>
@@ -1376,8 +1396,8 @@ function renderMatrix() {
         </div>`).join('')}
     </div>`;
 
-  const cols = LAYERS.map((layer) => `
-    <div class="cb-col" data-col="${layer.key}">
+  const cols = LAYERS.map((layer, li) => `
+    <div class="cb-col cb-col--layer${li === 0 ? ' is-first' : ''}${li === LAYERS.length - 1 ? ' is-last' : ''}" data-col="${layer.key}">
       <div class="cb-col-head">
         <div class="row">
           <svg class="cb-dia" viewBox="0 0 43 28" aria-hidden="true"><use href="#${layer.dia}"/></svg>
