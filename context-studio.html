@@ -59,6 +59,7 @@
       --green-300: #aff4c6;  --green-500: #14ae5c;  --green-600: #009951;
 
       /* Type ------------------------------------------------------- */
+      --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
       --font-geist: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --fs-caption:  12px;   /* Type/Font Size/Body/Caption */
       --fs-body-3:   14px;   /* Type/Font Size/Body/Body 3 */
@@ -78,6 +79,7 @@
       --flag-sheen:     rgba(13, 153, 255, .28);
       --scroll-thumb:       rgba(18, 18, 18, .18);
       --scroll-thumb-hover: rgba(18, 18, 18, .30);
+      --art-row-bg:     #f5f5f5;
       --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
       --scrim:          rgba(18, 18, 18, .18);
       --backgrounds-badge-green:  #ebffee;
@@ -144,6 +146,7 @@
       --flag-sheen:     rgba(255, 255, 255, .30);
       --scroll-thumb:       rgba(255, 255, 255, .16);
       --scroll-thumb-hover: rgba(255, 255, 255, .28);
+      --art-row-bg:     #2c2c2c;
       --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .4);
       --scrim:          rgba(18, 18, 18, .5);
       --backgrounds-badge-green:  #031d11;
@@ -555,7 +558,7 @@
       border-radius: 16px;
       box-shadow: var(--shadow-info);
       padding: 12px;
-      display: flex; flex-direction: column; gap: 10px;
+      display: flex; flex-direction: column; gap: 0;
     }
     .ctx-toggle {
       display: flex; align-items: center; gap: 6px; width: 100%;
@@ -576,9 +579,10 @@
     .ctx-body {
       display: flex; flex-direction: column; gap: 10px;
       overflow: hidden;
-      max-height: 0; opacity: 0;
-      transition: max-height .34s cubic-bezier(.4, 0, .2, 1), opacity .24s ease;
+      max-height: 0; opacity: 0; margin-top: 0;
+      transition: max-height .34s cubic-bezier(.4, 0, .2, 1), opacity .24s ease, margin-top .34s cubic-bezier(.4, 0, .2, 1);
     }
+    .ctx-info.is-open .ctx-body { margin-top: 10px; }
     .ctx-info.is-open .ctx-body { opacity: 1; }
     .ctx-hero {
       border-radius: 12px; padding: 10px 0;
@@ -744,12 +748,21 @@
     .quick { width: 76px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
     .quick .tile {
       padding: 12px; border-radius: 12px;
+      color: var(--quick-ink);
       background: #ffffff;
       border: 1px solid #f5f5f5;
       box-shadow: 0 1px 1px rgba(18, 18, 18, .08);
       transition: transform .15s ease, box-shadow .15s ease;
     }
     .quick:hover .tile { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(18, 18, 18, .16); }
+    /* The hues the exported tile icons carried, kept as-is now that the
+       glyphs come from the platform panel's set. */
+    .quick[data-kind="glossary"] .tile { --quick-ink: #0d99ff; }
+    .quick[data-kind="ontology"] .tile { --quick-ink: #9747ff; }
+    .quick[data-kind="data"]     .tile { --quick-ink: #00a2c2; }
+    .quick[data-kind="tools"]    .tile { --quick-ink: #e91e63; }
+    .quick[data-kind="prompts"]  .tile { --quick-ink: #5860ed; }
+    .quick[data-kind="rules"]    .tile { --quick-ink: #689f38; }
     /* The hero keeps its gradient in both themes, so its captions are
        always on the dark end of it — white reads in light and dark alike. */
     .quick .cap {
@@ -791,13 +804,18 @@
     }
     .bc-body .desc { margin: 0; color: var(--text-teritiary); }
     .bc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    /* Same card tag the Model hub cards use: Page/bg-1 on Card/Default,
+       r12, mono 11px in tertiary. */
     .bc-chip {
-      display: flex; align-items: center; gap: 4px;
-      padding: 2px 8px; border-radius: 12px;
-      background: var(--backgrounds-page-bg-4);
-      color: var(--text-secondary);
+      height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 8px; border-radius: 12px; line-height: 1;
+      background: var(--backgrounds-page-bg-1);
+      border: 1px solid var(--strokes-card-default);
+      font: 400 11px/normal var(--font-geist-mono); letter-spacing: -0.11px;
+      color: var(--text-teritiary);
+      white-space: nowrap;
     }
-    .bc-chip .ic { color: var(--text-teritiary); }
     .bc-avatar { position: relative; width: 16px; height: 16px; flex: none; }
     .bc-avatar span {
       position: absolute; inset: 0;
@@ -834,12 +852,17 @@
       padding: 8px 16px 20px;
       border-bottom: 1px solid var(--strokes-line-1);
     }
-    .panel-tags-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
     .panel-close { width: 16px; height: 16px; color: var(--text-teritiary); flex: none; }
     .panel-close:hover { color: var(--text-primary); }
     .panel-title-block { display: flex; flex-direction: column; gap: 6px; }
-    .panel-title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    .panel-title { color: var(--text-primary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* The close control shares the title's line — a row of its own only
+       bought empty space above the name. It stays top-aligned so it holds
+       its place when the title wraps to two lines. */
+    .panel-title-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+    .panel-title-row .panel-title { flex: 1 1 auto; }
+    .panel-title-row > .ic { margin-top: 2px; }
+    .panel-title-row .panel-close { margin-top: 4px; }
+    .panel-title { color: var(--text-primary); min-width: 0; }
     .panel-desc { color: var(--text-teritiary); margin: 0; }
     .panel-actions { display: flex; align-items: center; gap: 12px; }
     .panel-actions .btn-primary { height: 32px; padding: 6px 12px; flex: 1 1 auto; }
@@ -900,13 +923,16 @@
     .pl-badge[data-layer="domain"]       { background: var(--backgrounds-badge-blue);   border-color: var(--strokes-colour-blue);   color: var(--text-coloured-blue); }
     .pl-badge[data-layer="organization"] { background: var(--backgrounds-badge-green);  border-color: var(--strokes-colour-green);  color: var(--text-coloured-green); }
     .pl-badge[data-layer="solution"]     { background: var(--backgrounds-badge-purple); border-color: var(--strokes-colour-purple); color: var(--text-coloured-purple); }
-    .layer-note { color: var(--text-teritiary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+    /* Its own token rather than card-bg-6: in dark that value equals the
+       panel's own ground, so the rows dissolved into it. This one steps
+       away from the panel in both themes — down in light, up in dark —
+       and the border is Line-1 so the edge survives either way. */
     .art-row {
       display: flex; align-items: center; gap: 10px;
       padding: 8px; border-radius: 8px;
-      background: var(--backgrounds-card-bg-6);
-      border: 1px solid var(--strokes-line-3);
+      background: var(--art-row-bg);
+      border: 1px solid var(--strokes-line-1);
     }
     .art-row + .art-row { margin-top: 6px; }
     .art-ic { flex: none; }
@@ -964,6 +990,7 @@
   </style>
 
 <svg class="sprite" aria-hidden="true">
+<symbol id="ic-editpen" viewBox="0 0 20 20" fill="none"><g id="editpen__Edit" clip-path="url(#editpen__clip0_0_103)"><g id="editpen__Vector"></g><path id="editpen__Vector_2" d="M3.33333 16.6667H6.66667L15.4167 7.91667C15.6355 7.6978 15.8092 7.43796 15.9276 7.15199C16.0461 6.86603 16.107 6.55953 16.107 6.25C16.107 5.94047 16.0461 5.63397 15.9276 5.34801C15.8092 5.06204 15.6355 4.8022 15.4167 4.58333C15.1978 4.36446 14.938 4.19085 14.652 4.0724C14.366 3.95394 14.0595 3.89298 13.75 3.89298C13.4405 3.89298 13.134 3.95394 12.848 4.0724C12.562 4.19085 12.3022 4.36446 12.0833 4.58333L3.33333 13.3333V16.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="editpen__Vector_3" d="M11.25 5.41667L14.5833 8.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="editpen__clip0_0_103"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-close" viewBox="0 0 16 16" fill="none"><g id="close__Close" clip-path="url(#close__clip0_0_121)"><g id="close__Vector"></g><path id="close__Vector_2" d="M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="close__Vector_3" d="M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="close__clip0_0_121"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-pp_chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="ic-pp_closepanel" viewBox="0 0 20 20" fill="none"><path d="M3.33333 5C3.33333 4.55797 3.50893 4.13405 3.82149 3.82149C4.13405 3.50893 4.55797 3.33333 5 3.33333H15C15.442 3.33333 15.8659 3.50893 16.1785 3.82149C16.4911 4.13405 16.6667 4.55797 16.6667 5V15C16.6667 15.442 16.4911 15.8659 16.1785 16.1785C15.8659 16.4911 15.442 16.6667 15 16.6667H5C4.55797 16.6667 4.13405 16.4911 3.82149 16.1785C3.50893 15.8659 3.33333 15.442 3.33333 15V5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 3.33333V16.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 8.33333L10.8333 10L12.5 11.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -1276,28 +1303,28 @@
                     <span class="line r"></span>
                   </div>
                   <div class="quick-grid">
-                    <button class="quick">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-book20"/></svg></span>
+                    <button class="quick" data-kind="glossary">
+                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-glossary"/></svg></span>
                       <span class="cap">Glossary</span>
                     </button>
-                    <button class="quick">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-branch20"/></svg></span>
+                    <button class="quick" data-kind="ontology">
+                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-ontology"/></svg></span>
                       <span class="cap">Ontology</span>
                     </button>
-                    <button class="quick">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-db20"/></svg></span>
+                    <button class="quick" data-kind="data">
+                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-databind"/></svg></span>
                       <span class="cap">Data binding</span>
                     </button>
-                    <button class="quick">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-tool20"/></svg></span>
+                    <button class="quick" data-kind="tools">
+                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-toolbind"/></svg></span>
                       <span class="cap">Tool binding</span>
                     </button>
-                    <button class="quick">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-edit20"/></svg></span>
+                    <button class="quick" data-kind="prompts">
+                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-prompts"/></svg></span>
                       <span class="cap">Prompts</span>
                     </button>
-                    <button class="quick">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-shield20"/></svg></span>
+                    <button class="quick" data-kind="rules">
+                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-rules"/></svg></span>
                       <span class="cap">Policies</span>
                     </button>
                   </div>
@@ -1329,26 +1356,20 @@
 <!-- ══ Bundle detail panel ══════════════════════════════════════════ -->
 <aside class="panel" id="panel" aria-label="Bundle details" aria-hidden="true">
   <div class="panel-head">
-    <div class="panel-tags-row">
-      <button class="panel-close" id="panelClose" aria-label="Close details">
-        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
-      </button>
-    </div>
     <div class="panel-title-block">
       <div class="panel-title-row">
         <svg class="ic" id="panelIcon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><use href="#cx-b-indigo"/></svg>
         <span class="panel-title t-subhead2-med" id="panelTitle">Customer Support</span>
+        <button class="panel-close" id="panelClose" aria-label="Close details">
+          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
+        </button>
       </div>
       <p class="panel-desc t-body2-reg" id="panelDesc"></p>
     </div>
     <div class="panel-actions">
       <button class="btn-primary t-body2-med">
-        <svg class="ic" width="20" height="20" viewBox="0 0 24 24"><use href="#cx-stack3d"/></svg>
-        Attach to assistant
-      </button>
-      <button class="btn-tonal t-body2-med">
-        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-edit20"/></svg>
-        Edit
+        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-editpen"/></svg>
+        Edit bundle
       </button>
     </div>
   </div>
@@ -1384,9 +1405,9 @@ const TYPES = {
   rules:     { label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-shield20' },
 };
 const LAYERS = [
-  { key: 'domain',       label: 'Domain',       note: 'How the domain works, universally'   },
-  { key: 'organization', label: 'Organization', note: 'How this enterprise works, specifically' },
-  { key: 'solution',     label: 'Solution',     note: 'How a specific problem is solved'    },
+  { key: 'domain',       label: 'Domain'       },
+  { key: 'organization', label: 'Organization' },
+  { key: 'solution',     label: 'Solution'     },
 ];
 
 const BUNDLES = [
@@ -1445,9 +1466,6 @@ const BUNDLES = [
 ];
 
 function bundleCard(b) {
-  const book = b.book
-    ? '<svg class="ic" width="12" height="12" viewBox="0 0 20 20"><use href="#cx-book12"/></svg>'
-    : '';
   return `
     <button class="bundle-card" data-i="${b.i}" aria-haspopup="dialog">
       <span class="bc-head">
@@ -1457,7 +1475,7 @@ function bundleCard(b) {
       <span class="bc-body">
         <span class="desc t-caption1-reg">${b.desc}</span>
         <span class="bc-foot">
-          <span class="bc-chip t-caption1-reg">${book}${b.count}</span>
+          <span class="bc-chip">${b.count}</span>
           <span class="bc-avatar"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-avatar16"/></svg><span>${b.owner}</span></span>
         </span>
       </span>
@@ -1495,9 +1513,9 @@ function metaRows(b) {
   const initial = esc(b.creator.trim().charAt(0).toUpperCase());
   return [
     ['Created by', `<span class="v who t-body2-reg"><span class="who-avatar"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-avatar16"/></svg><span>${initial}</span></span>${esc(b.creator)}</span>`],
-    ['Created', `<span class="v t-body2-reg">${esc(b.created)}</span>`],
-    ['Last updated', `<span class="v t-body2-reg">${esc(b.updated)}</span>`],
-    ['Artifacts', `<span class="v t-body2-reg">${b.artifacts.length}</span>`],
+    /* One row for both dates: created is the fixed fact, updated the one
+       that moves, so the pair reads as a span rather than two lookups. */
+    ['Created · updated', `<span class="v t-body2-reg">${esc(b.created)} <span style="color:var(--text-teritiary)">→</span> ${esc(b.updated)}</span>`],
   ].map(([k, v]) => `<div class="row"><span class="k t-body2-reg">${k}</span>${v}</div>`).join('');
 }
 
@@ -1519,7 +1537,6 @@ function artifactGroups(b) {
     return `<div class="layer-group">
       <div class="layer-head">
         <span class="pl-badge t-caption1-med" data-layer="${layer.key}">${layer.label}</span>
-        <span class="layer-note t-caption1-reg">${esc(layer.note)}</span>
       </div>
       ${rows}
     </div>`;
