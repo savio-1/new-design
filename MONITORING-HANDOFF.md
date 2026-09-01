@@ -146,13 +146,20 @@ way in**, because a hidden pane has no width to size an SVG against.
   levels 0–5, `HEAT_VAL` gives the tooltip midpoint.
 
 **Adoption pane** (`#monAdoption`):
-- 4 KPI cards (`.mon-kpi`, span 3): Automations 210 / Agents 186 / Assistants 97,
-  each with an inline sparkline **to the right of the figure**; plus
-  "Other artifacts in use" (`.mon-others`, Tools 41 / Context 14 / Skills 240 /
-  Guardrails 31) on `repeat(4, minmax(0,1fr))`.
+- 2 KPI cards (`.mon-kpi`, span 3): Automations 210 and Assistants 97, each with
+  an inline sparkline **to the right of the figure**; then "Agents & other
+  artifacts" (`.mon-others`, span 6) carrying five counts — Agents 186, Tools 41,
+  Context 14, Skills 240, Guardrails 31 — on `repeat(5, minmax(0,1fr))`.
 - Artifact creation trend (`.mon-trend`, span 6) — stacked area, 18 points
   (3/month, Jan–Jun), `drawSeriesChart('trendPlot', …)`.
 - DAU / MAU (`.mon-dau`, span 6) — MAU 415→540 as the envelope, DAU 150→248 inside.
+- Artifact reuse (`.mon-reuse`, span 12) — one row per library (Tools,
+  Guardrails, Agents, Skills, Models) from `REUSE[]`. **Track = that library's
+  size, fill = how much of it is reused**, both scaled by the largest library
+  (`REUSE_MAX`); the label reads "171 of 240 reused · 71%". One hue for every bar
+  (`--viz-success`) because it is one measure — the leading icon carries the
+  type's identity. Bars fill in on tab entry (`playReuse()`, 60ms stagger).
+  Clicking a row opens the drill-down panel; clicking it again closes.
 - Top creators (`.mon-creators`, span 12) — podium left, leaderboard right.
   The cross-workspace link sits **in the card head row** (`#boardAll`), so
   nothing occupies the strip above the table (head→table 16px vs 17px below).
@@ -284,6 +291,11 @@ and `--mode light --surface "#ffffff"`):
   search reset to page 1.
 - **Tab segment** — `cqSegSync()` positions the sliding thumb; re-run on resize
   and after webfont swap-in.
+- **Reuse drill-down** (`#reusePanel`) — the system's own `.cq-panel` right
+  drawer (fixed, 420px, `.is-open` slides it in). Lists that type's reused
+  artifacts: name, an `N×` badge, where it is used, last used. Closes on the X,
+  Escape, an outside click, or leaving the Adoption tab. The chart row it came
+  from holds `.is-selected`.
 
 ---
 
