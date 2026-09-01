@@ -1798,7 +1798,10 @@ body.cq { margin: 0; }
       display: flex; flex-direction: column;
       border-radius: var(--radius-lg);
       background: var(--backgrounds-card-bg-5);
-      border: 1px solid var(--strokes-card-default);
+      /* No stroke at rest — the card reads off its own ground and shadow.
+         The border stays in the box at zero opacity so hover and selection
+         can use it without the 1px shifting everything inside. */
+      border: 1px solid transparent;
       overflow: hidden;
       filter: var(--shadow-card);
       text-align: left; cursor: pointer;
@@ -1918,6 +1921,9 @@ body.cq { margin: 0; }
     .au-cv-who__a {
       width: 18px; height: 18px; border-radius: 50%; flex: none;
       display: inline-flex; align-items: center; justify-content: center;
+      /* Literal, like the rest of the board: this element keeps the
+         builder's dark ground in both themes. Indigo/500's value. */
+      background: #5860ed;
       color: #fff; font: 400 10px/1 var(--font-geist);
     }
 
@@ -2543,17 +2549,12 @@ const KIND = {
 
 /* Avatars carry a single letter — the name sits beside them wherever one
    is shown, so a second initial only crowded a 20px circle. Derived from
-   the name rather than stored, so the two can never disagree. */
-const initial = name => String(name).trim().charAt(0).toUpperCase();
+   the name rather than stored, so the two can never disagree.
 
-const PEOPLE = {
-  'Sarah Chen':  { bg: 'var(--indigo-500)' },
-  'Mike Torres': { bg: 'var(--green-600)' },
-  'Anna Park':   { bg: '#047195' },
-  'James Liu':   { bg: 'var(--orange-800)' },
-  'Priya Nair':  { bg: 'var(--purple-600)' },
-  'Tom Weber':   { bg: 'var(--blue-600)' }
-};
+   They also carry one colour rather than a per-person palette: a hue that
+   means nothing is just noise on a wall of cards. .cq-avatar's own default
+   is Indigo/500, so there is nothing to set — the overrides came off. */
+const initial = name => String(name).trim().charAt(0).toUpperCase();
 
 /* ════════════════════════════════════════════════════════════════════
    THE INVENTORY
@@ -2877,9 +2878,8 @@ function cvConfig(step) {
   const k = step.k;
   if (k === 'checkpoint') {
     const who = ['Savio Govindu', 'Hemavathi'];
-    const bg = ['var(--purple-600)', 'var(--orange-800)'];
-    return `<span class="au-cv-who">${who.map((n, i) =>
-      `<span class="au-cv-who__p"><span class="au-cv-who__a" style="background:${bg[i]}">${initial(n)}</span>${esc(n)}</span>`).join('')}</span>`;
+    return `<span class="au-cv-who">${who.map(n =>
+      `<span class="au-cv-who__p"><span class="au-cv-who__a">${initial(n)}</span>${esc(n)}</span>`).join('')}</span>`;
   }
   if (k === 'branch' || k === 'guard') {
     return `<span class="au-cv-pill au-cv-pill--wide">
@@ -2981,7 +2981,6 @@ function canvas(a, withFlag = true) {
 }
 
 function cardHTML(a, i) {
-  const person = PEOPLE[a.by];
   return `
   <article class="au-card cq-tint" tabindex="0" role="button" data-i="${i}"
            aria-label="${esc(a.name)} — open the full flow">
@@ -2995,7 +2994,7 @@ function cardHTML(a, i) {
         ${a.tags.map((t, n) => `<span class="cq-tag" data-tone="${n ? 'cyan' : 'blue'}">${esc(t)}</span>`).join('')}
       </span>
       <span class="au-card__end">
-        <span class="cq-avatar" style="background:${person.bg}" title="${esc(a.by)}">${initial(a.by)}</span>
+        <span class="cq-avatar" title="${esc(a.by)}">${initial(a.by)}</span>
         <button class="cq-icon-btn cq-icon-btn--sm" aria-label="More actions" data-more="1">
           <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-dots"/></svg>
         </button>
@@ -3065,14 +3064,6 @@ function rowHTML(a, i) {
    Published automations to start from. `steps` is shaped exactly like an
    automation's, so the same canvas thumbnail renders it.
    ════════════════════════════════════════════════════════════════════ */
-const PUBLISHERS = {
-  'Cogentiq':  { bg: 'var(--blue-600)' },
-  'Clearbit':  { bg: 'var(--indigo-500)' },
-  'Zendesk':   { bg: 'var(--green-600)' },
-  'PagerDuty': { bg: 'var(--orange-800)' },
-  'Snowflake': { bg: '#047195' }
-};
-
 const MARKET = [
   { name: 'Invoice Intake & Approval', type: 'Live', cat: 'Finance', by: 'Cogentiq', installs: 4200,
     hue: 'var(--text-coloured-indigo)', tags: ['finance', 'ocr'], updated: 'Aug 12, 2026',
@@ -3133,7 +3124,6 @@ const ALL_PUBS = [...new Set(MARKET.map(m => m.by))].sort();
 const fmtInstalls = n => n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'k' : String(n);
 
 function marketCardHTML(m, i) {
-  const pub = PUBLISHERS[m.by];
   return `
   <article class="au-card cq-tint" tabindex="0" role="button" data-mk="${i}"
            aria-label="${esc(m.name)} — open the template">
@@ -3144,7 +3134,7 @@ function marketCardHTML(m, i) {
     </div>
     <div class="au-card__foot">
       <span class="au-tags">
-        <span class="cq-avatar" style="background:${pub.bg}" title="${esc(m.by)}">${initial(m.by)}</span>
+        <span class="cq-avatar" title="${esc(m.by)}">${initial(m.by)}</span>
         <span class="au-mk__by cq-caption-reg cq-truncate">${esc(m.by)}</span>
         <span class="au-mk__dot"></span>
         <span class="au-mk__n cq-caption-reg">${fmtInstalls(m.installs)} installs</span>
