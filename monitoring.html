@@ -2162,16 +2162,20 @@ body.cq { margin: 0; }
     .mon-reuse__name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-primary); }
     .mon-reuse__name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mon-reuse__track {
-      position: relative; height: 10px; border-radius: var(--radius-full, 999px);
+      position: relative; height: 7px; border-radius: var(--radius-full, 999px);
       background: var(--backgrounds-page-bg-3);
       border: 1px solid var(--strokes-line-3);
       width: var(--track, 100%);
     }
+    /* The product's primary blue rather than the chart's line hue: the
+       light-mode line step (blue-700) read almost navy as a solid fill.
+       This is #0d99ff in both themes, and every bar is directly labelled,
+       which is what the sub-3:1 contrast on white asks for. */
     .mon-reuse__fill {
       position: absolute; left: -1px; top: -1px; bottom: -1px;
-      width: var(--fill, 0%); min-width: 10px;
+      width: var(--fill, 0%); min-width: 7px;
       border-radius: var(--radius-full, 999px);
-      background: var(--viz-success);
+      background: var(--backgrounds-button-primary);
       transition: width .75s cubic-bezier(.22, .8, .25, 1);
     }
     .mon-reuse__val { text-align: right; color: var(--text-teritiary); white-space: nowrap; }
@@ -2180,13 +2184,27 @@ body.cq { margin: 0; }
     .mon-reuse__row .cq-ic.chev { color: var(--text-teritiary); justify-self: end; transform: rotate(-90deg); }
     @media (prefers-reduced-motion: reduce) { .mon-reuse__fill { transition: none; } }
 
-    /* Drill-down: the system's own right panel. */
-    .mon-panel__head { display: flex; align-items: center; gap: 10px; padding: 0 16px 16px; }
-    .mon-panel__head .cq-ic { color: var(--text-coloured-blue); }
-    .mon-panel__title { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-    .mon-panel__title b { color: var(--text-primary); font-weight: 500; }
-    .mon-panel__title span { color: var(--text-teritiary); }
-    .mon-panel__list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+    /* Drill-down: the system's own right panel, headed the way the Skills
+       and Model Hub panels are — a bare close glyph on its own row (not a
+       filled icon button), then a logo tile with the title, a description,
+       and sections under a hairline with uppercase labels. */
+    .mon-panel__head {
+      flex: none; display: flex; flex-direction: column; gap: 10px;
+      padding: 0 16px 20px;
+      border-bottom: 1px solid var(--strokes-line-1);
+    }
+    .mon-panel__toprow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .mon-panel__close {
+      width: 16px; height: 16px; padding: 0; flex: none;
+      border: 0; background: none; cursor: pointer;
+      color: var(--text-teritiary);
+      transition: color .15s ease;
+    }
+    .mon-panel__close:hover { color: var(--text-primary); }
+    .mon-panel__title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .mon-panel__title-row b { color: var(--text-primary); font-weight: 500; }
+    .mon-panel__desc { margin: 0; color: var(--text-teritiary); }
+    .mon-panel__list { display: flex; flex-direction: column; gap: 8px; }
     .mon-panel__item {
       display: flex; flex-direction: column; gap: 6px;
       padding: 12px; border-radius: var(--radius-md);
@@ -2858,16 +2876,24 @@ body.cq { margin: 0; }
 <!-- ══ Reuse drill-down — the system's right panel ══ -->
 <aside class="cq-panel" id="reusePanel" aria-label="Reused artifacts" aria-hidden="true">
   <div class="mon-panel__head">
-    <svg class="cq-ic" width="20" height="20" viewBox="0 0 16 16" id="reuseIcon"><use href="#ic-pp_toolsskills"/></svg>
-    <span class="mon-panel__title">
+    <div class="mon-panel__toprow">
+      <span class="cq-badge" data-tone="blue" id="reuseRate"></span>
+      <button class="mon-panel__close" id="reuseClose" aria-label="Close details">
+        <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-close"/></svg>
+      </button>
+    </div>
+    <div class="mon-panel__title-row">
+      <span class="cq-logo-tile" style="color:var(--text-coloured-blue)">
+        <svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16" id="reuseIcon"><use href="#ic-pp_toolsskills"/></svg>
+      </span>
       <b class="cq-body1-med" id="reuseTitle"></b>
-      <span class="cq-caption-reg" id="reuseSub"></span>
-    </span>
-    <button class="cq-icon-btn" id="reuseClose" title="Close" aria-label="Close panel">
-      <svg class="cq-ic" width="20" height="20" viewBox="0 0 16 16"><use href="#i-close"/></svg>
-    </button>
+    </div>
+    <p class="mon-panel__desc cq-caption-reg" id="reuseSub"></p>
   </div>
-  <div class="mon-panel__list" id="reuseItems"></div>
+  <section class="cq-panel__section">
+    <p class="cq-section-label cq-caption-med" id="reuseListLabel">MOST REUSED</p>
+    <div class="mon-panel__list" id="reuseItems"></div>
+  </section>
 </aside>
 
 
@@ -3370,8 +3396,10 @@ function openReuse(key) {
   if (!r) return;
   reuseOpen = key;
   $('reuseIcon').querySelector('use').setAttribute('href', r.icon);
-  $('reuseTitle').textContent = r.name + ' being reused';
-  $('reuseSub').textContent = `${r.reused} of ${r.total} ${r.unit} are used in more than one place`;
+  $('reuseTitle').textContent = r.name;
+  $('reuseRate').textContent = Math.round(r.reused / r.total * 100) + '% reused';
+  $('reuseSub').textContent = `${r.reused} of ${r.total} ${r.unit} are used in more than one place.`;
+  $('reuseListLabel').textContent = `MOST REUSED ${r.name.toUpperCase()}`;
   $('reuseItems').innerHTML = r.items.map(it => `
     <div class="mon-panel__item">
       <div class="mon-panel__item-top">
