@@ -1,7 +1,7 @@
 <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cogentiq Builder — Context Studio</title>
-  <meta name="description" content="The enterprise AI context layer — bundle glossary, ontology, bindings, prompts and policies into sets an assistant can use." />
+  <title>Cogentiq Builder — Glossary</title>
+  <meta name="description" content="Every term set the workspace holds — by layer, with versions, terms and owners." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -570,7 +570,6 @@
       color: var(--text-button-white);
     }
     .btn-primary:hover { filter: brightness(1.08); }
-
     /* ── Context sidebar (240px) ────────────────────────────────── */
     .sidebar {
       width: var(--sidebar-w); flex: none;
@@ -674,11 +673,35 @@
     }
     .ctx-learn:hover { filter: brightness(1.04); }
 
-    /* ── Studio column ──────────────────────────────────────────── */
-    .studio { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: var(--backgrounds-page-bg-1); }
+    /* Layer dot colours — the three layers' identity hues, matching the
+       diamonds on the create-bundle matrix. */
+    :root {
+      --layer-solution: #9747ff;  --layer-organization: #14ae5c;  --layer-domain: #0d99ff;
+    }
+    :root[data-mode="dark"] {
+      --layer-solution: #bb7fff;  --layer-organization: #85e0a3;  --layer-domain: #44aaf3;
+    }
 
-    /* Filters container (title + description + search) */
-    .filters-bar {
+    /* ══════════════════════════════════════════════════════════════
+       GLOSSARY — page-specific styles
+       (Figma node 2221-121904)
+
+       The list furniture — filter row, dropdowns, view toggle, table —
+       is the Model hub / Skills pattern, ported so this page behaves
+       like every other catalogue in the product. Only the card and the
+       detail panel are specific to a glossary.
+
+       LAYER ORDER — house rule
+       Solution › Organization › Domain, narrowest scope first. The tab
+       row is built from the LAYERS array in the script, so the order is
+       stated once there.
+       ══════════════════════════════════════════════════════════════ */
+
+    /* ── Glossary column ────────────────────────────────────────── */
+    .gl { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: var(--backgrounds-page-bg-1); }
+
+    /* Filters container: title, count, description, search, New */
+    .gl-bar {
       flex: none;
       display: flex; align-items: center; gap: 16px;
       padding: 12px 24px;
@@ -687,195 +710,159 @@
       filter: var(--shadow-bar);
       position: relative; z-index: 2;
     }
-    .filters-bar .title-block { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .filters-bar h1 { margin: 0; color: var(--text-primary); }
-    .filters-bar h1 .count { font-weight: 400; color: var(--text-teritiary); }
-    .filters-bar .desc { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bar-actions { flex: none; display: flex; align-items: center; gap: 12px; }
+    .gl-bar-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .gl-title-row { display: flex; align-items: center; gap: 8px; }
+    .gl-title-row h1 { margin: 0; color: var(--text-primary); }
+    .gl-bar .desc { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gl-bar-actions { flex: none; display: flex; align-items: center; gap: 12px; }
+    .gl-bar-actions .btn-primary { height: 36px; padding: 0 14px; }
 
-    /* Scroll region */
-    .studio-scroll { flex: 1 1 auto; min-height: 0; background: var(--backgrounds-page-bg-4); }
-
-    /* ══════════════════════════════════════════════════════════════
-       HERO — "The Enterprise AI Context Layer"
-       The gradient art is self-contained: it keeps its own literal
-       palette in both themes, exactly like the Figma frame.
-       ══════════════════════════════════════════════════════════════ */
-    .hero-band { padding: 8px; }
-    .hero {
-      position: relative; overflow: hidden;
-      border-radius: 12px;
-      padding: 32px 64px 24px 52px;
-      display: flex; align-items: center; gap: 32px;
-      background:
-        radial-gradient(90% 160% at 8% 115%, rgba(255, 255, 255, .38) 0%, rgba(255, 255, 255, 0) 55%),
-        radial-gradient(70% 130% at 96% -20%, rgba(216, 196, 255, .55) 0%, rgba(216, 196, 255, 0) 60%),
-        linear-gradient(99deg, #3d6be4 0%, #5f7cee 32%, #8a8ef3 58%, #ab9ef6 78%, #c2b3f8 100%);
-    }
-    .hero::before {
-      /* pixel-grid texture, as in the frame's Pixels Mask */
-      content: ""; position: absolute; inset: 0; pointer-events: none;
-      background-image: radial-gradient(rgba(255, 255, 255, .34) 1px, transparent 1.4px);
-      background-size: 18px 18px;
-      -webkit-mask-image: radial-gradient(120% 130% at 12% 120%, #000 0%, transparent 62%);
-              mask-image: radial-gradient(120% 130% at 12% 120%, #000 0%, transparent 62%);
-    }
-    /* A second copy of the same grid, brighter, revealed only in a soft
-       pool around the pointer. Same cell size and phase as the layer
-       above, so the dots light up in place rather than a new grid fading
-       in over the old one. The pool follows the cursor through two
-       custom properties; opacity carries the fade in and out, so nothing
-       animates while the pointer is still. */
-    .hero__glow {
-      position: absolute; inset: 0; pointer-events: none;
-      background-image: radial-gradient(rgba(255, 255, 255, .95) 1px, transparent 1.5px);
-      background-size: 18px 18px;
-      opacity: 0;
-      transition: opacity .45s ease;
-      -webkit-mask-image: radial-gradient(circle 150px at var(--mx, -999px) var(--my, -999px), #000 0%, rgba(0,0,0,.45) 45%, transparent 78%);
-              mask-image: radial-gradient(circle 150px at var(--mx, -999px) var(--my, -999px), #000 0%, rgba(0,0,0,.45) 45%, transparent 78%);
-    }
-    .hero:hover .hero__glow { opacity: .5; }
-    @media (hover: none) { .hero__glow { display: none; } }
-    .hero::after {
-      /* light rays fanning up from the base, as in the frame's Lines */
-      content: ""; position: absolute; inset: -40% -10%; pointer-events: none;
-      background:
-        conic-gradient(from 178deg at 30% 135%,
-          transparent 0deg, rgba(255, 255, 255, .14) 4deg, transparent 8deg,
-          transparent 13deg, rgba(255, 255, 255, .12) 17deg, transparent 21deg,
-          transparent 27deg, rgba(255, 255, 255, .12) 31deg, transparent 35deg,
-          transparent 41deg, rgba(255, 255, 255, .10) 45deg, transparent 49deg,
-          transparent 100deg);
-      mix-blend-mode: screen;
-    }
-    .hero-copy { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; color: #fff; }
-    .hero-copy h2 {
-      margin: 0; max-width: 430px;
-      font: 500 32px/1.1 var(--font-geist); letter-spacing: -1.28px;
-      font-feature-settings: "calt" 0, "liga" 0;
-      text-wrap: balance;
-    }
-    .hero-copy p { margin: 0; max-width: 480px; font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
-
-    .hero-create { position: relative; flex: none; width: 462px; display: flex; flex-direction: column; gap: 20px; align-items: center; }
-    .cta-card {
-      width: 399px; text-decoration: none;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 12px 16px; border-radius: 16px;
-      background: #ffffff;
-      border: 1px solid var(--purple-450);
-      box-shadow: 0 1px 2px rgba(18, 18, 18, .12);
-      text-align: left;
-      transition: transform .15s ease, box-shadow .15s ease;
-    }
-    .cta-card:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(18, 18, 18, .18); }
-    .cta-card .lead { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .cta-tile {
-      width: 48px; height: 48px; flex: none; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      background-image: linear-gradient(73.6deg, var(--purple-400) 5.9%, var(--blue-500) 53%, var(--blue-600) 100%);
-    }
-    .cta-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .cta-copy .ttl { font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; color: #121212; }
-    .cta-copy .sub { font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px; color: #616161; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cta-card .go { color: #121212; transition: transform .15s ease; }
-    .cta-card:hover .go { transform: translateX(2px); }
-
-    .or-divider { width: 355px; display: flex; align-items: center; gap: 16px; }
-    .or-divider .line { flex: 1 1 auto; height: 1px; }
-    .or-divider .line.l { background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .7)); }
-    .or-divider .line.r { background: linear-gradient(90deg, rgba(255, 255, 255, .7), rgba(255, 255, 255, 0)); }
-    .or-divider .word { font: 500 10px/14px var(--font-geist); letter-spacing: -0.2px; color: #fff; }
-
-    .quick-grid { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 1px; row-gap: 8px; }
-    .quick { width: 76px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
-    .quick .tile {
-      padding: 12px; border-radius: 12px;
-      color: var(--quick-ink);
-      background: #ffffff;
-      border: 1px solid #f5f5f5;
-      box-shadow: 0 1px 1px rgba(18, 18, 18, .08);
-      transition: transform .15s ease, box-shadow .15s ease;
-    }
-    .quick:hover .tile { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(18, 18, 18, .16); }
-    /* The hues the exported tile icons carried, kept as-is now that the
-       glyphs come from the platform panel's set. */
-    .quick[data-kind="glossary"] .tile { --quick-ink: #0d99ff; }
-    .quick[data-kind="ontology"] .tile { --quick-ink: #9747ff; }
-    .quick[data-kind="data"]     .tile { --quick-ink: #00a2c2; }
-    .quick[data-kind="tools"]    .tile { --quick-ink: #e91e63; }
-    .quick[data-kind="prompts"]  .tile { --quick-ink: #5860ed; }
-    .quick[data-kind="rules"]    .tile { --quick-ink: #689f38; }
-    /* The hero keeps its gradient in both themes, so its captions are
-       always on the dark end of it — white reads in light and dark alike. */
-    .quick .cap {
-      font: 500 12px/16px var(--font-geist); letter-spacing: -0.24px;
-      color: #ffffff; text-shadow: 0 1px 2px rgba(18, 18, 18, .22);
-      max-width: 76px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    /* ── Scroll region ─────────────────────────────────────────────
+       The layer tabs scroll with the list rather than pinning: they are
+       a filter on the content, not chrome. */
+    .gl-scroll {
+      flex: 1 1 auto; min-height: 0;
+      padding: 16px 24px 24px;
+      background: var(--backgrounds-page-bg-4);
     }
 
-    /* ══════════════════════════════════════════════════════════════
-       CONTEXT BUNDLES
-       ══════════════════════════════════════════════════════════════ */
-    .bundles { padding: 24px 0; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 -1px 1px rgba(18, 18, 18, .06); }
-    .bundles-head { padding: 0 32px; display: flex; flex-direction: column; gap: 4px; }
-    .bundles-head h3 { margin: 0; color: var(--text-primary); }
-    .bundles-head p { margin: 0; font: 400 14px/1.2 var(--font-geist); letter-spacing: -0.14px; color: var(--text-secondary); }
-    .bundle-grid {
-      padding: 0 32px;
-      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+    /* ── Layer tabs ─────────────────────────────────────────────── */
+    .gl-tabs {
+      display: flex; align-items: center; gap: 4px;
+      border-bottom: 1px solid var(--strokes-line-1);
+      margin-bottom: 16px;
     }
-    .bundle-card {
-      min-height: 138px;
+    .gl-tab {
+      position: relative;
+      height: 36px; padding: 0 12px;
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      transition: color .15s ease;
+    }
+    .gl-tab::after {
+      content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
+      border-radius: 2px 2px 0 0;
+      background: transparent;
+      transition: background .15s ease;
+    }
+    .gl-tab:hover { color: var(--text-primary); }
+    .gl-tab.is-active { color: var(--text-primary); font-weight: 500; }
+    .gl-tab.is-active::after { background: var(--strokes-card-selected); }
+    /* The dot carries the layer's colour, so the tab needs no fill. */
+    .gl-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; }
+    .gl-dot[data-layer="solution"]     { background: var(--layer-solution); }
+    .gl-dot[data-layer="organization"] { background: var(--layer-organization); }
+    .gl-dot[data-layer="domain"]       { background: var(--layer-domain); }
+    .gl-tab-count { color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
+
+    /* ── Cards ──────────────────────────────────────────────────────
+       Two-up at the width the frame is drawn at, dropping to one when
+       the panel and the sidebar leave no room for two. */
+    .gl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 12px;
+    }
+    .gl-card {
       display: flex; flex-direction: column; gap: 8px;
-      padding: 12px 4px 4px;
-      border-radius: 12px;
+      padding: 12px 14px;
       background: var(--backgrounds-card-bg-5);
       border: 1px solid var(--strokes-line-3);
+      border-radius: 12px;
       box-shadow: var(--shadow-card);
       text-align: left;
-      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      transition: border-color .15s ease, box-shadow .15s ease;
     }
-    .bundle-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card-hover); border-color: var(--strokes-line-1); }
-    .bc-head { display: flex; align-items: center; gap: 8px; padding: 0 6px; }
-    .bc-head .name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .bc-body {
-      flex: 1 1 auto; min-height: 0;
-      display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
-      padding: 12px; border-radius: 8px;
-      background: var(--backgrounds-card-bg-6);
+    /* Design-system card hover: the border darkens. No lift. */
+    .gl-card:hover { border-color: var(--strokes-line-1); }
+    .gl-card.is-selected {
+      border-color: var(--strokes-card-selected);
+      box-shadow: 0 0 0 1px var(--strokes-card-selected), var(--shadow-card);
     }
-    .bc-body .desc { margin: 0; color: var(--text-teritiary); }
-    .bc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    /* Same card tag the Model hub cards use: Page/bg-1 on Card/Default,
-       r12, mono 11px in tertiary. */
-    .bc-chip {
-      height: 16px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0 8px; border-radius: 12px; line-height: 1;
-      background: var(--backgrounds-page-bg-1);
-      border: 1px solid var(--strokes-card-default);
-      font: 400 11px/normal var(--font-geist-mono); letter-spacing: -0.11px;
-      color: var(--text-teritiary);
+    .gl-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .gl-card .terms { flex: none; color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
+    .gl-card .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gl-card .desc {
+      margin: 0; color: var(--text-teritiary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .gl-card .desc, .gl-card .nm { min-width: 0; }
+    .gl-card:hover .desc { color: var(--text-secondary); }
+
+    /* Layer badge — tonal ground, coloured stroke and text, with the dot */
+    .gl-badge {
+      flex: none; height: 20px;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 0 8px; border-radius: 100px;
+      border: 1px solid transparent;
       white-space: nowrap;
     }
-    .bc-avatar { position: relative; width: 16px; height: 16px; flex: none; }
-    .bc-avatar span {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      color: #fff; font: 400 10px/14px var(--font-geist); letter-spacing: -0.2px;
+    .gl-badge .gl-dot { width: 6px; height: 6px; background: currentColor; }
+    .gl-badge[data-layer="solution"] {
+      background: var(--backgrounds-badge-purple);
+      border-color: var(--strokes-colour-purple);
+      color: var(--text-coloured-purple);
     }
-    .bundles-empty { padding: 8px 32px 0; color: var(--text-teritiary); display: none; }
-    .bundles-empty.is-visible { display: block; }
+    .gl-badge[data-layer="organization"] {
+      background: var(--backgrounds-badge-green);
+      border-color: var(--strokes-colour-green);
+      color: var(--text-coloured-green);
+    }
+    .gl-badge[data-layer="domain"] {
+      background: var(--backgrounds-badge-blue);
+      border-color: var(--strokes-colour-blue);
+      color: var(--text-coloured-blue);
+    }
 
+    /* Author — a tinted initial, keyed off the name so it is stable */
+    .gl-who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .gl-who .av {
+      width: 20px; height: 20px; flex: none; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font: 500 10px/1 var(--font-geist);
+    }
+    .gl-who .nm2 { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    /* ══════════════════════════════════════════════════════════════
-       BUNDLE DETAIL PANEL  (420px overlay on the right edge)
-       Same component as the Model hub and Skills panels: a fixed
-       overlay that slides in, a bordered head with the title and
-       actions, then token-ruled sections.
-       ══════════════════════════════════════════════════════════════ */
+    .gl-empty { grid-column: 1 / -1; padding: 48px 0; text-align: center; color: var(--text-teritiary); }
+
+    /* ── Table view ─────────────────────────────────────────────────
+       Same component as the Model hub table: a bordered, rounded block
+       with a grey head and rows that select in place.
+       ═══════════════════════════════════════════════════════════════ */
+    .gl-table {
+      --t-cols: minmax(320px, 2fr) 150px 110px minmax(160px, 1fr) 150px;
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .gl-thead, .gl-trow {
+      display: grid; grid-template-columns: var(--t-cols); align-items: center;
+    }
+    .gl-thead { height: 32px; background: var(--backgrounds-page-bg-3); }
+    .gl-thead span { padding: 8px 12px; color: var(--text-secondary); }
+    .gl-trow {
+      width: 100%; height: 64px;
+      background: var(--backgrounds-table-default);
+      border-top: 1px solid var(--strokes-line-3);
+      text-align: left;
+      transition: background .15s ease;
+    }
+    .gl-trow:hover { background: var(--backgrounds-page-bg-3); }
+    .gl-trow.is-selected {
+      background: var(--backgrounds-table-select);
+      box-shadow: inset 3px 0 0 var(--strokes-card-selected);
+    }
+    .gl-tcell { min-width: 0; padding: 12px; display: flex; align-items: center; }
+    .gl-tname { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .gl-tname .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gl-tname .desc { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .gl-tcell.num { justify-content: flex-end; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .gl-tcell.date { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+    /* ══ DETAIL PANEL ═══════════════════════════════════════════════
+       The Model hub / Skills panel: a 420px overlay on the right edge.
+       ═══════════════════════════════════════════════════════════════ */
     .panel {
       position: fixed; top: 0; right: 0; bottom: 0; z-index: 60;
       width: var(--panel-w); max-width: 100vw;
@@ -892,141 +879,200 @@
 
     .panel-head {
       width: 100%; flex: none;
-      display: flex; flex-direction: column; gap: 16px;
+      display: flex; flex-direction: column; gap: 14px;
       padding: 8px 16px 20px;
       border-bottom: 1px solid var(--strokes-line-1);
     }
-    .panel-close { width: 16px; height: 16px; color: var(--text-teritiary); flex: none; }
+    /* The layer badge and the close control share the top line, so the
+       panel opens with content rather than an empty row. */
+    .panel-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .panel-close { width: 16px; height: 16px; flex: none; color: var(--text-teritiary); margin-top: 2px; }
     .panel-close:hover { color: var(--text-primary); }
     .panel-title-block { display: flex; flex-direction: column; gap: 6px; }
-    /* The close control shares the title's line — a row of its own only
-       bought empty space above the name. It stays top-aligned so it holds
-       its place when the title wraps to two lines. */
-    .panel-title-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
-    .panel-title-row .panel-title { flex: 1 1 auto; }
-    .panel-title-row > .ic { margin-top: 2px; }
-    .panel-title-row .panel-close { margin-top: 4px; }
-    .panel-title { color: var(--text-primary); min-width: 0; }
-    .panel-desc { color: var(--text-teritiary); margin: 0; }
-    .panel-actions { display: flex; align-items: center; gap: 12px; }
-    .panel-actions .btn-primary { height: 32px; padding: 6px 12px; flex: 1 1 auto; }
-    .panel-actions .btn-tonal {
-      height: 32px; padding: 6px 12px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center; gap: 4px;
-      background: var(--backgrounds-button-tonal-1);
-      color: var(--text-button-tonal-1);
-    }
-    .panel-actions .btn-tonal:hover { filter: brightness(1.04); }
+    .panel-title { margin: 0; color: var(--text-primary); }
+    .panel-desc { margin: 0; color: var(--text-teritiary); }
+    .panel-head .btn-primary { width: 100%; height: 36px; }
 
-    /* Sections scroll as one column below the fixed head. */
     .panel-body { width: 100%; flex: 1 1 auto; min-height: 0; }
     .panel-section {
       width: 100%;
-      display: flex; flex-direction: column; gap: 8px;
+      display: flex; flex-direction: column; gap: 10px;
       padding: 20px 16px;
-      border-bottom: 1px solid var(--strokes-line-1);
     }
-    .panel-section:last-child { border-bottom: 0; }
-    .section-header { color: var(--text-teritiary); margin: 0; }
-    .rows { display: flex; flex-direction: column; }
-    .row {
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--strokes-line-3);
-    }
-    .row:last-child { border-bottom: 0; }
-    .row .k { color: var(--text-teritiary); }
-    .row .v { color: var(--text-secondary); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .row .v.who { display: flex; align-items: center; gap: 6px; }
-    .who-avatar { position: relative; width: 20px; height: 20px; flex: none; }
-    .who-avatar span {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      color: #fff; font: 400 10px/14px var(--font-geist); letter-spacing: -0.2px;
-    }
+    .panel-section h3 { margin: 0; color: var(--text-primary); }
 
-    /* A layer is a group of artifacts, so the layer badge heads the group
-       rather than repeating on every row. */
-    .layer-group { display: flex; flex-direction: column; gap: 6px; }
-    .layer-group + .layer-group { margin-top: 16px; }
-    .layer-head { display: flex; align-items: center; gap: 8px; }
-    .pl-badge {
-      height: 20px; flex: none;
-      display: flex; align-items: center; gap: 4px;
-      padding: 0 8px; border-radius: 6px;
-      border: 1px solid transparent;
-      white-space: nowrap;
-    }
-    .pl-badge::before { content: ""; width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: currentColor; }
-    .pl-badge[data-layer="domain"]       { background: var(--backgrounds-badge-blue);   border-color: var(--strokes-colour-blue);   color: var(--text-coloured-blue); }
-    .pl-badge[data-layer="organization"] { background: var(--backgrounds-badge-green);  border-color: var(--strokes-colour-green);  color: var(--text-coloured-green); }
-    .pl-badge[data-layer="solution"]     { background: var(--backgrounds-badge-purple); border-color: var(--strokes-colour-purple); color: var(--text-coloured-purple); }
-
-    /* Its own token rather than card-bg-6: in dark that value equals the
-       panel's own ground, so the rows dissolved into it. This one steps
-       away from the panel in both themes — down in light, up in dark —
-       and the border is Line-1 so the edge survives either way. */
-    .art-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px; border-radius: 8px;
+    /* A version is a card: what it is on the first line, what it holds
+       on the second. */
+    .gl-vers { display: flex; flex-direction: column; gap: 8px; }
+    .gl-ver {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 10px 12px; border-radius: 10px;
       background: var(--art-row-bg);
       border: 1px solid var(--strokes-line-1);
     }
-    .art-row + .art-row { margin-top: 6px; }
-    .art-ic { flex: none; }
-    .art-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-    .art-text .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .art-text .ty { color: var(--text-teritiary); }
-    .ver-pill {
+    .gl-ver-top { display: flex; align-items: center; gap: 8px; }
+    .gl-ver-top .v { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+    .gl-ver-top .spacer { flex: 1 1 auto; }
+    .gl-ver-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .gl-ver-meta span { color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
+    .gl-latest {
       flex: none; height: 20px;
-      display: flex; align-items: center; padding: 0 6px; border-radius: 6px;
+      display: flex; align-items: center; padding: 0 8px; border-radius: 100px;
+      background: var(--backgrounds-badge-blue);
+      border: 1px solid var(--strokes-colour-blue);
+      color: var(--text-coloured-blue);
+    }
+    /* Status is semantic, so it keeps its own colours rather than the
+       accent: published is a good state, draft is neutral. */
+    .gl-status {
+      flex: none; height: 20px;
+      display: flex; align-items: center; padding: 0 8px; border-radius: 6px;
+      white-space: nowrap;
+    }
+    .gl-status[data-s="published"] {
+      background: var(--backgrounds-badge-green);
+      color: var(--text-coloured-green);
+    }
+    .gl-status[data-s="draft"] {
       background: var(--backgrounds-page-bg-4);
       color: var(--text-secondary);
-      font-variant-numeric: tabular-nums;
     }
-    .panel-empty { color: var(--text-teritiary); }
 
-    /* Transparent: the panel is a detail view, not a modal — the page
-       behind it stays legible, the scrim only catches the outside click. */
+    /* Transparent: the panel is a detail view, not a modal — the list
+       behind it stays readable, the scrim only catches outside clicks. */
     .scrim { position: fixed; inset: 0; z-index: 50; background: transparent; display: none; }
     .scrim.is-open { display: block; }
 
-    .bundle-card.is-selected {
-      border-color: var(--strokes-card-selected);
-      box-shadow: 0 0 0 1px var(--strokes-card-selected), var(--shadow-card-hover);
-    }
-
-    @media (max-width: 520px) {
-      .panel { width: 100vw; }
-    }
-
     /* ── Responsive ─────────────────────────────────────────────── */
-    @media (max-width: 1280px) {
-      .hero { flex-direction: column; align-items: stretch; padding: 28px 32px 24px; gap: 24px; }
-      .hero-create { width: 100%; }
-    }
-    @media (max-width: 1200px) {
-      .header-left .sub { display: none; }
-    }
-    @media (max-width: 1120px) {
-      .bundle-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .filters-bar .desc { white-space: normal; }
+    @media (max-width: 1240px) {
+      .gl-bar { flex-wrap: wrap; }
+      .gl-bar .desc { white-space: normal; }
     }
     @media (max-width: 940px) {
       .sidebar { display: none; }
     }
     @media (max-width: 760px) {
-      /* The rail overlays, so hiding it also releases the shell's gutter. */
       .cq-rail { display: none; }
       .app { padding-left: 0; }
       .main { padding: 8px; }
-      .bundle-grid { grid-template-columns: minmax(0, 1fr); }
-      .cta-card, .or-divider { width: 100%; }
-      .filters-bar { flex-wrap: wrap; }
-      .search-field { width: 100%; }
+      .gl-scroll { padding: 12px; }
+      .gl-grid { grid-template-columns: minmax(0, 1fr); }
+      .gl-bar-actions { width: 100%; }
+      .gl-bar-actions .search-field { flex: 1 1 auto; width: auto; }
+      /* The table is wider than a phone; it scrolls in its own box so
+         the page body never does. */
+      .gl-table-wrap { overflow-x: auto; }
     }
+    @media (max-width: 520px) {
+      .panel { width: 100vw; }
+    }
+
+    /* ══════════════════════════════════════════════════════════════
+       LIST FURNITURE — ported from the Model hub / Skills pages so this
+       catalogue behaves like every other one: the three filter
+       dropdowns, their popovers, and the card/table view toggle.
+       ══════════════════════════════════════════════════════════════ */
+    .count-pill {
+      display: flex; align-items: center; gap: 4px;
+      height: 24px; padding: 0 8px; border-radius: 8px;
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-type-default);
+      color: var(--text-teritiary);
+      font-variant-numeric: tabular-nums;
+    }
+    /* Filter row (Tags / Created by / All time + view toggle) */
+        .filter-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; height: 32px; }
+    .filter-left { display: flex; align-items: flex-start; gap: 8px; }
+    .filter-group { position: relative; }
+    .dropdown {
+          height: 32px;
+          display: flex; align-items: center; gap: 4px;
+          padding: 0 8px 0 12px; border-radius: 8px;
+          background: var(--backgrounds-card-bg-5);
+          border: 1px solid var(--strokes-line-3);
+          color: var(--text-secondary);
+          white-space: nowrap;
+        }
+    .dropdown:hover { border-color: var(--strokes-line-1); }
+    .dropdown .chev { color: var(--text-teritiary); }
+    .dropdown.is-open { border-color: var(--strokes-checkbox-focus); }
+    .dropdown .badge {
+          display: none;
+          min-width: 20px; height: 20px; justify-content: center; align-items: center; gap: 4px;
+          padding: 0 4px; border-radius: 8px;
+          background: var(--backgrounds-badge-blue);
+          border: 1px solid var(--strokes-colour-blue);
+          color: var(--text-coloured-blue);
+        }
+    .dropdown.has-count .badge { display: flex; }
+    .seg-view {
+          display: flex; align-items: center; gap: 4px;
+          padding: 4px; border-radius: 10px;
+          background: var(--backgrounds-page-bg-2);
+        }
+    .seg-view button {
+          display: flex; align-items: center; justify-content: center;
+          padding: 4px; border-radius: 8px;
+          color: var(--text-teritiary);
+        }
+    .seg-view button.is-active { background: var(--backgrounds-icon-blue-2); color: var(--text-coloured-blue); }
+    /* Tags popover */
+    .tag-pop {
+          position: absolute; top: 36px; left: 0; z-index: 40; width: 277px;
+          max-width: calc(100vw - 32px);
+          display: none; flex-direction: column;
+          padding: 4px 0 8px;
+          background: var(--backgrounds-card-bg-3);
+          border: 1px solid var(--strokes-card-default);
+          border-radius: 12px;
+          box-shadow: var(--shadow-pop);
+        }
+    .tag-pop.is-open { display: flex; }
+    .tag-pop-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+    .tag-pop-head .search-field { width: 180px; height: 32px; }
+    .tag-pop-head .btn-tonal { height: 32px; }
+    .btn-tonal {
+          display: flex; align-items: center; justify-content: center; gap: 4px;
+          padding: 6px 8px; border-radius: 8px;
+          background: var(--backgrounds-button-tonal-1);
+          color: var(--text-button-tonal-1);
+          transition: background .15s ease;
+        }
+    .btn-tonal:hover { background: var(--backgrounds-button-hover-tonal-1); }
+    .tag-pop-list { display: flex; flex-direction: column; padding: 0 8px; max-height: 288px; overflow-y: auto; }
+    .tag-opt {
+          width: 100%; height: 36px;
+          display: flex; align-items: center; gap: 8px;
+          padding: 0 16px; border-radius: 8px;
+          color: var(--text-secondary);
+          text-align: left;
+        }
+    .tag-opt:hover { background: var(--backgrounds-card-bg-4); }
+    .tag-opt .lbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tag-opt .tick { display: none; flex: none; color: var(--text-coloured-blue); }
+    .tag-opt.is-picked { color: var(--text-primary); }
+    .tag-opt.is-picked .tick { display: block; }
+    .pop-empty { padding: 10px 16px 14px; color: var(--text-teritiary); }
+    .tag-opt .box {
+          width: 16px; height: 16px; flex: none; border-radius: 4px;
+          background: var(--backgrounds-checkbox-default);
+          border: 1px solid var(--strokes-checkbox-default);
+          display: flex; align-items: center; justify-content: center;
+        }
+    .tag-opt .box svg { display: none; width: 12px; height: 12px; color: #fff; }
+    .tag-opt.is-checked .box { background: var(--backgrounds-checkbox-focus); border-color: var(--backgrounds-checkbox-focus); }
+    .tag-opt.is-checked .box svg { display: block; }
+    .tag-opt.is-checked { color: var(--text-primary); }
   </style>
 
 <svg class="sprite" aria-hidden="true">
+<symbol id="ic-gridview" viewBox="0 0 16 16" fill="none"><g id="Media / Stop"><path id="gridview__Vector" d="M2 5.28585V10.7144C2 11.5145 2 11.914 2.18685 12.2196C2.3512 12.4884 2.61326 12.7075 2.93583 12.8444C3.30217 13 3.78199 13 4.74021 13H11.2602C12.2184 13 12.6976 13 13.0639 12.8444C13.3865 12.7075 13.649 12.4884 13.8133 12.2196C14 11.9143 14 11.515 14 10.7165V5.28351C14 4.485 14 4.08514 13.8133 3.77985C13.649 3.51105 13.3865 3.29267 13.0639 3.1557C12.6972 3 12.2174 3 11.2573 3H4.74302C3.78293 3 3.30253 3 2.93583 3.1557C2.61326 3.29267 2.3512 3.51105 2.18685 3.77985C2 4.08544 2 4.48578 2 5.28585Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path id="gridview__Vector_2" d="M5 6C6.75736 6 7.74264 6 9.5 6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path id="gridview__Vector_3" d="M5 8C5.97631 8 6.52369 8 7.5 8" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></g></symbol>
+<symbol id="ic-listview" viewBox="0 0 16 16" fill="none"><g id="Edit / List_Unordered"><path id="listview__Vector" d="M6 11.3333H12.6667M6 8H12.6667M6 4.66667H12.6667M3.33464 11.3333V11.3347L3.33333 11.3346V11.3333H3.33464ZM3.33464 8V8.00133L3.33333 8.0013V8H3.33464ZM3.33464 4.66667V4.668L3.33333 4.66797V4.66667H3.33464Z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></g></symbol>
+<symbol id="ic-arrowdown" viewBox="0 0 20 20" fill="none"><g id="Arrow down" clip-path="url(#arrowdown__clip0_0_34)"><g id="arrowdown__Vector"></g><path id="arrowdown__Vector_2" d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="arrowdown__clip0_0_34"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
+<symbol id="ic-plus" viewBox="0 0 20 20" fill="none"><g id="plus__Plus" clip-path="url(#plus__clip0_0_31)"><g id="plus__Vector"></g><path id="plus__Vector_2" d="M10 4.16667V15.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="plus__Vector_3" d="M4.16667 10H15.8333" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="plus__clip0_0_31"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
+<symbol id="ic-tick" viewBox="0 0 12 12" fill="none"><g id="tick__Tick"><path id="tick__Vector" d="M2.5 6.5L4.5 8.5L9.5 3.5" stroke="white" stroke-linecap="round" stroke-linejoin="round"/></g></symbol>
+<symbol id="ic-share" viewBox="0 0 20 20" fill="none"><g id="share__Share" clip-path="url(#share__clip0_0_88)"><g id="share__Vector"></g><path id="share__Vector_2" d="M6.66667 7.5H5.83333C5.39131 7.5 4.96738 7.6756 4.65482 7.98816C4.34226 8.30072 4.16667 8.72464 4.16667 9.16667V15.8333C4.16667 16.2754 4.34226 16.6993 4.65482 17.0118C4.96738 17.3244 5.39131 17.5 5.83333 17.5H14.1667C14.6087 17.5 15.0326 17.3244 15.3452 17.0118C15.6577 16.6993 15.8333 16.2754 15.8333 15.8333V9.16667C15.8333 8.72464 15.6577 8.30072 15.3452 7.98816C15.0326 7.6756 14.6087 7.5 14.1667 7.5H13.3333" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="share__Vector_3" d="M10 11.6667V2.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="share__Vector_4" d="M7.5 5L10 2.5L12.5 5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="share__clip0_0_88"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
+<symbol id="ic-optionsv" viewBox="0 0 20 20" fill="none"><g id="Options- vertical" clip-path="url(#optionsv__clip0_0_112)"><g id="optionsv__Vector"></g><path id="optionsv__Vector_2" d="M9.16667 10C9.16667 10.221 9.25446 10.433 9.41074 10.5893C9.56703 10.7455 9.77899 10.8333 10 10.8333C10.221 10.8333 10.433 10.7455 10.5893 10.5893C10.7455 10.433 10.8333 10.221 10.8333 10C10.8333 9.77899 10.7455 9.56703 10.5893 9.41074C10.433 9.25446 10.221 9.16667 10 9.16667C9.77899 9.16667 9.56703 9.25446 9.41074 9.41074C9.25446 9.56703 9.16667 9.77899 9.16667 10Z" stroke="currentColor" stroke-width="1.875" stroke-linecap="round" stroke-linejoin="round"/><path id="optionsv__Vector_3" d="M9.16667 15.8333C9.16667 16.0543 9.25446 16.2663 9.41074 16.4226C9.56703 16.5789 9.77899 16.6667 10 16.6667C10.221 16.6667 10.433 16.5789 10.5893 16.4226C10.7455 16.2663 10.8333 16.0543 10.8333 15.8333C10.8333 15.6123 10.7455 15.4004 10.5893 15.2441C10.433 15.0878 10.221 15 10 15C9.77899 15 9.56703 15.0878 9.41074 15.2441C9.25446 15.4004 9.16667 15.6123 9.16667 15.8333Z" stroke="currentColor" stroke-width="1.875" stroke-linecap="round" stroke-linejoin="round"/><path id="optionsv__Vector_4" d="M9.16667 4.16667C9.16667 4.38768 9.25446 4.59964 9.41074 4.75592C9.56703 4.9122 9.77899 5 10 5C10.221 5 10.433 4.9122 10.5893 4.75592C10.7455 4.59964 10.8333 4.38768 10.8333 4.16667C10.8333 3.94565 10.7455 3.73369 10.5893 3.57741C10.433 3.42113 10.221 3.33333 10 3.33333C9.77899 3.33333 9.56703 3.42113 9.41074 3.57741C9.25446 3.73369 9.16667 3.94565 9.16667 4.16667Z" stroke="currentColor" stroke-width="1.875" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="optionsv__clip0_0_112"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-editpen" viewBox="0 0 20 20" fill="none"><g id="editpen__Edit" clip-path="url(#editpen__clip0_0_103)"><g id="editpen__Vector"></g><path id="editpen__Vector_2" d="M3.33333 16.6667H6.66667L15.4167 7.91667C15.6355 7.6978 15.8092 7.43796 15.9276 7.15199C16.0461 6.86603 16.107 6.55953 16.107 6.25C16.107 5.94047 16.0461 5.63397 15.9276 5.34801C15.8092 5.06204 15.6355 4.8022 15.4167 4.58333C15.1978 4.36446 14.938 4.19085 14.652 4.0724C14.366 3.95394 14.0595 3.89298 13.75 3.89298C13.4405 3.89298 13.134 3.95394 12.848 4.0724C12.562 4.19085 12.3022 4.36446 12.0833 4.58333L3.33333 13.3333V16.6667Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="editpen__Vector_3" d="M11.25 5.41667L14.5833 8.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="editpen__clip0_0_103"><rect width="20" height="20" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-close" viewBox="0 0 16 16" fill="none"><g id="close__Close" clip-path="url(#close__clip0_0_121)"><g id="close__Vector"></g><path id="close__Vector_2" d="M12 4L4 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path id="close__Vector_3" d="M4 4L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="close__clip0_0_121"><rect width="16" height="16" fill="white"/></clipPath></defs></symbol>
 <symbol id="ic-pp_chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -1201,7 +1247,7 @@
           <span class="sub t-caption1-reg">The semantic layer your assistants read from — glossary, ontology, bindings, prompts and policies.</span>
         </div>
         <div class="header-actions">
-          <button class="icon-btn-32" title="Notifications">
+          <button class="icon-btn-32" title="Notifications" aria-label="Notifications">
             <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-bell"/></svg>
           </button>
           <button class="ws-dropdown">
@@ -1223,14 +1269,14 @@
         <!-- Context sidebar -->
         <nav class="sidebar cq-scroll-y" aria-label="Context artifacts">
           <div class="side-options">
-            <button class="side-item t-body2-med is-active" aria-current="page">
+            <a class="side-item t-body2-reg" href="context-studio.html" data-published-url="https://claude.ai/code/artifact/dcfc8db5-90fc-4cdd-9d9b-85b34bbacb7a">
               <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-studio"/></svg>
               <span class="lbl">Studio</span>
-            </button>
-            <a class="side-item t-body2-reg" href="glossary.html" data-published-url="GLOSSARY_URL">
+            </a>
+            <button class="side-item t-body2-med is-active" aria-current="page">
               <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-glossary"/></svg>
               <span class="lbl">Glossary</span>
-            </a>
+            </button>
             <button class="side-item t-body2-reg">
               <svg class="ic sic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-ontology"/></svg>
               <span class="lbl">Ontology</span>
@@ -1298,86 +1344,100 @@
           </aside>
         </nav>
 
-        <!-- Studio -->
-        <section class="studio">
+        <!-- Glossary -->
+        <section class="gl">
 
-          <div class="filters-bar">
-            <div class="title-block">
-              <h1 class="t-subhead1-med">Studio <span class="count">(12)</span></h1>
-              <span class="desc t-body2-reg">Create context bundles your assistants can use.</span>
+          <div class="gl-bar">
+            <div class="gl-bar-text">
+              <div class="gl-title-row">
+                <h1 class="t-subhead1-med">Glossary</h1>
+                <span class="count-pill t-caption1-reg" id="glCount">0</span>
+              </div>
+              <span class="desc t-body2-reg">Business dictionary that explains key terms and ideas for shared understanding across the organization.</span>
             </div>
-            <div class="bar-actions">
+            <div class="gl-bar-actions">
               <label class="search-field">
                 <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
-                <input id="bundleSearch" class="t-body2-reg" type="search" placeholder="Search bundles" aria-label="Search bundles" />
+                <input id="glSearch" class="t-body2-reg" type="search" placeholder="Search glossaries" aria-label="Search glossaries" />
               </label>
+              <button class="btn-primary t-body2-med" id="newGlossary">
+                <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>
+                New glossary
+              </button>
             </div>
           </div>
 
-          <div class="studio-scroll cq-scroll-y">
+          <div class="gl-scroll cq-scroll-y">
 
-            <!-- Hero -->
-            <div class="hero-band">
-              <div class="hero" id="hero">
-                <span class="hero__glow" id="heroGlow" aria-hidden="true"></span>
-                <div class="hero-copy">
-                  <h2>The Enterprise AI Context Layer</h2>
-                </div>
-                <div class="hero-create">
-                  <a class="cta-card" href="create-bundle.html" data-published-url="https://claude.ai/code/artifact/14c5a64c-6be6-4124-bf56-d9b091212a9d">
-                    <span class="lead">
-                      <span class="cta-tile"><svg class="ic" width="24" height="24" viewBox="0 0 24 24"><use href="#cx-stack3d"/></svg></span>
-                      <span class="cta-copy">
-                        <span class="ttl">Create Context bundle</span>
-                        <span class="sub">Group related artifacts into one reusable set.</span>
-                      </span>
-                    </span>
-                    <svg class="ic go" width="20" height="20" viewBox="0 0 20 20"><use href="#cx-arrowright"/></svg>
-                  </a>
-                  <div class="or-divider" aria-hidden="true">
-                    <span class="line l"></span>
-                    <span class="word">OR CREATE</span>
-                    <span class="line r"></span>
-                  </div>
-                  <div class="quick-grid">
-                    <button class="quick" data-kind="glossary">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-glossary"/></svg></span>
-                      <span class="cap">Glossary</span>
-                    </button>
-                    <button class="quick" data-kind="ontology">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-ontology"/></svg></span>
-                      <span class="cap">Ontology</span>
-                    </button>
-                    <button class="quick" data-kind="data">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-databind"/></svg></span>
-                      <span class="cap">Data binding</span>
-                    </button>
-                    <button class="quick" data-kind="tools">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-toolbind"/></svg></span>
-                      <span class="cap">Tool binding</span>
-                    </button>
-                    <button class="quick" data-kind="prompts">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-prompts"/></svg></span>
-                      <span class="cap">Prompts</span>
-                    </button>
-                    <button class="quick" data-kind="rules">
-                      <span class="tile"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-rules"/></svg></span>
-                      <span class="cap">Policies</span>
-                    </button>
+            <!-- Layer tabs, built from LAYERS so the house order lives
+                 in one place -->
+            <div class="gl-tabs" id="glTabs" role="tablist" aria-label="Filter by layer"></div>
+
+            <!-- Tags / Created by / Any time, and the view toggle -->
+            <div class="filter-row">
+              <div class="filter-left">
+                <div class="filter-group">
+                  <button class="dropdown t-body2-reg" id="tagsBtn" aria-expanded="false">
+                    <span>Tags</span>
+                    <span class="badge t-caption1-reg" id="tagsCount">0</span>
+                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
+                  </button>
+                  <div class="tag-pop" id="tagsPop">
+                    <div class="tag-pop-head">
+                      <label class="search-field">
+                        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
+                        <input id="tagSearch" class="t-body2-reg" type="search" placeholder="Search tags" aria-label="Search tags" />
+                      </label>
+                    </div>
+                    <div class="tag-pop-list" id="tagsList"></div>
                   </div>
                 </div>
+
+                <div class="filter-group">
+                  <button class="dropdown t-body2-reg" id="whoBtn" aria-expanded="false">
+                    <span id="whoLabel">Created by</span>
+                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
+                  </button>
+                  <div class="tag-pop" id="whoPop">
+                    <div class="tag-pop-list" id="whoList"></div>
+                  </div>
+                </div>
+
+                <div class="filter-group">
+                  <button class="dropdown t-body2-reg" id="dateBtn" aria-expanded="false">
+                    <span id="dateLabel">Any time</span>
+                    <svg class="ic chev" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-arrowdown"/></svg>
+                  </button>
+                  <div class="tag-pop" id="datePop">
+                    <div class="tag-pop-list" id="dateList"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="seg-view">
+                <button class="is-active" id="viewGrid" title="Card view" aria-label="Card view" aria-pressed="true">
+                  <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-gridview"/></svg>
+                </button>
+                <button id="viewTable" title="Table view" aria-label="Table view" aria-pressed="false">
+                  <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-listview"/></svg>
+                </button>
               </div>
             </div>
 
-            <!-- Context bundles -->
-            <section class="bundles" aria-label="Context bundles">
-              <div class="bundles-head">
-                <h3 class="t-subhead2-med">Context bundles</h3>
-                <p>List of context bundles created in this workspace</p>
+            <div class="gl-grid" id="glGrid" style="margin-top:16px"></div>
+
+            <div class="gl-table-wrap" id="glTableWrap" hidden style="margin-top:16px">
+              <div class="gl-table">
+                <div class="gl-thead">
+                  <span class="t-caption1-med">Term set</span>
+                  <span class="t-caption1-med">Layer</span>
+                  <span class="t-caption1-med" style="text-align:right">Terms</span>
+                  <span class="t-caption1-med">Created by</span>
+                  <span class="t-caption1-med">Updated</span>
+                </div>
+                <div id="glTableRows"></div>
               </div>
-              <div class="bundle-grid" id="bundleGrid"></div>
-              <p class="bundles-empty t-body2-reg" id="bundlesEmpty">No bundles match your search.</p>
-            </section>
+            </div>
 
           </div>
         </section>
@@ -1387,39 +1447,33 @@
   </div>
 </div>
 
-
 <div class="scrim" id="scrim"></div>
 
-<!-- ══ Bundle detail panel ══════════════════════════════════════════ -->
-<aside class="panel" id="panel" aria-label="Bundle details" aria-hidden="true">
+<!-- ══ Glossary detail panel ═════════════════════════════════════════ -->
+<aside class="panel" id="panel" aria-label="Glossary details" aria-hidden="true">
   <div class="panel-head">
-    <div class="panel-title-block">
-      <div class="panel-title-row">
-        <svg class="ic" id="panelIcon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><use href="#cx-b-indigo"/></svg>
-        <span class="panel-title t-subhead2-med" id="panelTitle">Customer Support</span>
-        <button class="panel-close" id="panelClose" aria-label="Close details">
-          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
-        </button>
-      </div>
-      <p class="panel-desc t-body2-reg" id="panelDesc"></p>
-    </div>
-    <div class="panel-actions">
-      <button class="btn-primary t-body2-med">
-        <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-editpen"/></svg>
-        Edit bundle
+    <div class="panel-top">
+      <span class="gl-badge t-caption1-med" id="panelBadge" data-layer="domain">
+        <span class="gl-dot"></span><span id="panelLayer">Domain</span>
+      </span>
+      <button class="panel-close" id="panelClose" aria-label="Close details">
+        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-close"/></svg>
       </button>
     </div>
+    <div class="panel-title-block">
+      <h2 class="panel-title t-subhead2-med" id="panelTitle">Risk &amp; Compliance Terms</h2>
+      <p class="panel-desc t-body2-reg" id="panelDesc"></p>
+    </div>
+    <button class="btn-primary t-body2-med" id="panelOpen">
+      <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-share"/></svg>
+      Open in Studio
+    </button>
   </div>
 
   <div class="panel-body cq-scroll-y">
     <section class="panel-section">
-      <p class="section-header t-caption1-med">DETAILS</p>
-      <div class="rows" id="panelMeta"></div>
-    </section>
-
-    <section class="panel-section">
-      <p class="section-header t-caption1-med" id="panelArtHeader">ARTIFACTS</p>
-      <div id="panelArtifacts"></div>
+      <h3 class="t-body1-med">Versions</h3>
+      <div class="gl-vers" id="panelVersions"></div>
     </section>
   </div>
 </aside>
@@ -1429,248 +1483,406 @@
 const $ = (id) => document.getElementById(id);
 const root = document.documentElement;
 
-/* ── Context bundles ────────────────────────────────────────────── */
-/* An artifact is one cell of the bundle's selection matrix: a type, the
-   layer it was picked from, and the pinned version. Types carry the same
-   icons and one-liners the create screen lists them with. */
-const TYPES = {
-  glossary:  { label: 'Glossary',        note: 'Standard terms and definitions',   icon: 'cx-book20'   },
-  ontology:  { label: 'Ontology',        note: 'Relationships and hierarchies',    icon: 'cx-branch20' },
-  data:      { label: 'Data Binding',    note: 'Connections to data sources',      icon: 'cx-db20'     },
-  prompts:   { label: 'Prompts',         note: 'Pre-configured prompt templates',  icon: 'cx-edit20'   },
-  tools:     { label: 'Tool Binding',    note: 'Integrations with external APIs',  icon: 'cx-tool20'   },
-  rules:     { label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-shield20' },
-};
+/* ── Glossary ────────────────────────────────────────────────────────
+   A catalogue of term sets. The list furniture is the Model hub / Skills
+   pattern; clicking an entry opens the detail panel. */
+
 /* House order for the three context layers, narrowest scope first:
-   Solution > Organization > Domain. Everything that lists the layers
-   reads this array, so the hierarchy is stated in one place. */
+   Solution > Organization > Domain. The tab row reads this array, so the
+   hierarchy is stated once. */
 const LAYERS = [
   { key: 'solution',     label: 'Solution'     },
   { key: 'organization', label: 'Organization' },
   { key: 'domain',       label: 'Domain'       },
 ];
 
-const BUNDLES = [
-  { icon: 'cx-b-indigo', size: 24, name: 'Customer Support',          desc: 'This bundle is created for Microsoft business data reference', count: '12 artifacts', book: false, owner: 'S',
-    creator: 'Savio Govindu', created: 'Aug 12, 2026', updated: 'Aug 28, 2026',
-    artifacts: [
-      { layer: 'domain',       type: 'glossary', name: 'Customer Glossary',        version: 'v2.1' },
-      { layer: 'domain',       type: 'ontology', name: 'Support Ontology',         version: 'v1.4' },
-      { layer: 'organization', type: 'data',     name: 'Zendesk Tickets',          version: 'v3.0' },
-      { layer: 'organization', type: 'prompts',  name: 'Tier-1 Reply Templates',   version: 'v1.2' },
-      { layer: 'organization', type: 'tools',    name: 'Zendesk API',              version: 'v2.0' },
-      { layer: 'solution',     type: 'rules',    name: 'Refund Approval Policy',   version: 'v1.1' },
+/* Demo fixtures — replace with your API payload. `versions` are
+   newest-first; the one flagged `latest` gets the badge. */
+const GLOSSARIES = [
+  { name: 'Risk & Compliance Terms', layer: 'domain', terms: 24, by: 'Hemavathi', updated: 'Jul 28, 2026',
+    tags: ['Risk', 'Compliance'],
+    desc: 'Standard enterprise risk, regulatory compliance definitions and controls lexicon. Includes critical audit vocabulary.',
+    versions: [
+      { v: 'v3.0', latest: true, status: 'published', terms: 24, updated: 'Jul 28, 2026' },
+      { v: 'v2.0', status: 'published', terms: 20, updated: 'Mar 15, 2026' },
+      { v: 'v1.0', status: 'draft',     terms: 18, updated: 'Jan 10, 2026' },
     ] },
-  { icon: 'cx-b-green',  size: 23, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S',
-    creator: 'Savio Govindu', created: 'Jul 28, 2026', updated: 'Aug 19, 2026',
-    artifacts: [
-      { layer: 'domain',       type: 'glossary', name: 'Customer Glossary',        version: 'v2.0' },
-      { layer: 'organization', type: 'data',     name: 'CRM Accounts',            version: 'v1.7' },
-      { layer: 'organization', type: 'tools',    name: 'Teams Notifier',          version: 'v1.0' },
-      { layer: 'solution',     type: 'rules',    name: 'Escalation Rules',        version: 'v2.3' },
+  { name: 'Privacy & Security Concepts', layer: 'solution', terms: 20, by: 'Marcus', updated: 'Aug 12, 2026',
+    tags: ['Privacy', 'Security'],
+    desc: 'Core concepts and regulations surrounding data protection and user privacy rights across industries.',
+    versions: [
+      { v: 'v2.1', latest: true, status: 'published', terms: 20, updated: 'Aug 12, 2026' },
+      { v: 'v2.0', status: 'published', terms: 17, updated: 'May 04, 2026' },
     ] },
-  { icon: 'cx-b-lgreen', size: 23, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S',
-    creator: 'Priya Nair', created: 'Jul 28, 2026', updated: 'Aug 14, 2026',
-    artifacts: [
-      { layer: 'domain',       type: 'glossary', name: 'Product Glossary',        version: 'v1.9' },
-      { layer: 'domain',       type: 'ontology', name: 'Product Taxonomy',        version: 'v1.1' },
-      { layer: 'organization', type: 'data',     name: 'Product Inventory',       version: 'v12.0' },
-      { layer: 'solution',     type: 'prompts',  name: 'Returns Playbook',        version: 'v1.0' },
+  { name: 'Operational Risk Processes', layer: 'domain', terms: 18, by: 'Leila', updated: 'Jun 30, 2026',
+    tags: ['Risk', 'Operations'],
+    desc: 'Essential workflows and controls to mitigate operational risks within financial institutions.',
+    versions: [
+      { v: 'v1.4', latest: true, status: 'published', terms: 18, updated: 'Jun 30, 2026' },
+      { v: 'v1.3', status: 'published', terms: 16, updated: 'Feb 18, 2026' },
     ] },
-  { icon: 'cx-b-orange', size: 24, name: 'Marketing Analytics Bundle', desc: 'Comprehensive insights for campaign performance',             count: '12 artifacts', book: true,  owner: 'M',
-    creator: 'Maya Fernandes', created: 'Jun 30, 2026', updated: 'Aug 25, 2026',
-    artifacts: [
-      { layer: 'domain',       type: 'glossary', name: 'Marketing Glossary',      version: 'v3.2' },
-      { layer: 'domain',       type: 'ontology', name: 'Channel Ontology',        version: 'v2.0' },
-      { layer: 'organization', type: 'data',     name: 'Campaign Warehouse',      version: 'v4.1' },
-      { layer: 'organization', type: 'tools',    name: 'GA4 Connector',           version: 'v1.6' },
-      { layer: 'solution',     type: 'prompts',  name: 'Attribution Briefs',      version: 'v1.3' },
-      { layer: 'solution',     type: 'rules',    name: 'Brand Voice Policy',      version: 'v2.2' },
+  { name: 'Regulatory Frameworks', layer: 'organization', terms: 22, by: 'Samuel', updated: 'Aug 05, 2026',
+    tags: ['Compliance'],
+    desc: 'Comprehensive overview of global regulatory standards impacting compliance operations.',
+    versions: [
+      { v: 'v2.2', latest: true, status: 'published', terms: 22, updated: 'Aug 05, 2026' },
+      { v: 'v2.1', status: 'draft', terms: 21, updated: 'Jul 09, 2026' },
     ] },
-  { icon: 'cx-b-purple', size: 24, name: 'Marketing Analytics',       desc: 'Comprehensive insights for campaign performance',              count: '12 artifacts', book: true,  owner: 'M',
-    creator: 'Maya Fernandes', created: 'Jun 18, 2026', updated: 'Aug 21, 2026',
-    artifacts: [
-      { layer: 'domain',       type: 'glossary', name: 'Marketing Glossary',      version: 'v3.1' },
-      { layer: 'organization', type: 'data',     name: 'Ad Spend Ledger',         version: 'v2.8' },
-      { layer: 'organization', type: 'prompts',  name: 'Weekly Digest Prompt',    version: 'v1.5' },
-      { layer: 'solution',     type: 'rules',    name: 'Spend Guardrails',        version: 'v1.0' },
+  { name: 'Data Governance Policies', layer: 'domain', terms: 19, by: 'Anika', updated: 'Jul 14, 2026',
+    tags: ['Governance', 'Data'],
+    desc: 'Guidelines and best practices for managing data integrity, access, and compliance across organizations.',
+    versions: [
+      { v: 'v1.9', latest: true, status: 'published', terms: 19, updated: 'Jul 14, 2026' },
+      { v: 'v1.8', status: 'published', terms: 19, updated: 'Apr 22, 2026' },
     ] },
-  { icon: 'cx-b-blue',   size: 24, name: 'Customer Support Bundle',   desc: 'This bundle is created for Microsoft business data reference', count: '7 artifacts',  book: true,  owner: 'S',
-    creator: 'Savio Govindu', created: 'Aug 02, 2026', updated: 'Aug 29, 2026',
-    artifacts: [
-      { layer: 'domain',       type: 'ontology', name: 'Account Hierarchy',       version: 'v1.2' },
-      { layer: 'organization', type: 'data',     name: 'Entitlements Table',      version: 'v1.9' },
-      { layer: 'organization', type: 'tools',    name: 'Jira Bridge',             version: 'v3.4' },
-      { layer: 'solution',     type: 'rules',    name: 'SLA Policy',              version: 'v2.1' },
+  { name: 'Cybersecurity Measures', layer: 'domain', terms: 15, by: 'Jamal', updated: 'Aug 19, 2026',
+    tags: ['Security'],
+    desc: 'Key technologies and protocols designed to safeguard information systems against threats and intrusion.',
+    versions: [
+      { v: 'v1.2', latest: true, status: 'published', terms: 15, updated: 'Aug 19, 2026' },
+    ] },
+  { name: 'Telemedicine Innovations', layer: 'solution', terms: 12, by: 'Maya', updated: 'Aug 22, 2026',
+    tags: ['Healthcare'],
+    desc: 'Advancements in remote healthcare services enabling patient consultation and monitoring via video.',
+    versions: [
+      { v: 'v1.1', latest: true, status: 'draft', terms: 12, updated: 'Aug 22, 2026' },
+      { v: 'v1.0', status: 'published', terms: 10, updated: 'Jun 11, 2026' },
+    ] },
+  { name: 'Medical Device Compliance', layer: 'solution', terms: 14, by: 'Ravi', updated: 'Aug 09, 2026',
+    tags: ['Healthcare', 'Compliance'],
+    desc: 'Standards and certifications required to ensure the safety and effectiveness of medical equipment.',
+    versions: [
+      { v: 'v3.0', latest: true, status: 'published', terms: 14, updated: 'Aug 09, 2026' },
+      { v: 'v2.4', status: 'published', terms: 13, updated: 'Mar 02, 2026' },
+    ] },
+  { name: 'Clinical Trial Vocabulary', layer: 'solution', terms: 18, by: 'Maya', updated: 'Jul 21, 2026',
+    tags: ['Healthcare', 'Research'],
+    desc: 'Terminology used across trial phases, endpoints, consent and adverse-event reporting.',
+    versions: [
+      { v: 'v1.5', latest: true, status: 'published', terms: 18, updated: 'Jul 21, 2026' },
+    ] },
+  { name: 'Financial Reporting Terms', layer: 'organization', terms: 20, by: 'Samuel', updated: 'Aug 16, 2026',
+    tags: ['Finance', 'Compliance'],
+    desc: 'Statement, disclosure and audit terminology as used in quarterly and annual reporting.',
+    versions: [
+      { v: 'v4.0', latest: true, status: 'published', terms: 20, updated: 'Aug 16, 2026' },
+      { v: 'v3.6', status: 'published', terms: 19, updated: 'May 28, 2026' },
+    ] },
+  { name: 'Customer Support Lexicon', layer: 'organization', terms: 16, by: 'Hemavathi', updated: 'Aug 25, 2026',
+    tags: ['Support'],
+    desc: 'Ticket states, severity language and resolution vocabulary shared by every support surface.',
+    versions: [
+      { v: 'v2.0', latest: true, status: 'published', terms: 16, updated: 'Aug 25, 2026' },
+    ] },
+  { name: 'Supply Chain Definitions', layer: 'domain', terms: 21, by: 'Anika', updated: 'Jun 05, 2026',
+    tags: ['Operations', 'Data'],
+    desc: 'Sourcing, logistics and inventory terms standardised across planning and fulfilment.',
+    versions: [
+      { v: 'v1.7', latest: true, status: 'published', terms: 21, updated: 'Jun 05, 2026' },
+      { v: 'v1.6', status: 'draft', terms: 20, updated: 'Feb 27, 2026' },
     ] },
 ];
 
-function bundleCard(b) {
-  return `
-    <button class="bundle-card" data-i="${b.i}" aria-haspopup="dialog">
-      <span class="bc-head">
-        <svg class="ic" width="${b.size}" height="${b.size}" viewBox="0 0 ${b.size} ${b.size}"><use href="#${b.icon}"/></svg>
-        <span class="name t-body2-med">${b.name}</span>
-      </span>
-      <span class="bc-body">
-        <span class="desc t-caption1-reg">${b.desc}</span>
-        <span class="bc-foot">
-          <span class="bc-chip">${b.count}</span>
-          <span class="bc-avatar"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#cx-avatar16"/></svg><span>${b.owner}</span></span>
-        </span>
-      </span>
-    </button>`;
+const DATE_RANGES = [
+  { key: 'any',  label: 'Any time' },
+  { key: '30',   label: 'Last 30 days' },
+  { key: '90',   label: 'Last 3 months' },
+  { key: 'year', label: 'This year' },
+];
+
+/* An avatar tint per author, keyed off the name so a person keeps the
+   same colour on every surface. */
+const AV_TINTS = ['#0d99ff', '#14ae5c', '#5860ed', '#9747ff', '#dd7c0e', '#00a2c2', '#e91e63'];
+function tint(name) {
+  let n = 0;
+  for (let i = 0; i < name.length; i++) n = (n + name.charCodeAt(i)) % AV_TINTS.length;
+  return AV_TINTS[n];
 }
 
-BUNDLES.forEach((b, i) => { b.i = i; });
-let selected = null;
+const state = {
+  layer: 'all',
+  query: '',
+  tags: new Set(),
+  by: null,
+  range: 'any',
+  view: 'grid',
+  selected: null,
+};
 
-function renderBundles(query) {
-  const q = (query || '').trim().toLowerCase();
-  const hits = BUNDLES.filter((b) => !q || b.name.toLowerCase().includes(q) || b.desc.toLowerCase().includes(q));
-  $('bundleGrid').innerHTML = hits.map(bundleCard).join('');
-  $('bundlesEmpty').classList.toggle('is-visible', hits.length === 0);
-  markSelected();
-}
-
-function markSelected() {
-  $('bundleGrid').querySelectorAll('.bundle-card').forEach((el) => {
-    el.classList.toggle('is-selected', Number(el.dataset.i) === selected);
-  });
-}
-
-$('bundleSearch').addEventListener('input', (e) => renderBundles(e.target.value));
-
-/* ── Bundle detail panel ─────────────────────────────────────────────
-   The panel reads the bundle's selection matrix: artifacts grouped by
-   the layer they were picked from, each showing its type and the pinned
-   version — the same shape the create screen builds. */
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
+const ALL_TAGS = [...new Set(GLOSSARIES.flatMap((g) => g.tags))].sort();
+const ALL_AUTHORS = [...new Set(GLOSSARIES.map((g) => g.by))].sort();
 
-function metaRows(b) {
-  const initial = esc(b.creator.trim().charAt(0).toUpperCase());
-  return [
-    ['Created by', `<span class="v who t-body2-reg"><span class="who-avatar"><svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-avatar16"/></svg><span>${initial}</span></span>${esc(b.creator)}</span>`],
-    /* One row for both dates: created is the fixed fact, updated the one
-       that moves, so the pair reads as a span rather than two lookups. */
-    ['Created · updated', `<span class="v t-body2-reg">${esc(b.created)} <span style="color:var(--text-teritiary)">→</span> ${esc(b.updated)}</span>`],
-  ].map(([k, v]) => `<div class="row"><span class="k t-body2-reg">${k}</span>${v}</div>`).join('');
+/* Dates are display strings in the fixtures, so the range filter parses
+   them. With real data, filter on the timestamp instead. */
+function monthsAgo(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) return Infinity;
+  const now = new Date('2026-09-02');
+  return (now - d) / (1000 * 60 * 60 * 24);
 }
 
-function artifactGroups(b) {
-  return LAYERS.map((layer) => {
-    const items = b.artifacts.filter((a) => a.layer === layer.key);
-    if (!items.length) return '';
-    const rows = items.map((a) => {
-      const t = TYPES[a.type];
-      return `<div class="art-row">
-        <svg class="ic art-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#${t.icon}"/></svg>
-        <span class="art-text">
-          <span class="nm t-body2-med">${esc(a.name)}</span>
-          <span class="ty t-caption1-reg">${esc(t.label)} · ${esc(t.note)}</span>
+function visible() {
+  const q = state.query.trim().toLowerCase();
+  return GLOSSARIES.filter((g) => {
+    if (state.layer !== 'all' && g.layer !== state.layer) return false;
+    if (q && !g.name.toLowerCase().includes(q) && !g.desc.toLowerCase().includes(q)) return false;
+    if (state.tags.size && !g.tags.some((t) => state.tags.has(t))) return false;
+    if (state.by && g.by !== state.by) return false;
+    if (state.range !== 'any') {
+      const days = monthsAgo(g.updated);
+      if (state.range === '30' && days > 30) return false;
+      if (state.range === '90' && days > 92) return false;
+      if (state.range === 'year' && new Date(g.updated).getFullYear() !== 2026) return false;
+    }
+    return true;
+  });
+}
+
+/* ── Layer tabs ──────────────────────────────────────────────────── */
+function renderTabs() {
+  const counts = { all: GLOSSARIES.length };
+  LAYERS.forEach((l) => { counts[l.key] = GLOSSARIES.filter((g) => g.layer === l.key).length; });
+  const tab = (key, label, dot) => `
+    <button class="gl-tab t-body2-reg${state.layer === key ? ' is-active' : ''}"
+            role="tab" aria-selected="${state.layer === key}" data-layer="${key}">
+      ${dot ? `<span class="gl-dot" data-layer="${key}"></span>` : ''}
+      ${label}
+      <span class="gl-tab-count t-caption1-reg">${counts[key]}</span>
+    </button>`;
+  $('glTabs').innerHTML = tab('all', 'All', false)
+    + LAYERS.map((l) => tab(l.key, esc(l.label), true)).join('');
+}
+
+/* ── Cards and table ─────────────────────────────────────────────── */
+function author(g) {
+  return `<span class="gl-who">
+    <span class="av" style="background:${tint(g.by)}">${esc(g.by.charAt(0))}</span>
+    <span class="nm2 t-caption1-reg">${esc(g.by)}</span>
+  </span>`;
+}
+function badge(layer) {
+  const l = LAYERS.find((x) => x.key === layer);
+  return `<span class="gl-badge t-caption1-med" data-layer="${layer}">
+    <span class="gl-dot"></span>${esc(l ? l.label : layer)}
+  </span>`;
+}
+
+function render() {
+  const list = visible();
+  $('glCount').textContent = list.length;
+
+  $('glGrid').hidden = state.view !== 'grid';
+  $('glTableWrap').hidden = state.view !== 'table';
+
+  if (!list.length) {
+    const msg = '<p class="gl-empty t-body2-reg">No glossaries match these filters.</p>';
+    $('glGrid').innerHTML = msg;
+    $('glTableRows').innerHTML = msg;
+    return;
+  }
+
+  $('glGrid').innerHTML = list.map((g) => `
+    <button class="gl-card${state.selected === g.name ? ' is-selected' : ''}" data-name="${esc(g.name)}" aria-haspopup="dialog">
+      <span class="gl-card-top">
+        ${badge(g.layer)}
+        <span class="terms t-caption1-reg">${g.terms} terms</span>
+      </span>
+      <span class="nm t-body1-med">${esc(g.name)}</span>
+      <p class="desc t-caption1-reg">${esc(g.desc)}</p>
+      ${author(g)}
+    </button>`).join('');
+
+  $('glTableRows').innerHTML = list.map((g) => `
+    <button class="gl-trow${state.selected === g.name ? ' is-selected' : ''}" data-name="${esc(g.name)}">
+      <span class="gl-tcell">
+        <span class="gl-tname">
+          <span class="nm t-body2-med">${esc(g.name)}</span>
+          <span class="desc t-caption1-reg">${esc(g.desc)}</span>
         </span>
-        <span class="ver-pill t-caption1-reg">${esc(a.version)}</span>
-      </div>`;
-    }).join('');
-    return `<div class="layer-group">
-      <div class="layer-head">
-        <span class="pl-badge t-caption1-med" data-layer="${layer.key}">${layer.label}</span>
-      </div>
-      ${rows}
-    </div>`;
-  }).join('');
+      </span>
+      <span class="gl-tcell">${badge(g.layer)}</span>
+      <span class="gl-tcell num t-body2-reg">${g.terms}</span>
+      <span class="gl-tcell">${author(g)}</span>
+      <span class="gl-tcell date t-body2-reg">${esc(g.updated)}</span>
+    </button>`).join('');
 }
 
-function openPanel(i) {
-  const b = BUNDLES[i];
-  if (!b) return;
-  selected = i;
-  markSelected();
-  $('panelIcon').querySelector('use').setAttribute('href', '#' + b.icon);
-  $('panelTitle').textContent = b.name;
-  $('panelDesc').textContent = b.desc;
-  $('panelMeta').innerHTML = metaRows(b);
-  $('panelArtHeader').textContent = `ARTIFACTS · ${b.artifacts.length}`;
-  $('panelArtifacts').innerHTML = artifactGroups(b)
-    || '<p class="panel-empty t-body2-reg">No artifacts in this bundle yet.</p>';
+/* ── Detail panel ────────────────────────────────────────────────── */
+function openPanel(name) {
+  const g = GLOSSARIES.find((x) => x.name === name);
+  if (!g) return;
+  state.selected = name;
+  const l = LAYERS.find((x) => x.key === g.layer);
+  $('panelBadge').dataset.layer = g.layer;
+  $('panelLayer').textContent = l ? l.label : g.layer;
+  $('panelTitle').textContent = g.name;
+  $('panelDesc').textContent = g.desc;
+  $('panelVersions').innerHTML = g.versions.map((v) => `
+    <div class="gl-ver">
+      <div class="gl-ver-top">
+        <span class="v t-body1-med">${esc(v.v)}</span>
+        ${v.latest ? '<span class="gl-latest t-caption1-med">Latest</span>' : ''}
+        <span class="spacer"></span>
+        <span class="gl-status t-caption1-med" data-s="${esc(v.status)}">${v.status === 'published' ? 'Published' : 'Draft'}</span>
+      </div>
+      <div class="gl-ver-meta">
+        <span class="t-caption1-reg">${v.terms} terms</span>
+        <span class="t-caption1-reg">Updated on ${esc(v.updated)}</span>
+      </div>
+    </div>`).join('');
   $('panel').classList.add('is-open');
   $('panel').setAttribute('aria-hidden', 'false');
   $('scrim').classList.add('is-open');
+  render();
   $('panelClose').focus();
 }
 
 function closePanel() {
-  selected = null;
-  markSelected();
+  state.selected = null;
   $('panel').classList.remove('is-open');
   $('panel').setAttribute('aria-hidden', 'true');
   $('scrim').classList.remove('is-open');
+  render();
 }
 
-$('bundleGrid').addEventListener('click', (e) => {
-  const card = e.target.closest('.bundle-card');
-  if (!card) return;
-  const i = Number(card.dataset.i);
-  if (i === selected) { closePanel(); return; }
-  openPanel(i);
+/* ── Filter popovers ─────────────────────────────────────────────── */
+const POPS = [['tagsBtn', 'tagsPop'], ['whoBtn', 'whoPop'], ['dateBtn', 'datePop']];
+function closePops(except) {
+  POPS.forEach(([btn, pop]) => {
+    if (pop === except) return;
+    $(pop).classList.remove('is-open');
+    $(btn).classList.remove('is-open');
+    $(btn).setAttribute('aria-expanded', 'false');
+  });
+}
+POPS.forEach(([btn, pop]) => {
+  $(btn).addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = $(pop).classList.contains('is-open');
+    closePops();
+    if (open) return;
+    $(pop).classList.add('is-open');
+    $(btn).classList.add('is-open');
+    $(btn).setAttribute('aria-expanded', 'true');
+  });
 });
+
+function renderTagsPop() {
+  const q = $('tagSearch').value.trim().toLowerCase();
+  const hits = ALL_TAGS.filter((t) => !q || t.toLowerCase().includes(q));
+  $('tagsList').innerHTML = hits.length
+    ? hits.map((t) => `
+        <button class="tag-opt t-body2-reg${state.tags.has(t) ? ' is-checked' : ''}" data-tag="${esc(t)}">
+          <span class="box"><svg viewBox="0 0 20 20"><use href="#ic-tick"/></svg></span>
+          <span class="lbl">${esc(t)}</span>
+        </button>`).join('')
+    : '<p class="gl-empty t-caption1-reg" style="padding:12px">No tags match.</p>';
+}
+function renderWhoPop() {
+  $('whoList').innerHTML = [{ v: null, l: 'Anyone' }].concat(ALL_AUTHORS.map((a) => ({ v: a, l: a })))
+    .map(({ v, l }) => `
+      <button class="tag-opt t-body2-reg${state.by === v ? ' is-picked' : ''}" data-who="${v === null ? '' : esc(v)}">
+        <span class="lbl">${esc(l)}</span>
+        <svg class="ic tick" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-tick"/></svg>
+      </button>`).join('');
+}
+function renderDatePop() {
+  $('dateList').innerHTML = DATE_RANGES.map((r) => `
+    <button class="tag-opt t-body2-reg${state.range === r.key ? ' is-picked' : ''}" data-range="${r.key}">
+      <span class="lbl">${esc(r.label)}</span>
+      <svg class="ic tick" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-tick"/></svg>
+    </button>`).join('');
+}
+
+function syncTagsBtn() {
+  $('tagsCount').textContent = state.tags.size;
+  $('tagsBtn').classList.toggle('has-count', state.tags.size > 0);
+}
+
+/* ── Wiring ──────────────────────────────────────────────────────── */
+$('glTabs').addEventListener('click', (e) => {
+  const t = e.target.closest('.gl-tab');
+  if (!t) return;
+  state.layer = t.dataset.layer;
+  renderTabs();
+  render();
+});
+
+$('glSearch').addEventListener('input', (e) => { state.query = e.target.value; render(); });
+
+$('tagsList').addEventListener('click', (e) => {
+  const o = e.target.closest('[data-tag]');
+  if (!o) return;
+  e.stopPropagation();
+  const t = o.dataset.tag;
+  state.tags.has(t) ? state.tags.delete(t) : state.tags.add(t);
+  syncTagsBtn(); renderTagsPop(); render();
+});
+$('tagSearch').addEventListener('input', renderTagsPop);
+$('tagSearch').addEventListener('click', (e) => e.stopPropagation());
+
+$('whoList').addEventListener('click', (e) => {
+  const o = e.target.closest('[data-who]');
+  if (!o) return;
+  state.by = o.dataset.who || null;
+  $('whoLabel').textContent = state.by || 'Created by';
+  renderWhoPop(); closePops(); render();
+});
+$('dateList').addEventListener('click', (e) => {
+  const o = e.target.closest('[data-range]');
+  if (!o) return;
+  state.range = o.dataset.range;
+  $('dateLabel').textContent = (DATE_RANGES.find((r) => r.key === state.range) || {}).label;
+  renderDatePop(); closePops(); render();
+});
+
+$('viewGrid').addEventListener('click', () => setView('grid'));
+$('viewTable').addEventListener('click', () => setView('table'));
+function setView(v) {
+  state.view = v;
+  $('viewGrid').classList.toggle('is-active', v === 'grid');
+  $('viewTable').classList.toggle('is-active', v === 'table');
+  $('viewGrid').setAttribute('aria-pressed', String(v === 'grid'));
+  $('viewTable').setAttribute('aria-pressed', String(v === 'table'));
+  render();
+}
+
+/* One handler for both views: the card and the row carry the same key. */
+function onPick(e) {
+  const el = e.target.closest('[data-name]');
+  if (!el) return;
+  const name = el.dataset.name;
+  if (state.selected === name) { closePanel(); return; }
+  openPanel(name);
+}
+$('glGrid').addEventListener('click', onPick);
+$('glTableRows').addEventListener('click', onPick);
+
 $('panelClose').addEventListener('click', closePanel);
-$('scrim').addEventListener('click', closePanel);
+$('scrim').addEventListener('click', () => { closePops(); closePanel(); });
+document.addEventListener('click', (e) => {
+  if (e.target.closest('.filter-group')) return;
+  closePops();
+});
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && selected !== null) closePanel();
+  if (e.key !== 'Escape') return;
+  closePops();
+  if (state.selected) closePanel();
 });
 
-/* ── Hero: the dot grid lights up under the pointer ──────────────────
-   Coordinates are written to custom properties on the glow layer and
-   read by its mask, so the pool follows the cursor without a re-layout.
-   Reads are throttled to one per frame. */
-(() => {
-  const hero = $('hero'), glow = $('heroGlow');
-  let queued = false, x = 0, y = 0;
-  hero.addEventListener('pointermove', (e) => {
-    const r = hero.getBoundingClientRect();
-    x = e.clientX - r.left; y = e.clientY - r.top;
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      glow.style.setProperty('--mx', x + 'px');
-      glow.style.setProperty('--my', y + 'px');
-    });
-  });
-})();
+/* Left as no-ops for you to wire. */
+$('newGlossary').addEventListener('click', () => {});
+$('panelOpen').addEventListener('click', () => {});
 
-/* ── The explainer opens itself once the page has settled ────────────
-   Collapsed on arrival so the artifact list owns the sidebar, then
-   revealed after a beat and left open. A manual toggle cancels the
-   timer, so the card never reopens over someone who just closed it. */
-(() => {
-  const card = $('ctxInfo'), body = $('ctxBody'), btn = $('ctxToggle');
-  let timer = null;
-
-  function setOpen(open) {
-    card.classList.toggle('is-open', open);
-    btn.setAttribute('aria-expanded', String(open));
-    body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
-  }
-
-  btn.addEventListener('click', () => {
-    if (timer) { clearTimeout(timer); timer = null; }
-    setOpen(!card.classList.contains('is-open'));
-  });
-
-  /* Content can reflow (fonts, wrapping) while open — keep the cap true. */
-  if (window.ResizeObserver) {
-    new ResizeObserver(() => {
-      if (card.classList.contains('is-open')) body.style.maxHeight = body.scrollHeight + 'px';
-    }).observe(body);
-  }
-
-  setOpen(false);
-  timer = setTimeout(() => { timer = null; setOpen(true); }, 4500);
-})();
+renderTabs();
+renderTagsPop();
+renderWhoPop();
+renderDatePop();
+syncTagsBtn();
+render();
 
 /* ── Cross-page links ────────────────────────────────────────────────
    PROTOTYPE ONLY — delete this block when the pages are wired into the
@@ -1722,6 +1934,4 @@ $('themeToggle').addEventListener('click', () => {
 let stored = null;
 try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
 applyMode(stored === 'dark' ? 'dark' : 'light');
-
-renderBundles('');
 </script>
