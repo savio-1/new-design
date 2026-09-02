@@ -1,7 +1,7 @@
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cogentiq Builder · Human Checkpoint Approvals</title>
-  <meta name="description" content="Every automation checkpoint awaiting, approved or rejected. Searchable, filterable, and pageable." />
+  <title>Cogentiq Builder · Profile</title>
+  <meta name="description" content="Who you are on Cogentiq: your details, how you sign in, and what has access as you." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1864,6 +1864,113 @@ body.cq { margin: 0; }
 
 
 <!-- ══ Platform panel · lifted from the panel component, unchanged ══ -->
+
+<style>
+
+/* ── Header: a title and one line under it, as the catalogue pages do ── */
+.hdr-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.hdr-left .cq-subhead2-med { color: var(--text-primary); white-space: nowrap; }
+.hdr-sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Badge tones the library does not ship. Same recipe as its own:
+      a tinted fill, a stroke a step stronger, ink mixed toward the text
+      colour so it reads on both grounds. ── */
+.cq-badge[data-tone="red"]    { background: color-mix(in srgb, var(--red-500) 13%, transparent);    border-color: color-mix(in srgb, var(--red-500) 42%, transparent);    color: color-mix(in srgb, var(--red-500) 78%, var(--text-primary)); }
+.cq-badge[data-tone="orange"] { background: color-mix(in srgb, var(--orange-500) 14%, transparent); border-color: color-mix(in srgb, var(--orange-500) 45%, transparent); color: color-mix(in srgb, var(--orange-600) 78%, var(--text-primary)); }
+.cq-badge[data-tone="grey"]   { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-1); color: var(--text-secondary); }
+
+/* ── Text input, on the search field's own tokens ── */
+.ac-input {
+  display: flex; align-items: center; height: 36px; padding: 0 12px;
+  border-radius: var(--radius-md);
+  background: var(--backgrounds-type-search-default);
+  border: 1px solid var(--strokes-type-default, var(--strokes-line-1));
+  color: var(--text-primary);
+}
+.ac-input:focus-within { border-color: var(--strokes-type-focus, var(--backgrounds-button-primary)); }
+.ac-input input { flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: 0; color: inherit; font: inherit; }
+.ac-input input::placeholder { color: var(--text-teritiary); }
+.ac-input.is-mono input { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist-mono, ui-monospace, monospace); }
+
+/* ── Cards ── */
+.ac-card {
+  background: var(--backgrounds-card-bg-5); border: 1px solid var(--strokes-line-3);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.ac-card__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--strokes-line-3);
+}
+.ac-card__head .cq-body1-med { color: var(--text-primary); }
+.ac-card__sub { color: var(--text-teritiary); }
+
+/* ── Modal on the library's scrim ── */
+.cq-modal.ac-modal { width: 480px; max-width: calc(100vw - 48px); }
+.ac-modal__body { display: flex; flex-direction: column; gap: 16px; padding: 16px; overflow: auto; }
+.ac-modal__body[hidden], .ac-modal [hidden] { display: none !important; }
+.cq-modal.ac-modal { max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+.ac-modal__body .cq-field__label { color: var(--text-secondary); }
+.ac-help { color: var(--text-teritiary); }
+.ac-choice {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border-radius: var(--radius-md); border: 1px solid var(--strokes-line-3);
+  background: var(--backgrounds-card-bg-5); cursor: pointer; text-align: left; width: 100%;
+}
+.ac-choice:hover { border-color: var(--strokes-line-1); }
+.ac-choice.is-on { border-color: var(--strokes-card-selected); background: var(--backgrounds-table-select); }
+.ac-choice .cq-checkbox { margin-top: 1px; }
+.ac-choice__t { color: var(--text-primary); }
+.ac-choice__d { color: var(--text-teritiary); }
+.ac-choices { display: flex; flex-direction: column; gap: 8px; }
+.ac-danger.cq-btn--primary { background: var(--red-500); }
+.ac-danger.cq-btn--primary:hover:not(:disabled) { background: var(--red-600); }
+
+/* ── The token, shown once ── */
+.ac-reveal {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-radius: var(--radius-md); border: 1px dashed var(--strokes-card-selected);
+  background: var(--backgrounds-table-select);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist-mono, ui-monospace, monospace);
+  color: var(--text-primary); word-break: break-all;
+}
+.ac-reveal code { flex: 1 1 auto; min-width: 0; }
+.ac-mono { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist-mono, ui-monospace, monospace); }
+.ac-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 8px); z-index: 300;
+  padding: 8px 14px; border-radius: var(--radius-md);
+  background: var(--backgrounds-card-bg-3); border: 1px solid var(--strokes-card-default);
+  color: var(--text-primary); box-shadow: var(--shadow-pop); opacity: 0;
+  transition: opacity .16s ease, transform .16s ease; pointer-events: none;
+}
+.ac-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+.pf-wrap { max-width: 880px; display: flex; flex-direction: column; gap: 16px; }
+.pf-id { display: flex; align-items: center; gap: 16px; padding: 20px; }
+.pf-id img { width: 64px; height: 64px; border-radius: 50%; flex: none; }
+.pf-id__who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pf-id__name { color: var(--text-primary); }
+.pf-id__mail { color: var(--text-secondary); }
+.pf-id__tags { display: flex; gap: 6px; margin-top: 4px; }
+.pf-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.pf-kv { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border-top: 1px solid var(--strokes-line-3); }
+.pf-kv:nth-child(-n+2) { border-top: 0; }
+.pf-kv:nth-child(odd) { border-right: 1px solid var(--strokes-line-3); }
+.pf-kv .cq-caption-reg { color: var(--text-teritiary); }
+.pf-kv .cq-body2-reg { color: var(--text-primary); }
+.pf-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--strokes-line-3); }
+.pf-row:first-of-type { border-top: 0; }
+.pf-row__ic { width: 32px; height: 32px; border-radius: var(--radius-md); flex: none; display: flex; align-items: center; justify-content: center;
+  background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
+.pf-row__ic .cq-ic { width: 18px; height: 18px; }
+.pf-row__t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pf-row__t .cq-body2-med { color: var(--text-primary); }
+.pf-row__t .cq-caption-reg { color: var(--text-teritiary); }
+.pf-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .pf-two, .pf-grid { grid-template-columns: 1fr; } .pf-kv:nth-child(odd) { border-right: 0; } .pf-kv:nth-child(2) { border-top: 1px solid var(--strokes-line-3); } }
+
+</style>
+
+<!-- ══ The page ══ -->
 <aside class="rail" data-cs="after" aria-label="Platform">
     <div class="rail-head">
       <div class="rail-brand">
@@ -1990,17 +2097,12 @@ body.cq { margin: 0; }
   </div>
 </div>
 
-<!-- ══ The page ══ -->
 <div class="cq-page">
   <div class="cq-page__main">
     <div class="cq-page__frame">
 
-      <header class="cq-page__header">
-        <div class="hdr-left">
-          <button class="hdr-crumb cq-body2-reg" id="crumbBack" type="button">Monitoring</button>
-          <span class="hdr-crumb-sep cq-body2-reg" aria-hidden="true">›</span>
-          <span class="cq-body2-med">Human Checkpoint Approvals</span>
-        </div>
+<header class="cq-page__header">
+        <div class="hdr-left"><span class="cq-subhead2-med">Profile</span><span class="hdr-sub cq-caption-reg">Your details, and what has access as you.</span></div>
         <div class="hdr-actions">
           <button class="cq-icon-btn" title="Notifications" aria-label="Notifications">
             <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-bell"/></svg>
@@ -2019,324 +2121,148 @@ body.cq { margin: 0; }
 
       <div class="cq-page__body">
         <section class="cq-page__col">
+
           <div class="cq-page__content cq-scroll-y">
+            <div class="pf-wrap">
 
-            <div class="ck-head">
-              <span class="ck-head__title cq-subhead1-med">Human Checkpoint Approvals</span>
-              <span class="ck-head__sub cq-body2-reg">Review and manage all automation checkpoints requiring human input.</span>
-            </div>
+              <section class="ac-card pf-id" aria-label="Who you are">
+                <img src="data:image/png;base64,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" alt="" />
+                <div class="pf-id__who">
+                  <span class="pf-id__name cq-subhead1-med" id="pfName">Savio Govindu</span>
+                  <span class="pf-id__mail cq-body2-reg">savio.govindu@fractal.ai</span>
+                  <div class="pf-id__tags">
+                    <span class="cq-badge cq-caption-med" data-tone="blue">Finance workspace</span>
+                    <span class="cq-badge cq-caption-med" data-tone="indigo" id="pfRoleTag">Admin</span>
+                  </div>
+                </div>
+                <button class="cq-btn cq-btn--m cq-btn--tonal-1" id="pfEdit" type="button"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m11.3 2.6 2.1 2.1-7.9 7.9H3.4v-2.1l7.9-7.9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m9.7 4.2 2.1 2.1" stroke="currentColor" stroke-width="1.4"/></svg>Edit profile</button>
+              </section>
 
-            <div class="ck-stats">
-              <section class="ck-card" aria-label="Total checkpoints">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#i-layers"/></svg>
-                  Total checkpoints
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statTotal">47</span>
-                </div>
+              <section class="ac-card" aria-label="About you">
+                <div class="ac-card__head"><span class="cq-body1-med">About</span><span class="ac-card__sub cq-caption-reg">What the workspace sees</span></div>
+                <div class="pf-grid" id="pfGrid"></div>
               </section>
-              <section class="ck-card" aria-label="Awaiting review">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-orange)"><use href="#i-clock"/></svg>
-                  Awaiting review
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statAwaiting">12</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Approved">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
-                  Approved
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statApproved">28</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Rejected">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
-                  Rejected
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statRejected">7</span>
-                </div>
-              </section>
-            </div>
 
-            <div class="ck-toolbar">
-              <label class="cq-search">
-                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
-                <input id="ckQ" class="cq-body2-reg" type="search" placeholder="Search checkpoint details…" aria-label="Search checkpoint details" />
-              </label>
-              <div class="ck-pills" role="group" aria-label="Filter by status">
-                <button class="ck-pill is-active" data-filter="all">All</button>
-                <button class="ck-pill" data-filter="Awaiting">Awaiting <span id="pillAwaitCount">(12)</span></button>
-                <button class="ck-pill" data-filter="Approved">Approved</button>
-                <button class="ck-pill" data-filter="Rejected">Rejected</button>
+              <div class="pf-two">
+                <section class="ac-card" aria-label="Security">
+                  <div class="ac-card__head"><span class="cq-body1-med">Security</span></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><rect x="4" y="8.5" width="12" height="8" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="M7 8.5V6.5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Password</span><span class="cq-caption-reg">Last changed 42 days ago</span></div>
+                    <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-toast="Password change is not wired in this mockup">Change</button></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><path d="M10 2.8 4 5.2v4.6c0 3.6 2.6 6.4 6 7.4 3.4-1 6-3.8 6-7.4V5.2L10 2.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="m7.4 10 1.8 1.8 3.4-3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Two-factor authentication</span><span class="cq-caption-reg">Authenticator app</span></div>
+                    <span class="cq-badge cq-caption-med" data-tone="green">Enabled</span></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="9.5" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="M7 16.5h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Active sessions</span><span class="cq-caption-reg">3 devices · this one in Bengaluru</span></div>
+                    <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-toast="Session list is not wired in this mockup">View</button></div>
+                </section>
+
+                <section class="ac-card" aria-label="Access">
+                  <div class="ac-card__head"><span class="cq-body1-med">Access</span></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="7" cy="13" r="3.8" stroke="currentColor" stroke-width="1.5"/><path d="m9.9 10.1 6.9-6.9M14 5.3l2.1 2.1M12 7.3l2.1 2.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Personal access tokens</span><span class="cq-caption-reg">19 active · 3 expiring soon · 2 revoked</span></div>
+                    <button class="cq-btn cq-btn--s cq-btn--tonal-1" id="pfTokens" type="button">Manage<svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="7" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M3 15.2c.5-2.3 2.4-3.6 4.5-3.6s4 1.3 4.5 3.6M13.5 8.2a2.3 2.3 0 1 0 0-4.6M14 11.6c1.7.3 2.8 1.4 3.1 3.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Workspaces</span><span class="cq-caption-reg">Finance (Admin) · Marketing (Member)</span></div>
+                    <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-toast="Workspace switching lives in the header">Switch</button></div>
+                </section>
               </div>
-              <div class="ck-toolbar__right">
-                <div class="cq-filter-group">
-                  <button class="cq-dropdown" id="sortBtn" aria-expanded="false">
-                    <span id="sortLabel">Sort by: Newest</span>
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                  </button>
-                  <div class="cq-pop" id="sortPop"><div class="cq-pop__list" id="sortList"></div></div>
-                </div>
-                <button class="cq-dropdown" id="rangeBtn">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-                  <span>Jul 12 – Jul 15, 2024</span>
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                </button>
-              </div>
-            </div>
 
-            <div class="cq-table ck-table">
-              <div class="cq-thead">
-                <span>Automation name</span><span>Requested at</span><span>Wait time</span><span>Status</span><span>Creator</span><span></span>
-              </div>
-              <div id="ckRows"></div>
             </div>
-            <div class="ck-empty cq-body2-reg" id="ckEmpty" hidden>
-              <b class="cq-body1-med">No checkpoints match</b>
-              Try a different search or status filter.
-            </div>
-
-            <div class="ck-foot">
-              <span class="ck-foot__count cq-body2-reg" id="ckCount"></span>
-              <div class="ck-pager" id="ckPager"></div>
-            </div>
-
           </div>
-        </section>
-      </div>
 
+<div class="cq-scrim" id="pfDlg" role="dialog" aria-modal="true" aria-labelledby="pfDlgTitle">
+  <div class="cq-modal ac-modal">
+    <div class="cq-modal__head"><span class="cq-body1-med" id="pfDlgTitle">Edit profile</span>
+      <button class="cq-icon-btn" type="button" data-close="pfDlg" aria-label="Close"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="m5.5 5.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
+    <div class="ac-modal__body" id="pfForm"></div>
+    <div class="cq-modal__foot">
+      <button class="cq-btn cq-btn--m cq-btn--ghost" type="button" data-close="pfDlg">Cancel</button>
+      <button class="cq-btn cq-btn--m cq-btn--primary" type="button" id="pfSave">Save changes</button>
     </div>
   </div>
 </div>
 
-
+        </section>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
+
 const root = document.documentElement;
 const $ = id => document.getElementById(id);
-const inShell = window.parent !== window;
-function go(url) {
-  if (inShell) parent.postMessage({ cqNav: url }, '*');
-  else window.location.href = url;
-}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ════ Data ════
-   The first ten rows are the wireframe's, verbatim; the rest fill the
-   47 the stat cards promise, so search, filters and paging behave like
-   the real screen. Icon hues cycle the coloured-text tokens, assigned
-   by entity. */
-const HUES = ['var(--text-coloured-blue)', 'var(--purple-450)', 'var(--text-coloured-green)',
-              'var(--orange-600)', 'var(--text-coloured-cyan)', 'var(--text-coloured-indigo)'];
-const PEOPLE = {
-  'Sarah Chen':  { init: 'SC', bg: 'var(--indigo-500)' },
-  'Mike Torres': { init: 'MT', bg: 'var(--green-600)' },
-  'Anna Park':   { init: 'AP', bg: 'var(--cyan-700, #047195)' },
-  'James Liu':   { init: 'JL', bg: 'var(--orange-800)' },
-  'Priya Nair':  { init: 'PN', bg: 'var(--purple-600)' },
-  'Tom Weber':   { init: 'TW', bg: 'var(--blue-600)' }
-};
-
-const BASE = [
-  ['Invoice Extraction Pipeline', 'Jul 15, 2:25 PM', 8,     'Awaiting', null],
-  ['Data Pipeline Sync',          'Jul 15, 1:50 PM', 43,    'Approved', 'Sarah Chen'],
-  ['Customer Onboarding',         'Jul 15, 12:30 PM', 135,  'Approved', 'Mike Torres'],
-  ['Report Generator',            'Jul 14, 4:45 PM', 1560,  'Rejected', 'Anna Park'],
-  ['Email Campaign Trigger',      'Jul 14, 3:10 PM', 1740,  'Approved', 'James Liu'],
-  ['Lead Scoring Engine',         'Jul 14, 11:00 AM', 1980, 'Awaiting', 'James Liu'],
-  ['Slack Notification Bot',      'Jul 13, 9:20 AM', 3540,  'Rejected', 'Sarah Chen'],
-  ['PDF Text Extractor',          'Jul 13, 8:15 AM', 3600,  'Approved', 'Mike Torres'],
-  ['HubSpot Contact Sync',        'Jul 12, 5:30 PM', 4500,  'Awaiting', null],
-  ['Stripe Payment Handler',      'Jul 12, 2:00 PM', 4680,  'Approved', 'Anna Park']
-];
-
-const GEN_NAMES = ['Vendor Onboarding Flow', 'Contract Review Agent', 'Expense Audit Bot',
-  'Churn Alert Notifier', 'Quote Approval Chain', 'Refund Screening Flow', 'Ticket Triage Agent',
-  'Payroll Sync Pipeline', 'SLA Breach Watcher', 'Inventory Reorder Bot', 'Ad Spend Guard',
-  'CRM Dedupe Sweep', 'NPS Digest Builder'];
-const GEN_TIMES = ['Jul 12, 11:40 AM', 'Jul 12, 10:05 AM', 'Jul 12, 9:12 AM', 'Jul 12, 8:30 AM'];
-/* 37 more rows: 9 awaiting, 23 approved, 5 rejected to land on 12/28/7. */
-const GEN_STATUS = [];
-for (let i = 0; i < 37; i++) {
-  GEN_STATUS.push(i % 7 === 2 ? 'Rejected' : (i % 4 === 1 || i === 34) ? 'Awaiting' : 'Approved');
-}
-const CREATORS = Object.keys(PEOPLE);
-const ROWS = BASE.map((r, i) => ({ name: r[0], at: r[1], wait: r[2], status: r[3], by: r[4], hue: HUES[i % 6], order: i }));
-for (let i = 0; i < 37; i++) {
-  const status = GEN_STATUS[i];
-  ROWS.push({
-    name: GEN_NAMES[i % GEN_NAMES.length] + (i >= GEN_NAMES.length ? ' ' + (Math.floor(i / GEN_NAMES.length) + 1) : ''),
-    at: GEN_TIMES[i % GEN_TIMES.length],
-    wait: 4800 + i * 55,
-    status,
-    by: status === 'Awaiting' && i % 3 === 0 ? null : CREATORS[i % CREATORS.length],
-    hue: HUES[(i + 3) % 6],
-    order: 10 + i
-  });
-}
-
-const fmtWait = m => m < 60 ? `${m}m`
-  : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60 ? (m % 60) + 'm' : ''}`.trim()
-  : `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60) ? Math.floor((m % 1440) / 60) + 'h' : ''}`.trim();
-
-const STATUS_META = {
-  Awaiting: { tone: 'orange', icon: '' },
-  Approved: { tone: 'green',  icon: '#i-check' },
-  Rejected: { tone: 'red',    icon: '#i-alert' }
-};
-
-/* ════ State + rendering ════ */
-const state = { q: '', filter: 'all', sort: 'newest', page: 1 };
-const PER = 10;
-
-function filtered() {
-  let rows = ROWS.filter(r =>
-    (state.filter === 'all' || r.status === state.filter) &&
-    (!state.q || (r.name + ' ' + (r.by || 'Unassigned')).toLowerCase().includes(state.q.toLowerCase())));
-  if (state.sort === 'oldest') rows = rows.slice().sort((a, b) => b.order - a.order);
-  else if (state.sort === 'wait') rows = rows.slice().sort((a, b) => b.wait - a.wait);
-  return rows;
-}
-
-function render() {
-  const rows = filtered();
-  const pages = Math.max(1, Math.ceil(rows.length / PER));
-  state.page = Math.min(state.page, pages);
-  const slice = rows.slice((state.page - 1) * PER, state.page * PER);
-
-  $('ckRows').innerHTML = slice.map(r => {
-    const meta = STATUS_META[r.status];
-    const person = r.by ? PEOPLE[r.by] : null;
-    return `
-    <div class="cq-row" tabindex="0">
-      <div class="cq-cell">
-        <span class="ck-run-ic" style="color:${r.hue}"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg></span>
-        <span class="cq-body2-med cq-truncate">${r.name}</span>
-      </div>
-      <div class="cq-cell cq-cell--muted cq-caption-reg">${r.at}</div>
-      <div class="cq-cell ck-num${r.status === 'Awaiting' ? ' ck-wait--hot' : ''}">${fmtWait(r.wait)}</div>
-      <div class="cq-cell"><span class="cq-status" data-tone="${meta.tone}">${meta.icon
-        ? `<svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="${meta.icon}"/></svg>`
-        : '<span class="cq-status--dot"></span>'}${r.status}</span></div>
-      <div class="cq-cell">${person
-        ? `<span class="ck-creator cq-caption-reg"><span class="cq-avatar" style="background:${person.bg}">${person.init}</span>${r.by}</span>`
-        : '<span class="ck-creator ck-creator--none cq-caption-reg">Unassigned</span>'}</div>
-      <div class="cq-cell ck-cell--end">${r.status === 'Awaiting'
-        ? '<button class="cq-btn cq-btn--sm cq-btn--primary">Review</button>'
-        : '<button class="cq-btn cq-btn--sm cq-btn--tonal-2">View output</button>'}</div>
-    </div>`;
-  }).join('');
-
-  $('ckEmpty').hidden = rows.length > 0;
-  const from = rows.length ? (state.page - 1) * PER + 1 : 0;
-  const to = Math.min(state.page * PER, rows.length);
-  $('ckCount').innerHTML = `Showing <b>${from}–${to}</b> of <b>${rows.length}</b> results`;
-
-  let pager = `<button class="ck-page" data-p="prev" aria-label="Previous page" ${state.page === 1 ? 'disabled' : ''}>‹</button>`;
-  for (let p = 1; p <= pages; p++) pager += `<button class="ck-page${p === state.page ? ' is-active' : ''}" data-p="${p}">${p}</button>`;
-  pager += `<button class="ck-page" data-p="next" aria-label="Next page" ${state.page === pages ? 'disabled' : ''}>›</button>`;
-  $('ckPager').innerHTML = pager;
-}
-
-$('ckPager').addEventListener('click', e => {
-  const btn = e.target.closest('.ck-page');
-  if (!btn || btn.disabled) return;
-  const p = btn.dataset.p;
-  state.page = p === 'prev' ? state.page - 1 : p === 'next' ? state.page + 1 : Number(p);
-  render();
-});
-
-$('ckQ').addEventListener('input', e => { state.q = e.target.value; state.page = 1; render(); });
-
-document.querySelectorAll('.ck-pill').forEach(pill => pill.addEventListener('click', () => {
-  state.filter = pill.dataset.filter;
-  state.page = 1;
-  document.querySelectorAll('.ck-pill').forEach(p => p.classList.toggle('is-active', p === pill));
-  render();
-}));
-
-/* ════ Sort dropdown ════ */
-const SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['wait', 'Longest wait']];
-$('sortList').innerHTML = SORTS.map(([id, label]) => `
-  <button class="cq-option${state.sort === id ? ' is-picked' : ''}" data-sort="${id}">
-    <span class="cq-option__label">${label}</span>
-    <svg class="cq-ic cq-option__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
-  </button>`).join('');
-$('sortBtn').addEventListener('click', e => {
-  e.stopPropagation();
-  const open = $('sortPop').classList.toggle('is-open');
-  $('sortBtn').classList.toggle('is-open', open);
-  $('sortBtn').setAttribute('aria-expanded', open);
-});
-$('sortList').addEventListener('click', e => {
-  const opt = e.target.closest('[data-sort]');
-  if (!opt) return;
-  state.sort = opt.dataset.sort;
-  state.page = 1;
-  $('sortLabel').textContent = 'Sort by: ' + SORTS.find(s => s[0] === state.sort)[1];
-  $('sortList').querySelectorAll('.cq-option').forEach(o => o.classList.toggle('is-picked', o === opt));
-  $('sortPop').classList.remove('is-open');
-  $('sortBtn').classList.remove('is-open');
-  render();
-});
-document.addEventListener('click', () => {
-  $('sortPop').classList.remove('is-open');
-  $('sortBtn').classList.remove('is-open');
-});
-
-$('crumbBack').addEventListener('click', () => go('monitoring.html'));
-
-/* ════ Gradient stroke follows the pointer along each stat card ════ */
-document.querySelectorAll('.ck-card').forEach(card => {
-  /* The glow rides the nearest horizontal edge, so hovering below
-     centre lights the bottom stroke rather than the whole ring. */
-  card.addEventListener('pointermove', e => {
-    const r = card.getBoundingClientRect();
-    const y = e.clientY - r.top;
-    card.style.setProperty('--gx', (e.clientX - r.left) + 'px');
-    card.style.setProperty('--gy', (y < r.height / 2 ? 0 : r.height) + 'px');
-  });
-});
-
-const rail = document.querySelector('.rail');
-/* ════ Theme ════ */
+/* ── Theme, the same contract every page keeps: data-mode on <html>,
+      the header toggle flips it, the shared chrome reads it. ── */
 function applyMode(mode) {
   root.dataset.mode = mode;
-  root.style.colorScheme = mode;
-  const dark = mode === 'dark';
-  $('themeIcon').setAttribute('href', dark ? '#i-sun' : '#i-moon');
-  $('themeToggle').title = dark ? 'Switch to light mode' : 'Switch to dark mode';
-  $('themeToggle').setAttribute('aria-label', $('themeToggle').title);
+  const dark = mode !== 'light';
+  const use = document.querySelector('#themeToggle use');
+  if (use) use.setAttribute('href', dark ? '#i-sun' : '#i-moon');
+  const t = $('themeToggle');
+  if (t) { t.title = dark ? 'Switch to light mode' : 'Switch to dark mode'; t.setAttribute('aria-label', t.title); }
 }
 $('themeToggle').addEventListener('click', () => {
-  const next = root.dataset.mode === 'dark' ? 'light' : 'dark';
+  const next = root.dataset.mode === 'light' ? 'dark' : 'light';
   applyMode(next);
-  try { localStorage.setItem('cq-theme', next); } catch (e) { /* private mode */ }
+  try { localStorage.setItem('cq-theme', next); } catch (e) {}
 });
 let stored = null;
-try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
+try { stored = localStorage.getItem('cq-theme'); } catch (e) {}
 applyMode(stored === 'light' ? 'light' : 'dark');
 
-render();
+/* Going to another page: inside the shell that is a message, standalone
+   it is a link -- the same rule the shared chrome follows. */
+function go(url) {
+  if (window.parent !== window) parent.postMessage({ cqNav: url }, '*');
+  else location.href = url;
+}
+let toastT;
+function toast(msg) {
+  let el = $('acToast');
+  if (!el) { el = document.createElement('div'); el.id = 'acToast'; el.className = 'ac-toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.classList.add('is-on');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('is-on'), 1800);
+}
+function openScrim(id) { $(id).classList.add('is-open'); }
+function closeScrim(id) { $(id).classList.remove('is-open'); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.cq-scrim.is-open').forEach(s => s.classList.remove('is-open'));
+});
+document.querySelectorAll('.cq-scrim').forEach(s => s.addEventListener('click', e => { if (e.target === s) s.classList.remove('is-open'); }));
+
+const me = {
+  name: 'Savio Govindu', email: 'savio.govindu@fractal.ai', title: 'Product designer', team: 'Design',
+  location: 'Bengaluru, India', tz: 'Asia/Kolkata (GMT+5:30)', lang: 'English (UK)', role: 'Admin', since: 'March 2025',
+};
+const FIELDS = [
+  ['name', 'Full name', true], ['email', 'Email', false], ['title', 'Job title', true], ['team', 'Team', true],
+  ['location', 'Location', true], ['tz', 'Time zone', true], ['lang', 'Language', true], ['since', 'Member since', false],
+];
+function paint() {
+  $('pfGrid').innerHTML = FIELDS.map(([k, l]) => `<div class="pf-kv"><span class="cq-caption-reg">${l}</span><span class="cq-body2-reg">${esc(me[k])}</span></div>`).join('');
+  $('pfName').textContent = me.name; $('pfRoleTag').textContent = me.role;
+}
+$('pfEdit').addEventListener('click', () => {
+  $('pfForm').innerHTML = FIELDS.filter(f => f[2]).map(([k, l]) => `
+    <label class="cq-field"><span class="cq-field__label cq-body2-reg">${l}</span>
+      <span class="ac-input"><input class="cq-body2-reg" type="text" data-k="${k}" value="${esc(me[k])}" /></span></label>`).join('')
+    + `<span class="ac-help cq-caption-reg">Your email and membership date are managed by your workspace admin.</span>`;
+  openScrim('pfDlg'); setTimeout(() => $('pfForm').querySelector('input').focus(), 30);
+});
+$('pfSave').addEventListener('click', () => {
+  $('pfForm').querySelectorAll('input[data-k]').forEach(i => { if (i.value.trim()) me[i.dataset.k] = i.value.trim(); });
+  paint(); closeScrim('pfDlg'); toast('Profile saved');
+});
+$('pfTokens').addEventListener('click', () => go('pat-tokens.html'));
+document.querySelectorAll('[data-toast]').forEach(b => b.addEventListener('click', () => toast(b.dataset.toast)));
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
+paint();
+
 </script>
-
-
-
-
-
-
-
-
-
-
-
 <style>
 /* ── Platform panel (left rail) ─────────────────────────────
        Two variants of one component: crunched at 68px and opened at

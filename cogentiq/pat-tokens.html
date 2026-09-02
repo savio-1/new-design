@@ -1,7 +1,7 @@
 <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cogentiq Builder · Human Checkpoint Approvals</title>
-  <meta name="description" content="Every automation checkpoint awaiting, approved or rejected. Searchable, filterable, and pageable." />
+  <title>Cogentiq Builder · Personal access tokens</title>
+  <meta name="description" content="The tokens that let scripts and tools act as you: what each can do, when it stops working, and a way to make more." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1864,6 +1864,125 @@ body.cq { margin: 0; }
 
 
 <!-- ══ Platform panel · lifted from the panel component, unchanged ══ -->
+
+<style>
+
+/* ── Header: a title and one line under it, as the catalogue pages do ── */
+.hdr-left { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.hdr-left .cq-subhead2-med { color: var(--text-primary); white-space: nowrap; }
+.hdr-sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Badge tones the library does not ship. Same recipe as its own:
+      a tinted fill, a stroke a step stronger, ink mixed toward the text
+      colour so it reads on both grounds. ── */
+.cq-badge[data-tone="red"]    { background: color-mix(in srgb, var(--red-500) 13%, transparent);    border-color: color-mix(in srgb, var(--red-500) 42%, transparent);    color: color-mix(in srgb, var(--red-500) 78%, var(--text-primary)); }
+.cq-badge[data-tone="orange"] { background: color-mix(in srgb, var(--orange-500) 14%, transparent); border-color: color-mix(in srgb, var(--orange-500) 45%, transparent); color: color-mix(in srgb, var(--orange-600) 78%, var(--text-primary)); }
+.cq-badge[data-tone="grey"]   { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-1); color: var(--text-secondary); }
+
+/* ── Text input, on the search field's own tokens ── */
+.ac-input {
+  display: flex; align-items: center; height: 36px; padding: 0 12px;
+  border-radius: var(--radius-md);
+  background: var(--backgrounds-type-search-default);
+  border: 1px solid var(--strokes-type-default, var(--strokes-line-1));
+  color: var(--text-primary);
+}
+.ac-input:focus-within { border-color: var(--strokes-type-focus, var(--backgrounds-button-primary)); }
+.ac-input input { flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: 0; color: inherit; font: inherit; }
+.ac-input input::placeholder { color: var(--text-teritiary); }
+.ac-input.is-mono input { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist-mono, ui-monospace, monospace); }
+
+/* ── Cards ── */
+.ac-card {
+  background: var(--backgrounds-card-bg-5); border: 1px solid var(--strokes-line-3);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.ac-card__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--strokes-line-3);
+}
+.ac-card__head .cq-body1-med { color: var(--text-primary); }
+.ac-card__sub { color: var(--text-teritiary); }
+
+/* ── Modal on the library's scrim ── */
+.cq-modal.ac-modal { width: 480px; max-width: calc(100vw - 48px); }
+.ac-modal__body { display: flex; flex-direction: column; gap: 16px; padding: 16px; overflow: auto; }
+.ac-modal__body[hidden], .ac-modal [hidden] { display: none !important; }
+.cq-modal.ac-modal { max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+.ac-modal__body .cq-field__label { color: var(--text-secondary); }
+.ac-help { color: var(--text-teritiary); }
+.ac-choice {
+  display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px;
+  border-radius: var(--radius-md); border: 1px solid var(--strokes-line-3);
+  background: var(--backgrounds-card-bg-5); cursor: pointer; text-align: left; width: 100%;
+}
+.ac-choice:hover { border-color: var(--strokes-line-1); }
+.ac-choice.is-on { border-color: var(--strokes-card-selected); background: var(--backgrounds-table-select); }
+.ac-choice .cq-checkbox { margin-top: 1px; }
+.ac-choice__t { color: var(--text-primary); }
+.ac-choice__d { color: var(--text-teritiary); }
+.ac-choices { display: flex; flex-direction: column; gap: 8px; }
+.ac-danger.cq-btn--primary { background: var(--red-500); }
+.ac-danger.cq-btn--primary:hover:not(:disabled) { background: var(--red-600); }
+
+/* ── The token, shown once ── */
+.ac-reveal {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-radius: var(--radius-md); border: 1px dashed var(--strokes-card-selected);
+  background: var(--backgrounds-table-select);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist-mono, ui-monospace, monospace);
+  color: var(--text-primary); word-break: break-all;
+}
+.ac-reveal code { flex: 1 1 auto; min-width: 0; }
+.ac-mono { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist-mono, ui-monospace, monospace); }
+.ac-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 8px); z-index: 300;
+  padding: 8px 14px; border-radius: var(--radius-md);
+  background: var(--backgrounds-card-bg-3); border: 1px solid var(--strokes-card-default);
+  color: var(--text-primary); box-shadow: var(--shadow-pop); opacity: 0;
+  transition: opacity .16s ease, transform .16s ease; pointer-events: none;
+}
+.ac-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+.pt-bar { display: flex; align-items: center; gap: 12px; }
+.pt-bar .cq-search { width: 300px; }
+.pt-bar__spacer { flex: 1 1 auto; }
+.pt-sel { display: none; align-items: center; gap: 8px; color: var(--text-secondary); }
+.pt-sel.is-on { display: flex; }
+.pt-sel .cq-btn--ghost.is-danger { color: color-mix(in srgb, var(--red-500) 80%, var(--text-primary)); }
+
+.cq-table.pt-table { --cq-cols: 44px minmax(190px, 1.2fr) 222px minmax(170px, 1fr) 176px 124px 84px; margin-top: 16px; }
+.pt-table .cq-thead > .cq-cell--check,
+.pt-table .cq-row  > .cq-cell--check { padding: 12px 0 12px 14px; justify-content: flex-start; }
+.pt-table .cq-thead > * { text-align: left; }
+.pt-table .cq-row { height: 64px; cursor: default; }
+.pt-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pt-name .cq-body2-med { color: var(--text-primary); }
+.pt-name .cq-caption-reg { color: var(--text-teritiary); }
+.pt-token { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--radius-sm);
+  background: var(--backgrounds-page-bg-3); border: 1px solid var(--strokes-line-3); color: var(--text-secondary); }
+.pt-scopes { display: flex; flex-wrap: wrap; gap: 4px; }
+.pt-dates { display: flex; flex-direction: column; gap: 2px; }
+.pt-dates .cq-body2-reg { color: var(--text-primary); }
+.pt-dates .cq-caption-reg { color: var(--text-teritiary); }
+.pt-acts { display: flex; align-items: center; gap: 2px; justify-content: flex-end; padding-right: 8px; }
+.pt-acts .cq-icon-btn { opacity: .55; }
+.cq-row:hover .pt-acts .cq-icon-btn { opacity: 1; }
+.pt-acts .is-danger:hover { color: color-mix(in srgb, var(--red-500) 80%, var(--text-primary)); }
+.pt-row-revoked .pt-name .cq-body2-med, .pt-row-revoked .pt-token { text-decoration: line-through; text-decoration-color: var(--text-teritiary); }
+.pt-row-revoked .pt-scopes .cq-badge { opacity: .55; }
+
+.pt-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 4px 0; color: var(--text-teritiary); }
+.pt-foot__nav { display: flex; align-items: center; gap: 4px; }
+.pt-empty { padding: 48px 16px; text-align: center; color: var(--text-teritiary); }
+
+.pt-exp { display: flex; gap: 6px; flex-wrap: wrap; }
+.pt-exp .cq-btn { height: 30px; }
+.pt-exp .cq-btn.is-on { background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1); box-shadow: none; }
+
+</style>
+
+<!-- ══ The page ══ -->
 <aside class="rail" data-cs="after" aria-label="Platform">
     <div class="rail-head">
       <div class="rail-brand">
@@ -1990,17 +2109,12 @@ body.cq { margin: 0; }
   </div>
 </div>
 
-<!-- ══ The page ══ -->
 <div class="cq-page">
   <div class="cq-page__main">
     <div class="cq-page__frame">
 
-      <header class="cq-page__header">
-        <div class="hdr-left">
-          <button class="hdr-crumb cq-body2-reg" id="crumbBack" type="button">Monitoring</button>
-          <span class="hdr-crumb-sep cq-body2-reg" aria-hidden="true">›</span>
-          <span class="cq-body2-med">Human Checkpoint Approvals</span>
-        </div>
+<header class="cq-page__header">
+        <div class="hdr-left"><span class="cq-subhead2-med">Personal access tokens</span><span class="hdr-sub cq-caption-reg">Tokens that let scripts and tools act as you.</span></div>
         <div class="hdr-actions">
           <button class="cq-icon-btn" title="Notifications" aria-label="Notifications">
             <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-bell"/></svg>
@@ -2019,324 +2133,345 @@ body.cq { margin: 0; }
 
       <div class="cq-page__body">
         <section class="cq-page__col">
+
           <div class="cq-page__content cq-scroll-y">
 
-            <div class="ck-head">
-              <span class="ck-head__title cq-subhead1-med">Human Checkpoint Approvals</span>
-              <span class="ck-head__sub cq-body2-reg">Review and manage all automation checkpoints requiring human input.</span>
-            </div>
-
-            <div class="ck-stats">
-              <section class="ck-card" aria-label="Total checkpoints">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#i-layers"/></svg>
-                  Total checkpoints
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statTotal">47</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Awaiting review">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-orange)"><use href="#i-clock"/></svg>
-                  Awaiting review
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statAwaiting">12</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Approved">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
-                  Approved
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statApproved">28</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Rejected">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
-                  Rejected
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="statRejected">7</span>
-                </div>
-              </section>
-            </div>
-
-            <div class="ck-toolbar">
-              <label class="cq-search">
-                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
-                <input id="ckQ" class="cq-body2-reg" type="search" placeholder="Search checkpoint details…" aria-label="Search checkpoint details" />
+            <div class="pt-bar">
+              <label class="cq-search"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="m13.2 13.2 3.3 3.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                <input id="ptQ" class="cq-body2-reg" type="search" placeholder="Search tokens" aria-label="Search tokens" />
               </label>
-              <div class="ck-pills" role="group" aria-label="Filter by status">
-                <button class="ck-pill is-active" data-filter="all">All</button>
-                <button class="ck-pill" data-filter="Awaiting">Awaiting <span id="pillAwaitCount">(12)</span></button>
-                <button class="ck-pill" data-filter="Approved">Approved</button>
-                <button class="ck-pill" data-filter="Rejected">Rejected</button>
+              <div class="pt-sel" id="ptSel">
+                <span class="cq-body2-reg" id="ptSelCount">0 selected</span>
+                <button class="cq-btn cq-btn--m cq-btn--ghost" id="ptRevokeSel" type="button">Revoke</button>
+                <button class="cq-btn cq-btn--m cq-btn--ghost is-danger" id="ptDeleteSel" type="button">Delete</button>
               </div>
-              <div class="ck-toolbar__right">
-                <div class="cq-filter-group">
-                  <button class="cq-dropdown" id="sortBtn" aria-expanded="false">
-                    <span id="sortLabel">Sort by: Newest</span>
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                  </button>
-                  <div class="cq-pop" id="sortPop"><div class="cq-pop__list" id="sortList"></div></div>
-                </div>
-                <button class="cq-dropdown" id="rangeBtn">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-                  <span>Jul 12 – Jul 15, 2024</span>
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                </button>
-              </div>
+              <div class="pt-bar__spacer"></div>
+              <button class="cq-btn cq-btn--m cq-btn--primary" id="ptNew" type="button"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 4.5v11M4.5 10h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>New token</button>
             </div>
 
-            <div class="cq-table ck-table">
-              <div class="cq-thead">
-                <span>Automation name</span><span>Requested at</span><span>Wait time</span><span>Status</span><span>Creator</span><span></span>
+            <div class="cq-table pt-table" role="table" aria-label="Personal access tokens">
+              <div class="cq-thead" role="row">
+                <div class="cq-cell cq-cell--check"><span class="cq-checkbox" id="ptAll" role="checkbox" aria-checked="false" tabindex="0" aria-label="Select all on this page"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2 4.9 8.6 9.5 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+                <div>Name</div>
+                <div>Token</div>
+                <div>Scopes</div>
+                <div>Created / expires</div>
+                <div>Status</div>
+                <div></div>
               </div>
-              <div id="ckRows"></div>
-            </div>
-            <div class="ck-empty cq-body2-reg" id="ckEmpty" hidden>
-              <b class="cq-body1-med">No checkpoints match</b>
-              Try a different search or status filter.
+              <div id="ptRows"></div>
             </div>
 
-            <div class="ck-foot">
-              <span class="ck-foot__count cq-body2-reg" id="ckCount"></span>
-              <div class="ck-pager" id="ckPager"></div>
+            <div class="pt-foot">
+              <span class="cq-caption-reg" id="ptRange">1–10 of 24</span>
+              <div class="pt-foot__nav">
+                <button class="cq-btn cq-btn--s cq-btn--icon cq-btn--ghost" id="ptPrev" type="button" aria-label="Previous page"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m9.8 3.5-4.3 4.5 4.3 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                <button class="cq-btn cq-btn--s cq-btn--icon cq-btn--ghost" id="ptNext" type="button" aria-label="Next page"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m6.2 3.5 4.3 4.5-4.3 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              </div>
             </div>
 
           </div>
-        </section>
-      </div>
 
+<!-- ── New / edit token ── -->
+<div class="cq-scrim" id="ptDlg" role="dialog" aria-modal="true" aria-labelledby="ptDlgTitle">
+  <div class="cq-modal ac-modal">
+    <div class="cq-modal__head">
+      <span class="cq-body1-med" id="ptDlgTitle">New token</span>
+      <button class="cq-icon-btn" type="button" data-close="ptDlg" aria-label="Close"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="m5.5 5.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="ac-modal__body" id="ptForm">
+      <label class="cq-field">
+        <span class="cq-field__label cq-body2-reg">Name</span>
+        <span class="ac-input"><input id="ptName" class="cq-body2-reg" type="text" placeholder="What will use this token?" maxlength="60" /></span>
+        <span class="ac-help cq-caption-reg">Shown in this list only. Pick something you will recognise later.</span>
+      </label>
+      <div class="cq-field">
+        <span class="cq-field__label cq-body2-reg">Expiration</span>
+        <div class="pt-exp" id="ptExp">
+          <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-days="30">30 days</button>
+          <button class="cq-btn cq-btn--s cq-btn--outline is-on" type="button" data-days="90">90 days</button>
+          <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-days="180">180 days</button>
+          <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-days="365">1 year</button>
+          <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-days="0">No expiry</button>
+        </div>
+        <span class="ac-help cq-caption-reg" id="ptExpNote"></span>
+      </div>
+      <div class="cq-field">
+        <span class="cq-field__label cq-body2-reg">Scopes</span>
+        <div class="ac-choices" id="ptScopes"></div>
+      </div>
+    </div>
+    <div class="ac-modal__body" id="ptDone" hidden>
+      <p class="cq-body2-reg" style="margin:0;color:var(--text-secondary)">Copy it now. For your security it is shown once and cannot be recovered — you can always create another.</p>
+      <div class="ac-reveal"><code id="ptRevealed"></code>
+        <button class="cq-btn cq-btn--s cq-btn--tonal-1" id="ptCopy" type="button"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="5.5" y="5.5" width="8" height="8" rx="1.4" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 5.5V3.9a1.4 1.4 0 0 0-1.4-1.4H3.9a1.4 1.4 0 0 0-1.4 1.4v5.2a1.4 1.4 0 0 0 1.4 1.4h1.6" stroke="currentColor" stroke-width="1.4"/></svg>Copy</button></div>
+    </div>
+    <div class="cq-modal__foot">
+      <button class="cq-btn cq-btn--m cq-btn--ghost" type="button" data-close="ptDlg" id="ptCancel">Cancel</button>
+      <button class="cq-btn cq-btn--m cq-btn--primary" type="button" id="ptSave">Create token</button>
     </div>
   </div>
 </div>
 
+<!-- ── Delete ── -->
+<div class="cq-scrim" id="ptDel" role="dialog" aria-modal="true" aria-labelledby="ptDelTitle">
+  <div class="cq-modal ac-modal" style="width:420px">
+    <div class="cq-modal__head"><span class="cq-body1-med" id="ptDelTitle">Delete token</span>
+      <button class="cq-icon-btn" type="button" data-close="ptDel" aria-label="Close"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="m5.5 5.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
+    <div class="ac-modal__body"><p class="cq-body2-reg" id="ptDelBody" style="margin:0;color:var(--text-secondary)"></p></div>
+    <div class="cq-modal__foot">
+      <button class="cq-btn cq-btn--m cq-btn--ghost" type="button" data-close="ptDel">Cancel</button>
+      <button class="cq-btn cq-btn--m cq-btn--primary ac-danger" type="button" id="ptDelGo">Delete</button>
+    </div>
+  </div>
+</div>
 
+        </section>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
+
 const root = document.documentElement;
 const $ = id => document.getElementById(id);
-const inShell = window.parent !== window;
-function go(url) {
-  if (inShell) parent.postMessage({ cqNav: url }, '*');
-  else window.location.href = url;
-}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ════ Data ════
-   The first ten rows are the wireframe's, verbatim; the rest fill the
-   47 the stat cards promise, so search, filters and paging behave like
-   the real screen. Icon hues cycle the coloured-text tokens, assigned
-   by entity. */
-const HUES = ['var(--text-coloured-blue)', 'var(--purple-450)', 'var(--text-coloured-green)',
-              'var(--orange-600)', 'var(--text-coloured-cyan)', 'var(--text-coloured-indigo)'];
-const PEOPLE = {
-  'Sarah Chen':  { init: 'SC', bg: 'var(--indigo-500)' },
-  'Mike Torres': { init: 'MT', bg: 'var(--green-600)' },
-  'Anna Park':   { init: 'AP', bg: 'var(--cyan-700, #047195)' },
-  'James Liu':   { init: 'JL', bg: 'var(--orange-800)' },
-  'Priya Nair':  { init: 'PN', bg: 'var(--purple-600)' },
-  'Tom Weber':   { init: 'TW', bg: 'var(--blue-600)' }
-};
-
-const BASE = [
-  ['Invoice Extraction Pipeline', 'Jul 15, 2:25 PM', 8,     'Awaiting', null],
-  ['Data Pipeline Sync',          'Jul 15, 1:50 PM', 43,    'Approved', 'Sarah Chen'],
-  ['Customer Onboarding',         'Jul 15, 12:30 PM', 135,  'Approved', 'Mike Torres'],
-  ['Report Generator',            'Jul 14, 4:45 PM', 1560,  'Rejected', 'Anna Park'],
-  ['Email Campaign Trigger',      'Jul 14, 3:10 PM', 1740,  'Approved', 'James Liu'],
-  ['Lead Scoring Engine',         'Jul 14, 11:00 AM', 1980, 'Awaiting', 'James Liu'],
-  ['Slack Notification Bot',      'Jul 13, 9:20 AM', 3540,  'Rejected', 'Sarah Chen'],
-  ['PDF Text Extractor',          'Jul 13, 8:15 AM', 3600,  'Approved', 'Mike Torres'],
-  ['HubSpot Contact Sync',        'Jul 12, 5:30 PM', 4500,  'Awaiting', null],
-  ['Stripe Payment Handler',      'Jul 12, 2:00 PM', 4680,  'Approved', 'Anna Park']
-];
-
-const GEN_NAMES = ['Vendor Onboarding Flow', 'Contract Review Agent', 'Expense Audit Bot',
-  'Churn Alert Notifier', 'Quote Approval Chain', 'Refund Screening Flow', 'Ticket Triage Agent',
-  'Payroll Sync Pipeline', 'SLA Breach Watcher', 'Inventory Reorder Bot', 'Ad Spend Guard',
-  'CRM Dedupe Sweep', 'NPS Digest Builder'];
-const GEN_TIMES = ['Jul 12, 11:40 AM', 'Jul 12, 10:05 AM', 'Jul 12, 9:12 AM', 'Jul 12, 8:30 AM'];
-/* 37 more rows: 9 awaiting, 23 approved, 5 rejected to land on 12/28/7. */
-const GEN_STATUS = [];
-for (let i = 0; i < 37; i++) {
-  GEN_STATUS.push(i % 7 === 2 ? 'Rejected' : (i % 4 === 1 || i === 34) ? 'Awaiting' : 'Approved');
-}
-const CREATORS = Object.keys(PEOPLE);
-const ROWS = BASE.map((r, i) => ({ name: r[0], at: r[1], wait: r[2], status: r[3], by: r[4], hue: HUES[i % 6], order: i }));
-for (let i = 0; i < 37; i++) {
-  const status = GEN_STATUS[i];
-  ROWS.push({
-    name: GEN_NAMES[i % GEN_NAMES.length] + (i >= GEN_NAMES.length ? ' ' + (Math.floor(i / GEN_NAMES.length) + 1) : ''),
-    at: GEN_TIMES[i % GEN_TIMES.length],
-    wait: 4800 + i * 55,
-    status,
-    by: status === 'Awaiting' && i % 3 === 0 ? null : CREATORS[i % CREATORS.length],
-    hue: HUES[(i + 3) % 6],
-    order: 10 + i
-  });
-}
-
-const fmtWait = m => m < 60 ? `${m}m`
-  : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60 ? (m % 60) + 'm' : ''}`.trim()
-  : `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60) ? Math.floor((m % 1440) / 60) + 'h' : ''}`.trim();
-
-const STATUS_META = {
-  Awaiting: { tone: 'orange', icon: '' },
-  Approved: { tone: 'green',  icon: '#i-check' },
-  Rejected: { tone: 'red',    icon: '#i-alert' }
-};
-
-/* ════ State + rendering ════ */
-const state = { q: '', filter: 'all', sort: 'newest', page: 1 };
-const PER = 10;
-
-function filtered() {
-  let rows = ROWS.filter(r =>
-    (state.filter === 'all' || r.status === state.filter) &&
-    (!state.q || (r.name + ' ' + (r.by || 'Unassigned')).toLowerCase().includes(state.q.toLowerCase())));
-  if (state.sort === 'oldest') rows = rows.slice().sort((a, b) => b.order - a.order);
-  else if (state.sort === 'wait') rows = rows.slice().sort((a, b) => b.wait - a.wait);
-  return rows;
-}
-
-function render() {
-  const rows = filtered();
-  const pages = Math.max(1, Math.ceil(rows.length / PER));
-  state.page = Math.min(state.page, pages);
-  const slice = rows.slice((state.page - 1) * PER, state.page * PER);
-
-  $('ckRows').innerHTML = slice.map(r => {
-    const meta = STATUS_META[r.status];
-    const person = r.by ? PEOPLE[r.by] : null;
-    return `
-    <div class="cq-row" tabindex="0">
-      <div class="cq-cell">
-        <span class="ck-run-ic" style="color:${r.hue}"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg></span>
-        <span class="cq-body2-med cq-truncate">${r.name}</span>
-      </div>
-      <div class="cq-cell cq-cell--muted cq-caption-reg">${r.at}</div>
-      <div class="cq-cell ck-num${r.status === 'Awaiting' ? ' ck-wait--hot' : ''}">${fmtWait(r.wait)}</div>
-      <div class="cq-cell"><span class="cq-status" data-tone="${meta.tone}">${meta.icon
-        ? `<svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="${meta.icon}"/></svg>`
-        : '<span class="cq-status--dot"></span>'}${r.status}</span></div>
-      <div class="cq-cell">${person
-        ? `<span class="ck-creator cq-caption-reg"><span class="cq-avatar" style="background:${person.bg}">${person.init}</span>${r.by}</span>`
-        : '<span class="ck-creator ck-creator--none cq-caption-reg">Unassigned</span>'}</div>
-      <div class="cq-cell ck-cell--end">${r.status === 'Awaiting'
-        ? '<button class="cq-btn cq-btn--sm cq-btn--primary">Review</button>'
-        : '<button class="cq-btn cq-btn--sm cq-btn--tonal-2">View output</button>'}</div>
-    </div>`;
-  }).join('');
-
-  $('ckEmpty').hidden = rows.length > 0;
-  const from = rows.length ? (state.page - 1) * PER + 1 : 0;
-  const to = Math.min(state.page * PER, rows.length);
-  $('ckCount').innerHTML = `Showing <b>${from}–${to}</b> of <b>${rows.length}</b> results`;
-
-  let pager = `<button class="ck-page" data-p="prev" aria-label="Previous page" ${state.page === 1 ? 'disabled' : ''}>‹</button>`;
-  for (let p = 1; p <= pages; p++) pager += `<button class="ck-page${p === state.page ? ' is-active' : ''}" data-p="${p}">${p}</button>`;
-  pager += `<button class="ck-page" data-p="next" aria-label="Next page" ${state.page === pages ? 'disabled' : ''}>›</button>`;
-  $('ckPager').innerHTML = pager;
-}
-
-$('ckPager').addEventListener('click', e => {
-  const btn = e.target.closest('.ck-page');
-  if (!btn || btn.disabled) return;
-  const p = btn.dataset.p;
-  state.page = p === 'prev' ? state.page - 1 : p === 'next' ? state.page + 1 : Number(p);
-  render();
-});
-
-$('ckQ').addEventListener('input', e => { state.q = e.target.value; state.page = 1; render(); });
-
-document.querySelectorAll('.ck-pill').forEach(pill => pill.addEventListener('click', () => {
-  state.filter = pill.dataset.filter;
-  state.page = 1;
-  document.querySelectorAll('.ck-pill').forEach(p => p.classList.toggle('is-active', p === pill));
-  render();
-}));
-
-/* ════ Sort dropdown ════ */
-const SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['wait', 'Longest wait']];
-$('sortList').innerHTML = SORTS.map(([id, label]) => `
-  <button class="cq-option${state.sort === id ? ' is-picked' : ''}" data-sort="${id}">
-    <span class="cq-option__label">${label}</span>
-    <svg class="cq-ic cq-option__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
-  </button>`).join('');
-$('sortBtn').addEventListener('click', e => {
-  e.stopPropagation();
-  const open = $('sortPop').classList.toggle('is-open');
-  $('sortBtn').classList.toggle('is-open', open);
-  $('sortBtn').setAttribute('aria-expanded', open);
-});
-$('sortList').addEventListener('click', e => {
-  const opt = e.target.closest('[data-sort]');
-  if (!opt) return;
-  state.sort = opt.dataset.sort;
-  state.page = 1;
-  $('sortLabel').textContent = 'Sort by: ' + SORTS.find(s => s[0] === state.sort)[1];
-  $('sortList').querySelectorAll('.cq-option').forEach(o => o.classList.toggle('is-picked', o === opt));
-  $('sortPop').classList.remove('is-open');
-  $('sortBtn').classList.remove('is-open');
-  render();
-});
-document.addEventListener('click', () => {
-  $('sortPop').classList.remove('is-open');
-  $('sortBtn').classList.remove('is-open');
-});
-
-$('crumbBack').addEventListener('click', () => go('monitoring.html'));
-
-/* ════ Gradient stroke follows the pointer along each stat card ════ */
-document.querySelectorAll('.ck-card').forEach(card => {
-  /* The glow rides the nearest horizontal edge, so hovering below
-     centre lights the bottom stroke rather than the whole ring. */
-  card.addEventListener('pointermove', e => {
-    const r = card.getBoundingClientRect();
-    const y = e.clientY - r.top;
-    card.style.setProperty('--gx', (e.clientX - r.left) + 'px');
-    card.style.setProperty('--gy', (y < r.height / 2 ? 0 : r.height) + 'px');
-  });
-});
-
-const rail = document.querySelector('.rail');
-/* ════ Theme ════ */
+/* ── Theme, the same contract every page keeps: data-mode on <html>,
+      the header toggle flips it, the shared chrome reads it. ── */
 function applyMode(mode) {
   root.dataset.mode = mode;
-  root.style.colorScheme = mode;
-  const dark = mode === 'dark';
-  $('themeIcon').setAttribute('href', dark ? '#i-sun' : '#i-moon');
-  $('themeToggle').title = dark ? 'Switch to light mode' : 'Switch to dark mode';
-  $('themeToggle').setAttribute('aria-label', $('themeToggle').title);
+  const dark = mode !== 'light';
+  const use = document.querySelector('#themeToggle use');
+  if (use) use.setAttribute('href', dark ? '#i-sun' : '#i-moon');
+  const t = $('themeToggle');
+  if (t) { t.title = dark ? 'Switch to light mode' : 'Switch to dark mode'; t.setAttribute('aria-label', t.title); }
 }
 $('themeToggle').addEventListener('click', () => {
-  const next = root.dataset.mode === 'dark' ? 'light' : 'dark';
+  const next = root.dataset.mode === 'light' ? 'dark' : 'light';
   applyMode(next);
-  try { localStorage.setItem('cq-theme', next); } catch (e) { /* private mode */ }
+  try { localStorage.setItem('cq-theme', next); } catch (e) {}
 });
 let stored = null;
-try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
+try { stored = localStorage.getItem('cq-theme'); } catch (e) {}
 applyMode(stored === 'light' ? 'light' : 'dark');
 
+/* Going to another page: inside the shell that is a message, standalone
+   it is a link -- the same rule the shared chrome follows. */
+function go(url) {
+  if (window.parent !== window) parent.postMessage({ cqNav: url }, '*');
+  else location.href = url;
+}
+let toastT;
+function toast(msg) {
+  let el = $('acToast');
+  if (!el) { el = document.createElement('div'); el.id = 'acToast'; el.className = 'ac-toast'; document.body.appendChild(el); }
+  el.textContent = msg; el.classList.add('is-on');
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('is-on'), 1800);
+}
+function openScrim(id) { $(id).classList.add('is-open'); }
+function closeScrim(id) { $(id).classList.remove('is-open'); }
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.cq-scrim.is-open').forEach(s => s.classList.remove('is-open'));
+});
+document.querySelectorAll('.cq-scrim').forEach(s => s.addEventListener('click', e => { if (e.target === s) s.classList.remove('is-open'); }));
+
+/* ── Data. Dates are relative to today so the statuses stay true. ── */
+const DAY = 86400000, NOW = Date.now();
+const SCOPES = [
+  ['read',   'Read',   'Read models, skills, integrations and documents'],
+  ['write',  'Write',  'Create and change anything read allows'],
+  ['run',    'Run',    'Start automations and talk to assistants'],
+  ['deploy', 'Deploy', 'Publish assistants and automations'],
+  ['admin',  'Admin',  'Manage workspace members and settings'],
+];
+const TONE = { read: 'blue', write: 'indigo', run: 'cyan', deploy: 'green', admin: 'orange' };
+const seeds = [
+  ['CI deploy',           -212, 153,  ['read','write','deploy']],
+  ['Local dev',           -44,  46,   ['read','write','run']],
+  ['Notebook sync',       -180, 9,    ['read']],
+  ['Slack alerts',        -300, -35,  ['read','run']],
+  ['Data warehouse pull', -8,   82,   ['read']],
+  ['Staging smoke tests', -120, 245,  ['read','run']],
+  ['Old laptop',          -400, -190, ['read','write'], 'revoked'],
+  ['Grafana',             -60,  305,  ['read']],
+  ['Release bot',         -95,  0,    ['read','write','deploy','admin']],
+  ['Design QA',           -21,  69,   ['read','run']],
+  ['Migration script',    -3,   27,   ['read','write']],
+  ['Support console',     -260, 12,   ['read','run']],
+  ['Airflow',             -140, 225,  ['read','write','run']],
+  ['Contractor · Priya',  -30,  -2,   ['read'], 'revoked'],
+  ['Weekly digest',       -75,  290,  ['read']],
+  ['Playwright e2e',      -18,  72,   ['read','run','deploy']],
+  ['Postman',             -330, -120, ['read','write']],
+  ['Zapier',              -50,  315,  ['read','run']],
+  ['Backup job',          -200, 165,  ['read']],
+  ['Field demo iPad',     -12,  6,    ['read','run']],
+  ['dbt runner',          -88,  277,  ['read','write']],
+  ['Intern · Marco',      -110, -60,  ['read']],
+  ['Vercel preview',      -6,   84,   ['read','deploy']],
+  ['Audit export',        -365, -1,   ['read','admin']],
+];
+const B62 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const rnd = n => Array.from({ length: n }, () => B62[Math.floor(Math.random() * 62)]).join('');
+let tokens = seeds.map((s, i) => ({
+  id: 't' + (i + 1), name: s[0],
+  created: NOW + s[1] * DAY,
+  expires: s[2] === 0 ? null : NOW + s[2] * DAY,
+  scopes: s[3], revoked: s[4] === 'revoked',
+  mask: 'kcpat.' + rnd(3) + '******' + rnd(4),
+}));
+
+const fmt = t => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+function status(t) {
+  if (t.revoked) return ['Revoked', 'red'];
+  if (t.expires === null) return ['Active', 'green'];
+  const d = Math.ceil((t.expires - NOW) / DAY);
+  if (d < 0) return ['Expired', 'grey'];
+  if (d <= 14) return ['Expiring soon', 'orange'];
+  return ['Active', 'green'];
+}
+function expiresLine(t) {
+  if (t.expires === null) return 'No expiry';
+  const d = Math.ceil((t.expires - NOW) / DAY);
+  if (d < 0) return `Expired ${fmt(t.expires)}`;
+  if (d === 0) return 'Expires today';
+  return `Expires ${fmt(t.expires)} · ${d}d`;
+}
+
+/* ── List: search, paging, selection ── */
+const PAGE = 10;
+let q = '', pageNo = 0, selected = new Set();
+const visible = () => tokens.filter(t => !q || t.name.toLowerCase().includes(q));
+function render() {
+  const all = visible();
+  const pages = Math.max(1, Math.ceil(all.length / PAGE));
+  pageNo = Math.min(pageNo, pages - 1);
+  const slice = all.slice(pageNo * PAGE, pageNo * PAGE + PAGE);
+  $('ptRows').innerHTML = slice.length ? slice.map(t => {
+    const [label, tone] = status(t);
+    return `<div class="cq-row${selected.has(t.id) ? ' is-selected' : ''}${t.revoked ? ' pt-row-revoked' : ''}" role="row" data-id="${t.id}">
+      <div class="cq-cell cq-cell--check"><span class="cq-checkbox${selected.has(t.id) ? ' is-checked' : ''}" role="checkbox" aria-checked="${selected.has(t.id)}" tabindex="0" data-sel="${t.id}" aria-label="Select ${esc(t.name)}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2 4.9 8.6 9.5 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="cq-cell"><div class="pt-name"><span class="cq-body2-med cq-truncate">${esc(t.name)}</span><span class="cq-caption-reg cq-truncate">${t.scopes.length} scope${t.scopes.length === 1 ? '' : 's'}</span></div></div>
+      <div class="cq-cell"><span class="pt-token ac-mono cq-caption-reg">${t.mask}</span></div>
+      <div class="cq-cell"><div class="pt-scopes">${t.scopes.map(s => `<span class="cq-badge cq-caption-med" data-tone="${TONE[s]}">${s}</span>`).join('')}</div></div>
+      <div class="cq-cell"><div class="pt-dates"><span class="cq-body2-reg">Created ${fmt(t.created)}</span><span class="cq-caption-reg">${expiresLine(t)}</span></div></div>
+      <div class="cq-cell"><span class="cq-badge cq-caption-med" data-tone="${tone}">${label}</span></div>
+      <div class="cq-cell pt-acts">
+        <button class="cq-icon-btn cq-icon-btn--sm" type="button" data-edit="${t.id}" title="Edit" aria-label="Edit ${esc(t.name)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m11.3 2.6 2.1 2.1-7.9 7.9H3.4v-2.1l7.9-7.9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m9.7 4.2 2.1 2.1" stroke="currentColor" stroke-width="1.4"/></svg></button>
+        <button class="cq-icon-btn cq-icon-btn--sm is-danger" type="button" data-del="${t.id}" title="Delete" aria-label="Delete ${esc(t.name)}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.3h10M6.2 4.3V2.9h3.6v1.4M4.2 4.3l.6 8.2c0 .5.4.9.9.9h4.6c.5 0 .9-.4.9-.9l.6-8.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="pt-empty cq-body2-reg">No tokens match “${esc(q)}”.</div>`;
+  const a = all.length ? pageNo * PAGE + 1 : 0, b = Math.min(all.length, (pageNo + 1) * PAGE);
+  $('ptRange').textContent = `${a}–${b} of ${all.length}`;
+  $('ptPrev').disabled = pageNo === 0;
+  $('ptNext').disabled = pageNo >= pages - 1;
+  const onPage = slice.filter(t => selected.has(t.id)).length;
+  $('ptAll').classList.toggle('is-checked', slice.length > 0 && onPage === slice.length);
+  $('ptAll').setAttribute('aria-checked', String(slice.length > 0 && onPage === slice.length));
+  $('ptSel').classList.toggle('is-on', selected.size > 0);
+  $('ptSelCount').textContent = `${selected.size} selected`;
+}
+$('ptQ').addEventListener('input', e => { q = e.target.value.trim().toLowerCase(); pageNo = 0; render(); });
+$('ptPrev').addEventListener('click', () => { pageNo--; render(); });
+$('ptNext').addEventListener('click', () => { pageNo++; render(); });
+$('ptAll').addEventListener('click', () => {
+  const slice = visible().slice(pageNo * PAGE, pageNo * PAGE + PAGE);
+  const every = slice.every(t => selected.has(t.id));
+  slice.forEach(t => every ? selected.delete(t.id) : selected.add(t.id));
+  render();
+});
+$('ptRows').addEventListener('click', e => {
+  const sel = e.target.closest('[data-sel]');
+  if (sel) { const id = sel.dataset.sel; selected.has(id) ? selected.delete(id) : selected.add(id); render(); return; }
+  const ed = e.target.closest('[data-edit]'); if (ed) return openEdit(ed.dataset.edit);
+  const de = e.target.closest('[data-del]'); if (de) return openDelete([de.dataset.del]);
+});
+$('ptRows').addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.matches('[data-sel]')) { e.preventDefault(); e.target.click(); }
+});
+$('ptAll').addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); $('ptAll').click(); } });
+$('ptRevokeSel').addEventListener('click', () => {
+  tokens.forEach(t => { if (selected.has(t.id)) t.revoked = true; });
+  toast(`${selected.size} token${selected.size === 1 ? '' : 's'} revoked`); selected.clear(); render();
+});
+$('ptDeleteSel').addEventListener('click', () => openDelete([...selected]));
+
+/* ── Create / edit ── */
+let editing = null, expDays = 90, chosen = new Set(['read']);
+function paintScopes() {
+  $('ptScopes').innerHTML = SCOPES.map(([k, t, d]) => `
+    <button class="ac-choice${chosen.has(k) ? ' is-on' : ''}" type="button" data-scope="${k}" role="checkbox" aria-checked="${chosen.has(k)}">
+      <span class="cq-checkbox${chosen.has(k) ? ' is-checked' : ''}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2 4.9 8.6 9.5 3.9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span><span class="ac-choice__t cq-body2-med">${t}</span><br><span class="ac-choice__d cq-caption-reg">${d}</span></span>
+    </button>`).join('');
+}
+function paintExp() {
+  $('ptExp').querySelectorAll('[data-days]').forEach(b => b.classList.toggle('is-on', +b.dataset.days === expDays));
+  $('ptExpNote').textContent = expDays ? `The token stops working on ${fmt(NOW + expDays * DAY)}.` : 'The token works until you revoke it. Prefer an expiry for anything shared.';
+}
+function openDialog(title, saveLabel) {
+  $('ptDlgTitle').textContent = title; $('ptSave').textContent = saveLabel;
+  $('ptForm').hidden = false; $('ptDone').hidden = true; $('ptSave').hidden = false; $('ptCancel').textContent = 'Cancel';
+  paintScopes(); paintExp(); openScrim('ptDlg'); setTimeout(() => $('ptName').focus(), 30);
+}
+$('ptNew').addEventListener('click', () => { editing = null; $('ptName').value = ''; expDays = 90; chosen = new Set(['read']); openDialog('New token', 'Create token'); });
+function openEdit(id) {
+  const t = tokens.find(x => x.id === id); if (!t) return;
+  editing = t; $('ptName').value = t.name; chosen = new Set(t.scopes);
+  expDays = t.expires === null ? 0 : Math.max(30, Math.ceil((t.expires - t.created) / DAY));
+  if (![30, 90, 180, 365, 0].includes(expDays)) expDays = 90;
+  openDialog('Edit token', 'Save changes');
+}
+$('ptExp').addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) { expDays = +b.dataset.days; paintExp(); } });
+$('ptScopes').addEventListener('click', e => {
+  const b = e.target.closest('[data-scope]'); if (!b) return;
+  const k = b.dataset.scope; chosen.has(k) ? chosen.delete(k) : chosen.add(k);
+  if (!chosen.size) chosen.add('read');           /* a token with no scope does nothing */
+  paintScopes();
+});
+$('ptSave').addEventListener('click', () => {
+  const name = $('ptName').value.trim();
+  if (!name) { $('ptName').focus(); $('ptName').closest('.ac-input').style.borderColor = 'var(--red-500)'; return; }
+  $('ptName').closest('.ac-input').style.borderColor = '';
+  if (editing) {
+    editing.name = name; editing.scopes = SCOPES.map(s => s[0]).filter(k => chosen.has(k));
+    editing.expires = expDays ? editing.created + expDays * DAY : null;
+    closeScrim('ptDlg'); toast('Token updated'); render(); return;
+  }
+  const t = { id: 't' + Date.now(), name, created: NOW, expires: expDays ? NOW + expDays * DAY : null,
+              scopes: SCOPES.map(s => s[0]).filter(k => chosen.has(k)), revoked: false, mask: '' };
+  const full = 'kcpat.' + rnd(40);
+  t.mask = full.slice(0, 9) + '******' + full.slice(-4);
+  tokens.unshift(t); q = ''; $('ptQ').value = ''; pageNo = 0; render();
+  $('ptForm').hidden = true; $('ptDone').hidden = false; $('ptSave').hidden = true;
+  $('ptDlgTitle').textContent = 'Token created'; $('ptCancel').textContent = 'Done';
+  $('ptRevealed').textContent = full;
+});
+$('ptCopy').addEventListener('click', () => {
+  const v = $('ptRevealed').textContent;
+  (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => toast('Copied'), () => toast('Select the token and copy it'));
+});
+
+/* ── Delete ── */
+let pending = [];
+function openDelete(ids) {
+  pending = ids; const names = ids.map(id => (tokens.find(t => t.id === id) || {}).name).filter(Boolean);
+  $('ptDelBody').textContent = ids.length === 1
+    ? `Delete “${names[0]}”? Anything still using it will stop working immediately. This cannot be undone.`
+    : `Delete ${ids.length} tokens? Anything still using them will stop working immediately. This cannot be undone.`;
+  openScrim('ptDel');
+}
+$('ptDelGo').addEventListener('click', () => {
+  tokens = tokens.filter(t => !pending.includes(t.id)); pending.forEach(id => selected.delete(id));
+  closeScrim('ptDel'); toast(pending.length === 1 ? 'Token deleted' : `${pending.length} tokens deleted`); pending = []; render();
+});
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
 render();
+
 </script>
-
-
-
-
-
-
-
-
-
-
-
 <style>
 /* ── Platform panel (left rail) ─────────────────────────────
        Two variants of one component: crunched at 68px and opened at

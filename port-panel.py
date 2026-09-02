@@ -82,7 +82,7 @@ ACTIVE = {
 
 def rail_for(page):
     r = canon
-    title = ACTIVE[page]
+    title = ACTIVE.get(page)
     if title:
         old = '<button class="rail-btn" title="%s">' % title
         assert old in r, (page, title)
@@ -125,7 +125,7 @@ def cut_old_js(s, page):
         assert e, f'{page}: namespaced rail JS has no Theme section after it'
         keep = "const rail = document.querySelector('.rail');\n"
         return s[:m.start()] + keep + s[e.start():], (e.start() - m.start())
-    sys.exit(f'{page}: no rail JS found to replace')
+    return s, 0   # a page built after the port never had its own rail JS
 
 def merge_sprite(s, page):
     have = set(re.findall(r'<symbol id="(ic-[a-z0-9_]+)"', s))
@@ -142,14 +142,33 @@ def merge_sprite(s, page):
 
 WIRING = '/* ── Combined product · shared shell wiring'
 
+BUNDLE_OPEN = '<style>\n/* ── Platform panel (left rail) '
+
+def strip_previous_bundle(s):
+    i = s.find(BUNDLE_OPEN)
+    if i < 0:
+        return s, False
+    # the bundle runs: <style>…</style> [gsap tag] <script>(function () {…})();</script>
+    j = s.index('</style>', i) + len('</style>')
+    k = s.find('<script', j)
+    assert k >= 0 and k - j < 200, 'bundle shape not recognised'
+    if 'gsap' in s[k:s.index('>', k)]:           # the external tag first
+        k = s.index('<script', s.index('>', k))
+    end = s.index('</script>', k) + len('</script>')
+    return s[:i] + s[end:], True
+
 for page in sorted(p.name for p in PAGES.glob('*.html')):
     f = PAGES / page
     s = f.read_text()
+    s, had = strip_previous_bundle(s)
 
     # 1 · the panel itself
     m = re.search(r'<aside class="(?:cq-)?rail"[^>]*>.*?</aside>', s, re.S)
-    assert m, f'{page}: no rail markup'
-    s = s[:m.start()] + rail_for(page).rstrip() + s[m.end():]
+    if m:
+        s = s[:m.start()] + rail_for(page).rstrip() + s[m.end():]
+    else:
+        k = s.index('<div class="cq-page"')
+        s = s[:k] + rail_for(page).rstrip() + '\n\n' + s[k:]
 
     # 2 · the offer card and the view it opens
     has_film = 'function mountCinema' in s or 'mountCinema =' in s
@@ -177,7 +196,9 @@ for page in sorted(p.name for p in PAGES.glob('*.html')):
     #     shared chrome so re-running inject-shell.py still finds its own
     #     block and nothing else.
     bundle = ['\n<style>\n', RAIL_CSS, '\n</style>\n']
-    if has_film and 'gsap.min.js' not in s:
+    # The icon-draw motion on hover is gated on window.gsap. It is one
+    # 72KB script from cdnjs, not embedded, so every page carries it.
+    if 'gsap.min.js' not in s:
         bundle += ['\n', GSAP, '\n']
     # Wrapped, not appended raw: the component opens with its own
     # `const $ = ...` helper and every page already has one, and a
@@ -205,5 +226,5 @@ for page in sorted(p.name for p in PAGES.glob('*.html')):
         f'{page}: HTML comments do not balance -- an unclosed comment makes '
         'the whole rest of the document inert, scripts included')
     f.write_text(s)
-    print('%-22s cut %6d of old rail JS  film=%-5s symbols+=%s  now %7d bytes'
-          % (page, cut, has_film, added or '-', len(s)))
+    print('%-22s %s cut %5d  film=%-5s symbols+=%-16s now %7d bytes'
+          % (page, 'replaced' if had else 'ported  ', cut, has_film, added or '-', len(s)))

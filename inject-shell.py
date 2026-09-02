@@ -28,7 +28,7 @@ CSS = '''
 
 .cq-pm {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 400;
-  width: 292px; max-width: calc(100vw - 32px);
+  width: 212px; max-width: calc(100vw - 32px);
   display: none; flex-direction: column;
   padding: 6px 0 8px;
   background: var(--backgrounds-card-bg-3);
@@ -52,7 +52,7 @@ CSS = '''
   border: 0; border-radius: 8px; background: none;
   font: inherit; text-align: left; cursor: pointer;
 }
-.cq-pm-id:hover { background: var(--backgrounds-card-bg-4); }
+.cq-pm-id:hover { background: color-mix(in srgb, var(--text-primary) 7%, transparent); }
 .cq-pm-id:hover .nm { color: var(--text-primary); }
 .cq-pm-id:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: -2px; }
 .cq-pm-id img { width: 34px; height: 34px; border-radius: 999px; flex: none; }
@@ -78,7 +78,7 @@ CSS = '''
   background: none; color: var(--text-secondary);
   font: inherit; text-align: left; cursor: pointer; text-decoration: none;
 }
-.cq-pm-row:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+.cq-pm-row:hover { background: color-mix(in srgb, var(--text-primary) 7%, transparent); color: var(--text-primary); }
 .cq-pm-row:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: -2px; }
 .cq-pm-row .lbl { flex: 1 1 auto; min-width: 0; }
 .cq-pm-row svg { flex: none; }
@@ -133,7 +133,7 @@ CSS = '''
   font: 500 12px/1 var(--font-geist, Geist, system-ui, sans-serif);
   cursor: pointer; transition: background .14s ease, color .14s ease;
 }
-.cq-pm-seg button svg { flex: none; }
+.cq-pm-seg button svg { flex: none; width: 15px; height: 15px; }
 .cq-pm-seg button:hover { color: var(--text-primary); }
 .cq-pm-seg button[aria-pressed="true"] {
   background: var(--backgrounds-card-bg-3); color: var(--text-primary);
@@ -148,6 +148,7 @@ ICON = {
  'moon': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
  'system': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.9" y="2.9" width="12.2" height="8.2" rx="1.3" stroke="currentColor" stroke-width="1.4"/><path d="M5.8 13.9h4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
  'forum': '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9.9 9.2H4.7l-2 1.7V3.4a.9.9 0 0 1 .9-.9h6.3a.9.9 0 0 1 .9.9v4.9a.9.9 0 0 1-.9.9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12.2 5.6h.3a.9.9 0 0 1 .9.9v6.9l-2-1.7H6.6" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+ 'key': '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5.6" cy="10.4" r="3.1" stroke="currentColor" stroke-width="1.4"/><path d="M7.9 8.1 13.4 2.6M11.2 4.8l1.7 1.7M9.6 6.4l1.7 1.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
  'ext': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5 7.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
  'out': '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.2 13.3H3.6a1 1 0 0 1-1-1V3.7a1 1 0 0 1 1-1h2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10.4 10.6 13 8l-2.6-2.6M13 8H6.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 }
@@ -173,6 +174,7 @@ SNIPPET = '''
     'monitor': 'monitoring.html',
     'monitoring': 'monitoring.html'
   };
+  var HERE = (location.pathname.split('/').pop() || 'index.html');
   var root = document.documentElement;
   var inShell = window.parent !== window;
   var $ = function (id) { return document.getElementById(id); };
@@ -295,14 +297,15 @@ SNIPPET = '''
       '<div class="cq-pm-rule"></div>' +
       '<div class="cq-pm-sec"><h4>Theme</h4></div>' +
       '<div class="cq-pm-seg" role="group" aria-label="Theme">' +
-        '<button type="button" data-pref="light" aria-pressed="false">' + __IC_SUN__ + 'Light</button>' +
-        '<button type="button" data-pref="dark" aria-pressed="false">' + __IC_MOON__ + 'Dark</button>' +
-        '<button type="button" data-pref="system" aria-pressed="false">' + __IC_SYS__ + 'System</button>' +
+        '<button type="button" data-pref="light" aria-pressed="false" title="Light" aria-label="Light">' + __IC_SUN__ + '</button>' +
+        '<button type="button" data-pref="dark" aria-pressed="false" title="Dark" aria-label="Dark">' + __IC_MOON__ + '</button>' +
+        '<button type="button" data-pref="system" aria-pressed="false" title="System" aria-label="System">' + __IC_SYS__ + '</button>' +
       '</div>' +
       '<div class="cq-pm-rule"></div>' +
       '<button type="button" class="cq-pm-row" data-act="forum">' + __IC_FORUM__ +
-        '<span class="lbl">Forum</span>' +
-        '<span class="cq-pm-note">Ask, report, discuss</span></button>' +
+        '<span class="lbl">Forum</span></button>' +
+      '<button type="button" class="cq-pm-row" data-act="tokens">' + __IC_KEY__ +
+        '<span class="lbl">Access tokens</span></button>' +
       '<button type="button" class="cq-pm-row is-danger" data-act="signout">' + __IC_OUT__ +
         '<span class="lbl">Sign out</span></button>' +
       '<div class="cq-pm-rule"></div>' +
@@ -336,11 +339,14 @@ SNIPPET = '''
       var b = e.target.closest('button[data-pref]');
       if (b) setPref(b.dataset.pref);
     });
+    var DEST = { profile: 'profile.html', tokens: 'pat-tokens.html' };
     menu.addEventListener('click', function (e) {
       var row = e.target.closest('[data-act]');
       if (!row) return;
       if (row.dataset.act === 'assistant') e.preventDefault();
       setOpen(false);
+      var to = DEST[row.dataset.act];
+      if (to && to !== HERE && !(inShell && document.title.indexOf(to === 'profile.html' ? 'Profile' : 'access tokens') > -1)) go(to);
     });
   }
 
@@ -365,6 +371,7 @@ def build():
     for key, tok in (('sun', '__IC_SUN__'), ('moon', '__IC_MOON__'), ('system', '__IC_SYS__')):
         s = s.replace(tok, "'" + ICON[key] + "'")
     s = s.replace('__IC_FORUM__', "'" + ICON['forum'] + "'")
+    s = s.replace('__IC_KEY__', "'" + ICON['key'] + "'")
     s = s.replace('__IC_EXT__', "'" + ICON['ext'] + "'")
     s = s.replace('__IC_OUT__', "'" + ICON['out'] + "'")
     return s
@@ -375,7 +382,12 @@ for name in sorted(q.name for q in PAGES.glob('*.html')):
     f = PAGES / name
     s = f.read_text()
     i = s.find(MARK)
-    assert i > 0, name
+    if i < 0:                       # a page that has never had the chrome
+        m = re.search(r'\s*</body>\s*(?:</html>)?\s*$', s)
+        s = (s[:m.start()] if m else s.rstrip()) + '\n' + snippet + '\n</body>\n</html>\n'
+        f.write_text(s)
+        print(f'{name:20} {len(s):,} bytes (first injection)')
+        continue
     start = s.rfind('<script>', 0, i)
     # a <style> may sit immediately above from a previous run
     pre = s[:start].rstrip()
