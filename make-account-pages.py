@@ -112,6 +112,7 @@ CSS_COMMON = '''
   padding: 8px 14px; border-radius: var(--radius-md);
   background: var(--backgrounds-card-bg-3); border: 1px solid var(--strokes-card-default);
   color: var(--text-primary); box-shadow: var(--shadow-pop); opacity: 0;
+  font: 400 var(--fs-body-2)/var(--lh-body-2) var(--font-geist, inherit);
   transition: opacity .16s ease, transform .16s ease; pointer-events: none;
 }
 .ac-toast.is-on { opacity: 1; transform: translate(-50%, 0); }
@@ -511,17 +512,17 @@ render();
 #  Profile
 # ═════════════════════════════════════════════════════════════════════
 PROF_CSS = '''
-.pf-wrap { max-width: 880px; display: flex; flex-direction: column; gap: 16px; }
+.pf-wrap { display: flex; flex-direction: column; gap: 16px; }
 .pf-id { display: flex; align-items: center; gap: 16px; padding: 20px; }
 .pf-id img { width: 64px; height: 64px; border-radius: 50%; flex: none; }
 .pf-id__who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .pf-id__name { color: var(--text-primary); }
 .pf-id__mail { color: var(--text-secondary); }
-.pf-id__tags { display: flex; gap: 6px; margin-top: 4px; }
-.pf-grid { display: grid; grid-template-columns: 1fr 1fr; }
-.pf-kv { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border-top: 1px solid var(--strokes-line-3); }
-.pf-kv:nth-child(-n+2) { border-top: 0; }
-.pf-kv:nth-child(odd) { border-right: 1px solid var(--strokes-line-3); }
+.pf-id__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.pf-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.pf-kv { display: flex; flex-direction: column; gap: 3px; padding: 14px 16px; border-top: 1px solid var(--strokes-line-3); border-right: 1px solid var(--strokes-line-3); }
+.pf-kv:nth-child(-n+4) { border-top: 0; }
+.pf-kv:nth-child(4n) { border-right: 0; }
 .pf-kv .cq-caption-reg { color: var(--text-teritiary); }
 .pf-kv .cq-body2-reg { color: var(--text-primary); }
 .pf-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--strokes-line-3); }
@@ -533,7 +534,30 @@ PROF_CSS = '''
 .pf-row__t .cq-body2-med { color: var(--text-primary); }
 .pf-row__t .cq-caption-reg { color: var(--text-teritiary); }
 .pf-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 900px) { .pf-two, .pf-grid { grid-template-columns: 1fr; } .pf-kv:nth-child(odd) { border-right: 0; } .pf-kv:nth-child(2) { border-top: 1px solid var(--strokes-line-3); } }
+
+/* ── Workspaces: one row per membership, each with its own role ── */
+.pf-ws .ac-card__head { flex-wrap: wrap; }
+.pf-ws__legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 16px; border-bottom: 1px solid var(--strokes-line-3); background: var(--backgrounds-page-bg-3); }
+.pf-ws__legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--text-teritiary); }
+.cq-table.pf-ws-table { --cq-cols: minmax(240px, 1.5fr) minmax(210px, 1.1fr) 110px 140px 150px 128px; border: 0; border-radius: 0; }
+.pf-ws-table .cq-thead > * { text-align: left; }
+.pf-ws-table .cq-row { height: 64px; cursor: default; }
+.pf-ws-table .cq-row.is-current { background: var(--backgrounds-table-select); }
+.pf-ws-table .cq-cell:last-child { justify-content: flex-end; }
+.ws-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ws-mark { width: 32px; height: 32px; border-radius: var(--radius-md); flex: none; display: flex; align-items: center; justify-content: center;
+  color: #fff; font: 500 var(--fs-body-2)/1 var(--font-inter, inherit); }
+.ws-who__t, .ws-role { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ws-who__t .cq-body2-med { color: var(--text-primary); }
+.ws-who__t .cq-caption-reg, .ws-role .cq-caption-reg, .ws-muted { color: var(--text-teritiary); }
+.ws-role .cq-badge { align-self: flex-start; }
+.pf-ws-table .cq-cell .cq-body2-reg { color: var(--text-primary); }
+.ws-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-500); display: inline-block; margin-right: 6px; }
+.ws-current { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.ws-current .cq-ic { width: 16px; height: 16px; color: var(--green-500); }
+
+@media (max-width: 1100px) { .pf-grid { grid-template-columns: repeat(2, 1fr); } .pf-kv:nth-child(-n+4) { border-top: 1px solid var(--strokes-line-3); } .pf-kv:nth-child(-n+2) { border-top: 0; } .pf-kv:nth-child(4n) { border-right: 1px solid var(--strokes-line-3); } .pf-kv:nth-child(2n) { border-right: 0; } }
+@media (max-width: 900px) { .pf-two { grid-template-columns: 1fr; } }
 '''
 
 PROF_BODY = '''
@@ -545,17 +569,30 @@ PROF_BODY = '''
                 <div class="pf-id__who">
                   <span class="pf-id__name cq-subhead1-med" id="pfName">Savio Govindu</span>
                   <span class="pf-id__mail cq-body2-reg">savio.govindu@fractal.ai</span>
-                  <div class="pf-id__tags">
-                    <span class="cq-badge cq-caption-med" data-tone="blue">Finance workspace</span>
-                    <span class="cq-badge cq-caption-med" data-tone="indigo" id="pfRoleTag">Admin</span>
-                  </div>
+                  <div class="pf-id__tags" id="pfTags"></div>
                 </div>
                 <button class="cq-btn cq-btn--m cq-btn--tonal-1" id="pfEdit" type="button">''' + ICON['pencil'] + '''Edit profile</button>
               </section>
 
               <section class="ac-card" aria-label="About you">
-                <div class="ac-card__head"><span class="cq-body1-med">About</span><span class="ac-card__sub cq-caption-reg">What the workspace sees</span></div>
+                <div class="ac-card__head"><span class="cq-body1-med">About</span><span class="ac-card__sub cq-caption-reg">Shared with every workspace you belong to</span></div>
                 <div class="pf-grid" id="pfGrid"></div>
+              </section>
+
+              <section class="ac-card pf-ws" aria-label="Your workspaces">
+                <div class="ac-card__head"><span class="cq-body1-med">Workspaces</span><span class="ac-card__sub cq-caption-reg" id="pfWsSub"></span></div>
+                <div class="pf-ws__legend cq-caption-reg" id="pfLegend"></div>
+                <div class="cq-table pf-ws-table" role="table" aria-label="Workspaces you belong to">
+                  <div class="cq-thead" role="row">
+                    <div class="cq-cell cq-caption-reg">Workspace</div>
+                    <div class="cq-cell cq-caption-reg">Your role</div>
+                    <div class="cq-cell cq-caption-reg">Members</div>
+                    <div class="cq-cell cq-caption-reg">Joined</div>
+                    <div class="cq-cell cq-caption-reg">Last active</div>
+                    <div class="cq-cell cq-caption-reg"></div>
+                  </div>
+                  <div id="pfWsRows"></div>
+                </div>
               </section>
 
               <div class="pf-two">
@@ -577,9 +614,12 @@ PROF_BODY = '''
                   <div class="pf-row"><span class="pf-row__ic">''' + ICON['key'] + '''</span>
                     <div class="pf-row__t"><span class="cq-body2-med">Personal access tokens</span><span class="cq-caption-reg">19 active · 3 expiring soon · 2 revoked</span></div>
                     <button class="cq-btn cq-btn--s cq-btn--tonal-1" id="pfTokens" type="button">Manage''' + ICON['arrow'] + '''</button></div>
-                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><circle cx="7.5" cy="7" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M3 15.2c.5-2.3 2.4-3.6 4.5-3.6s4 1.3 4.5 3.6M13.5 8.2a2.3 2.3 0 1 0 0-4.6M14 11.6c1.7.3 2.8 1.4 3.1 3.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
-                    <div class="pf-row__t"><span class="cq-body2-med">Workspaces</span><span class="cq-caption-reg">Finance (Admin) · Marketing (Member)</span></div>
-                    <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-toast="Workspace switching lives in the header">Switch</button></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 8h13M3.5 12h13M10 3c-2.2 2.2-2.2 11.8 0 14M10 3c2.2 2.2 2.2 11.8 0 14" stroke="currentColor" stroke-width="1.5"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Sign-in method</span><span class="cq-caption-reg">Single sign-on · fractal.ai</span></div>
+                    <span class="cq-badge cq-caption-med" data-tone="blue">SSO</span></div>
+                  <div class="pf-row"><span class="pf-row__ic"><svg class="cq-ic" viewBox="0 0 20 20" fill="none"><path d="M5 8.2a5 5 0 0 1 10 0v3.2l1.4 2.1H3.6L5 11.4V8.2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.2 16a1.9 1.9 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.5"/></svg></span>
+                    <div class="pf-row__t"><span class="cq-body2-med">Notifications</span><span class="cq-caption-reg">Email digest daily · in-app for mentions</span></div>
+                    <button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-toast="Notification settings are not wired in this mockup">Edit</button></div>
                 </section>
               </div>
 
@@ -602,21 +642,66 @@ PROF_BODY = '''
 PROF_JS = r'''
 const me = {
   name: 'Savio Govindu', email: 'savio.govindu@fractal.ai', title: 'Product designer', team: 'Design',
-  location: 'Bengaluru, India', tz: 'Asia/Kolkata (GMT+5:30)', lang: 'English (UK)', role: 'Admin', since: 'March 2025',
+  location: 'Bengaluru, India', tz: 'Asia/Kolkata (GMT+5:30)', lang: 'English (UK)', since: 'March 2025',
 };
 const FIELDS = [
   ['name', 'Full name', true], ['email', 'Email', false], ['title', 'Job title', true], ['team', 'Team', true],
   ['location', 'Location', true], ['tz', 'Time zone', true], ['lang', 'Language', true], ['since', 'Member since', false],
 ];
+// Roles are per workspace: the same person is an admin in one and a
+// viewer in another. Each role says what it lets you do.
+const ROLES = {
+  Admin:  { tone: 'orange', can: 'Manage members, billing and settings' },
+  Editor: { tone: 'indigo', can: 'Create and edit anything in the workspace' },
+  Member: { tone: 'blue',   can: 'Use and run what the workspace shares' },
+  Viewer: { tone: 'grey',   can: 'Read only' },
+};
+const WS = [
+  { id: 'marketing', name: 'Marketing',        about: 'Campaign assistants and content automations', role: 'Member', members: 42, joined: 'Jan 2026', active: 'Today',        hue: '#7c5cff' },
+  { id: 'finance',   name: 'Finance',          about: 'Close, forecasting and spend analysis',       role: 'Admin',  members: 18, joined: 'Mar 2025', active: 'Yesterday',    hue: '#2f7bff' },
+  { id: 'design',    name: 'Design systems',   about: 'Tokens, components and review bots',         role: 'Editor', members: 9,  joined: 'Sept 2025', active: '3 days ago',  hue: '#e8632b' },
+  { id: 'cs',        name: 'Customer success', about: 'Support triage and renewal playbooks',       role: 'Admin',  members: 23, joined: 'Nov 2025', active: 'Last week',    hue: '#159f7a' },
+  { id: 'data',      name: 'Data platform',    about: 'Warehouse models and pipeline monitors',     role: 'Viewer', members: 64, joined: 'Jun 2026', active: '2 weeks ago',  hue: '#0aa2c0' },
+];
+let current = 'marketing';
+
+function paintWs() {
+  $('pfWsRows').innerHTML = WS.map(w => `<div class="cq-row${w.id === current ? ' is-current' : ''}" role="row" data-id="${w.id}">
+    <div class="cq-cell"><div class="ws-who"><span class="ws-mark" style="background:${w.hue}">${w.name[0]}</span>
+      <div class="ws-who__t"><span class="cq-body2-med cq-truncate">${esc(w.name)}</span><span class="cq-caption-reg cq-truncate">${esc(w.about)}</span></div></div></div>
+    <div class="cq-cell"><div class="ws-role"><span class="cq-badge cq-caption-med" data-tone="${ROLES[w.role].tone}">${w.role}</span><span class="cq-caption-reg cq-truncate">${ROLES[w.role].can}</span></div></div>
+    <div class="cq-cell"><span class="cq-body2-reg">${w.members}</span></div>
+    <div class="cq-cell"><span class="cq-body2-reg">${w.joined}</span></div>
+    <div class="cq-cell"><span class="cq-body2-reg">${w.id === current ? '<span class="ws-dot"></span>Now' : w.active}</span></div>
+    <div class="cq-cell">${w.id === current
+      ? '<span class="ws-current cq-caption-med">__TICK__ Current</span>'
+      : `<button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-switch="${w.id}">Switch</button>`}</div>
+  </div>`).join('');
+  const byRole = {};
+  WS.forEach(w => { byRole[w.role] = (byRole[w.role] || 0) + 1; });
+  const adminIn = byRole.Admin || 0;
+  $('pfWsSub').textContent = `${WS.length} workspaces · admin in ${adminIn} · roles are set by each workspace's admins`;
+  $('pfLegend').innerHTML = Object.entries(ROLES).map(([r, d]) => `<span><span class="cq-badge cq-caption-med" data-tone="${d.tone}">${r}</span>${d.can}</span>`).join('');
+  $('pfTags').innerHTML = `<span class="cq-badge cq-caption-med" data-tone="blue">${WS.length} workspaces</span>`
+    + Object.keys(ROLES).filter(r => byRole[r]).map(r => `<span class="cq-badge cq-caption-med" data-tone="${ROLES[r].tone}">${r} in ${byRole[r]}</span>`).join('');
+  document.querySelectorAll('[data-switch]').forEach(b => b.addEventListener('click', () => switchTo(b.dataset.switch)));
+}
+function switchTo(id) {
+  current = id;
+  const w = WS.find(x => x.id === id);
+  const pill = document.querySelector('.ws-pill');
+  if (pill) { const a = pill.querySelector('.cq-avatar'); const n = pill.querySelector('.cq-body2-reg'); if (a) a.textContent = w.name[0]; if (n) n.textContent = w.name; }
+  paintWs(); toast(`Switched to ${w.name} · you are ${w.role === 'Admin' || w.role === 'Editor' ? 'an' : 'a'} ${w.role.toLowerCase()} here`);
+}
 function paint() {
   $('pfGrid').innerHTML = FIELDS.map(([k, l]) => `<div class="pf-kv"><span class="cq-caption-reg">${l}</span><span class="cq-body2-reg">${esc(me[k])}</span></div>`).join('');
-  $('pfName').textContent = me.name; $('pfRoleTag').textContent = me.role;
+  $('pfName').textContent = me.name;
 }
 $('pfEdit').addEventListener('click', () => {
   $('pfForm').innerHTML = FIELDS.filter(f => f[2]).map(([k, l]) => `
     <label class="cq-field"><span class="cq-field__label cq-body2-reg">${l}</span>
       <span class="ac-input"><input class="cq-body2-reg" type="text" data-k="${k}" value="${esc(me[k])}" /></span></label>`).join('')
-    + `<span class="ac-help cq-caption-reg">Your email and membership date are managed by your workspace admin.</span>`;
+    + `<span class="ac-help cq-caption-reg">Your email and membership date are managed by your workspace admins.</span>`;
   openScrim('pfDlg'); setTimeout(() => $('pfForm').querySelector('input').focus(), 30);
 });
 $('pfSave').addEventListener('click', () => {
@@ -626,8 +711,8 @@ $('pfSave').addEventListener('click', () => {
 $('pfTokens').addEventListener('click', () => go('pat-tokens.html'));
 document.querySelectorAll('[data-toast]').forEach(b => b.addEventListener('click', () => toast(b.dataset.toast)));
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
-paint();
-'''
+paint(); paintWs();
+'''.replace('__TICK__', ICON['tick'])
 
 (PAGES / 'pat-tokens.html').write_text(page(
     'Cogentiq Builder · Personal access tokens',
@@ -636,7 +721,7 @@ paint();
 (PAGES / 'profile.html').write_text(page(
     'Cogentiq Builder · Profile',
     'Who you are on Cogentiq: your details, how you sign in, and what has access as you.',
-    'Profile', 'Your details, and what has access as you.', PROF_CSS, PROF_BODY, PROF_JS))
+    'Profile', 'Your details, your workspaces and what has access as you.', PROF_CSS, PROF_BODY, PROF_JS))
 for n in ['pat-tokens.html', 'profile.html']:
     t = (PAGES / n).read_text()
     assert t.count('<!--') == t.count('-->'), n

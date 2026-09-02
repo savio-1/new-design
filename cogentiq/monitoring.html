@@ -2013,9 +2013,11 @@ body.cq { margin: 0; }
       --pod-3: var(--cyan-600);
     }
 
-    /* ── Bar filters (Adoption only) ── */
+    /* ── Bar filters: on every tab, in the same spot ── */
     .mon-bar-filters { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .mon-bar-filters[hidden] { display: none; }
+    /* The refresh note claims the free space on Activity, so the filters
+       sit right of it there and flush right everywhere else. */
+    .mon-bar-note:not([hidden]) + .mon-bar-filters { margin-left: 12px; }
 
     /* ── KPI cards: the sparkline sits beside the figure, not under it ── */
     .mon-kpi { grid-column: span 3; gap: 8px; --glow-r: 130px; }
@@ -2118,9 +2120,23 @@ body.cq { margin: 0; }
     .mon-user-row.is-picked { color: var(--text-coloured-blue); }
     .mon-user-row.is-picked .mon-user-row__tick { display: block; }
 
-    /* ── Date range: preset rail beside a month grid ── */
-    .mon-pop--date { width: 446px; flex-direction: row; padding: 0; }
-    .mon-date__rail { width: 148px; flex: none; display: flex; flex-direction: column; padding: 8px 6px; border-right: 1px solid var(--strokes-line-3); }
+    /* ── Date range: preset rail beside a month grid ──────────────
+       The popover opens at the width of the preset rail alone; picking
+       Custom range is what earns the calendar, and .is-wide widens it
+       to make room. Width is transitioned so the panel does not appear
+       to snap in from nowhere. */
+    .mon-pop--date {
+      /* An explicit width rather than max-content, so the widening
+         actually animates: max-content does not interpolate. 158px is the
+         rail plus its two borders under border-box. */
+      width: 158px; flex-direction: row; padding: 0;
+      transition: width .18s cubic-bezier(.4, 0, .2, 1);
+    }
+    .mon-pop--date.is-wide { width: 462px; }
+    @media (prefers-reduced-motion: reduce) { .mon-pop--date { transition: none; } }
+    .mon-date__rail { width: 156px; flex: none; display: flex; flex-direction: column; padding: 8px 6px; border-right: 1px solid var(--strokes-line-3); }
+    /* With no calendar beside it the divider would be a trailing edge. */
+    .mon-pop--date:not(.is-wide) .mon-date__rail { border-right: 0; }
     .mon-date__preset {
       height: 36px; padding: 0 12px; border-radius: var(--radius-md);
       display: flex; align-items: center; gap: 8px;
@@ -2161,13 +2177,27 @@ body.cq { margin: 0; }
       position: relative;
     }
     .mon-cal__cell.is-out { color: var(--text-teritiary); opacity: .55; }
-    .mon-cal__cell:hover:not(.is-in-range):not(.is-edge) { background: var(--backgrounds-card-bg-4); border-radius: var(--radius-md); }
+    /* Every date answers the cursor in blue, so it is obvious the grid is
+       pickable before anything has been picked. */
+    .mon-cal__cell:hover:not(.is-in-range):not(.is-edge) {
+      background: var(--backgrounds-table-select);
+      color: var(--text-coloured-blue);
+      border-radius: var(--radius-md);
+    }
     /* The band is painted on the cell itself so a range reads as one bar;
-       the two endpoints sit on top in the primary blue. */
-    .mon-cal__cell.is-in-range { background: var(--backgrounds-badge-blue); }
+       the two endpoints sit on top in the primary blue. Between the first
+       click and the second the band follows the cursor — same paint, so
+       the provisional range reads exactly like the settled one. */
+    .mon-cal__cell.is-in-range { background: var(--backgrounds-table-select); }
     .mon-cal__cell.is-edge { background: var(--backgrounds-button-primary); color: var(--text-button-white); border-radius: var(--radius-md); }
     .mon-cal__cell.is-start { border-radius: var(--radius-md) 0 0 var(--radius-md); }
     .mon-cal__cell.is-end { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+    /* A single cell that is both ends of the span (start, or start and
+       hover on the same day) keeps all four corners. */
+    .mon-cal__cell.is-start.is-end { border-radius: var(--radius-md); }
+    /* While picking, the cursor is the end of the range, so the whole grid
+       shows the crosshair-ish affordance rather than per-cell hover. */
+    .mon-cal__grid.is-picking .mon-cal__cell:hover:not(.is-edge) { color: var(--text-primary); }
 
     /* ── Artifact reuse ────────────────────────────────────────────
        One measure (how much of each library is being reused), so one
@@ -2739,7 +2769,7 @@ body.cq { margin: 0; }
               <button data-tab="adoption" role="tab" aria-selected="false">Adoption</button>
             </div>
             <span class="mon-bar-note cq-caption-reg" id="barNote">Updated just now · refreshes every 30s</span>
-            <div class="mon-bar-filters" id="barFilters" hidden>
+            <div class="mon-bar-filters" id="barFilters">
               <div class="mon-filter">
                 <button class="cq-dropdown" id="userBtn" aria-expanded="false">
                   <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-people"/></svg>
@@ -2997,11 +3027,6 @@ body.cq { margin: 0; }
                     </button>
                     <div class="cq-pop" id="runSortPop"><div class="cq-pop__list" id="runSortList"></div></div>
                   </div>
-                  <button class="cq-dropdown" id="runRangeBtn">
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-cal"/></svg>
-                    <span>Jul 12 – Jul 15, 2024</span>
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                  </button>
                 </div>
               </div>
 
@@ -3084,11 +3109,6 @@ body.cq { margin: 0; }
                   </button>
                   <div class="cq-pop" id="ckSortPop"><div class="cq-pop__list" id="ckSortList"></div></div>
                 </div>
-                <button class="cq-dropdown" id="ckRangeBtn">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-                  <span>Jul 12 – Jul 15, 2024</span>
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                </button>
               </div>
             </div>
 
@@ -4321,8 +4341,9 @@ function showTab(tab, label) {
   fadePane($('monActivity'), activity);
   fadePane($('monAdoption'), adoption);
   fadePane($('monEmpty'), !activity && !adoption);
+  /* The two filters scope every lens, so they hold the same spot on all
+     four tabs; only the refresh note is Activity's own. */
   $('barNote').hidden = !activity;
-  $('barFilters').hidden = !adoption;
   if (!activity && !adoption) $('monEmptyTitle').textContent = label;
   /* Charts size themselves off their container, which has no width
      while the pane is hidden, so they are drawn on the way in. */
@@ -4436,63 +4457,127 @@ $('datePresets').innerHTML = PRESETS.map(pr =>
 const dmy = d => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-function renderCal() {
+/* The day the cursor is over while an end date is still being chosen.
+   It is not part of the range, only of how the range is drawn. */
+let hoverDate = null;
+
+/* The span to paint: the settled range, or start-to-cursor while picking.
+   Returned low-to-high so dragging backwards from the first click reads
+   the same as dragging forwards. */
+function calSpan() {
+  const other = range.end || (range.start ? hoverDate : null);
+  if (!range.start) return [null, null];
+  if (!other) return [range.start, null];
+  return range.start <= other ? [range.start, other] : [other, range.start];
+}
+
+/* Cells are rebuilt only when the month changes; hover repaints classes
+   on the cells already there, so a mousemove never rips the grid out
+   from under the pointer. */
+function buildCal() {
   $('calTitle').textContent = `${MONTH_NAMES[calView.getMonth()]} ${calView.getFullYear()}`;
-  const first = new Date(calView.getFullYear(), calView.getMonth(), 1);
-  const lead = first.getDay();
+  const lead = new Date(calView.getFullYear(), calView.getMonth(), 1).getDay();
   const cells = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(calView.getFullYear(), calView.getMonth(), 1 - lead + i);
-    const out = d.getMonth() !== calView.getMonth();
-    const edge = sameDay(d, range.start) || sameDay(d, range.end);
-    const within = range.start && range.end && d > range.start && d < range.end;
-    const cls = ['mon-cal__cell'];
-    if (out) cls.push('is-out');
-    if (within) cls.push('is-in-range');
-    if (edge) cls.push('is-edge', sameDay(d, range.start) ? 'is-start' : 'is-end');
-    cells.push(`<button class="${cls.join(' ')}" data-iso="${d.toISOString().slice(0, 10)}" type="button">${d.getDate()}</button>`);
+    const out = d.getMonth() !== calView.getMonth() ? ' is-out' : '';
+    cells.push(`<button class="mon-cal__cell${out}" data-iso="${d.toISOString().slice(0, 10)}" type="button">${d.getDate()}</button>`);
     if (i >= 34 && d.getMonth() !== calView.getMonth() && d.getDate() > 7) break;
   }
   $('calGrid').innerHTML = cells.join('');
+  paintCal();
+}
+
+function paintCal() {
+  const [lo, hi] = calSpan();
+  $('calGrid').classList.toggle('is-picking', !!range.start && !range.end);
+  $('calGrid').querySelectorAll('[data-iso]').forEach(cell => {
+    const d = new Date(cell.dataset.iso + 'T00:00:00');
+    const isLo = sameDay(d, lo), isHi = sameDay(d, hi);
+    cell.classList.toggle('is-in-range', !!(lo && hi && d > lo && d < hi));
+    cell.classList.toggle('is-edge', isLo || isHi);
+    cell.classList.toggle('is-start', isLo);
+    cell.classList.toggle('is-end', isHi || (isLo && !hi));
+  });
   const st = $('dateStart'), en = $('dateEnd');
-  st.querySelector('span').textContent = range.start ? dmy(range.start) : 'DD/MM/YYYY';
-  en.querySelector('span').textContent = range.end ? dmy(range.end) : 'DD/MM/YYYY';
-  st.classList.toggle('is-empty', !range.start);
+  st.querySelector('span').textContent = lo ? dmy(lo) : 'DD/MM/YYYY';
+  en.querySelector('span').textContent = range.end ? dmy(hi) : 'DD/MM/YYYY';
+  st.classList.toggle('is-empty', !lo);
   en.classList.toggle('is-empty', !range.end);
-  st.classList.toggle('is-active', !range.start || (range.start && range.end));
+  st.classList.toggle('is-active', !range.start || !!range.end);
   en.classList.toggle('is-active', !!range.start && !range.end);
 }
+
+/* renderCal is what the rest of the page calls; a full rebuild. */
+function renderCal() { buildCal(); }
 
 $('calGrid').addEventListener('click', e => {
   const cell = e.target.closest('[data-iso]');
   if (!cell) return;
   const d = new Date(cell.dataset.iso + 'T00:00:00');
-  if (!range.start || range.end || d < range.start) range = { start: d, end: null };
-  else {
-    range.end = d;
+  if (!range.start || range.end) {
+    /* First click of a new span: this is the start, nothing else yet. */
+    range = { start: d, end: null };
+    hoverDate = d;
+  } else {
+    /* Second click fixes the far end, whichever side of the first it is. */
+    const [lo, hi] = range.start <= d ? [range.start, d] : [d, range.start];
+    range = { start: lo, end: hi };
+    hoverDate = null;
     const fmt = x => `${x.getDate()} ${MONTH_NAMES[x.getMonth()].slice(0, 3)}`;
-    $('dateLabel').textContent = `${fmt(range.start)} – ${fmt(range.end)}`;
+    $('dateLabel').textContent = `${fmt(lo)} – ${fmt(hi)}`;
     $('datePresets').querySelectorAll('.mon-date__preset').forEach(b => b.classList.remove('is-picked'));
   }
-  renderCal();
+  paintCal();
 });
-$('calPrev').addEventListener('click', () => { calView.setMonth(calView.getMonth() - 1); renderCal(); });
-$('calNext').addEventListener('click', () => { calView.setMonth(calView.getMonth() + 1); renderCal(); });
+
+/* Between the two clicks the band tracks the cursor. mouseover fires once
+   per cell entered rather than per pixel moved, so this is one repaint
+   per day crossed. */
+$('calGrid').addEventListener('mouseover', e => {
+  const cell = e.target.closest('[data-iso]');
+  if (!cell || !range.start || range.end) return;
+  const d = new Date(cell.dataset.iso + 'T00:00:00');
+  if (sameDay(d, hoverDate)) return;
+  hoverDate = d;
+  paintCal();
+});
+/* Leaving the grid mid-pick collapses the band back to the start alone,
+   rather than stranding it at the last cell touched. */
+$('calGrid').addEventListener('mouseleave', () => {
+  if (!range.start || range.end || !hoverDate) return;
+  hoverDate = null;
+  paintCal();
+});
+
+$('calPrev').addEventListener('click', () => { calView.setMonth(calView.getMonth() - 1); buildCal(); });
+$('calNext').addEventListener('click', () => { calView.setMonth(calView.getMonth() + 1); buildCal(); });
+
+function openCustom() {
+  $('datePanel').classList.add('is-open');
+  $('datePop').classList.add('is-wide');
+  buildCal();
+}
+function closeCustom() {
+  $('datePanel').classList.remove('is-open');
+  $('datePop').classList.remove('is-wide');
+  /* A span abandoned after one click is not a range; drop it so the next
+     open starts clean rather than resuming a half-pick. */
+  if (range.start && !range.end) { range = { start: null, end: null }; hoverDate = null; }
+}
 
 $('datePresets').addEventListener('click', e => {
   const btn = e.target.closest('[data-preset]');
   if (btn) {
     $('dateLabel').textContent = btn.dataset.preset;
     $('datePresets').querySelectorAll('.mon-date__preset').forEach(b => b.classList.toggle('is-picked', b === btn));
-    $('datePanel').classList.remove('is-open');
+    closeCustom();
     range = { start: null, end: null };
+    hoverDate = null;
     closePops();
     return;
   }
-  if (e.target.closest('#dateCustom')) {
-    $('datePanel').classList.add('is-open');
-    renderCal();
-  }
+  if (e.target.closest('#dateCustom')) openCustom();
 });
 
 function closePops() {
@@ -4501,6 +4586,10 @@ function closePops() {
     $(id).classList.remove('is-open');
     $(id).setAttribute('aria-expanded', 'false');
   });
+  /* Next open starts narrow again: the presets are the common case, and
+     the trigger label already carries whatever range is in force. Deferred
+     so the width does not animate back while the popover is fading out. */
+  setTimeout(() => { if (!$('datePop').classList.contains('is-open')) closeCustom(); }, 160);
 }
 function togglePop(btnId, popId) {
   const open = !$(popId).classList.contains('is-open');
@@ -4528,6 +4617,9 @@ $('boardAll').addEventListener('click', () => {
 $('ckViewAll').addEventListener('click', () => showActivityView('checkpoints'));
 $('runViewAll').addEventListener('click', () => showActivityView('runs'));
 </script>
+
+
+
 
 
 
