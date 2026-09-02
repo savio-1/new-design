@@ -1742,6 +1742,14 @@ body.cq { margin: 0; }
       --backgrounds-badge-red: #2b0a08;
       --strokes-colour-red:    var(--red-900);
       --text-coloured-red:     var(--red-400);
+      /* Awaiting and the neutral count badge, derived in the same key as
+         the published pairs, for the checkpoint view ported in below. */
+      --orange-400c: #ffc470;  --orange-950c: #8a480f;
+      --backgrounds-badge-orange: #241101;
+      --strokes-colour-orange:    var(--orange-950c);
+      --text-coloured-orange:     var(--orange-400c);
+      --backgrounds-badge-grey:   var(--backgrounds-card-bg-4);
+      --strokes-colour-grey:      var(--strokes-line-1);
     }
     :root[data-mode="light"] .mon-root {
       --mon-nested: var(--backgrounds-page-bg-3);
@@ -1754,15 +1762,24 @@ body.cq { margin: 0; }
       --backgrounds-badge-red: var(--red-100);
       --strokes-colour-red:    var(--red-300);
       --text-coloured-red:     var(--red-600);
+      --backgrounds-badge-orange: #fff4e5;
+      --strokes-colour-orange:    #fcd19c;
+      --text-coloured-orange:     var(--orange-950c);
     }
 
-    .cq-badge[data-tone="red"] { background: var(--backgrounds-badge-red); border-color: var(--strokes-colour-red); color: var(--text-coloured-red); }
+    .cq-badge[data-tone="red"]    { background: var(--backgrounds-badge-red);    border-color: var(--strokes-colour-red);    color: var(--text-coloured-red); }
+    .cq-badge[data-tone="orange"] { background: var(--backgrounds-badge-orange); border-color: var(--strokes-colour-orange); color: var(--text-coloured-orange); }
+    .cq-badge[data-tone="grey"]   { background: var(--backgrounds-badge-grey);   border-color: var(--strokes-colour-grey);   color: var(--text-secondary); }
 
     /* Status pill tones. The pill itself is the system's; Running and
        Failed borrow the badge families the same way Success already
        wears the green one. */
     .cq-status[data-tone="blue"] { background: var(--backgrounds-badge-blue); color: var(--text-coloured-blue); }
-    .cq-status[data-tone="red"]  { background: var(--backgrounds-badge-red);  color: var(--text-coloured-red); }
+    .cq-status[data-tone="red"]    { background: var(--backgrounds-badge-red);    color: var(--text-coloured-red); }
+    .cq-status[data-tone="orange"] { background: var(--backgrounds-badge-orange); color: var(--text-coloured-orange); }
+    /* Approved and Rejected wear a glyph; Awaiting wears a dot, which at
+       the shared 8px pulled more focus than either. */
+    .cq-status[data-tone="orange"] .cq-status--dot { width: 6px; height: 6px; }
     .cq-status--dot.is-live { animation: mon-pulse 1.6s ease-in-out infinite; }
     @keyframes mon-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
     @media (prefers-reduced-motion: reduce) { .cq-status--dot.is-live { animation: none; } }
@@ -2227,6 +2244,148 @@ body.cq { margin: 0; }
     .mon-panel__meta { display: flex; align-items: center; gap: 10px; color: var(--text-teritiary); }
     .mon-panel__meta span { display: inline-flex; align-items: center; gap: 4px; }
 
+
+    /* ── Activity sub-tabs ─────────────────────────────────────────
+       A second level inside Activity: the whole picture, or one of the
+       two streams on its own. Underlined rather than a segment, so it
+       reads as a level below the module tabs above it. */
+    .mon-sub {
+      display: flex; align-items: center; gap: 22px;
+      border-bottom: 1px solid var(--strokes-line-3);
+      margin-bottom: 16px;
+    }
+    .mon-sub__tab {
+      position: relative;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 2px 10px; border: 0; background: none; cursor: pointer;
+      color: var(--text-teritiary);
+      font: 500 var(--fs-body-2)/var(--lh-body-2) var(--font-geist); letter-spacing: -0.64px;
+      transition: color .15s ease;
+    }
+    .mon-sub__tab:hover { color: var(--text-secondary); }
+    .mon-sub__tab.is-active { color: var(--text-primary); }
+    .mon-sub__tab.is-active::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+      border-radius: 2px 2px 0 0;
+      background: var(--backgrounds-button-primary);
+    }
+    .mon-sub__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+    .mon-sub__count {
+      min-width: 20px; height: 18px; padding: 0 5px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: var(--radius-sm);
+      background: var(--mon-nested); border: 1px solid var(--strokes-line-3);
+      color: var(--text-teritiary);
+      font: 400 11px/1 var(--font-geist-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Each sub-tab is its own pane; only one is in the flow at a time. */
+    .mon-pane[hidden] { display: none; }
+
+    /* ── Automation runs: the full view behind the live table ── */
+    .run-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .run-head__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .run-head__title { color: var(--text-primary); }
+    .run-head__sub { color: var(--text-teritiary); }
+    .run-live { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+    .run-table.cq-table { --cq-cols: minmax(220px, 1fr) 150px 96px 90px 140px 130px 110px; }
+    .run-table .cq-row { height: 56px; cursor: default; }
+    .run-table .cq-btn--sm { height: 28px; }
+    .run-trigger { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+
+    /* ── Page body ── */
+    .ck-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+    .ck-head__title { color: var(--text-primary); }
+    .ck-head__sub { color: var(--text-teritiary); }
+
+    /* ── Stat cards, with the same pointer-lit gradient stroke ── */
+    .ck-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .ck-card {
+      position: relative;
+      display: flex; flex-direction: column; gap: 12px; min-width: 0;
+      padding: 16px; border-radius: var(--radius-lg);
+      background: var(--mon-card);
+      border: 1px solid var(--strokes-line-3);
+      filter: var(--shadow-card);
+    }
+    .ck-card::after {
+      content: ""; position: absolute; inset: -1px; border-radius: inherit;
+      padding: 1.5px;
+      background: radial-gradient(var(--glow-r, 130px) circle at var(--gx, 50%) var(--gy, 0%),
+        var(--orange-500), var(--purple-450) 38%, var(--blue-450) 62%, transparent 80%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      opacity: 0; transition: opacity .25s ease;
+      pointer-events: none;
+    }
+    .ck-card:hover::after { opacity: 1; }
+    /* The icon carries the card's identity now that the Active tag is
+       gone, so it takes the status hue and the label stays in ink. */
+    .ck-stat__top { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+    .ck-stat__row { display: flex; align-items: center; gap: 10px; }
+    .ck-stat__value {
+      font: 500 28px/32px var(--font-geist-mono); letter-spacing: -0.56px;
+      color: var(--text-primary); font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Toolbar ── */
+    .ck-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .ck-toolbar .cq-search { width: 260px; }
+    .ck-pills { display: inline-flex; gap: 8px; }
+    .ck-pill {
+      height: 32px;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 0 14px; border-radius: var(--radius-full, 999px);
+      background: var(--mon-nested);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-secondary);
+      font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .ck-pill:hover { border-color: var(--strokes-line-1); color: var(--text-primary); }
+    .ck-pill.is-active {
+      background: var(--backgrounds-button-primary);
+      border-color: transparent;
+      color: var(--text-button-white);
+    }
+    .ck-toolbar__right { margin-left: auto; display: inline-flex; gap: 8px; }
+
+    /* ── Table ── */
+    .ck-table.cq-table { --cq-cols: minmax(240px, 1fr) 150px 100px 150px 170px 120px; }
+    .ck-table .cq-row { height: 56px; cursor: default; }
+    .ck-run-ic { flex: none; display: inline-flex; }
+    .ck-num { font-family: var(--font-geist-mono); font-size: var(--fs-caption); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+    .ck-wait--hot { color: var(--text-coloured-orange); }
+    .ck-creator { display: inline-flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-secondary); }
+    .ck-creator--none { color: var(--text-teritiary); }
+    .ck-cell--end { justify-content: flex-end; }
+    .ck-table .cq-btn--sm { height: 28px; }
+
+    .ck-empty { padding: 48px 0; text-align: center; color: var(--text-teritiary); }
+    .ck-empty b { display: block; color: var(--text-secondary); font-weight: 500; margin-bottom: 4px; }
+
+    /* ── Footer: count + pagination ── */
+    .ck-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+    .ck-foot__count { color: var(--text-teritiary); }
+    .ck-foot__count b { color: var(--text-secondary); font-weight: 500; }
+    .ck-pager { display: inline-flex; align-items: center; gap: 4px; }
+    .ck-page {
+      min-width: 32px; height: 32px; padding: 0 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid transparent; border-radius: var(--radius-md);
+      background: none; color: var(--text-secondary);
+      font: 500 var(--fs-body-3)/1 var(--font-geist); letter-spacing: -0.56px;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    .ck-page:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    .ck-page.is-active { background: var(--backgrounds-button-primary); color: var(--text-button-white); }
+    .ck-page:disabled { opacity: .4; cursor: default; }
+    .ck-page:disabled:hover { background: none; color: var(--text-secondary); }
+
     /* ── Top creators: podium left, leaderboard right ── */
     .mon-creators { grid-column: span 12; }
     /* start, not end: the leaderboard begins at the top of the card and
@@ -2388,6 +2547,8 @@ body.cq { margin: 0; }
 <svg class="sprite" aria-hidden="true">
   <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.7" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M8 7.4v3.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r=".9" fill="currentColor"/></symbol>
   <symbol id="i-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.7" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M8 4.9V8l2.1 1.3" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 16 16"><path d="M8 2.2 2.4 5 8 7.8 13.6 5 8 2.2Z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/><path d="m2.4 8.4 5.6 2.8 5.6-2.8M2.4 11.6 8 14.4l5.6-2.8" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M5.6 3.4l6.6 4.6-6.6 4.6V3.4Z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-alert" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.7" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M8 5.2v3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="10.9" r=".9" fill="currentColor"/></symbol>
   <symbol id="i-arrow-right" viewBox="0 0 16 16"><path d="M3 8h10M9.4 4.4 13 8l-3.6 3.6" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-close" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
@@ -2600,7 +2761,19 @@ body.cq { margin: 0; }
 
           <div class="cq-page__content cq-scroll-y">
 
-            <div class="mon-grid" id="monActivity">
+            <div id="monActivity">
+
+            <nav class="mon-sub" id="monSub" role="tablist" aria-label="Activity views">
+              <button class="mon-sub__tab is-active" data-view="all" role="tab" aria-selected="true">All</button>
+              <button class="mon-sub__tab" data-view="runs" role="tab" aria-selected="false">
+                <span class="mon-sub__dot" style="background:var(--text-coloured-blue)"></span>Automation runs
+              </button>
+              <button class="mon-sub__tab" data-view="checkpoints" role="tab" aria-selected="false">
+                <span class="mon-sub__dot" style="background:var(--text-coloured-orange)"></span>Human checkpoint
+              </button>
+            </nav>
+
+            <div class="mon-grid mon-pane" id="actAll">
 
               <!-- ── KPI row ── -->
               <section class="mon-card mon-stat" aria-label="Executions today">
@@ -2646,7 +2819,7 @@ body.cq { margin: 0; }
                     <span class="mon-card__title cq-body1-med">Live Automation Executions</span>
                     <span class="mon-card__sub cq-caption-reg">Real-time execution monitor</span>
                   </div>
-                  <button class="cq-btn cq-btn--sm cq-btn--primary">View all executions</button>
+                  <button class="cq-btn cq-btn--sm cq-btn--tonal" id="runViewAll">View all runs</button>
                 </div>
                 <div class="cq-table">
                   <div class="cq-thead">
@@ -2865,6 +3038,190 @@ body.cq { margin: 0; }
                   </div>
                 </div>
               </section>
+
+            </div>
+            <!-- ══ Automation runs: the live table's full view ══ -->
+            <div class="mon-pane" id="actRuns" hidden>
+
+              <div class="run-head">
+                <div class="run-head__text">
+                  <span class="run-head__title cq-subhead1-med">Automation runs</span>
+                  <span class="run-head__sub cq-body2-reg">Every run in the window, live and finished, with what it cost and how long it took.</span>
+                </div>
+                <span class="run-live cq-caption-reg">
+                  <span class="mon-tab-live" aria-hidden="true"><i></i></span>
+                  2 running now · refreshes every 30s
+                </span>
+              </div>
+
+              <div class="ck-stats">
+                <section class="ck-card" aria-label="Runs in window">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#ic-pp_automation"/></svg>
+                    Runs in window
+                  </div>
+                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatTotal">0</span></div>
+                </section>
+                <section class="ck-card" aria-label="Running">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-blue)"><use href="#i-play"/></svg>
+                    Running
+                  </div>
+                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatLive">0</span></div>
+                </section>
+                <section class="ck-card" aria-label="Succeeded">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
+                    Succeeded
+                  </div>
+                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatOk">0</span></div>
+                </section>
+                <section class="ck-card" aria-label="Failed">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
+                    Failed
+                  </div>
+                  <div class="ck-stat__row">
+                    <span class="ck-stat__value" id="runStatFail">0</span>
+                    <span class="cq-badge" data-tone="red" id="runStatRate">0%</span>
+                  </div>
+                </section>
+              </div>
+
+              <div class="ck-toolbar">
+                <label class="cq-search">
+                  <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
+                  <input id="runQ" class="cq-body2-reg" type="search" placeholder="Search runs" aria-label="Search runs" />
+                </label>
+                <div class="ck-pills" role="group" aria-label="Filter by status">
+                  <button class="ck-pill is-active" data-run-filter="all">All</button>
+                  <button class="ck-pill" data-run-filter="Running">Running</button>
+                  <button class="ck-pill" data-run-filter="Success">Success</button>
+                  <button class="ck-pill" data-run-filter="Failed">Failed</button>
+                </div>
+                <div class="ck-toolbar__right">
+                  <div class="cq-filter-group">
+                    <button class="cq-dropdown" id="runSortBtn" aria-expanded="false">
+                      <span id="runSortLabel">Sort by: Newest</span>
+                      <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                    </button>
+                    <div class="cq-pop" id="runSortPop"><div class="cq-pop__list" id="runSortList"></div></div>
+                  </div>
+                  <button class="cq-dropdown" id="runRangeBtn">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-cal"/></svg>
+                    <span>Jul 12 – Jul 15, 2024</span>
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="cq-table run-table">
+                <div class="cq-thead">
+                  <span>Automation</span><span>Started at</span><span>Run time</span><span>Cost</span><span>Trigger</span><span>Status</span><span></span>
+                </div>
+                <div id="runRows"></div>
+              </div>
+              <div class="ck-empty cq-body2-reg" id="runEmpty" hidden>
+                <b class="cq-body1-med">No runs match</b>
+                Try a different search or status filter.
+              </div>
+
+              <div class="ck-foot">
+                <span class="ck-foot__count cq-body2-reg" id="runCount"></span>
+                <div class="ck-pager" id="runPager"></div>
+              </div>
+
+            </div>
+
+            <!-- ══ Human checkpoint approvals, the full page inline ══ -->
+            <div class="mon-pane" id="actCkpt" hidden>
+            <div class="ck-head">
+              <span class="ck-head__title cq-subhead1-med">Human Checkpoint Approvals</span>
+              <span class="ck-head__sub cq-body2-reg">Review and manage all automation checkpoints requiring human input.</span>
+            </div>
+
+            <div class="ck-stats">
+              <section class="ck-card" aria-label="Total checkpoints">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#i-layers"/></svg>
+                  Total checkpoints
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatTotal">47</span>
+                </div>
+              </section>
+              <section class="ck-card" aria-label="Awaiting review">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-orange)"><use href="#i-clock"/></svg>
+                  Awaiting review
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatAwaiting">12</span>
+                </div>
+              </section>
+              <section class="ck-card" aria-label="Approved">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
+                  Approved
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatApproved">28</span>
+                </div>
+              </section>
+              <section class="ck-card" aria-label="Rejected">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
+                  Rejected
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatRejected">7</span>
+                </div>
+              </section>
+            </div>
+
+            <div class="ck-toolbar">
+              <label class="cq-search">
+                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
+                <input id="ckQ" class="cq-body2-reg" type="search" placeholder="Search checkpoint details…" aria-label="Search checkpoint details" />
+              </label>
+              <div class="ck-pills" role="group" aria-label="Filter by status">
+                <button class="ck-pill is-active" data-filter="all">All</button>
+                <button class="ck-pill" data-filter="Awaiting">Awaiting <span id="pillAwaitCount">(12)</span></button>
+                <button class="ck-pill" data-filter="Approved">Approved</button>
+                <button class="ck-pill" data-filter="Rejected">Rejected</button>
+              </div>
+              <div class="ck-toolbar__right">
+                <div class="cq-filter-group">
+                  <button class="cq-dropdown" id="ckSortBtn" aria-expanded="false">
+                    <span id="ckSortLabel">Sort by: Newest</span>
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                  </button>
+                  <div class="cq-pop" id="ckSortPop"><div class="cq-pop__list" id="ckSortList"></div></div>
+                </div>
+                <button class="cq-dropdown" id="ckRangeBtn">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
+                  <span>Jul 12 – Jul 15, 2024</span>
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="cq-table ck-table">
+              <div class="cq-thead">
+                <span>Automation name</span><span>Requested at</span><span>Wait time</span><span>Status</span><span>Creator</span><span></span>
+              </div>
+              <div id="ckRows"></div>
+            </div>
+            <div class="ck-empty cq-body2-reg" id="ckEmpty" hidden>
+              <b class="cq-body1-med">No checkpoints match</b>
+              Try a different search or status filter.
+            </div>
+
+            <div class="ck-foot">
+              <span class="ck-foot__count cq-body2-reg" id="ckCount"></span>
+              <div class="ck-pager" id="ckPager"></div>
+            </div>
+            </div>
 
             </div>
 
@@ -3547,6 +3904,338 @@ $('boardRows').innerHTML = CREATORS.map((c, i) => `
     </div>
   </div>`).join('');
 
+
+/* ════ Automation runs ══════════════════════════════════════════════
+   The live card shows the newest six; this is the same stream in full,
+   over the filter window, with what each run cost and how it ended. */
+const RUN_NAMES = ['Email Campaign Trigger', 'Data Pipeline Sync', 'Customer Onboarding',
+  'Report Generator', 'Slack Notification Bot', 'Lead Scoring Engine', 'Invoice Extraction Pipeline',
+  'Vendor Onboarding Flow', 'Contract Review Agent', 'Expense Audit Bot', 'Churn Alert Notifier',
+  'Refund Screening Flow', 'Ticket Triage Agent', 'Payroll Sync Pipeline', 'Inventory Reorder Bot',
+  'CRM Dedupe Sweep'];
+const RUN_TRIGGERS = ['Schedule', 'Webhook', 'Manual', 'Event'];
+/* Its own hue list: the live card's six carry theirs in LIVE, and the
+   checkpoint view's palette is namespaced away from here. */
+const RUN_HUES = ['var(--text-coloured-blue)', 'var(--purple-450)', 'var(--text-coloured-green)',
+                  'var(--orange-600)', 'var(--text-coloured-cyan)', 'var(--text-coloured-indigo)'];
+const RUN_TRIGGER_ICONS = { Schedule: '#i-clock', Webhook: '#i-mcp', Manual: '#i-people', Event: '#i-play' };
+
+/* The first six are the live card's rows, so the two views agree. */
+const RUNS = LIVE.map((r, i) => ({
+  name: r.name, at: r.at, run: r.run, cost: r.cost, status: r.status,
+  trigger: RUN_TRIGGERS[i % 4], hue: r.hue, order: i
+}));
+for (let i = 0; i < 42; i++) {
+  const status = i % 11 === 4 ? 'Failed' : 'Success';
+  const mins = 12 + i * 7;
+  const hh = 12 - Math.floor(mins / 60), mm = 55 - (mins % 60);
+  RUNS.push({
+    name: RUN_NAMES[(i + 6) % RUN_NAMES.length],
+    at: `Jul 15, ${hh > 0 ? hh : 12 + hh}:${String(Math.abs(mm)).padStart(2, '0')} ${hh > 0 ? 'PM' : 'AM'}`,
+    run: `${1 + (i % 7)}m ${String(8 + (i * 3) % 50).padStart(2, '0')}s`,
+    cost: '$' + (0.08 + ((i * 17) % 210) / 100).toFixed(2),
+    status,
+    trigger: RUN_TRIGGERS[(i + 1) % 4],
+    hue: RUN_HUES[(i + 2) % RUN_HUES.length],
+    order: 6 + i
+  });
+}
+
+const RUN_STATUS_ICON = { Success: '#i-check', Failed: '#i-alert' };
+const runState = { q: '', filter: 'all', sort: 'newest', page: 1 };
+const RUN_PER = 10;
+
+/* Overview counts come off the same rows the table pages through, so
+   the cards can never disagree with the list. */
+(function runStats() {
+  const live = RUNS.filter(r => r.status === 'Running').length;
+  const ok = RUNS.filter(r => r.status === 'Success').length;
+  const fail = RUNS.filter(r => r.status === 'Failed').length;
+  $('runStatTotal').textContent = RUNS.length;
+  $('runStatLive').textContent = live;
+  $('runStatOk').textContent = ok;
+  $('runStatFail').textContent = fail;
+  $('runStatRate').textContent = (fail / RUNS.length * 100).toFixed(1) + '% of runs';
+})();
+
+function runFiltered() {
+  let rows = RUNS.filter(r =>
+    (runState.filter === 'all' || r.status === runState.filter) &&
+    (!runState.q || (r.name + ' ' + r.trigger).toLowerCase().includes(runState.q.toLowerCase())));
+  if (runState.sort === 'oldest') rows = rows.slice().sort((a, b) => b.order - a.order);
+  else if (runState.sort === 'cost') rows = rows.slice().sort((a, b) => parseFloat(b.cost.slice(1)) - parseFloat(a.cost.slice(1)));
+  else if (runState.sort === 'duration') rows = rows.slice().sort((a, b) => runSecs(b.run) - runSecs(a.run));
+  return rows;
+}
+const runSecs = s => {
+  const m = s.match(/(\d+)m\s*(\d+)s/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : 0;
+};
+
+function runRender() {
+  const rows = runFiltered();
+  const pages = Math.max(1, Math.ceil(rows.length / RUN_PER));
+  runState.page = Math.min(runState.page, pages);
+  const slice = rows.slice((runState.page - 1) * RUN_PER, runState.page * RUN_PER);
+
+  $('runRows').innerHTML = slice.map(r => `
+    <div class="cq-row" tabindex="0">
+      <div class="cq-cell">
+        <span class="mon-run-ic" style="color:${r.hue}"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg></span>
+        <span class="cq-body2-med cq-truncate">${r.name}</span>
+      </div>
+      <div class="cq-cell cq-cell--muted cq-caption-reg">${r.at}</div>
+      <div class="cq-cell ck-num">${r.run}</div>
+      <div class="cq-cell ck-num">${r.cost}</div>
+      <div class="cq-cell">
+        <span class="run-trigger cq-caption-reg">
+          <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="${RUN_TRIGGER_ICONS[r.trigger]}"/></svg>${r.trigger}
+        </span>
+      </div>
+      <div class="cq-cell"><span class="cq-status" data-tone="${STATUS_TONE[r.status]}">${RUN_STATUS_ICON[r.status]
+        ? `<svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="${RUN_STATUS_ICON[r.status]}"/></svg>`
+        : '<span class="cq-status--dot is-live"></span>'}${r.status}</span></div>
+      <div class="cq-cell ck-cell--end"><button class="cq-btn cq-btn--sm cq-btn--tonal-2">View run</button></div>
+    </div>`).join('');
+
+  $('runEmpty').hidden = rows.length > 0;
+  const from = rows.length ? (runState.page - 1) * RUN_PER + 1 : 0;
+  $('runCount').innerHTML = `Showing <b>${from}–${Math.min(runState.page * RUN_PER, rows.length)}</b> of <b>${rows.length}</b> runs`;
+
+  let pager = `<button class="ck-page" data-p="prev" aria-label="Previous page" ${runState.page === 1 ? 'disabled' : ''}>‹</button>`;
+  for (let i = 1; i <= pages; i++) pager += `<button class="ck-page${i === runState.page ? ' is-active' : ''}" data-p="${i}">${i}</button>`;
+  pager += `<button class="ck-page" data-p="next" aria-label="Next page" ${runState.page === pages ? 'disabled' : ''}>›</button>`;
+  $('runPager').innerHTML = pages > 1 ? pager : '';
+}
+
+$('runPager').addEventListener('click', e => {
+  const btn = e.target.closest('.ck-page');
+  if (!btn || btn.disabled) return;
+  const p = btn.dataset.p;
+  runState.page = p === 'prev' ? runState.page - 1 : p === 'next' ? runState.page + 1 : Number(p);
+  runRender();
+});
+$('runQ').addEventListener('input', e => { runState.q = e.target.value; runState.page = 1; runRender(); });
+document.querySelectorAll('#actRuns [data-run-filter]').forEach(pill => pill.addEventListener('click', () => {
+  runState.filter = pill.dataset.runFilter;
+  runState.page = 1;
+  document.querySelectorAll('#actRuns [data-run-filter]').forEach(p => p.classList.toggle('is-active', p === pill));
+  runRender();
+}));
+
+const RUN_SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['duration', 'Longest run'], ['cost', 'Highest cost']];
+$('runSortList').innerHTML = RUN_SORTS.map(([id, label]) => `
+  <button class="cq-option${runState.sort === id ? ' is-picked' : ''}" data-run-sort="${id}">
+    <span class="cq-option__label">${label}</span>
+    <svg class="cq-ic cq-option__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
+  </button>`).join('');
+$('runSortBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const open = $('runSortPop').classList.toggle('is-open');
+  $('runSortBtn').classList.toggle('is-open', open);
+  $('runSortBtn').setAttribute('aria-expanded', String(open));
+});
+$('runSortList').addEventListener('click', e => {
+  const opt = e.target.closest('[data-run-sort]');
+  if (!opt) return;
+  runState.sort = opt.dataset.runSort;
+  runState.page = 1;
+  $('runSortLabel').textContent = 'Sort by: ' + RUN_SORTS.find(s => s[0] === runState.sort)[1];
+  $('runSortList').querySelectorAll('.cq-option').forEach(o => o.classList.toggle('is-picked', o === opt));
+  $('runSortPop').classList.remove('is-open');
+  $('runSortBtn').classList.remove('is-open');
+  runRender();
+});
+document.addEventListener('click', () => {
+  $('runSortPop').classList.remove('is-open');
+  $('runSortBtn').classList.remove('is-open');
+});
+runRender();
+
+/* ════ Activity sub-tabs ════
+   All, or one of the two streams on its own. The View all buttons on the
+   two cards land here rather than on another page. */
+function showActivityView(view) {
+  ['all', 'runs', 'checkpoints'].forEach(v => {
+    $({ all: 'actAll', runs: 'actRuns', checkpoints: 'actCkpt' }[v]).hidden = v !== view;
+  });
+  document.querySelectorAll('#monSub [data-view]').forEach(b => {
+    const on = b.dataset.view === view;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  /* The volume chart cannot size itself while its pane is hidden. */
+  if (view === 'all') drawVolume();
+}
+document.querySelectorAll('#monSub [data-view]').forEach(btn =>
+  btn.addEventListener('click', () => showActivityView(btn.dataset.view)));
+
+/* ════ Data ════
+   The first ten rows are the wireframe's, verbatim; the rest fill the
+   47 the stat cards promise, so search, filters and paging behave like
+   the real screen. Icon hues cycle the coloured-text tokens, assigned
+   by entity. */
+const CK_HUES = ['var(--text-coloured-blue)', 'var(--purple-450)', 'var(--text-coloured-green)',
+              'var(--orange-600)', 'var(--text-coloured-cyan)', 'var(--text-coloured-indigo)'];
+const CK_PEOPLE = {
+  'Sarah Chen':  { init: 'SC', bg: 'var(--indigo-500)' },
+  'Mike Torres': { init: 'MT', bg: 'var(--green-600)' },
+  'Anna Park':   { init: 'AP', bg: 'var(--cyan-700, #047195)' },
+  'James Liu':   { init: 'JL', bg: 'var(--orange-800)' },
+  'Priya Nair':  { init: 'PN', bg: 'var(--purple-600)' },
+  'Tom Weber':   { init: 'TW', bg: 'var(--blue-600)' }
+};
+
+const CK_BASE = [
+  ['Invoice Extraction Pipeline', 'Jul 15, 2:25 PM', 8,     'Awaiting', null],
+  ['Data Pipeline Sync',          'Jul 15, 1:50 PM', 43,    'Approved', 'Sarah Chen'],
+  ['Customer Onboarding',         'Jul 15, 12:30 PM', 135,  'Approved', 'Mike Torres'],
+  ['Report Generator',            'Jul 14, 4:45 PM', 1560,  'Rejected', 'Anna Park'],
+  ['Email Campaign Trigger',      'Jul 14, 3:10 PM', 1740,  'Approved', 'James Liu'],
+  ['Lead Scoring Engine',         'Jul 14, 11:00 AM', 1980, 'Awaiting', 'James Liu'],
+  ['Slack Notification Bot',      'Jul 13, 9:20 AM', 3540,  'Rejected', 'Sarah Chen'],
+  ['PDF Text Extractor',          'Jul 13, 8:15 AM', 3600,  'Approved', 'Mike Torres'],
+  ['HubSpot Contact Sync',        'Jul 12, 5:30 PM', 4500,  'Awaiting', null],
+  ['Stripe Payment Handler',      'Jul 12, 2:00 PM', 4680,  'Approved', 'Anna Park']
+];
+
+const CK_GEN_NAMES = ['Vendor Onboarding Flow', 'Contract Review Agent', 'Expense Audit Bot',
+  'Churn Alert Notifier', 'Quote Approval Chain', 'Refund Screening Flow', 'Ticket Triage Agent',
+  'Payroll Sync Pipeline', 'SLA Breach Watcher', 'Inventory Reorder Bot', 'Ad Spend Guard',
+  'CRM Dedupe Sweep', 'NPS Digest Builder'];
+const CK_GEN_TIMES = ['Jul 12, 11:40 AM', 'Jul 12, 10:05 AM', 'Jul 12, 9:12 AM', 'Jul 12, 8:30 AM'];
+/* 37 more rows: 9 awaiting, 23 approved, 5 rejected to land on 12/28/7. */
+const CK_GEN_STATUS = [];
+for (let i = 0; i < 37; i++) {
+  CK_GEN_STATUS.push(i % 7 === 2 ? 'Rejected' : (i % 4 === 1 || i === 34) ? 'Awaiting' : 'Approved');
+}
+const CK_PERSON_NAMES = Object.keys(CK_PEOPLE);
+const CK_ROWS_DATA = CK_BASE.map((r, i) => ({ name: r[0], at: r[1], wait: r[2], status: r[3], by: r[4], hue: CK_HUES[i % 6], order: i }));
+for (let i = 0; i < 37; i++) {
+  const status = CK_GEN_STATUS[i];
+  CK_ROWS_DATA.push({
+    name: CK_GEN_NAMES[i % CK_GEN_NAMES.length] + (i >= CK_GEN_NAMES.length ? ' ' + (Math.floor(i / CK_GEN_NAMES.length) + 1) : ''),
+    at: CK_GEN_TIMES[i % CK_GEN_TIMES.length],
+    wait: 4800 + i * 55,
+    status,
+    by: status === 'Awaiting' && i % 3 === 0 ? null : CK_PERSON_NAMES[i % CK_PERSON_NAMES.length],
+    hue: CK_HUES[(i + 3) % 6],
+    order: 10 + i
+  });
+}
+
+const ckFmtWait = m => m < 60 ? `${m}m`
+  : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60 ? (m % 60) + 'm' : ''}`.trim()
+  : `${Math.floor(m / 1440)}d ${Math.floor((m % 1440) / 60) ? Math.floor((m % 1440) / 60) + 'h' : ''}`.trim();
+
+const CK_STATUS_META = {
+  Awaiting: { tone: 'orange', icon: '' },
+  Approved: { tone: 'green',  icon: '#i-check' },
+  Rejected: { tone: 'red',    icon: '#i-alert' }
+};
+
+/* ════ State + rendering ════ */
+const ckState = { q: '', filter: 'all', sort: 'newest', page: 1 };
+const CK_PER = 10;
+
+function ckFiltered() {
+  let rows = CK_ROWS_DATA.filter(r =>
+    (ckState.filter === 'all' || r.status === ckState.filter) &&
+    (!ckState.q || (r.name + ' ' + (r.by || 'Unassigned')).toLowerCase().includes(ckState.q.toLowerCase())));
+  if (ckState.sort === 'oldest') rows = rows.slice().sort((a, b) => b.order - a.order);
+  else if (ckState.sort === 'wait') rows = rows.slice().sort((a, b) => b.wait - a.wait);
+  return rows;
+}
+
+function ckRender() {
+  const rows = ckFiltered();
+  const pages = Math.max(1, Math.ceil(rows.length / CK_PER));
+  ckState.page = Math.min(ckState.page, pages);
+  const slice = rows.slice((ckState.page - 1) * CK_PER, ckState.page * CK_PER);
+
+  $('ckRows').innerHTML = slice.map(r => {
+    const meta = CK_STATUS_META[r.status];
+    const person = r.by ? CK_PEOPLE[r.by] : null;
+    return `
+    <div class="cq-row" tabindex="0">
+      <div class="cq-cell">
+        <span class="ck-run-ic" style="color:${r.hue}"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg></span>
+        <span class="cq-body2-med cq-truncate">${r.name}</span>
+      </div>
+      <div class="cq-cell cq-cell--muted cq-caption-reg">${r.at}</div>
+      <div class="cq-cell ck-num${r.status === 'Awaiting' ? ' ck-wait--hot' : ''}">${ckFmtWait(r.wait)}</div>
+      <div class="cq-cell"><span class="cq-status" data-tone="${meta.tone}">${meta.icon
+        ? `<svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="${meta.icon}"/></svg>`
+        : '<span class="cq-status--dot"></span>'}${r.status}</span></div>
+      <div class="cq-cell">${person
+        ? `<span class="ck-creator cq-caption-reg"><span class="cq-avatar" style="background:${person.bg}">${person.init}</span>${r.by}</span>`
+        : '<span class="ck-creator ck-creator--none cq-caption-reg">Unassigned</span>'}</div>
+      <div class="cq-cell ck-cell--end">${r.status === 'Awaiting'
+        ? '<button class="cq-btn cq-btn--sm cq-btn--primary">Review</button>'
+        : '<button class="cq-btn cq-btn--sm cq-btn--tonal-2">View output</button>'}</div>
+    </div>`;
+  }).join('');
+
+  $('ckEmpty').hidden = rows.length > 0;
+  const from = rows.length ? (ckState.page - 1) * CK_PER + 1 : 0;
+  const to = Math.min(ckState.page * CK_PER, rows.length);
+  $('ckCount').innerHTML = `Showing <b>${from}–${to}</b> of <b>${rows.length}</b> results`;
+
+  let pager = `<button class="ck-page" data-p="prev" aria-label="Previous page" ${ckState.page === 1 ? 'disabled' : ''}>‹</button>`;
+  for (let p = 1; p <= pages; p++) pager += `<button class="ck-page${p === ckState.page ? ' is-active' : ''}" data-p="${p}">${p}</button>`;
+  pager += `<button class="ck-page" data-p="next" aria-label="Next page" ${ckState.page === pages ? 'disabled' : ''}>›</button>`;
+  $('ckPager').innerHTML = pager;
+}
+
+$('ckPager').addEventListener('click', e => {
+  const btn = e.target.closest('.ck-page');
+  if (!btn || btn.disabled) return;
+  const p = btn.dataset.p;
+  ckState.page = p === 'prev' ? ckState.page - 1 : p === 'next' ? ckState.page + 1 : Number(p);
+  ckRender();
+});
+
+$('ckQ').addEventListener('input', e => { ckState.q = e.target.value; ckState.page = 1; ckRender(); });
+
+/* Scoped to this pane: the runs view uses the same pill component, and an
+   unscoped query would toggle both strips at once. */
+document.querySelectorAll('#actCkpt .ck-pill').forEach(pill => pill.addEventListener('click', () => {
+  ckState.filter = pill.dataset.filter;
+  ckState.page = 1;
+  document.querySelectorAll('#actCkpt .ck-pill').forEach(p => p.classList.toggle('is-active', p === pill));
+  ckRender();
+}));
+
+/* ════ Sort dropdown ════ */
+const CK_SORTS = [['newest', 'Newest'], ['oldest', 'Oldest'], ['wait', 'Longest wait']];
+$('ckSortList').innerHTML = CK_SORTS.map(([id, label]) => `
+  <button class="cq-option${ckState.sort === id ? ' is-picked' : ''}" data-sort="${id}">
+    <span class="cq-option__label">${label}</span>
+    <svg class="cq-ic cq-option__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg>
+  </button>`).join('');
+$('ckSortBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const open = $('ckSortPop').classList.toggle('is-open');
+  $('ckSortBtn').classList.toggle('is-open', open);
+  $('ckSortBtn').setAttribute('aria-expanded', open);
+});
+$('ckSortList').addEventListener('click', e => {
+  const opt = e.target.closest('[data-sort]');
+  if (!opt) return;
+  ckState.sort = opt.dataset.sort;
+  ckState.page = 1;
+  $('ckSortLabel').textContent = 'Sort by: ' + CK_SORTS.find(s => s[0] === ckState.sort)[1];
+  $('ckSortList').querySelectorAll('.cq-option').forEach(o => o.classList.toggle('is-picked', o === opt));
+  $('ckSortPop').classList.remove('is-open');
+  $('ckSortBtn').classList.remove('is-open');
+  ckRender();
+});
+document.addEventListener('click', () => {
+  $('ckSortPop').classList.remove('is-open');
+  $('ckSortBtn').classList.remove('is-open');
+});
+ckRender();
+
 /* ════ Tabs ════
    Activity and Adoption are drawn; the other two show a quiet
    placeholder rather than pretending. */
@@ -3629,7 +4318,7 @@ applyMode(stored === 'light' ? 'light' : 'dark');
 cqSegSync($('monTabs'));
 
 /* ════ Gradient stroke follows the pointer along each card ════ */
-document.querySelectorAll('.mon-card').forEach(card => {
+document.querySelectorAll('.mon-card, .ck-card').forEach(card => {
   /* Short cards read as an edge, not an area: their glow rides the
      nearest horizontal edge so it lights the top or bottom stroke
      cleanly instead of the whole ring at once. */
@@ -3788,10 +4477,8 @@ $('boardAll').addEventListener('click', () => {
 });
 
 /* ════ View all checkpoints → the approvals page ════ */
-$('ckViewAll').addEventListener('click', () => {
-  if (window.parent !== window) parent.postMessage({ cqNav: 'checkpoints.html' }, '*');
-  else window.location.href = 'checkpoints.html';
-});
+$('ckViewAll').addEventListener('click', () => showActivityView('checkpoints'));
+$('runViewAll').addEventListener('click', () => showActivityView('runs'));
 </script>
 
 <style>

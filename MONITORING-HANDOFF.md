@@ -129,7 +129,32 @@ Activity → `#monActivity`, Adoption → `#monAdoption`, anything else → the 
 placeholder `#monEmpty` titled from the button's text. **Charts are drawn on the
 way in**, because a hidden pane has no width to size an SVG against.
 
-**Activity pane** (`#monActivity`, 12-col grid):
+**Activity pane** (`#monActivity`) opens on a second level of tabs, `.mon-sub`
+(`#monSub`, `data-view="all|runs|checkpoints"`): underline-style tabs, the two
+scoped ones prefixed by a `.mon-sub__dot` in their subject's hue (Automation
+runs blue, Human checkpoint orange). Each view is a `.mon-pane` toggled by
+`hidden`; `showActivityView(view)` swaps them, moves `.is-active` +
+`aria-selected`, and redraws `drawVolume()` when returning to All.
+
+- **All** (`#actAll`, the 12-col overview grid described below).
+- **Automation runs** (`#actRuns`) — the full-page view of Live Automation
+  Executions: page head with a live indicator, 4 stat cards, toolbar
+  (search · All/Running/Success/Failed pills · Sort by · date range), then the
+  48-run table with a **Trigger** column (Schedule/Webhook/Manual/Event, each
+  with its glyph) at 10 rows per page. Data is `RUNS` = the 6 `LIVE` rows plus
+  42 generated; state in `runState {q, filter, sort, page}`, rendered by
+  `runRender()` off `runFiltered()`.
+- **Human checkpoint** (`#actCkpt`) — the `checkpoints.html` page inlined, with
+  every identifier namespaced so it cannot collide with the overview
+  (`CK_HUES`, `CK_PEOPLE`, `ckState`, `CK_PER`, `ckRender()`, `ckFiltered()`,
+  `#ckSortBtn`, `#ckStatTotal`…).
+
+Both "View all" buttons are `cq-btn--sm cq-btn--tonal` and stay on the page:
+`#ckViewAll` → the Human checkpoint view, `#runViewAll` ("View all runs") → the
+Automation runs view. Neither navigates away any more; `checkpoints.html`
+survives as a standalone page for deep links.
+
+**All view** (`#actAll`, 12-col grid):
 - 3 KPI cards (`.mon-stat`, span 4) — Executions today 1,847 / Error rate 2.3% /
   Today's cost $127.40, with `#i-dollar`.
 - Live Automation Executions (`.mon-live`, span 8) — `cq-table`, cols
@@ -138,7 +163,8 @@ way in**, because a hidden pane has no width to size an SVG against.
   Row action is `cq-btn--xs cq-btn--tonal-2`. Automation glyphs are bare
   (no tile), each in its own `--text-coloured-*` hue.
 - Human Checkpoint Approvals (`.mon-approvals`, span 4) — 3 tiles from
-  `APPROVALS[]` on `page-bg-3` with a hover shadow; `#ckViewAll` → `checkpoints.html`.
+  `APPROVALS[]` on `--mon-nested` with a hover shadow; `#ckViewAll` opens the
+  Human checkpoint view.
 - Top Failing Automations (`.mon-donut`, span 5) — SVG ring, centred with its
   legend rows below; hovering a row or an arc cross-highlights both.
 - Execution Volume & Error Rate (`.mon-volume`, span 7) — `drawVolume()`.
@@ -324,23 +350,35 @@ fetch failing offline; ignore it.
 2. **`filter` creates a stacking context.** `.cq-page__bar` carries a drop-shadow
    filter, so popovers inside it painted *under* the cards that follow in the DOM
    at any z-index. Fix: `.mon-root .cq-page__bar { position: relative; z-index: 5 }`.
-3. **`repeat(4, 1fr)` is not equal columns** — `1fr` floors each track at its own
+3. **Porting a page inline means porting its sprite too.** The `<symbol>` set is
+   per-file, and a `<use href="#id">` pointing at a symbol that is not in *this*
+   document renders nothing at all, with no console error. After any port, diff
+   the icons used against the symbols defined:
+   ```bash
+   sed -n '/id="actCkpt"/,/id="actRuns"/p' monitoring.html \
+     | grep -o 'href="#[a-z0-9_-]*"' | sort -u
+   ```
+   `#i-layers` and `#i-play` were both missing this way. Namespace every
+   identifier the port brings with it, and scope its event handlers to the new
+   container (`#actCkpt .ck-pill`, not `.ck-pill`) or the two pill strips toggle
+   together.
+4. **`repeat(4, 1fr)` is not equal columns** — `1fr` floors each track at its own
    min-content, so long labels ("Guardrails") widen their cell. Use `minmax(0, 1fr)`.
-4. **`card-bg-5` is `#ffffff` in light**, identical to a card, so nested tiles
+5. **`card-bg-5` is `#ffffff` in light**, identical to a card, so nested tiles
    vanish there. Nested surfaces take `page-bg-3`.
-5. **`clip-path` clips descendants too** — handy for making a growing bar clip its
+6. **`clip-path` clips descendants too** — handy for making a growing bar clip its
    own label, fatal if you need something (the cap) to paint outside it.
-6. **A transition-based replay needs a reset frame.** Removing the class eases
+7. **A transition-based replay needs a reset frame.** Removing the class eases
    back from the current value; add a `.no-anim` class, commit the collapsed
    state, remove it, then re-add `.is-in` on the next frame.
-7. **Padding floors a zero height.** `height: 0` with `padding-top: 18px` still
+8. **Padding floors a zero height.** `height: 0` with `padding-top: 18px` still
    measures 18px, so a bar can't start from nothing — put the inset on the child.
-8. **Bottom-aligned is not the same as looking bottom-aligned** — see the podium
+9. **Bottom-aligned is not the same as looking bottom-aligned** — see the podium
    fade in §4.
-9. **Check tag balance after scripted edits.** A stray `</section></div>` once
+10. **Check tag balance after scripted edits.** A stray `</section></div>` once
    closed `.cq-page__content` early, so the toolbar and table fell outside the
    scroll region and the page looked half-fixed, half-scrolling.
-10. **The artifact is shared.** Rebase bundles on the live snapshot (§1).
+11. **The artifact is shared.** Rebase bundles on the live snapshot (§1).
 
 ---
 
