@@ -164,6 +164,14 @@
   --cat-agents:     #14ae5c;
   --cat-skills:     #ce7012;
   --cat-models:     #9747ff;
+  /* Ink for a value printed on top of one of those fills. Which of
+     the two inks clears 4.5:1 differs per hue and per theme, so it
+     is a token pair rather than one on-mark colour for all five. */
+  --cat-tools-ink:     var(--text-button-white);
+  --cat-guardrails-ink:     var(--blue-1100);
+  --cat-agents-ink:     var(--blue-1100);
+  --cat-skills-ink:     var(--blue-1100);
+  --cat-models-ink:     var(--text-button-white);
 
   /* SEQUENTIAL - one hue, low to high, for the forms where the tint
      carries magnitude rather than identity. Dark climbs toward light. */
@@ -274,6 +282,11 @@
     --cat-agents:     #14ae5c;
     --cat-skills:     #8a480f;
     --cat-models:     #9747ff;
+    --cat-tools-ink:     var(--blue-1100);
+    --cat-guardrails-ink:     var(--text-button-white);
+    --cat-agents-ink:     var(--blue-1100);
+    --cat-skills-ink:     var(--text-button-white);
+    --cat-models-ink:     var(--text-button-white);
     --seq-1: #44aaf3;
     --seq-2: #007be5;
     --seq-3: #034ac1;
@@ -368,6 +381,11 @@
   --cat-agents:     #14ae5c;
   --cat-skills:     #8a480f;
   --cat-models:     #9747ff;
+  --cat-tools-ink:     var(--blue-1100);
+  --cat-guardrails-ink:     var(--text-button-white);
+  --cat-agents-ink:     var(--blue-1100);
+  --cat-skills-ink:     var(--text-button-white);
+  --cat-models-ink:     var(--text-button-white);
   --seq-1: #44aaf3;
   --seq-2: #007be5;
   --seq-3: #034ac1;
@@ -471,6 +489,7 @@
   .ax--mono { font-family: var(--font-geist-mono); font-variant-numeric: tabular-nums; }
   .lbl { fill: var(--text-primary); font: 500 11px/1 var(--font-geist-mono); font-variant-numeric: tabular-nums; }
   .lbl--name { fill: var(--text-secondary); font: 400 12px/1 var(--font-geist); }
+  .lbl--sm { fill: var(--text-secondary); font: 400 10px/1 var(--font-geist); }
   .lbl--on-mark { fill: var(--text-button-white); }
   .rule { stroke: var(--grid-line); stroke-width: 1; }
 
@@ -712,27 +731,49 @@ function lollipop() {
 <script>
 /* ══ 7 · Bubble — library size against reuse rate, area = reuse count ══ */
 function bubble() {
-  const W = 520, H = 300, L = 46, R = 18, T = 16, B = 34;
-  const px = v => L + (v / 260) * (W - L - R);
-  const py = v => T + (1 - (v - 0.4) / 0.5) * (H - T - B);
-  const rad = v => Math.sqrt(v / SUM_REUSED) * 62;   // area, never radius, carries the count
-  const gy = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map(v =>
-    `<line class="rule" x1="${L}" y1="${py(v)}" x2="${W - R}" y2="${py(v)}"/>
+  const W = 520, H = 330, L = 46, R = 50, T = 18, B = 40;
+  const px = v => L + (v / 270) * (W - L - R);
+  const py = v => T + (1 - (v - 0.45) / 0.4) * (H - T - B);
+  const rad = v => Math.sqrt(v / SUM_REUSED) * 52;   // area, never radius, carries the count
+
+  const gy = [0.5, 0.6, 0.7, 0.8].map(v =>
+    `<line class="rule" x1="${L}" y1="${py(v)}" x2="${W - R + 20}" y2="${py(v)}"/>
      <text class="ax ax--mono" x="${L - 8}" y="${py(v) + 4}" text-anchor="end">${pct(v)}</text>`).join('');
   const gx = [0, 60, 120, 180, 240].map(v =>
-    `<text class="ax ax--mono" x="${px(v)}" y="${H - 14}" text-anchor="middle">${v}</text>`).join('');
-  const marks = bySize.map(t => {
-    const cx = px(t.total), cy = py(rate(t)), r = rad(t.reused);
-    /* Labels sit outside the circle, and flip to the inside edge when the
-       point is near the right wall, so nothing leaves the viewBox. */
-    const flip = cx + r + 70 > W - R;
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${hue(t)}" fill-opacity=".8" stroke="var(--card)" stroke-width="2" ${tip(t, t.reused + ' reused')}/>
-      <text class="lbl--name" x="${flip ? cx - r - 8 : cx + r + 8}" y="${cy - 1}" text-anchor="${flip ? 'end' : 'start'}">${t.name}</text>
-      <text class="lbl" x="${flip ? cx - r - 8 : cx + r + 8}" y="${cy + 12}" text-anchor="${flip ? 'end' : 'start'}">${pct(rate(t))}</text>`;
+    `<text class="ax ax--mono" x="${px(v)}" y="${H - 18}" text-anchor="middle">${v}</text>`).join('');
+
+  const pts = bySize.map(t => ({ t, cx: px(t.total), cy: py(rate(t)), r: rad(t.reused) }));
+
+  /* The name sits under its own bubble. Where that would land the text on
+     a neighbouring bubble - Guardrails at 31 artifacts and Models at 18
+     are near neighbours on a linear size axis - it flips above instead,
+     which is cheaper than nudging labels into a queue below the cluster. */
+  const GAP = 12, LINE = 11;
+  pts.forEach(pt => {
+    const halfW = pt.t.name.length * 3.3 + 4;
+    const yBelow = pt.cy + pt.r + GAP;
+    const collides = pts.some(o => o !== pt
+      && Math.abs(o.cx - pt.cx) < o.r + halfW
+      && Math.abs(o.cy - yBelow) < o.r + LINE / 2);
+    pt.above = collides;
+    pt.ly = collides ? pt.cy - pt.r - GAP + 3 : yBelow;
+    /* A bubble under ~24px across cannot hold a three-character value, so
+       those carry the rate beside the name instead of inside the mark. */
+    pt.inside = pt.r >= 12;
+  });
+
+  const marks = pts.map(pt => {
+    const { t, cx, cy, r } = pt;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${hue(t)}" stroke="var(--card)" stroke-width="2" ${tip(t, t.reused + ' reused')}/>
+      ${pt.inside
+        ? `<text class="lbl" x="${cx}" y="${cy + 4}" text-anchor="middle" style="fill:var(--cat-${t.key}-ink)">${pct(rate(t))}</text>`
+        : ''}
+      <text class="lbl--sm" x="${cx}" y="${pt.ly}" text-anchor="middle">${t.name}${
+        pt.inside ? '' : `<tspan class="lbl" dx="4">${pct(rate(t))}</tspan>`}</text>`;
   }).join('');
+
   return svg(W, H,
-    `${gy}${gx}<text class="ax" x="${L}" y="${H - 1}">artifacts in the library →</text>
-     ${marks}`,
+    `${gy}${gx}<text class="ax" x="${L}" y="${H - 2}">artifacts in the library →</text>${marks}`,
     'Library size against reuse rate, bubble area is the number of reused artifacts');
 }
 
