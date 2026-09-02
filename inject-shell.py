@@ -84,6 +84,15 @@ CSS = '''
 .cq-pm-row svg { flex: none; }
 .cq-pm-row.is-danger:hover { color: var(--text-coloured-red, #f24822); }
 
+/* What the forum is for, said once at the end of the row rather than on
+   a second line: the menu's rows are one line tall and a lone two-line
+   row breaks the rhythm of the rest. */
+.cq-pm-note {
+  flex: none; font-size: 11.5px;
+  color: var(--text-teritiary, var(--text-secondary));
+}
+.cq-pm-row:hover .cq-pm-note { color: var(--text-secondary); }
+
 /* Assistant platform leaves the product, so it is the one thing in here
    that is a button rather than a row: tonal-1, the weight the product
    gives an action that is offered rather than routine.
@@ -104,6 +113,9 @@ CSS = '''
 }
 .cq-pm-cta:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: 2px; }
 .cq-pm-cta svg { flex: none; }
+/* Forum and Assistant platform are both somewhere to go, so they sit as
+   one group; the gap is what keeps the row from touching the button. */
+.cq-pm-cta--spaced { margin-top: 6px; }
 
 /* Sign out sits under the button rather than against it. */
 .cq-pm-row.cq-pm-last { margin-top: 8px; }
@@ -139,6 +151,7 @@ ICON = {
  'sun': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3.1" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.6v1.5M8 12.9v1.5M14.4 8h-1.5M3.1 8H1.6M12.53 3.47l-1.06 1.06M4.53 11.47l-1.06 1.06M12.53 12.53l-1.06-1.06M4.53 4.53 3.47 3.47" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
  'moon': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
  'system': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.9" y="2.9" width="12.2" height="8.2" rx="1.3" stroke="currentColor" stroke-width="1.4"/><path d="M5.8 13.9h4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+ 'forum': '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9.9 9.2H4.7l-2 1.7V3.4a.9.9 0 0 1 .9-.9h6.3a.9.9 0 0 1 .9.9v4.9a.9.9 0 0 1-.9.9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M12.2 5.6h.3a.9.9 0 0 1 .9.9v6.9l-2-1.7H6.6" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
  'ext': '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5 7.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
  'out': '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.2 13.3H3.6a1 1 0 0 1-1-1V3.7a1 1 0 0 1 1-1h2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10.4 10.6 13 8l-2.6-2.6M13 8H6.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 }
@@ -149,15 +162,20 @@ SNIPPET = '''
 /* ── Combined product · shared shell wiring ──────────────────────
    The platform rail, the light/dark choice and the profile menu belong
    to the product rather than to any one page, so all three are wired
-   here: one definition, five pages. */
+   here: one definition, every page. */
 (function () {
   var PAGES = {
     'home': 'index.html',
+    'automations': 'automations.html',
     'skills': 'skills.html',
     'skill': 'skills.html',
     'integrations': 'integrations.html',
     'model hub': 'model-hub.html',
-    'doc store': 'doc-store.html'
+    'doc store': 'doc-store.html',
+    'context': 'context.html',
+    'context studio': 'context.html',
+    'monitor': 'monitoring.html',
+    'monitoring': 'monitoring.html'
   };
   var root = document.documentElement;
   var inShell = window.parent !== window;
@@ -286,7 +304,11 @@ SNIPPET = '''
         '<button type="button" data-pref="system" aria-pressed="false">' + __IC_SYS__ + 'System</button>' +
       '</div>' +
       '<div class="cq-pm-rule"></div>' +
-      '<a class="cq-pm-cta" href="#" data-act="assistant" target="_blank" rel="noopener noreferrer">' +
+      '<button type="button" class="cq-pm-row" data-act="forum">' + __IC_FORUM__ +
+        '<span class="lbl">Forum</span>' +
+        '<span class="cq-pm-note">Ask, report, discuss</span></button>' +
+      '<a class="cq-pm-cta cq-pm-cta--spaced" href="#" data-act="assistant" ' +
+        'target="_blank" rel="noopener noreferrer">' +
         'Assistant platform' + __IC_EXT__ + '</a>' +
       '<button type="button" class="cq-pm-row cq-pm-last is-danger" data-act="signout">' + __IC_OUT__ +
         '<span class="lbl">Sign out</span></button>';
@@ -345,13 +367,14 @@ def build():
     s = s.replace('__CSS__', CSS)
     for key, tok in (('sun', '__IC_SUN__'), ('moon', '__IC_MOON__'), ('system', '__IC_SYS__')):
         s = s.replace(tok, "'" + ICON[key] + "'")
+    s = s.replace('__IC_FORUM__', "'" + ICON['forum'] + "'")
     s = s.replace('__IC_EXT__', "'" + ICON['ext'] + "'")
     s = s.replace('__IC_OUT__', "'" + ICON['out'] + "'")
     return s
 
 MARK = '/* ── Combined product · shared shell wiring'
 snippet = build()
-for name in ['index.html', 'integrations.html', 'model-hub.html', 'skills.html', 'doc-store.html']:
+for name in sorted(q.name for q in PAGES.glob('*.html')):
     f = PAGES / name
     s = f.read_text()
     i = s.find(MARK)
@@ -364,7 +387,10 @@ for name in ['index.html', 'integrations.html', 'model-hub.html', 'skills.html',
     end = s.index('</script>', i) + len('</script>')
     s = s[:start] + s[end:]
     assert MARK not in s, name
-    m = re.search(r'\s*</body>\s*</html>\s*$', s)
-    s = s[:m.start()] + '\n' + snippet + '\n</body>\n</html>\n'
+    # Some pages arrive without their closing </html> -- the artifact
+    # viewer's wrapper swallows it -- so the tail is matched loosely and
+    # written back complete either way.
+    m = re.search(r'\s*</body>\s*(?:</html>)?\s*$', s)
+    s = (s[:m.start()] if m else s.rstrip()) + '\n' + snippet + '\n</body>\n</html>\n'
     f.write_text(s)
     print(f'{name:20} {len(s):,} bytes')

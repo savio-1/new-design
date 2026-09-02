@@ -9,7 +9,9 @@ their own opaque storage, so the theme has to live out here.
 import base64, json, pathlib
 
 SRC = pathlib.Path('/home/user/new-design/cogentiq')
-PAGES = ['index.html', 'integrations.html', 'model-hub.html', 'skills.html', 'doc-store.html']
+# index first so it is the shell's default; the rest in file order.
+PAGES = ['index.html'] + sorted(
+    q.name for q in SRC.glob('*.html') if q.name != 'index.html')
 
 blobs = {}
 for name in PAGES:
