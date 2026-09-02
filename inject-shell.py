@@ -305,7 +305,7 @@ SNIPPET = '''
       '<button type="button" class="cq-pm-row" data-act="forum">' + __IC_FORUM__ +
         '<span class="lbl">Forum</span></button>' +
       '<button type="button" class="cq-pm-row" data-act="tokens">' + __IC_KEY__ +
-        '<span class="lbl">Access tokens</span></button>' +
+        '<span class="lbl">Personal access tokens</span></button>' +
       '<button type="button" class="cq-pm-row is-danger" data-act="signout">' + __IC_OUT__ +
         '<span class="lbl">Sign out</span></button>' +
       '<div class="cq-pm-rule"></div>' +

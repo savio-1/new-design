@@ -218,7 +218,7 @@ PAT_CSS = '''
 .pt-veil { position: fixed; inset: 0; z-index: 80; background: var(--scrim); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility 0s linear .2s; }
 .pt-veil.is-open { opacity: 1; visibility: visible; transition: opacity .2s ease; }
 .pt-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; z-index: 81; width: 440px; max-width: calc(100vw - 24px);
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 81; width: 396px; max-width: calc(100vw - 24px);
   display: flex; flex-direction: column;
   background: var(--backgrounds-page-bg-2); border-left: 1px solid var(--strokes-card-default); box-shadow: var(--shadow-panel);
   transform: translateX(100%); visibility: hidden;
@@ -239,6 +239,7 @@ PAT_CSS = '''
 .pt-date { position: relative; }
 .pt-date__btn { width: 100%; justify-content: space-between; gap: 8px; cursor: pointer; text-align: left; font: inherit; }
 .pt-date__btn .cq-ic { color: var(--text-teritiary); flex: none; }
+.pt-date__val { flex: 1 1 auto; min-width: 0; text-align: left; }   /* the date reads from the left, beside its icon, like every other field */
 .pt-date__btn.is-empty .pt-date__val { color: var(--text-teritiary); }
 .pt-date__btn.is-open, .pt-date__btn:focus-visible { border-color: var(--strokes-type-focus, var(--backgrounds-button-primary)); outline: none; }
 .pt-date__btn .pt-date__chev { transition: transform .15s ease; }
@@ -284,16 +285,16 @@ PAT_BODY = '''
 
             <div class="pt-bar">
               <label class="cq-search">''' + ICON['search'] + '''
-                <input id="ptQ" class="cq-body2-reg" type="search" placeholder="Search tokens" aria-label="Search tokens" />
+                <input id="ptQ" class="cq-body2-reg" type="search" placeholder="Search personal access tokens" aria-label="Search personal access tokens" />
               </label>
               <div class="pt-bar__spacer"></div>
-              <button class="cq-btn cq-btn--m cq-btn--primary" id="ptNew" type="button">''' + ICON['plus'] + '''New token</button>
+              <button class="cq-btn cq-btn--m cq-btn--primary" id="ptNew" type="button">''' + ICON['plus'] + '''New personal access token</button>
             </div>
 
             <div class="cq-table pt-table" role="table" aria-label="Personal access tokens">
               <div class="cq-thead" role="row">
                 <div>Name</div>
-                <div>Token</div>
+                <div>Personal access token</div>
                 <div>Created / expires</div>
                 <div>Status</div>
                 <div></div>
@@ -315,14 +316,14 @@ PAT_BODY = '''
 <div class="pt-veil" id="ptVeil"></div>
 <aside class="pt-drawer" id="ptDrawer" role="dialog" aria-modal="true" aria-labelledby="ptDrawerTitle" aria-hidden="true">
   <div class="pt-drawer__head">
-    <span class="cq-body1-med" id="ptDrawerTitle">New token</span>
+    <span class="cq-body1-med" id="ptDrawerTitle">New personal access token</span>
     <button class="cq-icon-btn" type="button" id="ptClose" aria-label="Close">''' + ICON['x'] + '''</button>
   </div>
 
   <div class="pt-drawer__body" id="ptForm">
     <label class="cq-field">
       <span class="cq-field__label cq-body2-reg">Name</span>
-      <span class="ac-input"><input id="ptName" class="cq-body2-reg" type="text" placeholder="What will use this token?" maxlength="60" autocomplete="off" /></span>
+      <span class="ac-input"><input id="ptName" class="cq-body2-reg" type="text" placeholder="What will use this personal access token?" maxlength="60" autocomplete="off" /></span>
       <span class="ac-help cq-caption-reg" id="ptNameHelp">Shown in this list only. Pick something you will recognise later.</span>
     </label>
     <div class="cq-field">
@@ -346,7 +347,7 @@ PAT_BODY = '''
           </div>
         </div>
       </div>
-      <span class="ac-help cq-caption-reg" id="ptExpNote">The token stops working at the end of that day.</span>
+      <span class="ac-help cq-caption-reg" id="ptExpNote">The personal access token stops working at the end of that day.</span>
     </div>
   </div>
 
@@ -363,22 +364,22 @@ PAT_BODY = '''
     <div class="cq-field">
       <span class="cq-field__label cq-body2-reg">Personal access token</span>
       <span class="ac-input is-mono"><input id="ptTok" type="password" readonly aria-label="Personal access token" />
-        <button class="cq-icon-btn cq-icon-btn--sm" type="button" data-copy="ptTok" title="Copy token" aria-label="Copy token">''' + ICON['copy'] + '''</button>
-        <button class="cq-icon-btn cq-icon-btn--sm" type="button" id="ptEye" title="Show token" aria-label="Show token" aria-pressed="false">''' + ICON['eye'] + '''</button></span>
+        <button class="cq-icon-btn cq-icon-btn--sm" type="button" data-copy="ptTok" title="Copy personal access token" aria-label="Copy personal access token">''' + ICON['copy'] + '''</button>
+        <button class="cq-icon-btn cq-icon-btn--sm" type="button" id="ptEye" title="Show personal access token" aria-label="Show personal access token" aria-pressed="false">''' + ICON['eye'] + '''</button></span>
     </div>
-    <div class="pt-callout" role="status">''' + ICON['alert'] + '''<span class="cq-body2-reg">This token will only be shown once. Please copy it now and store it securely.</span></div>
+    <div class="pt-callout" role="status">''' + ICON['alert'] + '''<span class="cq-body2-reg">This personal access token will only be shown once. Please copy it now and store it securely.</span></div>
   </div>
 
   <div class="pt-drawer__foot">
     <button class="cq-btn cq-btn--m cq-btn--ghost" type="button" id="ptCancel">Cancel</button>
-    <button class="cq-btn cq-btn--m cq-btn--primary" type="button" id="ptSave">Generate token</button>
+    <button class="cq-btn cq-btn--m cq-btn--primary" type="button" id="ptSave">Generate personal access token</button>
   </div>
 </aside>
 
 <!-- ── Delete ── -->
 <div class="cq-scrim" id="ptDel" role="dialog" aria-modal="true" aria-labelledby="ptDelTitle">
   <div class="cq-modal ac-modal" style="width:420px">
-    <div class="cq-modal__head"><span class="cq-body1-med" id="ptDelTitle">Delete token</span>
+    <div class="cq-modal__head"><span class="cq-body1-med" id="ptDelTitle">Delete personal access token</span>
       <button class="cq-icon-btn" type="button" data-close="ptDel" aria-label="Close">''' + ICON['x'] + '''</button></div>
     <div class="ac-modal__body"><p class="cq-body2-reg" id="ptDelBody" style="margin:0;color:var(--text-secondary)"></p></div>
     <div class="cq-modal__foot">
@@ -466,7 +467,7 @@ function render() {
         <button class="cq-icon-btn cq-icon-btn--sm is-danger" type="button" data-del="${t.id}" title="Delete" aria-label="Delete ${esc(t.name)}">__TRASH__</button>
       </div>
     </div>`;
-  }).join('') : `<div class="pt-empty cq-body2-reg">No tokens match “${esc(q)}”.</div>`;
+  }).join('') : `<div class="pt-empty cq-body2-reg">No personal access tokens match “${esc(q)}”.</div>`;
   const a = all.length ? pageNo * PAGE + 1 : 0, b = Math.min(all.length, (pageNo + 1) * PAGE);
   $('ptRange').textContent = `${a}–${b} of ${all.length}`;
   $('ptPrev').disabled = pageNo === 0;
@@ -492,9 +493,9 @@ function closeDrawer() {
   if (lastFocus && lastFocus.focus) lastFocus.focus();
 }
 function showForm() {
-  $('ptDrawerTitle').textContent = 'New token';
+  $('ptDrawerTitle').textContent = 'New personal access token';
   $('ptForm').hidden = false; $('ptDone').hidden = true;
-  $('ptCancel').hidden = false; $('ptSave').textContent = 'Generate token';
+  $('ptCancel').hidden = false; $('ptSave').textContent = 'Generate personal access token';
   $('ptName').value = ''; $('ptName').closest('.ac-input').classList.remove('is-invalid');
   $('ptNameHelp').textContent = 'Shown in this list only. Pick something you will recognise later.'; $('ptNameHelp').className = 'ac-help cq-caption-reg';
   expiry = null; paintDate();
@@ -533,8 +534,8 @@ function paintDate() {
   $('ptDateVal').textContent = expiry ? fmt(expiry) : 'Select a date';
   if (expiry) {
     const d = Math.round((expiry - today) / DAY);
-    $('ptExpNote').textContent = `The token stops working at the end of ${fmt(expiry)} · in ${d} day${d === 1 ? '' : 's'}.`;
-  } else $('ptExpNote').textContent = 'The token stops working at the end of that day.';
+    $('ptExpNote').textContent = `The personal access token stops working at the end of ${fmt(expiry)} · in ${d} day${d === 1 ? '' : 's'}.`;
+  } else $('ptExpNote').textContent = 'The personal access token stops working at the end of that day.';
   $('ptExpNote').className = 'ac-help cq-caption-reg';
 }
 function openCal() {
@@ -562,11 +563,11 @@ $('ptSave').addEventListener('click', () => {
   let ok = true;
   if (!name) {
     ok = false; $('ptName').closest('.ac-input').classList.add('is-invalid');
-    $('ptNameHelp').textContent = 'Give the token a name.'; $('ptNameHelp').className = 'ac-err cq-caption-reg';
+    $('ptNameHelp').textContent = 'Give the personal access token a name.'; $('ptNameHelp').className = 'ac-err cq-caption-reg';
   }
   if (!expiry) {
     ok = false; $('ptDateBtn').classList.add('is-invalid');
-    $('ptExpNote').textContent = 'Pick the date the token should stop working.'; $('ptExpNote').className = 'ac-err cq-caption-reg';
+    $('ptExpNote').textContent = 'Pick the date the personal access token should stop working.'; $('ptExpNote').className = 'ac-err cq-caption-reg';
   }
   if (!ok) { (name ? $('ptDateBtn') : $('ptName')).focus(); return; }
   const full = 'kcpat.' + rnd(40);
@@ -576,13 +577,13 @@ $('ptSave').addEventListener('click', () => {
   $('ptOutName').textContent = name; $('ptOutExp').textContent = `Expires ${fmt(end)} · created just now`;
   $('ptUid').value = USER_ID; $('ptTok').value = full; $('ptTok').type = 'password';
   $('ptEye').setAttribute('aria-pressed', 'false'); $('ptEye').title = $('ptEye').ariaLabel = 'Show token'; $('ptEye').innerHTML = '__EYE__';
-  $('ptDrawerTitle').textContent = 'Token generated';
+  $('ptDrawerTitle').textContent = 'Personal access token generated';
   $('ptForm').hidden = true; $('ptDone').hidden = false; $('ptCancel').hidden = true; $('ptSave').textContent = 'Done';
 });
 $('ptEye').addEventListener('click', () => {
   const show = $('ptTok').type === 'password';
   $('ptTok').type = show ? 'text' : 'password';
-  $('ptEye').setAttribute('aria-pressed', String(show)); $('ptEye').title = $('ptEye').ariaLabel = show ? 'Hide token' : 'Show token';
+  $('ptEye').setAttribute('aria-pressed', String(show)); $('ptEye').title = $('ptEye').ariaLabel = show ? 'Hide personal access token' : 'Show personal access token';
   $('ptEye').innerHTML = show ? '__EYEOFF__' : '__EYE__';
 });
 document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
@@ -601,7 +602,7 @@ function openDelete(id) {
   openScrim('ptDel');
 }
 $('ptDelGo').addEventListener('click', () => {
-  tokens = tokens.filter(t => t.id !== pending); closeScrim('ptDel'); toast('Token deleted'); pending = null; render();
+  tokens = tokens.filter(t => t.id !== pending); closeScrim('ptDel'); toast('Personal access token deleted'); pending = null; render();
 });
 document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
 render();
