@@ -179,7 +179,9 @@ for page in sorted(p.name for p in PAGES.glob('*.html')):
     else:
         k = s.index('</aside>') + len('</aside>')
         s = s[:k] + '\n\n' + card + s[k:]
-    b = re.search(r'<div class="filmbox" id="filmBox".*?\n</div>', s, re.S)
+    # the film box ships with its explanatory comment in front; take any
+    # earlier copies of that comment out too, or a re-run stacks them
+    b = re.search(r'(?:<!-- The big view.*?-->\s*)*<div class="filmbox" id="filmBox".*?\n</div>', s, re.S)
     if has_film:
         s = (s[:b.start()] + FILMBOX + s[b.end():]) if b else (
             s[:s.index(card) + len(card)] + '\n\n' + FILMBOX + s[s.index(card) + len(card):])
@@ -217,7 +219,8 @@ for page in sorted(p.name for p in PAGES.glob('*.html')):
         pre = s[:st].rstrip()
         if pre.endswith('</style>'):
             st = s.rfind('<style>', 0, pre.rfind('</style>'))
-        s = s[:st] + bundle + s[st:]
+        # rstrip so a re-run does not grow the gap by a newline each pass
+        s = s[:st].rstrip('\n') + '\n' + bundle.strip('\n') + '\n' + s[st:]
     else:
         m2 = re.search(r'\s*</body>\s*(?:</html>)?\s*$', s)
         s = (s[:m2.start()] if m2 else s.rstrip()) + bundle + '\n</body>\n</html>\n'
