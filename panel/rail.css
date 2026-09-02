@@ -1,0 +1,506 @@
+/* ── Platform panel (left rail) ─────────────────────────────
+       Two variants of one component: crunched at 68px and opened at
+       240px. Content width is the only real difference — 36px vs 208px
+       — so the same rules drive both and the labels simply appear. Each
+       row is `justify-content: center` with 8px padding, which puts the
+       icon at x=10 in a 36px box and at x=8 once a label flexes beside
+       it: exactly the two positions the component specifies. ───────── */
+    /* Fixed, and the page keeps a constant 68px gutter for it, so opening
+       the panel lays it over the content instead of reflowing the whole
+       page for a hover. Above the scrim so it stays reachable while the
+       detail panel is open, below the Tiq bar. */
+    .rail {
+      position: fixed; left: 0; top: 0; bottom: 0; z-index: 80;
+      width: var(--rail-w);
+      background: var(--backgrounds-page-bg-1);
+      display: flex; flex-direction: column; align-items: stretch; gap: 16px;
+      padding: 8px 16px;
+      overflow-x: hidden; overflow-y: auto;
+      transition: width .26s cubic-bezier(.4, 0, .2, 1), box-shadow .26s ease;
+    }
+    .rail.is-open { width: var(--rail-w-open); box-shadow: var(--shadow-rail); }
+    .rail::-webkit-scrollbar { width: 0; }
+
+    /* Labels are laid out at their real width the whole time and clipped
+       by the rail; animating width instead would reflow every row. */
+    .rail-lbl {
+      flex: 1 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      text-align: left;
+      font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+      color: var(--text-primary);
+    }
+    .rail:not(.is-open) .rail-lbl { display: none; }
+
+    /* ── Header: logo, wordmark, collapse ── */
+    .rail-head {
+      flex: none; display: flex; align-items: center; justify-content: space-between;
+      gap: 6px; padding: 8px 0;
+    }
+    .rail-brand { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; }
+    .rail:not(.is-open) .rail-brand { justify-content: center; }
+    .rail-logo {
+      position: relative; flex: none;
+      width: 32px; height: 32px; border-radius: 100px; overflow: hidden;
+      background: var(--backgrounds-page-bg-2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--strokes-icon-default);
+    }
+    .rail-wordmark {
+      font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px;
+      color: var(--text-primary);
+    }
+    .rail-collapse {
+      flex: none; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--strokes-icon-default);
+      transition: color .15s ease;
+    }
+    .rail-collapse:hover { color: var(--text-primary); }
+    .rail:not(.is-open) .rail-collapse { display: none; }
+
+    .rail-group { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+
+    /* ── Marketplace ── */
+    .rail-market {
+      position: relative;
+      width: 100%; height: 36px; flex: none;
+      border-radius: 8px; overflow: hidden;
+      background: var(--backgrounds-card-bg-3);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 0 12px;
+    }
+    .rail:not(.is-open) .rail-market { padding: 0; }
+    /* Opened only: at 36px the art already fills the tile. */
+    .rail.is-open .rail-market { background-image: var(--gradient-blue-wash); }
+    .rail-market .bg { position: absolute; inset: 0; overflow: hidden; }
+    .rail-market .bg svg { position: absolute; }
+    .rail-market .mark { position: relative; flex: none; width: 24px; height: 15.6px; }
+    .rail-market .rail-lbl { position: relative; font-weight: 500; }
+    /* Zero-height in the component, with the stroke drawn above it — a 1px
+       box here would add a row and push everything below out of rhythm. */
+    .rail-rule { position: relative; width: 100%; height: 0; flex: none; }
+    .rail-rule::before {
+      content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+      background: var(--strokes-line-1);
+    }
+
+    /* ── Items ── */
+    .rail-btn {
+      width: 100%; height: 36px; flex: none;
+      border-radius: 8px; padding: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      color: var(--strokes-icon-default);
+      transition: background .15s ease, color .15s ease;
+    }
+    .rail-btn > .ic { flex: none; }
+    /* Hover draws a rectangle, not just a fill — at 68px the icons have
+       no labels to hit-test against, so the row needs to say where it
+       begins and ends. The border comes out of the padding exactly as it
+       does on an active item, so nothing shifts by a pixel. */
+    .rail-btn:hover {
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      padding: 7px;
+      color: var(--text-secondary);
+    }
+    .rail-btn.is-active {
+      background: var(--backgrounds-button-tonal-1);
+      /* Figma strokes sit inside the box, so the padding absorbs the border
+         and the icon stays on the same 8px line as every other item. */
+      border: 1px solid var(--strokes-card-selected);
+      padding: 7px;
+      color: var(--text-coloured-blue);
+    }
+    .rail-btn.is-active .rail-lbl { color: var(--text-coloured-blue); font-weight: 500; }
+    .rail-stack { display: flex; flex-direction: column; align-items: stretch; }
+
+    /* ── Group header ── */
+    .rail-ghead {
+      position: relative;
+      width: 100%; height: 24px; flex: none;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    /* A category header is 24px of tile and label with no box of its own,
+       and it is a control. The rectangle is drawn by a pseudo-element
+       rather than by padding a fixed-height row, so it can overhang the
+       24px without touching layout — and the children are lifted above
+       it, since a positioned pseudo would otherwise paint over them. */
+    .rail-ghead::before {
+      content: ""; position: absolute; inset: -6px -8px; z-index: 0;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .rail-ghead:hover::before {
+      background: var(--backgrounds-card-bg-4);
+      border-color: var(--strokes-card-default);
+    }
+    .rail-ghead > * { position: relative; z-index: 1; }
+    .rail-tile {
+      flex: none;
+      width: 24px; height: 24px; border-radius: 6px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--white);
+    }
+    .rail-ghead .rail-lbl { font-weight: 500; }
+    .rail-chev {
+      flex: none; color: var(--text-teritiary);
+      transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+    }
+    .rail-ghead[aria-expanded="true"] .rail-chev { transform: rotate(180deg); }
+    .rail:not(.is-open) .rail-chev { display: none; }
+    /* Collapsing a group hides its items at either width — the crunched
+       panel shows a collapsed group as its tile alone, same as opened. */
+    .rail-ghead[aria-expanded="false"] + .rail-stack { display: none; }
+
+    /* ── Context Studio: a category with no children ─────────────
+       It sits at category level rather than inside Library because it is
+       an offering in its own right — and because a top-level row is the
+       only one the one-open-category rule can never hide. Every Build or
+       Library child collapses away; this one is always on screen, which
+       is what a separate offering needs. */
+    .rail-ghead--leaf { position: relative; }
+    .rail-tile-wrap { position: relative; flex: none; display: flex; }
+
+    /* Locked, the tile stays full colour. A greyed-out tile reads "not for
+       you"; the point here is the opposite. The dot does the work instead
+       — and it has to, because the panel is crunched by default, where a
+       label-row pill would never be seen. */
+    .rail-dot {
+      display: none;
+      position: absolute; top: -2px; right: -2px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-coloured-blue);
+      box-shadow: 0 0 0 2px var(--backgrounds-page-bg-1);
+    }
+    /* The pill carries the Context tile's own gradient rather than the
+       generic blue badge, so the row's two coloured things read as one
+       offering instead of two unrelated accents. The gradient is static
+       here even though the tile's turns: two rotations six pixels apart
+       is noise, and the pill already has its own motion in the sheen
+       below. No border — a stroke on a saturated fill only muddies it,
+       and dropping it buys the 1px back as padding. */
+    .rail-flag {
+      display: none;
+      position: relative; overflow: hidden;
+      flex: none; height: 18px; padding: 0 8px; border-radius: 9px;
+      align-items: center;
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      color: var(--text-button-white);
+      font: 500 11px/1 var(--font-geist); letter-spacing: -0.11px;
+    }
+    /* A glint that crosses the pill every few seconds, with a long hold
+       between passes. Constant motion in a nav panel is nagging; one
+       periodic pass reads as emphasis and then gets out of the way. */
+    .rail-flag::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(100deg, transparent 32%, var(--flag-sheen) 50%, transparent 68%);
+      transform: translateX(-100%);
+      animation: railFlagSheen 3.4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes railFlagSheen {
+      0%, 58% { transform: translateX(-100%); }
+      100%    { transform: translateX(200%); }
+    }
+
+    .rail-group.is-locked .rail-dot { display: block; }
+    .rail-group.is-locked .rail-flag { display: inline-flex; }
+    .rail:not(.is-open) .rail-flag { display: none; }
+
+    /* ── Where Context Studio sits ───────────────────────────────
+       Still being chosen, so every candidate ships and the panel
+       switches between them with data-cs. One row, one set of
+       listeners, nothing to keep in sync.
+         inline — A · in category order, between Build and Library
+         after  — B · past the last category, under a rule
+         footer — C · the same row, dropped to the foot of the panel
+         card   — D · past the last category, boxed, with a one-liner
+         open   — F · in category order, opened into its six blocks
+       A reads Context Studio as a peer of the categories. B, C and D
+       read it as an offering of its own — by rule, by position, by
+       card. F stops arguing about the row altogether and shows what is
+       inside it. (E, which sat it at the top beside Marketplace, was
+       withdrawn; the letters are not re-used, so F stays F.) */
+    .rail-rule--cs { display: none; }
+    .rail[data-cs="after"] .rail-rule--cs,
+    .rail[data-cs="footer"] .rail-rule--cs { display: block; }
+    .rail[data-cs="after"] .rail-group[data-group="context-studio"],
+    .rail[data-cs="footer"] .rail-group[data-group="context-studio"],
+    .rail[data-cs="card"] .rail-group[data-group="context-studio"] { order: 1; }
+    /* Spare height collects above the rule, so the row lands on the foot
+       of the panel and the rule travels down with it. A short viewport
+       has no spare height to give, and C becomes B rather than scroll. */
+    .rail[data-cs="footer"] .rail-group[data-group="context-studio"] { margin-top: auto; }
+
+    /* F · opened into its blocks. The chevron exists only where there is
+       something to disclose: everywhere else Context Studio is a
+       destination, and a chevron would promise a list that is not
+       there. The list itself is built in script rather than hidden in
+       the markup — see setCsBlocks. */
+    .rail-chev--cs { display: none; }
+    .rail.is-open[data-cs="open"] .rail-chev--cs { display: block; }
+
+    /* D · a box instead of a rule. The same row in the same place as B,
+       lifted onto the card fill the Marketplace pill already uses, with a
+       line of copy under it. The box does the separating a rule would,
+       and the line answers "what is it" before the click instead of
+       after — at the cost of the panel's evenness, since it is then the
+       only thing in the list that is not a row. */
+    /* Opened only: crunched, the box has no line of copy to hold, and a
+       36px card around a 24px tile read as a button that goes nowhere —
+       so at 68px the row is a plain tile like every other category. */
+    .rail.is-open[data-cs="card"] #ctxStudio {
+      height: auto; flex-wrap: wrap; row-gap: 6px;
+      /* card/bg-4 is the one fill that reads as a raised grey against the
+         rail's ground in both themes: bg-3, which the Marketplace pill
+         uses, goes white in light, and page/bg-3 all but vanishes in
+         dark. In dark the two are the same value, so the rail still has
+         one box colour. */
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-card-default);
+      border-radius: 10px;
+      /* 7 + the 1px border lands the tile on the same 8px line the items
+         indent their icons to — Figma strokes sit inside the box, so the
+         border comes out of the padding. */
+      padding: 7px;
+    }
+    /* The line is the point of D, and it needs the label's width to
+       read, so it goes when the labels do. */
+    .rail-cs-note {
+      display: none;
+      flex: 0 0 100%; text-align: left;
+      color: var(--text-teritiary);
+      font: 400 11px/15px var(--font-geist); letter-spacing: -0.11px;
+    }
+    .rail.is-open[data-cs="card"] .rail-cs-note { display: block; }
+    /* In D the box is already the rectangle, so the hover one would be a
+       second border 7px inside the first. The box takes the hover
+       instead. */
+    .rail.is-open[data-cs="card"] #ctxStudio::before { content: none; }
+    .rail.is-open[data-cs="card"] #ctxStudio:hover {
+      border-color: var(--strokes-icon-default);
+    }
+    /* The dot's ring is the surface behind it, and in D that is the box. */
+    .rail.is-open[data-cs="card"] .rail-dot { box-shadow: 0 0 0 2px var(--backgrounds-card-bg-4); }
+
+    /* ── Upsell, anchored beside the panel like the Tiq bar ─────── */
+    /* 520px: the preview inside is a full-size clip scaled to fit, so
+       every extra pixel of card is a pixel of legible caption. The
+       card's own type stays at token sizes — only the media grows,
+       which is the part that was too small to read.
+       The stack sets no gap of its own. A heading and the line it
+       introduces want to sit closer together than either wants to sit
+       to the media above or the buttons below, so each slot states its
+       own space rather than sharing one rhythm. */
+    .upsell {
+      position: fixed; z-index: 95; width: 520px;
+      display: none; flex-direction: column; gap: 0;
+      padding: 20px;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      border-radius: 16px;
+      box-shadow: var(--shadow-tiq);
+      opacity: 0; transform: translateY(-4px) scale(.98);
+      transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1);
+    }
+    .upsell.is-open { display: flex; }
+    .upsell.is-shown { opacity: 1; transform: none; }
+    .upsell-media {
+      position: relative;
+      aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden;
+      background: var(--backgrounds-page-bg-1);
+      border: 1px solid var(--strokes-line-3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .upsell-play {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-card-bg-2);
+      border: 1px solid var(--strokes-line-3);
+      color: var(--text-secondary);
+    }
+    .upsell-media-note {
+      position: absolute; left: 10px; bottom: 8px;
+      color: var(--text-teritiary);
+      font: 400 11px/1 var(--font-geist-mono);
+    }
+    /* ── Expand, and the big view it opens ─────────────────────── */
+    /* Even at 520px the clip is running at about a third of the size it
+       was composed for, and the labels inside it are the part that
+       suffers. The button sits over the media's own top-right corner
+       rather than in the card's chrome, because what it enlarges is the
+       frame, not the offer. Its colours are literals, not tokens: the
+       media behind it is the clip's own ink-night in both themes, so a
+       token that flips with the theme would be wrong in one of them.
+       Painted at all times, only quietened — a control that does not
+       exist until the pointer finds it is one most people never find. */
+    .upsell-expand {
+      position: absolute; top: 8px; right: 8px; z-index: 2;
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 13, 24, .58);
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #fff; opacity: .6;
+      transition: opacity .14s ease, background .14s ease, transform .14s ease;
+    }
+    .upsell-media:hover .upsell-expand { opacity: 1; }
+    .upsell-expand:hover { background: rgba(10, 13, 24, .86); transform: scale(1.06); }
+    .upsell-expand:focus-visible {
+      opacity: 1; outline: 2px solid var(--backgrounds-button-primary); outline-offset: 2px;
+    }
+
+    /* The big view is the same clip in a bigger box, not a second
+       composition: the stage is as much 16:9 as the window will give
+       it, and the scale-to-fit below does the rest. min() takes the
+       height constraint as a width, so a short window shrinks the
+       stage rather than cropping it. */
+    .filmbox {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+      padding: 40px;
+      background: rgba(8, 10, 18, .74);
+      -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+      opacity: 0; transition: opacity .18s ease;
+    }
+    .filmbox.is-open { display: flex; }
+    .filmbox.is-shown { opacity: 1; }
+    .filmbox-stage {
+      position: relative;
+      width: min(1280px, 100%, calc((100vh - 80px) * 16 / 9));
+      aspect-ratio: 16 / 9;
+      border-radius: var(--radius-lg); overflow: hidden;
+      background: #080c1a;
+      border: 1px solid var(--strokes-line-3);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, .55);
+      transform: scale(.97);
+      transition: transform .2s cubic-bezier(.2,.8,.2,1);
+    }
+    .filmbox.is-shown .filmbox-stage { transform: none; }
+    /* Same literals as the expand button, for the same reason. */
+    .filmbox-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10, 13, 24, .58);
+      border: 1px solid rgba(255, 255, 255, .18);
+      color: #fff;
+      transition: background .14s ease;
+    }
+    .filmbox-close:hover { background: rgba(10, 13, 24, .9); }
+    @media (prefers-reduced-motion: reduce) {
+      .filmbox, .filmbox-stage { transition: none; }
+    }
+    .upsell-head {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 16px;            /* clear of the preview above it */
+    }
+    .upsell-head .rail-tile { flex: none; }
+    .upsell-title { color: var(--text-primary); }
+    /* Tight to its own heading: the two are one unit, and the space
+       around them is what separates that unit from the rest. */
+    .upsell-body { margin: 6px 0 0; color: var(--text-secondary); }
+    .upsell-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+    /* A fixed 240px, not the width of the card. A primary button that
+       stretches to whatever the container happens to be reads as a bar,
+       and the wider the card gets the less it looks like a button. */
+    .upsell-actions .btn-primary { flex: none; width: 240px; height: 32px; padding: 6px 12px; }
+    /* "Learn more", not "Not now". The secondary action on an offer
+       should still be a way forward — a dismissal earns nothing and
+       the card already closes on its own when the pointer leaves. It
+       goes somewhere outside the app, so it carries the external-link
+       mark and opens in a new tab: a panel is a place people are
+       working in, and a preview card is not worth losing that place
+       over. */
+    .upsell-learn {
+      flex: none; display: inline-flex; align-items: center; gap: 6px;
+      height: 32px; padding: 0 10px; border-radius: 8px;
+      color: var(--text-teritiary); text-decoration: none;
+      transition: background .14s ease, color .14s ease;
+    }
+    .upsell-learn:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    .upsell-learn svg { flex: none; opacity: .75; }
+    .upsell-learn:hover svg { opacity: 1; }
+
+    .grad-blue   { background-image: linear-gradient(225.24deg, var(--blue-600) 8.84%, var(--blue-500) 54.42%, var(--blue-300) 100%); }
+    .grad-purple { background-image: linear-gradient(225.24deg, var(--purple-600) 8.84%, var(--purple-500) 54.42%, var(--purple-300) 100%); }
+    .grad-indigo { background-image: linear-gradient(225.24deg, var(--indigo-600) 8.84%, var(--indigo-500) 54.42%, var(--indigo-300) 100%); }
+    .grad-orange { background-image: linear-gradient(225.24deg, var(--orange-800) 8.84%, var(--orange-600) 54.42%, var(--orange-300) 100%); }
+    .grad-green  { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--green-300) 100%); }
+    .grad-teal   { background-image: linear-gradient(225.24deg, var(--green-600) 8.84%, var(--green-500) 54.42%, var(--cyan-400) 100%); }
+    /* Context's tile ships its own gradient in the component (2906:507591)
+       rather than composing the shared ramp trio — kept verbatim. A
+       background-position drift turned out unreadable at 24px: two of
+       the three stops are close blues, so most positions along the
+       gradient look the same colour and only a narrow band ever showed
+       the purple. Rotating the whole gradient plane instead sweeps
+       every stop through the tile on every lap, which is the same
+       trick as spinning a background-gradient element — the paint is
+       oversized (inset -50%, so it never uncovers a corner as it turns)
+       and sits on a ::before under the icon, which stays upright.
+       Hovering the row quickens the spin — the one hover-driven speed
+       change in the panel, since it is also the one tile whose colour
+       is the entire point of hovering it. Reduced motion holds it
+       still either way. */
+    .grad-context { position: relative; overflow: hidden; background-image: none; }
+    .grad-context::before {
+      content: ""; position: absolute; inset: -50%;
+      background-image: linear-gradient(42.56deg, var(--purple-400) 11.95%, var(--blue-500) 60.99%, var(--blue-600) 110.04%);
+      animation: ctxGradSpin 6s linear infinite;
+    }
+    #ctxStudio:hover .grad-context::before,
+    .upsell-head:hover .grad-context::before {
+      animation-duration: 1.4s;
+    }
+    @keyframes ctxGradSpin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .grad-context::before { animation: none; }
+    }
+    /* The glyph is a flex item, not a positioned one, and a flex item's
+       implicit stacking tier does not reliably beat an absolutely
+       positioned ::before with the same auto z-index — Chromium paints
+       the spin on top of it. Lifted explicitly rather than left to that
+       tie-break. */
+    .grad-context > svg { position: relative; z-index: 1; }
+
+    /* ── Icon motion on hover ────────────────────────────────────
+       Two effects, one per visual class in the rail, because the two
+       classes are different things and should not feel the same to
+       hover: a leaf item is a line glyph, a group header is a
+       coloured chip.
+
+       Both are driven from custom properties rather than letting the
+       script write `transform`, because on an <svg> root the CSS
+       property and the SVG transform *attribute* disagree about what
+       they mean; going through a variable sidesteps that entirely.
+
+       What is reachable at all is the constraint here: the glyphs are
+       referenced through <use>, so their innards are shadow DOM no
+       script can touch. stroke-dasharray and stroke-dashoffset are
+       INHERITED SVG properties, so setting them on the outer <svg>
+       does reach the path inside the symbol — that is the whole basis
+       of the draw. */
+
+    /* Every glyph in the rail draws the same way, whether it sits on
+       its own as a leaf item or inside a category's gradient tile.
+       The tile itself is deliberately left alone: it is the container,
+       not the icon, and turning the whole chip animates the wrong
+       thing. */
+    .rail-btn .ic,
+    .rail-ghead .rail-tile .ic { transform: scale(var(--ic-s, 1)); transform-origin: 50% 50%; }
+    @media (prefers-reduced-motion: reduce) {
+      .rail-btn .ic, .rail-ghead .rail-tile .ic { transform: none; }
+    }
+    #upsellFilm iframe, .filmbox-stage iframe {
+      position: absolute; left: 0; top: 0;
+      width: 1600px; height: 900px;
+      transform-origin: 0 0;
+      border: 0; display: block;
+    }
+    /* The offer's box carries the clip's own ink-night rather than this
+       page's ground, so it does not flash the wrong colour for the
+       instant before the iframe's first paint. */
+    #upsellFilm.upsell-media { background: #080c1a; }

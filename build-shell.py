@@ -121,15 +121,36 @@ SHELL = '''<title>CogentIQ Platform</title>
     };
 
     var settle = function () {
-      incoming.removeEventListener('load', settle);
+      incoming.removeEventListener('load', once);
       if (instant) return reveal();
       outgoing.classList.remove('is-live');
       /* Wait out the outgoing fade rather than racing it. */
       setTimeout(reveal, 140);
     };
 
-    incoming.addEventListener('load', settle);
+    /* A page that pulls a webfont or a CDN script does not fire load
+       until those resolve, and the panel now does both — that put a
+       13-second wait in front of the first frame. The document itself
+       is parsed long before the network settles, so reveal on the
+       document and keep load only as a backstop. */
+    var settled = false;
+    function once() {
+      if (settled) return;
+      settled = true;
+      settle();
+    }
+    incoming.addEventListener('load', once);
     incoming.srcdoc = decode(PAGES[name]);
+
+    var t0 = Date.now();
+    (function poll() {
+      if (settled) return;
+      var doc = null;
+      try { doc = incoming.contentDocument; } catch (e) { /* not ready */ }
+      if (doc && doc.readyState !== 'loading' && doc.querySelector('[aria-label="Platform"]')) return once();
+      if (Date.now() - t0 > 4000) return once();
+      requestAnimationFrame(poll);
+    })();
   }
 
   window.addEventListener('message', function (e) {
