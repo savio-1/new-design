@@ -95,7 +95,9 @@ CSS = '''
 
 /* Assistant platform leaves the product, so it is the one thing in here
    that is a button rather than a row: tonal-1, the weight the product
-   gives an action that is offered rather than routine.
+   gives an action that is offered rather than routine. It sits last,
+   past a divider, because it is the one item that goes somewhere else
+   entirely rather than acting on this account.
    Hover is mixed from the two tonal tokens rather than taking the
    hover token, which three of the five pages do not define. */
 .cq-pm-cta {
@@ -113,12 +115,6 @@ CSS = '''
 }
 .cq-pm-cta:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: 2px; }
 .cq-pm-cta svg { flex: none; }
-/* Forum and Assistant platform are both somewhere to go, so they sit as
-   one group; the gap is what keeps the row from touching the button. */
-.cq-pm-cta--spaced { margin-top: 6px; }
-
-/* Sign out sits under the button rather than against it. */
-.cq-pm-row.cq-pm-last { margin-top: 8px; }
 
 /* Theme: three exclusive choices, so a segmented control rather than
    three rows — the options are short and comparing them is the point. */
@@ -307,11 +303,12 @@ SNIPPET = '''
       '<button type="button" class="cq-pm-row" data-act="forum">' + __IC_FORUM__ +
         '<span class="lbl">Forum</span>' +
         '<span class="cq-pm-note">Ask, report, discuss</span></button>' +
-      '<a class="cq-pm-cta cq-pm-cta--spaced" href="#" data-act="assistant" ' +
+      '<button type="button" class="cq-pm-row is-danger" data-act="signout">' + __IC_OUT__ +
+        '<span class="lbl">Sign out</span></button>' +
+      '<div class="cq-pm-rule"></div>' +
+      '<a class="cq-pm-cta" href="#" data-act="assistant" ' +
         'target="_blank" rel="noopener noreferrer">' +
-        'Assistant platform' + __IC_EXT__ + '</a>' +
-      '<button type="button" class="cq-pm-row cq-pm-last is-danger" data-act="signout">' + __IC_OUT__ +
-        '<span class="lbl">Sign out</span></button>';
+        'Assistant platform' + __IC_EXT__ + '</a>';
     wrap.appendChild(menu);
 
     seg = menu.querySelector('.cq-pm-seg');
