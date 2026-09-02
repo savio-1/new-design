@@ -490,6 +490,7 @@
   .lbl { fill: var(--text-primary); font: 500 11px/1 var(--font-geist-mono); font-variant-numeric: tabular-nums; }
   .lbl--name { fill: var(--text-secondary); font: 400 12px/1 var(--font-geist); }
   .lbl--sm { fill: var(--text-secondary); font: 400 10px/1 var(--font-geist); }
+  .lbl--xs { fill: var(--text-secondary); font: 400 9px/1 var(--font-geist); }
   .lbl--on-mark { fill: var(--text-button-white); }
   .rule { stroke: var(--grid-line); stroke-width: 1; }
 
@@ -731,49 +732,33 @@ function lollipop() {
 <script>
 /* ══ 7 · Bubble — library size against reuse rate, area = reuse count ══ */
 function bubble() {
-  const W = 520, H = 330, L = 46, R = 50, T = 18, B = 40;
+  /* Wider and taller than the other plots on purpose. Three of the five
+     libraries hold under 45 artifacts, so on a linear size axis they
+     cluster at the left; the room is what lets every name sit under its
+     own bubble at this size without touching a neighbour, instead of a
+     nonlinear axis that would spread them by distorting the comparison. */
+  const W = 1000, H = 380, L = 52, R = 60, T = 20, B = 46;
   const px = v => L + (v / 270) * (W - L - R);
   const py = v => T + (1 - (v - 0.45) / 0.4) * (H - T - B);
-  const rad = v => Math.sqrt(v / SUM_REUSED) * 52;   // area, never radius, carries the count
+  /* Scaled so the smallest bubble still clears its own three-character
+     label: Models, at 12 reused of 336, is the binding constraint. */
+  const rad = v => Math.sqrt(v / SUM_REUSED) * 68;   // area, never radius, carries the count
 
   const gy = [0.5, 0.6, 0.7, 0.8].map(v =>
-    `<line class="rule" x1="${L}" y1="${py(v)}" x2="${W - R + 20}" y2="${py(v)}"/>
-     <text class="ax ax--mono" x="${L - 8}" y="${py(v) + 4}" text-anchor="end">${pct(v)}</text>`).join('');
+    `<line class="rule" x1="${L}" y1="${py(v)}" x2="${W - R + 30}" y2="${py(v)}"/>
+     <text class="ax ax--mono" x="${L - 10}" y="${py(v) + 4}" text-anchor="end">${pct(v)}</text>`).join('');
   const gx = [0, 60, 120, 180, 240].map(v =>
-    `<text class="ax ax--mono" x="${px(v)}" y="${H - 18}" text-anchor="middle">${v}</text>`).join('');
+    `<text class="ax ax--mono" x="${px(v)}" y="${H - 20}" text-anchor="middle">${v}</text>`).join('');
 
-  const pts = bySize.map(t => ({ t, cx: px(t.total), cy: py(rate(t)), r: rad(t.reused) }));
-
-  /* The name sits under its own bubble. Where that would land the text on
-     a neighbouring bubble - Guardrails at 31 artifacts and Models at 18
-     are near neighbours on a linear size axis - it flips above instead,
-     which is cheaper than nudging labels into a queue below the cluster. */
-  const GAP = 12, LINE = 11;
-  pts.forEach(pt => {
-    const halfW = pt.t.name.length * 3.3 + 4;
-    const yBelow = pt.cy + pt.r + GAP;
-    const collides = pts.some(o => o !== pt
-      && Math.abs(o.cx - pt.cx) < o.r + halfW
-      && Math.abs(o.cy - yBelow) < o.r + LINE / 2);
-    pt.above = collides;
-    pt.ly = collides ? pt.cy - pt.r - GAP + 3 : yBelow;
-    /* A bubble under ~24px across cannot hold a three-character value, so
-       those carry the rate beside the name instead of inside the mark. */
-    pt.inside = pt.r >= 12;
-  });
-
-  const marks = pts.map(pt => {
-    const { t, cx, cy, r } = pt;
+  const marks = bySize.map(t => {
+    const cx = px(t.total), cy = py(rate(t)), r = rad(t.reused);
     return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${hue(t)}" stroke="var(--card)" stroke-width="2" ${tip(t, t.reused + ' reused')}/>
-      ${pt.inside
-        ? `<text class="lbl" x="${cx}" y="${cy + 4}" text-anchor="middle" style="fill:var(--cat-${t.key}-ink)">${pct(rate(t))}</text>`
-        : ''}
-      <text class="lbl--sm" x="${cx}" y="${pt.ly}" text-anchor="middle">${t.name}${
-        pt.inside ? '' : `<tspan class="lbl" dx="4">${pct(rate(t))}</tspan>`}</text>`;
+      <text class="lbl" x="${cx}" y="${cy + 4}" text-anchor="middle" style="fill:var(--cat-${t.key}-ink)">${pct(rate(t))}</text>
+      <text class="lbl--xs" x="${cx}" y="${cy + r + 11}" text-anchor="middle">${t.name}</text>`;
   }).join('');
 
   return svg(W, H,
-    `${gy}${gx}<text class="ax" x="${L}" y="${H - 2}">artifacts in the library →</text>${marks}`,
+    `${gy}${gx}<text class="ax" x="${L}" y="${H - 3}">artifacts in the library →</text>${marks}`,
     'Library size against reuse rate, bubble area is the number of reused artifacts');
 }
 
