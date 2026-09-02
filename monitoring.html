@@ -2248,12 +2248,23 @@ body.cq { margin: 0; }
     /* ── Activity sub-tabs ─────────────────────────────────────────
        A second level inside Activity: the whole picture, or one of the
        two streams on its own. Underlined rather than a segment, so it
-       reads as a level below the module tabs above it. */
+       reads as a level below the module tabs above it. The underline is
+       one thumb that glides between tabs (monSubSync(), by analogy with
+       cqSegSync() above) instead of jumping. */
     .mon-sub {
+      position: relative;
       display: flex; align-items: center; gap: 22px;
       border-bottom: 1px solid var(--strokes-line-3);
       margin-bottom: 16px;
     }
+    .mon-sub__thumb {
+      position: absolute; left: 0; bottom: -1px; height: 2px; width: 0;
+      border-radius: 2px 2px 0 0;
+      background: var(--backgrounds-button-primary);
+      transition: transform .22s cubic-bezier(.4, 0, .2, 1), width .22s cubic-bezier(.4, 0, .2, 1);
+      pointer-events: none;
+    }
+    @media (prefers-reduced-motion: reduce) { .mon-sub__thumb { transition: none; } }
     .mon-sub__tab {
       position: relative;
       display: inline-flex; align-items: center; gap: 8px;
@@ -2264,11 +2275,6 @@ body.cq { margin: 0; }
     }
     .mon-sub__tab:hover { color: var(--text-secondary); }
     .mon-sub__tab.is-active { color: var(--text-primary); }
-    .mon-sub__tab.is-active::after {
-      content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-      border-radius: 2px 2px 0 0;
-      background: var(--backgrounds-button-primary);
-    }
     .mon-sub__ic { flex: none; }
     .mon-sub__count {
       min-width: 20px; height: 18px; padding: 0 5px;
@@ -2280,8 +2286,17 @@ body.cq { margin: 0; }
       font-variant-numeric: tabular-nums;
     }
 
-    /* Each sub-tab is its own pane; only one is in the flow at a time. */
+    /* Each sub-tab is its own pane; only one is in the flow at a time.
+       .mon-fade panes crossfade with a slight rise rather than cutting —
+       shared with the module-level panes (Activity/Adoption/placeholder)
+       via fadePane(), so both tab levels feel like one system. */
     .mon-pane[hidden] { display: none; }
+    .mon-fade {
+      opacity: 1; transform: translateY(0);
+      transition: opacity .16s ease, transform .16s ease;
+    }
+    .mon-fade.is-out { opacity: 0; transform: translateY(6px); }
+    @media (prefers-reduced-motion: reduce) { .mon-fade { transition: none; } }
 
     /* ── Automation runs: the full view behind the live table ── */
     .run-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
@@ -2763,9 +2778,10 @@ body.cq { margin: 0; }
 
           <div class="cq-page__content cq-scroll-y">
 
-            <div id="monActivity">
+            <div id="monActivity" class="mon-fade">
 
             <nav class="mon-sub" id="monSub" role="tablist" aria-label="Activity views">
+              <span class="mon-sub__thumb" id="monSubThumb" aria-hidden="true"></span>
               <button class="mon-sub__tab is-active" data-view="all" role="tab" aria-selected="true">Overview</button>
               <button class="mon-sub__tab" data-view="runs" role="tab" aria-selected="false">
                 <svg class="cq-ic mon-sub__ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-blue)"><use href="#i-automation-flow"/></svg>Automation runs
@@ -2775,7 +2791,7 @@ body.cq { margin: 0; }
               </button>
             </nav>
 
-            <div class="mon-grid mon-pane" id="actAll">
+            <div class="mon-grid mon-pane mon-fade" id="actAll">
 
               <!-- ── KPI row ── -->
               <section class="mon-card mon-stat" aria-label="Executions today">
@@ -2902,8 +2918,193 @@ body.cq { margin: 0; }
             </div>
 
 
+            <!-- ══ Automation runs: the live table's full view ══ -->
+            <div class="mon-pane mon-fade" id="actRuns" hidden>
+
+              <div class="run-head">
+                <div class="run-head__text">
+                  <span class="run-head__title cq-subhead1-med">Automation runs</span>
+                  <span class="run-head__sub cq-body2-reg">Every run in the window, live and finished, with what it cost and how long it took.</span>
+                </div>
+                <span class="run-live cq-caption-reg">
+                  <span class="mon-tab-live" aria-hidden="true"><i></i></span>
+                  2 running now · refreshes every 30s
+                </span>
+              </div>
+
+              <div class="ck-stats">
+                <section class="ck-card" aria-label="Runs in window">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#ic-pp_automation"/></svg>
+                    Runs in window
+                  </div>
+                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatTotal">0</span></div>
+                </section>
+                <section class="ck-card" aria-label="Running">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-blue)"><use href="#i-play"/></svg>
+                    Running
+                  </div>
+                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatLive">0</span></div>
+                </section>
+                <section class="ck-card" aria-label="Succeeded">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
+                    Succeeded
+                  </div>
+                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatOk">0</span></div>
+                </section>
+                <section class="ck-card" aria-label="Failed">
+                  <div class="ck-stat__top cq-caption-reg">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
+                    Failed
+                  </div>
+                  <div class="ck-stat__row">
+                    <span class="ck-stat__value" id="runStatFail">0</span>
+                    <span class="cq-badge" data-tone="red" id="runStatRate">0%</span>
+                  </div>
+                </section>
+              </div>
+
+              <div class="ck-toolbar">
+                <label class="cq-search">
+                  <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
+                  <input id="runQ" class="cq-body2-reg" type="search" placeholder="Search runs" aria-label="Search runs" />
+                </label>
+                <div class="ck-pills" role="group" aria-label="Filter by status">
+                  <button class="ck-pill is-active" data-run-filter="all">All</button>
+                  <button class="ck-pill" data-run-filter="Running">Running</button>
+                  <button class="ck-pill" data-run-filter="Success">Success</button>
+                  <button class="ck-pill" data-run-filter="Failed">Failed</button>
+                </div>
+                <div class="ck-toolbar__right">
+                  <div class="cq-filter-group">
+                    <button class="cq-dropdown" id="runSortBtn" aria-expanded="false">
+                      <span id="runSortLabel">Sort by: Newest</span>
+                      <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                    </button>
+                    <div class="cq-pop" id="runSortPop"><div class="cq-pop__list" id="runSortList"></div></div>
+                  </div>
+                  <button class="cq-dropdown" id="runRangeBtn">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-cal"/></svg>
+                    <span>Jul 12 – Jul 15, 2024</span>
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="cq-table run-table">
+                <div class="cq-thead">
+                  <span>Automation</span><span>Started at</span><span>Run time</span><span>Cost</span><span>Trigger</span><span>Status</span><span></span>
+                </div>
+                <div id="runRows"></div>
+              </div>
+              <div class="ck-empty cq-body2-reg" id="runEmpty" hidden>
+                <b class="cq-body1-med">No runs match</b>
+                Try a different search or status filter.
+              </div>
+
+              <div class="ck-foot">
+                <span class="ck-foot__count cq-body2-reg" id="runCount"></span>
+                <div class="ck-pager" id="runPager"></div>
+              </div>
+
+            </div>
+
+            <!-- ══ Human checkpoint approvals, the full page inline ══ -->
+            <div class="mon-pane mon-fade" id="actCkpt" hidden>
+            <div class="ck-head">
+              <span class="ck-head__title cq-subhead1-med">Human Checkpoint Approvals</span>
+              <span class="ck-head__sub cq-body2-reg">Review and manage all automation checkpoints requiring human input.</span>
+            </div>
+
+            <div class="ck-stats">
+              <section class="ck-card" aria-label="Total checkpoints">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#i-layers"/></svg>
+                  Total checkpoints
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatTotal">47</span>
+                </div>
+              </section>
+              <section class="ck-card" aria-label="Awaiting review">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-orange)"><use href="#i-clock"/></svg>
+                  Awaiting review
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatAwaiting">12</span>
+                </div>
+              </section>
+              <section class="ck-card" aria-label="Approved">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
+                  Approved
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatApproved">28</span>
+                </div>
+              </section>
+              <section class="ck-card" aria-label="Rejected">
+                <div class="ck-stat__top cq-caption-reg">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
+                  Rejected
+                </div>
+                <div class="ck-stat__row">
+                  <span class="ck-stat__value" id="ckStatRejected">7</span>
+                </div>
+              </section>
+            </div>
+
+            <div class="ck-toolbar">
+              <label class="cq-search">
+                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
+                <input id="ckQ" class="cq-body2-reg" type="search" placeholder="Search checkpoint details…" aria-label="Search checkpoint details" />
+              </label>
+              <div class="ck-pills" role="group" aria-label="Filter by status">
+                <button class="ck-pill is-active" data-filter="all">All</button>
+                <button class="ck-pill" data-filter="Awaiting">Awaiting <span id="pillAwaitCount">(12)</span></button>
+                <button class="ck-pill" data-filter="Approved">Approved</button>
+                <button class="ck-pill" data-filter="Rejected">Rejected</button>
+              </div>
+              <div class="ck-toolbar__right">
+                <div class="cq-filter-group">
+                  <button class="cq-dropdown" id="ckSortBtn" aria-expanded="false">
+                    <span id="ckSortLabel">Sort by: Newest</span>
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                  </button>
+                  <div class="cq-pop" id="ckSortPop"><div class="cq-pop__list" id="ckSortList"></div></div>
+                </div>
+                <button class="cq-dropdown" id="ckRangeBtn">
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
+                  <span>Jul 12 – Jul 15, 2024</span>
+                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="cq-table ck-table">
+              <div class="cq-thead">
+                <span>Automation name</span><span>Requested at</span><span>Wait time</span><span>Status</span><span>Creator</span><span></span>
+              </div>
+              <div id="ckRows"></div>
+            </div>
+            <div class="ck-empty cq-body2-reg" id="ckEmpty" hidden>
+              <b class="cq-body1-med">No checkpoints match</b>
+              Try a different search or status filter.
+            </div>
+
+            <div class="ck-foot">
+              <span class="ck-foot__count cq-body2-reg" id="ckCount"></span>
+              <div class="ck-pager" id="ckPager"></div>
+            </div>
+            </div>
+
+            </div>
+
             <!-- ══ Adoption ══ -->
-            <div class="mon-grid" id="monAdoption" hidden>
+            <div class="mon-grid mon-fade" id="monAdoption" hidden>
 
               <section class="mon-card mon-kpi" aria-label="Automations published">
                 <span class="mon-stat__label cq-caption-reg">
@@ -3042,194 +3243,10 @@ body.cq { margin: 0; }
               </section>
 
             </div>
-            <!-- ══ Automation runs: the live table's full view ══ -->
-            <div class="mon-pane" id="actRuns" hidden>
-
-              <div class="run-head">
-                <div class="run-head__text">
-                  <span class="run-head__title cq-subhead1-med">Automation runs</span>
-                  <span class="run-head__sub cq-body2-reg">Every run in the window, live and finished, with what it cost and how long it took.</span>
-                </div>
-                <span class="run-live cq-caption-reg">
-                  <span class="mon-tab-live" aria-hidden="true"><i></i></span>
-                  2 running now · refreshes every 30s
-                </span>
-              </div>
-
-              <div class="ck-stats">
-                <section class="ck-card" aria-label="Runs in window">
-                  <div class="ck-stat__top cq-caption-reg">
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#ic-pp_automation"/></svg>
-                    Runs in window
-                  </div>
-                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatTotal">0</span></div>
-                </section>
-                <section class="ck-card" aria-label="Running">
-                  <div class="ck-stat__top cq-caption-reg">
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-blue)"><use href="#i-play"/></svg>
-                    Running
-                  </div>
-                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatLive">0</span></div>
-                </section>
-                <section class="ck-card" aria-label="Succeeded">
-                  <div class="ck-stat__top cq-caption-reg">
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
-                    Succeeded
-                  </div>
-                  <div class="ck-stat__row"><span class="ck-stat__value" id="runStatOk">0</span></div>
-                </section>
-                <section class="ck-card" aria-label="Failed">
-                  <div class="ck-stat__top cq-caption-reg">
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
-                    Failed
-                  </div>
-                  <div class="ck-stat__row">
-                    <span class="ck-stat__value" id="runStatFail">0</span>
-                    <span class="cq-badge" data-tone="red" id="runStatRate">0%</span>
-                  </div>
-                </section>
-              </div>
-
-              <div class="ck-toolbar">
-                <label class="cq-search">
-                  <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
-                  <input id="runQ" class="cq-body2-reg" type="search" placeholder="Search runs" aria-label="Search runs" />
-                </label>
-                <div class="ck-pills" role="group" aria-label="Filter by status">
-                  <button class="ck-pill is-active" data-run-filter="all">All</button>
-                  <button class="ck-pill" data-run-filter="Running">Running</button>
-                  <button class="ck-pill" data-run-filter="Success">Success</button>
-                  <button class="ck-pill" data-run-filter="Failed">Failed</button>
-                </div>
-                <div class="ck-toolbar__right">
-                  <div class="cq-filter-group">
-                    <button class="cq-dropdown" id="runSortBtn" aria-expanded="false">
-                      <span id="runSortLabel">Sort by: Newest</span>
-                      <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                    </button>
-                    <div class="cq-pop" id="runSortPop"><div class="cq-pop__list" id="runSortList"></div></div>
-                  </div>
-                  <button class="cq-dropdown" id="runRangeBtn">
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-cal"/></svg>
-                    <span>Jul 12 – Jul 15, 2024</span>
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div class="cq-table run-table">
-                <div class="cq-thead">
-                  <span>Automation</span><span>Started at</span><span>Run time</span><span>Cost</span><span>Trigger</span><span>Status</span><span></span>
-                </div>
-                <div id="runRows"></div>
-              </div>
-              <div class="ck-empty cq-body2-reg" id="runEmpty" hidden>
-                <b class="cq-body1-med">No runs match</b>
-                Try a different search or status filter.
-              </div>
-
-              <div class="ck-foot">
-                <span class="ck-foot__count cq-body2-reg" id="runCount"></span>
-                <div class="ck-pager" id="runPager"></div>
-              </div>
-
-            </div>
-
-            <!-- ══ Human checkpoint approvals, the full page inline ══ -->
-            <div class="mon-pane" id="actCkpt" hidden>
-            <div class="ck-head">
-              <span class="ck-head__title cq-subhead1-med">Human Checkpoint Approvals</span>
-              <span class="ck-head__sub cq-body2-reg">Review and manage all automation checkpoints requiring human input.</span>
-            </div>
-
-            <div class="ck-stats">
-              <section class="ck-card" aria-label="Total checkpoints">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-secondary)"><use href="#i-layers"/></svg>
-                  Total checkpoints
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="ckStatTotal">47</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Awaiting review">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-orange)"><use href="#i-clock"/></svg>
-                  Awaiting review
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="ckStatAwaiting">12</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Approved">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-green)"><use href="#i-check"/></svg>
-                  Approved
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="ckStatApproved">28</span>
-                </div>
-              </section>
-              <section class="ck-card" aria-label="Rejected">
-                <div class="ck-stat__top cq-caption-reg">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-red)"><use href="#i-alert"/></svg>
-                  Rejected
-                </div>
-                <div class="ck-stat__row">
-                  <span class="ck-stat__value" id="ckStatRejected">7</span>
-                </div>
-              </section>
-            </div>
-
-            <div class="ck-toolbar">
-              <label class="cq-search">
-                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
-                <input id="ckQ" class="cq-body2-reg" type="search" placeholder="Search checkpoint details…" aria-label="Search checkpoint details" />
-              </label>
-              <div class="ck-pills" role="group" aria-label="Filter by status">
-                <button class="ck-pill is-active" data-filter="all">All</button>
-                <button class="ck-pill" data-filter="Awaiting">Awaiting <span id="pillAwaitCount">(12)</span></button>
-                <button class="ck-pill" data-filter="Approved">Approved</button>
-                <button class="ck-pill" data-filter="Rejected">Rejected</button>
-              </div>
-              <div class="ck-toolbar__right">
-                <div class="cq-filter-group">
-                  <button class="cq-dropdown" id="ckSortBtn" aria-expanded="false">
-                    <span id="ckSortLabel">Sort by: Newest</span>
-                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                  </button>
-                  <div class="cq-pop" id="ckSortPop"><div class="cq-pop__list" id="ckSortList"></div></div>
-                </div>
-                <button class="cq-dropdown" id="ckRangeBtn">
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-clock"/></svg>
-                  <span>Jul 12 – Jul 15, 2024</span>
-                  <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                </button>
-              </div>
-            </div>
-
-            <div class="cq-table ck-table">
-              <div class="cq-thead">
-                <span>Automation name</span><span>Requested at</span><span>Wait time</span><span>Status</span><span>Creator</span><span></span>
-              </div>
-              <div id="ckRows"></div>
-            </div>
-            <div class="ck-empty cq-body2-reg" id="ckEmpty" hidden>
-              <b class="cq-body1-med">No checkpoints match</b>
-              Try a different search or status filter.
-            </div>
-
-            <div class="ck-foot">
-              <span class="ck-foot__count cq-body2-reg" id="ckCount"></span>
-              <div class="ck-pager" id="ckPager"></div>
-            </div>
-            </div>
-
-            </div>
 
             <!-- The two remaining lenses aren't drawn yet; an honest quiet
                  state beats a fake chart. -->
-            <div class="mon-empty cq-body2-reg" id="monEmpty" hidden>
+            <div class="mon-empty cq-body2-reg mon-fade" id="monEmpty" hidden>
               <b class="cq-body1-med" id="monEmptyTitle">Usage &amp; Performance</b>
               This view is on its way. Activity has today's live picture in the meantime.
             </div>
@@ -4054,23 +4071,56 @@ document.addEventListener('click', () => {
 });
 runRender();
 
+/* ════ Pane crossfade ════
+   Shared by both tab levels: the module tabs (Activity/Adoption/…) and
+   the Activity sub-tabs. hidden flips synchronously so a chart can size
+   itself the moment its pane is reachable; the .is-out class carries the
+   fade, timed to the CSS (.mon-fade, 160ms) and token-guarded so a fast
+   double-click can't leave a pane hidden mid-fade-in or visible mid-fade-out. */
+const FADE_MS = 160;
+function fadePane(el, show) {
+  if (!el) return;
+  el._fadeToken = (el._fadeToken || 0) + 1;
+  const token = el._fadeToken;
+  if (show) {
+    if (!el.hidden && !el.classList.contains('is-out')) return;
+    el.hidden = false;
+    el.classList.add('is-out');
+    void el.offsetWidth;
+    requestAnimationFrame(() => { if (el._fadeToken === token) el.classList.remove('is-out'); });
+  } else {
+    if (el.hidden) return;
+    el.classList.add('is-out');
+    setTimeout(() => { if (el._fadeToken === token) el.hidden = true; }, FADE_MS);
+  }
+}
+
 /* ════ Activity sub-tabs ════
    All, or one of the two streams on its own. The View all buttons on the
-   two cards land here rather than on another page. */
+   two cards land here rather than on another page. The underline thumb
+   glides between tabs the same way the module tabs' does (cqSegSync). */
+function monSubSync() {
+  const nav = $('monSub'), thumb = $('monSubThumb');
+  const active = nav && nav.querySelector('.mon-sub__tab.is-active');
+  if (!nav || !thumb || !active) return;
+  thumb.style.width = active.offsetWidth + 'px';
+  thumb.style.transform = `translateX(${active.offsetLeft}px)`;
+}
 function showActivityView(view) {
-  ['all', 'runs', 'checkpoints'].forEach(v => {
-    $({ all: 'actAll', runs: 'actRuns', checkpoints: 'actCkpt' }[v]).hidden = v !== view;
-  });
+  const panes = { all: 'actAll', runs: 'actRuns', checkpoints: 'actCkpt' };
+  Object.entries(panes).forEach(([v, id]) => fadePane($(id), v === view));
   document.querySelectorAll('#monSub [data-view]').forEach(b => {
     const on = b.dataset.view === view;
     b.classList.toggle('is-active', on);
     b.setAttribute('aria-selected', String(on));
   });
+  monSubSync();
   /* The volume chart cannot size itself while its pane is hidden. */
   if (view === 'all') drawVolume();
 }
 document.querySelectorAll('#monSub [data-view]').forEach(btn =>
   btn.addEventListener('click', () => showActivityView(btn.dataset.view)));
+window.addEventListener('resize', monSubSync);
 
 /* ════ Data ════
    The first ten rows are the wireframe's, verbatim; the rest fill the
@@ -4261,15 +4311,15 @@ document.querySelectorAll('#monTabs [data-tab]').forEach(btn => btn.addEventList
 
 function showTab(tab, label) {
   const activity = tab === 'activity', adoption = tab === 'adoption';
-  $('monActivity').hidden = !activity;
-  $('monAdoption').hidden = !adoption;
-  $('monEmpty').hidden = activity || adoption;
+  fadePane($('monActivity'), activity);
+  fadePane($('monAdoption'), adoption);
+  fadePane($('monEmpty'), !activity && !adoption);
   $('barNote').hidden = !activity;
   $('barFilters').hidden = !adoption;
   if (!activity && !adoption) $('monEmptyTitle').textContent = label;
   /* Charts size themselves off their container, which has no width
      while the pane is hidden, so they are drawn on the way in. */
-  if (activity) drawVolume();
+  if (activity) { drawVolume(); monSubSync(); }
   if (adoption) { drawAdoptionCharts(); playPodium(); playReuse(); }
   if (!adoption) closeReuse();
 }
@@ -4281,6 +4331,7 @@ addEventListener('resize', () => {
 });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => {
   cqSegSync($('monTabs'));
+  monSubSync();
   drawVolume();
   if (!$('monAdoption').hidden) drawAdoptionCharts();
 });
@@ -4318,6 +4369,7 @@ try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode *
 applyMode(stored === 'light' ? 'light' : 'dark');
 
 cqSegSync($('monTabs'));
+monSubSync();
 
 /* ════ Gradient stroke follows the pointer along each card ════ */
 document.querySelectorAll('.mon-card, .ck-card').forEach(card => {
