@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=1440" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Cogentiq Builder — Ask Tiq</title>
 <meta name="description" content="Ask Tiq — the Cogentiq AI assistant that builds on the canvas with you." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -73,25 +73,28 @@
 @property --ang{ syntax:'<angle>'; initial-value:0deg; inherits:false; }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html{height:100%}
 body{
+  height:100%;height:100dvh;
   background:#0a0a0a;
   font-family:var(--font);
   color:var(--text-primary);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;
   -webkit-font-smoothing:antialiased;
-  padding:24px 0;
+  overflow:hidden;
 }
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 input,textarea{font:inherit;color:inherit;background:none;border:none;outline:none}
 svg{display:block}
 
-/* ── 1440 artboard ───────────────────────────────────────────────── */
+/* ── app shell ────────────────────────────────────────────────────
+   Designed against a 1440x821 artboard, but it runs as a real screen:
+   the frame takes whatever the window gives it and the layout inside is
+   already fluid (topbar and canvas both stretch edge to edge), so nothing
+   is clipped in a short or narrow window. */
 .frame{
-  width:1440px;height:821px;position:relative;overflow:hidden;
+  width:100%;flex:1 1 auto;min-height:0;position:relative;overflow:hidden;
   background:var(--canvas-builder);
-  border-radius:10px;
-  box-shadow:0 40px 120px rgba(0,0,0,.7);
   isolation:isolate;
 }
 
@@ -150,9 +153,12 @@ svg{display:block}
   cursor:grab;
 }
 .canvas.panning{cursor:grabbing}
-.frame.panel-open .canvas{left:var(--dock,380px)}
-.frame.panel-expanded .canvas{left:var(--dock-wide,560px)}
-.frame.agent-open .canvas{right:var(--agent-dock,360px)}
+.frame.panel-open .canvas,
+.frame.panel-open .bottombar{left:var(--dock,380px)}
+.frame.panel-expanded .canvas,
+.frame.panel-expanded .bottombar{left:var(--dock-wide,560px)}
+.frame.agent-open .canvas,
+.frame.agent-open .bottombar{right:var(--agent-dock,360px)}
 .dots{
   position:absolute;inset:-2000px;
   background-image:radial-gradient(circle, var(--canvas-dots) 1.1px, transparent 1.2px);
@@ -296,9 +302,12 @@ svg{display:block}
 /* ══════════════════════════════════════════════════════════════════
    BOTTOM PANEL  (Figma: Bottom panel- automation · 40:96086)
    ══════════════════════════════════════════════════════════════════ */
+/* centred on the canvas rather than the frame — the docks inset the canvas,
+   so a frame-centred bar drifts out over the panel once the window is narrow */
 .bottombar{
-  position:absolute;left:50%;bottom:8px;translate:-50% 0;z-index:30;
-  transition:opacity .4s var(--ease);
+  position:absolute;left:0;right:0;bottom:8px;z-index:30;
+  width:max-content;margin-inline:auto;
+  transition:opacity .4s var(--ease),left .52s var(--ease),right .52s var(--ease);
   display:flex;align-items:center;gap:8px;padding:8px;border-radius:12px;
   background:var(--card-bg-2);
   box-shadow:0 1px 4px 2px rgba(33,33,33,.12),0 1px 4px 0 rgba(33,33,33,.08),0 10px 34px rgba(0,0,0,.45);
@@ -1400,11 +1409,14 @@ svg{display:block}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast b{color:var(--text-primary);font-weight:500}
 
-/* hint strip under the artboard */
+/* hint strip under the app */
 .hint{
-  width:1440px;margin:14px auto 0;display:flex;align-items:center;justify-content:center;gap:18px;
+  flex:none;width:100%;padding:10px 16px;
+  display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;
   font-size:12px;color:#5a5a5a;letter-spacing:-.2px;
 }
+/* in a short window the app needs the room more than the key hints do */
+@media (max-height:680px){.hint{display:none}}
 .hint kbd{
   font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:5px;
   background:#1b1b1b;border:1px solid #2e2e2e;color:#8c8c8c;
@@ -2799,6 +2811,39 @@ function zoomToFit(){
   panX = rect.width / 2 - (minX + maxX) / 2 * fit;
   panY = rect.height / 2 - (minY + maxY) / 2 * fit;
   applyView(true);
+}
+
+/* The nodes sit at coordinates laid out for a 1440-wide artboard, so in any
+   other canvas width they'd sit off to one side — or off-screen entirely once
+   a dock takes 360px of a small window. Frame them horizontally instead, at
+   whatever zoom is current. Vertical placement is left alone: the flow grows
+   downwards and Start belongs near the top. autoPanX remembers the pan we
+   chose so a later resize only re-frames a view the user hasn't moved. */
+let autoPanX = null;
+function centerContent(smooth, widthOverride){
+  const nodes = $$('.node', stageEl);
+  if (!nodes.length) return;
+  let minX = Infinity, maxX = -Infinity;
+  nodes.forEach(n => {
+    const left = parseFloat(n.style.left) || 0;
+    minX = Math.min(minX, left);
+    maxX = Math.max(maxX, left + n.offsetWidth);
+  });
+  const w = widthOverride == null ? canvasEl.clientWidth : widthOverride;
+  panX = Math.round(w / 2 - (minX + maxX) / 2 * zoomLevel);
+  autoPanX = panX;
+  applyView(smooth);
+}
+/* width the canvas will have once the docks that are open have taken theirs —
+   read at boot, before the panel's slide-in has started animating */
+function settledCanvasWidth(){
+  const frame = $('#frame'), cs = getComputedStyle(frame);
+  const px = v => parseFloat(cs.getPropertyValue(v)) || 0;
+  let w = frame.clientWidth;
+  if (frame.classList.contains('panel-expanded')) w -= px('--dock-wide');
+  else if (frame.classList.contains('panel-open')) w -= px('--dock');
+  if (frame.classList.contains('agent-open')) w -= px('--agent-dock');
+  return w;
 }
 
 /* click-drag anywhere on the canvas to pan around */
@@ -4225,7 +4270,8 @@ document.addEventListener('keydown', e => {
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName);
   if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')){ e.preventDefault(); zoomByStep(1); }
   if ((e.metaKey || e.ctrlKey) && e.key === '-'){ e.preventDefault(); zoomByStep(-1); }
-  if ((e.metaKey || e.ctrlKey) && e.key === '0'){ e.preventDefault(); zoomLevel = 1; panX = 0; panY = 0; applyView(true); }
+  /* reset means back to the default view, which is the framed one */
+  if ((e.metaKey || e.ctrlKey) && e.key === '0'){ e.preventDefault(); zoomLevel = 1; panY = 0; centerContent(true); }
   if (!typing && e.shiftKey && e.key === '1' && !e.metaKey && !e.ctrlKey){ e.preventDefault(); zoomToFit(); }
 });
 
@@ -4237,9 +4283,27 @@ sync();
 applyView(false);
 setTimeout(openPanel, reduced ? 0 : 620);
 
+/* the canvas is sized by the window now, so re-frame the flow and re-place
+   anything floated against a node's on-screen box when that size changes */
+let resizeTick = 0;
+addEventListener('resize', () => {
+  clearTimeout(resizeTick);
+  resizeTick = setTimeout(() => {
+    if (autoPanX !== null && panX === autoPanX) centerContent(false);
+    positionNodeUI();
+  }, 80);
+});
+
 /* Start and the seed Agent card land unconnected — drag from Start's
    port to the Agent's to wire them, same as any other node pair */
 flowNodes.push($('#startNode').parentElement, $('#cardStatic').parentElement);
+
+/* frame the flow for this window straight away, against the width the canvas
+   will have once the panel has opened — so it lands in place rather than
+   sliding across after the dock arrives */
+$('#frame').classList.add('panel-open');
+centerContent(false, settledCanvasWidth());
+$('#frame').classList.remove('panel-open');
 
 })();
 </script>
