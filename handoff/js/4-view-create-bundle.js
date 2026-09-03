@@ -1,37 +1,10 @@
-/* ═══════════════════════════════════════════════════════════════════
-   CREATE NEW BUNDLE — page behaviour. Loads after cogentiq.js, which
-   defines $ and root and owns the rail and the theme toggle.
-
-   1 · MATRIX — rendered from LAYERS x TYPES. Columns follow the house
-       layer order (Solution > Organization > Domain), declared once in
-       the LAYERS array.
-   2 · PICKER — clicking a cell opens a fixed-position popover under it
-       that flips above and shifts inward near a viewport edge. Search
-       filters the list; a row expands its versions (max-height measured
-       after paint, 280ms); picking a version fills the cell.
-   3 · ONE PER CELL — "Max 1 of each type per layer": picking again
-       replaces, and the x on a filled cell clears it.
-   4 · FOOTER — the count is live; Create Bundle stays disabled until a
-       name, a description and at least one artifact are present.
-   5 · VALIDATION — a required field turns red only after it has been
-       used and left empty, so the form is never red before use.
-   6 · CLOSING — the x, an outside click, or Escape; Escape and picking
-       both return focus to the cell.
-   ═══════════════════════════════════════════════════════════════════ */
-
+'use strict';
+/* ══ VIEW: Create bundle ═══════════════════════════════════════════ */
+(function () {
 /* ── Create new bundle ───────────────────────────────────────────────
    A bundle is a matrix of artifact TYPE × LAYER with at most one
    artifact per cell, each pinned to a version. */
 
-/* House order for the three context layers, narrowest scope first:
-   Solution > Organization > Domain. The matrix columns, the picker and
-   any future summary all read this array, so the hierarchy is stated
-   once. */
-const LAYERS = [
-  { key: 'solution',     label: 'Solution layer',     note: 'How a specific problem is solved',       dia: 'cb-dia-purple' },
-  { key: 'organization', label: 'Organization layer', note: 'How this enterprise works, specifically', dia: 'cb-dia-green'  },
-  { key: 'domain',       label: 'Domain layer',       note: 'How the domain works, universally',      dia: 'cb-dia-blue'   },
-];
 
 const TYPES = [
   { key: 'glossary', label: 'Glossary',         note: 'Standard terms and definitions',  icon: 'cx-glossary' },
@@ -41,6 +14,10 @@ const TYPES = [
   { key: 'tools',    label: 'Tool Binding',     note: 'Integrations with external APIs',  icon: 'cx-toolbind' },
   { key: 'rules',    label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-rules'    },
 ];
+
+/* Keyed for lookup — the picker renders an artifact with the icon and
+   colour of the type it belongs to. */
+const TYPE_BY_KEY = Object.fromEntries(TYPES.map((t) => [t.key, t]));
 
 /* The artifacts on offer, per type. Versions are newest-first; the one
    flagged `latest` gets the badge. Replace with your API payload — the
@@ -103,9 +80,6 @@ const CATALOG = {
 const selection = {};
 TYPES.forEach((t) => { selection[t.key] = {}; });
 
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
 
 /* ── Matrix ──────────────────────────────────────────────────────── */
 function cellInner(typeKey, layerKey) {
@@ -114,9 +88,12 @@ function cellInner(typeKey, layerKey) {
     return `<span class="lbl t-body2-reg">Select</span>
             <svg class="ic plus" width="20" height="20" viewBox="0 0 20 20"><use href="#cb-plus"/></svg>`;
   }
-  return `<span class="cb-picked">
+  const t = TYPE_BY_KEY[typeKey];
+  return `<svg class="ic" width="16" height="16" viewBox="0 0 16 16"
+               style="color:var(--type-ink-${typeKey})"><use href="#${t.icon}"/></svg>
+          <span class="cb-picked">
             <span class="nm t-body2-med">${esc(picked.name)}</span>
-            <span class="meta"><span class="cb-ver">${esc(picked.version)}</span></span>
+            <span class="cb-ver">${esc(picked.version)}</span>
           </span>
           <span class="cb-clear" role="button" tabindex="0" data-clear="1"
                 aria-label="Remove ${esc(picked.name)}">
@@ -126,7 +103,7 @@ function cellInner(typeKey, layerKey) {
 
 function renderMatrix() {
   const spine = `
-    <div class="cb-col" data-col="type">
+    <div class="cb-col cb-col--spine" data-col="type">
       <div class="cb-col-head">
         <div class="row">
           <svg class="ic" width="20" height="20" viewBox="0 0 16 16"><use href="#cx-studio"/></svg>
@@ -138,18 +115,18 @@ function renderMatrix() {
         <div class="cb-type">
           <div class="row">
             <svg class="ic" width="20" height="20" viewBox="0 0 16 16" style="color:var(--type-ink-${t.key})"><use href="#${t.icon}"/></svg>
-            <span class="nm t-subhead2-med">${esc(t.label)}</span>
+            <span class="nm t-body1-med">${esc(t.label)}</span>
           </div>
           <span class="sub t-caption1-reg">${esc(t.note)}</span>
         </div>`).join('')}
     </div>`;
 
-  const cols = LAYERS.map((layer) => `
-    <div class="cb-col" data-col="${layer.key}">
+  const cols = LAYERS.map((layer, li) => `
+    <div class="cb-col cb-col--layer${li === 0 ? ' is-first' : ''}${li === LAYERS.length - 1 ? ' is-last' : ''}" data-col="${layer.key}">
       <div class="cb-col-head">
         <div class="row">
           <svg class="cb-dia" viewBox="0 0 43 28" aria-hidden="true"><use href="#${layer.dia}"/></svg>
-          <span class="ttl t-subhead2-med">${esc(layer.label)}</span>
+          <span class="ttl t-subhead2-med">${esc(layer.longLabel)}</span>
         </div>
         <span class="sub t-body2-reg">${esc(layer.note)}</span>
       </div>
@@ -159,7 +136,7 @@ function renderMatrix() {
           <button class="cb-cell${filled ? ' is-filled' : ''}"
                   data-type="${t.key}" data-layer="${layer.key}"
                   aria-haspopup="dialog"
-                  aria-label="${esc(t.label)}, ${esc(layer.label)}">
+                  aria-label="${esc(t.label)}, ${esc(layer.longLabel)}">
             ${cellInner(t.key, layer.key)}
           </button>
         </div>`;
@@ -187,24 +164,30 @@ function artifactRows(typeKey, layerKey, query) {
   if (!list.length) return '<p class="cb-pop-empty t-body2-reg">No artifacts match that search.</p>';
 
   const current = selection[typeKey][layerKey];
+  const type = TYPE_BY_KEY[typeKey];
   return list.map((a, i) => {
     const isOpen = expanded === i;
+    /* One row is marked as where a pick would land: the version already
+       pinned in this cell, or the latest when nothing is pinned yet. */
+    const pinned = current && current.name === a.name ? current.version : null;
+    const marked = pinned || (a.versions.find((v) => v.latest) || {}).v;
     const vers = a.versions.map((v) => `
-      <button class="cb-ver-row${current && current.name === a.name && current.version === v.v ? ' is-current' : ''}"
+      <button class="cb-ver-row${v.v === marked ? ' is-current' : ''}"
               data-pick="${i}" data-v="${esc(v.v)}">
-        <span class="v t-body2-reg">${esc(v.v)}</span>
+        <span class="v t-body2-med">${esc(v.v)}</span>
         <span class="spacer"></span>
         ${v.latest ? '<span class="cb-latest t-caption1-med">Latest</span>' : ''}
-        <span class="date t-caption1-reg">${esc(v.date)}</span>
+        <span class="date t-body2-reg">${esc(v.date)}</span>
       </button>`).join('');
     return `<div class="cb-art${isOpen ? ' is-expanded' : ''}" data-i="${i}">
       <button class="cb-art-head" data-toggle="${i}" aria-expanded="${isOpen}">
-        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#cb-typegrid"/></svg>
+        <svg class="ic" width="20" height="20" viewBox="0 0 16 16"
+             style="color:var(--type-ink-${typeKey})"><use href="#${type.icon}"/></svg>
         <span class="cb-art-text">
-          <span class="nm t-body2-med">${esc(a.name)}</span>
+          <span class="nm t-body1-med">${esc(a.name)}</span>
           <span class="sub t-caption1-reg">${esc(a.sub)}</span>
         </span>
-        <span class="cb-art-count t-caption1-reg">${a.versions.length} vers.</span>
+        <span class="cb-art-count t-body2-reg">${a.versions.length} vers.</span>
         <svg class="ic cb-art-chev" width="16" height="16" viewBox="0 0 16 16"><use href="#cb-chevright"/></svg>
       </button>
       <div class="cb-vers" data-vers="${i}">${vers}</div>
@@ -346,3 +329,4 @@ $('createBtn').addEventListener('click', () => { /* hook up your submit */ });
 
 renderMatrix();
 refreshCount();
+})();

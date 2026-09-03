@@ -1,22 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════
-   CREATE NEW BUNDLE — page styles   (Figma node 2175-12558)
-   Link AFTER cogentiq.css, which carries the tokens and the shell.
-   ═══════════════════════════════════════════════════════════════════ */
-
-/* Tokens this page adds on top of the shared set. */
-:root {
-  --backgrounds-badge-orange: #fff6e9;
-  --type-ink-glossary: #0d99ff;  --type-ink-ontology: #9747ff;
-  --type-ink-data:     #00a2c2;  --type-ink-prompts:  #5860ed;
-  --type-ink-tools:    #e91e63;  --type-ink-rules:    #689f38;
-}
-:root[data-mode="dark"] {
-  --backgrounds-badge-orange: #2a1a05;
-  --type-ink-glossary: #44aaf3;  --type-ink-ontology: #bb7fff;
-  --type-ink-data:     #35caf0;  --type-ink-prompts:  #a0a5f7;
-  --type-ink-tools:    #f06292;  --type-ink-rules:    #aed581;
-}
-
 /* ══════════════════════════════════════════════════════════════
    CREATE NEW BUNDLE — page-specific styles
    (Figma node 2175-12558)
@@ -50,8 +31,11 @@
   padding: 20px 0 24px;
 }
 
-/* ── Row 1: the form and the explainer, side by side ────────── */
-.cb-top { display: flex; align-items: stretch; gap: 20px; padding: 0 24px; }
+/* ── Row 1 ───────────────────────────────────────────────────────
+   One card carries both halves, with "How it works" as a bordered
+   panel inside it rather than a card of its own — as the frame has
+   it. The two halves share the width. */
+.cb-top { padding: 0 24px; }
 
 .cb-card {
   background: var(--backgrounds-page-bg-2);
@@ -59,8 +43,9 @@
   border-radius: 16px;
   box-shadow: var(--shadow-card);
 }
+.cb-topcard { display: flex; align-items: flex-start; gap: 24px; padding: 24px; }
 
-.cb-form { flex: 1 1 auto; min-width: 0; padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.cb-form { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 .cb-form h1 { margin: 0; color: var(--text-primary); }
 .cb-field { display: flex; flex-direction: column; gap: 6px; }
 .cb-label { color: var(--text-primary); }
@@ -78,10 +63,12 @@
 }
 .cb-textarea { min-height: 68px; resize: vertical; font: inherit; }
 .cb-input::placeholder, .cb-textarea::placeholder { color: var(--text-teritiary); }
-.cb-input:focus, .cb-textarea:focus {
+.cb-input:focus, .cb-textarea:focus,
+.cb-input:focus-visible, .cb-textarea:focus-visible {
   border-color: var(--strokes-type-focus);
   background: var(--backgrounds-page-bg-2);
   outline: none;
+  box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
 }
 /* Shown only once someone has left a required field empty, so the
    form is never red before it has been used. */
@@ -89,7 +76,12 @@
 .cb-field.is-invalid .cb-textarea { border-color: #e5484d; }
 
 /* ── How it works ───────────────────────────────────────────── */
-.cb-how { flex: none; width: 600px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.cb-how {
+  flex: 1 1 0; min-width: 0;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  border: 1px solid var(--strokes-line-3);
+  border-radius: 12px;
+}
 .cb-how-eyebrow { color: var(--text-teritiary); text-transform: uppercase; letter-spacing: .04em; }
 .cb-how-list { display: flex; flex-direction: column; gap: 12px; }
 .cb-how-row { display: flex; align-items: flex-start; gap: 10px; }
@@ -137,19 +129,39 @@
 .cb-matrix {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  /* No column gap: the three layer columns butt together to form one
+     card, so the only gap is the one the spine sets for itself. */
+  column-gap: 0;
   padding: 0 24px;
   align-items: start;
 }
 .cb-col {
   background: var(--backgrounds-page-bg-2);
-  border: 1px solid var(--strokes-line-3);
-  border-radius: 16px;
+  border-top: 1px solid var(--strokes-line-3);
+  border-bottom: 1px solid var(--strokes-line-3);
   padding-top: 20px;
   overflow: hidden;
   display: grid;
   grid-template-rows: subgrid;
   grid-row: span 7;
+}
+/* The artifact-type spine is a card of its own. */
+.cb-col--spine {
+  border-left: 1px solid var(--strokes-line-3);
+  border-right: 1px solid var(--strokes-line-3);
+  border-radius: 16px;
+  margin-right: 12px;
+}
+/* The three layers share one card: the outer edges carry the border
+   and the rounding, and each inner edge is a divider. */
+.cb-col--layer { border-left: 1px solid var(--strokes-line-1); }
+.cb-col--layer.is-first {
+  border-left: 1px solid var(--strokes-line-3);
+  border-top-left-radius: 16px; border-bottom-left-radius: 16px;
+}
+.cb-col--layer.is-last {
+  border-right: 1px solid var(--strokes-line-3);
+  border-top-right-radius: 16px; border-bottom-right-radius: 16px;
 }
 /* subgrid keeps every column's rows on the same baseline. Where it
    is unsupported the columns fall back to their own flow, which
@@ -172,7 +184,7 @@
 /* Spine cell: the artifact type and what it is for. */
 .cb-type {
   display: flex; flex-direction: column; gap: 2px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--strokes-line-1);
 }
 .cb-type:last-child { border-bottom: 0; }
@@ -180,19 +192,33 @@
 .cb-type .nm { color: var(--text-primary); }
 .cb-type .sub { color: var(--text-teritiary); }
 
-/* A layer cell holds the dashed picker, or the artifact once picked. */
-.cb-cellwrap { padding: 12px 16px; display: flex; }
+/* A layer cell holds the dashed picker, or the artifact once picked.
+   Ruled like the type spine so a row reads straight across. */
+.cb-cellwrap {
+  padding: 10px 16px; display: flex;
+  border-bottom: 1px solid var(--strokes-line-1);
+}
+.cb-cellwrap:last-child { border-bottom: 0; }
+/* 48px whether empty or filled — the row must not resize when
+   something is chosen. */
 .cb-cell {
   position: relative;
-  width: 100%; min-height: 50px;
+  width: 100%; height: 48px;
   display: flex; align-items: center; gap: 8px;
-  padding: 8px; border-radius: 12px;
+  padding: 0 10px; border-radius: 12px;
+  background: var(--backgrounds-type-search-default);
   border: 1px dashed var(--strokes-line-2);
   color: var(--text-teritiary);
   text-align: left;
   transition: border-color .15s ease, background .15s ease, color .15s ease;
 }
-.cb-cell:hover { border-color: var(--strokes-icon-default); color: var(--text-secondary); }
+/* Design-system hover for a control on a card: one step of grey and
+   the border a shade darker. No lift. */
+.cb-cell:hover {
+  background: var(--backgrounds-page-bg-4);
+  border-color: var(--strokes-line-1);
+  color: var(--text-secondary);
+}
 .cb-cell .lbl { flex: 1 1 auto; min-width: 0; }
 .cb-cell .plus { flex: none; color: var(--strokes-checkbox-default); transition: color .15s ease; }
 .cb-cell:hover .plus { color: var(--text-secondary); }
@@ -211,12 +237,11 @@
   border-color: var(--strokes-colour-blue);
   background: var(--backgrounds-badge-blue);
   color: var(--text-primary);
-  cursor: default;
 }
-.cb-cell.is-filled:hover { border-color: var(--strokes-card-selected); }
-.cb-picked { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.cb-picked .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cb-picked .meta { display: flex; align-items: center; gap: 6px; color: var(--text-teritiary); }
+.cb-cell.is-filled:hover { background: var(--backgrounds-badge-blue); border-color: var(--strokes-card-selected); }
+/* One line, so the filled cell is the same height as an empty one. */
+.cb-picked { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.cb-picked .nm { min-width: 0; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-ver {
   flex: none; height: 16px;
   display: flex; align-items: center; padding: 0 6px; border-radius: 12px;
@@ -264,7 +289,9 @@
    ═══════════════════════════════════════════════════════════════ */
 .cb-pop {
   position: fixed; z-index: 70;
-  width: 412px; max-width: calc(100vw - 24px);
+  /* The frame's width. Descriptions sit at the caption ramp so they
+     still read in full at this size. */
+  width: 404px; max-width: calc(100vw - 24px);
   display: none; flex-direction: column; gap: 8px;
   padding: 12px;
   background: var(--backgrounds-card-bg-3);
@@ -285,27 +312,33 @@
   max-height: 340px; overflow-y: auto;
   margin: 0 -4px; padding: 0 4px;
 }
-.cb-art {
-  border: 1px solid var(--strokes-line-3);
-  border-radius: 12px;
-  background: var(--backgrounds-page-bg-2);
-  overflow: hidden;
-}
-.cb-art.is-expanded { border-color: var(--strokes-line-2); }
+/* An artifact is two surfaces: a white card for the artifact itself,
+   and — once expanded — a separate panel of versions beneath it. Two
+   surfaces rather than one card with zones, because the versions are
+   a different kind of thing from the artifact that owns them. */
+.cb-art { display: flex; flex-direction: column; gap: 2px; }
 .cb-art-head {
   width: 100%;
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--backgrounds-page-bg-2);
+  border: 1px solid var(--strokes-line-2);
+  border-radius: 12px;
   text-align: left;
-  transition: background .15s ease;
+  transition: background .15s ease, border-color .15s ease;
 }
-.cb-art-head:hover { background: var(--backgrounds-card-bg-4); }
-.cb-art-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+/* Design-system card hover: the border darkens a shade, plus a step
+   of grey because this row is a menu option as well as a card. */
+.cb-art-head:hover {
+  background: var(--backgrounds-card-bg-4);
+  border-color: var(--strokes-line-1);
+}
+.cb-art-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cb-art-text .nm { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cb-art-text .sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-art-text .sub { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cb-art-count {
-  flex: none; height: 20px;
-  display: flex; align-items: center; padding: 0 8px; border-radius: 12px;
+  flex: none; height: 24px;
+  display: flex; align-items: center; padding: 0 10px; border-radius: 100px;
   background: var(--backgrounds-page-bg-4);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -313,10 +346,11 @@
 .cb-art-chev { flex: none; color: var(--text-teritiary); transition: transform .22s cubic-bezier(.4, 0, .2, 1); }
 .cb-art.is-expanded .cb-art-chev { transform: rotate(90deg); }
 
-/* Version list — collapsed to zero height, animated open like the
-   explainer card so it works at any length. */
+/* Version panel — collapsed to zero height, animated open so it
+   works at any length. */
 .cb-vers {
-  background: var(--backgrounds-card-bg-4);
+  background: var(--backgrounds-page-bg-3);
+  border-radius: 12px;
   overflow: hidden;
   max-height: 0;
   transition: max-height .28s cubic-bezier(.4, 0, .2, 1);
@@ -324,23 +358,28 @@
 .cb-ver-row {
   width: 100%;
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px;
+  padding: 11px 16px;
   text-align: left;
   color: var(--text-primary);
   transition: background .15s ease;
 }
-.cb-ver-row:hover { background: var(--backgrounds-table-select); }
-.cb-ver-row .v { flex: none; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cb-ver-row .v { flex: none; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .cb-ver-row .spacer { flex: 1 1 auto; }
 .cb-ver-row .date { flex: none; color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
 .cb-latest {
-  flex: none; height: 18px;
-  display: flex; align-items: center; padding: 0 8px; border-radius: 100px;
-  background: var(--backgrounds-page-bg-2);
+  flex: none; height: 22px;
+  display: flex; align-items: center; padding: 0 10px; border-radius: 100px;
+  background: transparent;
   border: 1px solid var(--strokes-card-selected);
   color: var(--text-coloured-blue);
 }
+/* The row the pick would land on: the pinned version if there is
+   one, otherwise the latest. */
 .cb-ver-row.is-current { background: var(--backgrounds-table-select); }
+/* Neutral hover, as the design system's list rows use. The marked row
+   keeps its own fill. */
+.cb-ver-row:hover { background: var(--backgrounds-page-bg-4); }
+.cb-ver-row.is-current:hover { background: var(--backgrounds-table-select); }
 .cb-pop-empty { padding: 12px; color: var(--text-teritiary); }
 
 /* ── Responsive ─────────────────────────────────────────────── */

@@ -1,18 +1,6 @@
-/* ═══════════════════════════════════════════════════════════════════
-   CONTEXT STUDIO — page behaviour. Loads after cogentiq.js, which
-   defines $ and root and owns the rail and the theme toggle.
-
-   1 · HERO dot highlight — a bright copy of the dot grid revealed
-       through a 150px mask centred on the cursor, written to --mx/--my
-       once per animation frame and faded 0 -> .5 over 450ms.
-   2 · EXPLAINER CARD — minimised on arrival, opens itself after
-       4500ms. The header toggles it and cancels the timer.
-   3 · BUNDLE GRID -> DETAIL PANEL — click a card to open the 420px
-       panel (280ms slide); closes on the x, outside click, Escape, or
-       re-clicking the card.
-   4 · SEARCH — filters the grid live on input.
-   ═══════════════════════════════════════════════════════════════════ */
-
+'use strict';
+/* ══ VIEW: Studio ══════════════════════════════════════════════════ */
+(function () {
 /* ── Context bundles ────────────────────────────────────────────── */
 /* An artifact is one cell of the bundle's selection matrix: a type, the
    layer it was picked from, and the pinned version. Types carry the same
@@ -25,14 +13,6 @@ const TYPES = {
   tools:     { label: 'Tool Binding',    note: 'Integrations with external APIs',  icon: 'cx-tool20'   },
   rules:     { label: 'Rules & Policies', note: 'Business rules and governance',   icon: 'cx-shield20' },
 };
-/* House order for the three context layers, narrowest scope first:
-   Solution > Organization > Domain. Everything that lists the layers
-   reads this array, so the hierarchy is stated in one place. */
-const LAYERS = [
-  { key: 'solution',     label: 'Solution'     },
-  { key: 'organization', label: 'Organization' },
-  { key: 'domain',       label: 'Domain'       },
-];
 
 const BUNDLES = [
   { icon: 'cx-b-indigo', size: 24, name: 'Customer Support',          desc: 'This bundle is created for Microsoft business data reference', count: '12 artifacts', book: false, owner: 'S',
@@ -113,6 +93,7 @@ function renderBundles(query) {
   const q = (query || '').trim().toLowerCase();
   const hits = BUNDLES.filter((b) => !q || b.name.toLowerCase().includes(q) || b.desc.toLowerCase().includes(q));
   $('bundleGrid').innerHTML = hits.map(bundleCard).join('');
+  $('bundleCount').textContent = hits.length;
   $('bundlesEmpty').classList.toggle('is-visible', hits.length === 0);
   markSelected();
 }
@@ -129,9 +110,6 @@ $('bundleSearch').addEventListener('input', (e) => renderBundles(e.target.value)
    The panel reads the bundle's selection matrix: artifacts grouped by
    the layer they were picked from, each showing its type and the pinned
    version — the same shape the create screen builds. */
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
 
 function metaRows(b) {
   const initial = esc(b.creator.trim().charAt(0).toUpperCase());
@@ -172,24 +150,24 @@ function openPanel(i) {
   if (!b) return;
   selected = i;
   markSelected();
-  $('panelIcon').querySelector('use').setAttribute('href', '#' + b.icon);
-  $('panelTitle').textContent = b.name;
-  $('panelDesc').textContent = b.desc;
-  $('panelMeta').innerHTML = metaRows(b);
-  $('panelArtHeader').textContent = `ARTIFACTS · ${b.artifacts.length}`;
-  $('panelArtifacts').innerHTML = artifactGroups(b)
+  $('bpPanelIcon').querySelector('use').setAttribute('href', '#' + b.icon);
+  $('bpPanelTitle').textContent = b.name;
+  $('bpPanelDesc').textContent = b.desc;
+  $('bpPanelMeta').innerHTML = metaRows(b);
+  $('bpPanelArtHeader').textContent = `ARTIFACTS · ${b.artifacts.length}`;
+  $('bpPanelArtifacts').innerHTML = artifactGroups(b)
     || '<p class="panel-empty t-body2-reg">No artifacts in this bundle yet.</p>';
-  $('panel').classList.add('is-open');
-  $('panel').setAttribute('aria-hidden', 'false');
+  $('bpPanel').classList.add('is-open');
+  $('bpPanel').setAttribute('aria-hidden', 'false');
   $('scrim').classList.add('is-open');
-  $('panelClose').focus();
+  $('bpPanelClose').focus();
 }
 
 function closePanel() {
   selected = null;
   markSelected();
-  $('panel').classList.remove('is-open');
-  $('panel').setAttribute('aria-hidden', 'true');
+  $('bpPanel').classList.remove('is-open');
+  $('bpPanel').setAttribute('aria-hidden', 'true');
   $('scrim').classList.remove('is-open');
 }
 
@@ -200,7 +178,7 @@ $('bundleGrid').addEventListener('click', (e) => {
   if (i === selected) { closePanel(); return; }
   openPanel(i);
 });
-$('panelClose').addEventListener('click', closePanel);
+$('bpPanelClose').addEventListener('click', closePanel);
 $('scrim').addEventListener('click', closePanel);
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && selected !== null) closePanel();
@@ -226,34 +204,5 @@ document.addEventListener('keydown', (e) => {
   });
 })();
 
-/* ── The explainer opens itself once the page has settled ────────────
-   Collapsed on arrival so the artifact list owns the sidebar, then
-   revealed after a beat and left open. A manual toggle cancels the
-   timer, so the card never reopens over someone who just closed it. */
-(() => {
-  const card = $('ctxInfo'), body = $('ctxBody'), btn = $('ctxToggle');
-  let timer = null;
-
-  function setOpen(open) {
-    card.classList.toggle('is-open', open);
-    btn.setAttribute('aria-expanded', String(open));
-    body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
-  }
-
-  btn.addEventListener('click', () => {
-    if (timer) { clearTimeout(timer); timer = null; }
-    setOpen(!card.classList.contains('is-open'));
-  });
-
-  /* Content can reflow (fonts, wrapping) while open — keep the cap true. */
-  if (window.ResizeObserver) {
-    new ResizeObserver(() => {
-      if (card.classList.contains('is-open')) body.style.maxHeight = body.scrollHeight + 'px';
-    }).observe(body);
-  }
-
-  setOpen(false);
-  timer = setTimeout(() => { timer = null; setOpen(true); }, 4500);
-})();
-
 renderBundles('');
+})();

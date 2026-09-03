@@ -1,25 +1,33 @@
-/* ═══════════════════════════════════════════════════════════════════
-   COGENTIQ DESIGN SYSTEM — shared behaviour
-   Load with `defer`, BEFORE the page script.
-
-   PLATFORM PANEL (left rail)
-     - Hover opens it 68px -> 240px after a 140ms delay; leaving closes
-       it after 200ms. The delays stop it flickering as the cursor
-       crosses. Width transitions 260ms cubic-bezier(.4,0,.2,1).
-     - Labels are laid out at full width the whole time and clipped by
-       the rail, so opening never reflows a row.
-     - The collapse button closes it immediately.
-     - Category headers toggle on click, ONE OPEN AT A TIME. Chevron
-       rotates 180deg over 220ms.
-
-   THEME
-     - The header toggle swaps data-mode on <html> and remembers the
-       choice in localStorage under "cq-theme" (try/catch for private
-       mode). Light is the default.
-   ═══════════════════════════════════════════════════════════════════ */
 'use strict';
-const $ = (id) => document.getElementById(id);
-const root = document.documentElement;
+/* ── The explainer opens itself once the page has settled ────────────
+   Collapsed on arrival so the artifact list owns the sidebar, then
+   revealed after a beat and left open. A manual toggle cancels the
+   timer, so the card never reopens over someone who just closed it. */
+(() => {
+  const card = $('ctxInfo'), body = $('ctxBody'), btn = $('ctxToggle');
+  let timer = null;
+
+  function setOpen(open) {
+    card.classList.toggle('is-open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    body.style.maxHeight = open ? body.scrollHeight + 'px' : '0px';
+  }
+
+  btn.addEventListener('click', () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    setOpen(!card.classList.contains('is-open'));
+  });
+
+  /* Content can reflow (fonts, wrapping) while open — keep the cap true. */
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      if (card.classList.contains('is-open')) body.style.maxHeight = body.scrollHeight + 'px';
+    }).observe(body);
+  }
+
+  setOpen(false);
+  timer = setTimeout(() => { timer = null; setOpen(true); }, 4500);
+})();
 
 /* ── Platform panel: hover to open, one category open at a time ──── */
 const rail = $('rail');
@@ -58,3 +66,4 @@ $('themeToggle').addEventListener('click', () => {
 let stored = null;
 try { stored = localStorage.getItem('cq-theme'); } catch (e) { /* private mode */ }
 applyMode(stored === 'dark' ? 'dark' : 'light');
+go('studio');

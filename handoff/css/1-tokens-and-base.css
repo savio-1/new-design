@@ -1,28 +1,3 @@
-/* ═══════════════════════════════════════════════════════════════════
-   COGENTIQ DESIGN SYSTEM — shared layer
-   Linked by every page. Holds:
-     1  Design tokens, light (default) and dark. Names match the Figma
-        variables one-for-one, so a value changed in Figma maps to
-        exactly one line here.
-     2  Type ramps (.t-*) — the Figma text styles
-     3  Reset and the .cq-scroll-y scroller
-     4  App shell — rail gutter, frame, header
-     5  Platform panel (.cq-rail) — the design-system nav component
-     6  Shared form controls — .search-field, .btn-primary
-
-   THEMING
-     The header toggle stamps data-mode="dark" on <html> and remembers
-     the choice in localStorage under "cq-theme". Components are styled
-     through tokens only, so both themes come free. Never hard-code a
-     colour in a page; add a token here instead.
-
-   LAYER ORDER — house rule
-     Wherever the three context layers are listed, the order is
-     Solution › Organization › Domain (narrowest scope first). Each page
-     builds its lists from a LAYERS array in its own script, so the
-     order is declared once per page and never assumed in CSS.
-   ═══════════════════════════════════════════════════════════════════ */
-
 /* ══════════════════════════════════════════════════════════════
    DESIGN VARIABLES — taken verbatim from the Figma library
    (Cogentiq · Builder, "Context- glossary"). Light is the mode
@@ -55,6 +30,10 @@
   --strokes-line-1:           #eeeeee;
   --strokes-line-2:           #e0e0e0;
   --strokes-line-3:           #f5f5f5;
+  /* Card hover edge. Line-3 -> Line-1 was a #f5f5f5 -> #eee step,
+     too faint to register; this lands on the Line-2 value so the
+     edge is legible without reading as a grey box. */
+  --strokes-card-hover:       #e0e0e0;
   --strokes-icon-default:     #616161;
   --strokes-colour-blue:      #e5f4ff;
 
@@ -101,9 +80,16 @@
   --strokes-checkbox-default:     #bdbdbd;
   --strokes-checkbox-focus:       #0d99ff;
   --cyan-400:                     #35caf0;
+  --backgrounds-icon-blue-2:      #0d99ff33;
+  --backgrounds-table-default:    #ffffff;
+  --backgrounds-checkbox-default: #ffffff;
+  --backgrounds-checkbox-focus:   #0d99ff;
+  --backgrounds-button-hover-tonal-1: #cce9ff;
   --shadow-panel:   -8px 0 24px rgba(18, 18, 18, .12);
   --scrim:          rgba(18, 18, 18, .18);
   --backgrounds-badge-green:  #ebffee;
+  --backgrounds-icon-green:   rgba(20, 174, 92, .10);
+  --backgrounds-icon-grey:    rgba(140, 140, 140, .16);
   --strokes-colour-green:     #aff4c6;
   --text-coloured-green:      #14ae5c;
   --backgrounds-badge-purple: #f7f0ff;
@@ -147,6 +133,7 @@
   --strokes-line-1:           #424242;
   --strokes-line-2:           #424242;
   --strokes-line-3:           #323232;
+  --strokes-card-hover:       #525252;
   --strokes-icon-default:     #9e9e9e;
   --strokes-colour-blue:      #093077;
 
@@ -174,9 +161,16 @@
   --strokes-checkbox-default:     #616161;
   --strokes-checkbox-focus:       #0d99ff;
   --cyan-400:                     #35caf0;
+  --backgrounds-icon-blue-2:      #0d99ff33;
+  --backgrounds-table-default:    #121212;
+  --backgrounds-checkbox-default: #1b1b1b;
+  --backgrounds-checkbox-focus:   #0d99ff;
+  --backgrounds-button-hover-tonal-1: #0b3f8f;
   --shadow-panel:   -8px 0 24px rgba(0, 0, 0, .4);
   --scrim:          rgba(18, 18, 18, .5);
   --backgrounds-badge-green:  #031d11;
+  --backgrounds-icon-green:   rgba(20, 174, 92, .18);
+  --backgrounds-icon-grey:    rgba(140, 140, 140, .22);
   --strokes-colour-green:     #0a3a22;
   --text-coloured-green:      #85e0a3;
   --backgrounds-badge-purple: #17092b;
@@ -187,6 +181,7 @@
 /* Body1/Med, Body2/Reg … as reusable type ramps */
 .t-subhead1-med { font: 500 24px/32px var(--font-geist); letter-spacing: -0.96px; }
 .t-subhead2-med { font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px; }
+.t-body1-med    { font: 500 var(--fs-body-2)/var(--lh-body-2) var(--font-geist); letter-spacing: -0.64px; }
 .t-body2-med    { font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
 .t-body2-reg    { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
 .t-caption1-med { font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px; }
@@ -206,9 +201,13 @@ body {
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
+h1, h2, h3, h4, h5, h6, p { margin: 0; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 input  { font: inherit; color: inherit; background: none; border: 0; outline: 0; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 2px; }
+/* A `display` of anything but none beats the UA's [hidden] rule, so
+   toggling `el.hidden` on a grid or flex box silently does nothing. */
+[hidden] { display: none !important; }
 .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 /* One scroller for the whole page: a thin track that only shows its
@@ -544,6 +543,23 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--strokes-car
 .main-section { flex: 1 1 auto; min-height: 0; display: flex; }
 
 /* ══════════════════════════════════════════════════════════════
+   PAGE BAR — the title row every catalogue view opens with: name,
+   count, then the description on the same line.
+   ══════════════════════════════════════════════════════════════ */
+/* Centred, not baseline-aligned: the pill is a box beside an 18px
+   heading, and sitting it on the text baseline dropped the whole row
+   — description included — below the heading's optical centre. */
+.title-row { flex: none; display: flex; align-items: center; gap: 8px; }
+.count-pill {
+  display: flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 6px; border-radius: 8px;
+  background: var(--backgrounds-card-bg-4);
+  border: 1px solid var(--strokes-type-default);
+  color: var(--text-teritiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════════════════════════════════════════════════════
    SHARED FORM CONTROLS — used by this page and by Create bundle
    ══════════════════════════════════════════════════════════════ */
 .search-field {
@@ -555,7 +571,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--strokes-car
   color: var(--text-teritiary);
   transition: border-color .15s ease;
 }
-.search-field:focus-within { border-color: var(--strokes-type-focus); }
+/* The wrapper owns the focus ring: the reset's outline would draw a
+   second box inside the field, around the type area only. */
+.search-field input:focus-visible { outline: none; }
+.search-field:focus-within {
+  border-color: var(--strokes-type-focus);
+  box-shadow: 0 0 0 3px var(--backgrounds-icon-blue-2);
+}
 .search-field input { flex: 1 1 auto; min-width: 0; color: var(--text-primary); }
 .search-field input::placeholder { color: var(--text-teritiary); }
 .btn-primary {
