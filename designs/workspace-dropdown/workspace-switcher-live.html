@@ -106,17 +106,17 @@
   .num { font-variant-numeric: tabular-nums; }
   .zero { color: var(--t4); }
 
-  /* A — icon counts inline */
+  /* B — icon counts inline */
   .counts { display: flex; align-items: center; gap: 12px; color: var(--t2); font-size: 12px; line-height: 16px; }
   .counts .c { display: flex; align-items: center; gap: 4px; }
   .counts .c.zero { color: var(--t4); }
 
-  /* B — caption under the name */
+  /* C — caption under the name */
   .stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0; }
   .stack .name { font-weight: 500; }
   .stack .cap { font-size: 12px; line-height: 16px; color: var(--t2); white-space: nowrap; }
 
-  /* C — sort only, no numbers on the row */
+  /* A — sort only, no numbers on the row */
   .sort { display: inline-flex; align-items: center; gap: 6px; color: var(--t2); font-size: 12px; line-height: 16px; padding: 4px; border-radius: 6px; }
   .sort:hover { color: var(--t1); background: var(--hover); }
   .sortwrap { position: relative; }
@@ -138,7 +138,7 @@
   <div class="top">
     <div>
       <h1>Workspace switcher with artifact counts</h1>
-      <p>Three ways to help an admin find the workspace with the most going on before a demo. Options A and B show automation, assistant and agent counts directly; option C keeps the row plain and just sorts by size, age or name. All three are live: open, sort, select. Counts are sample values.</p>
+      <p>Three ways to help an admin find the workspace with the most going on before a demo. Option A keeps the row plain and just sorts by size, age or name; options B and C show automation, assistant and agent counts directly. All three are live: open, sort, select. Counts are sample values.</p>
     </div>
     <button class="theme" id="themeBtn" type="button" aria-label="Toggle light and dark">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"></circle><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"></path></svg>
@@ -189,15 +189,7 @@
   const z = v => v === 0 ? 'zero' : '';
 
   const OPTS = [
-    { key: 'A', name: 'Icon counts inline', desc: 'One line per workspace, three counts on the right.', width: 340,
-      rows: (st) => WS.map(w => `<button class="row" type="button" data-pick="${w.id}">${av(w)}<span class="name">${w.n}</span>
-        <span class="counts"><span class="c ${z(w.a)}">${I.auto(13)}<span class="num">${w.a}</span></span><span class="c ${z(w.s)}">${I.asst(13)}<span class="num">${w.s}</span></span><span class="c ${z(w.g)}">${I.agent(13)}<span class="num">${w.g}</span></span></span>${check(st.sel === w.id)}</button>`).join('') },
-
-    { key: 'B', name: 'Caption breakdown', desc: 'Plain words under the name. Nothing to decode.', width: 372,
-      rows: (st) => WS.map(w => `<button class="row" type="button" data-pick="${w.id}" style="min-height:48px">${av(w)}
-        <span class="stack"><span class="name">${w.n}</span><span class="cap num">${w.a} automations · ${w.s} assistants · ${w.g} agents</span></span>${check(st.sel === w.id)}</button>`).join('') },
-
-    { key: 'C', name: 'Sort only', desc: 'No numbers on the row — sort by artifacts, users, age or name instead.', width: 320,
+    { key: 'A', name: 'Sort only', desc: 'No numbers on the row — sort by artifacts, users, age or name instead.', width: 320,
       head: (st) => `<div class="menu-head"><div class="sortwrap">
           <button class="sort" type="button" data-sort-toggle aria-haspopup="menu" aria-expanded="${st.sortOpen}">${I.sort}<span>${SORTS[st.sort]}</span>${I.chevSmall}</button>
           <div class="sortmenu" role="menu" ${st.sortOpen ? '' : 'hidden'}>
@@ -205,6 +197,14 @@
           </div>
         </div></div><div class="sep"></div>`,
       rows: (st) => sortWS(st.sort).map(w => `<button class="row" type="button" data-pick="${w.id}">${av(w)}<span class="name">${w.n}</span>${check(st.sel === w.id)}</button>`).join('') },
+
+    { key: 'B', name: 'Icon counts inline', desc: 'One line per workspace, three counts on the right.', width: 340,
+      rows: (st) => WS.map(w => `<button class="row" type="button" data-pick="${w.id}">${av(w)}<span class="name">${w.n}</span>
+        <span class="counts"><span class="c ${z(w.a)}">${I.auto(13)}<span class="num">${w.a}</span></span><span class="c ${z(w.s)}">${I.asst(13)}<span class="num">${w.s}</span></span><span class="c ${z(w.g)}">${I.agent(13)}<span class="num">${w.g}</span></span></span>${check(st.sel === w.id)}</button>`).join('') },
+
+    { key: 'C', name: 'Caption breakdown', desc: 'Plain words under the name. Nothing to decode.', width: 372, tall: true,
+      rows: (st) => WS.map(w => `<button class="row" type="button" data-pick="${w.id}" style="min-height:48px">${av(w)}
+        <span class="stack"><span class="name">${w.n}</span><span class="cap num">${w.a} automations · ${w.s} assistants · ${w.g} agents</span></span>${check(st.sel === w.id)}</button>`).join('') },
   ];
 
   const state = {};
@@ -215,7 +215,7 @@
     const sel = WS.find(w => w.id === st.sel);
     return `<section class="opt" data-opt="${o.key}">
       <div class="opt-head"><span class="k">Option ${o.key}</span><span class="n">${o.name}</span><span class="d">${o.desc}</span></div>
-      <div class="stage ${o.key === 'B' ? 'tall' : ''}">
+      <div class="stage ${o.tall ? 'tall' : ''}">
         <div class="stage-bar"><span class="crumb">Home</span>
           <div class="anchor">
             <button class="trigger" type="button" aria-haspopup="menu" aria-expanded="${st.open}" data-toggle>${av(sel)}<span>${sel.n}</span>${I.chev}</button>
