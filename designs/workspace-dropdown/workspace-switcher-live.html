@@ -1,0 +1,279 @@
+<title>Workspace Switcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap">
+<style>
+  /* ── Cogentiq design system tokens (Figma "Variable collection", Light mode) ── */
+  :root {
+    --page:        #fafafa; /* Backgrounds/Page/bg-1 */
+    --stage:       #f5f5f5; /* Backgrounds/Page/bg-3 */
+    --panel:       #ffffff; /* Backgrounds/Card/bg-2 */
+    --control:     #ffffff; /* Backgrounds/Type/Default/bg-2 */
+    --hover:       #f5f5f5; /* Backgrounds/Hover */
+    --line-1:      #eeeeee; /* Strokes/Line-1 · Strokes/Card/Default */
+    --line-2:      #e0e0e0; /* Strokes/Line-2 · Strokes/Type/Default */
+    --line-hover:  #9e9e9e; /* Strokes/Type/Hover */
+    --focus:       #0d99ff; /* Strokes/Type/Focus */
+    --t1:          #121212; /* Text/Primary */
+    --t2:          #616161; /* Text/Secondary */
+    --t3:          #8c8c8c; /* Text/Teritiary */
+    --t4:          #bdbdbd; /* Text/Four */
+    --tonal:       #007be5; /* Text/Button/Tonal-1 */
+    --badge-blue:  #f2f9ff; /* Backgrounds/Badge/blue */
+    --shadow:      0 1px 4px rgba(33,33,33,.08), 0 8px 24px rgba(33,33,33,.10);
+    /* primitives (mode-independent) */
+    --blue-500:    #0d99ff;
+    --purple-500:  #9747ff;
+    --orange-500:  #ffa629;
+    --cyan-500:    #00a2c2;
+    --pink-500:    #e91e63;
+    --green-500:   #14ae5c;
+    --indigo-500:  #5860ed;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --page: #121212; --stage: #1b1b1b; --panel: #212121; --control: #323232; --hover: #323232;
+      --line-1: #424242; --line-2: #545454; --line-hover: #616161; --focus: #007be5;
+      --t1: #ffffff; --t2: #bdbdbd; --t3: #8c8c8c; --t4: #616161; --tonal: #80caff; --badge-blue: #09112b;
+      --shadow: 0 1px 4px rgba(0,0,0,.24), 0 12px 32px rgba(0,0,0,.40);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --page: #121212; --stage: #1b1b1b; --panel: #212121; --control: #323232; --hover: #323232;
+    --line-1: #424242; --line-2: #545454; --line-hover: #616161; --focus: #007be5;
+    --t1: #ffffff; --t2: #bdbdbd; --t3: #8c8c8c; --t4: #616161; --tonal: #80caff; --badge-blue: #09112b;
+    --shadow: 0 1px 4px rgba(0,0,0,.24), 0 12px 32px rgba(0,0,0,.40);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--t1);
+    font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px; line-height: 20px; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--tonal); }
+  svg { display: block; flex-shrink: 0; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 8px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 56px; }
+  .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+  .top h1 { font-size: 18px; line-height: 24px; font-weight: 500; margin: 0 0 4px; text-wrap: balance; }
+  .top p { margin: 0; color: var(--t2); max-width: 62ch; }
+  .theme { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px 0 8px; border-radius: 8px; background: var(--control); border: 1px solid var(--line-1); color: var(--t2); white-space: nowrap; }
+  .theme:hover { border-color: var(--line-hover); }
+
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .opt { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .opt-head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px; }
+  .opt-head .k { white-space: nowrap; flex-shrink: 0; font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
+  .opt-head .n { font-weight: 500; color: var(--t1); white-space: nowrap; }
+  .opt-head .d { color: var(--t2); }
+
+  /* the mock header region each dropdown lives in */
+  .stage { position: relative; background: var(--stage); border: 1px solid var(--line-1); border-radius: 12px; height: 470px; overflow: hidden; }
+  .stage.tall { height: 500px; }
+  .stage-bar { position: absolute; top: 12px; left: 16px; right: 16px; height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .crumb { color: var(--t2); }
+  .anchor { position: relative; }
+
+  /* trigger — Cogentiq "Dropdown" (Type/Default/bg-2, Strokes/Line-1, r8) */
+  .trigger { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 8px; border-radius: 8px; background: var(--control); border: 1px solid var(--line-1); color: var(--t1); font-weight: 500; transition: border-color .12s ease; }
+  .trigger:hover { border-color: var(--line-hover); }
+  .trigger[aria-expanded="true"] { border-color: var(--focus); }
+  .trigger .chev { color: var(--t2); transition: transform .15s ease; }
+  .trigger[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+  .av { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; line-height: 1; font-weight: 600; color: #121212; }
+  .trigger .av { width: 20px; height: 20px; font-size: 11px; border-radius: 5px; }
+
+  /* menu — Cogentiq panel (Card/bg-2, Strokes/Line-1, r12, pad 8) */
+  .menu { position: absolute; top: calc(100% + 8px); right: 0; background: var(--panel); border: 1px solid var(--line-1); border-radius: 12px; box-shadow: var(--shadow); padding: 8px; display: flex; flex-direction: column; gap: 2px; z-index: 5; }
+  .menu[hidden] { display: none; }
+  .menu-head { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; color: var(--t3); font-size: 12px; line-height: 16px; }
+  .menu-foot { display: flex; align-items: center; gap: 8px; margin: 6px -8px -8px; padding: 10px 16px 12px; border-top: 1px solid var(--line-1); color: var(--t2); border-radius: 0 0 12px 12px; }
+  .menu-foot:hover { color: var(--t1); }
+  .sep { height: 1px; background: var(--line-1); margin: 2px 8px 6px; }
+
+  /* row — Cogentiq nav item (r8, pad 8, gap 8, 14/20) */
+  .row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 8px; border-radius: 8px; text-align: left; color: var(--t1); }
+  .row:hover, .row.hovered { background: var(--hover); }
+  .row .name { flex: 1; min-width: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .check { width: 16px; color: var(--tonal); }
+  .row .check.off { visibility: hidden; }
+  .num { font-variant-numeric: tabular-nums; }
+  .zero { color: var(--t4); }
+
+  /* A — icon counts inline */
+  .counts { display: flex; align-items: center; gap: 12px; color: var(--t2); font-size: 12px; line-height: 16px; }
+  .counts .c { display: flex; align-items: center; gap: 4px; }
+  .counts .c.zero { color: var(--t4); }
+
+  /* B — caption under the name */
+  .stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0; }
+  .stack .name { font-weight: 500; }
+  .stack .cap { font-size: 12px; line-height: 16px; color: var(--t2); white-space: nowrap; }
+
+  /* C — compare columns */
+  .cols { display: flex; align-items: center; }
+  .cols .v { width: 36px; text-align: right; color: var(--t2); }
+  .cols .v.max { color: var(--t1); font-weight: 500; }
+  .cols .v.zero { color: var(--t4); }
+  .colhead { display: flex; align-items: center; }
+  .colhead .v { width: 36px; display: flex; justify-content: flex-end; color: var(--t3); }
+  .sort { display: inline-flex; align-items: center; gap: 6px; flex: 1; color: var(--t2); font-size: 12px; line-height: 16px; padding: 0; border-radius: 4px; }
+  .sort:hover { color: var(--t1); }
+
+  /* D — total + proportion bar */
+  .bar { display: flex; align-items: center; gap: 2px; width: 120px; height: 12px; }
+  .bar span { height: 3px; border-radius: 2px; }
+  .split { display: flex; align-items: center; gap: 10px; height: 12px; font-size: 12px; line-height: 12px; color: var(--t2); }
+  .split .c { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 3px; flex-shrink: 0; }
+  .total { color: var(--t2); }
+  .legend { display: flex; align-items: center; gap: 12px; padding: 8px 8px 2px; margin-top: 4px; border-top: 1px solid var(--line-1); font-size: 12px; line-height: 16px; color: var(--t3); }
+  .legend .c { display: flex; align-items: center; gap: 5px; }
+
+  .tokens { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line-1); color: var(--t3); font-size: 12px; line-height: 18px; }
+  .tokens code { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--t2); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Workspace switcher with artifact counts</h1>
+      <p>Four ways to show how many automations, assistants and agents each workspace holds, so an admin can pick the right one to demo. All four are live: open, hover, select. Counts are sample values.</p>
+    </div>
+    <button class="theme" id="themeBtn" type="button" aria-label="Toggle light and dark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3"></circle><path d="M8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9"></path></svg>
+      <span id="themeLabel">Theme</span>
+    </button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="tokens">Built from the Cogentiq design system library in Figma. Type <code>Geist 14/20</code>, panel <code>Backgrounds/Card/bg-2</code> + <code>Strokes/Line-1</code> r12, control <code>Backgrounds/Type/Default/bg-2</code> r8, row hover <code>Backgrounds/Hover</code>, text <code>Text/Primary · Secondary · Teritiary · Four</code>, focus <code>Strokes/Type/Focus</code>. Icons are the library's <code>dataflow-01</code>, <code>Agent</code> and <code>AI assistant</code> glyphs.</p>
+</div>
+
+<script>
+(function () {
+  const WS = [
+    { id: 'fin', n: 'Finance',      l: 'F', c: 'var(--orange-500)', a: 12, s: 4, g: 3 },
+    { id: 'sc',  n: 'Supply Chain', l: 'S', c: 'var(--cyan-500)',   a: 15, s: 2, g: 5 },
+    { id: 'mk',  n: 'Marketing',    l: 'M', c: 'var(--pink-500)',   a: 8,  s: 6, g: 2 },
+    { id: 'so',  n: 'Sales Ops',    l: 'S', c: 'var(--blue-500)',   a: 6,  s: 3, g: 4 },
+    { id: 'hr',  n: 'HR',           l: 'H', c: 'var(--purple-500)', a: 3,  s: 5, g: 0 },
+    { id: 'lg',  n: 'Legal',        l: 'L', c: 'var(--green-500)',  a: 1,  s: 2, g: 0 },
+  ];
+  const tot = w => w.a + w.s + w.g;
+
+  // Cogentiq library icons (stroke 1.5, currentColor)
+  const I = {
+    auto: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11.3333 13.3333H11.2C10.0799 13.3333 9.51984 13.3333 9.09202 13.1153C8.71569 12.9235 8.40973 12.6176 8.21799 12.2412C8 11.8134 8 11.2534 8 10.1333V5.86659C8 4.74648 8 4.18643 8.21799 3.7586C8.40973 3.38228 8.71569 3.07632 9.09202 2.88457C9.51984 2.66659 10.0799 2.66659 11.2 2.66659H11.3333M11.3333 13.3333C11.3333 14.0696 11.9303 14.6666 12.6667 14.6666C13.403 14.6666 14 14.0696 14 13.3333C14 12.5969 13.403 11.9999 12.6667 11.9999C11.9303 11.9999 11.3333 12.5969 11.3333 13.3333ZM11.3333 2.66659C11.3333 3.40296 11.9303 3.99992 12.6667 3.99992C13.403 3.99992 14 3.40296 14 2.66659C14 1.93021 13.403 1.33325 12.6667 1.33325C11.9303 1.33325 11.3333 1.93021 11.3333 2.66659ZM4.66667 7.99992L11.3333 7.99992M4.66667 7.99992C4.66667 8.7363 4.06971 9.33325 3.33333 9.33325C2.59695 9.33325 2 8.7363 2 7.99992C2 7.26354 2.59695 6.66658 3.33333 6.66658C4.06971 6.66658 4.66667 7.26354 4.66667 7.99992ZM11.3333 7.99992C11.3333 8.7363 11.9303 9.33325 12.6667 9.33325C13.403 9.33325 14 8.7363 14 7.99992C14 7.26354 13.403 6.66658 12.6667 6.66658C11.9303 6.66658 11.3333 7.26354 11.3333 7.99992Z"></path></svg>`,
+    asst: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.01133 13.2461C6.3596 13.1492 5.72638 12.9538 5.13333 12.6667L2 13.3334L2.86667 10.7334C1.31733 8.44206 1.916 5.48539 4.26667 3.81739C6.61733 2.15006 9.99333 2.28673 12.1633 4.13739C13.274 5.08473 13.8927 6.33073 13.9947 7.61073"></path><path d="M11.1331 14.2668C11.27 13.7009 11.5602 13.1838 11.9719 12.7722C12.3835 12.3605 12.9006 12.0703 13.4665 11.9334C12.9006 11.7966 12.3835 11.5064 11.9719 11.0947C11.5602 10.6831 11.27 10.1659 11.1331 9.6001C10.9963 10.1659 10.7061 10.6831 10.2944 11.0947C9.88278 11.5064 9.36563 11.7966 8.7998 11.9334C9.36563 12.0703 9.88278 12.3605 10.2944 12.7722C10.7061 13.1838 10.9963 13.7009 11.1331 14.2668Z"></path></svg>`,
+    agent: (s) => `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.99967 5.33341V2.66675H5.33301M1.33301 9.33341H2.66634M13.333 9.33341H14.6663M9.99967 8.66675V10.0001M5.99967 8.66675V10.0001M3.99967 5.33341H11.9997C12.7361 5.33341 13.333 5.93037 13.333 6.66675V12.0001C13.333 12.7365 12.7361 13.3334 11.9997 13.3334H3.99967C3.26329 13.3334 2.66634 12.7365 2.66634 12.0001V6.66675C2.66634 5.93037 3.26329 5.33341 3.99967 5.33341Z"></path></svg>`,
+    chev: `<svg class="chev" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6L8 10L12 6"></path></svg>`,
+    check: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"></path></svg>`,
+    gear: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2"></circle><path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3"></path></svg>`,
+    sort: `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M5 8h6M7 12h2"></path></svg>`,
+  };
+
+  const av = (w, cls = 'av') => `<span class="${cls}" style="background:${w.c}">${w.l}</span>`;
+  const check = on => `<span class="check ${on ? '' : 'off'}">${I.check}</span>`;
+  const z = v => v === 0 ? 'zero' : '';
+
+  const OPTS = [
+    { key: 'A', name: 'Icon counts inline', desc: 'One line per workspace, three counts on the right.', width: 340,
+      rows: (st) => WS.map(w => `<button class="row" type="button" data-pick="${w.id}">${av(w)}<span class="name">${w.n}</span>
+        <span class="counts"><span class="c ${z(w.a)}">${I.auto(13)}<span class="num">${w.a}</span></span><span class="c ${z(w.s)}">${I.asst(13)}<span class="num">${w.s}</span></span><span class="c ${z(w.g)}">${I.agent(13)}<span class="num">${w.g}</span></span></span>${check(st.sel === w.id)}</button>`).join('') },
+
+    { key: 'B', name: 'Caption breakdown', desc: 'Plain words under the name. Nothing to decode.', width: 372,
+      rows: (st) => WS.map(w => `<button class="row" type="button" data-pick="${w.id}" style="min-height:48px">${av(w)}
+        <span class="stack"><span class="name">${w.n}</span><span class="cap num">${w.a} automations · ${w.s} assistants · ${w.g} agents</span></span>${check(st.sel === w.id)}</button>`).join('') },
+
+    { key: 'C', name: 'Compare columns', desc: 'Sorted by total, aligned columns, top value per column brightened.', width: 360,
+      head: (st) => `<div class="menu-head"><button class="sort" type="button" data-sort>${I.sort}<span>${st.sort === 'total' ? 'Most artifacts' : 'A to Z'}</span>${I.chev.replace('class="chev" ', 'width="12" height="12" style="color:var(--t4)" ')}</button>
+        <span class="colhead"><span class="v">${I.auto(13)}</span><span class="v">${I.asst(13)}</span><span class="v">${I.agent(13)}</span></span><span style="width:16px"></span></div><div class="sep"></div>`,
+      rows: (st) => {
+        const list = [...WS].sort(st.sort === 'total' ? (x, y) => tot(y) - tot(x) : (x, y) => x.n.localeCompare(y.n));
+        const mx = { a: Math.max(...WS.map(w => w.a)), s: Math.max(...WS.map(w => w.s)), g: Math.max(...WS.map(w => w.g)) };
+        const v = (val, m) => `<span class="v num ${val === 0 ? 'zero' : val === m ? 'max' : ''}">${val}</span>`;
+        return list.map(w => `<button class="row" type="button" data-pick="${w.id}">${av(w)}<span class="name">${w.n}</span>
+          <span class="cols">${v(w.a, mx.a)}${v(w.s, mx.s)}${v(w.g, mx.g)}</span>${check(st.sel === w.id)}</button>`).join('');
+      } },
+
+    { key: 'D', name: 'Total + proportion bar', desc: 'One number per row, a thin bar for the mix. Hover a row for the exact split.', width: 324,
+      rows: (st) => WS.map((w, i) => {
+        const t = tot(w) || 1;
+        const seg = (val, c) => val ? `<span style="flex:${val};background:${c}"></span>` : '';
+        const hov = st.hover === w.id;
+        const second = hov
+          ? `<span class="split"><span class="c"><span class="dot" style="background:var(--blue-500)"></span><span class="num">${w.a}</span></span><span class="c"><span class="dot" style="background:var(--purple-500)"></span><span class="num">${w.s}</span></span><span class="c"><span class="dot" style="background:var(--orange-500)"></span><span class="num">${w.g}</span></span></span>`
+          : `<span class="bar">${seg(w.a, 'var(--blue-500)')}${seg(w.s, 'var(--purple-500)')}${seg(w.g, 'var(--orange-500)')}</span>`;
+        return `<button class="row ${hov ? 'hovered' : ''}" type="button" data-pick="${w.id}" data-hover="${w.id}" style="min-height:48px">${av(w)}
+          <span class="stack"><span class="name">${w.n}</span>${second}</span><span class="total num">${tot(w)}</span>${check(st.sel === w.id)}</button>`;
+      }).join(''),
+      foot: () => `<div class="legend"><span class="c"><span class="dot" style="background:var(--blue-500)"></span>Automations</span><span class="c"><span class="dot" style="background:var(--purple-500)"></span>Assistants</span><span class="c"><span class="dot" style="background:var(--orange-500)"></span>Agents</span></div>` },
+  ];
+
+  const state = {};
+  OPTS.forEach(o => state[o.key] = { open: true, sel: 'fin', sort: 'total', hover: o.key === 'D' ? 'sc' : null });
+
+  function renderOpt(o) {
+    const st = state[o.key];
+    const sel = WS.find(w => w.id === st.sel);
+    return `<section class="opt" data-opt="${o.key}">
+      <div class="opt-head"><span class="k">Option ${o.key}</span><span class="n">${o.name}</span><span class="d">${o.desc}</span></div>
+      <div class="stage ${o.key === 'B' || o.key === 'D' ? 'tall' : ''}">
+        <div class="stage-bar"><span class="crumb">Home</span>
+          <div class="anchor">
+            <button class="trigger" type="button" aria-haspopup="menu" aria-expanded="${st.open}" data-toggle>${av(sel, 'av')}<span>${sel.n}</span>${I.chev}</button>
+            <div class="menu" role="menu" style="width:${o.width}px" ${st.open ? '' : 'hidden'}>
+              ${o.head ? o.head(st) : ''}
+              ${o.rows(st)}
+              ${o.foot ? o.foot(st) : ''}
+              <button class="menu-foot" type="button">${I.gear}<span>Manage workspaces</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  const grid = document.getElementById('grid');
+  function paint() { grid.innerHTML = OPTS.map(renderOpt).join(''); }
+  paint();
+
+  grid.addEventListener('click', (e) => {
+    const sec = e.target.closest('[data-opt]'); if (!sec) return;
+    const st = state[sec.dataset.opt];
+    if (e.target.closest('[data-toggle]')) { st.open = !st.open; paint(); return; }
+    if (e.target.closest('[data-sort]')) { st.sort = st.sort === 'total' ? 'name' : 'total'; paint(); return; }
+    const pick = e.target.closest('[data-pick]');
+    if (pick) { st.sel = pick.dataset.pick; st.open = false; paint(); }
+  });
+  grid.addEventListener('mouseover', (e) => {
+    const r = e.target.closest('[data-hover]'); if (!r) return;
+    const st = state.D; if (st.hover !== r.dataset.hover) { st.hover = r.dataset.hover; paint(); }
+  });
+
+  // theme toggle: cycles system → light → dark
+  const root = document.documentElement, label = document.getElementById('themeLabel');
+  const setLabel = () => { const t = root.getAttribute('data-theme'); label.textContent = t ? (t === 'dark' ? 'Dark' : 'Light') : 'System'; };
+  try { const saved = localStorage.getItem('ws-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (_) {}
+  setLabel();
+  document.getElementById('themeBtn').addEventListener('click', () => {
+    const t = root.getAttribute('data-theme');
+    const next = !t ? 'light' : t === 'light' ? 'dark' : null;
+    if (next) root.setAttribute('data-theme', next); else root.removeAttribute('data-theme');
+    try { next ? localStorage.setItem('ws-theme', next) : localStorage.removeItem('ws-theme'); } catch (_) {}
+    setLabel();
+  });
+})();
+</script>
