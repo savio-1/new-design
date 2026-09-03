@@ -44,10 +44,35 @@ EDITS = [
 
     # Page bars: title, count and description on one line.
     ("""    .filters-bar .title-block { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-    .filters-bar h1 { margin: 0; color: var(--text-primary); }""",
+    .filters-bar h1 { margin: 0; color: var(--text-primary); }
+    .filters-bar h1 .count { font-weight: 400; color: var(--text-teritiary); }""",
      """    /* One line: name, count, then the description in the space left over. */
-    .filters-bar .title-block { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
-    .filters-bar h1 { flex: none; color: var(--text-primary); }"""),
+    .filters-bar .title-block { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .filters-bar h1 { color: var(--text-primary); }"""),
+
+    # The page-bar title row and its count pill serve both bars, so they
+    # lose the view prefix and sit with the other shared furniture. The
+    # pill is centred on the heading rather than sat on its baseline, and
+    # its side padding comes in to 6px.
+    ("""    .count-pill {
+      display: flex; align-items: center; gap: 4px;
+      height: 24px; padding: 0 8px; border-radius: 8px;""",
+     """    .title-row { flex: none; display: flex; align-items: center; gap: 8px; }
+    .count-pill {
+      display: flex; align-items: center; gap: 4px;
+      height: 24px; padding: 0 6px; border-radius: 8px;"""),
+
+    # Studio takes the same number block, showing the live bundle count.
+    ("""<h1 class="t-subhead1-med">Studio <span class="count">(12)</span></h1>""",
+     """<div class="title-row">
+                <h1 class="t-subhead1-med">Studio</h1>
+                <span class="count-pill t-caption1-reg" id="bundleCount">0</span>
+              </div>"""),
+    ("""  $('bundleGrid').innerHTML = hits.map(bundleCard).join('');
+  $('bundlesEmpty').classList.toggle('is-visible', hits.length === 0);""",
+     """  $('bundleGrid').innerHTML = hits.map(bundleCard).join('');
+  $('bundleCount').textContent = hits.length;
+  $('bundlesEmpty').classList.toggle('is-visible', hits.length === 0);"""),
     ("""    .filters-bar .desc { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }""",
      """    .filters-bar .desc { flex: 1 1 auto; min-width: 0; color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }"""),
     ("""    .gl-bar-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -58,10 +83,10 @@ EDITS = [
        page header uses for "Context" and its subtext. The description
        takes the leftover width and truncates rather than wrapping, so
        the bar keeps a single-row height at any viewport. */
-    .gl-bar-text { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
-    .gl-title-row { flex: none; display: flex; align-items: center; gap: 8px; }
-    .gl-title-row h1 { color: var(--text-primary); }
+    .gl-bar-text { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .gl-bar-text h1 { color: var(--text-primary); }
     .gl-bar .desc { flex: 1 1 auto; min-width: 0; color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }"""),
+    ('<div class="gl-title-row">', '<div class="title-row">'),
 
     # Crisper copy, sized for a shared line.
     ('<span class="desc t-body2-reg">Create context bundles your assistants can use.</span>',

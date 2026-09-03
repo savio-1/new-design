@@ -553,6 +553,23 @@
     .main-section { flex: 1 1 auto; min-height: 0; display: flex; }
 
     /* ══════════════════════════════════════════════════════════════
+       PAGE BAR — the title row every catalogue view opens with: name,
+       count, then the description on the same line.
+       ══════════════════════════════════════════════════════════════ */
+    /* Centred, not baseline-aligned: the pill is a box beside an 18px
+       heading, and sitting it on the text baseline dropped the whole row
+       — description included — below the heading's optical centre. */
+    .title-row { flex: none; display: flex; align-items: center; gap: 8px; }
+    .count-pill {
+      display: flex; align-items: center; gap: 4px;
+      height: 24px; padding: 0 6px; border-radius: 8px;
+      background: var(--backgrounds-card-bg-4);
+      border: 1px solid var(--strokes-type-default);
+      color: var(--text-teritiary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ══════════════════════════════════════════════════════════════
        SHARED FORM CONTROLS — used by this page and by Create bundle
        ══════════════════════════════════════════════════════════════ */
     .search-field {
@@ -857,9 +874,8 @@
       position: relative; z-index: 2;
     }
     /* One line: name, count, then the description in the space left over. */
-    .filters-bar .title-block { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
-    .filters-bar h1 { flex: none; color: var(--text-primary); }
-    .filters-bar h1 .count { font-weight: 400; color: var(--text-teritiary); }
+    .filters-bar .title-block { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .filters-bar h1 { color: var(--text-primary); }
     .filters-bar .desc { flex: 1 1 auto; min-width: 0; color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .bar-actions { flex: none; display: flex; align-items: center; gap: 12px; }
 
@@ -1070,9 +1086,8 @@
        page header uses for "Context" and its subtext. The description
        takes the leftover width and truncates rather than wrapping, so
        the bar keeps a single-row height at any viewport. */
-    .gl-bar-text { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
-    .gl-title-row { flex: none; display: flex; align-items: center; gap: 8px; }
-    .gl-title-row h1 { color: var(--text-primary); }
+    .gl-bar-text { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .gl-bar-text h1 { color: var(--text-primary); }
     .gl-bar .desc { flex: 1 1 auto; min-width: 0; color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .gl-bar-actions { flex: none; display: flex; align-items: center; gap: 12px; }
     .gl-bar-actions .btn-primary { height: 36px; padding: 0 14px; }
@@ -1315,14 +1330,6 @@
        catalogue behaves like every other one: the three filter
        dropdowns, their popovers, and the card/table view toggle.
        ══════════════════════════════════════════════════════════════ */
-    .count-pill {
-      display: flex; align-items: center; gap: 4px;
-      height: 24px; padding: 0 8px; border-radius: 8px;
-      background: var(--backgrounds-card-bg-4);
-      border: 1px solid var(--strokes-type-default);
-      color: var(--text-teritiary);
-      font-variant-numeric: tabular-nums;
-    }
     /* Filter row (Tags / Created by / All time + view toggle) */
         .filter-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; height: 32px; }
     .filter-left { display: flex; align-items: flex-start; gap: 8px; }
@@ -2155,7 +2162,10 @@
 
           <div class="filters-bar">
             <div class="title-block">
-              <h1 class="t-subhead1-med">Studio <span class="count">(12)</span></h1>
+              <div class="title-row">
+                <h1 class="t-subhead1-med">Studio</h1>
+                <span class="count-pill t-caption1-reg" id="bundleCount">0</span>
+              </div>
               <span class="desc t-body2-reg">Reusable context bundles for your assistants.</span>
             </div>
             <div class="bar-actions">
@@ -2239,7 +2249,7 @@
 
           <div class="gl-bar">
             <div class="gl-bar-text">
-              <div class="gl-title-row">
+              <div class="title-row">
                 <h1 class="t-subhead1-med">Glossary</h1>
                 <span class="count-pill t-caption1-reg" id="glCount">0</span>
               </div>
@@ -2713,6 +2723,7 @@ function renderBundles(query) {
   const q = (query || '').trim().toLowerCase();
   const hits = BUNDLES.filter((b) => !q || b.name.toLowerCase().includes(q) || b.desc.toLowerCase().includes(q));
   $('bundleGrid').innerHTML = hits.map(bundleCard).join('');
+  $('bundleCount').textContent = hits.length;
   $('bundlesEmpty').classList.toggle('is-visible', hits.length === 0);
   markSelected();
 }
