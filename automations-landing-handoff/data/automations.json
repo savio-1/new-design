@@ -1,0 +1,716 @@
+[
+  {
+    "name": "Invoice Extraction Pipeline",
+    "type": "Live",
+    "desc": "Reads supplier invoices out of the AP inbox, pulls line items and totals, and posts the approved ones to NetSuite.",
+    "status": "Active",
+    "hue": "var(--text-coloured-indigo)",
+    "pending": 5,
+    "trigger": "Email received · AP inbox",
+    "schedule": "On arrival",
+    "by": "Sarah Chen",
+    "tags": [
+      "finance"
+    ],
+    "runs": 1284,
+    "ok": 98.2,
+    "avg": "1m 12s",
+    "cost": "$0.06",
+    "last": "7m ago",
+    "lastN": 7,
+    "created": "Mar 4, 2026",
+    "version": "v14",
+    "steps": [
+      {
+        "k": "email",
+        "l": "Invoice in",
+        "s": "ap@acme.co"
+      },
+      {
+        "k": "model",
+        "l": "Extract fields",
+        "s": "gpt-4o ocr"
+      },
+      {
+        "k": "tool",
+        "l": "Match to PO",
+        "s": "netsuite"
+      },
+      {
+        "k": "branch",
+        "l": "Over $10k?",
+        "s": "amount gate"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Finance OK",
+        "s": "ap controllers"
+      },
+      {
+        "k": "action",
+        "l": "Post to ERP",
+        "s": "create bill"
+      }
+    ]
+  },
+  {
+    "name": "Customer Onboarding",
+    "type": "Live",
+    "desc": "Takes a signed order through provisioning, welcome mail and the first success check-in, pausing once for account review.",
+    "status": "Active",
+    "hue": "var(--text-coloured-blue)",
+    "pending": 4,
+    "trigger": "Webhook · Salesforce opportunity won",
+    "schedule": "On event",
+    "by": "Mike Torres",
+    "tags": [
+      "crm",
+      "onboarding"
+    ],
+    "runs": 412,
+    "ok": 96.8,
+    "avg": "4m 05s",
+    "cost": "$0.21",
+    "last": "14m ago",
+    "lastN": 14,
+    "created": "Jan 18, 2026",
+    "version": "v27",
+    "steps": [
+      {
+        "k": "webhook",
+        "l": "Deal won",
+        "s": "salesforce"
+      },
+      {
+        "k": "data",
+        "l": "Build account",
+        "s": "postgres"
+      },
+      {
+        "k": "agent",
+        "l": "Draft welcome",
+        "s": "onboarding"
+      },
+      {
+        "k": "checkpoint",
+        "l": "CS review",
+        "s": "success team"
+      },
+      {
+        "k": "notify",
+        "l": "Send welcome",
+        "s": "sendgrid"
+      },
+      {
+        "k": "sync",
+        "l": "Sync HubSpot",
+        "s": "contacts"
+      },
+      {
+        "k": "schedule",
+        "l": "Day-7 nudge",
+        "s": "+7 days"
+      }
+    ]
+  },
+  {
+    "name": "Data Pipeline Sync",
+    "type": "Job",
+    "desc": "Hourly warehouse sync — pulls the source deltas, validates the schema, and lands them in Snowflake.",
+    "status": "Active",
+    "hue": "var(--text-coloured-cyan)",
+    "pending": 0,
+    "trigger": "Schedule · hourly",
+    "schedule": "Every hour, :05",
+    "by": "Anna Park",
+    "tags": [],
+    "runs": 168,
+    "ok": 99.4,
+    "avg": "5m 12s",
+    "cost": "$1.23",
+    "last": "31m ago",
+    "lastN": 31,
+    "created": "Nov 2, 2025",
+    "version": "v9",
+    "steps": [
+      {
+        "k": "schedule",
+        "l": "Hourly run",
+        "s": "cron 5 * *"
+      },
+      {
+        "k": "data",
+        "l": "Pull deltas",
+        "s": "6 sources"
+      },
+      {
+        "k": "guard",
+        "l": "Schema check",
+        "s": "strict"
+      },
+      {
+        "k": "action",
+        "l": "Land data",
+        "s": "snowflake"
+      }
+    ]
+  },
+  {
+    "name": "Contract Review Agent",
+    "type": "Live",
+    "desc": "Reads an inbound contract against the playbook, flags non-standard clauses, and routes anything material to legal.",
+    "status": "Active",
+    "hue": "var(--purple-450)",
+    "pending": 3,
+    "trigger": "Doc store · new file in /contracts",
+    "schedule": "On upload",
+    "by": "Priya Nair",
+    "tags": [
+      "legal"
+    ],
+    "runs": 96,
+    "ok": 94.7,
+    "avg": "2m 48s",
+    "cost": "$0.44",
+    "last": "1h ago",
+    "lastN": 60,
+    "created": "Apr 22, 2026",
+    "version": "v6",
+    "steps": [
+      {
+        "k": "doc",
+        "l": "Contract in",
+        "s": "/contracts"
+      },
+      {
+        "k": "model",
+        "l": "Read clauses",
+        "s": "claude 200k"
+      },
+      {
+        "k": "tool",
+        "l": "Playbook diff",
+        "s": "38 rules"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Legal OK",
+        "s": "counsel"
+      },
+      {
+        "k": "checkpoint",
+        "l": "CFO OK",
+        "s": "if > $250k"
+      },
+      {
+        "k": "action",
+        "l": "File copy",
+        "s": "doc store"
+      }
+    ]
+  },
+  {
+    "name": "Lead Scoring Engine",
+    "type": "Live",
+    "desc": "Scores every new lead on fit and intent, enriches the record, and hands the top band straight to an AE.",
+    "status": "Active",
+    "hue": "var(--text-coloured-green)",
+    "pending": 0,
+    "trigger": "Webhook · form submission",
+    "schedule": "On event",
+    "by": "James Liu",
+    "tags": [
+      "scoring"
+    ],
+    "runs": 2140,
+    "ok": 97.9,
+    "avg": "3m 51s",
+    "cost": "$0.09",
+    "last": "22m ago",
+    "lastN": 22,
+    "created": "Feb 9, 2026",
+    "version": "v31",
+    "steps": [
+      {
+        "k": "webhook",
+        "l": "Form in",
+        "s": "marketo"
+      },
+      {
+        "k": "data",
+        "l": "Enrich",
+        "s": "clearbit"
+      },
+      {
+        "k": "model",
+        "l": "Score fit",
+        "s": "fit v3"
+      },
+      {
+        "k": "checkpoint",
+        "l": "AE assign",
+        "s": "sales ops"
+      },
+      {
+        "k": "sync",
+        "l": "Write to CRM",
+        "s": "salesforce"
+      }
+    ]
+  },
+  {
+    "name": "Stripe Payment Handler",
+    "type": "Live",
+    "desc": "Reconciles Stripe events against invoices, retries soft failures, and escalates disputes for a human call.",
+    "status": "Active",
+    "hue": "var(--orange-600)",
+    "pending": 0,
+    "trigger": "Webhook · stripe events",
+    "schedule": "On event",
+    "by": "Sarah Chen",
+    "tags": [
+      "finance",
+      "payments"
+    ],
+    "runs": 3610,
+    "ok": 99.1,
+    "avg": "0m 42s",
+    "cost": "$0.02",
+    "last": "1m ago",
+    "lastN": 1,
+    "created": "Oct 14, 2025",
+    "version": "v22",
+    "steps": [
+      {
+        "k": "webhook",
+        "l": "Stripe event",
+        "s": "charge.*"
+      },
+      {
+        "k": "branch",
+        "l": "Dispute?",
+        "s": "event type"
+      },
+      {
+        "k": "data",
+        "l": "Match invoice",
+        "s": "ledger"
+      },
+      {
+        "k": "tool",
+        "l": "Retry charge",
+        "s": "max 3"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Dispute OK",
+        "s": "finance ops"
+      },
+      {
+        "k": "notify",
+        "l": "Notify team",
+        "s": "#billing"
+      }
+    ]
+  },
+  {
+    "name": "Vendor Onboarding Flow",
+    "type": "Live",
+    "desc": "Collects vendor documents, runs the compliance screen, and opens the supplier record once procurement approves.",
+    "status": "Active",
+    "hue": "var(--text-coloured-indigo)",
+    "pending": 0,
+    "trigger": "Form · vendor intake",
+    "schedule": "On submission",
+    "by": "Tom Weber",
+    "tags": [
+      "procurement"
+    ],
+    "runs": 74,
+    "ok": 91.9,
+    "avg": "6m 20s",
+    "cost": "$0.38",
+    "last": "3h ago",
+    "lastN": 180,
+    "created": "May 30, 2026",
+    "version": "v4",
+    "steps": [
+      {
+        "k": "trigger",
+        "l": "Intake in",
+        "s": "vendor form"
+      },
+      {
+        "k": "doc",
+        "l": "Collect docs",
+        "s": "w-9 + coi"
+      },
+      {
+        "k": "guard",
+        "l": "Sanctions",
+        "s": "ofac list"
+      },
+      {
+        "k": "model",
+        "l": "Risk summary",
+        "s": "gpt-4o"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Buyer OK",
+        "s": "procurement"
+      },
+      {
+        "k": "action",
+        "l": "Open supplier",
+        "s": "coupa"
+      }
+    ]
+  },
+  {
+    "name": "Expense Audit Bot",
+    "type": "Job",
+    "desc": "Samples submitted expenses, checks them against policy, and queues the exceptions for a manager decision.",
+    "status": "Active",
+    "hue": "var(--text-coloured-cyan)",
+    "pending": 0,
+    "trigger": "Schedule · weekdays 07:00",
+    "schedule": "Mon–Fri, 07:00",
+    "by": "Anna Park",
+    "tags": [],
+    "runs": 132,
+    "ok": 95.5,
+    "avg": "2m 04s",
+    "cost": "$0.11",
+    "last": "6h ago",
+    "lastN": 360,
+    "created": "Jun 11, 2026",
+    "version": "v8",
+    "steps": [
+      {
+        "k": "schedule",
+        "l": "Daily 07:00",
+        "s": "weekdays"
+      },
+      {
+        "k": "data",
+        "l": "Pull expenses",
+        "s": "expensify"
+      },
+      {
+        "k": "model",
+        "l": "Policy check",
+        "s": "audit v2"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Manager OK",
+        "s": "cost centre"
+      },
+      {
+        "k": "notify",
+        "l": "Send digest",
+        "s": "email"
+      }
+    ]
+  },
+  {
+    "name": "Email Campaign Trigger",
+    "type": "Job",
+    "desc": "Watches segment membership and fires the matching lifecycle campaign, holding back anyone in an active sequence.",
+    "status": "Active",
+    "hue": "var(--text-coloured-blue)",
+    "pending": 0,
+    "trigger": "Segment change · lifecycle",
+    "schedule": "Every 15 min",
+    "by": "James Liu",
+    "tags": [
+      "email"
+    ],
+    "runs": 862,
+    "ok": 98.6,
+    "avg": "0m 34s",
+    "cost": "$0.03",
+    "last": "8m ago",
+    "lastN": 8,
+    "created": "Dec 6, 2025",
+    "version": "v17",
+    "steps": [
+      {
+        "k": "trigger",
+        "l": "Segment move",
+        "s": "lifecycle"
+      },
+      {
+        "k": "branch",
+        "l": "In sequence?",
+        "s": "suppression"
+      },
+      {
+        "k": "model",
+        "l": "Pick variant",
+        "s": "bandit"
+      },
+      {
+        "k": "notify",
+        "l": "Send campaign",
+        "s": "braze"
+      }
+    ]
+  },
+  {
+    "name": "Slack Notification Bot",
+    "type": "Live",
+    "desc": "Turns pipeline and incident events into one readable Slack post per channel, deduped across sources.",
+    "status": "Active",
+    "hue": "var(--text-coloured-green)",
+    "pending": 0,
+    "trigger": "Event bus · ops topics",
+    "schedule": "On event",
+    "by": "Mike Torres",
+    "tags": [
+      "ops"
+    ],
+    "runs": 4980,
+    "ok": 99.7,
+    "avg": "0m 08s",
+    "cost": "$0.00",
+    "last": "just now",
+    "lastN": 0,
+    "created": "Sep 1, 2025",
+    "version": "v11",
+    "steps": [
+      {
+        "k": "trigger",
+        "l": "Ops event",
+        "s": "event bus"
+      },
+      {
+        "k": "model",
+        "l": "Summarise",
+        "s": "haiku"
+      },
+      {
+        "k": "notify",
+        "l": "Post to Slack",
+        "s": "4 channels"
+      }
+    ]
+  },
+  {
+    "name": "Report Generator",
+    "type": "Job",
+    "desc": "Builds the weekly executive pack from the warehouse, with a review stop before it reaches the distribution list.",
+    "status": "Paused",
+    "hue": "var(--orange-600)",
+    "pending": 0,
+    "trigger": "Schedule · Mondays 06:00",
+    "schedule": "Weekly, Mon 06:00",
+    "by": "Priya Nair",
+    "tags": [
+      "reporting"
+    ],
+    "runs": 24,
+    "ok": 87.5,
+    "avg": "6m 47s",
+    "cost": "$2.05",
+    "last": "6d ago",
+    "lastN": 8640,
+    "created": "Aug 19, 2025",
+    "version": "v19",
+    "steps": [
+      {
+        "k": "schedule",
+        "l": "Weekly run",
+        "s": "mon 06:00"
+      },
+      {
+        "k": "data",
+        "l": "Query data",
+        "s": "11 queries"
+      },
+      {
+        "k": "model",
+        "l": "Commentary",
+        "s": "gpt-4o"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Exec OK",
+        "s": "chief of staff"
+      },
+      {
+        "k": "action",
+        "l": "Publish pack",
+        "s": "doc store"
+      }
+    ]
+  },
+  {
+    "name": "HubSpot Contact Sync",
+    "type": "Job",
+    "desc": "Two-way contact sync between HubSpot and the warehouse, with conflict resolution on the newest write.",
+    "status": "Active",
+    "hue": "var(--text-coloured-cyan)",
+    "pending": 0,
+    "trigger": "Schedule · every 30 min",
+    "schedule": "Every 30 min",
+    "by": "Tom Weber",
+    "tags": [],
+    "runs": 96,
+    "ok": 88.5,
+    "avg": "1m 55s",
+    "cost": "$0.14",
+    "last": "24m ago",
+    "lastN": 24,
+    "created": "Jul 7, 2025",
+    "version": "v13",
+    "steps": [
+      {
+        "k": "schedule",
+        "l": "Every 30 min",
+        "s": "cron"
+      },
+      {
+        "k": "sync",
+        "l": "Pull HubSpot",
+        "s": "contacts"
+      },
+      {
+        "k": "branch",
+        "l": "Conflict?",
+        "s": "newest wins"
+      },
+      {
+        "k": "data",
+        "l": "Upsert rows",
+        "s": "snowflake"
+      }
+    ]
+  },
+  {
+    "name": "PDF Text Extractor",
+    "type": "Live",
+    "desc": "A shared building block — takes any PDF and returns clean text and tables for the automations downstream of it.",
+    "status": "Active",
+    "hue": "var(--purple-450)",
+    "pending": 0,
+    "trigger": "Called by other automations",
+    "schedule": "On call",
+    "by": "Anna Park",
+    "tags": [
+      "utility"
+    ],
+    "runs": 1490,
+    "ok": 93.1,
+    "avg": "0m 26s",
+    "cost": "$0.01",
+    "last": "2h ago",
+    "lastN": 120,
+    "created": "Jun 2, 2025",
+    "version": "v7",
+    "steps": [
+      {
+        "k": "trigger",
+        "l": "File in",
+        "s": "sub-flow"
+      },
+      {
+        "k": "tool",
+        "l": "OCR pages",
+        "s": "tesseract"
+      },
+      {
+        "k": "model",
+        "l": "Structure",
+        "s": "haiku"
+      }
+    ]
+  },
+  {
+    "name": "Ticket Triage Agent",
+    "type": "Live",
+    "desc": "Reads an incoming support ticket, sets priority and queue, and drafts the first reply for an agent to send.",
+    "status": "Draft",
+    "hue": "var(--text-coloured-indigo)",
+    "pending": 0,
+    "trigger": "Webhook · Zendesk ticket created",
+    "schedule": "Not scheduled",
+    "by": "Mike Torres",
+    "tags": [
+      "support"
+    ],
+    "runs": 0,
+    "ok": 0,
+    "avg": "—",
+    "cost": "—",
+    "last": "never",
+    "lastN": 999999,
+    "created": "Aug 26, 2026",
+    "version": "draft",
+    "steps": [
+      {
+        "k": "webhook",
+        "l": "Ticket in",
+        "s": "zendesk"
+      },
+      {
+        "k": "model",
+        "l": "Classify",
+        "s": "gpt-4o-mini"
+      },
+      {
+        "k": "checkpoint",
+        "l": "Agent review",
+        "s": "tier 1"
+      },
+      {
+        "k": "action",
+        "l": "Set queue",
+        "s": "zendesk"
+      }
+    ]
+  },
+  {
+    "name": "Churn Alert Notifier",
+    "type": "Job",
+    "desc": "Watches usage decay against the churn model and opens a save-play task for the owning CSM.",
+    "status": "Draft",
+    "hue": "var(--text-coloured-green)",
+    "pending": 0,
+    "trigger": "Schedule · daily 08:00",
+    "schedule": "Not scheduled",
+    "by": "Sarah Chen",
+    "tags": [],
+    "runs": 0,
+    "ok": 0,
+    "avg": "—",
+    "cost": "—",
+    "last": "never",
+    "lastN": 999999,
+    "created": "Aug 28, 2026",
+    "version": "draft",
+    "steps": [
+      {
+        "k": "schedule",
+        "l": "Daily 08:00",
+        "s": "not armed"
+      },
+      {
+        "k": "data",
+        "l": "Usage rollup",
+        "s": "warehouse"
+      },
+      {
+        "k": "model",
+        "l": "Churn risk",
+        "s": "risk v4"
+      },
+      {
+        "k": "action",
+        "l": "Save play",
+        "s": "task"
+      }
+    ]
+  }
+]
