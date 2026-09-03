@@ -32,9 +32,10 @@ for (const re of strip) {
   if (!re.test(out)) throw new Error('scaffolding pattern not found: ' + re);
   out = out.replace(re, '\n');
 }
-for (const tag of ['<!DOCTYPE', '<html', '<head>', '</head>', '<body', '</body>', '</html>']) {
-  if (out.includes(tag)) throw new Error('scaffolding survived the strip: ' + tag);
-}
+// only a line-leading tag counts — prose or a comment mentioning <html> is fine
+const survivor = out.split('\n').find(l =>
+  /^\s*<\/?(?:!DOCTYPE|html|head|body)\b/i.test(l));
+if (survivor) throw new Error('scaffolding survived the strip: ' + survivor.trim().slice(0, 60));
 if (!/<title>[^<]+<\/title>/.test(out.slice(0, 8192))) {
   throw new Error('no <title> in the first 8KB — the artifact would lose its name');
 }
