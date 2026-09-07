@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gradient Shape Studio</title>
+<meta name="description" content="Make soft-gradient geometric shapes (arches, pills, squiggles, hexagons…) in seconds. Pick a shape, a palette and a glow, then export SVG or PNG." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#131316; --panel-2:#1a1a1f; --panel-3:#22222a; --line:#26262d; --line-2:#33333c;
+    --text:#f3f3f5; --muted:#8e8e99; --faint:#5c5c66;
+    --accent:#7b4bff; --accent-soft:rgba(123,75,255,.18); --accent-2:#ff4b0d;
+    --thumb:#ffffff; --track:#2b2b33;
+    --font:'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --r:12px; --r-sm:8px;
+    --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.35);
+  }
+  html[data-theme="light"]{
+    --bg:#f2f1ee; --panel:#ffffff; --panel-2:#f6f5f2; --panel-3:#ecebe6; --line:#e3e1db; --line-2:#d3d1ca;
+    --text:#16161a; --muted:#6c6c76; --faint:#a3a3ab;
+    --accent-soft:rgba(123,75,255,.12);
+    --thumb:#16161a; --track:#dddbd4;
+    --shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 10px 30px rgba(20,20,30,.08);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-size:13px;line-height:1.45;overflow:hidden;transition:background .25s,color .25s}
+  button,input,select{font:inherit;color:inherit}
+  button{cursor:pointer;background:none;border:0}
+  ::selection{background:var(--accent);color:#fff}
+
+  /* ───────── layout ───────── */
+  .app{display:grid;grid-template-rows:56px 1fr;grid-template-columns:1fr 340px;height:100vh}
+  header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;letter-spacing:-.01em;white-space:nowrap}
+  .brand .logo{width:26px;height:26px;border-radius:8px;background:radial-gradient(circle at 50% 50%,#ff4b0d 0%,#7b4bff 70%);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+  .brand small{color:var(--muted);font-weight:400;margin-left:4px}
+  .spacer{flex:1}
+  .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+  .seg button{padding:5px 12px;border-radius:999px;color:var(--muted);font-weight:500;font-size:12px;transition:all .15s}
+  .seg button:hover{color:var(--text)}
+  .seg button.on{background:var(--text);color:var(--bg)}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);color:var(--text);font-weight:500;font-size:12px;white-space:nowrap;transition:background .15s,border-color .15s,transform .05s}
+  .btn:hover{background:var(--panel-3);border-color:var(--line-2)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--text);color:var(--bg);border-color:transparent}
+  .btn.primary:hover{opacity:.9}
+  .btn.accent{background:var(--accent);color:#fff;border-color:transparent}
+  .btn.ghost{background:transparent}
+  .btn.danger:hover{color:#ff5a5a;border-color:rgba(255,90,90,.4)}
+  .btn svg{width:14px;height:14px}
+  .icon-btn{width:34px;height:34px;display:inline-grid;place-items:center;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);color:var(--text)}
+  .icon-btn:hover{background:var(--panel-3)}
+  .icon-btn svg{width:16px;height:16px}
+
+  /* ───────── stage ───────── */
+  .stage{position:relative;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+  .canvas-wrap{flex:1;min-height:0;padding:28px;display:flex}
+  .canvas{position:relative;flex:1;min-width:0;min-height:0;border-radius:18px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line);transition:background .25s}
+  .canvas.checker{background-color:#fff;background-image:linear-gradient(45deg,#e6e6e6 25%,transparent 25%),linear-gradient(-45deg,#e6e6e6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e6e6e6 75%),linear-gradient(-45deg,transparent 75%,#e6e6e6 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
+  .canvas svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .canvas svg [data-i]{cursor:pointer}
+  .canvas .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);text-align:center;pointer-events:none}
+  .stage-bar{display:flex;align-items:center;gap:8px;padding:0 28px 22px;flex-wrap:wrap}
+  .stage-bar .hint{color:var(--faint);font-size:12px;margin-left:auto}
+  kbd{font-family:var(--mono);font-size:10.5px;padding:1px 5px;border-radius:4px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--muted)}
+
+  /* ───────── panel ───────── */
+  .panel{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+  .panel::-webkit-scrollbar{width:8px}.panel::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:8px}
+  section{padding:16px 18px;border-bottom:1px solid var(--line)}
+  section h3{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+  section h3 .mini{font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--accent);cursor:pointer}
+  section h3 .mini:hover{text-decoration:underline}
+
+  .shape-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .shape-grid button{aspect-ratio:1;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);display:grid;place-items:center;color:var(--muted);transition:all .15s}
+  .shape-grid button:hover{border-color:var(--line-2);color:var(--text)}
+  .shape-grid button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .shape-grid svg{width:22px;height:30px;fill:currentColor}
+  .shape-name{margin-top:10px;font-size:12px;color:var(--muted)}
+  .shape-name b{color:var(--text);font-weight:500}
+
+  .row{display:grid;grid-template-columns:1fr auto;row-gap:6px;margin:10px 0}
+  .row:first-child{margin-top:0}
+  .row > span{font-size:12px;color:var(--text)}
+  .row > output{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;min-width:48px}
+  .row > input[type=range]{grid-column:1/-1}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:3px;background:var(--track)}
+  input[type=range]::-moz-range-track{height:3px;border-radius:3px;background:var(--track)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--thumb);margin-top:-5.5px;border:0;box-shadow:0 1px 4px rgba(0,0,0,.35);transition:transform .1s}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--thumb);border:0;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+  input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  select,.text{width:100%;padding:7px 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);color:var(--text);font-size:12px;outline:none}
+  select:focus,.text:focus{border-color:var(--accent)}
+  select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:28px}
+  .field{margin:10px 0}
+  .field label{display:block;font-size:12px;margin-bottom:6px}
+
+  .mode{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px;margin-bottom:6px}
+  .mode button{padding:6px 0;border-radius:6px;color:var(--muted);font-weight:500;font-size:12px}
+  .mode button.on{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+
+  /* colors */
+  .stops{display:flex;flex-direction:column;gap:8px}
+  .stop{display:grid;grid-template-columns:34px 1fr auto 26px;gap:8px;align-items:center}
+  .stop .sw{position:relative;width:34px;height:34px;border-radius:10px;border:1px solid rgba(0,0,0,.25);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;overflow:hidden;cursor:pointer}
+  .stop .sw input{position:absolute;inset:-10px;width:60px;height:60px;opacity:0;cursor:pointer}
+  .stop .sw.active{outline:2px solid var(--accent);outline-offset:2px}
+  .stop .hex{font-family:var(--mono);font-size:12px;text-transform:uppercase}
+  .stop .role{font-size:11px;color:var(--muted)}
+  .stop .x{width:26px;height:26px;border-radius:6px;color:var(--muted);display:grid;place-items:center}
+  .stop .x:hover{color:#ff5a5a;background:var(--panel-2)}
+  .stop .x[disabled]{opacity:0;pointer-events:none}
+  .color-actions{display:flex;gap:6px;margin:10px 0 14px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+  .chips button{padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);font-size:11.5px;color:var(--muted)}
+  .chips button.on{border-color:var(--text);color:var(--text)}
+  .swatches{display:flex;gap:6px;margin-bottom:12px}
+  .swatches button{flex:1;height:30px;border-radius:8px;border:1px solid rgba(0,0,0,.25);box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;transition:transform .1s}
+  .swatches button:hover{transform:translateY(-2px)}
+  .combos{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .combos button{aspect-ratio:1;border-radius:50%;border:1px solid rgba(0,0,0,.25);box-shadow:0 0 0 1px rgba(255,255,255,.06) inset;transition:transform .1s}
+  .combos button:hover{transform:scale(1.1)}
+  .note{color:var(--faint);font-size:11px;margin-top:8px;line-height:1.4}
+
+  /* board thumbnails */
+  .thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .thumbs button{aspect-ratio:1;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);display:grid;place-items:center;overflow:hidden;padding:6px}
+  .thumbs button.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .thumbs svg{width:100%;height:100%}
+
+  .export-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .export-grid .btn{justify-content:center}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:var(--text);color:var(--bg);padding:9px 14px;border-radius:999px;font-size:12px;font-weight:500;opacity:0;pointer-events:none;transition:all .25s;z-index:10}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  @media (max-width:900px){
+    body{overflow:auto;overflow-x:hidden}
+    .app{grid-template-columns:1fr;grid-template-rows:56px auto auto;height:auto}
+    header{padding:0 12px;gap:8px}
+    .stage{min-height:70vh}
+    .canvas-wrap{padding:14px}
+    .stage-bar{padding:0 14px 16px}
+    .stage-bar .hint{display:none}
+    .panel{border-left:0;border-top:1px solid var(--line)}
+    .hide-sm{display:none}
+    .btn.primary{padding:7px 9px}
+  }
+  @media (max-width:480px){
+    .brand .title{display:none}
+    .shape-grid{grid-template-columns:repeat(6,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><span class="logo"></span><span class="title">Gradient Shape Studio</span> <small class="hide-sm">soft-glow geometric shapes</small></div>
+    <div class="spacer"></div>
+    <div class="seg" id="viewSeg">
+      <button data-view="board" class="on">Board</button>
+      <button data-view="single">Single</button>
+    </div>
+    <button class="icon-btn" id="themeBtn" title="Toggle light / dark interface">
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+    <button class="btn primary" id="quickPng">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
+      <span class="hide-sm">Export PNG</span>
+    </button>
+  </header>
+
+  <main class="stage">
+    <div class="canvas-wrap"><div class="canvas" id="canvas"></div></div>
+    <div class="stage-bar">
+      <button class="btn" id="addBtn">＋ Add shape</button>
+      <button class="btn" id="dupBtn">Duplicate</button>
+      <button class="btn danger" id="delBtn">Delete</button>
+      <button class="btn accent" id="randBtn">✦ Randomize</button>
+      <button class="btn ghost" id="refBtn">Load reference set</button>
+      <button class="btn ghost" id="clearBtn">Clear board</button>
+      <span class="hint">Click a shape to edit it · <kbd>R</kbd> randomize · <kbd>⌫</kbd> delete · <kbd>⌘D</kbd> duplicate</span>
+    </div>
+  </main>
+
+  <aside class="panel">
+    <section>
+      <h3>Board <span class="mini" id="boardCount"></span></h3>
+      <div class="thumbs" id="thumbs"></div>
+    </section>
+
+    <section>
+      <h3>Shape</h3>
+      <div class="shape-grid" id="shapeGrid"></div>
+      <div class="shape-name" id="shapeName"></div>
+      <div id="shapeParams"></div>
+      <div class="two">
+        <div id="c-w"></div><div id="c-h"></div>
+      </div>
+      <div id="c-rotate"></div>
+    </section>
+
+    <section>
+      <h3>Fill</h3>
+      <div class="mode" id="modeSeg">
+        <button data-mode="glow">Glow</button>
+        <button data-mode="radial">Radial</button>
+        <button data-mode="linear">Linear</button>
+      </div>
+      <div id="glowCtrls">
+        <div id="c-inset"></div>
+        <div class="two"><div id="c-ox"></div><div id="c-oy"></div></div>
+      </div>
+      <div id="radialCtrls" hidden>
+        <div class="two"><div id="c-cx"></div><div id="c-cy"></div></div>
+        <div id="c-r"></div>
+      </div>
+      <div id="linearCtrls" hidden>
+        <div id="c-angle"></div>
+      </div>
+      <div id="c-blur"></div>
+      <div id="c-grain"></div>
+    </section>
+
+    <section>
+      <h3>Colours <span class="mini" id="addStop">+ Add stop</span></h3>
+      <div class="stops" id="stops"></div>
+      <div class="color-actions">
+        <button class="btn" id="reverseBtn" style="flex:1;justify-content:center">⇅ Reverse</button>
+        <button class="btn" id="shuffleBtn" style="flex:1;justify-content:center">Shuffle colours</button>
+      </div>
+      <div class="chips" id="paletteChips"></div>
+      <div class="swatches" id="swatches"></div>
+      <div class="combos" id="combos"></div>
+      <div class="note">Click a swatch to assign it to the highlighted stop. Click a combo to apply a centre → edge pair.</div>
+    </section>
+
+    <section>
+      <h3>Canvas</h3>
+      <div class="two">
+        <div class="field">
+          <label>Background</label>
+          <select id="bgMode">
+            <option value="auto">Follow theme</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="custom">Custom colour</option>
+            <option value="transparent">Transparent</option>
+          </select>
+        </div>
+        <div class="field" id="bgCustomField">
+          <label>Colour</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="sw" style="position:relative;width:32px;height:32px;border-radius:8px;overflow:hidden;border:1px solid var(--line);flex:none"><input type="color" id="bgColor" style="position:absolute;inset:-10px;width:60px;height:60px;opacity:0;cursor:pointer"></span>
+            <input class="text hex" id="bgHex" maxlength="7" style="font-family:var(--mono)">
+          </div>
+        </div>
+      </div>
+      <div class="two"><div id="c-cols"></div><div id="c-gap"></div></div>
+    </section>
+
+    <section>
+      <h3>Export</h3>
+      <div class="field">
+        <label>PNG scale</label>
+        <select id="pngScale"><option value="1">1× (board size)</option><option value="2" selected>2×</option><option value="3">3×</option><option value="4">4×</option></select>
+      </div>
+      <div class="export-grid">
+        <button class="btn" id="pngBoard">PNG · board</button>
+        <button class="btn" id="pngOne">PNG · selected</button>
+        <button class="btn" id="svgBoard">SVG · board</button>
+        <button class="btn" id="svgOne">SVG · selected</button>
+        <button class="btn" id="copySvg">Copy SVG code</button>
+        <button class="btn" id="copyJson">Copy board JSON</button>
+      </div>
+      <div class="note">Transparent background exports keep the alpha channel. Everything is saved in this browser automatically.</div>
+    </section>
+  </aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   1. GEOMETRY — every shape is a single SVG path in a 0..w × 0..h box
+   ═══════════════════════════════════════════════════════════════ */
+const f = n => Math.round(n * 100) / 100;
+
+function roundedRect(w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h / 2));
+  if (r === 0) return `M0,0H${f(w)}V${f(h)}H0Z`;
+  return `M${f(r)},0H${f(w - r)}A${f(r)},${f(r)} 0 0 1 ${f(w)},${f(r)}V${f(h - r)}A${f(r)},${f(r)} 0 0 1 ${f(w - r)},${f(h)}H${f(r)}A${f(r)},${f(r)} 0 0 1 0,${f(h - r)}V${f(r)}A${f(r)},${f(r)} 0 0 1 ${f(r)},0Z`;
+}
+
+/* Rounds every vertex of a polygon with circular arcs (works for convex + concave corners). */
+function roundedPoly(pts, r) {
+  const n = pts.length; let d = '';
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    const v1 = { x: a.x - p.x, y: a.y - p.y }, v2 = { x: b.x - p.x, y: b.y - p.y };
+    const l1 = Math.hypot(v1.x, v1.y), l2 = Math.hypot(v2.x, v2.y);
+    v1.x /= l1; v1.y /= l1; v2.x /= l2; v2.y /= l2;
+    const ang = Math.acos(Math.max(-1, Math.min(1, v1.x * v2.x + v1.y * v2.y)));
+    let rr = r, t = rr / Math.tan(ang / 2);
+    const maxT = Math.min(l1, l2) / 2;
+    if (t > maxT) { t = maxT; rr = t * Math.tan(ang / 2); }
+    const s = { x: p.x + v1.x * t, y: p.y + v1.y * t }, e = { x: p.x + v2.x * t, y: p.y + v2.y * t };
+    const sweep = (v1.x * v2.y - v1.y * v2.x) < 0 ? 1 : 0;
+    d += (i === 0 ? 'M' : 'L') + `${f(s.x)},${f(s.y)}`;
+    d += rr > 0.01 ? `A${f(rr)},${f(rr)} 0 0 ${sweep} ${f(e.x)},${f(e.y)}` : `L${f(e.x)},${f(e.y)}`;
+  }
+  return d + 'Z';
+}
+
+const GEN = {
+  circle: s => { const rx = s.w / 2, ry = s.h / 2; return `M${f(rx)},0A${f(rx)},${f(ry)} 0 1 1 ${f(rx)},${f(s.h)}A${f(rx)},${f(ry)} 0 1 1 ${f(rx)},0Z`; },
+  pill: s => roundedRect(s.w, s.h, Math.min(s.w, s.h) / 2),
+  rect: s => roundedRect(s.w, s.h, s.radius),
+  arch: s => { const { w, h } = s; const rx = w / 2, ry = Math.min(h, rx); return `M0,${f(h)}V${f(ry)}A${f(rx)},${f(ry)} 0 0 1 ${f(w)},${f(ry)}V${f(h)}Z`; },
+  dome: s => { const { w, h } = s; return `M0,${f(h)}A${f(w / 2)},${f(h)} 0 0 1 ${f(w)},${f(h)}Z`; },
+  cathedral: s => {
+    const { w, h } = s; const aw = w * s.archWidth, ax = (w - aw) / 2, r = aw / 2;
+    const sy = Math.max(r, Math.min(h, h * s.shoulder));
+    return `M0,${f(h)}V${f(sy)}H${f(ax)}V${f(r)}A${f(r)},${f(r)} 0 0 1 ${f(ax + aw)},${f(r)}V${f(sy)}H${f(w)}V${f(h)}Z`;
+  },
+  hexagon: s => { const { w, h } = s, k = s.taper; return roundedPoly([{ x: w / 2, y: 0 }, { x: w, y: h * k }, { x: w, y: h * (1 - k) }, { x: w / 2, y: h }, { x: 0, y: h * (1 - k) }, { x: 0, y: h * k }], s.radius); },
+  diamond: s => { const { w, h } = s; return roundedPoly([{ x: w / 2, y: 0 }, { x: w, y: h / 2 }, { x: w / 2, y: h }, { x: 0, y: h / 2 }], s.radius); },
+  triangle: s => { const { w, h } = s; return roundedPoly([{ x: w / 2, y: 0 }, { x: w, y: h }, { x: 0, y: h }], s.radius); },
+  star: s => {
+    const { w, h } = s, n = Math.round(s.points), pts = [];
+    for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i * Math.PI / n, k = i % 2 ? s.inner : 1; pts.push({ x: w / 2 + Math.cos(a) * w / 2 * k, y: h / 2 + Math.sin(a) * h / 2 * k }); }
+    return roundedPoly(pts, s.radius);
+  },
+  squiggle: s => {
+    const { w, h } = s, n = Math.max(1, Math.round(s.waves)), R = h / (2 * n);
+    const rx = Math.min(w / 2, R * s.bulge), xl = rx, xr = w - rx;
+    let d = `M${f(xl)},0H${f(xr)}`;
+    for (let i = 0; i < n; i++) d += `A${f(rx)},${f(R)} 0 0 1 ${f(xr)},${f((i + 1) * 2 * R)}`;
+    d += `H${f(xl)}`;
+    for (let i = 0; i < n; i++) d += `A${f(rx)},${f(R)} 0 0 1 ${f(xl)},${f(h - (i + 1) * 2 * R)}`;
+    return d + 'Z';
+  },
+};
+
+const SHAPES = [
+  { id: 'circle', name: 'Circle', params: [], square: true },
+  { id: 'pill', name: 'Pill', params: [] },
+  { id: 'arch', name: 'Arch', params: [] },
+  { id: 'dome', name: 'Dome', params: [] },
+  { id: 'cathedral', name: 'Stepped arch', params: ['archWidth', 'shoulder'] },
+  { id: 'hexagon', name: 'Hexagon', params: ['taper', 'radius'] },
+  { id: 'diamond', name: 'Diamond', params: ['radius'], square: true },
+  { id: 'squiggle', name: 'Squiggle', params: ['waves', 'bulge'] },
+  { id: 'rect', name: 'Rectangle', params: ['radius'] },
+  { id: 'triangle', name: 'Triangle', params: ['radius'] },
+  { id: 'star', name: 'Star', params: ['points', 'inner', 'radius'], square: true },
+];
+const PARAM_DEFS = {
+  radius: { label: 'Corner radius', min: 0, max: 200, step: 1, fmt: v => v + 'px' },
+  taper: { label: 'Taper', min: 0.05, max: 0.5, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+  archWidth: { label: 'Arch width', min: 0.3, max: 1, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+  shoulder: { label: 'Shoulder height', min: 0.1, max: 0.9, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+  waves: { label: 'Waves', min: 1, max: 8, step: 1, fmt: v => v },
+  bulge: { label: 'Bulge', min: 0.3, max: 1.5, step: 0.01, fmt: v => v.toFixed(2) },
+  points: { label: 'Points', min: 3, max: 12, step: 1, fmt: v => v },
+  inner: { label: 'Inner radius', min: 0.3, max: 0.9, step: 0.01, fmt: v => Math.round(v * 100) + '%' },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   2. PALETTES + REFERENCE SET
+   ═══════════════════════════════════════════════════════════════ */
+const C = { purple: '#7b4bff', lilac: '#d2cbf5', orange: '#ff4b0d', peach: '#f7d8c2', black: '#0f0f0f' };
+const PALETTES = [
+  { name: 'Reference', colors: [C.purple, C.lilac, C.orange, C.peach, C.black] },
+  { name: 'Sunset', colors: ['#ff5e62', '#ff9966', '#ffd166', '#5b2a86', '#14091f'] },
+  { name: 'Ocean', colors: ['#00c2ff', '#2a5bff', '#8ffaff', '#0b1b3f', '#e6fbff'] },
+  { name: 'Mint', colors: ['#00d29a', '#a8ffe0', '#0e4d3c', '#f2fff9', '#0a0a0a'] },
+  { name: 'Candy', colors: ['#ff6fd8', '#ffb3ec', '#8f5bff', '#fff0f9', '#2a0a3a'] },
+  { name: 'Ember', colors: ['#ff3d00', '#ffb347', '#ffe7c2', '#3a0a00', '#0f0f0f'] },
+  { name: 'Acid', colors: ['#c6ff00', '#00ffa3', '#0057ff', '#111111', '#f5ffe0'] },
+  { name: 'Rose', colors: ['#e63b7a', '#ffc9dc', '#7a1236', '#fff5f8', '#1a0810'] },
+  { name: 'Mono', colors: ['#ffffff', '#bdbdbd', '#5c5c5c', '#1f1f1f', '#000000'] },
+];
+
+const DEFAULT_SHAPE = {
+  type: 'arch', w: 300, h: 420, rotate: 0,
+  radius: 48, taper: 0.24, archWidth: 0.62, shoulder: 0.3, waves: 4, bulge: 1, points: 5, inner: 0.55, grain: 0,
+  fill: { mode: 'glow', stops: [C.black, C.purple], inset: 40, blur: 28, ox: 0, oy: 0, angle: 90, cx: 50, cy: 50, r: 70 },
+};
+const mk = (o, fill) => ({ ...structuredClone(DEFAULT_SHAPE), ...o, fill: { ...structuredClone(DEFAULT_SHAPE.fill), ...fill } });
+
+function referenceSet() {
+  return [
+    mk({ type: 'hexagon', taper: 0.24, radius: 14 }, { stops: [C.black, C.orange], inset: 32, blur: 30 }),
+    mk({ type: 'arch' }, { mode: 'linear', stops: [C.lilac, C.purple, C.purple, C.lilac], angle: 90, blur: 34 }),
+    mk({ type: 'squiggle', waves: 4, bulge: 0.9 }, { stops: [C.black, C.purple], inset: 32, blur: 26 }),
+    mk({ type: 'cathedral' }, { stops: [C.purple, C.lilac], inset: 40, blur: 30 }),
+    mk({ type: 'pill' }, { stops: ['#c3b9f7', C.peach], inset: 52, blur: 40 }),
+    mk({ type: 'diamond', w: 310, h: 310, radius: 70 }, { stops: [C.peach, C.orange], inset: 50, blur: 36 }),
+    mk({ type: 'arch' }, { stops: [C.black, C.purple], inset: 40, blur: 30, oy: 40 }),
+    mk({ type: 'squiggle', waves: 4, bulge: 0.9 }, { stops: [C.peach, C.lilac], inset: 40, blur: 30 }),
+    mk({ type: 'cathedral' }, { stops: [C.lilac, C.orange], inset: 36, blur: 26 }),
+    mk({ type: 'circle', w: 310, h: 310 }, { stops: [C.orange, C.purple, '#a693ff'], inset: 44, blur: 40 }),
+  ];
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   3. STATE
+   ═══════════════════════════════════════════════════════════════ */
+const STORE = 'gradient-shape-studio-v1';
+let state = {
+  theme: 'dark', view: 'board', cols: 5, gap: 64, pad: 64,
+  bg: { mode: 'auto', custom: '#0f0f0f' },
+  palette: 0, activeStop: 0,
+  board: referenceSet(), selected: 0,
+};
+try {
+  const saved = JSON.parse(localStorage.getItem(STORE));
+  if (saved && Array.isArray(saved.board) && saved.board.length) state = { ...state, ...saved };
+} catch (e) {}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+
+const sel = () => state.board[state.selected];
+const bgColor = () => {
+  const m = state.bg.mode === 'auto' ? state.theme : state.bg.mode;
+  if (m === 'dark') return '#0f0f0f';
+  if (m === 'light') return '#f3f0ea';
+  if (m === 'custom') return state.bg.custom;
+  return null;
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   4. SVG RENDERING
+   ═══════════════════════════════════════════════════════════════ */
+function shapeSVG(s, id, tx, ty, idx) {
+  const d = GEN[s.type](s), { w, h } = s, fl = s.fill, n = fl.stops.length;
+  let defs = `<clipPath id="${id}c"><path d="${d}"/></clipPath>`, body = '';
+  const blur = fl.blur > 0 ? `<filter id="${id}b" x="-100%" y="-100%" width="300%" height="300%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="${fl.blur}"/></filter>` : '';
+  const blurAttr = fl.blur > 0 ? ` filter="url(#${id}b)"` : '';
+  defs += blur;
+  if (fl.mode === 'glow') {
+    body += `<path d="${d}" fill="${fl.stops[n - 1]}"/>`;
+    for (let i = n - 2; i >= 0; i--) {
+      const ins = fl.inset * (n - 1 - i) / (n - 1);
+      const sx = Math.max(0.02, (w - 2 * ins) / w), sy = Math.max(0.02, (h - 2 * ins) / h);
+      body += `<path d="${d}" fill="${fl.stops[i]}" transform="translate(${f(w / 2 + fl.ox)},${f(h / 2 + fl.oy)}) scale(${f(sx)},${f(sy)}) translate(${f(-w / 2)},${f(-h / 2)})"${blurAttr}/>`;
+    }
+  } else {
+    /* The gradient rect is 3× the shape so a blur never pulls transparency in from its edges;
+       gradient coordinates are remapped into the middle third (the shape's own box). */
+    const stops = fl.stops.map((c, i) => `<stop offset="${f(i / (n - 1) * 100)}%" stop-color="${c}"/>`).join('');
+    const m = v => f((100 + v) / 3);
+    if (fl.mode === 'radial') defs += `<radialGradient id="${id}g" cx="${m(fl.cx)}%" cy="${m(fl.cy)}%" r="${f(fl.r / 3)}%">${stops}</radialGradient>`;
+    else {
+      const a = fl.angle * Math.PI / 180, cx = Math.cos(a) * 50, cy = Math.sin(a) * 50;
+      defs += `<linearGradient id="${id}g" x1="${m(50 - cx)}%" y1="${m(50 - cy)}%" x2="${m(50 + cx)}%" y2="${m(50 + cy)}%">${stops}</linearGradient>`;
+    }
+    body += `<rect x="${-w}" y="${-h}" width="${3 * w}" height="${3 * h}" fill="url(#${id}g)"${blurAttr}/>`;
+  }
+  if (s.grain > 0) {
+    defs += `<filter id="${id}n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>`;
+    body += `<rect width="${w}" height="${h}" filter="url(#${id}n)" opacity="${f(s.grain)}" style="mix-blend-mode:soft-light"/>`;
+  }
+  const g = `<g transform="translate(${f(tx)},${f(ty)}) rotate(${s.rotate},${f(w / 2)},${f(h / 2)})"${idx != null ? ` data-i="${idx}"` : ''}><g clip-path="url(#${id}c)">${body}</g></g>`;
+  return { defs, body: g };
+}
+
+function layout(shapes) {
+  const cellW = Math.max(...shapes.map(s => s.w)), cellH = Math.max(...shapes.map(s => s.h));
+  const cols = Math.min(state.cols, shapes.length), rows = Math.ceil(shapes.length / cols);
+  const gap = state.gap, pad = shapes.length === 1 && state.view === 'single' ? 110 : state.pad;
+  const W = cols * cellW + (cols - 1) * gap + 2 * pad, H = rows * cellH + (rows - 1) * gap + 2 * pad;
+  const cells = shapes.map((s, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    return { x: pad + c * (cellW + gap), y: pad + r * (cellH + gap), cx: pad + c * (cellW + gap) + (cellW - s.w) / 2, cy: pad + r * (cellH + gap) + (cellH - s.h) / 2 };
+  });
+  return { W, H, cellW, cellH, cells };
+}
+
+/* Build a complete SVG document. shapes: array; opts: {ui, bg, indexes} */
+function buildSVG(shapes, opts = {}) {
+  if (!shapes.length) return { svg: '', W: 0, H: 0 };
+  const L = layout(shapes);
+  let defs = '', body = '';
+  shapes.forEach((s, i) => {
+    const r = shapeSVG(s, `s${i}`, L.cells[i].cx, L.cells[i].cy, opts.indexes ? opts.indexes[i] : null);
+    defs += r.defs; body += r.body;
+  });
+  const bg = opts.bg === undefined ? bgColor() : opts.bg;
+  let ui = '';
+  if (opts.ui && state.view === 'board') {
+    const c = L.cells[state.selected];
+    if (c) ui = `<rect x="${c.x - 14}" y="${c.y - 14}" width="${L.cellW + 28}" height="${L.cellH + 28}" rx="14" fill="none" stroke="${state.theme === 'dark' ? '#ffffff' : '#000000'}" stroke-opacity=".35" stroke-dasharray="5 6" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${f(L.W)} ${f(L.H)}" width="${f(L.W)}" height="${f(L.H)}">${bg ? `<rect width="100%" height="100%" fill="${bg}"/>` : ''}<defs>${defs}</defs>${body}${ui}</svg>`;
+  return { svg, W: L.W, H: L.H };
+}
+
+const canvas = document.getElementById('canvas');
+let raf = 0;
+function render() {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => {
+    const bg = bgColor();
+    canvas.classList.toggle('checker', !bg);
+    canvas.style.background = bg || '';
+    const shapes = state.view === 'board' ? state.board : (sel() ? [sel()] : []);
+    const idx = state.view === 'board' ? state.board.map((_, i) => i) : [state.selected];
+    if (!shapes.length) { canvas.innerHTML = `<div class="empty"><div>Board is empty<br><span style="font-size:12px">Add a shape or load the reference set</span></div></div>`; return; }
+    const { svg } = buildSVG(shapes, { ui: true, indexes: idx, bg: null });
+    canvas.innerHTML = svg;
+    save();
+  });
+}
+canvas.addEventListener('click', e => {
+  const g = e.target.closest('[data-i]');
+  if (!g) return;
+  state.selected = +g.dataset.i; state.activeStop = 0; syncPanel(); render();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   5. PANEL — controls
+   ═══════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const px = v => v + 'px', deg = v => v + '°', pct = v => v + '%';
+
+function rangeHTML(id, label, min, max, step) {
+  return `<label class="row" for="${id}"><span>${label}</span><output id="${id}-o"></output><input type="range" id="${id}" min="${min}" max="${max}" step="${step}"></label>`;
+}
+const RANGES = [
+  ['w', 'Width', 60, 720, 1, s => s.w, (s, v) => s.w = v, px],
+  ['h', 'Height', 60, 720, 1, s => s.h, (s, v) => s.h = v, px],
+  ['rotate', 'Rotation', -180, 180, 1, s => s.rotate, (s, v) => s.rotate = v, deg],
+  ['inset', 'Edge width', 0, 220, 1, s => s.fill.inset, (s, v) => s.fill.inset = v, px],
+  ['blur', 'Softness', 0, 120, 1, s => s.fill.blur, (s, v) => s.fill.blur = v, px],
+  ['ox', 'Glow shift X', -200, 200, 1, s => s.fill.ox, (s, v) => s.fill.ox = v, px],
+  ['oy', 'Glow shift Y', -200, 200, 1, s => s.fill.oy, (s, v) => s.fill.oy = v, px],
+  ['cx', 'Centre X', 0, 100, 1, s => s.fill.cx, (s, v) => s.fill.cx = v, pct],
+  ['cy', 'Centre Y', 0, 100, 1, s => s.fill.cy, (s, v) => s.fill.cy = v, pct],
+  ['r', 'Radius', 10, 160, 1, s => s.fill.r, (s, v) => s.fill.r = v, pct],
+  ['angle', 'Angle', 0, 360, 1, s => s.fill.angle, (s, v) => s.fill.angle = v, deg],
+  ['grain', 'Grain', 0, 1, 0.01, s => s.grain, (s, v) => s.grain = v, v => Math.round(v * 100) + '%'],
+];
+const BOARD_RANGES = [
+  ['cols', 'Columns', 1, 8, 1, () => state.cols, v => state.cols = v, v => v],
+  ['gap', 'Gap', 0, 200, 2, () => state.gap, v => state.gap = v, px],
+];
+RANGES.forEach(([id, label, min, max, step]) => $('c-' + id).innerHTML = rangeHTML(id, label, min, max, step));
+BOARD_RANGES.forEach(([id, label, min, max, step]) => $('c-' + id).innerHTML = rangeHTML(id, label, min, max, step));
+RANGES.forEach(([id, , , , , get, set, fmt]) => {
+  $(id).addEventListener('input', e => { if (!sel()) return; set(sel(), +e.target.value); $(id + '-o').textContent = fmt(+e.target.value); render(); renderThumbs(); });
+});
+BOARD_RANGES.forEach(([id, , , , , get, set, fmt]) => {
+  $(id).addEventListener('input', e => { set(+e.target.value); $(id + '-o').textContent = fmt(+e.target.value); render(); });
+});
+
+/* shape grid */
+function iconFor(type) {
+  const def = SHAPES.find(x => x.id === type);
+  const s = { ...DEFAULT_SHAPE, type, w: def.square ? 24 : 22, h: def.square ? 24 : 32, radius: type === 'diamond' ? 6 : 2 };
+  const d = GEN[type](s);
+  return `<svg viewBox="-1 -1 26 34"><path d="${d}" transform="translate(${(24 - s.w) / 2},${(32 - s.h) / 2})"/></svg>`;
+}
+$('shapeGrid').innerHTML = SHAPES.map(sh => `<button data-type="${sh.id}" title="${sh.name}">${iconFor(sh.id)}</button>`).join('');
+$('shapeGrid').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !sel()) return;
+  const s = sel(), def = SHAPES.find(x => x.id === b.dataset.type);
+  s.type = def.id;
+  if (def.square) { const m = Math.min(s.w, s.h); s.w = m; s.h = m; }
+  if (def.id === 'diamond' && s.radius < 30) s.radius = 70;
+  if (def.id === 'hexagon' && s.radius > 60) s.radius = 14;
+  syncPanel(); render(); renderThumbs();
+});
+
+/* fill mode */
+$('modeSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !sel()) return;
+  sel().fill.mode = b.dataset.mode; syncPanel(); render(); renderThumbs();
+});
+
+/* colour stops */
+function stopRole(i, n) {
+  const glowish = sel().fill.mode !== 'linear';
+  if (n === 2) return glowish ? ['Centre', 'Edge'][i] : ['Start', 'End'][i];
+  if (i === 0) return glowish ? 'Centre' : 'Start';
+  if (i === n - 1) return glowish ? 'Edge' : 'End';
+  return 'Mid';
+}
+function renderStops() {
+  const s = sel(); if (!s) { $('stops').innerHTML = ''; return; }
+  const n = s.fill.stops.length;
+  $('stops').innerHTML = s.fill.stops.map((c, i) => `
+    <div class="stop" data-i="${i}">
+      <span class="sw ${i === state.activeStop ? 'active' : ''}" style="background:${c}"><input type="color" value="${c}" data-i="${i}"></span>
+      <input class="text hex" value="${c}" maxlength="7" data-i="${i}">
+      <span class="role">${stopRole(i, n)}</span>
+      <button class="x" data-i="${i}" ${n <= 2 ? 'disabled' : ''} title="Remove stop">✕</button>
+    </div>`).join('');
+  $('addStop').style.visibility = n >= 4 ? 'hidden' : 'visible';
+}
+$('stops').addEventListener('input', e => {
+  const i = +e.target.dataset.i, s = sel();
+  let v = e.target.value.trim();
+  if (e.target.type === 'color') { s.fill.stops[i] = v; e.target.closest('.stop').querySelector('.hex').value = v; e.target.parentElement.style.background = v; }
+  else { if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { s.fill.stops[i] = v; e.target.closest('.stop').querySelector('.sw').style.background = v; e.target.closest('.stop').querySelector('input[type=color]').value = v; } else return; }
+  render(); renderThumbs();
+});
+$('stops').addEventListener('click', e => {
+  const x = e.target.closest('.x');
+  if (x) { sel().fill.stops.splice(+x.dataset.i, 1); state.activeStop = 0; renderStops(); render(); renderThumbs(); return; }
+  const row = e.target.closest('.stop');
+  if (row) { state.activeStop = +row.dataset.i; renderStops(); }
+});
+$('addStop').addEventListener('click', () => {
+  const st = sel().fill.stops; if (st.length >= 4) return;
+  const pal = PALETTES[state.palette].colors;
+  st.splice(st.length - 1, 0, pal.find(c => !st.includes(c)) || '#ffffff');
+  renderStops(); render(); renderThumbs();
+});
+$('reverseBtn').addEventListener('click', () => { sel().fill.stops.reverse(); renderStops(); render(); renderThumbs(); });
+$('shuffleBtn').addEventListener('click', () => {
+  const pal = PALETTES[state.palette].colors.slice().sort(() => Math.random() - .5);
+  sel().fill.stops = sel().fill.stops.map((_, i) => pal[i % pal.length]);
+  renderStops(); render(); renderThumbs();
+});
+
+/* palettes */
+function renderPalettes() {
+  $('paletteChips').innerHTML = PALETTES.map((p, i) => `<button data-i="${i}" class="${i === state.palette ? 'on' : ''}">${p.name}</button>`).join('');
+  const cols = PALETTES[state.palette].colors;
+  $('swatches').innerHTML = cols.map(c => `<button data-c="${c}" style="background:${c}" title="${c}"></button>`).join('');
+  const combos = [];
+  cols.forEach(a => cols.forEach(b => { if (a !== b) combos.push([a, b]); }));
+  $('combos').innerHTML = combos.map(([a, b]) => `<button data-a="${a}" data-b="${b}" title="${a} → ${b}" style="background:radial-gradient(circle at 50% 50%, ${a} 0%, ${a} 28%, ${b} 78%)"></button>`).join('');
+}
+$('paletteChips').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.palette = +b.dataset.i; renderPalettes(); save(); });
+$('swatches').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !sel()) return;
+  sel().fill.stops[Math.min(state.activeStop, sel().fill.stops.length - 1)] = b.dataset.c;
+  renderStops(); render(); renderThumbs();
+});
+$('combos').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || !sel()) return;
+  sel().fill.stops = [b.dataset.a, b.dataset.b]; state.activeStop = 0;
+  renderStops(); render(); renderThumbs();
+});
+
+/* board thumbnails */
+function renderThumbs() {
+  const t = $('thumbs');
+  $('boardCount').textContent = state.board.length + (state.board.length === 1 ? ' shape' : ' shapes');
+  t.innerHTML = state.board.map((s, i) => {
+    const r = shapeSVG(s, `t${i}`, 0, 0);
+    const m = Math.max(s.w, s.h);
+    return `<button data-i="${i}" class="${i === state.selected ? 'on' : ''}" title="Shape ${i + 1}"><svg viewBox="${f((s.w - m) / 2)} ${f((s.h - m) / 2)} ${f(m)} ${f(m)}"><defs>${r.defs}</defs>${r.body}</svg></button>`;
+  }).join('');
+}
+$('thumbs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.selected = +b.dataset.i; state.activeStop = 0; syncPanel(); render(); });
+
+/* sync every control from the selected shape */
+function syncPanel() {
+  const s = sel();
+  renderThumbs();
+  const has = !!s;
+  document.querySelectorAll('.panel section').forEach((sec, i) => { if (i === 1 || i === 2 || i === 3) sec.style.opacity = has ? 1 : .35; sec.style.pointerEvents = (has || i === 0 || i >= 4) ? 'auto' : 'none'; });
+  if (!s) { $('shapeParams').innerHTML = ''; $('shapeName').innerHTML = 'No shape selected'; $('stops').innerHTML = ''; return; }
+  const def = SHAPES.find(x => x.id === s.type);
+  $('shapeGrid').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.type === s.type));
+  $('shapeName').innerHTML = `<b>${def.name}</b> · shape ${state.selected + 1} of ${state.board.length}`;
+  $('shapeParams').innerHTML = def.params.map(k => { const p = PARAM_DEFS[k]; return rangeHTML('p-' + k, p.label, p.min, p.max, p.step); }).join('');
+  def.params.forEach(k => {
+    const p = PARAM_DEFS[k], el = $('p-' + k);
+    el.value = s[k]; $('p-' + k + '-o').textContent = p.fmt(s[k]);
+    el.addEventListener('input', e => { s[k] = +e.target.value; $('p-' + k + '-o').textContent = p.fmt(s[k]); render(); renderThumbs(); });
+  });
+  RANGES.forEach(([id, , , , , get, , fmt]) => { $(id).value = get(s); $(id + '-o').textContent = fmt(get(s)); });
+  $('modeSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === s.fill.mode));
+  $('glowCtrls').hidden = s.fill.mode !== 'glow';
+  $('radialCtrls').hidden = s.fill.mode !== 'radial';
+  $('linearCtrls').hidden = s.fill.mode !== 'linear';
+  renderStops();
+}
+function syncBoardControls() {
+  BOARD_RANGES.forEach(([id, , , , , get, , fmt]) => { $(id).value = get(); $(id + '-o').textContent = fmt(get()); });
+  $('bgMode').value = state.bg.mode; $('bgColor').value = state.bg.custom; $('bgHex').value = state.bg.custom;
+  $('bgCustomField').style.visibility = state.bg.mode === 'custom' ? 'visible' : 'hidden';
+  document.documentElement.dataset.theme = state.theme;
+  $('iconMoon').style.display = state.theme === 'dark' ? '' : 'none';
+  $('iconSun').style.display = state.theme === 'dark' ? 'none' : '';
+  $('viewSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
+}
+
+/* canvas + theme */
+$('bgMode').addEventListener('change', e => { state.bg.mode = e.target.value; syncBoardControls(); render(); });
+$('bgColor').addEventListener('input', e => { state.bg.custom = e.target.value; $('bgHex').value = e.target.value; render(); });
+$('bgHex').addEventListener('input', e => { let v = e.target.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { state.bg.custom = v; $('bgColor').value = v; render(); } });
+$('themeBtn').addEventListener('click', () => { state.theme = state.theme === 'dark' ? 'light' : 'dark'; syncBoardControls(); render(); });
+$('viewSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.view = b.dataset.view; syncBoardControls(); render(); });
+
+/* board actions */
+function randomShape(base) {
+  const pal = PALETTES[state.palette].colors;
+  const def = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+  let a = pal[Math.floor(Math.random() * pal.length)], b = pal[Math.floor(Math.random() * pal.length)];
+  if (a === b) b = pal[(pal.indexOf(a) + 1) % pal.length];
+  const s = mk({
+    type: def.id, w: def.square ? 310 : 300, h: def.square ? 310 : 420,
+    radius: def.id === 'diamond' ? 70 : def.id === 'hexagon' ? 14 : def.id === 'star' ? 24 : 48,
+    waves: 3 + Math.floor(Math.random() * 3), points: 4 + Math.floor(Math.random() * 4),
+  }, {
+    mode: Math.random() < .8 ? 'glow' : (Math.random() < .5 ? 'radial' : 'linear'),
+    stops: Math.random() < .2 ? [a, pal[Math.floor(Math.random() * pal.length)], b] : [a, b],
+    inset: 30 + Math.round(Math.random() * 30), blur: 22 + Math.round(Math.random() * 26),
+    oy: Math.random() < .3 ? Math.round((Math.random() - .5) * 80) : 0, angle: Math.round(Math.random() * 360),
+  });
+  if (base) { s.w = base.w; s.h = base.h; }
+  return s;
+}
+$('addBtn').addEventListener('click', () => { state.board.push(sel() ? structuredClone(sel()) : mk({}, {})); state.selected = state.board.length - 1; syncPanel(); render(); });
+$('dupBtn').addEventListener('click', () => { if (!sel()) return; state.board.splice(state.selected + 1, 0, structuredClone(sel())); state.selected++; syncPanel(); render(); });
+$('delBtn').addEventListener('click', () => { if (!sel()) return; state.board.splice(state.selected, 1); state.selected = Math.max(0, Math.min(state.selected, state.board.length - 1)); syncPanel(); render(); });
+$('randBtn').addEventListener('click', () => { if (!sel()) { state.board.push(randomShape()); state.selected = 0; } else state.board[state.selected] = randomShape(); syncPanel(); render(); });
+$('refBtn').addEventListener('click', () => { state.board = referenceSet(); state.selected = 0; state.cols = 5; state.palette = 0; renderPalettes(); syncBoardControls(); syncPanel(); render(); });
+$('clearBtn').addEventListener('click', () => { if (!state.board.length || confirm('Clear all shapes from the board?')) { state.board = []; state.selected = 0; syncPanel(); render(); } });
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,select,textarea')) return;
+  if (e.key === 'r' || e.key === 'R') $('randBtn').click();
+  if (e.key === 'Backspace' || e.key === 'Delete') $('delBtn').click();
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); $('dupBtn').click(); }
+  if (e.key === 'ArrowRight' && state.board.length) { state.selected = (state.selected + 1) % state.board.length; syncPanel(); render(); }
+  if (e.key === 'ArrowLeft' && state.board.length) { state.selected = (state.selected - 1 + state.board.length) % state.board.length; syncPanel(); render(); }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   6. EXPORT
+   ═══════════════════════════════════════════════════════════════ */
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 1800); }
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function exportSVG(shapes) { const { svg } = buildSVG(shapes, { ui: false }); return svg; }
+async function exportPNG(shapes, scale) {
+  const { svg, W, H } = buildSVG(shapes, { ui: false });
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+  const c = document.createElement('canvas'); c.width = Math.round(W * scale); c.height = Math.round(H * scale);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  URL.revokeObjectURL(url);
+  return new Promise(res => c.toBlob(res, 'image/png'));
+}
+const scale = () => +$('pngScale').value;
+const need = fn => () => { if (!state.board.length) return toast('Board is empty'); fn(); };
+$('pngBoard').addEventListener('click', need(async () => { toast('Rendering…'); download(await exportPNG(state.board, scale()), 'shapes-board.png'); toast('PNG downloaded'); }));
+$('quickPng').addEventListener('click', need(async () => { toast('Rendering…'); const shapes = state.view === 'board' ? state.board : [sel()]; download(await exportPNG(shapes, scale()), state.view === 'board' ? 'shapes-board.png' : 'shape.png'); toast('PNG downloaded'); }));
+$('pngOne').addEventListener('click', need(async () => { toast('Rendering…'); download(await exportPNG([sel()], scale()), `shape-${sel().type}.png`); toast('PNG downloaded'); }));
+$('svgBoard').addEventListener('click', need(() => { download(new Blob([exportSVG(state.board)], { type: 'image/svg+xml' }), 'shapes-board.svg'); toast('SVG downloaded'); }));
+$('svgOne').addEventListener('click', need(() => { download(new Blob([exportSVG([sel()])], { type: 'image/svg+xml' }), `shape-${sel().type}.svg`); toast('SVG downloaded'); }));
+$('copySvg').addEventListener('click', need(async () => { try { await navigator.clipboard.writeText(exportSVG([sel()])); toast('SVG code copied'); } catch (e) { toast('Clipboard blocked by browser'); } }));
+$('copyJson').addEventListener('click', need(async () => { try { await navigator.clipboard.writeText(JSON.stringify(state.board, null, 2)); toast('Board JSON copied'); } catch (e) { toast('Clipboard blocked by browser'); } }));
+
+/* ═══════════════════════════════════════════════════════════════
+   7. BOOT
+   ═══════════════════════════════════════════════════════════════ */
+renderPalettes(); syncBoardControls(); syncPanel(); render();
+</script>
+</body>
+</html>
