@@ -130,6 +130,7 @@
   .combos{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
   .combos button{aspect-ratio:1;border-radius:50%;border:1px solid rgba(0,0,0,.25);box-shadow:0 0 0 1px rgba(255,255,255,.06) inset;transition:transform .1s}
   .combos button:hover{transform:scale(1.1)}
+  .combos button.on{outline:2px solid var(--text);outline-offset:2px}
   .note{color:var(--faint);font-size:11px;margin-top:8px;line-height:1.4}
 
   /* board thumbnails */
@@ -168,8 +169,8 @@
     <div class="brand"><span class="logo"></span><span class="title">Gradient Shape Studio</span> <small class="hide-sm">soft-glow geometric shapes</small></div>
     <div class="spacer"></div>
     <div class="seg" id="viewSeg">
-      <button data-view="board" class="on">Board</button>
-      <button data-view="single">Single</button>
+      <button data-view="single" class="on">One shape</button>
+      <button data-view="board">Multiple shapes</button>
     </div>
     <button class="icon-btn" id="themeBtn" title="Toggle light / dark interface">
       <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
@@ -184,23 +185,23 @@
   <main class="stage">
     <div class="canvas-wrap"><div class="canvas" id="canvas"></div></div>
     <div class="stage-bar">
-      <button class="btn" id="addBtn">＋ Add shape</button>
+      <button class="btn" id="addBtn">＋ New shape</button>
       <button class="btn" id="dupBtn">Duplicate</button>
       <button class="btn danger" id="delBtn">Delete</button>
       <button class="btn accent" id="randBtn">✦ Randomize</button>
       <button class="btn ghost" id="refBtn">Load reference set</button>
       <button class="btn ghost" id="clearBtn">Clear board</button>
-      <span class="hint">Click a shape to edit it · <kbd>R</kbd> randomize · <kbd>⌫</kbd> delete · <kbd>⌘D</kbd> duplicate</span>
+      <span class="hint" id="hint"><kbd>R</kbd> randomize · <kbd>⌫</kbd> delete · <kbd>⌘D</kbd> duplicate · <kbd>←</kbd><kbd>→</kbd> switch shape</span>
     </div>
   </main>
 
   <aside class="panel">
     <section>
-      <h3>Board <span class="mini" id="boardCount"></span></h3>
+      <h3>Shapes <span class="mini" id="boardCount"></span></h3>
       <div class="thumbs" id="thumbs"></div>
     </section>
 
-    <section>
+    <section class="ns">
       <h3>Shape</h3>
       <div class="shape-grid" id="shapeGrid"></div>
       <div class="shape-name" id="shapeName"></div>
@@ -211,7 +212,7 @@
       <div id="c-rotate"></div>
     </section>
 
-    <section>
+    <section class="ns">
       <h3>Fill</h3>
       <div class="mode" id="modeSeg">
         <button data-mode="glow">Glow</button>
@@ -233,17 +234,22 @@
       <div id="c-grain"></div>
     </section>
 
-    <section>
-      <h3>Colours <span class="mini" id="addStop">+ Add stop</span></h3>
-      <div class="stops" id="stops"></div>
-      <div class="color-actions">
-        <button class="btn" id="reverseBtn" style="flex:1;justify-content:center">⇅ Reverse</button>
-        <button class="btn" id="shuffleBtn" style="flex:1;justify-content:center">Shuffle colours</button>
-      </div>
+    <section class="ns">
+      <h3>Gradients</h3>
       <div class="chips" id="paletteChips"></div>
-      <div class="swatches" id="swatches"></div>
       <div class="combos" id="combos"></div>
-      <div class="note">Click a swatch to assign it to the highlighted stop. Click a combo to apply a centre → edge pair.</div>
+      <div class="note">Click a palette, then a gradient, to recolour the whole shape.</div>
+    </section>
+
+    <section class="ns">
+      <h3>Individual colours <span class="mini" id="addStop">+ Add stop</span></h3>
+      <div class="stops" id="stops"></div>
+      <div class="swatches" id="swatches"></div>
+      <div class="note" style="margin-top:0;margin-bottom:10px">Each stop has its own picker and hex field. Palette swatches drop into the highlighted stop.</div>
+      <div class="color-actions" style="margin:0">
+        <button class="btn" id="reverseBtn" style="flex:1;justify-content:center">⇅ Reverse</button>
+        <button class="btn" id="shuffleBtn" style="flex:1;justify-content:center">Shuffle</button>
+      </div>
     </section>
 
     <section>
@@ -267,7 +273,7 @@
           </div>
         </div>
       </div>
-      <div class="two"><div id="c-cols"></div><div id="c-gap"></div></div>
+      <div class="two" id="boardCtrls"><div id="c-cols"></div><div id="c-gap"></div></div>
     </section>
 
     <section>
@@ -381,7 +387,11 @@ const PARAM_DEFS = {
    ═══════════════════════════════════════════════════════════════ */
 const C = { purple: '#7b4bff', lilac: '#d2cbf5', orange: '#ff4b0d', peach: '#f7d8c2', black: '#0f0f0f' };
 const PALETTES = [
-  { name: 'Reference', colors: [C.purple, C.lilac, C.orange, C.peach, C.black] },
+  { name: 'Reference', colors: [C.purple, C.lilac, C.orange, C.peach, C.black], presets: [
+    [C.black, C.orange], [C.lilac, C.purple, C.purple, C.lilac], [C.black, C.purple], [C.purple, C.lilac], ['#c3b9f7', C.peach],
+    [C.peach, C.orange], [C.peach, C.lilac], [C.lilac, C.orange], [C.orange, C.purple, '#a693ff'], [C.orange, C.black],
+    [C.lilac, C.black], [C.purple, C.peach], [C.peach, C.purple], [C.orange, C.lilac], [C.black, C.lilac, C.purple],
+  ] },
   { name: 'Sunset', colors: ['#ff5e62', '#ff9966', '#ffd166', '#5b2a86', '#14091f'] },
   { name: 'Ocean', colors: ['#00c2ff', '#2a5bff', '#8ffaff', '#0b1b3f', '#e6fbff'] },
   { name: 'Mint', colors: ['#00d29a', '#a8ffe0', '#0e4d3c', '#f2fff9', '#0a0a0a'] },
@@ -417,9 +427,9 @@ function referenceSet() {
 /* ═══════════════════════════════════════════════════════════════
    3. STATE
    ═══════════════════════════════════════════════════════════════ */
-const STORE = 'gradient-shape-studio-v1';
+const STORE = 'gradient-shape-studio-v2';
 let state = {
-  theme: 'dark', view: 'board', cols: 5, gap: 64, pad: 64,
+  theme: 'dark', view: 'single', cols: 5, gap: 64, pad: 64,
   bg: { mode: 'auto', custom: '#0f0f0f' },
   palette: 0, activeStop: 0,
   board: referenceSet(), selected: 0,
@@ -613,7 +623,7 @@ $('stops').addEventListener('input', e => {
   let v = e.target.value.trim();
   if (e.target.type === 'color') { s.fill.stops[i] = v; e.target.closest('.stop').querySelector('.hex').value = v; e.target.parentElement.style.background = v; }
   else { if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { s.fill.stops[i] = v; e.target.closest('.stop').querySelector('.sw').style.background = v; e.target.closest('.stop').querySelector('input[type=color]').value = v; } else return; }
-  render(); renderThumbs();
+  render(); renderThumbs(); renderPalettes();
 });
 $('stops').addEventListener('click', e => {
   const x = e.target.closest('.x');
@@ -627,32 +637,49 @@ $('addStop').addEventListener('click', () => {
   st.splice(st.length - 1, 0, pal.find(c => !st.includes(c)) || '#ffffff');
   renderStops(); render(); renderThumbs();
 });
-$('reverseBtn').addEventListener('click', () => { sel().fill.stops.reverse(); renderStops(); render(); renderThumbs(); });
+$('reverseBtn').addEventListener('click', () => { sel().fill.stops.reverse(); renderStops(); renderPalettes(); render(); renderThumbs(); });
 $('shuffleBtn').addEventListener('click', () => {
   const pal = PALETTES[state.palette].colors.slice().sort(() => Math.random() - .5);
   sel().fill.stops = sel().fill.stops.map((_, i) => pal[i % pal.length]);
-  renderStops(); render(); renderThumbs();
+  renderStops(); renderPalettes(); render(); renderThumbs();
 });
 
-/* palettes */
-function renderPalettes() {
-  $('paletteChips').innerHTML = PALETTES.map((p, i) => `<button data-i="${i}" class="${i === state.palette ? 'on' : ''}">${p.name}</button>`).join('');
-  const cols = PALETTES[state.palette].colors;
-  $('swatches').innerHTML = cols.map(c => `<button data-c="${c}" style="background:${c}" title="${c}"></button>`).join('');
-  const combos = [];
-  cols.forEach(a => cols.forEach(b => { if (a !== b) combos.push([a, b]); }));
-  $('combos').innerHTML = combos.map(([a, b]) => `<button data-a="${a}" data-b="${b}" title="${a} → ${b}" style="background:radial-gradient(circle at 50% 50%, ${a} 0%, ${a} 28%, ${b} 78%)"></button>`).join('');
+/* palettes + gradient presets */
+function presetsFor(i) {
+  const p = PALETTES[i]; if (p.presets) return p.presets;
+  const out = []; p.colors.forEach(a => p.colors.forEach(b => { if (a !== b) out.push([a, b]); })); return out;
 }
-$('paletteChips').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.palette = +b.dataset.i; renderPalettes(); save(); });
+function previewCSS(stops) {
+  const n = stops.length, parts = [];
+  stops.forEach((c, i) => { const at = n === 1 ? 0 : 22 + (i / (n - 1)) * 58; parts.push(`${c} ${f(at)}%`); });
+  return `radial-gradient(circle at 50% 50%, ${stops[0]} 0%, ${parts.join(', ')})`;
+}
+function applyStops(stops) {
+  const s = sel(); if (!s) return;
+  s.fill.stops = stops.slice(); state.activeStop = 0;
+  renderStops(); renderPalettes(); render(); renderThumbs();
+}
+function renderPalettes() {
+  $('paletteChips').innerHTML = PALETTES.map((p, i) => `<button data-i="${i}" class="${i === state.palette ? 'on' : ''}" title="Apply the ${p.name} palette">${p.name}</button>`).join('');
+  const cols = PALETTES[state.palette].colors;
+  $('swatches').innerHTML = cols.map(c => `<button data-c="${c}" style="background:${c}" title="Set highlighted stop to ${c}"></button>`).join('');
+  const cur = sel() ? JSON.stringify(sel().fill.stops) : '';
+  $('combos').innerHTML = presetsFor(state.palette).map((st, i) => `<button data-i="${i}" class="${JSON.stringify(st) === cur ? 'on' : ''}" title="${st.join(' → ')}" style="background:${previewCSS(st)}"></button>`).join('');
+}
+$('paletteChips').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.palette = +b.dataset.i;
+  if (sel()) applyStops(presetsFor(state.palette)[0]); else renderPalettes();
+  save();
+});
 $('swatches').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || !sel()) return;
   sel().fill.stops[Math.min(state.activeStop, sel().fill.stops.length - 1)] = b.dataset.c;
-  renderStops(); render(); renderThumbs();
+  renderStops(); renderPalettes(); render(); renderThumbs();
 });
 $('combos').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b || !sel()) return;
-  sel().fill.stops = [b.dataset.a, b.dataset.b]; state.activeStop = 0;
-  renderStops(); render(); renderThumbs();
+  applyStops(presetsFor(state.palette)[+b.dataset.i]);
 });
 
 /* board thumbnails */
@@ -672,7 +699,8 @@ function syncPanel() {
   const s = sel();
   renderThumbs();
   const has = !!s;
-  document.querySelectorAll('.panel section').forEach((sec, i) => { if (i === 1 || i === 2 || i === 3) sec.style.opacity = has ? 1 : .35; sec.style.pointerEvents = (has || i === 0 || i >= 4) ? 'auto' : 'none'; });
+  document.querySelectorAll('.panel section.ns').forEach(sec => { sec.style.opacity = has ? 1 : .35; sec.style.pointerEvents = has ? 'auto' : 'none'; });
+  renderPalettes();
   if (!s) { $('shapeParams').innerHTML = ''; $('shapeName').innerHTML = 'No shape selected'; $('stops').innerHTML = ''; return; }
   const def = SHAPES.find(x => x.id === s.type);
   $('shapeGrid').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.type === s.type));
@@ -698,6 +726,8 @@ function syncBoardControls() {
   $('iconMoon').style.display = state.theme === 'dark' ? '' : 'none';
   $('iconSun').style.display = state.theme === 'dark' ? 'none' : '';
   $('viewSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.view === state.view));
+  $('boardCtrls').hidden = state.view !== 'board';
+  $('hint').innerHTML = (state.view === 'board' ? 'Click a shape to edit it · ' : '') + '<kbd>R</kbd> randomize · <kbd>⌫</kbd> delete · <kbd>⌘D</kbd> duplicate · <kbd>←</kbd><kbd>→</kbd> switch shape';
 }
 
 /* canvas + theme */
@@ -726,11 +756,11 @@ function randomShape(base) {
   if (base) { s.w = base.w; s.h = base.h; }
   return s;
 }
-$('addBtn').addEventListener('click', () => { state.board.push(sel() ? structuredClone(sel()) : mk({}, {})); state.selected = state.board.length - 1; syncPanel(); render(); });
+$('addBtn').addEventListener('click', () => { state.board.push(mk({}, { stops: presetsFor(state.palette)[0].slice() })); state.selected = state.board.length - 1; syncPanel(); render(); });
 $('dupBtn').addEventListener('click', () => { if (!sel()) return; state.board.splice(state.selected + 1, 0, structuredClone(sel())); state.selected++; syncPanel(); render(); });
 $('delBtn').addEventListener('click', () => { if (!sel()) return; state.board.splice(state.selected, 1); state.selected = Math.max(0, Math.min(state.selected, state.board.length - 1)); syncPanel(); render(); });
 $('randBtn').addEventListener('click', () => { if (!sel()) { state.board.push(randomShape()); state.selected = 0; } else state.board[state.selected] = randomShape(); syncPanel(); render(); });
-$('refBtn').addEventListener('click', () => { state.board = referenceSet(); state.selected = 0; state.cols = 5; state.palette = 0; renderPalettes(); syncBoardControls(); syncPanel(); render(); });
+$('refBtn').addEventListener('click', () => { state.board = referenceSet(); state.selected = 0; state.cols = 5; state.palette = 0; state.view = 'board'; syncBoardControls(); syncPanel(); render(); });
 $('clearBtn').addEventListener('click', () => { if (!state.board.length || confirm('Clear all shapes from the board?')) { state.board = []; state.selected = 0; syncPanel(); render(); } });
 
 document.addEventListener('keydown', e => {
@@ -781,7 +811,7 @@ $('copyJson').addEventListener('click', need(async () => { try { await navigator
 /* ═══════════════════════════════════════════════════════════════
    7. BOOT
    ═══════════════════════════════════════════════════════════════ */
-renderPalettes(); syncBoardControls(); syncPanel(); render();
+syncBoardControls(); syncPanel(); render();
 </script>
 </body>
 </html>
