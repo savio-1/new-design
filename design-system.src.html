@@ -763,11 +763,6 @@ const TAG_STORE = {
     { name: 'Content',      tone: 'light-green' },
     { name: 'Deals',        tone: 'blue' },
   ],
-  /* Which records carry which tag. The manage pane needs the reach of a
-     tag before it will let you touch it, and that is the only reason
-     this is here. */
-  usage: { 'Customer 360': 12, 'Engagement': 8, 'Branding': 3,
-           'Outreach': 5, 'Content': 9, 'Deals': 2 },
   onCard: ['Customer 360', 'Engagement'],
   filter: new Set(['Engagement']),
 };
@@ -860,7 +855,6 @@ function paintPicker() {
         <button class="cq-option${TAG_STORE.onCard.includes(n) ? ' is-checked' : ''}" data-toggle="${esc(n)}">
           <span class="cq-checkbox"><svg viewBox="0 0 12 12"><use href="#i-tick"/></svg></span>
           <span class="cq-option__label">${esc(n)}</span>
-          <span class="cq-tag-manage__count">${TAG_STORE.usage[n] || 0}</span>
         </button>`).join('')
         : `<div class="cq-pop__empty cq-caption-reg">No tag matches “${esc(q)}”.</div>`}
     </div>`;
@@ -877,14 +871,9 @@ function paintPicker() {
 }
 
 function createTag(name) {
-  if (!tagNames().some(n => n.toLowerCase() === name.toLowerCase())) {
+  if (!tagNames().some(n => n.toLowerCase() === name.toLowerCase()))
     TAG_STORE.tags.push({ name, tone: TONES[TAG_STORE.tags.length % TONES.length] });
-    TAG_STORE.usage[name] = 0;
-  }
-  if (!TAG_STORE.onCard.includes(name)) {
-    TAG_STORE.onCard.push(name);
-    TAG_STORE.usage[name] = (TAG_STORE.usage[name] || 0) + 1;
-  }
+  if (!TAG_STORE.onCard.includes(name)) TAG_STORE.onCard.push(name);
   pickerQuery = '';
   repaintAll();
   $('dsPickerInput').focus();
@@ -893,6 +882,19 @@ function createTag(name) {
 /* ── The filter popover and its manage pane ──────────────────────── */
 let tagPopPane = 'filter';
 let renaming = null, confirming = null, renameError = '';
+let addingTag = false, newTagError = '';
+
+function commitNewTag(name) {
+  name = (name || '').trim();
+  if (!name) { addingTag = false; newTagError = ''; return paintTagPop(); }
+  if (tagNames().some(n => n.toLowerCase() === name.toLowerCase())) {
+    newTagError = `“${name}” already exists.`;
+    return paintTagPop();
+  }
+  TAG_STORE.tags.push({ name, tone: TONES[TAG_STORE.tags.length % TONES.length] });
+  addingTag = false; newTagError = '';
+  repaintAll();
+}
 
 function paintTagPop() {
   const rows = tagNames();
@@ -902,9 +904,16 @@ function paintTagPop() {
         <label class="cq-search cq-search--sm" style="flex:1">
           <svg class="cq-ic" width="20" height="20"><use href="#i-search"/></svg>
           <input placeholder="Search tags" aria-label="Search tags" /></label>
-        <button class="cq-btn cq-btn--tonal-1 cq-btn--m">
+        <button class="cq-btn cq-btn--tonal-1 cq-btn--m" data-new-tag>
           <svg class="cq-ic" width="16" height="16"><use href="#i-plus"/></svg>Tag</button>
       </div>
+      ${addingTag ? `
+        <div class="cq-tag-new">
+          <label class="cq-search cq-search--sm">
+            <input id="dsNewTag" placeholder="Name the new tag" aria-label="Name the new tag" /></label>
+          <button class="cq-btn cq-btn--m cq-btn--primary" data-commit-new>Add</button>
+        </div>` : ''}
+      ${newTagError ? `<div class="cq-inline-error">${esc(newTagError)}</div>` : ''}
       <div class="cq-pop__list">
         ${rows.map(n => `
           <button class="cq-option${TAG_STORE.filter.has(n) ? ' is-checked' : ''}" data-filter="${esc(n)}">
@@ -934,15 +943,14 @@ function paintTagPop() {
 
   const ren = $('dsTagPop').querySelector('.cq-tag-manage__edit input');
   if (ren) { ren.focus(); ren.select(); }
+  else if (addingTag && $('dsNewTag')) $('dsNewTag').focus();
 }
 
 function tagManageRow(n) {
-  const used = TAG_STORE.usage[n] || 0;
   const state = renaming === n ? ' is-renaming' : confirming === n ? ' is-confirming' : '';
   return `
     <div class="cq-tag-manage${state}" data-row="${esc(n)}">
       <span class="cq-tag-manage__label">${esc(n)}</span>
-      <span class="cq-tag-manage__count">${used} model${used === 1 ? '' : 's'}</span>
       <span class="cq-tag-manage__actions">
         <button class="cq-icon-btn cq-icon-btn--sm" data-rename="${esc(n)}" aria-label="Rename ${esc(n)}">
           <svg class="cq-ic" width="16" height="16"><use href="#i-edit"/></svg></button>
@@ -952,7 +960,7 @@ function tagManageRow(n) {
       <label class="cq-search cq-search--sm cq-tag-manage__edit">
         <input value="${esc(n)}" aria-label="New name for ${esc(n)}" /></label>
       <span class="cq-tag-manage__confirm">
-        <span>Delete “${esc(n)}” from ${used} model${used === 1 ? '' : 's'}?</span>
+        <span>Delete “${esc(n)}”? It comes off everything across the platform that carries it.</span>
         <span class="cq-tag-manage__confirm-actions">
           <button class="cq-btn cq-btn--s cq-btn--tonal-2" data-cancel-del="1">Cancel</button>
           <button class="cq-btn cq-btn--s cq-btn--danger" data-do-del="${esc(n)}">Delete</button>
@@ -969,7 +977,6 @@ function renameTag(from, to) {
     return paintTagPop();
   }
   TAG_STORE.tags.find(t => t.name === from).name = to;
-  TAG_STORE.usage[to] = TAG_STORE.usage[from]; delete TAG_STORE.usage[from];
   TAG_STORE.onCard = TAG_STORE.onCard.map(n => n === from ? to : n);
   if (TAG_STORE.filter.delete(from)) TAG_STORE.filter.add(to);
   renaming = null; renameError = '';
@@ -978,7 +985,6 @@ function renameTag(from, to) {
 
 function deleteTag(n) {
   TAG_STORE.tags = TAG_STORE.tags.filter(t => t.name !== n);
-  delete TAG_STORE.usage[n];
   TAG_STORE.onCard = TAG_STORE.onCard.filter(x => x !== n);
   TAG_STORE.filter.delete(n);
   confirming = null;
@@ -986,6 +992,11 @@ function deleteTag(n) {
 }
 
 function onTagPopClick(e) {
+  if (e.target.closest('[data-new-tag]')) {
+    addingTag = !addingTag; newTagError = '';
+    return paintTagPop();
+  }
+  if (e.target.closest('[data-commit-new]')) return commitNewTag($('dsNewTag').value);
   const pane = e.target.closest('[data-pane]');
   if (pane) { tagPopPane = pane.dataset.pane; renaming = confirming = null; renameError = ''; return paintTagPop(); }
   const f = e.target.closest('[data-filter]');
@@ -1026,6 +1037,11 @@ $('dsTagging').addEventListener('click', e => {
 });
 
 $('dsTagging').addEventListener('keydown', e => {
+  if (e.target.id === 'dsNewTag') {
+    if (e.key === 'Enter') { e.preventDefault(); commitNewTag(e.target.value); }
+    if (e.key === 'Escape') { e.preventDefault(); addingTag = false; newTagError = ''; paintTagPop(); }
+    return;
+  }
   if (!renaming || !e.target.closest('.cq-tag-manage__edit')) return;
   if (e.key === 'Enter') { e.preventDefault(); renameTag(renaming, e.target.value); }
   if (e.key === 'Escape') { e.preventDefault(); renaming = null; renameError = ''; paintTagPop(); }
@@ -1040,11 +1056,12 @@ function renderTagNotes() {
     ['Create is pinned above the list', 'When what you typed matches nothing, the row you want is the one you are about to make. At the bottom of a scrolling list it would be the one row you cannot see.'],
     ['Enter creates, Backspace removes', 'On an empty input, Backspace takes the last chip off — the behaviour every tag field has. Enter on typed text creates that tag and applies it, because creating one anywhere else is a detour.'],
     ['Modify tags is pinned, not listed', 'It sits in <code>.cq-pop__foot</code>, outside the scroll. With forty tags in the list an item at the end of it is unreachable without scrolling to somewhere you had no reason to go.'],
+    ['+ Tag opens a row, not a dialog', 'Creating a tag is an edit like renaming one, so it happens at a row&rsquo;s own height at the top of the list it is adding to. Enter commits, Escape cancels, and a name that already exists is refused inline.'],
     ['One popover, two panes', 'Managing swaps the pane in place rather than opening a second window. The surface, its position and its width all hold, so it reads as going deeper rather than starting again.'],
-    ['The count is the safety rail', 'A tag reaches every record carrying it. The row shows how many before it offers rename or delete, and the delete confirmation says the number again — it is the only thing standing between a click and twelve models losing a tag.'],
+    ['No usage counts', 'A tag belongs to the platform, not to whichever module is showing it. A number counted from the records on this screen would be smaller — and more reassuring — than the truth, so the delete confirmation carries the warning in words instead.'],
     ['Rename and confirm stay in the row', 'Both happen at the row’s own height, inside the list. A dialog for either would cover the list you are working down and lose your place in it.'],
     ['Actions hold their space', 'They fade in on hover rather than appearing. Laying them out on hover would reflow the row and slide the count out from under the pointer.'],
-    ['Renaming rewrites, never duplicates', 'A rename reaches the store once: the tag, its usage, every record, and the active filter. A name that already exists is refused inline — two tags with one name is a mess no screen can explain.'],
+    ['Renaming rewrites, never duplicates', 'A rename reaches the store once: the tag, every record carrying it, and the active filter. A name that already exists is refused inline — two tags with one name is a mess no screen can explain.'],
   ].map(([t, d]) => `<div class="nav-open-row"><dt>${t}</dt><dd>${d}</dd></div>`).join('');
 }
 

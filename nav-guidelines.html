@@ -650,6 +650,24 @@ body.cq { margin: 0; }
 .cq-pop.is-open { display: flex; }
 .cq-pop__head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
 .cq-pop__list { display: flex; flex-direction: column; padding: 0 8px; max-height: 288px; overflow-y: auto; }
+/* The browser's own bar is heavy and paints a dark track, which on a
+   277px popover reads as a second border. This is the same thumb the
+   page scrollers use, on no track at all: 8px of gutter with a 2px
+   inset, so the visible thumb is 4px. Firefox gets the two properties
+   it understands; every other engine falls back to its default, which
+   is the price of not being able to style it. */
+.cq-pop__list, .cq-tag-picker .cq-pop__list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--strokes-checkbox-default) transparent;
+}
+.cq-scroll-y { scrollbar-width: thin; scrollbar-color: var(--strokes-type-default) transparent; }
+.cq-pop__list::-webkit-scrollbar { width: 8px; }
+.cq-pop__list::-webkit-scrollbar-track { background: transparent; }
+.cq-pop__list::-webkit-scrollbar-thumb {
+  background: var(--strokes-checkbox-default);
+  border: 2px solid transparent; background-clip: content-box; border-radius: var(--radius-full);
+}
+.cq-pop__list::-webkit-scrollbar-thumb:hover { background: var(--strokes-icon-default); background-clip: content-box; }
 .cq-pop__empty { padding: 10px 16px 14px; color: var(--text-teritiary); }
 
 /* One row in a popover — checkbox multi-select or tick single-select.
@@ -818,7 +836,13 @@ body.cq { margin: 0; }
 /* ── Removable tag ────────────────────────────────────────────────
    A tag inside a field the user is editing. The × is a real button,
    so it is reachable by keyboard and announces what it removes. */
-.cq-tag--removable { gap: 4px; padding-right: 3px; }
+/* A chip sits on the field's own fill, and in light mode the tag's
+   #eeeeee stroke on a #f5f5f5 ground is not a border anyone can see.
+   Giving the chip the card fill puts a real step between the two. */
+.cq-tag--removable {
+  gap: 4px; padding-right: 3px;
+  background: var(--backgrounds-card-bg-2);
+}
 .cq-tag__x {
   width: 12px; height: 12px; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
@@ -871,6 +895,16 @@ body.cq { margin: 0; }
   font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
 }
 
+/* The row + Tag opens, at the top of the list. Creating a tag is an
+   edit like renaming one, so it happens in a row at the row's own
+   height rather than in a dialog over the list it is adding to. */
+.cq-tag-new {
+  display: flex; align-items: center; gap: 6px; flex: none;
+  margin: 0 8px 4px; padding: 0; min-height: 32px;
+}
+.cq-tag-new .cq-search { flex: 1 1 auto; min-width: 0; height: 32px; }
+.cq-tag-new .cq-btn { flex: none; height: 32px; }
+
 /* Create row. Pinned above the list rather than under it: when the
    typed text matches nothing, the row you want is the one you are
    about to make, and it should not be at the bottom of a scroll. */
@@ -888,9 +922,11 @@ body.cq { margin: 0; }
 .cq-tag-create b { font-weight: 500; color: var(--text-primary); }
 
 /* ── Tag management row ───────────────────────────────────────────
-   One tag, its reach, and what can be done to it. The count is the
-   safety rail: renaming or deleting a tag reaches every record
-   carrying it, and the row is the only place that number is shown. */
+   One tag and what can be done to it. Deliberately no usage count: a
+   tag belongs to the platform, not to whichever module is showing it,
+   so a number counted from the records on this screen would be a
+   smaller, more reassuring figure than the truth. The delete
+   confirmation carries the warning instead. */
 .cq-tag-manage {
   display: flex; align-items: center; gap: 8px; flex: none;
   min-height: 36px; padding: 0 8px; border-radius: var(--radius-md);
@@ -901,10 +937,6 @@ body.cq { margin: 0; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   color: var(--text-primary);
   font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
-}
-.cq-tag-manage__count {
-  flex: none; color: var(--text-teritiary);
-  font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
 }
 /* The actions hold their space at all times. Revealing them on hover
    alone would reflow the row and shift the count out from under the
@@ -920,7 +952,6 @@ body.cq { margin: 0; }
 .cq-tag-manage__edit { display: none; flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; }
 .cq-tag-manage.is-renaming { background: transparent; }
 .cq-tag-manage.is-renaming > .cq-tag-manage__label,
-.cq-tag-manage.is-renaming > .cq-tag-manage__count,
 .cq-tag-manage.is-renaming > .cq-tag-manage__actions { display: none; }
 .cq-tag-manage.is-renaming .cq-tag-manage__edit { display: flex; }
 
@@ -937,7 +968,6 @@ body.cq { margin: 0; }
   min-height: 40px; padding: 10px 12px;
 }
 .cq-tag-manage.is-confirming > .cq-tag-manage__label,
-.cq-tag-manage.is-confirming > .cq-tag-manage__count,
 .cq-tag-manage.is-confirming > .cq-tag-manage__actions { display: none; }
 .cq-tag-manage.is-confirming .cq-tag-manage__confirm { display: flex; }
 
@@ -2058,10 +2088,12 @@ body.cq { margin: 0; }
 .cq-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cq-scroll-y { overflow-y: auto; }
 .cq-scroll-y::-webkit-scrollbar { width: 10px; }
+.cq-scroll-y::-webkit-scrollbar-track { background: transparent; }
 .cq-scroll-y::-webkit-scrollbar-thumb {
   background: var(--strokes-type-default);
-  border: 3px solid transparent; background-clip: content-box; border-radius: var(--radius-md);
+  border: 3px solid transparent; background-clip: content-box; border-radius: var(--radius-full);
 }
+.cq-scroll-y::-webkit-scrollbar-thumb:hover { background: var(--strokes-icon-default); background-clip: content-box; }
 
 @media (prefers-reduced-motion: reduce) {
   .cq *, .cq *::before, .cq *::after { animation: none !important; transition-duration: .001ms !important; }

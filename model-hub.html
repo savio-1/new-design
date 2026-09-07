@@ -1085,6 +1085,17 @@
     }
     .btn-tonal:hover { background: var(--backgrounds-button-hover-tonal-1); }
     .tag-pop-list { display: flex; flex-direction: column; padding: 0 8px; max-height: 288px; overflow-y: auto; }
+    /* The browser's own bar is heavy and paints a dark track, which on a
+       277px popover reads as a second border. 8px of gutter with a 2px
+       inset leaves a 4px thumb on no track at all. */
+    .tag-pop-list { scrollbar-width: thin; scrollbar-color: var(--strokes-checkbox-default) transparent; }
+    .tag-pop-list::-webkit-scrollbar { width: 8px; }
+    .tag-pop-list::-webkit-scrollbar-track { background: transparent; }
+    .tag-pop-list::-webkit-scrollbar-thumb {
+      background: var(--strokes-checkbox-default);
+      border: 2px solid transparent; background-clip: content-box; border-radius: 999px;
+    }
+    .tag-pop-list::-webkit-scrollbar-thumb:hover { background: var(--strokes-icon-default); background-clip: content-box; }
 
     /* ── Tagging ───────────────────────────────────────────────────
        Three surfaces from the design system: the menu behind a card's
@@ -1137,7 +1148,10 @@
     .tag-field:focus-within { border-color: var(--strokes-type-focus); }
     .tag-field input { flex: 1 1 60px; min-width: 60px; height: 18px; color: var(--text-primary); }
     .tag-field input::placeholder { color: var(--text-teritiary); }
-    .tag--removable { gap: 4px; padding-right: 3px; }
+    /* A chip sits on the field's own fill, and in light mode the tag's
+       #eeeeee stroke on a #f5f5f5 ground is not a border anyone can see.
+       Giving the chip the card fill puts a real step between the two. */
+    .tag--removable { gap: 4px; padding-right: 3px; background: var(--backgrounds-card-bg-2); }
     .tag-x {
       width: 12px; height: 12px; flex: none;
       display: inline-flex; align-items: center; justify-content: center;
@@ -1146,6 +1160,15 @@
     .tag-x:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
     .tag-x svg { width: 8px; height: 8px; }
     .tag-picker .tag-pop-list { max-height: 208px; margin-top: 6px; }
+    /* The row + Tag opens, at the top of the list. Creating a tag is an
+       edit like renaming one, so it happens in a row at the row's own
+       height rather than in a dialog over the list it is adding to. */
+    .tag-new {
+      display: flex; align-items: center; gap: 6px; flex: none;
+      margin: 0 8px 4px; padding: 0; min-height: 32px;
+    }
+    .tag-new .search-field { flex: 1 1 auto; min-width: 0; height: 32px; }
+    .tag-new .btn-primary { flex: none; height: 32px; padding: 0 10px; }
     .tag-create {
       height: 36px; display: flex; align-items: center; gap: 8px;
       margin: 0 8px; width: calc(100% - 16px); padding: 0 8px;
@@ -1154,7 +1177,6 @@
     .tag-create:hover { background: var(--backgrounds-card-bg-4); }
     .tag-create .ic { flex: none; width: 16px; height: 16px; }
     .tag-create b { font-weight: 500; color: var(--text-primary); }
-    .tag-opt-count { flex: none; color: var(--text-teritiary); }
 
     /* Pinned under the list, so a long tag list still leaves the way
        into managing them one click away. */
@@ -1179,7 +1201,6 @@
     .tag-manage:hover { background: var(--backgrounds-card-bg-4); }
     .tag-manage-label { flex: 1 1 auto; min-width: 0; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
-    .tag-manage-count { flex: none; color: var(--text-teritiary); }
     /* The actions hold their space and only fade in — laying them out
        on hover would slide the count out from under the pointer. */
     .tag-manage-actions { display: flex; gap: 2px; flex: none; opacity: 0; transition: opacity .12s ease; }
@@ -1189,7 +1210,6 @@
     .tag-manage-edit { display: none; flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; }
     .tag-manage.is-renaming { background: transparent; }
     .tag-manage.is-renaming > .tag-manage-label,
-    .tag-manage.is-renaming > .tag-manage-count,
     .tag-manage.is-renaming > .tag-manage-actions { display: none; }
     .tag-manage.is-renaming .tag-manage-edit { display: flex; }
     .tag-manage-confirm { display: none; flex: 1 1 auto; flex-direction: column; gap: 8px;
@@ -1201,7 +1221,6 @@
       min-height: 40px; padding: 10px 12px;
     }
     .tag-manage.is-confirming > .tag-manage-label,
-    .tag-manage.is-confirming > .tag-manage-count,
     .tag-manage.is-confirming > .tag-manage-actions { display: none; }
     .tag-manage.is-confirming .tag-manage-confirm { display: flex; }
     .btn-danger {
@@ -2231,11 +2250,15 @@
                           <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-search"/></svg>
                           <input id="tagSearch" class="t-body2-reg" type="search" placeholder="Search tags" aria-label="Search tags" />
                         </label>
-                        <button class="btn-tonal t-body2-med">
+                        <button class="btn-tonal t-body2-med" id="newTagBtn" aria-expanded="false">
                           <svg class="ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-plus"/></svg>
                           Tag
                         </button>
                       </div>
+                      <!-- Creating a tag is an edit like renaming one, so it
+                           happens in a row at the top of the list it is
+                           adding to, not in a dialog over it. -->
+                      <div id="newTagSlot"></div>
                       <div class="tag-pop-list" id="tagPopList"></div>
                       <!-- Pinned under the list: with forty tags in it, an
                            item at the end would be unreachable without
@@ -2770,7 +2793,9 @@ function allTags() {
   MODELS.forEach(m => m.tags.forEach(t => seen.add(t)));
   return [...seen];
 }
-const tagUses = t => MODELS.filter(m => m.tags.includes(t)).length;
+/* No usage count is shown anywhere on purpose. A tag belongs to the
+   platform, not to the model hub, so a number counted from MODELS
+   would be a smaller — and more reassuring — figure than the truth. */
 
 const DESC_A = 'Core concepts and regulations surrounding data protection and user privacy rights across industries.';
 const DESC_B = 'Explore essential principles and industry standards for data protection and user privacy rights.';
@@ -2929,7 +2954,6 @@ function renderPicker() {
         <button class="tag-opt t-body2-reg${m.tags.includes(t) ? ' is-checked' : ''}" data-toggle="${esc(t)}">
           <span class="box"><svg viewBox="0 0 12 12"><use href="#ic-tick"/></svg></span>
           <span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(t)}</span>
-          <span class="tag-opt-count t-caption1-reg">${tagUses(t)}</span>
         </button>`).join('')
         : `<div class="tag-pop-empty t-caption1-reg">No tag matches “${esc(q)}”.</div>`}
     </div>`;
@@ -2962,6 +2986,7 @@ function createTagOnModel(name) {
 function afterTagChange() {
   renderCards();
   renderTagPop();
+  renderNewTagRow();
   if (pickerFor !== null) renderPicker();
   if (state.selected !== null) renderPanelTags();
 }
@@ -2997,6 +3022,35 @@ $('cardMenu').addEventListener('click', e => {
 /* ── The manage pane inside the tags filter ─────────────────────── */
 let tagPane = 'filter';
 let renaming = null, confirming = null, renameError = '';
+let addingTag = false, newTagError = '';
+
+/* The row + Tag opens. It creates the tag in the vocabulary only — it
+   does not put it on anything. Tagging a record is what the picker on
+   the card is for; this is the list of tags the platform has. */
+function renderNewTagRow() {
+  $('newTagSlot').innerHTML = addingTag ? `
+    <div class="tag-new">
+      <label class="search-field">
+        <input id="newTagInput" class="t-body2-reg" placeholder="Name the new tag"
+               aria-label="Name the new tag" /></label>
+      <button class="btn-primary t-body2-med" id="newTagAdd">Add</button>
+    </div>
+    ${newTagError ? `<div class="inline-error t-caption1-reg">${esc(newTagError)}</div>` : ''}` : '';
+  $('newTagBtn').setAttribute('aria-expanded', String(addingTag));
+  if (addingTag && $('newTagInput')) $('newTagInput').focus();
+}
+
+function commitNewTag(name) {
+  name = (name || '').trim();
+  if (!name) { addingTag = false; newTagError = ''; return renderNewTagRow(); }
+  if (allTags().some(t => t.toLowerCase() === name.toLowerCase())) {
+    newTagError = `“${name}” already exists.`;
+    return renderNewTagRow();
+  }
+  TAG_FILTERS.push(name);
+  addingTag = false; newTagError = '';
+  afterTagChange();
+}
 
 function renameTag(from, to) {
   to = to.trim();
@@ -3042,7 +3096,6 @@ function renderTagPop() {
       <button class="tag-opt t-body2-reg${state.tags.has(t) ? ' is-checked' : ''}" data-tag="${esc(t)}">
         <span class="box"><svg viewBox="0 0 12 12"><use href="#ic-tick"/></svg></span>
         <span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(t)}</span>
-        <span class="tag-opt-count t-caption1-reg">${tagUses(t)}</span>
       </button>`).join('');
 
   $('tagManageList').innerHTML = rows.map(t => tagManageRow(t)).join('');
@@ -3061,12 +3114,10 @@ function renderTagPop() {
 }
 
 function tagManageRow(t) {
-  const used = tagUses(t);
   const st = renaming === t ? ' is-renaming' : confirming === t ? ' is-confirming' : '';
   return `
     <div class="tag-manage${st}" data-row="${esc(t)}">
       <span class="tag-manage-label t-body2-reg">${esc(t)}</span>
-      <span class="tag-manage-count t-caption1-reg">${used} model${used === 1 ? '' : 's'}</span>
       <span class="tag-manage-actions">
         <button class="icon-btn-24" data-rename="${esc(t)}" aria-label="Rename ${esc(t)}">
           <svg class="ic" width="16" height="16" viewBox="0 0 20 20"><use href="#ic-rowedit"/></svg></button>
@@ -3076,7 +3127,7 @@ function tagManageRow(t) {
       <label class="search-field tag-manage-edit">
         <input class="t-body2-reg" value="${esc(t)}" aria-label="New name for ${esc(t)}" /></label>
       <span class="tag-manage-confirm">
-        <span class="t-body2-reg">Delete “${esc(t)}” from ${used} model${used === 1 ? '' : 's'}?</span>
+        <span class="t-body2-reg">Delete “${esc(t)}”? It comes off everything across the platform that carries it.</span>
         <span class="tag-manage-confirm-actions">
           <button class="btn-quiet t-caption1-reg" data-cancel-del="1">Cancel</button>
           <button class="btn-danger t-caption1-reg" data-do-del="${esc(t)}">Delete</button>
@@ -3294,6 +3345,7 @@ const FILTER_POPS = [
 ];
 
 function closeTagPop() {
+  if (addingTag) { addingTag = false; newTagError = ''; if ($('newTagSlot')) renderNewTagRow(); }
   if (tagPane !== 'filter') {
     tagPane = 'filter'; renaming = confirming = null; renameError = '';
     if ($('tagFilterPane')) renderTagPop();
@@ -3362,6 +3414,11 @@ FILTER_POPS.forEach(f => {
 });
 
 $('tagPop').addEventListener('click', e => {
+  if (e.target.closest('#newTagBtn')) {
+    addingTag = !addingTag; newTagError = '';
+    return renderNewTagRow();
+  }
+  if (e.target.closest('#newTagAdd')) return commitNewTag($('newTagInput').value);
   const pane = e.target.closest('[data-pane]');
   if (pane) {
     tagPane = pane.dataset.pane;
@@ -3385,6 +3442,11 @@ $('tagPop').addEventListener('click', e => {
 });
 
 $('tagPop').addEventListener('keydown', e => {
+  if (e.target.id === 'newTagInput') {
+    if (e.key === 'Enter') { e.preventDefault(); commitNewTag(e.target.value); }
+    if (e.key === 'Escape') { e.preventDefault(); addingTag = false; newTagError = ''; renderNewTagRow(); }
+    return;
+  }
   if (!renaming || !e.target.closest('.tag-manage-edit')) return;
   if (e.key === 'Enter') { e.preventDefault(); renameTag(renaming, e.target.value); }
   if (e.key === 'Escape') { e.preventDefault(); renaming = null; renameError = ''; renderTagPop(); }
