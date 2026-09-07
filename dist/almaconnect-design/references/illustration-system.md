@@ -137,6 +137,35 @@ The most distinctive of the second set, and the one that needs care.
   (`--slats`) at 40–43% height, masked to fade at both ends. Keep it under 55% white.
   It is a rake of light, not a pattern — anything busier was rejected.
 
+### 4.2 Portrait frames (the site's own product cards)
+
+The board is drawn at 4:3. The homepage's product cards are **3:4** — 298x397 at
+the 1288 container — and every construction has to be re-proportioned, not just
+squeezed. What that costs, measured on the AlmaConnect News card:
+
+- **Radii scale with the frame, not with the board.** The board's card 24 in a 546
+  frame is 4.4% of the width; at 298 that is 14. Photo tile 10, satellite 12.
+- **Budget the height before choosing the furniture.** Three stacked cards plus a
+  chip plus a caption did not fit: 347px of content in a 331px usable column. One
+  row had to go, so the day's count became a badge on the satellite instead of its
+  own chip. Count the pixels first — the frame will not tell you.
+- **The reveal button owns the bottom-right.** `.pcard__plus` sits at y 337, x 238.
+  Nothing may cross that corner, which is why the caption stops at 74% width.
+- **A receding card must be frost, never a faded white card.** Dropping opacity on
+  the card fades the face inside it with the card, and the face is the whole point.
+  Ours run `rgba(255,255,255,.70)` behind and `.82` in front, blur 16.
+- **Feed rows get `text-overflow: ellipsis`.** A wrapped second line makes one row
+  taller than its twin and breaks the stack; truncation is also what a real feed does.
+
+**Shipped example — AlmaConnect News.** Ground: the card's existing grained aqua
+wash. Three alumni in the news cascading down-left, the two behind frost and the
+front one solid white with a 62px photo tile, a hairline, and a `Verified - 24h`
+footer with a tick. A glass satellite carries a newspaper glyph and an ink badge
+with the day's count, lapping the top card's corner. One caption states the
+outcome. Every text colour was checked against the rendered pixels; the badge
+started as white on `--accent-dark` and measured **3.1:1**, so it took the ink
+fill like every other button on the page.
+
 ### Generating a new one
 
 1. **Product moment first.** What does the person get? One sentence — that becomes the
