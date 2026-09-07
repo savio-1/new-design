@@ -594,14 +594,37 @@ function renderNavSec() {
     bench(`${['blue','purple','indigo','orange','green'].map(g =>
              `<span class="cq-rail-tile cq-grad-${g}"><svg width="16" height="16"><use href="#i-brain"/></svg></span>`).join('')}`,
       '.cq-rail-tile', 'ramps are identical in both themes; the rows live in Platform panel') +
-    bench(`<div class="cq-seg"><button class="is-active">Configuration</button><button>Activity &amp; stats</button></div>
+    bench(`<div class="cq-seg" id="segDemo">
+             <span class="cq-seg__thumb" aria-hidden="true"></span>
+             <button class="is-active" data-seg-btn>Configuration</button>
+             <button data-seg-btn>Activity &amp; stats</button>
+           </div>
            <div class="cq-seg cq-seg--steps">
              <button class="is-active"><svg class="cq-ic" width="16" height="16"><use href="#i-check"/></svg>1. Basic details</button>
              <button>2. Model configuration</button></div>
            <div class="cq-seg cq-seg--icon">
              <button class="is-active"><svg class="cq-ic" width="16" height="16"><use href="#i-grid"/></svg></button>
              <button><svg class="cq-ic" width="16" height="16"><use href="#i-list"/></svg></button></div>`,
-      '.cq-seg  ·  --steps  ·  --icon', 'one base, three variants');
+      '.cq-seg  ·  --steps  ·  --icon', 'click the first pair — the thumb glides, eased, instead of jumping');
+
+  $('segDemo').querySelectorAll('[data-seg-btn]').forEach(btn => btn.addEventListener('click', () => {
+    $('segDemo').querySelectorAll('[data-seg-btn]').forEach(b => b.classList.toggle('is-active', b === btn));
+    cqSegSync($('segDemo'));
+  }));
+  cqSegSync($('segDemo'));
+}
+
+/* Slides a .cq-seg's thumb under its current .is-active button. Call it
+   after toggling is-active, and once on load/insert. A no-op if the
+   segment was never given a .cq-seg__thumb — plain segments keep the
+   CSS-only background/colour fade instead. */
+function cqSegSync(seg) {
+  if (!seg) return;
+  const thumb = seg.querySelector(':scope > .cq-seg__thumb');
+  const active = seg.querySelector(':scope > button.is-active');
+  if (!thumb || !active) return;
+  thumb.style.width = active.offsetWidth + 'px';
+  thumb.style.transform = `translateX(${active.offsetLeft - 4}px)`;
 }
 
 function renderPanel() {

@@ -523,6 +523,13 @@ body.cq { margin: 0; }
   transition: border-color .15s ease;
 }
 .cq-control:focus-within { border-color: var(--strokes-type-focus); }
+/* The control's own border-color already answers :focus-visible's job;
+   left alone, the field's native outline draws a second blue box just
+   inside that border, hugging the text — the two together read as one
+   focus state that's been drawn twice, not one that's drawn clearly. */
+.cq-control > input:focus-visible,
+.cq-control > select:focus-visible,
+.cq-control > textarea:focus-visible { outline: none; }
 .cq-control > input,
 .cq-control > select,
 .cq-control > textarea {
@@ -551,6 +558,9 @@ body.cq { margin: 0; }
 .cq-search:focus-within { border-color: var(--strokes-type-focus); }
 .cq-search input { flex: 1 1 auto; min-width: 0; color: var(--text-primary); }
 .cq-search input::placeholder { color: var(--text-teritiary); }
+/* Same reasoning as .cq-control above — the field's own outline would
+   double the border it sits inside. */
+.cq-search input:focus-visible { outline: none; }
 
 /* Checkbox */
 .cq-checkbox {
@@ -1128,22 +1138,47 @@ body.cq { margin: 0; }
    ══════════════════════════════════════════════════════════════════ */
 /* Text tabs — panel sections, wizard steps. */
 .cq-seg {
+  position: relative;
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px; border-radius: var(--radius-lg);
   background: var(--backgrounds-seg-control-tabs-1);
 }
+/* The sliding highlight — optional. Give the segment a
+   <span class="cq-seg__thumb"></span> as its first child and keep it
+   synced with cqSegSync() (utilities, below) whenever the active button
+   changes; it then glides to the new button instead of the plain fade
+   every segment gets for free. Sized and positioned entirely by JS
+   because a segment's buttons are whatever width their own labels make
+   them — there is no fixed geometry to give the thumb in CSS alone. */
+.cq-seg__thumb {
+  position: absolute; top: 4px; left: 4px; height: calc(100% - 8px);
+  border-radius: var(--radius-md);
+  background: var(--backgrounds-card-bg-2);
+  box-shadow: var(--shadow-tab);
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1), width .28s cubic-bezier(.4, 0, .2, 1);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cq-seg__thumb { transition: none; }
+}
 .cq-seg > button {
+  position: relative; z-index: 1;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 4px 8px; border-radius: var(--radius-md);
   color: var(--text-button-tonal-2);
   font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
   white-space: nowrap;
+  transition: background .2s ease, color .2s ease, box-shadow .2s ease;
 }
 .cq-seg > button.is-active {
   background: var(--backgrounds-card-bg-2);
   color: var(--text-primary);
   box-shadow: var(--shadow-tab);
 }
+/* A thumb already paints the highlight; without this the active button's
+   own background would double up on top of it. */
+.cq-seg:has(.cq-seg__thumb) > button.is-active { background: none; box-shadow: none; }
+
 /* Numbered step variant sits on the same base, with grey idle labels. */
 .cq-seg--steps > button { color: var(--text-teritiary); }
 
