@@ -33,7 +33,7 @@ still open, and the browser traps that each cost a debugging round.
 | `references/section-patterns.md` | designing any full section — a catalog of studied layouts (P0–P18) with exact specs |
 | `references/motion-patterns.md` | adding animation or interactive nav — logo marquee, link ticker, expanding pill-nav (M1–M3) |
 | `references/color-system.md` | using any colour beyond `--accent`, `--ink` and the grounds |
-| `references/illustration-system.md` | drawing the product — feature illustrations, product cards, marketing tiles: a person in a white or glass card on one of 22 grounds, UI kept to a hint |
+| `references/illustration-system.md` | drawing the product — feature illustrations, product cards, marketing tiles: a person on one of 28 grained gradient grounds, in one of 19 constructions (white or glass card, banner, app shell, device, hub), UI kept to a hint |
 | `references/reference-index.md` | adding a new reference to the system |
 | `styleguide.html` | a rendered proof of every class — open it to check a change |
 | `build-home.py` | the src → build inliner, if the new page follows the same split |
