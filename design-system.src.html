@@ -35,6 +35,9 @@
   <symbol id="i-panel-r" viewBox="0 0 16 16"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M9.75 2.75V13.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
   <symbol id="i-sparkle" viewBox="0 0 16 16"><path d="M8 2.5l1.3 3.2L12.5 7l-3.2 1.3L8 11.5 6.7 8.3 3.5 7l3.2-1.3L8 2.5Z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/></symbol>
   <symbol id="i-arrow-r" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3.2 8h9.4"/><path d="M8.6 4l4 4-4 4"/></g></symbol>
+  <symbol id="i-tag" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2.2 7.3V2.9c0-.4.3-.7.7-.7h4.4c.2 0 .4.1.5.2l6 6c.3.3.3.7 0 1l-4.4 4.4a.7.7 0 01-1 0l-6-6a.7.7 0 01-.2-.5Z"/><path d="M5 5h.01"/></g></symbol>
+  <symbol id="i-sliders" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"><path d="M2.5 4.5h11M2.5 11.5h11"/><circle cx="6" cy="4.5" r="1.6"/><circle cx="10.5" cy="11.5" r="1.6"/></g></symbol>
+  <symbol id="i-back" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12.8 8H3.4"/><path d="M7.4 4l-4 4 4 4"/></g></symbol>
   <symbol id="i-brain" viewBox="0 0 16 16"><g stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4.3a2.3 2.3 0 10-3.5 2 2.2 2.2 0 00.4 4.2 2.2 2.2 0 003.1 1.8Z"/><path d="M8 4.3a2.3 2.3 0 113.5 2 2.2 2.2 0 01-.4 4.2 2.2 2.2 0 01-3.1 1.8Z"/></g></symbol>
 </svg>
 
@@ -176,6 +179,18 @@
              wherever the tone must read without an interaction.</p>
         </div>
         <div id="dsTags"></div>
+      </section>
+
+      <section class="ds-sec" id="s-tagging">
+        <div class="ds-sec-head">
+          <h2>Tagging</h2>
+          <p>Three surfaces, live below — put tags on a record, create one on the way, and rename or
+             delete one everywhere at once. They are wired to one shared list, so a tag renamed in
+             the manage pane changes on the card and in the filter as you watch. Built for the model
+             hub; nothing in them knows what a model is.</p>
+        </div>
+        <div id="dsTagging"></div>
+        <dl class="nav-open" id="dsTagNotes"></dl>
       </section>
 
       <section class="ds-sec" id="s-data">
@@ -712,6 +727,304 @@ function renderTiq() {
           'docked layout, shown in place — the real thing pins to the right edge and the page shifts over', true);
 }
 
+/* ══ Tagging ══════════════════════════════════════════════════════════
+   Three surfaces over one store, so the demo is the test: rename a tag
+   in the manage pane and the card, the picker and the filter all say
+   the new name, because there is only ever one list.               ── */
+const TAG_STORE = {
+  tags: [
+    { name: 'Customer 360', tone: 'blue' },
+    { name: 'Engagement',   tone: 'indigo' },
+    { name: 'Branding',     tone: 'green' },
+    { name: 'Outreach',     tone: 'cyan' },
+    { name: 'Content',      tone: 'light-green' },
+    { name: 'Deals',        tone: 'blue' },
+  ],
+  /* Which records carry which tag. The manage pane needs the reach of a
+     tag before it will let you touch it, and that is the only reason
+     this is here. */
+  usage: { 'Customer 360': 12, 'Engagement': 8, 'Branding': 3,
+           'Outreach': 5, 'Content': 9, 'Deals': 2 },
+  onCard: ['Customer 360', 'Engagement'],
+  filter: new Set(['Engagement']),
+};
+const tagTone = n => (TAG_STORE.tags.find(t => t.name === n) || {}).tone || 'blue';
+const tagNames = () => TAG_STORE.tags.map(t => t.name);
+
+function renderTagging() {
+  $('dsTagging').innerHTML =
+    bench(`<div class="ds-tag-stage">
+             ${DEMO_CARD}
+             <div class="cq-menu is-open cq-menu--right" id="dsTagMenu" style="top:0;right:0">
+               <button class="cq-menu__item"><svg class="cq-ic"><use href="#i-edit"/></svg>Edit</button>
+               <button class="cq-menu__item" id="dsAddTags"><svg class="cq-ic"><use href="#i-tag"/></svg>Add tags</button>
+               <div class="cq-menu__sep"></div>
+               <button class="cq-menu__item cq-menu__item--danger"><svg class="cq-ic"><use href="#i-trash"/></svg>Delete</button>
+             </div>
+           </div>`,
+      '.cq-menu  ·  .cq-menu__item  ·  --danger  ·  .cq-menu__sep',
+      'the surface behind a 3-dot button — every row fires on click, none of them accumulate', true) +
+
+    bench(`<div class="ds-tag-stage ds-tag-stage--tall">
+             ${DEMO_CARD}
+             <div class="cq-tag-picker is-open" id="dsPicker" style="top:0;right:0"></div>
+           </div>`,
+      '.cq-tag-picker  ·  .cq-tag-field  ·  .cq-tag-create',
+      'live: type to filter, type something new to create it. Every toggle commits at once — no Save.', true) +
+
+    bench(`<div class="cq-filter-group" style="height:400px">
+             <button class="cq-dropdown is-open has-count" id="dsTagFilterBtn">Tags
+               <span class="cq-dropdown__badge" id="dsTagFilterCount">1</span>
+               <svg class="cq-ic" width="20" height="20"><use href="#i-chev"/></svg></button>
+             <div class="cq-pop is-open" id="dsTagPop" style="width:277px"></div>
+           </div>`,
+      '.cq-pop__foot  ·  .cq-pop__pane  ·  .cq-tag-manage',
+      'live: Modify tags swaps the pane in place. Rename and delete happen in the row.', true);
+
+  paintPicker();
+  paintTagPop();
+}
+
+const DEMO_CARD = `
+  <button class="cq-card cq-tint is-selected ds-tag-card" tabindex="-1">
+    <span class="cq-card__head">
+      <span class="cq-card__title-row">
+        <span class="cq-logo-tile"><svg width="20" height="20"><use href="#i-brain"/></svg></span>
+        <span class="cq-card__title cq-body1-med">Bard model</span>
+      </span>
+      <span class="cq-card__desc">Standard enterprise bar risk, regulatory compliance definitions and controls advisory.</span>
+    </span>
+    <span class="cq-card__foot">
+      <span class="cq-card__tags"></span>
+      <span class="cq-row-flex" style="gap:6px">
+        <span class="cq-avatar">A</span>
+        <span class="cq-icon-btn cq-icon-btn--sm"><svg class="cq-ic" width="16" height="16"><use href="#i-dots"/></svg></span>
+      </span>
+    </span>
+  </button>`;
+
+function paintCardTags() {
+  document.querySelectorAll('.ds-tag-card .cq-card__tags').forEach(el => {
+    el.innerHTML = `<span class="cq-tag cq-tag--model">gpt4.0-mini</span>` +
+      TAG_STORE.onCard.map(n =>
+        `<span class="cq-tag" data-tone="${tagTone(n)}">${esc(n)}</span>`).join('');
+  });
+}
+
+/* ── The picker ──────────────────────────────────────────────────── */
+let pickerQuery = '';
+
+function paintPicker() {
+  const q = pickerQuery.trim();
+  const lower = q.toLowerCase();
+  const matches = tagNames().filter(n => n.toLowerCase().includes(lower));
+  const exact = tagNames().some(n => n.toLowerCase() === lower);
+
+  $('dsPicker').innerHTML = `
+    <div class="cq-tag-field" id="dsPickerField">
+      ${TAG_STORE.onCard.map(n => `
+        <span class="cq-tag cq-tag--removable is-tinted" data-tone="${tagTone(n)}">${esc(n)}
+          <button class="cq-tag__x" data-untag="${esc(n)}" aria-label="Remove ${esc(n)}">
+            <svg viewBox="0 0 16 16"><use href="#i-x"/></svg></button></span>`).join('')}
+      <input id="dsPickerInput" placeholder="${TAG_STORE.onCard.length ? 'Add another' : 'Add a tag'}"
+             aria-label="Search or create a tag" value="${esc(q)}" />
+    </div>
+    ${q && !exact ? `
+      <button class="cq-tag-create" data-create="${esc(q)}">
+        <svg class="cq-ic"><use href="#i-plus"/></svg>Create <b>${esc(q)}</b></button>` : ''}
+    <div class="cq-pop__list">
+      ${matches.length ? matches.map(n => `
+        <button class="cq-option${TAG_STORE.onCard.includes(n) ? ' is-checked' : ''}" data-toggle="${esc(n)}">
+          <span class="cq-checkbox"><svg viewBox="0 0 12 12"><use href="#i-tick"/></svg></span>
+          <span class="cq-option__label">${esc(n)}</span>
+          <span class="cq-tag-manage__count">${TAG_STORE.usage[n] || 0}</span>
+        </button>`).join('')
+        : `<div class="cq-pop__empty cq-caption-reg">No tag matches “${esc(q)}”.</div>`}
+    </div>`;
+
+  const input = $('dsPickerInput');
+  input.addEventListener('input', e => { pickerQuery = e.target.value; paintPicker(); $('dsPickerInput').focus(); });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && pickerQuery.trim()) { e.preventDefault(); createTag(pickerQuery.trim()); }
+    if (e.key === 'Backspace' && !pickerQuery && TAG_STORE.onCard.length) {
+      TAG_STORE.onCard.pop(); repaintAll();
+    }
+  });
+  paintCardTags();
+}
+
+function createTag(name) {
+  if (!tagNames().some(n => n.toLowerCase() === name.toLowerCase())) {
+    TAG_STORE.tags.push({ name, tone: TONES[TAG_STORE.tags.length % TONES.length] });
+    TAG_STORE.usage[name] = 0;
+  }
+  if (!TAG_STORE.onCard.includes(name)) {
+    TAG_STORE.onCard.push(name);
+    TAG_STORE.usage[name] = (TAG_STORE.usage[name] || 0) + 1;
+  }
+  pickerQuery = '';
+  repaintAll();
+  $('dsPickerInput').focus();
+}
+
+/* ── The filter popover and its manage pane ──────────────────────── */
+let tagPopPane = 'filter';
+let renaming = null, confirming = null, renameError = '';
+
+function paintTagPop() {
+  const rows = tagNames();
+  $('dsTagPop').innerHTML = `
+    <div class="cq-pop__pane${tagPopPane === 'filter' ? ' is-active' : ''}">
+      <div class="cq-pop__head">
+        <label class="cq-search cq-search--sm" style="flex:1">
+          <svg class="cq-ic" width="20" height="20"><use href="#i-search"/></svg>
+          <input placeholder="Search tags" aria-label="Search tags" /></label>
+        <button class="cq-btn cq-btn--tonal-1 cq-btn--m">
+          <svg class="cq-ic" width="16" height="16"><use href="#i-plus"/></svg>Tag</button>
+      </div>
+      <div class="cq-pop__list">
+        ${rows.map(n => `
+          <button class="cq-option${TAG_STORE.filter.has(n) ? ' is-checked' : ''}" data-filter="${esc(n)}">
+            <span class="cq-checkbox"><svg viewBox="0 0 12 12"><use href="#i-tick"/></svg></span>
+            <span class="cq-option__label">${esc(n)}</span></button>`).join('')}
+      </div>
+      <div class="cq-pop__foot">
+        <button class="cq-menu__item" data-pane="manage">
+          <svg class="cq-ic"><use href="#i-sliders"/></svg>Modify tags</button>
+      </div>
+    </div>
+
+    <div class="cq-pop__pane${tagPopPane === 'manage' ? ' is-active' : ''}">
+      <div class="cq-pop__title">
+        <button class="cq-icon-btn cq-icon-btn--sm" data-pane="filter" aria-label="Back to filters">
+          <svg class="cq-ic" width="16" height="16"><use href="#i-back"/></svg></button>
+        Modify tags
+      </div>
+      <div class="cq-pop__list">
+        ${rows.map(n => tagManageRow(n)).join('')}
+      </div>
+      ${renameError ? `<div class="cq-inline-error">${esc(renameError)}</div>` : ''}
+    </div>`;
+
+  $('dsTagFilterCount').textContent = TAG_STORE.filter.size;
+  $('dsTagFilterBtn').classList.toggle('has-count', TAG_STORE.filter.size > 0);
+
+  const ren = $('dsTagPop').querySelector('.cq-tag-manage__edit input');
+  if (ren) { ren.focus(); ren.select(); }
+}
+
+function tagManageRow(n) {
+  const used = TAG_STORE.usage[n] || 0;
+  const state = renaming === n ? ' is-renaming' : confirming === n ? ' is-confirming' : '';
+  return `
+    <div class="cq-tag-manage${state}" data-row="${esc(n)}">
+      <span class="cq-tag-manage__label">${esc(n)}</span>
+      <span class="cq-tag-manage__count">${used} model${used === 1 ? '' : 's'}</span>
+      <span class="cq-tag-manage__actions">
+        <button class="cq-icon-btn cq-icon-btn--sm" data-rename="${esc(n)}" aria-label="Rename ${esc(n)}">
+          <svg class="cq-ic" width="16" height="16"><use href="#i-edit"/></svg></button>
+        <button class="cq-icon-btn cq-icon-btn--sm cq-tag-manage__del" data-ask-del="${esc(n)}" aria-label="Delete ${esc(n)}">
+          <svg class="cq-ic" width="16" height="16"><use href="#i-trash"/></svg></button>
+      </span>
+      <label class="cq-search cq-search--sm cq-tag-manage__edit">
+        <input value="${esc(n)}" aria-label="New name for ${esc(n)}" /></label>
+      <span class="cq-tag-manage__confirm">
+        <span>Delete “${esc(n)}” from ${used} model${used === 1 ? '' : 's'}?</span>
+        <span class="cq-tag-manage__confirm-actions">
+          <button class="cq-btn cq-btn--s cq-btn--tonal-2" data-cancel-del="1">Cancel</button>
+          <button class="cq-btn cq-btn--s cq-btn--danger" data-do-del="${esc(n)}">Delete</button>
+        </span>
+      </span>
+    </div>`;
+}
+
+function renameTag(from, to) {
+  to = to.trim();
+  if (!to || to === from) { renaming = null; renameError = ''; return paintTagPop(); }
+  if (tagNames().some(n => n.toLowerCase() === to.toLowerCase())) {
+    renameError = `“${to}” already exists. Pick another name.`;
+    return paintTagPop();
+  }
+  TAG_STORE.tags.find(t => t.name === from).name = to;
+  TAG_STORE.usage[to] = TAG_STORE.usage[from]; delete TAG_STORE.usage[from];
+  TAG_STORE.onCard = TAG_STORE.onCard.map(n => n === from ? to : n);
+  if (TAG_STORE.filter.delete(from)) TAG_STORE.filter.add(to);
+  renaming = null; renameError = '';
+  repaintAll();
+}
+
+function deleteTag(n) {
+  TAG_STORE.tags = TAG_STORE.tags.filter(t => t.name !== n);
+  delete TAG_STORE.usage[n];
+  TAG_STORE.onCard = TAG_STORE.onCard.filter(x => x !== n);
+  TAG_STORE.filter.delete(n);
+  confirming = null;
+  repaintAll();
+}
+
+function onTagPopClick(e) {
+  const pane = e.target.closest('[data-pane]');
+  if (pane) { tagPopPane = pane.dataset.pane; renaming = confirming = null; renameError = ''; return paintTagPop(); }
+  const f = e.target.closest('[data-filter]');
+  if (f) {
+    const n = f.dataset.filter;
+    TAG_STORE.filter.has(n) ? TAG_STORE.filter.delete(n) : TAG_STORE.filter.add(n);
+    return paintTagPop();
+  }
+  const r = e.target.closest('[data-rename]');
+  if (r) { renaming = r.dataset.rename; confirming = null; renameError = ''; return paintTagPop(); }
+  const ask = e.target.closest('[data-ask-del]');
+  if (ask) { confirming = ask.dataset.askDel; renaming = null; return paintTagPop(); }
+  if (e.target.closest('[data-cancel-del]')) { confirming = null; return paintTagPop(); }
+  const del = e.target.closest('[data-do-del]');
+  if (del) return deleteTag(del.dataset.doDel);
+}
+
+$('dsTagging').addEventListener('click', e => {
+  if (e.target.closest('#dsTagPop')) return onTagPopClick(e);
+  /* Add tags in the menu demo sends you to the picker beside it — the
+     two benches are the two halves of one flow. */
+  if (e.target.closest('#dsAddTags')) {
+    $('dsPicker').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return setTimeout(() => $('dsPickerInput').focus(), 320);
+  }
+  const un = e.target.closest('[data-untag]');
+  if (un) { TAG_STORE.onCard = TAG_STORE.onCard.filter(n => n !== un.dataset.untag); return repaintAll(); }
+  const cr = e.target.closest('[data-create]');
+  if (cr) return createTag(cr.dataset.create);
+  const tg = e.target.closest('[data-toggle]');
+  if (tg) {
+    const n = tg.dataset.toggle;
+    TAG_STORE.onCard.includes(n)
+      ? TAG_STORE.onCard = TAG_STORE.onCard.filter(x => x !== n)
+      : TAG_STORE.onCard.push(n);
+    return repaintAll();
+  }
+});
+
+$('dsTagging').addEventListener('keydown', e => {
+  if (!renaming || !e.target.closest('.cq-tag-manage__edit')) return;
+  if (e.key === 'Enter') { e.preventDefault(); renameTag(renaming, e.target.value); }
+  if (e.key === 'Escape') { e.preventDefault(); renaming = null; renameError = ''; paintTagPop(); }
+});
+
+function repaintAll() { paintPicker(); paintTagPop(); paintCardTags(); }
+
+function renderTagNotes() {
+  $('dsTagNotes').innerHTML = [
+    ['Menus fire, filters accumulate', 'A <code>.cq-menu</code> row acts and closes. A <code>.cq-option</code> row toggles and stays. They look close enough that mixing them in one surface teaches people the wrong thing about both — keep commands and filters in separate popovers.'],
+    ['The picker has no Save', 'Every toggle commits, and the card behind it updates as you go. Tagging is cheap and reversible; a Save button would make it read like a form and hide the result until you were done.'],
+    ['Create is pinned above the list', 'When what you typed matches nothing, the row you want is the one you are about to make. At the bottom of a scrolling list it would be the one row you cannot see.'],
+    ['Enter creates, Backspace removes', 'On an empty input, Backspace takes the last chip off — the behaviour every tag field has. Enter on typed text creates that tag and applies it, because creating one anywhere else is a detour.'],
+    ['Modify tags is pinned, not listed', 'It sits in <code>.cq-pop__foot</code>, outside the scroll. With forty tags in the list an item at the end of it is unreachable without scrolling to somewhere you had no reason to go.'],
+    ['One popover, two panes', 'Managing swaps the pane in place rather than opening a second window. The surface, its position and its width all hold, so it reads as going deeper rather than starting again.'],
+    ['The count is the safety rail', 'A tag reaches every record carrying it. The row shows how many before it offers rename or delete, and the delete confirmation says the number again — it is the only thing standing between a click and twelve models losing a tag.'],
+    ['Rename and confirm stay in the row', 'Both happen at the row’s own height, inside the list. A dialog for either would cover the list you are working down and lose your place in it.'],
+    ['Actions hold their space', 'They fade in on hover rather than appearing. Laying them out on hover would reflow the row and slide the count out from under the pointer.'],
+    ['Renaming rewrites, never duplicates', 'A rename reaches the store once: the tag, its usage, every record, and the active filter. A name that already exists is refused inline — two tags with one name is a mess no screen can explain.'],
+  ].map(([t, d]) => `<div class="nav-open-row"><dt>${t}</dt><dd>${d}</dd></div>`).join('');
+}
+
 /* ── Index, built from the sections actually present ─────────────── */
 function renderNav() {
   const secs = [...document.querySelectorAll('.ds-sec')];
@@ -779,6 +1092,8 @@ renderType();
 renderShape();
 renderButtons();
 renderButtonNotes();
+renderTagging();
+renderTagNotes();
 renderFields();
 renderFilters();
 renderTags();

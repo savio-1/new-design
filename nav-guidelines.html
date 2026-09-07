@@ -70,6 +70,9 @@
 
   /* ── Backgrounds · tone badges ──────────────────────────────── */
   --backgrounds-badge-blue:           #09112b;
+  --backgrounds-badge-red:            #2b0d07;
+  --backgrounds-button-danger:        #f24822;
+  --backgrounds-button-hover-danger:  #d93b18;
   --backgrounds-badge-cyan:           #051b29;
   --backgrounds-badge-green:          #031d11;
   --backgrounds-badge-indigo:         #0b0f2e;
@@ -89,6 +92,7 @@
   --strokes-checkbox-focus:           #0d99ff;
   --strokes-icon-default:             #9e9e9e;
   --strokes-colour-blue:              #093077;
+  --strokes-colour-red:               #5c1a0c;
   --strokes-colour-cyan:              #093c53;
   --strokes-colour-green:             #0a3a22;
   --strokes-colour-indigo:            #2b3180;
@@ -104,6 +108,7 @@
   --text-disabled-tonal-1:            #0768cf;
   --text-disabled-tonal-2:            #757575;
   --text-coloured-blue:               #44aaf3;
+  --text-coloured-red:                #f57e64;
   --text-coloured-cyan:               #35caf0;
   --text-coloured-green:              #85e0a3;
   --text-coloured-indigo:             #a0a5f7;
@@ -132,6 +137,15 @@
 
   /* The exported OpenAI mark is one shape, so it inverts per theme. */
   --logo-openai: #ffffff;
+
+  /* The destructive family. Figma publishes Text/Coloured- red and
+     Strokes/Colour/Red, but neither had a readable value through the
+     MCP, so these three follow Figma's brand red (#f24822) through the
+     same construction the other five colour families use: a saturated
+     text colour, a near-white badge fill, a light stroke, and a hover
+     one step down. Replace them the moment the real values can be
+     read — only .cq-btn--danger, .cq-menu__item--danger and the tag
+     delete confirmation depend on them. */
 
   /* ── Palette ramps · identical in both themes ───────────────── */
   --blue-300: #bde3ff;   --blue-500: #0d99ff;   --blue-600: #007be5;
@@ -210,6 +224,9 @@
   --backgrounds-table-select:         #e5f4ff;
 
   --backgrounds-badge-blue:           #f2f9ff;
+  --backgrounds-badge-red:            #fff4f1;
+  --backgrounds-button-danger:        #f24822;
+  --backgrounds-button-hover-danger:  #d93b18;
   --backgrounds-badge-cyan:           #effcff;
   --backgrounds-badge-green:          #ebffee;
   --backgrounds-badge-indigo:         #f0f1fe;
@@ -226,6 +243,7 @@
   --strokes-checkbox-focus:           #0d99ff;
   --strokes-icon-default:             #616161;
   --strokes-colour-blue:              #e5f4ff;
+  --strokes-colour-red:               #ffdbd2;
   --strokes-colour-cyan:              #cef0f8;
   --strokes-colour-green:             #aff4c6;
   --strokes-colour-indigo:            #c2c5fa;
@@ -240,6 +258,7 @@
   --text-disabled-tonal-1:            #80caff;
   --text-disabled-tonal-2:            #bdbdbd;
   --text-coloured-blue:               #0d99ff;
+  --text-coloured-red:                #f24822;
   --text-coloured-cyan:               #00a2c2;
   --text-coloured-green:              #14ae5c;
   --text-coloured-indigo:             #5860ed;
@@ -638,10 +657,74 @@ body.cq { margin: 0; }
 .cq-option__tick { display: none; flex: none; color: var(--text-coloured-blue); }
 .cq-option.is-picked .cq-option__tick { display: block; }
 
+
+/* ── Action menu ──────────────────────────────────────────────────
+   The surface behind a 3-dot button. Same shell as .cq-pop, but it
+   holds commands rather than filter rows: narrower, no search head,
+   and every row does something the moment it is clicked. Filters
+   accumulate, menus fire — do not mix the two in one surface. */
+.cq-menu {
+  position: absolute; z-index: 45; width: 200px;
+  display: none; flex-direction: column; padding: 4px;
+  background: var(--backgrounds-card-bg-3);
+  border: 1px solid var(--strokes-card-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+}
+.cq-menu.is-open { display: flex; }
+/* Anchored under the button by default; --right flips it so a menu on
+   the right edge of a card opens inwards instead of off the surface. */
+.cq-menu--right { right: 0; }
+
+.cq-menu__item {
+  width: 100%; height: 32px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 8px; border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+  text-align: left;
+}
+.cq-menu__item .cq-ic { flex: none; width: 16px; height: 16px; color: var(--text-teritiary); }
+.cq-menu__item:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+.cq-menu__item:hover .cq-ic { color: var(--text-primary); }
+.cq-menu__item--danger,
+.cq-menu__item--danger .cq-ic { color: var(--text-coloured-red); }
+.cq-menu__item--danger:hover { background: var(--backgrounds-badge-red); color: var(--text-coloured-red); }
+.cq-menu__item--danger:hover .cq-ic { color: var(--text-coloured-red); }
+.cq-menu__sep { height: 1px; margin: 4px 8px; background: var(--strokes-line-3); }
+
+/* ── Popover footer ───────────────────────────────────────────────
+   Pinned under the scrolling list, so a list of forty tags still
+   leaves the way into managing them one click away. Sits outside
+   .cq-pop__list on purpose — inside it, it would scroll off. */
+.cq-pop__foot {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 4px; padding: 6px 8px 0;
+  border-top: 1px solid var(--strokes-line-3);
+}
+.cq-pop__foot .cq-menu__item { height: 32px; }
+
+/* Two panes in one popover — the filter list and the manage list —
+   so switching between them keeps the surface, its position and its
+   scroll offset instead of throwing up a second window. */
+.cq-pop__pane { display: none; flex-direction: column; min-width: 0; }
+.cq-pop__pane.is-active { display: flex; }
+.cq-pop__title {
+  display: flex; align-items: center; gap: 4px; padding: 8px 12px 4px;
+  color: var(--text-primary);
+  font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+}
+.cq-pop__title .cq-icon-btn { margin-left: -6px; }
+
 /* ═══════════════════════════════════════════════════════════════════
    8 · TAGS, BADGES & PILLS
    Five semantic tones. Set data-tone on the element; the tone drives
    text colour on .cq-tag and text + fill + stroke on .cq-badge.
+
+   The section also carries the three surfaces a tag is managed from:
+   the picker that puts tags on a record, the removable chip inside
+   it, and the management row that renames or deletes a tag across
+   every record at once.
    ═══════════════════════════════════════════════════════════════════ */
 
 /* Category tag — grey at rest, coloured on an interactive parent that
@@ -718,6 +801,151 @@ body.cq { margin: 0; }
 }
 .cq-provider-pill__divider { width: 1px; height: 14px; background: var(--strokes-line-1); flex: none; }
 
+
+/* ── Removable tag ────────────────────────────────────────────────
+   A tag inside a field the user is editing. The × is a real button,
+   so it is reachable by keyboard and announces what it removes. */
+.cq-tag--removable { gap: 4px; padding-right: 3px; }
+.cq-tag__x {
+  width: 12px; height: 12px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 3px; color: var(--text-teritiary);
+}
+.cq-tag__x:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+.cq-tag__x svg { width: 8px; height: 8px; }
+
+/* ── Tag picker ───────────────────────────────────────────────────
+   The surface behind "Add tags". A field holding what is already on
+   the record, then the tags that are not. Every toggle commits at
+   once — there is no Save. Tagging is cheap and reversible, and a
+   footer of buttons would make it feel like a form. */
+.cq-tag-picker {
+  position: absolute; z-index: 45; width: 288px;
+  max-width: calc(100vw - 32px);
+  display: none; flex-direction: column;
+  padding: 8px 0;
+  background: var(--backgrounds-card-bg-3);
+  border: 1px solid var(--strokes-card-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  text-align: left; cursor: default;
+}
+.cq-tag-picker.is-open { display: flex; }
+
+/* The field is the placeholder the record's tags live in. It grows
+   down as tags are added; the input is the last item in the flow, so
+   the caret always sits after the final chip. */
+.cq-tag-field {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin: 0 8px; padding: 6px 8px; min-height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--backgrounds-type-search-default);
+  border: 1px solid var(--strokes-type-default);
+  transition: border-color .15s ease;
+}
+.cq-tag-field:focus-within { border-color: var(--strokes-type-focus); }
+.cq-tag-field input {
+  flex: 1 1 60px; min-width: 60px; height: 18px;
+  color: var(--text-primary);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+}
+.cq-tag-field input::placeholder { color: var(--text-teritiary); }
+
+.cq-tag-picker .cq-pop__list { max-height: 208px; margin-top: 6px; }
+.cq-tag-picker__hint {
+  padding: 6px 16px 2px;
+  color: var(--text-teritiary);
+  font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+}
+
+/* Create row. Pinned above the list rather than under it: when the
+   typed text matches nothing, the row you want is the one you are
+   about to make, and it should not be at the bottom of a scroll. */
+.cq-tag-create {
+  height: 36px;
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 8px; width: calc(100% - 16px); padding: 0 8px;
+  border-radius: var(--radius-md);
+  color: var(--text-coloured-blue);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+  text-align: left;
+}
+.cq-tag-create:hover { background: var(--backgrounds-card-bg-4); }
+.cq-tag-create .cq-ic { flex: none; width: 16px; height: 16px; }
+.cq-tag-create b { font-weight: 500; color: var(--text-primary); }
+
+/* ── Tag management row ───────────────────────────────────────────
+   One tag, its reach, and what can be done to it. The count is the
+   safety rail: renaming or deleting a tag reaches every record
+   carrying it, and the row is the only place that number is shown. */
+.cq-tag-manage {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 36px; padding: 0 8px; border-radius: var(--radius-md);
+}
+.cq-tag-manage:hover { background: var(--backgrounds-card-bg-4); }
+.cq-tag-manage__label {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-primary);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+}
+.cq-tag-manage__count {
+  flex: none; color: var(--text-teritiary);
+  font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+}
+/* The actions hold their space at all times. Revealing them on hover
+   alone would reflow the row and shift the count out from under the
+   pointer; this only fades them in. */
+.cq-tag-manage__actions { display: flex; gap: 2px; flex: none; opacity: 0; transition: opacity .12s ease; }
+.cq-tag-manage:hover .cq-tag-manage__actions,
+.cq-tag-manage:focus-within .cq-tag-manage__actions { opacity: 1; }
+.cq-tag-manage__del:hover { color: var(--text-coloured-red); }
+
+/* Renaming and confirming both happen in the row, at the row's own
+   height. A dialog for either would cover the list you are working
+   down, and lose your place in it. */
+.cq-tag-manage__edit { display: none; flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; }
+.cq-tag-manage.is-renaming { background: transparent; }
+.cq-tag-manage.is-renaming > .cq-tag-manage__label,
+.cq-tag-manage.is-renaming > .cq-tag-manage__count,
+.cq-tag-manage.is-renaming > .cq-tag-manage__actions { display: none; }
+.cq-tag-manage.is-renaming .cq-tag-manage__edit { display: flex; }
+
+.cq-tag-manage__confirm {
+  display: none; flex: 1 1 auto; flex-direction: column; gap: 8px; min-width: 0;
+  color: var(--text-primary);
+  font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+}
+.cq-tag-manage__confirm > span { min-width: 0; }
+.cq-tag-manage__confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.cq-tag-manage.is-confirming {
+  background: var(--backgrounds-badge-red);
+  box-shadow: inset 0 0 0 1px var(--strokes-colour-red);
+  min-height: 40px; padding: 10px 12px;
+}
+.cq-tag-manage.is-confirming > .cq-tag-manage__label,
+.cq-tag-manage.is-confirming > .cq-tag-manage__count,
+.cq-tag-manage.is-confirming > .cq-tag-manage__actions { display: none; }
+.cq-tag-manage.is-confirming .cq-tag-manage__confirm { display: flex; }
+
+/* Destructive button. Same geometry as every other .cq-btn — only the
+   fill says what it does. */
+.cq-btn--danger {
+  background: var(--backgrounds-button-danger);
+  color: var(--text-button-white);
+}
+.cq-btn--danger:hover:not(:disabled):not([aria-disabled="true"]),
+.cq-btn--danger.is-hover { background: var(--backgrounds-button-hover-danger); }
+.cq-btn--danger:focus-visible,
+.cq-btn--danger.is-focus { box-shadow: inset 0 0 0 1px var(--strokes-colour-red); }
+
+/* An inline note under a field — a rejected rename, mostly. */
+.cq-inline-error {
+  padding: 2px 16px 6px;
+  color: var(--text-coloured-red);
+  font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    9 · AVATAR
    ═══════════════════════════════════════════════════════════════════ */
@@ -779,7 +1007,14 @@ body.cq { margin: 0; }
 }
 .cq-card:hover .cq-card__desc, .cq-card.is-selected .cq-card__desc { color: var(--text-secondary); }
 .cq-card__foot { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cq-card__tags { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Wraps, then clips the whole second row. Without this the tags are
+   nowrap and a third one runs out over the avatar; with overflow alone
+   the last one is sliced mid-word. Wrapping inside a one-row box drops
+   a tag that does not fit entirely, which is the readable failure. */
+.cq-card__tags {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-width: 0; max-height: 16px; overflow: hidden;
+}
 
 /* ══════════════════════════════════════════════════════════════════
    11 · TABLE
@@ -2020,6 +2255,28 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
 @media (max-width: 720px) {
   .ds-matrix { grid-template-columns: auto repeat(2, minmax(0, 1fr)); }
 }
+
+/* A card with a surface anchored beside it — the menu and the picker
+   both open off a card in the product, and neither reads right floating
+   on its own. The stage is the positioning context; it also reserves
+   the height, so the bench does not collapse under an absolute child. */
+.ds-tag-stage {
+  position: relative; width: 100%;
+  min-height: 176px;
+  background: var(--backgrounds-page-bg-4);
+  border-radius: var(--radius-lg); padding: 16px 320px 16px 16px;
+}
+.ds-tag-stage--tall { min-height: 316px; }
+.ds-tag-stage .ds-tag-card { width: 100%; max-width: 340px; }
+.ds-tag-stage .cq-menu,
+.ds-tag-stage .cq-tag-picker { top: 16px !important; right: 16px !important; }
+@media (max-width: 720px) {
+  .ds-tag-stage { padding: 16px; }
+  .ds-tag-stage .cq-menu, .ds-tag-stage .cq-tag-picker {
+    position: static !important; margin-top: 12px; width: 100%;
+  }
+  .ds-tag-stage .ds-tag-card { width: 100%; }
+}
   </style>
   <style>
     .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
@@ -2500,6 +2757,35 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        the spin on top of it. Lifted explicitly rather than left to that
        tie-break. */
     .grad-context > svg { position: relative; z-index: 1; }
+
+    /* ── Icon motion on hover ────────────────────────────────────
+       Two effects, one per visual class in the rail, because the two
+       classes are different things and should not feel the same to
+       hover: a leaf item is a line glyph, a group header is a
+       coloured chip.
+
+       Both are driven from custom properties rather than letting the
+       script write `transform`, because on an <svg> root the CSS
+       property and the SVG transform *attribute* disagree about what
+       they mean; going through a variable sidesteps that entirely.
+
+       What is reachable at all is the constraint here: the glyphs are
+       referenced through <use>, so their innards are shadow DOM no
+       script can touch. stroke-dasharray and stroke-dashoffset are
+       INHERITED SVG properties, so setting them on the outer <svg>
+       does reach the path inside the symbol — that is the whole basis
+       of the draw. */
+
+    /* Every glyph in the rail draws the same way, whether it sits on
+       its own as a leaf item or inside a category's gradient tile.
+       The tile itself is deliberately left alone: it is the container,
+       not the icon, and turning the whole chip animates the wrong
+       thing. */
+    .rail-btn .ic,
+    .rail-ghead .rail-tile .ic { transform: scale(var(--ic-s, 1)); transform-origin: 50% 50%; }
+    @media (prefers-reduced-motion: reduce) {
+      .rail-btn .ic, .rail-ghead .rail-tile .ic { transform: none; }
+    }
 
     /* The clip is authored against a full-size viewport: its sphere is
        a fixed 340px, its chips sit at ±300px offsets, and its captions
@@ -3740,6 +4026,35 @@ body { margin: 0; background: var(--backgrounds-page-bg-1); }
        tie-break. */
     .grad-context &gt; svg { position: relative; z-index: 1; }
 
+    /* ── Icon motion on hover ────────────────────────────────────
+       Two effects, one per visual class in the rail, because the two
+       classes are different things and should not feel the same to
+       hover: a leaf item is a line glyph, a group header is a
+       coloured chip.
+
+       Both are driven from custom properties rather than letting the
+       script write `transform`, because on an &lt;svg&gt; root the CSS
+       property and the SVG transform *attribute* disagree about what
+       they mean; going through a variable sidesteps that entirely.
+
+       What is reachable at all is the constraint here: the glyphs are
+       referenced through &lt;use&gt;, so their innards are shadow DOM no
+       script can touch. stroke-dasharray and stroke-dashoffset are
+       INHERITED SVG properties, so setting them on the outer &lt;svg&gt;
+       does reach the path inside the symbol — that is the whole basis
+       of the draw. */
+
+    /* Every glyph in the rail draws the same way, whether it sits on
+       its own as a leaf item or inside a category's gradient tile.
+       The tile itself is deliberately left alone: it is the container,
+       not the icon, and turning the whole chip animates the wrong
+       thing. */
+    .rail-btn .ic,
+    .rail-ghead .rail-tile .ic { transform: scale(var(--ic-s, 1)); transform-origin: 50% 50%; }
+    @media (prefers-reduced-motion: reduce) {
+      .rail-btn .ic, .rail-ghead .rail-tile .ic { transform: none; }
+    }
+
     /* The clip is authored against a full-size viewport: its sphere is
        a fixed 340px, its chips sit at ±300px offsets, and its captions
        clamp to px minimums. Sized fluidly into a 288px box, all of that
@@ -4127,6 +4442,127 @@ $('upsellLearn').addEventListener('click', e =&gt; { e.preventDefault(); closeUp
 $('upsellGo').addEventListener('click', closeUpsell);
 document.addEventListener('click', closeUpsell);
 window.addEventListener('resize', positionUpsell);
+
+/* ── Icon motion on hover ─────────────────────────────────────────
+   One timeline per icon, built once and replayed rather than rebuilt,
+   so running the cursor down the rail cannot leave a half-finished
+   tween behind: restart() takes it to frame one whatever it was doing.
+   Everything is set up inside matchMedia, so the whole thing reverts
+   itself for anyone who asks for reduced motion. */
+(function () {
+  var g = window.gsap;
+  if (!g) return;                       /* no GSAP, no motion, no errors */
+
+  /* The glyph is inlined before anything is animated. Referenced
+     through &lt;use&gt; its paths are shadow DOM, so one dasharray has to
+     serve all of them — on a six-path icon like Skills or Model Hub
+     the short strokes then snap in whole while only the longest
+     actually draws, which is why those read as a bare scale. Cloning
+     the symbol's own contents in gives every path its own length, and
+     lets them stagger, so the icon assembles rather than appearing.
+     Only done when GSAP is present: without it the markup keeps its
+     &lt;use&gt; and nothing here has run. */
+  function inlineGlyph(svg) {
+    var use = svg.querySelector('use');
+    if (!use) return [].slice.call(svg.querySelectorAll('path'));  /* already inlined */
+    var href = use.getAttribute('href') || use.getAttribute('xlink:href');
+    var sym = href &amp;&amp; document.querySelector(href);
+    /* A &lt;use&gt; scales the symbol's viewBox into its own viewport; a
+       clone does not. Equal viewBoxes is what makes the swap safe, so
+       it is checked rather than assumed. */
+    if (!sym || sym.getAttribute('viewBox') !== svg.getAttribute('viewBox')) return [];
+    /* The presentation attributes come across too. Every symbol here
+       carries fill="none", and the paths inside rely on inheriting it
+       — cloning only the children drops that, fill falls back to the
+       SVG default of black, and the glyph fills in solid: interiors
+       go black and anything drawn as a hole, like the robot's eyes,
+       disappears against the background. */
+    for (var a = 0; a &lt; sym.attributes.length; a++) {
+      var at = sym.attributes[a];
+      if (at.name === 'id' || at.name === 'viewBox') continue;
+      if (!svg.hasAttribute(at.name)) svg.setAttribute(at.name, at.value);
+    }
+    use.remove();
+    for (var i = 0; i &lt; sym.children.length; i++) {
+      svg.appendChild(sym.children[i].cloneNode(true));
+    }
+    var out = [];
+    svg.querySelectorAll('path').forEach(function (p) {
+      out = out.concat(splitSubpaths(p));
+    });
+    return out;
+  }
+
+  /* One &lt;path&gt; is often several disconnected pieces — Automations is
+     six, Monitor twelve — and SVG resets the dash pattern at the start
+     of every subpath. So a single dasharray leaves each piece fully
+     drawn almost immediately and the icon looks like it only scales,
+     however carefully the offset is animated. Splitting the pieces
+     into real paths gives each its own length, and lets them come in
+     one after another.
+     Safe only because these exports use absolute moves throughout: a
+     relative 'm' is measured from the previous piece's end, so lifting
+     it out on its own would move it. Checked, not assumed. */
+  function splitSubpaths(path) {
+    var d = path.getAttribute('d') || '';
+    if (d.indexOf('m') !== -1) return [path];
+    var parts = d.match(/M[^M]*/g);
+    if (!parts || parts.length &lt; 2) return [path];
+    var made = [];
+    parts.forEach(function (seg) {
+      var c = path.cloneNode(false);
+      c.setAttribute('d', seg.trim());
+      path.parentNode.insertBefore(c, path);
+      made.push(c);
+    });
+    path.remove();
+    return made;
+  }
+
+  /* One builder for both, so a category's glyph and a leaf item's are
+     literally the same animation. */
+  function drawIn(svg) {
+    var paths = inlineGlyph(svg);
+    if (!paths || !paths.length) return null;
+    return g.timeline({ paused: true })
+      /* dasharray is SET, not tweened. Left out of a fromTo's to-vars
+         GSAP reads it as "animate back to the natural value" and
+         undoes the dashing part-way through. Function-based values
+         give each path its own length. */
+      .set(paths, { strokeDasharray: function (i, t) { return t.getTotalLength(); } })
+      .fromTo(paths,
+        { strokeDashoffset: function (i, t) { return t.getTotalLength(); } },
+        { strokeDashoffset: 0, duration: .45, ease: 'power2.out',
+          stagger: { amount: .22 },
+          clearProps: 'strokeDasharray,strokeDashoffset' }, 0)
+      /* A small pop on the whole glyph, peaking early and out of the
+         way before the last stroke lands. */
+      .fromTo(svg, { '--ic-s': 1 },
+        { '--ic-s': 1.12, duration: .16, ease: 'power2.out' }, 0)
+      .to(svg, { '--ic-s': 1, duration: .42, ease: 'elastic.out(1, .55)' }, .16);
+  }
+
+  g.matchMedia().add('(prefers-reduced-motion: no-preference)', function () {
+
+    /* A leaf item's glyph, and a category's glyph inside its tile —
+       the tile's own chevron is deliberately not in this list. */
+    document.querySelectorAll('.rail-btn .ic, .rail-ghead .rail-tile .ic')
+      .forEach(function (svg) {
+        var tl = drawIn(svg);
+        if (!tl) return;
+        var row = svg.closest('.rail-btn, .rail-ghead');
+        row.addEventListener('mouseenter', function () { tl.restart(); });
+      });
+
+    /* matchMedia reverts everything created in here when the query
+       stops matching; the listeners are all it cannot see, so they are
+       taken off explicitly. */
+    return function () {
+      document.querySelectorAll('.rail-btn .ic, .rail-ghead .rail-tile .ic')
+        .forEach(function (el) { el.style.cssText = ''; });
+    };
+  });
+})();
 
 /* Open on the section this page belongs to, whichever item is marked
    active — the panel should never need a click to show you where you are. */
@@ -5958,6 +6394,127 @@ $('upsellLearn').addEventListener('click', e => { e.preventDefault(); closeUpsel
 $('upsellGo').addEventListener('click', closeUpsell);
 document.addEventListener('click', closeUpsell);
 window.addEventListener('resize', positionUpsell);
+
+/* ── Icon motion on hover ─────────────────────────────────────────
+   One timeline per icon, built once and replayed rather than rebuilt,
+   so running the cursor down the rail cannot leave a half-finished
+   tween behind: restart() takes it to frame one whatever it was doing.
+   Everything is set up inside matchMedia, so the whole thing reverts
+   itself for anyone who asks for reduced motion. */
+(function () {
+  var g = window.gsap;
+  if (!g) return;                       /* no GSAP, no motion, no errors */
+
+  /* The glyph is inlined before anything is animated. Referenced
+     through <use> its paths are shadow DOM, so one dasharray has to
+     serve all of them — on a six-path icon like Skills or Model Hub
+     the short strokes then snap in whole while only the longest
+     actually draws, which is why those read as a bare scale. Cloning
+     the symbol's own contents in gives every path its own length, and
+     lets them stagger, so the icon assembles rather than appearing.
+     Only done when GSAP is present: without it the markup keeps its
+     <use> and nothing here has run. */
+  function inlineGlyph(svg) {
+    var use = svg.querySelector('use');
+    if (!use) return [].slice.call(svg.querySelectorAll('path'));  /* already inlined */
+    var href = use.getAttribute('href') || use.getAttribute('xlink:href');
+    var sym = href && document.querySelector(href);
+    /* A <use> scales the symbol's viewBox into its own viewport; a
+       clone does not. Equal viewBoxes is what makes the swap safe, so
+       it is checked rather than assumed. */
+    if (!sym || sym.getAttribute('viewBox') !== svg.getAttribute('viewBox')) return [];
+    /* The presentation attributes come across too. Every symbol here
+       carries fill="none", and the paths inside rely on inheriting it
+       — cloning only the children drops that, fill falls back to the
+       SVG default of black, and the glyph fills in solid: interiors
+       go black and anything drawn as a hole, like the robot's eyes,
+       disappears against the background. */
+    for (var a = 0; a < sym.attributes.length; a++) {
+      var at = sym.attributes[a];
+      if (at.name === 'id' || at.name === 'viewBox') continue;
+      if (!svg.hasAttribute(at.name)) svg.setAttribute(at.name, at.value);
+    }
+    use.remove();
+    for (var i = 0; i < sym.children.length; i++) {
+      svg.appendChild(sym.children[i].cloneNode(true));
+    }
+    var out = [];
+    svg.querySelectorAll('path').forEach(function (p) {
+      out = out.concat(splitSubpaths(p));
+    });
+    return out;
+  }
+
+  /* One <path> is often several disconnected pieces — Automations is
+     six, Monitor twelve — and SVG resets the dash pattern at the start
+     of every subpath. So a single dasharray leaves each piece fully
+     drawn almost immediately and the icon looks like it only scales,
+     however carefully the offset is animated. Splitting the pieces
+     into real paths gives each its own length, and lets them come in
+     one after another.
+     Safe only because these exports use absolute moves throughout: a
+     relative 'm' is measured from the previous piece's end, so lifting
+     it out on its own would move it. Checked, not assumed. */
+  function splitSubpaths(path) {
+    var d = path.getAttribute('d') || '';
+    if (d.indexOf('m') !== -1) return [path];
+    var parts = d.match(/M[^M]*/g);
+    if (!parts || parts.length < 2) return [path];
+    var made = [];
+    parts.forEach(function (seg) {
+      var c = path.cloneNode(false);
+      c.setAttribute('d', seg.trim());
+      path.parentNode.insertBefore(c, path);
+      made.push(c);
+    });
+    path.remove();
+    return made;
+  }
+
+  /* One builder for both, so a category's glyph and a leaf item's are
+     literally the same animation. */
+  function drawIn(svg) {
+    var paths = inlineGlyph(svg);
+    if (!paths || !paths.length) return null;
+    return g.timeline({ paused: true })
+      /* dasharray is SET, not tweened. Left out of a fromTo's to-vars
+         GSAP reads it as "animate back to the natural value" and
+         undoes the dashing part-way through. Function-based values
+         give each path its own length. */
+      .set(paths, { strokeDasharray: function (i, t) { return t.getTotalLength(); } })
+      .fromTo(paths,
+        { strokeDashoffset: function (i, t) { return t.getTotalLength(); } },
+        { strokeDashoffset: 0, duration: .45, ease: 'power2.out',
+          stagger: { amount: .22 },
+          clearProps: 'strokeDasharray,strokeDashoffset' }, 0)
+      /* A small pop on the whole glyph, peaking early and out of the
+         way before the last stroke lands. */
+      .fromTo(svg, { '--ic-s': 1 },
+        { '--ic-s': 1.12, duration: .16, ease: 'power2.out' }, 0)
+      .to(svg, { '--ic-s': 1, duration: .42, ease: 'elastic.out(1, .55)' }, .16);
+  }
+
+  g.matchMedia().add('(prefers-reduced-motion: no-preference)', function () {
+
+    /* A leaf item's glyph, and a category's glyph inside its tile —
+       the tile's own chevron is deliberately not in this list. */
+    document.querySelectorAll('.rail-btn .ic, .rail-ghead .rail-tile .ic')
+      .forEach(function (svg) {
+        var tl = drawIn(svg);
+        if (!tl) return;
+        var row = svg.closest('.rail-btn, .rail-ghead');
+        row.addEventListener('mouseenter', function () { tl.restart(); });
+      });
+
+    /* matchMedia reverts everything created in here when the query
+       stops matching; the listeners are all it cannot see, so they are
+       taken off explicitly. */
+    return function () {
+      document.querySelectorAll('.rail-btn .ic, .rail-ghead .rail-tile .ic')
+        .forEach(function (el) { el.style.cssText = ''; });
+    };
+  });
+})();
 
 /* Open on the section this page belongs to, whichever item is marked
    active — the panel should never need a click to show you where you are. */
