@@ -167,5 +167,8 @@ Every one of these looked correct in code and failed in the browser.
 11. **IntersectionObserver fires regardless of what is painted over an
     element.** Anything revealed on scroll must be gated behind a load overlay,
     or it plays unseen.
-12. **Glass needs ~0.82 alpha to stay legible.** At 0.62 a photographic hero
+12. **`currentColor` inside a shared SVG `<pattern>` resolves at the def, not the
+    use site.** Every tile filled from one page-level `<defs>` painted its pattern in
+    body ink. Put the pattern inside the svg that uses it.
+13. **Glass needs ~0.82 alpha to stay legible.** At 0.62 a photographic hero
     read through hard enough to drop nav labels to 2:1.
