@@ -3,14 +3,14 @@
  * Dependency-free. Drives a set of image cards with 3D transforms using a deterministic,
  * time-based frame function per "mode", so every mode is scrubbable and re-configurable live.
  *
- * Usage (classic script):
- *   <link rel="stylesheet" href="image-motion.css">
- *   <script src="image-motion.js"></script>
+ * Usage (classic script): include image-motion.css and image-motion.js, then
  *   const im = ImageMotion.mount('#hero', { mode: 'orbit', images: [...], count: 12 });
  *   im.set({ speed: 1.4 }); im.setMode('tunnel'); im.pause(); im.play(); im.destroy();
  *
- * Or declaratively:
- *   <section data-image-motion='{"mode":"float","count":10}'>…your content…</section>
+ * Or declaratively with a data attribute on the container:
+ *   data-image-motion='{"mode":"float","count":10}'
+ *
+ * The file contains no literal HTML tags so it can be safely inlined in a page.
  */
 (function (root, factory) {
   const api = factory();
