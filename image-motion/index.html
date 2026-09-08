@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ImageMotion — Playground</title>
+  <meta name="description" content="Playground and control panel for the ImageMotion image choreography library." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="image-motion.css" />
+  <style>
+    :root {
+      --ui-bg: #0f1013; --ui-panel: #16181d; --ui-line: #262a33; --ui-line-2: #313743;
+      --ui-text: #e8eaf0; --ui-muted: #8b93a5; --ui-accent: #ff3ea5; --ui-accent-2: #7c5cff;
+      --ui-radius: 10px; --panel-w: 352px;
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--ui-bg); color: var(--ui-text); display: grid; grid-template-columns: 1fr var(--panel-w); overflow: hidden; }
+    body.panel-hidden { grid-template-columns: 1fr 0; }
+    body.panel-hidden aside { display: none; }
+
+    /* ── stage / hero preview ─────────────────────────── */
+    main { position: relative; min-width: 0; }
+    .topbar {
+      position: absolute; left: 16px; top: 14px; z-index: 5; display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px 6px 12px; background: rgba(15, 16, 19, .72); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.08); border-radius: 999px;
+      font-size: 12px; color: #cfd4de;
+    }
+    .topbar strong { font-weight: 700; letter-spacing: -.01em; color: #fff; margin-right: 6px; }
+    .topbar button { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); color: #e8eaf0; border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+    .topbar button:hover { background: rgba(255,255,255,.14); }
+    .topbar kbd { font: 10px ui-monospace, Menlo, monospace; color: var(--ui-muted); margin-left: 4px; }
+
+    .hero {
+      position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+      background: var(--page-bg, #050507); color: var(--page-fg, #fff);
+      font-family: var(--page-font, 'Inter', system-ui, sans-serif);
+      transition: background .4s ease, color .4s ease;
+    }
+    .hero__copy { max-width: 620px; padding: 0 24px; }
+    .hero__copy[hidden] { display: none; }
+    .hero__eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .7; margin: 0 0 14px; font-weight: 600; }
+    .hero__title { font-size: clamp(32px, 4.6vw, 64px); line-height: 1; letter-spacing: -.035em; margin: 0; font-weight: 800; text-wrap: balance; }
+    .hero__sub { font-size: clamp(14px, 1.2vw, 18px); line-height: 1.5; opacity: .75; margin: 18px auto 0; max-width: 460px; }
+    .hero__cta { display: inline-flex; align-items: center; gap: 8px; margin-top: 26px; padding: 12px 22px; border-radius: 999px; background: var(--page-fg, #fff); color: var(--page-bg, #000); font-weight: 600; font-size: 14px; text-decoration: none; }
+    .hero__cta[hidden] { display: none; }
+    .hero .im-ticker { --im-accent: var(--ui-accent); }
+    .safezone { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 1px dashed rgba(255, 62, 165, .6); pointer-events: none; z-index: 3; display: none; }
+    body.show-safezone .safezone { display: block; }
+
+    /* ── panel ─────────────────────────────────────────── */
+    aside { background: var(--ui-panel); border-left: 1px solid var(--ui-line); overflow-y: auto; overflow-x: hidden; font-size: 12.5px; scrollbar-width: thin; scrollbar-color: #2b3038 transparent; }
+    .panel__head { position: sticky; top: 0; z-index: 2; background: var(--ui-panel); border-bottom: 1px solid var(--ui-line); padding: 14px 16px 12px; }
+    .panel__head h1 { font-size: 14px; margin: 0 0 2px; letter-spacing: -.01em; }
+    .panel__head p { margin: 0; color: var(--ui-muted); font-size: 11.5px; }
+    details.sec { border-bottom: 1px solid var(--ui-line); }
+    details.sec > summary { list-style: none; cursor: pointer; padding: 12px 16px; font-weight: 600; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #c6ccd8; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+    details.sec > summary::-webkit-details-marker { display: none; }
+    details.sec > summary::after { content: '+'; color: var(--ui-muted); font-weight: 500; font-size: 14px; }
+    details.sec[open] > summary::after { content: '–'; }
+    details.sec > summary:hover { background: rgba(255,255,255,.02); }
+    .sec__body { padding: 2px 16px 14px; display: grid; gap: 10px; }
+    .field { display: grid; gap: 6px; }
+    .field__row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .field label { color: #c9cfda; font-weight: 500; }
+    .field .val { font: 11px ui-monospace, Menlo, monospace; color: var(--ui-muted); background: #0f1115; padding: 2px 6px; border-radius: 5px; min-width: 42px; text-align: right; }
+    .hint { color: var(--ui-muted); font-size: 11px; margin-top: -2px; }
+    input[type=range] { width: 100%; height: 22px; margin: 0; -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; }
+    input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--ui-line-2); border-radius: 2px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--ui-accent); margin-top: -5.5px; }
+    input[type=range]::-moz-range-track { height: 3px; background: var(--ui-line-2); border-radius: 2px; }
+    input[type=range]::-moz-range-thumb { width: 8px; height: 8px; border-radius: 50%; background: #fff; border: 3px solid var(--ui-accent); }
+    select, input[type=text], textarea, input[type=number] { width: 100%; background: #0f1115; color: var(--ui-text); border: 1px solid var(--ui-line-2); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 12.5px; }
+    textarea { min-height: 78px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.45; }
+    select:focus, input:focus, textarea:focus { outline: none; border-color: var(--ui-accent); }
+    .switch { position: relative; width: 34px; height: 20px; background: var(--ui-line-2); border-radius: 999px; cursor: pointer; transition: background .2s; flex: none; }
+    .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
+    .switch.on { background: var(--ui-accent); }
+    .switch.on::after { transform: translateX(14px); }
+    .color { display: flex; align-items: center; gap: 8px; }
+    .color input[type=color] { width: 30px; height: 26px; padding: 0; border: 1px solid var(--ui-line-2); border-radius: 6px; background: transparent; cursor: pointer; }
+    .color input[type=text] { flex: 1; }
+    .chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .chips button { text-align: left; background: #0f1115; border: 1px solid var(--ui-line-2); color: #d5dae4; border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 12px; cursor: pointer; line-height: 1.2; }
+    .chips button:hover { border-color: #4a5160; }
+    .chips button.on { border-color: var(--ui-accent); background: rgba(255,62,165,.1); color: #fff; }
+    .group-label { color: var(--ui-muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+    .desc { color: var(--ui-muted); font-size: 11.5px; line-height: 1.45; margin: 0; }
+    .btnrow { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn { background: #22262e; border: 1px solid var(--ui-line-2); color: #e8eaf0; border-radius: 7px; padding: 7px 11px; font: inherit; font-size: 12px; cursor: pointer; }
+    .btn:hover { background: #2b303a; }
+    .btn.primary { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
+    .btn.primary:hover { filter: brightness(1.08); }
+    pre.code { margin: 0; background: #0a0b0e; border: 1px solid var(--ui-line); border-radius: 8px; padding: 10px; font: 10.5px/1.5 ui-monospace, Menlo, monospace; color: #b8c2d4; overflow: auto; max-height: 260px; white-space: pre; }
+    .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); background: #fff; color: #000; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 860px) {
+      body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      aside { max-height: 46vh; border-left: 0; border-top: 1px solid var(--ui-line); }
+      body.panel-hidden { grid-template-rows: 1fr 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero" id="stage">
+      <div class="hero__copy" id="copy">
+        <p class="hero__eyebrow" id="eyebrow">Image motion</p>
+        <h1 class="hero__title" id="headline">Level up your visuals</h1>
+        <p class="hero__sub" id="sub">Seventeen natural image choreographies, one tiny library. Tune every parameter from the panel, then copy the config into your site.</p>
+        <a class="hero__cta" id="cta" href="#">Get started →</a>
+      </div>
+    </section>
+    <div class="safezone" id="safezone"></div>
+    <div class="topbar">
+      <strong>ImageMotion</strong>
+      <button id="btnPlay" title="Play / pause (space)">Pause <kbd>␣</kbd></button>
+      <button id="btnRestart" title="Restart timeline">Restart <kbd>R</kbd></button>
+      <button id="btnPanel" title="Toggle panel (H)">Panel <kbd>H</kbd></button>
+      <button id="btnFull" title="Fullscreen (F)">Full <kbd>F</kbd></button>
+    </div>
+  </main>
+
+  <aside id="panel">
+    <div class="panel__head">
+      <h1>Control panel</h1>
+      <p>Every change updates the stage live and is written to the URL, so you can share exact setups.</p>
+    </div>
+    <div id="sections"></div>
+  </aside>
+  <div class="toast" id="toast"></div>
+
+  <script src="image-motion.js"></script>
+  <script>
+    /* ═══════════════════════ demo data ═══════════════════════ */
+    const PICSUM = ['garden', 'studio', 'coast', 'neon', 'desk', 'ceramic', 'runner', 'portrait', 'bike', 'forest', 'kitchen', 'dunes', 'skyline', 'vinyl', 'lamp', 'ocean', 'atelier', 'market', 'sneaker', 'mountain'];
+    const PICSUM_LABELS = ['Garden set', 'Studio light', 'Coastline', 'Neon night', 'Workspace', 'Ceramics', 'Trail run', 'Portrait', 'City ride', 'Deep forest', 'Kitchen', 'Dunes', 'Skyline', 'Vinyl', 'Table lamp', 'Open ocean', 'Atelier', 'Market day', 'Sneaker drop', 'Ridge line'];
+    const picsum = () => PICSUM.map((s, i) => ({ src: `https://picsum.photos/seed/im-${s}/480/600`, label: PICSUM_LABELS[i] }));
+
+    const PRESETS = {
+      'stepping-up':   { label: 'Stepping up (video 1)', im: { mode: 'stack', count: 12, cardWidth: 190, cardHeight: 130, radius: 16, depthBlur: 0, parallax: .25, params: { groups: 2, period: 1.5, tilt: 58, gap: .24, lift: 1.1, spread: .27 } }, page: { bg: '#050507', fg: '#ffffff', eyebrow: 'We are', headline: 'stepping up', sub: '', cta: '' } },
+      'level-up':      { label: 'Level up ring (video 1)', im: { mode: 'burst', count: 14, cardWidth: 120, cardHeight: 150, speed: 1, params: { radius: .36, period: 7, force: 2.6, spin: 1.2 } }, page: { bg: '#050507', fg: '#ffffff', eyebrow: 'So you can', headline: 'level up', sub: '', cta: '' } },
+      'expand':        { label: 'Expand your reach (video 1)', im: { mode: 'converge', count: 12, cardWidth: 140, cardHeight: 170, params: { period: 9, cluster: .1, hold: .45, stagger: .7 } }, page: { bg: '#2a0709', fg: '#ffffff', eyebrow: '', headline: 'EXPAND YOUR REACH', sub: '', cta: '' } },
+      'endless-tools': { label: 'Endless tools ticker (video 1)', im: { mode: 'ticker', count: 12, cardWidth: 150, cardHeight: 180, radius: 10, params: { period: 1, rowHeight: 40, side: 1, offset: .2, thumb: .8 } }, page: { bg: '#050507', fg: '#ffffff', eyebrow: '', headline: 'and endless tools', sub: '', cta: '' } },
+      'shuffle':       { label: 'Shuffle collage (video 2)', im: { mode: 'shuffle', count: 13, cardWidth: 170, cardHeight: 150, sizeVariance: .3, aspectMix: true, radius: 8, depthBlur: 0, params: { period: 4, swap: .2, style: 'pop', idle: .8 } }, page: { bg: '#000000', fg: '#ffffff', eyebrow: '', headline: 'MultiAdaptor 2.0', sub: '', cta: '' } },
+      'marketplace':   { label: 'Marketplace float (video 3)', im: { mode: 'float', count: 9, cardWidth: 130, cardHeight: 150, sizeVariance: .35, aspectMix: true, radius: 18, showLabels: true, depthBlur: 1.5, avoidWidth: .56, avoidHeight: .52, params: { amplitude: 12, sway: 4, depth: 380 } }, page: { bg: '#f6f4f0', fg: '#111111', eyebrow: '', headline: 'Get exclusive access to our marketplace', sub: 'Unlimited tools to transform your health and change your life.', cta: 'Join the waitlist →' } },
+      'tunnel':        { label: 'Creative tunnel (video 4)', im: { mode: 'tunnel', count: 16, cardWidth: 190, cardHeight: 180, radius: 6, depthBlur: 2, parallax: .8, params: { width: .95, gap: 1.22, travel: 80, splay: 12, walls: 'sides', panelScale: 1.9, jitter: .5 } }, page: { bg: '#e9e9e9', fg: '#111111', eyebrow: '', headline: 'One platform. Every creative outcome.', sub: 'Be the creative director. Let agents be your team.', cta: 'Start a brief →', font: 'Georgia, "Times New Roman", serif' } },
+      'belts':         { label: 'Editorial belts', im: { mode: 'marquee', count: 18, cardWidth: 170, cardHeight: 120, radius: 12, params: { rows: 3, gap: .16, velocity: 55, depthSpread: 520, tilt: 0, slant: 0 } }, page: { bg: '#0b0d12', fg: '#ffffff', eyebrow: 'Portfolio', headline: 'Work that moves', sub: 'Three lanes of imagery glide past at different depths while your headline stays put.', cta: 'See the work →' } },
+      'showroom':      { label: 'Showroom coverflow', im: { mode: 'coverflow', count: 9, cardWidth: 260, cardHeight: 340, radius: 18, depthBlur: 2, params: { period: 2.4, spacing: .7, angle: 50, depth: 180 } }, page: { bg: '#101014', fg: '#ffffff', eyebrow: 'New season', headline: '', sub: '', cta: '' } },
+      'globe':         { label: 'Globe', im: { mode: 'sphere', count: 22, cardWidth: 110, cardHeight: 140, radius: 12, params: { radius: .4, spin: .22, tilt: 16, backFade: .8 } }, page: { bg: '#07080c', fg: '#ffffff', eyebrow: 'Worldwide', headline: 'Everywhere at once', sub: '', cta: '' } },
+      'mosaic':        { label: 'Mosaic assemble', im: { mode: 'mosaic', count: 16, cardWidth: 200, cardHeight: 200, radius: 10, params: { cols: 4, period: 8, hold: .45, distance: 1.2, stagger: .55 } }, page: { bg: '#f3efe7', fg: '#1a1a1a', eyebrow: '', headline: '', sub: '', cta: '' } },
+    };
+
+    /* ═══════════════════════ state ═══════════════════════ */
+    const page = { bg: '#050507', fg: '#ffffff', eyebrow: 'Image motion', headline: 'Level up your visuals', sub: 'Seventeen natural image choreographies, one tiny library. Tune every parameter from the panel, then copy the config into your site.', cta: 'Get started →', showCopy: true, font: '', source: 'picsum', custom: '', labels: '', safezone: false };
+    const stage = document.getElementById('stage');
+    const $ = (id) => document.getElementById(id);
+
+    function readHash() {
+      try {
+        const m = location.hash.match(/cfg=([^&]+)/);
+        if (!m) return null;
+        return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+      } catch (e) { return null; }
+    }
+    let hashTimer;
+    function writeHash() {
+      clearTimeout(hashTimer);
+      hashTimer = setTimeout(() => {
+        const data = { im: exportConfig(), page };
+        const b = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        history.replaceState(null, '', '#cfg=' + b);
+      }, 250);
+    }
+
+    const saved = readHash();
+    if (saved?.page) Object.assign(page, saved.page);
+    const initial = saved?.im ? { ...saved.im } : { mode: 'orbit', count: 12 };
+    initial.images = imagesFor(page);
+    initial.labels = labelsFor(page);
+    const im = ImageMotion.mount(stage, initial);
+    applyPage();
+
+    function imagesFor(p) {
+      if (p.source === 'gradient') return [];
+      if (p.source === 'custom') {
+        const lines = p.custom.split('\n').map((s) => s.trim()).filter(Boolean);
+        return lines.map((l) => { const [src, label] = l.split('|').map((s) => s.trim()); return { src, label }; });
+      }
+      return picsum();
+    }
+    function labelsFor(p) { const l = p.labels.split('\n').map((s) => s.trim()).filter(Boolean); return l.length ? l : null; }
+
+    function applyPage() {
+      stage.style.setProperty('--page-bg', page.bg);
+      stage.style.setProperty('--page-fg', page.fg);
+      stage.style.setProperty('--page-font', page.font || "'Inter', system-ui, sans-serif");
+      $('copy').hidden = !page.showCopy;
+      for (const k of ['eyebrow', 'headline', 'sub', 'cta']) { const el = $(k); el.textContent = page[k]; el.hidden = !page[k]; }
+      document.body.classList.toggle('show-safezone', page.safezone);
+      const sz = $('safezone'); sz.style.width = (im.cfg.avoidWidth * 100) + '%'; sz.style.height = (im.cfg.avoidHeight * 100) + '%';
+    }
+
+    /** Config as a user would paste into their site (images inlined only when they are explicit URLs). */
+    function exportConfig() {
+      const c = im.getConfig();
+      const out = { mode: c.mode };
+      for (const k of Object.keys(ImageMotion.defaults)) {
+        if (k === 'mode' || k === 'images' || k === 'labels' || k === 'autoplay') continue;
+        if (JSON.stringify(c[k]) !== JSON.stringify(ImageMotion.defaults[k])) out[k] = c[k];
+      }
+      const md = ImageMotion.getMode(c.mode).defaults;
+      const params = {};
+      for (const k of Object.keys(c.params)) if (JSON.stringify(c.params[k]) !== JSON.stringify(md[k])) params[k] = c.params[k];
+      if (Object.keys(params).length) out.params = params;
+      if (page.source !== 'gradient') out.images = im.cfg.images;
+      if (im.cfg.labels) out.labels = im.cfg.labels;
+      return out;
+    }
+
+    /* ═══════════════════════ panel builder ═══════════════════════ */
+    const sections = $('sections');
+    function section(title, open = true) {
+      const d = document.createElement('details'); d.className = 'sec'; d.open = open;
+      d.innerHTML = `<summary>${title}</summary><div class="sec__body"></div>`;
+      sections.appendChild(d); return d.lastElementChild;
+    }
+    const fmt = (v, step) => { const dec = (String(step).split('.')[1] || '').length; return Number(v).toFixed(dec); };
+    function field(desc, get, set) {
+      const wrap = document.createElement('div'); wrap.className = 'field';
+      const row = document.createElement('div'); row.className = 'field__row';
+      row.innerHTML = `<label>${desc.label}</label>`;
+      wrap.appendChild(row);
+      let input;
+      if (desc.type === 'range') {
+        const val = document.createElement('span'); val.className = 'val'; row.appendChild(val);
+        input = document.createElement('input'); input.type = 'range'; input.min = desc.min; input.max = desc.max; input.step = desc.step; input.value = get();
+        val.textContent = fmt(get(), desc.step);
+        input.addEventListener('input', () => { val.textContent = fmt(input.value, desc.step); set(Number(input.value)); });
+        wrap.appendChild(input);
+        wrap.update = () => { input.value = get(); val.textContent = fmt(get(), desc.step); };
+      } else if (desc.type === 'select') {
+        input = document.createElement('select');
+        desc.options.forEach((o) => { const op = document.createElement('option'); op.value = String(o.value); op.textContent = o.label; input.appendChild(op); });
+        input.value = String(get());
+        input.addEventListener('change', () => { const o = desc.options.find((x) => String(x.value) === input.value); set(o ? o.value : input.value); });
+        wrap.appendChild(input);
+        wrap.update = () => { input.value = String(get()); };
+      } else if (desc.type === 'boolean') {
+        input = document.createElement('div'); input.className = 'switch' + (get() ? ' on' : ''); input.setAttribute('role', 'switch'); input.tabIndex = 0;
+        const flip = () => { input.classList.toggle('on'); set(input.classList.contains('on')); };
+        input.addEventListener('click', flip); input.addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
+        row.appendChild(input);
+        wrap.update = () => input.classList.toggle('on', !!get());
+      } else if (desc.type === 'color') {
+        const box = document.createElement('div'); box.className = 'color';
+        const c = document.createElement('input'); c.type = 'color'; c.value = get();
+        const t = document.createElement('input'); t.type = 'text'; t.value = get();
+        c.addEventListener('input', () => { t.value = c.value; set(c.value); });
+        t.addEventListener('change', () => { set(t.value); if (/^#[0-9a-f]{6}$/i.test(t.value)) c.value = t.value; });
+        box.append(c, t); wrap.appendChild(box);
+        wrap.update = () => { c.value = /^#[0-9a-f]{6}$/i.test(get()) ? get() : c.value; t.value = get(); };
+      } else if (desc.type === 'text' || desc.type === 'textarea') {
+        input = document.createElement(desc.type === 'text' ? 'input' : 'textarea');
+        if (desc.type === 'text') input.type = 'text';
+        input.value = get(); if (desc.placeholder) input.placeholder = desc.placeholder;
+        input.addEventListener(desc.type === 'text' ? 'input' : 'change', () => set(input.value));
+        wrap.appendChild(input);
+        wrap.update = () => { input.value = get(); };
+      }
+      if (desc.hint) { const h = document.createElement('div'); h.className = 'hint'; h.textContent = desc.hint; wrap.appendChild(h); }
+      return wrap;
+    }
+    const registry = [];
+    const add = (parent, desc, get, set) => { const f = field(desc, get, set); parent.appendChild(f); registry.push(f); return f; };
+    const refreshAll = () => registry.forEach((f) => f.update && f.update());
+    const imSet = (patch) => { im.set(patch); afterChange(); };
+    const pageSet = (patch) => { Object.assign(page, patch); applyPage(); afterChange(); };
+    function afterChange() { writeHash(); renderExport(); }
+
+    /* — presets — */
+    {
+      const b = section('Presets');
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="">Choose a preset…</option>' + Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${p.label}</option>`).join('');
+      sel.addEventListener('change', () => { if (sel.value) applyPreset(sel.value); sel.value = ''; });
+      b.appendChild(sel);
+      const row = document.createElement('div'); row.className = 'btnrow';
+      row.innerHTML = '<button class="btn" id="bSeed">Shuffle layout</button><button class="btn" id="bReset">Reset mode params</button>';
+      b.appendChild(row);
+      row.querySelector('#bSeed').onclick = () => { imSet({ seed: Math.floor(Math.random() * 9999) }); refreshAll(); };
+      row.querySelector('#bReset').onclick = () => { im.resetParams(); rebuildModeParams(); afterChange(); };
+    }
+    function applyPreset(key) {
+      const p = PRESETS[key];
+      Object.assign(page, { eyebrow: '', sub: '', cta: '', font: '' }, p.page, { showCopy: true });
+      const cfg = { ...ImageMotion.defaults, ...p.im };
+      delete cfg.autoplay;
+      const { params, mode, ...rest } = cfg;
+      im.setMode(mode, params);
+      im.resetParams();
+      im.set({ ...rest, params, images: imagesFor(page), labels: labelsFor(page) });
+      im.restart();
+      applyPage(); rebuildModeParams(); refreshAll(); afterChange();
+    }
+
+    /* — modes — */
+    let modeDesc, modeBody;
+    {
+      const b = section('Motion');
+      const chips = document.createElement('div'); chips.className = 'chips';
+      const groups = [['reference', 'From the references'], ['extra', 'More variations']];
+      for (const [g, label] of groups) {
+        const gl = document.createElement('div'); gl.className = 'group-label'; gl.textContent = label; gl.style.gridColumn = '1 / -1'; chips.appendChild(gl);
+        ImageMotion.modes.filter((m) => m.group === g).forEach((m) => {
+          const btn = document.createElement('button'); btn.textContent = m.name; btn.dataset.mode = m.id; btn.title = m.description;
+          btn.onclick = () => { im.setMode(m.id); im.restart(); rebuildModeParams(); afterChange(); };
+          chips.appendChild(btn);
+        });
+      }
+      b.appendChild(chips);
+      modeDesc = document.createElement('p'); modeDesc.className = 'desc'; b.appendChild(modeDesc);
+      modeBody = section('Mode settings');
+    }
+    function rebuildModeParams() {
+      const m = im.mode;
+      sections.querySelectorAll('.chips button').forEach((btn) => btn.classList.toggle('on', btn.dataset.mode === m.id));
+      modeDesc.textContent = m.description;
+      registry.splice(0, registry.length, ...registry.filter((f) => !f.isModeField));
+      modeBody.innerHTML = '';
+      m.schema.forEach((desc) => {
+        const f = add(modeBody, desc, () => im.params[desc.key], (v) => imSet({ params: { [desc.key]: v } }));
+        f.isModeField = true;
+      });
+      if (m.usesLabels) { const h = document.createElement('p'); h.className = 'desc'; h.textContent = 'This mode reads the “Labels” list in the Images section.'; modeBody.appendChild(h); }
+      applyPage();
+    }
+
+    /* — cards — */
+    {
+      const b = section('Cards');
+      add(b, { type: 'range', label: 'Count', min: 1, max: 40, step: 1 }, () => im.cfg.count, (v) => imSet({ count: v }));
+      add(b, { type: 'range', label: 'Card width', min: 40, max: 480, step: 2 }, () => im.cfg.cardWidth, (v) => imSet({ cardWidth: v }));
+      add(b, { type: 'range', label: 'Card height', min: 40, max: 480, step: 2 }, () => im.cfg.cardHeight, (v) => imSet({ cardHeight: v }));
+      add(b, { type: 'range', label: 'Size variance', min: 0, max: 0.6, step: 0.01, hint: 'Collage modes only' }, () => im.cfg.sizeVariance, (v) => imSet({ sizeVariance: v }));
+      add(b, { type: 'boolean', label: 'Mix aspect ratios' }, () => im.cfg.aspectMix, (v) => imSet({ aspectMix: v }));
+      add(b, { type: 'range', label: 'Corner radius', min: 0, max: 60, step: 1 }, () => im.cfg.radius, (v) => imSet({ radius: v }));
+      add(b, { type: 'boolean', label: 'Drop shadow' }, () => im.cfg.shadow, (v) => imSet({ shadow: v }));
+      add(b, { type: 'boolean', label: 'Show captions' }, () => im.cfg.showLabels, (v) => imSet({ showLabels: v }));
+    }
+    /* — timing — */
+    {
+      const b = section('Timing & feel');
+      add(b, { type: 'range', label: 'Speed', min: 0, max: 3, step: 0.05 }, () => im.cfg.speed, (v) => imSet({ speed: v }));
+      add(b, { type: 'range', label: 'Intensity', min: 0, max: 2.5, step: 0.05, hint: 'Scales drift, wobble and lift amounts' }, () => im.cfg.intensity, (v) => imSet({ intensity: v }));
+      add(b, { type: 'select', label: 'Easing', options: ImageMotion.easings.map((e) => ({ value: e, label: e })) }, () => im.cfg.easing, (v) => imSet({ easing: v }));
+      add(b, { type: 'boolean', label: 'Pause on hover' }, () => im.cfg.hoverPause, (v) => imSet({ hoverPause: v }));
+    }
+    /* — depth & camera — */
+    {
+      const b = section('Depth & camera', false);
+      add(b, { type: 'range', label: 'Perspective', min: 300, max: 3000, step: 10 }, () => im.cfg.perspective, (v) => imSet({ perspective: v }));
+      add(b, { type: 'range', label: 'Depth fade', min: 0, max: 1, step: 0.05 }, () => im.cfg.depthFade, (v) => imSet({ depthFade: v }));
+      add(b, { type: 'range', label: 'Depth blur (px)', min: 0, max: 12, step: 0.5 }, () => im.cfg.depthBlur, (v) => imSet({ depthBlur: v }));
+      add(b, { type: 'range', label: 'Mouse parallax', min: 0, max: 2, step: 0.05 }, () => im.cfg.parallax, (v) => imSet({ parallax: v }));
+      add(b, { type: 'boolean', label: 'Lift card on hover' }, () => im.cfg.hoverLift, (v) => imSet({ hoverLift: v }));
+    }
+    /* — layout — */
+    {
+      const b = section('Copy safe zone', false);
+      add(b, { type: 'boolean', label: 'Keep cards off the copy', hint: 'Collage modes avoid a central box' }, () => im.cfg.avoidCenter, (v) => imSet({ avoidCenter: v }));
+      add(b, { type: 'range', label: 'Safe zone width', min: 0.1, max: 0.9, step: 0.01 }, () => im.cfg.avoidWidth, (v) => { imSet({ avoidWidth: v }); applyPage(); });
+      add(b, { type: 'range', label: 'Safe zone height', min: 0.1, max: 0.9, step: 0.01 }, () => im.cfg.avoidHeight, (v) => { imSet({ avoidHeight: v }); applyPage(); });
+      add(b, { type: 'boolean', label: 'Show safe zone' }, () => page.safezone, (v) => pageSet({ safezone: v }));
+    }
+    /* — images — */
+    {
+      const b = section('Images', false);
+      add(b, { type: 'select', label: 'Source', options: [{ value: 'picsum', label: 'Sample photos (picsum.photos)' }, { value: 'gradient', label: 'Gradient placeholders (offline)' }, { value: 'custom', label: 'Custom URLs' }] }, () => page.source, (v) => { page.source = v; imSet({ images: imagesFor(page) }); afterChange(); });
+      add(b, { type: 'textarea', label: 'Custom URLs', placeholder: 'https://…/a.jpg | Caption\nhttps://…/b.jpg', hint: 'One per line. Optional “| caption” after the URL. Used when Source = Custom.' }, () => page.custom, (v) => { page.custom = v; if (page.source === 'custom') imSet({ images: imagesFor(page) }); afterChange(); });
+      add(b, { type: 'textarea', label: 'Labels (ticker list)', placeholder: ImageMotion.defaultLabels.join('\n') }, () => page.labels, (v) => { page.labels = v; imSet({ labels: labelsFor(page) }); });
+      add(b, { type: 'range', label: 'Seed', min: 1, max: 9999, step: 1, hint: 'Same seed = same layout' }, () => im.cfg.seed, (v) => imSet({ seed: v }));
+    }
+    /* — page — */
+    {
+      const b = section('Page preview', false);
+      add(b, { type: 'boolean', label: 'Show copy' }, () => page.showCopy, (v) => pageSet({ showCopy: v }));
+      add(b, { type: 'color', label: 'Background' }, () => page.bg, (v) => pageSet({ bg: v }));
+      add(b, { type: 'color', label: 'Text colour' }, () => page.fg, (v) => pageSet({ fg: v }));
+      add(b, { type: 'text', label: 'Eyebrow' }, () => page.eyebrow, (v) => pageSet({ eyebrow: v }));
+      add(b, { type: 'text', label: 'Headline' }, () => page.headline, (v) => pageSet({ headline: v }));
+      add(b, { type: 'text', label: 'Sub copy' }, () => page.sub, (v) => pageSet({ sub: v }));
+      add(b, { type: 'text', label: 'Button label' }, () => page.cta, (v) => pageSet({ cta: v }));
+      add(b, { type: 'text', label: 'Font stack', placeholder: "'Inter', system-ui, sans-serif" }, () => page.font, (v) => pageSet({ font: v }));
+    }
+    /* — export — */
+    let codeJson, codeEmbed;
+    {
+      const b = section('Export');
+      const row = document.createElement('div'); row.className = 'btnrow';
+      row.innerHTML = '<button class="btn primary" id="bCopyCfg">Copy config</button><button class="btn" id="bCopyEmbed">Copy embed snippet</button><button class="btn" id="bCopyLink">Copy share link</button>';
+      b.appendChild(row);
+      const l1 = document.createElement('div'); l1.className = 'group-label'; l1.textContent = 'Config (JSON)'; b.appendChild(l1);
+      codeJson = document.createElement('pre'); codeJson.className = 'code'; b.appendChild(codeJson);
+      const l2 = document.createElement('div'); l2.className = 'group-label'; l2.textContent = 'Embed snippet'; b.appendChild(l2);
+      codeEmbed = document.createElement('pre'); codeEmbed.className = 'code'; b.appendChild(codeEmbed);
+      row.querySelector('#bCopyCfg').onclick = () => copy(JSON.stringify(exportConfig(), null, 2), 'Config copied');
+      row.querySelector('#bCopyEmbed').onclick = () => copy(embedSnippet(), 'Snippet copied');
+      row.querySelector('#bCopyLink').onclick = () => { writeHash(); setTimeout(() => copy(location.href, 'Link copied'), 300); };
+    }
+    function embedSnippet() {
+      const cfg = JSON.stringify(exportConfig(), null, 2).replace(/\n/g, '\n  ');
+      return `<link rel="stylesheet" href="image-motion/image-motion.css">
+
+<section class="hero" id="hero">
+  <!-- Anything inside the stage renders above the cards -->
+  <div class="hero__copy">
+    <h1>${page.headline || 'Your headline'}</h1>
+  </div>
+</section>
+
+<script src="image-motion/image-motion.js"><\/script>
+<script>
+  const hero = ImageMotion.mount('#hero', ${cfg});
+  // hero.setMode('float'); hero.set({ speed: 1.4 }); hero.pause(); hero.play();
+<\/script>`;
+    }
+    function renderExport() { codeJson.textContent = JSON.stringify(exportConfig(), null, 2); codeEmbed.textContent = embedSnippet(); }
+    function copy(text, msg) {
+      navigator.clipboard?.writeText(text).then(() => toast(msg), () => toast('Copy failed — select the code manually'));
+    }
+    let toastTimer;
+    function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1600); }
+
+    /* — top bar & keys — */
+    const btnPlay = $('btnPlay');
+    const syncPlay = () => { btnPlay.innerHTML = (im.playing ? 'Pause' : 'Play') + ' <kbd>␣</kbd>'; };
+    btnPlay.onclick = () => { im.toggle(); syncPlay(); };
+    $('btnRestart').onclick = () => im.restart();
+    $('btnPanel').onclick = () => { document.body.classList.toggle('panel-hidden'); im.refresh(); };
+    $('btnFull').onclick = () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); };
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      if (e.key === ' ') { e.preventDefault(); im.toggle(); syncPlay(); }
+      if (e.key.toLowerCase() === 'h') $('btnPanel').click();
+      if (e.key.toLowerCase() === 'r') im.restart();
+      if (e.key.toLowerCase() === 'f') $('btnFull').click();
+    });
+
+    rebuildModeParams();
+    renderExport();
+    syncPlay();
+    window.im = im; // handy for poking from the console
+  </script>
+</body>
+</html>
