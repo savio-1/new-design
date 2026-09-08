@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Archivo+Black&family=Anton&family=Bebas+Neue&family=Oswald:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Space+Grotesk:wght@400;700&family=Instrument+Serif:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=DM+Serif+Display:ital@0;1&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Bangers&family=Pacifico&family=Caveat:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -41,7 +42,8 @@
     <aside class="panel left">
       <div class="tabs" id="leftTabs">
         <button class="tab active" data-tab="templates">Templates</button>
-        <button class="tab" data-tab="styles">Text styles</button>
+        <button class="tab" data-tab="styles">Styles</button>
+        <button class="tab" data-tab="camera">Camera</button>
       </div>
       <div class="tab-body" id="tab-templates">
         <button id="btnAddText" class="add-text">
@@ -52,8 +54,23 @@
         <div class="template-grid" id="templateGrid"></div>
       </div>
       <div class="tab-body hidden" id="tab-styles">
-        <p class="panel-hint">Click a style to apply it to the selected layer, or to create a new layer with that look.</p>
+        <p class="panel-hint">Click a style to apply it to the selected layers, or to create a new layer with that look.</p>
         <div class="style-grid" id="styleGrid"></div>
+      </div>
+      <div class="tab-body hidden" id="tab-camera">
+        <p class="panel-hint">The camera flies through the text world while the video stays put. Words off the focal plane blur like a real lens.</p>
+        <div class="ctl">
+          <label>Depth of field</label>
+          <div class="range-wrap"><input id="camAperture" type="range" min="0" max="1" step="0.01" value="0.6"><input id="camApertureNum" type="number" min="0" max="100" step="1" value="60"></div>
+        </div>
+        <div class="ctl">
+          <label>Focus</label>
+          <label class="toggle"><input id="camAutofocus" type="checkbox" checked><span class="muted">Follow newest word</span></label>
+        </div>
+        <div class="subhead">Camera moves</div>
+        <p class="panel-hint">A move is written as keyframes over the selected layers' time span, or 3 seconds from the playhead. Double-click the camera track to add a key by hand.</p>
+        <div class="move-grid" id="moveGrid"></div>
+        <button id="btnClearCamera" class="btn small" style="margin-top:10px">Remove all camera keys</button>
       </div>
     </aside>
 
@@ -109,6 +126,14 @@
           <div class="tl-names-head">Layers <span id="layerCount" class="muted"></span></div>
           <div class="tl-ruler" id="ruler"></div>
         </div>
+        <div class="tl-camera" id="tlCamera">
+          <div class="tl-name" title="Camera keyframes">
+            <svg viewBox="0 0 20 20"><path d="M3 7h9v7H3zM12 9.5l5-2.5v7l-5-2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            <span class="nm">Camera</span>
+            <button class="tl-eye" id="btnAddKey" title="Add keyframe at playhead">+</button>
+          </div>
+          <div class="tl-track" id="camTrack"></div>
+        </div>
         <div class="tl-body" id="tlBody">
           <div class="tl-empty" id="tlEmpty">No text yet. Click <b>Add text</b> or pick a template.</div>
         </div>
@@ -120,11 +145,12 @@
     <aside class="panel right" id="inspector">
       <div class="inspector-empty" id="inspectorEmpty">
         <p><strong>Nothing selected</strong></p>
-        <p>Select a text layer on the canvas or in the timeline to edit its look, 3D position, and animation.</p>
+        <p>Select a text layer on the canvas or in the timeline to edit its look, 3D position, and animation. Shift-click to select several and edit them together.</p>
       </div>
       <div class="inspector-body hidden" id="inspectorBody">
         <div class="inspector-head">
           <input id="layerName" class="layer-name" type="text" spellcheck="false" title="Layer name">
+          <span id="multiTitle" class="head-title hidden"></span>
           <div class="head-actions">
             <button class="btn icon ghost" id="btnLayerUp" title="Bring forward"><svg viewBox="0 0 20 20"><path d="M10 15V5m0 0L6 9m4-4l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
             <button class="btn icon ghost" id="btnLayerDown" title="Send backward"><svg viewBox="0 0 20 20"><path d="M10 5v10m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -133,6 +159,15 @@
           </div>
         </div>
         <div id="inspectorSections"></div>
+      </div>
+      <div class="inspector-body hidden" id="cameraKeyBody">
+        <div class="inspector-head">
+          <span class="head-title">Camera keyframe</span>
+          <div class="head-actions">
+            <button class="btn icon ghost danger" id="btnDeleteKey" title="Delete keyframe (Del)"><svg viewBox="0 0 20 20"><path d="M5 6h10M8 6V4h4v2M6.5 6l.7 9h5.6l.7-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div id="cameraKeySections"></div>
       </div>
     </aside>
   </main>
@@ -256,6 +291,7 @@
   <script src="js/animations.js"></script>
   <script src="js/text-render.js"></script>
   <script src="js/renderer.js"></script>
+  <script src="js/camera.js"></script>
   <script src="js/presets.js"></script>
   <script src="js/exporter.js"></script>
   <script src="js/app.js"></script>

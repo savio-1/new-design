@@ -55,8 +55,38 @@ HEVC MOV files from iPhones need to be transcoded to H.264 first.
    For 4K or long clips tick *Stream straight to a file* to avoid holding the whole file in memory.
 8. **Save / Open** stores the project as JSON (the video itself is not embedded — re-import it).
 
-Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove layer ·
-`Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+D` duplicate · `Ctrl+S` save · `Ctrl+E` export.
+Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove layer or key ·
+`Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
+`K` add camera key · `Ctrl+S` save · `Ctrl+E` export.
+
+## Camera and depth
+
+The text lives in a 3D world in front of the footage, and a virtual camera moves through it while
+the video stays put — this is what gives the reference clips their depth. Open the **Camera** tab:
+
+- **Depth of field** blurs words the further they sit from the focal plane, more strongly when they
+  are close to the lens. **Follow newest word** keeps focus on the word that just appeared, easing
+  over from the previous one, exactly like the reference.
+- **Camera moves** write keyframes over the selected layers' time span (or 3 s from the playhead):
+  Dolly in/out, Push through (approach, then fly past the words so they blur out of frame),
+  Orbit left/right, Crane up, Pull-back reveal, Handheld drift, Whip in.
+- The **Camera** track above the layers shows keyframes as diamonds. Drag to retime, click to edit
+  dolly / truck / pedestal / yaw / pitch / roll and easing in the inspector, double-click the track
+  (or press `K`) to add a key at the playhead.
+- Templates such as *Kinetic Words* insert their own camera moves along with the layers.
+
+## Multi-selection
+
+Shift-click (or Ctrl/Cmd-click) layers in the timeline or on the canvas to select several, or press
+`Ctrl+A` for all. The inspector then edits every selected layer at once: font, weight, size, colour,
+animation and so on are applied to all of them, while position, rotation and timing move each layer
+by the same amount. Dragging on the canvas or in the timeline moves the whole selection.
+
+## Fonts
+
+Google Fonts plus two local families shipped in `fonts/` as Latin-subset WOFF2: **Helvetica Neue**
+(Ultra Light to Black, with italics) and **Francy**. Helvetica Neue is a licensed typeface supplied
+by the project owner; check your licence before distributing the bundle.
 
 ## Animations
 
@@ -83,6 +113,7 @@ Floor Crawl, Wall Text, Lower Third, Scatter Assemble, Neon Sign, Bouncy Pop, El
   the export resolution so 4K output stays sharp.
 - `js/animations.js` — easing curves plus the entrance / exit / loop library. Each animation is a
   pure function of progress that returns translation, rotation, scale, opacity and blur.
+- `js/camera.js` — camera keyframes, interpolation, and the library of camera moves.
 - `js/presets.js` — style presets and template generators.
 - `js/exporter.js` — frame-accurate export: seeks the source video frame by frame, renders,
   encodes with WebCodecs (H.264, falling back to VP9 / AV1) and muxes with

@@ -7,6 +7,7 @@
   'use strict';
 
   const FONTS = [
+    { family: 'Helvetica Neue', weights: [100, 200, 300, 400, 500, 700, 800, 900], italic: true, category: 'Sans', local: true },
     { family: 'Inter', weights: [400, 700, 900], italic: false, category: 'Sans' },
     { family: 'Archivo Black', weights: [400], italic: false, category: 'Sans' },
     { family: 'Anton', weights: [400], italic: false, category: 'Sans' },
@@ -18,6 +19,7 @@
     { family: 'Playfair Display', weights: [400, 700, 900], italic: true, category: 'Serif' },
     { family: 'DM Serif Display', weights: [400], italic: true, category: 'Serif' },
     { family: 'Cormorant Garamond', weights: [400, 700], italic: true, category: 'Serif' },
+    { family: 'Francy', weights: [400], italic: false, category: 'Display', local: true },
     { family: 'Bangers', weights: [400], italic: false, category: 'Display' },
     { family: 'Pacifico', weights: [400], italic: false, category: 'Script' },
     { family: 'Caveat', weights: [400, 700], italic: false, category: 'Script' },

@@ -139,7 +139,7 @@
       fn: (p) => Object.assign(rest(), {
         tz: inv(p) * 3.5,
         opacity: clamp01(p * 2.2),
-        blur: inv(p) * 0.4,
+        blur: inv(p) * 0.18,
       }),
     },
     zoomAway: {

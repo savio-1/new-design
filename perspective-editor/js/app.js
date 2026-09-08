@@ -1,4 +1,4 @@
-/* Perspective — application: state, UI, interactions, export flow. */
+/* Perspective — application: state, UI, interactions, camera, export flow. */
 (function () {
   'use strict';
 
@@ -6,11 +6,14 @@
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const round = (v, d = 2) => Math.round(v * Math.pow(10, d)) / Math.pow(10, d);
+  const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   /* ------------------------------------------------------------------ state */
   const state = {
     layers: [],
-    selectedId: null,
+    selectedIds: [],       // ordered; the first entry is the primary selection
+    selectedKeyId: null,   // selected camera keyframe (mutually exclusive with layer selection)
+    camera: { aperture: 0.6, autoFocus: true, keys: [] },
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -36,8 +39,12 @@
     btnPlay: $('#btnPlay'),
     inspectorEmpty: $('#inspectorEmpty'),
     inspectorBody: $('#inspectorBody'),
+    cameraKeyBody: $('#cameraKeyBody'),
     sections: $('#inspectorSections'),
+    keySections: $('#cameraKeySections'),
     layerName: $('#layerName'),
+    multiTitle: $('#multiTitle'),
+    camTrack: $('#camTrack'),
     toast: $('#toast'),
   };
 
@@ -82,6 +89,9 @@
     o[keys[keys.length - 1]] = value;
   }
   const stripper = (k, v) => (k.startsWith('_') ? undefined : v);
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
   /* When hosted inside a claude.ai artifact, plain <a download> links are blocked; the page must hand
    * files to the viewer through the `downloads` capability instead. Resolved lazily; null elsewhere. */
@@ -149,6 +159,69 @@
     els.btnPlay.classList.toggle('playing', clock.playing);
   }
 
+  /* ------------------------------------------------------------------ camera */
+  function layerDepth(cam, l) {
+    return renderer.viewDepth(cam, l.transform.x, l.transform.y, l.transform.z);
+  }
+
+  /* Absolute camera for the renderer at time t: keyframe offsets + focus. */
+  function cameraAt(t) {
+    const d = renderer.camDist;
+    const k = Camera.evaluate(state.camera.keys, t);
+    const cam = { x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll, aperture: state.camera.aperture, focus: d };
+    if (state.camera.autoFocus) cam.focus = autoFocus(cam, t);
+    else cam.focus = k.focus != null ? k.focus : Math.max(0.1, renderer.viewDepth(cam, 0, 0, 0));
+    return cam;
+  }
+
+  /* Focus follows the most recently started visible layer, easing over from the previous one. */
+  function autoFocus(cam, t) {
+    const planeDepth = Math.max(0.1, renderer.viewDepth(cam, 0, 0, 0));
+    const vis = state.layers.filter((l) => !l.hidden && t >= l.start && t < l.end).sort((a, b) => b.start - a.start);
+    if (!vis.length) return planeDepth;
+    const d0 = Math.max(0.1, layerDepth(cam, vis[0]));
+    const d1 = vis[1] ? Math.max(0.1, layerDepth(cam, vis[1])) : planeDepth;
+    const k = easeInOut(clamp((t - vis[0].start) / 0.45, 0, 1));
+    return d1 + (d0 - d1) * k;
+  }
+
+  const getKey = (id) => state.camera.keys.find((k) => k.id === id);
+  const selectedKey = () => getKey(state.selectedKeyId);
+
+  function addCameraKey(t, patch) {
+    const cur = Camera.evaluate(state.camera.keys, t);
+    const key = Camera.defaultKey(t, Object.assign({ x: cur.x, y: cur.y, dolly: cur.dolly, yaw: cur.yaw, pitch: cur.pitch, roll: cur.roll, focus: cur.focus }, patch || {}));
+    key.x = round(key.x, 3); key.y = round(key.y, 3); key.dolly = round(key.dolly, 3);
+    key.yaw = round(key.yaw, 1); key.pitch = round(key.pitch, 1); key.roll = round(key.roll, 1);
+    // one key per time: replace an existing key at the same instant
+    state.camera.keys = state.camera.keys.filter((k) => Math.abs(k.t - t) > 0.02).concat([key]);
+    state.camera.keys = Camera.sorted(state.camera.keys);
+    return key;
+  }
+
+  function applyCameraMove(move) {
+    const sel = selectedLayers();
+    let s, e;
+    if (sel.length) {
+      s = Math.min(...sel.map((l) => l.start));
+      e = Math.max(...sel.map((l) => l.end));
+    } else {
+      s = clamp(clock.time, 0, Math.max(0, duration() - 0.5));
+      e = Math.min(duration(), s + 3);
+    }
+    if (e - s < 0.2) { toast('The range is too short for a camera move', true); return; }
+    const keys = move.build(s, e, renderer.camDist);
+    state.camera.keys = Camera.replaceRange(state.camera.keys, s, e, keys);
+    state.selectedKeyId = null;
+    commit();
+    renderCameraTrack();
+    refreshInspector();
+    clock.pause();
+    clock.time = s;
+    clock.play();
+    toast(`${move.name} · ${fmtTime(s)} → ${fmtTime(e)}`);
+  }
+
   /* ------------------------------------------------------------------ render loop */
   let needsRender = true;
   function invalidate() { needsRender = true; }
@@ -174,7 +247,8 @@
       layers: state.layers,
       time,
       frameHeightPx: els.canvas.height,
-      selectedId: state.exporting ? null : state.selectedId,
+      selectedIds: state.exporting ? [] : state.selectedIds,
+      camera: cameraAt(time),
     });
   }
 
@@ -198,11 +272,13 @@
     els.playhead.style.left = `${namesW + (t / Math.max(0.001, T)) * trackW}px`;
   }
 
-  /* ------------------------------------------------------------------ layers & undo */
+  /* ------------------------------------------------------------------ layers, selection & undo */
   let nextId = 1;
   const uid = () => `L${nextId++}_${Math.random().toString(36).slice(2, 6)}`;
   const getLayer = (id) => state.layers.find((l) => l.id === id);
-  const selected = () => getLayer(state.selectedId);
+  const selected = () => getLayer(state.selectedIds[0]);
+  const selectedLayers = () => state.selectedIds.map(getLayer).filter(Boolean);
+  const isSelected = (id) => state.selectedIds.includes(id);
 
   function addLayer(partial, opts = {}) {
     const l = Presets.deepMerge(Presets.defaultLayer(), partial || {});
@@ -210,7 +286,7 @@
     l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
     l.end = clamp(l.end, l.start + 0.1, duration());
     state.layers.push(l);
-    if (opts.select !== false) state.selectedId = l.id;
+    if (opts.select !== false) { state.selectedIds = [l.id]; state.selectedKeyId = null; }
     return l;
   }
 
@@ -225,25 +301,33 @@
     return l;
   }
 
-  function deleteLayer(id) {
-    const i = state.layers.findIndex((l) => l.id === id);
-    if (i < 0) return;
-    state.layers.splice(i, 1);
-    if (state.selectedId === id) state.selectedId = null;
+  function deleteSelected() {
+    if (state.selectedKeyId) {
+      state.camera.keys = state.camera.keys.filter((k) => k.id !== state.selectedKeyId);
+      state.selectedKeyId = null;
+    } else if (state.selectedIds.length) {
+      const ids = new Set(state.selectedIds);
+      state.layers = state.layers.filter((l) => !ids.has(l.id));
+      state.selectedIds = [];
+    } else return;
     commit();
     refreshAll();
   }
 
-  function duplicateLayer(id) {
-    const src = getLayer(id);
-    if (!src) return;
-    const copy = JSON.parse(JSON.stringify(src, stripper));
-    copy.id = uid();
-    copy.name = `${src.name} copy`;
-    copy.transform.y -= 0.12;
-    const i = state.layers.indexOf(src);
-    state.layers.splice(i + 1, 0, copy);
-    state.selectedId = copy.id;
+  function duplicateSelected() {
+    const src = selectedLayers();
+    if (!src.length) return;
+    const ids = [];
+    for (const l of src) {
+      const copy = JSON.parse(JSON.stringify(l, stripper));
+      copy.id = uid();
+      copy.name = `${l.name} copy`;
+      copy.transform.y -= 0.12;
+      const i = state.layers.indexOf(l);
+      state.layers.splice(i + 1, 0, copy);
+      ids.push(copy.id);
+    }
+    state.selectedIds = ids;
     commit();
     refreshAll();
   }
@@ -258,16 +342,40 @@
     refreshAll();
   }
 
-  function select(id) {
-    if (state.selectedId === id) return;
-    state.selectedId = id;
+  /* Selection: select(id) replaces; select(id, {toggle:true}) adds/removes; select(null) clears. */
+  function select(id, opts = {}) {
+    state.selectedKeyId = null;
+    if (opts.toggle && id) {
+      if (isSelected(id)) state.selectedIds = state.selectedIds.filter((x) => x !== id);
+      else state.selectedIds = state.selectedIds.concat([id]);
+    } else if (id == null) {
+      if (!state.selectedIds.length && !state.selectedKeyId) return;
+      state.selectedIds = [];
+    } else {
+      if (state.selectedIds.length === 1 && state.selectedIds[0] === id) return;
+      state.selectedIds = [id];
+    }
+    refreshInspector();
+    renderTimeline();
+    invalidate();
+  }
+  function selectKey(id) {
+    state.selectedIds = [];
+    state.selectedKeyId = id;
+    refreshInspector();
+    renderTimeline();
+    invalidate();
+  }
+  function selectAll() {
+    state.selectedKeyId = null;
+    state.selectedIds = state.layers.map((l) => l.id);
     refreshInspector();
     renderTimeline();
     invalidate();
   }
 
   function snapshot() {
-    return JSON.stringify({ layers: state.layers, selectedId: state.selectedId }, stripper);
+    return JSON.stringify({ layers: state.layers, camera: state.camera, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId }, stripper);
   }
   function commit() {
     const snap = snapshot();
@@ -281,8 +389,11 @@
   function restore(snap) {
     const data = JSON.parse(snap);
     state.layers = data.layers;
-    state.selectedId = getLayer(data.selectedId) ? data.selectedId : null;
+    state.camera = data.camera || { aperture: 0.6, autoFocus: true, keys: [] };
+    state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
+    state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
     state.lastCommitted = snap;
+    syncCameraControls();
     refreshAll();
   }
   function undo() {
@@ -339,16 +450,32 @@
     return { inW: l.anim.in.type === 'none' ? 0 : inW, outW: l.anim.out.type === 'none' ? 0 : outW };
   }
 
+  function renderCameraTrack() {
+    const T = duration();
+    const keys = Camera.sorted(state.camera.keys);
+    let html = '';
+    if (keys.length > 1) {
+      const a = (keys[0].t / T) * 100, b = (keys[keys.length - 1].t / T) * 100;
+      html += `<div class="tl-key-line" style="left:${a}%; width:${b - a}%"></div>`;
+    }
+    for (const k of keys) {
+      html += `<div class="tl-key${k.id === state.selectedKeyId ? ' selected' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · dolly ${round(k.dolly)} · yaw ${round(k.yaw, 1)}°"></div>`;
+    }
+    els.camTrack.innerHTML = html;
+  }
+
   function renderTimeline() {
     renderRuler();
+    renderCameraTrack();
     const rows = state.layers.slice().reverse();
     els.tlEmpty.classList.toggle('hidden', rows.length > 0);
     $('#layerCount').textContent = rows.length ? `(${rows.length})` : '';
-    // Remove old rows
     $$('.tl-row', els.tlBody).forEach((r) => r.remove());
+    const primary = state.selectedIds[0];
     for (const l of rows) {
       const row = document.createElement('div');
-      row.className = `tl-row${l.id === state.selectedId ? ' selected' : ''}${l.hidden ? ' hidden-layer' : ''}`;
+      const sel = isSelected(l.id);
+      row.className = `tl-row${sel ? ' selected' : ''}${sel && l.id !== primary ? ' secondary' : ''}${l.hidden ? ' hidden-layer' : ''}`;
       row.dataset.id = l.id;
       const { inW, outW } = animShade(l);
       row.innerHTML = `
@@ -369,10 +496,6 @@
     updateTimeUI();
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  }
-
   function updateBar(l) {
     const row = $(`.tl-row[data-id="${l.id}"]`, els.tlBody);
     if (!row) return;
@@ -387,22 +510,79 @@
   (function timelineInteractions() {
     let drag = null;
     const pxPerSec = () => els.ruler.clientWidth / duration();
-
-    const seekFromEvent = (e) => {
+    const timeFromEvent = (e) => {
       const rect = els.ruler.getBoundingClientRect();
-      const t = clamp(((e.clientX - rect.left) / rect.width) * duration(), 0, duration());
-      clock.time = t;
-      updateTimeUI();
+      return clamp(((e.clientX - rect.left) / rect.width) * duration(), 0, duration());
+    };
+    const snapTargets = (excludeIds) => {
+      const targets = [clock.time, 0, duration()];
+      state.layers.forEach((o) => { if (!excludeIds.has(o.id)) targets.push(o.start, o.end); });
+      return targets;
+    };
+    const snap = (v, targets) => {
+      const tol = 6 / pxPerSec();
+      let best = v, bd = tol;
+      for (const s of targets) { const d = Math.abs(s - v); if (d < bd) { bd = d; best = s; } }
+      return best;
     };
 
     els.ruler.addEventListener('pointerdown', (e) => {
       els.ruler.setPointerCapture(e.pointerId);
       drag = { mode: 'scrub' };
-      seekFromEvent(e);
+      clock.time = timeFromEvent(e);
+      updateTimeUI();
     });
-    els.ruler.addEventListener('pointermove', (e) => { if (drag && drag.mode === 'scrub') seekFromEvent(e); });
+    els.ruler.addEventListener('pointermove', (e) => { if (drag && drag.mode === 'scrub') { clock.time = timeFromEvent(e); updateTimeUI(); } });
     els.ruler.addEventListener('pointerup', () => { drag = null; });
 
+    // Camera track
+    els.camTrack.addEventListener('pointerdown', (e) => {
+      const key = e.target.closest('.tl-key');
+      if (key) {
+        selectKey(key.dataset.id);
+        const k = getKey(key.dataset.id);
+        drag = { mode: 'key', id: k.id, x0: e.clientX, t0: k.t, moved: false };
+        els.camTrack.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      } else {
+        clock.time = timeFromEvent(e);
+        drag = { mode: 'scrub' };
+        els.camTrack.setPointerCapture(e.pointerId);
+      }
+    });
+    els.camTrack.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.tl-key')) return;
+      const k = addCameraKey(round(timeFromEvent(e), 2));
+      commit();
+      selectKey(k.id);
+      toast('Camera keyframe added — adjust it in the inspector');
+    });
+    els.camTrack.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
+      if (drag.mode !== 'key') return;
+      const k = getKey(drag.id);
+      if (!k) return;
+      const dt = (e.clientX - drag.x0) / pxPerSec();
+      if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
+      k.t = round(clamp(snap(drag.t0 + dt, snapTargets(new Set())), 0, duration()), 3);
+      renderCameraTrack();
+      refreshKeyValues();
+      invalidate();
+    });
+    const endKeyDrag = () => {
+      if (drag && drag.mode === 'key' && drag.moved) { state.camera.keys = Camera.sorted(state.camera.keys); commit(); }
+      drag = null;
+    };
+    els.camTrack.addEventListener('pointerup', endKeyDrag);
+    els.camTrack.addEventListener('pointercancel', endKeyDrag);
+    $('#btnAddKey').addEventListener('click', () => {
+      const k = addCameraKey(round(clock.time, 2));
+      commit();
+      selectKey(k.id);
+    });
+
+    // Layer rows
     els.tlBody.addEventListener('click', (e) => {
       const eye = e.target.closest('.tl-eye');
       if (eye) {
@@ -413,16 +593,14 @@
         return;
       }
       const name = e.target.closest('.tl-name');
-      if (name) select(name.closest('.tl-row').dataset.id);
+      if (name) select(name.closest('.tl-row').dataset.id, { toggle: e.shiftKey || e.ctrlKey || e.metaKey });
     });
 
     els.tlBody.addEventListener('pointerdown', (e) => {
       const bar = e.target.closest('.tl-bar');
       if (!bar) {
         if (e.target.closest('.tl-track')) {
-          // click on empty track: seek + deselect
-          const rect = els.ruler.getBoundingClientRect();
-          clock.time = clamp(((e.clientX - rect.left) / rect.width) * duration(), 0, duration());
+          clock.time = timeFromEvent(e);
           select(null);
           drag = { mode: 'scrub' };
           els.tlBody.setPointerCapture(e.pointerId);
@@ -430,63 +608,62 @@
         return;
       }
       const id = bar.closest('.tl-row').dataset.id;
-      const l = getLayer(id);
-      select(id);
+      if (e.shiftKey || e.ctrlKey || e.metaKey) { select(id, { toggle: true }); return; }
+      if (!isSelected(id)) select(id);
       const mode = e.target.classList.contains('h') ? (e.target.classList.contains('l') ? 'trimL' : 'trimR') : 'move';
-      drag = { mode, id, x0: e.clientX, start0: l.start, end0: l.end, moved: false };
+      const ids = mode === 'move' ? state.selectedIds.slice() : [id];
+      drag = {
+        mode, id, ids, x0: e.clientX, moved: false,
+        orig: Object.fromEntries(ids.map((i) => { const l = getLayer(i); return [i, { start: l.start, end: l.end }]; })),
+      };
       els.tlBody.setPointerCapture(e.pointerId);
       e.preventDefault();
     });
 
     els.tlBody.addEventListener('pointermove', (e) => {
       if (!drag) return;
-      if (drag.mode === 'scrub') {
-        const rect = els.ruler.getBoundingClientRect();
-        clock.time = clamp(((e.clientX - rect.left) / rect.width) * duration(), 0, duration());
-        return;
-      }
-      const l = getLayer(drag.id);
-      if (!l) return;
+      if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
+      if (drag.mode === 'key') return;
       const dt = (e.clientX - drag.x0) / pxPerSec();
       if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
       const T = duration();
-      const len = drag.end0 - drag.start0;
-      const snapTargets = [clock.time, 0, T];
-      state.layers.forEach((o) => { if (o.id !== l.id) snapTargets.push(o.start, o.end); });
-      const snap = (v) => {
-        const tol = 6 / pxPerSec();
-        let best = v, bd = tol;
-        for (const s of snapTargets) { const d = Math.abs(s - v); if (d < bd) { bd = d; best = s; } }
-        return best;
-      };
+      const targets = snapTargets(new Set(drag.ids));
       if (drag.mode === 'move') {
-        let s = clamp(drag.start0 + dt, 0, T - len);
-        const snappedStart = snap(s), snappedEnd = snap(s + len);
+        // Shared delta, clamped so no layer leaves the timeline; snap using the grabbed layer.
+        const o = drag.orig[drag.id];
+        const len = o.end - o.start;
+        let s = clamp(o.start + dt, 0, T - len);
+        const snappedStart = snap(s, targets), snappedEnd = snap(s + len, targets);
         if (snappedStart !== s) s = snappedStart; else if (snappedEnd !== s + len) s = snappedEnd - len;
-        s = clamp(s, 0, T - len);
-        l.start = s; l.end = s + len;
-      } else if (drag.mode === 'trimL') {
-        l.start = clamp(snap(drag.start0 + dt), 0, l.end - 0.1);
+        let delta = s - o.start;
+        for (const id of drag.ids) {
+          const oo = drag.orig[id];
+          delta = clamp(delta, -oo.start, T - oo.end);
+        }
+        for (const id of drag.ids) {
+          const l = getLayer(id), oo = drag.orig[id];
+          l.start = oo.start + delta; l.end = oo.end + delta;
+          updateBar(l);
+        }
       } else {
-        l.end = clamp(snap(drag.end0 + dt), l.start + 0.1, T);
+        const l = getLayer(drag.id), o = drag.orig[drag.id];
+        if (drag.mode === 'trimL') l.start = clamp(snap(o.start + dt, targets), 0, l.end - 0.1);
+        else l.end = clamp(snap(o.end + dt, targets), l.start + 0.1, T);
+        updateBar(l);
       }
-      updateBar(l);
       refreshInspectorValues();
       invalidate();
     });
 
     const endDrag = () => {
-      if (drag && drag.mode !== 'scrub' && drag.moved) { commit(); renderTimeline(); }
+      if (drag && (drag.mode === 'move' || drag.mode === 'trimL' || drag.mode === 'trimR') && drag.moved) { commit(); renderTimeline(); }
       drag = null;
     };
     els.tlBody.addEventListener('pointerup', endDrag);
     els.tlBody.addEventListener('pointercancel', endDrag);
   })();
 
-  /* ------------------------------------------------------------------ inspector */
-  const controls = []; // { update(layer), el, path }
-  let inspectorBuilt = false;
-
+  /* ------------------------------------------------------------------ inspector (schema driven) */
   function animOptions() {
     const groups = {};
     for (const [k, def] of Object.entries(Anim.Animations)) {
@@ -494,15 +671,16 @@
     }
     return groups;
   }
+  const easingOptions = () => Object.entries(Anim.EASING_LABELS).map(([value, label]) => ({ value, label }));
 
-  const SCHEMA = [
+  const LAYER_SCHEMA = [
     {
       title: 'Text',
       fields: [
-        { type: 'textarea', path: 'text', label: 'Text', wide: true },
-        { type: 'select', path: 'style.font', label: 'Font', options: () => TextRender.FONTS.map((f) => ({ value: f.family, label: f.family, style: `font-family:'${f.family}'` })), onChange: (l) => normaliseWeight(l) },
+        { type: 'textarea', path: 'text', label: 'Text', wide: true, perLayer: true },
+        { type: 'select', path: 'style.font', label: 'Font', options: () => TextRender.FONTS.map((f) => ({ value: f.family, label: f.family + (f.local ? ' ·' : ''), style: `font-family:'${f.family}'` })), onChange: (l) => normaliseWeight(l) },
         { type: 'two', fields: [
-          { type: 'select', path: 'style.weight', label: 'Weight', options: (l) => weightOptions(l) },
+          { type: 'select', path: 'style.weight', label: 'Weight', options: (l) => weightOptions(l), numeric: true },
           { type: 'toggle', path: 'style.italic', label: 'Italic' },
         ] },
         { type: 'range', path: 'style.size', label: 'Size', min: 0.02, max: 0.6, step: 0.005, scale: 100, unit: '%' },
@@ -541,12 +719,12 @@
     {
       title: 'Position & 3D',
       fields: [
-        { type: 'range', path: 'transform.x', label: 'X', min: -3, max: 3, step: 0.01, scale: 1, unit: '' },
-        { type: 'range', path: 'transform.y', label: 'Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '' },
-        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 0.9, step: 0.01, scale: 1, unit: '' },
-        { type: 'range', path: 'transform.rx', label: 'Tilt X', min: -90, max: 90, step: 1, scale: 1, unit: '°' },
-        { type: 'range', path: 'transform.ry', label: 'Turn Y', min: -90, max: 90, step: 1, scale: 1, unit: '°' },
-        { type: 'range', path: 'transform.rz', label: 'Roll Z', min: -180, max: 180, step: 1, scale: 1, unit: '°' },
+        { type: 'range', path: 'transform.x', label: 'X', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
+        { type: 'range', path: 'transform.y', label: 'Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
+        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Positive brings the text toward the camera' },
+        { type: 'range', path: 'transform.rx', label: 'Tilt X', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
+        { type: 'range', path: 'transform.ry', label: 'Turn Y', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
+        { type: 'range', path: 'transform.rz', label: 'Roll Z', min: -180, max: 180, step: 1, scale: 1, unit: '°', delta: true },
         { type: 'range', path: 'transform.scale', label: 'Scale', min: 0.1, max: 4, step: 0.01, scale: 100, unit: '%' },
         { type: 'buttons', buttons: [
           { label: 'Centre', action: (l) => { l.transform.x = 0; l.transform.y = 0; l.transform.z = 0; } },
@@ -560,12 +738,12 @@
         { type: 'sub', label: 'In' },
         { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
         { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
-        { type: 'select', path: 'anim.in.easing', label: 'Easing', options: () => Object.entries(Anim.EASING_LABELS).map(([value, label]) => ({ value, label })) },
+        { type: 'select', path: 'anim.in.easing', label: 'Easing', options: easingOptions },
         { type: 'range', path: 'anim.in.stagger', label: 'Stagger', min: 0, max: 0.6, step: 0.01, scale: 1, unit: 's', hint: 'Delay between words/letters' },
         { type: 'sub', label: 'Out' },
         { type: 'select', path: 'anim.out.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'out') },
         { type: 'range', path: 'anim.out.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
-        { type: 'select', path: 'anim.out.easing', label: 'Easing', options: () => Object.entries(Anim.EASING_LABELS).map(([value, label]) => ({ value, label })) },
+        { type: 'select', path: 'anim.out.easing', label: 'Easing', options: easingOptions },
         { type: 'range', path: 'anim.out.stagger', label: 'Stagger', min: 0, max: 0.6, step: 0.01, scale: 1, unit: 's' },
         { type: 'sub', label: 'While visible' },
         { type: 'select', path: 'anim.loop.type', label: 'Motion', options: () => Object.entries(Anim.Loops).map(([value, d]) => ({ value, label: d.label })) },
@@ -576,8 +754,8 @@
       title: 'Timing',
       fields: [
         { type: 'two', fields: [
-          { type: 'number', path: 'start', label: 'Start', step: 0.05, min: 0, unit: 's', onChange: (l) => { l.start = clamp(l.start, 0, l.end - 0.1); } },
-          { type: 'number', path: 'end', label: 'End', step: 0.05, min: 0, unit: 's', onChange: (l) => { l.end = clamp(l.end, l.start + 0.1, duration()); } },
+          { type: 'number', path: 'start', label: 'Start (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.start = clamp(l.start, 0, l.end - 0.1); } },
+          { type: 'number', path: 'end', label: 'End (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.end = clamp(l.end, l.start + 0.1, duration()); } },
         ] },
         { type: 'buttons', buttons: [
           { label: 'Start at playhead', action: (l) => { const len = l.end - l.start; l.start = clamp(clock.time, 0, duration() - 0.1); l.end = clamp(l.start + len, l.start + 0.1, duration()); } },
@@ -587,10 +765,41 @@
     },
   ];
 
+  const KEY_SCHEMA = [
+    {
+      title: 'Keyframe',
+      fields: [
+        { type: 'number', path: 't', label: 'Time (s)', step: 0.05, min: 0, onChange: (k) => { k.t = clamp(k.t, 0, duration()); } },
+        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })), hint: 'How the camera arrives at this key' },
+      ],
+    },
+    {
+      title: 'Camera position',
+      fields: [
+        { type: 'range', path: 'dolly', label: 'Dolly', min: -1.5, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive moves toward the text; beyond ~2.4 the camera passes the video plane' },
+        { type: 'range', path: 'x', label: 'Truck X', min: -2, max: 2, step: 0.01, scale: 1, unit: '' },
+        { type: 'range', path: 'y', label: 'Pedestal Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '' },
+        { type: 'range', path: 'yaw', label: 'Yaw', min: -90, max: 90, step: 0.5, scale: 1, unit: '°' },
+        { type: 'range', path: 'pitch', label: 'Pitch', min: -60, max: 60, step: 0.5, scale: 1, unit: '°' },
+        { type: 'range', path: 'roll', label: 'Roll', min: -45, max: 45, step: 0.5, scale: 1, unit: '°' },
+        { type: 'buttons', buttons: [
+          { label: 'Reset to rest', action: (k) => { k.x = 0; k.y = 0; k.dolly = 0; k.yaw = 0; k.pitch = 0; k.roll = 0; } },
+          { label: 'Copy previous key', action: (k) => { const ks = Camera.sorted(state.camera.keys); const i = ks.indexOf(k); if (i > 0) for (const f of Camera.FIELDS) k[f] = ks[i - 1][f]; } },
+        ] },
+      ],
+    },
+    {
+      title: 'Focus',
+      fields: [
+        { type: 'range', path: 'focus', label: 'Distance', min: 0.2, max: 5, step: 0.01, scale: 1, unit: '', hint: 'Only used when "Follow the newest word" is off in the Camera tab' },
+      ],
+    },
+  ];
+
   function weightOptions(l) {
     const f = TextRender.FONTS.find((x) => x.family === l.style.font);
     const ws = f ? f.weights : [400, 700];
-    const names = { 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 900: 'Black' };
+    const names = { 100: 'Ultra Light', 200: 'Thin', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Heavy', 900: 'Black' };
     return ws.map((w) => ({ value: w, label: names[w] || String(w) }));
   }
   function normaliseWeight(l) {
@@ -608,11 +817,73 @@
     if (def.forceSplit) l.split = def.forceSplit;
   }
 
-  function buildInspector() {
-    if (inspectorBuilt) return;
-    inspectorBuilt = true;
-    const CHEV = '<svg viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    for (const sec of SCHEMA) {
+  /* Layer context: edits apply to every selected layer. Absolute fields copy the value; fields marked
+   * `delta` shift each layer by the same amount the primary moved; `perLayer` fields touch only the primary. */
+  const layerCtx = {
+    controls: [],
+    get: () => selected(),
+    apply(field, primary, value, isFinal) {
+      const targets = selectedLayers();
+      const oldPrimary = getPath(primary, field.path);
+      for (const l of targets) {
+        if (field.perLayer && l !== primary) continue;
+        let v = value;
+        if (field.delta && l !== primary && typeof value === 'number' && typeof oldPrimary === 'number') {
+          v = (getPath(l, field.path) || 0) + (value - oldPrimary);
+        }
+        setPath(l, field.path, v);
+        if (field.onChange) field.onChange(l);
+        if (field.path === 'start' || field.path === 'end') {
+          l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
+          l.end = clamp(l.end, l.start + 0.1, duration());
+          updateBar(l);
+        }
+        l._layout = null;
+        if (field.path === 'text') {
+          const row = $(`.tl-row[data-id="${l.id}"] .tl-bar span`, els.tlBody);
+          if (row) row.textContent = (l.text || '').replace(/\n/g, ' ');
+        }
+      }
+      invalidate();
+      if (isFinal) {
+        commit();
+        refreshInspectorValues();
+        if (field.path === 'text' || field.path.startsWith('anim') || field.path === 'split') renderTimeline();
+      }
+    },
+    buttonAction(action) {
+      const targets = selectedLayers();
+      if (!targets.length) return;
+      for (const l of targets) { action(l); l._layout = null; }
+      commit();
+      refreshAll();
+    },
+  };
+
+  const keyCtx = {
+    controls: [],
+    get: () => selectedKey(),
+    apply(field, key, value, isFinal) {
+      setPath(key, field.path, value);
+      if (field.onChange) field.onChange(key);
+      if (field.path === 't') { state.camera.keys = Camera.sorted(state.camera.keys); renderCameraTrack(); }
+      invalidate();
+      if (isFinal) { commit(); refreshKeyValues(); renderCameraTrack(); }
+    },
+    buttonAction(action) {
+      const k = selectedKey();
+      if (!k) return;
+      action(k);
+      commit();
+      refreshKeyValues();
+      renderCameraTrack();
+      invalidate();
+    },
+  };
+
+  const CHEV = '<svg viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function buildSections(schema, container, ctx) {
+    for (const sec of schema) {
       const section = document.createElement('div');
       section.className = 'section';
       const head = document.createElement('button');
@@ -622,31 +893,14 @@
       head.addEventListener('click', () => section.classList.toggle('collapsed'));
       const body = document.createElement('div');
       body.className = 'section-body';
-      for (const f of sec.fields) body.appendChild(buildField(f));
+      for (const f of sec.fields) body.appendChild(buildField(f, ctx));
       section.appendChild(head);
       section.appendChild(body);
-      els.sections.appendChild(section);
+      container.appendChild(section);
     }
   }
 
-  function applyChange(field, l, value, isFinal) {
-    setPath(l, field.path, value);
-    if (field.onChange) field.onChange(l);
-    l._layout = null;
-    if (field.path === 'start' || field.path === 'end') updateBar(l);
-    if (field.path === 'text' || field.path === 'name') {
-      const row = $(`.tl-row[data-id="${l.id}"] .tl-bar span`, els.tlBody);
-      if (row) row.textContent = (l.text || '').replace(/\n/g, ' ');
-    }
-    invalidate();
-    if (isFinal) {
-      commit();
-      refreshInspectorValues();
-      if (field.path === 'text' || field.path.startsWith('anim') || field.path === 'split') renderTimeline();
-    }
-  }
-
-  function buildField(f) {
+  function buildField(f, ctx) {
     const wrap = document.createElement('div');
     if (f.type === 'sub') {
       wrap.className = 'subhead';
@@ -655,7 +909,7 @@
     }
     if (f.type === 'two') {
       wrap.className = 'two';
-      for (const sub of f.fields) wrap.appendChild(buildField(sub));
+      for (const sub of f.fields) wrap.appendChild(buildField(sub, ctx));
       return wrap;
     }
     if (f.type === 'buttons') {
@@ -665,14 +919,7 @@
         btn.className = 'btn small';
         btn.type = 'button';
         btn.textContent = b.label;
-        btn.addEventListener('click', () => {
-          const l = selected();
-          if (!l) return;
-          b.action(l);
-          l._layout = null;
-          commit();
-          refreshAll();
-        });
+        btn.addEventListener('click', () => ctx.buttonAction(b.action));
         wrap.appendChild(btn);
       }
       return wrap;
@@ -686,19 +933,21 @@
       wrap.appendChild(label);
     }
     let update;
+    const target = () => ctx.get();
 
     if (f.type === 'textarea') {
       const ta = document.createElement('textarea');
       ta.rows = 3;
       ta.spellcheck = false;
       ta.placeholder = 'Type your text…';
-      ta.addEventListener('input', () => { const l = selected(); if (l) applyChange(f, l, ta.value, false); });
-      ta.addEventListener('change', () => { const l = selected(); if (l) applyChange(f, l, ta.value, true); });
+      ta.addEventListener('input', () => { const l = target(); if (l) ctx.apply(f, l, ta.value, false); });
+      ta.addEventListener('change', () => { const l = target(); if (l) ctx.apply(f, l, ta.value, true); });
       ta.id = 'textInput';
       wrap.appendChild(ta);
       update = (l) => { if (document.activeElement !== ta) ta.value = getPath(l, f.path) || ''; };
     } else if (f.type === 'select') {
       const sel = document.createElement('select');
+      if (f.hint) sel.title = f.hint;
       const fill = (l) => {
         const cur = getPath(l, f.path);
         sel.innerHTML = '';
@@ -720,11 +969,9 @@
         sel.value = String(cur);
       };
       sel.addEventListener('change', () => {
-        const l = selected();
+        const l = target();
         if (!l) return;
-        const raw = sel.value;
-        const v = /^-?\d+(\.\d+)?$/.test(raw) && f.path === 'style.weight' ? Number(raw) : raw;
-        applyChange(f, l, v, true);
+        ctx.apply(f, l, f.numeric ? Number(sel.value) : sel.value, true);
       });
       wrap.appendChild(sel);
       update = fill;
@@ -736,21 +983,21 @@
       const n = document.createElement('input');
       n.type = 'number'; n.step = f.step * f.scale; n.min = f.min * f.scale; n.max = f.max * f.scale;
       n.title = f.unit ? `Unit: ${f.unit}` : '';
-      r.addEventListener('input', () => { const l = selected(); if (!l) return; n.value = round(r.value * f.scale, 2); applyChange(f, l, Number(r.value), false); });
-      r.addEventListener('change', () => { const l = selected(); if (l) applyChange(f, l, Number(r.value), true); });
+      r.addEventListener('input', () => { const l = target(); if (!l) return; n.value = round(r.value * f.scale, 2); ctx.apply(f, l, Number(r.value), false); });
+      r.addEventListener('change', () => { const l = target(); if (l) ctx.apply(f, l, Number(r.value), true); });
       n.addEventListener('change', () => {
-        const l = selected(); if (!l) return;
+        const l = target(); if (!l) return;
         const v = clamp(Number(n.value) / f.scale, f.min, f.max);
         r.value = v; n.value = round(v * f.scale, 2);
-        applyChange(f, l, v, true);
+        ctx.apply(f, l, v, true);
       });
       rw.appendChild(r); rw.appendChild(n);
       wrap.appendChild(rw);
-      update = (l) => { const v = Number(getPath(l, f.path)) || 0; r.value = v; if (document.activeElement !== n) n.value = round(v * f.scale, 2); };
+      update = (l) => { const raw = getPath(l, f.path); const v = Number(raw == null ? (f.path === 'focus' ? renderer.camDist : 0) : raw) || 0; r.value = v; if (document.activeElement !== n) n.value = round(v * f.scale, 2); };
     } else if (f.type === 'number') {
       const n = document.createElement('input');
       n.type = 'number'; n.step = f.step; if (f.min != null) n.min = f.min;
-      n.addEventListener('change', () => { const l = selected(); if (l) applyChange(f, l, Number(n.value), true); });
+      n.addEventListener('change', () => { const l = target(); if (l) ctx.apply(f, l, Number(n.value), true); });
       wrap.appendChild(n);
       update = (l) => { if (document.activeElement !== n) n.value = round(getPath(l, f.path), 2); };
     } else if (f.type === 'color') {
@@ -766,18 +1013,18 @@
         none = document.createElement('input'); none.type = 'checkbox';
         lbl.appendChild(none); lbl.appendChild(document.createTextNode('None'));
         cw.appendChild(lbl);
-        none.addEventListener('change', () => { const l = selected(); if (!l) return; applyChange(f, l, none.checked ? 'transparent' : c.value, true); });
+        none.addEventListener('change', () => { const l = target(); if (!l) return; ctx.apply(f, l, none.checked ? 'transparent' : c.value, true); });
       }
-      c.addEventListener('input', () => { const l = selected(); if (!l) return; hex.value = c.value; if (none) none.checked = false; applyChange(f, l, c.value, false); });
-      c.addEventListener('change', () => { const l = selected(); if (l) applyChange(f, l, c.value, true); });
+      c.addEventListener('input', () => { const l = target(); if (!l) return; hex.value = c.value; if (none) none.checked = false; ctx.apply(f, l, c.value, false); });
+      c.addEventListener('change', () => { const l = target(); if (l) ctx.apply(f, l, c.value, true); });
       hex.addEventListener('change', () => {
-        const l = selected(); if (!l) return;
+        const l = target(); if (!l) return;
         let v = hex.value.trim();
         if (!v.startsWith('#')) v = '#' + v;
         if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v.slice(1).split('').map((ch) => ch + ch).join('');
         if (!/^#[0-9a-f]{6}$/i.test(v)) { hex.value = c.value; return; }
         c.value = v.toLowerCase(); if (none) none.checked = false;
-        applyChange(f, l, v.toLowerCase(), true);
+        ctx.apply(f, l, v.toLowerCase(), true);
       });
       wrap.appendChild(cw);
       update = (l) => {
@@ -793,7 +1040,7 @@
       lbl.appendChild(cb);
       const span = document.createElement('span'); span.className = 'muted'; span.textContent = f.label === 'Italic' ? 'Italic' : 'On';
       lbl.appendChild(span);
-      cb.addEventListener('change', () => { const l = selected(); if (l) applyChange(f, l, cb.checked, true); });
+      cb.addEventListener('change', () => { const l = target(); if (l) ctx.apply(f, l, cb.checked, true); });
       wrap.appendChild(lbl);
       update = (l) => { cb.checked = !!getPath(l, f.path); };
     } else if (f.type === 'segment') {
@@ -802,29 +1049,43 @@
       for (const o of f.options) {
         const b = document.createElement('button');
         b.type = 'button'; b.textContent = o.label; b.dataset.value = o.value;
-        b.addEventListener('click', () => { const l = selected(); if (l) applyChange(f, l, o.value, true); });
+        b.addEventListener('click', () => { const l = target(); if (l) ctx.apply(f, l, o.value, true); });
         seg.appendChild(b);
       }
       wrap.appendChild(seg);
       update = (l) => { const v = getPath(l, f.path); $$('button', seg).forEach((b) => b.classList.toggle('on', b.dataset.value === String(v))); };
     }
-    controls.push({ update });
+    ctx.controls.push({ update, field: f, el: wrap });
     return wrap;
   }
 
   function refreshInspector() {
     const l = selected();
-    els.inspectorEmpty.classList.toggle('hidden', !!l);
+    const k = selectedKey();
+    els.inspectorEmpty.classList.toggle('hidden', !!(l || k));
     els.inspectorBody.classList.toggle('hidden', !l);
-    if (!l) return;
-    buildInspector();
-    refreshInspectorValues();
+    els.cameraKeyBody.classList.toggle('hidden', !k);
+    if (l) refreshInspectorValues();
+    if (k) refreshKeyValues();
   }
   function refreshInspectorValues() {
     const l = selected();
-    if (!l || !inspectorBuilt) return;
+    if (!l) return;
+    const n = state.selectedIds.length;
+    els.layerName.classList.toggle('hidden', n > 1);
+    els.multiTitle.classList.toggle('hidden', n <= 1);
+    if (n > 1) els.multiTitle.textContent = `${n} layers selected`;
     if (document.activeElement !== els.layerName) els.layerName.value = l.name || '';
-    for (const c of controls) c.update(l);
+    for (const c of layerCtx.controls) {
+      c.update(l);
+      // Text edits only ever touch the primary layer; grey the field out when several are selected.
+      if (c.field.perLayer) c.el.style.opacity = n > 1 ? 0.55 : 1;
+    }
+  }
+  function refreshKeyValues() {
+    const k = selectedKey();
+    if (!k) return;
+    for (const c of keyCtx.controls) c.update(k);
   }
   function focusTextInput() {
     const ta = $('#textInput');
@@ -833,10 +1094,11 @@
 
   els.layerName.addEventListener('input', () => { const l = selected(); if (l) { l.name = els.layerName.value; const nm = $(`.tl-row[data-id="${l.id}"] .nm`, els.tlBody); if (nm) nm.textContent = l.name || l.text; } });
   els.layerName.addEventListener('change', () => commit());
-  $('#btnDelete').addEventListener('click', () => { if (state.selectedId) deleteLayer(state.selectedId); });
-  $('#btnDuplicate').addEventListener('click', () => { if (state.selectedId) duplicateLayer(state.selectedId); });
-  $('#btnLayerUp').addEventListener('click', () => { if (state.selectedId) moveLayer(state.selectedId, +1); });
-  $('#btnLayerDown').addEventListener('click', () => { if (state.selectedId) moveLayer(state.selectedId, -1); });
+  $('#btnDelete').addEventListener('click', deleteSelected);
+  $('#btnDeleteKey').addEventListener('click', deleteSelected);
+  $('#btnDuplicate').addEventListener('click', duplicateSelected);
+  $('#btnLayerUp').addEventListener('click', () => { if (selected()) moveLayer(selected().id, +1); });
+  $('#btnLayerDown').addEventListener('click', () => { if (selected()) moveLayer(selected().id, -1); });
 
   /* ------------------------------------------------------------------ canvas interaction */
   (function canvasInteractions() {
@@ -852,9 +1114,13 @@
       const p = toBuffer(e);
       const id = renderer.hitTest(p.x, p.y);
       if (id) {
-        select(id);
-        const l = getLayer(id);
-        drag = { id, mode: e.altKey ? 'rotate' : 'move', x0: p.x, y0: p.y, t0: JSON.parse(JSON.stringify(l.transform)), moved: false };
+        if (e.shiftKey || e.ctrlKey || e.metaKey) { select(id, { toggle: true }); return; }
+        if (!isSelected(id)) select(id);
+        const cam = cameraAt(clock.time);
+        drag = {
+          mode: e.altKey ? 'rotate' : 'move', x0: p.x, y0: p.y, moved: false,
+          items: selectedLayers().map((l) => ({ l, t0: JSON.parse(JSON.stringify(l.transform)), wpp: renderer.worldPerPixel(l, cam) })),
+        };
         c.setPointerCapture(e.pointerId);
         c.classList.add('grabbing');
       } else {
@@ -868,17 +1134,16 @@
         c.classList.toggle('hover', !!renderer.hitTest(p.x, p.y));
         return;
       }
-      const l = getLayer(drag.id);
-      if (!l) return;
       const dx = p.x - drag.x0, dy = p.y - drag.y0;
       if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
-      if (drag.mode === 'move') {
-        const wpp = renderer.worldPerPixel(Math.min(l.transform.z, renderer.camDist - 0.2));
-        l.transform.x = round(drag.t0.x + dx * wpp, 3);
-        l.transform.y = round(drag.t0.y - dy * wpp, 3);
-      } else {
-        l.transform.ry = clamp(round(drag.t0.ry + dx * 0.25, 1), -90, 90);
-        l.transform.rx = clamp(round(drag.t0.rx - dy * 0.25, 1), -90, 90);
+      for (const it of drag.items) {
+        if (drag.mode === 'move') {
+          it.l.transform.x = round(it.t0.x + dx * it.wpp, 3);
+          it.l.transform.y = round(it.t0.y - dy * it.wpp, 3);
+        } else {
+          it.l.transform.ry = clamp(round(it.t0.ry + dx * 0.25, 1), -90, 90);
+          it.l.transform.rx = clamp(round(it.t0.rx - dy * 0.25, 1), -90, 90);
+        }
       }
       refreshInspectorValues();
       invalidate();
@@ -899,12 +1164,14 @@
 
     let wheelTimer = 0;
     c.addEventListener('wheel', (e) => {
-      const l = selected();
-      if (!l || state.exporting) return;
+      const targets = selectedLayers();
+      if (!targets.length || state.exporting) return;
       e.preventDefault();
       const factor = Math.exp(-e.deltaY * 0.0015);
-      l.style.size = clamp(round(l.style.size * factor, 4), 0.02, 0.6);
-      l._layout = null;
+      for (const l of targets) {
+        l.style.size = clamp(round(l.style.size * factor, 4), 0.02, 0.6);
+        l._layout = null;
+      }
       refreshInspectorValues();
       invalidate();
       clearTimeout(wheelTimer);
@@ -912,7 +1179,7 @@
     }, { passive: false });
   })();
 
-  /* ------------------------------------------------------------------ templates & styles */
+  /* ------------------------------------------------------------------ templates, styles & camera tab */
   const TEMPLATE_PREVIEWS = {
     kinetic: "<span>here's</span><span>how you</span><span>can do</span><span>this</span>",
     stack: '<span>MAKE</span><span>IT</span><span>BOLD</span>',
@@ -968,22 +1235,54 @@
   }
 
   function applyStylePreset(preset) {
-    let l = selected();
-    if (!l) {
+    let targets = selectedLayers();
+    if (!targets.length) {
       let t = clock.time;
       let dur = Math.min(3, duration() - t);
       if (dur < 0.5) { t = 0; dur = Math.min(3, duration()); }
-      l = addLayer({ text: preset.name, name: preset.name, start: t, end: t + dur });
+      targets = [addLayer({ text: preset.name, name: preset.name, start: t, end: t + dur })];
       toast(`Created a new layer with the ${preset.name} style`);
     } else {
-      toast(`Applied ${preset.name}`);
+      toast(`Applied ${preset.name}${targets.length > 1 ? ` to ${targets.length} layers` : ''}`);
     }
-    l.style = Presets.deepMerge(l.style, preset.style);
-    normaliseWeight(l);
-    l._layout = null;
+    for (const l of targets) {
+      l.style = Presets.deepMerge(l.style, preset.style);
+      normaliseWeight(l);
+      l._layout = null;
+    }
     commit();
     refreshAll();
   }
+
+  function buildMoveGrid() {
+    const grid = $('#moveGrid');
+    grid.innerHTML = '';
+    for (const m of Camera.MOVES) {
+      const card = document.createElement('button');
+      card.className = 'move-card';
+      card.type = 'button';
+      card.innerHTML = `<strong>${m.name}</strong><small>${m.description}</small>`;
+      card.addEventListener('click', () => applyCameraMove(m));
+      grid.appendChild(card);
+    }
+  }
+  function syncCameraControls() {
+    $('#camAperture').value = state.camera.aperture;
+    $('#camApertureNum').value = Math.round(state.camera.aperture * 100);
+    $('#camAutofocus').checked = !!state.camera.autoFocus;
+  }
+  $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
+  $('#camAperture').addEventListener('change', commit);
+  $('#camApertureNum').addEventListener('change', (e) => { state.camera.aperture = clamp(Number(e.target.value) / 100, 0, 1); syncCameraControls(); commit(); invalidate(); });
+  $('#camAutofocus').addEventListener('change', (e) => { state.camera.autoFocus = e.target.checked; commit(); invalidate(); });
+  $('#btnClearCamera').addEventListener('click', () => {
+    if (!state.camera.keys.length) return;
+    state.camera.keys = [];
+    state.selectedKeyId = null;
+    commit();
+    refreshAll();
+    toast('Camera keyframes removed');
+  });
 
   // Template dialog
   const tplDialog = $('#templateDialog');
@@ -1013,18 +1312,22 @@
       $('#durationInput').value = state.duration;
     }
     dur = Math.min(dur, duration() - start);
-    const layers = activeTemplate.build(text, start, dur, frameAspect());
+    const built = activeTemplate.build(text, start, dur, frameAspect(), { camDist: renderer.camDist });
+    const layers = Array.isArray(built) ? built : built.layers;
+    const cameraKeys = Array.isArray(built) ? [] : (built.cameraKeys || []);
     if (!layers.length) { toast('Please enter some text first', true); return; }
-    if ($('#tplReplace').checked) state.layers = [];
-    let first = null;
-    for (const l of layers) { const added = addLayer(l, { select: false }); if (!first) first = added; }
-    state.selectedId = first ? first.id : null;
+    if ($('#tplReplace').checked) { state.layers = []; state.camera.keys = []; }
+    const ids = [];
+    for (const l of layers) ids.push(addLayer(l, { select: false }).id);
+    if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
+    state.selectedIds = ids.slice(0, 1);
+    state.selectedKeyId = null;
     commit();
     refreshAll();
     tplDialog.close();
     clock.time = start;
     clock.play();
-    toast(`Inserted ${layers.length} layer${layers.length > 1 ? 's' : ''} from ${activeTemplate.name}`);
+    toast(`Inserted ${layers.length} layer${layers.length > 1 ? 's' : ''}${cameraKeys.length ? ' and a camera move' : ''} from ${activeTemplate.name}`);
   });
   $$('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 
@@ -1050,12 +1353,12 @@
     state.video.height = v.videoHeight;
     state.video.duration = v.duration && isFinite(v.duration) ? v.duration : 10;
     state.video.ready = true;
-    // keep layers inside the new duration
     for (const l of state.layers) {
       l.end = Math.min(l.end, state.video.duration);
       l.start = Math.min(l.start, Math.max(0, l.end - 0.1));
       l._layout = null;
     }
+    state.camera.keys = state.camera.keys.filter((k) => k.t <= state.video.duration);
     $('#noVideoFields').classList.add('hidden');
     $('#expAudioWrap').classList.remove('hidden');
     els.dropHint.classList.add('hidden');
@@ -1084,7 +1387,6 @@
   $('#btnImport2').addEventListener('click', () => $('#fileInput').click());
   $('#fileInput').addEventListener('change', (e) => { loadVideoFile(e.target.files[0]); e.target.value = ''; });
 
-  // Drag & drop
   ['dragenter', 'dragover'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.add('active'); }));
   ['dragleave', 'drop'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.remove('active'); }));
   els.wrap.addEventListener('drop', (e) => {
@@ -1097,9 +1399,10 @@
   /* ------------------------------------------------------------------ project save / load */
   function saveProject() {
     const data = {
-      app: 'perspective-editor', version: 1,
+      app: 'perspective-editor', version: 2,
       aspect: state.aspect, duration: state.duration, fov: state.fov,
       videoName: state.video.file ? state.video.file.name : null,
+      camera: state.camera,
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
@@ -1111,12 +1414,15 @@
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
+      state.camera = Object.assign({ aperture: 0.6, autoFocus: true, keys: [] }, data.camera || {});
+      state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       if (data.aspect) { state.aspect = data.aspect; $('#aspectSelect').value = aspectToLabel(data.aspect); }
       if (data.duration) { state.duration = data.duration; $('#durationInput').value = data.duration; }
       if (data.fov) { state.fov = data.fov; $('#fovSelect').value = String(data.fov); }
-      state.selectedId = null;
+      state.selectedIds = []; state.selectedKeyId = null;
       state.undo = []; state.redo = []; state.lastCommitted = null;
       commit();
+      syncCameraControls();
       fitPreview();
       refreshAll();
       toast(`Opened project${data.videoName ? ` — re-import "${data.videoName}" to see the video` : ''}`);
@@ -1151,6 +1457,7 @@
     state.duration = clamp(Number(e.target.value) || 10, 1, 600);
     e.target.value = state.duration;
     for (const l of state.layers) { l.end = Math.min(l.end, state.duration); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
+    state.camera.keys = state.camera.keys.filter((k) => k.t <= state.duration);
     if (clock.time > state.duration) clock.time = 0;
     commit();
     refreshAll();
@@ -1162,8 +1469,7 @@
     const b = e.target.closest('.tab');
     if (!b) return;
     $$('.tab', $('#leftTabs')).forEach((t) => t.classList.toggle('active', t === b));
-    $('#tab-templates').classList.toggle('hidden', b.dataset.tab !== 'templates');
-    $('#tab-styles').classList.toggle('hidden', b.dataset.tab !== 'styles');
+    for (const name of ['templates', 'styles', 'camera']) $(`#tab-${name}`).classList.toggle('hidden', b.dataset.tab !== name);
   });
 
   /* ------------------------------------------------------------------ export */
@@ -1280,7 +1586,6 @@
     const abort = new AbortController();
     let lastUrl = null;
 
-    // progress UI
     $('#progTitle').textContent = 'Exporting…';
     $('#progStage').textContent = 'Preparing…';
     $('#progBar').style.width = '0%';
@@ -1289,8 +1594,7 @@
     $('#progDownload').classList.add('hidden');
     $('#progClose').classList.add('hidden');
     progDialog.showModal();
-    const onCancel = () => abort.abort();
-    $('#progCancel').onclick = onCancel;
+    $('#progCancel').onclick = () => abort.abort();
 
     const onProgress = (info) => {
       if (info.stage) $('#progStage').textContent = info.stage;
@@ -1305,7 +1609,7 @@
       renderer.render({
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
-        layers: state.layers, time: t, frameHeightPx: cfg.h, selectedId: null,
+        layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t),
       });
     };
 
@@ -1373,6 +1677,7 @@
     if (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT' || a.isContentEditable) return true;
     return $$('dialog[open]').length > 0;
   }
+  let nudgeTimer = 0;
   window.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -1383,19 +1688,21 @@
       if (e.key === 'Escape') document.activeElement.blur();
       return;
     }
-    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); if (state.selectedId) duplicateLayer(state.selectedId); return; }
-    const l = selected();
+    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelected(); return; }
+    if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); selectAll(); return; }
+    const targets = selectedLayers();
     switch (e.key) {
       case ' ': e.preventDefault(); clock.toggle(); break;
       case 'Escape': select(null); break;
-      case 'Delete': case 'Backspace': if (l) { e.preventDefault(); deleteLayer(l.id); } break;
+      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId) { e.preventDefault(); deleteSelected(); } break;
       case 'Home': clock.pause(); clock.time = 0; break;
       case 'End': clock.pause(); clock.time = duration(); break;
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
+      case 'k': case 'K': { const k = addCameraKey(round(clock.time, 2)); commit(); selectKey(k.id); break; }
       case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': {
-        if (!l) {
+        if (!targets.length) {
           e.preventDefault();
           clock.pause();
           clock.time = clock.time + (e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0) * (e.shiftKey ? 1 : 1 / 30);
@@ -1403,11 +1710,13 @@
         }
         e.preventDefault();
         const step = e.shiftKey ? 0.1 : 0.01;
-        if (e.key === 'ArrowLeft') l.transform.x -= step;
-        if (e.key === 'ArrowRight') l.transform.x += step;
-        if (e.key === 'ArrowUp') l.transform.y += step;
-        if (e.key === 'ArrowDown') l.transform.y -= step;
-        l.transform.x = round(l.transform.x, 3); l.transform.y = round(l.transform.y, 3);
+        for (const l of targets) {
+          if (e.key === 'ArrowLeft') l.transform.x -= step;
+          if (e.key === 'ArrowRight') l.transform.x += step;
+          if (e.key === 'ArrowUp') l.transform.y += step;
+          if (e.key === 'ArrowDown') l.transform.y -= step;
+          l.transform.x = round(l.transform.x, 3); l.transform.y = round(l.transform.y, 3);
+        }
         refreshInspectorValues(); invalidate();
         clearTimeout(nudgeTimer); nudgeTimer = setTimeout(commit, 400);
         break;
@@ -1415,7 +1724,6 @@
       default: break;
     }
   });
-  let nudgeTimer = 0;
 
   /* ------------------------------------------------------------------ fonts */
   function onFontsReady() {
@@ -1431,15 +1739,19 @@
   function init() {
     buildTemplateGrid();
     buildStyleGrid();
-    buildInspector();
+    buildMoveGrid();
+    buildSections(LAYER_SCHEMA, els.sections, layerCtx);
+    buildSections(KEY_SCHEMA, els.keySections, keyCtx);
+    syncCameraControls();
     new ResizeObserver(() => { fitPreview(); renderTimeline(); }).observe(els.wrap);
     fitPreview();
 
     // Demo content so the first impression shows the effect
     const demo = Presets.TEMPLATES.find((t) => t.id === 'kinetic');
-    const layers = demo.build(demo.sample, 0.3, 9, frameAspect());
-    for (const l of layers) addLayer(l, { select: false });
-    state.selectedId = null;
+    const built = demo.build(demo.sample, 0.3, 9, frameAspect(), { camDist: renderer.camDist });
+    for (const l of built.layers) addLayer(l, { select: false });
+    state.camera.keys = built.cameraKeys || [];
+    state.selectedIds = [];
     state.lastCommitted = snapshot();
     updateUndoButtons();
     refreshAll();

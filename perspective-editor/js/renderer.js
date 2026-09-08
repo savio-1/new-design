@@ -1,4 +1,5 @@
-/* WebGL compositor: video plane at z = 0 plus perspective-transformed text quads. */
+/* WebGL compositor: video plane as a fixed backdrop, plus perspective-transformed text quads seen
+ * through an animatable camera with depth of field. */
 (function (global) {
   'use strict';
 
@@ -25,21 +26,24 @@
       if (uBlur.x <= 0.00001) {
         c = texture2D(uTex, vUV);
       } else {
-        // 25-tap disk blur (two rings + centre); cheap and good enough for a focus effect
+        // 37-tap disk blur (three rings + centre): cheap, and soft enough for a defocus look
         c = texture2D(uTex, vUV) * 1.5;
         float total = 1.5;
         for (int i = 0; i < 12; i++) {
           float a = float(i) * 0.5235988; // 30 degrees
           vec2 d = vec2(cos(a), sin(a));
           c += texture2D(uTex, vUV + d * uBlur);
-          c += texture2D(uTex, vUV + d * uBlur * 0.5) * 1.2;
-          total += 2.2;
+          c += texture2D(uTex, vUV + d * uBlur * 0.66) * 1.1;
+          c += texture2D(uTex, vUV + d * uBlur * 0.33) * 1.2;
+          total += 3.3;
         }
         c /= total;
       }
       if (uTint.a > 0.0) { c = vec4(uTint.rgb * c.a, c.a) * uTint.a; }
       gl_FragColor = c * uOpacity;
     }`;
+
+  const D2R = Math.PI / 180;
 
   class Renderer {
     constructor(canvas) {
@@ -56,7 +60,7 @@
       this.fovDeg = 45;
       this.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
       this.maxRB = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
-      this.texCache = new Map(); // canvas -> { tex, w, h }
+      this.texCache = new Map(); // canvas -> { tex }
       this.TEX_LIMIT = 900;
       this.lastQuads = [];
       this.bgColor = [0.07, 0.07, 0.08];
@@ -89,7 +93,6 @@
         uTint: gl.getUniformLocation(prog, 'uTint'),
       };
 
-      // Unit quad centred at origin: pos.xy, uv.xy (uv y flipped so canvas top maps to quad top)
       const quad = new Float32Array([
         -0.5, -0.5, 0, 1,
          0.5, -0.5, 1, 1,
@@ -110,9 +113,7 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, this.loopBuf);
       gl.bufferData(gl.ARRAY_BUFFER, loop, gl.STATIC_DRAW);
 
-      // Video texture
       this.videoTex = this._createTexture();
-      // 1x1 white texture for outlines / solid quads
       this.whiteTex = this._createTexture();
       gl.bindTexture(gl.TEXTURE_2D, this.whiteTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
@@ -143,18 +144,44 @@
     }
 
     get aspect() { return this.canvas.width / Math.max(1, this.canvas.height); }
+    /* Distance from the default camera to the video plane so the plane fills the frame exactly. */
     get camDist() { return 1 / Math.tan((this.fovDeg * Math.PI) / 360); }
 
-    /* World units per screen pixel at depth z (z = 0 is the video plane). */
-    worldPerPixel(z) {
-      const visibleH = 2 * (this.camDist - z) * Math.tan((this.fovDeg * Math.PI) / 360);
+    /* The resting camera: on the axis, looking at the video plane. */
+    defaultCamera() {
+      return { x: 0, y: 0, z: this.camDist, yaw: 0, pitch: 0, roll: 0, focus: this.camDist, aperture: 0 };
+    }
+
+    /* View matrix for a camera {x,y,z,yaw,pitch,roll} (degrees). Camera looks down its local -Z. */
+    viewMatrix(cam) {
+      let m = M4.translation(-cam.x, -cam.y, -cam.z);
+      if (cam.yaw) m = M4.multiply(M4.rotationY(-cam.yaw * D2R), m);
+      if (cam.pitch) m = M4.multiply(M4.rotationX(-cam.pitch * D2R), m);
+      if (cam.roll) m = M4.multiply(M4.rotationZ(-cam.roll * D2R), m);
+      return m;
+    }
+
+    _proj() {
+      return M4.perspective(this.fovDeg * D2R, this.aspect, 0.02, 100);
+    }
+
+    /* Distance of a world point along the camera's view axis. */
+    viewDepth(cam, x, y, z) {
+      const p = M4.transformPoint(this.viewMatrix(cam), x, y, z);
+      return -p.z;
+    }
+
+    /* World units per screen pixel for a point at view depth `depth`. */
+    worldPerPixelAtDepth(depth) {
+      const visibleH = 2 * Math.max(0.05, depth) * Math.tan((this.fovDeg * Math.PI) / 360);
       return visibleH / this.canvas.height;
     }
 
-    _viewProj() {
-      const proj = M4.perspective((this.fovDeg * Math.PI) / 180, this.aspect, 0.05, 100);
-      const view = M4.translation(0, 0, -this.camDist);
-      return M4.multiply(proj, view);
+    /* World units per pixel for dragging a layer under a camera. */
+    worldPerPixel(layer, cam) {
+      const c = cam || this.defaultCamera();
+      const tr = layer.transform;
+      return this.worldPerPixelAtDepth(this.viewDepth(c, tr.x, tr.y, tr.z));
     }
 
     _textureFor(canvas) {
@@ -216,7 +243,8 @@
 
     /**
      * Render a frame.
-     * opts = { video, videoReady, layers, time, frameHeightPx, selectedId, hideVideo }
+     * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera }
+     *   camera: { x, y, z, yaw, pitch, roll, focus, aperture } — absolute; defaults to the resting camera.
      */
     render(opts) {
       const gl = this.gl;
@@ -226,16 +254,24 @@
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(this.prog);
 
-      const VP = this._viewProj();
-      const plane = M4.identity();
-      const planeMVP = M4.multiply(VP, plane);
+      const proj = this._proj();
+      const defaultCam = this.defaultCamera();
+      const cam = Object.assign(defaultCam, opts.camera || {});
 
-      // Video plane fills the frustum exactly at z = 0.
+      // Video plane fills the frustum exactly at z = 0, seen from the resting camera (the footage is
+      // a backdrop, not part of the 3D text world).
       if (opts.video && opts.videoReady) {
+        const planeMVP = M4.multiply(proj, this.viewMatrix(this.defaultCamera()));
         if (this._uploadVideo(opts.video)) {
           this._drawQuad(planeMVP, 2 * this.aspect, 2, this.videoTex, 1, null, null);
         }
       }
+
+      const view = this.viewMatrix(cam);
+      const VP = M4.multiply(proj, view);
+      const selected = new Set(opts.selectedIds || []);
+      const aperture = cam.aperture || 0;
+      const focus = cam.focus || defaultCam.z;
 
       this.lastQuads = [];
       const t = opts.time;
@@ -250,6 +286,7 @@
         const tr = layer.transform;
         const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
         const VPL = M4.multiply(VP, layerM);
+        const viewL = M4.multiply(view, layerM);
         const fw = lay.fontWorld;
         const count = lay.groups.length;
         const quads = [];
@@ -262,43 +299,52 @@
           let gm = M4.translation(g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw);
           const pivot = st.pivotY ? st.pivotY * g.h : 0;
           if (pivot) gm = M4.multiply(gm, M4.translation(0, pivot, 0));
-          if (st.rz) gm = M4.multiply(gm, M4.rotationZ((st.rz * Math.PI) / 180));
-          if (st.ry) gm = M4.multiply(gm, M4.rotationY((st.ry * Math.PI) / 180));
-          if (st.rx) gm = M4.multiply(gm, M4.rotationX((st.rx * Math.PI) / 180));
+          if (st.rz) gm = M4.multiply(gm, M4.rotationZ(st.rz * D2R));
+          if (st.ry) gm = M4.multiply(gm, M4.rotationY(st.ry * D2R));
+          if (st.rx) gm = M4.multiply(gm, M4.rotationX(st.rx * D2R));
           if (pivot) gm = M4.multiply(gm, M4.translation(0, -pivot, 0));
           if (st.sx !== 1 || st.sy !== 1) gm = M4.multiply(gm, M4.scaling(Math.max(0.0001, st.sx), Math.max(0.0001, st.sy), 1));
           const mvp = M4.multiply(VPL, gm);
 
+          // Cull anything that crosses behind the lens.
+          const hw = g.w * 0.42, hh = g.h * 0.42;
+          const corners = [
+            this._toScreen(mvp, -hw, -hh), this._toScreen(mvp, hw, -hh),
+            this._toScreen(mvp, hw, hh), this._toScreen(mvp, -hw, hh),
+          ];
+          if (corners.some((p) => p.behind)) continue;
+
+          // Depth of field: circle of confusion grows with distance from the focal plane, faster
+          // for things close to the lens.
+          let blurWorld = st.blur * fw;
+          if (aperture > 0) {
+            const depth = -M4.transformPoint(viewL, g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw).z;
+            const coc = (aperture * 0.28 * Math.abs(depth - focus)) / Math.max(0.15, depth);
+            blurWorld += Math.min(coc, 0.45 * fw * Math.max(1, st.sx));
+          }
           let blurUV = null;
-          if (st.blur > 0.0005) {
-            const blurPx = st.blur * lay.fontPx; // in unscaled texture pixels
-            const scale = g.canvas.width / (g.w * frameH / 2);
-            blurUV = [(blurPx * scale) / g.canvas.width, (blurPx * scale) / g.canvas.height];
+          if (blurWorld > 0.0005) {
+            blurUV = [blurWorld / (g.w * Math.max(0.05, st.sx)), blurWorld / (g.h * Math.max(0.05, st.sy))];
           }
 
           const tex = this._textureFor(g.canvas);
           this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity), blurUV, null);
-
-          // Screen-space corners for hit testing (shrunk to the glyph area, ignoring padding)
-          const hw = g.w * 0.42, hh = g.h * 0.42;
-          quads.push([
-            this._toScreen(mvp, -hw, -hh), this._toScreen(mvp, hw, -hh),
-            this._toScreen(mvp, hw, hh), this._toScreen(mvp, -hw, hh),
-          ]);
+          quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });
 
-        if (opts.selectedId === layer.id) {
+        if (selected.has(layer.id)) {
           const pad = fw * 0.25;
           const bw = lay.blockW + pad * 2, bh = lay.blockH + pad * 2;
-          this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, [1, 0.55, 0.1, 0.95], 'loop');
+          const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
+          this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop');
         }
       }
     }
 
     _toScreen(mvp, x, y) {
       const p = M4.transformPoint(mvp, x, y, 0);
-      return { x: ((p.x + 1) / 2) * this.canvas.width, y: ((1 - p.y) / 2) * this.canvas.height, behind: p.w <= 0 };
+      return { x: ((p.x + 1) / 2) * this.canvas.width, y: ((1 - p.y) / 2) * this.canvas.height, behind: p.w <= 0.001 };
     }
 
     _layoutFor(layer, frameH) {
@@ -309,21 +355,11 @@
       return layer._layout;
     }
 
-    /* Screen bounds (pixels) of a layer's text block, or null if not visible right now. */
-    layerScreenBox(layer, frameH) {
-      const lay = this._layoutFor(layer, frameH);
-      const tr = layer.transform;
-      const VPL = M4.multiply(this._viewProj(), M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale));
-      const hw = lay.blockW / 2, hh = lay.blockH / 2;
-      return [this._toScreen(VPL, -hw, -hh), this._toScreen(VPL, hw, -hh), this._toScreen(VPL, hw, hh), this._toScreen(VPL, -hw, hh)];
-    }
-
     /* Topmost layer id whose glyphs contain the screen point, or null. */
     hitTest(px, py) {
       for (let i = this.lastQuads.length - 1; i >= 0; i--) {
         const entry = this.lastQuads[i];
         for (const q of entry.quads) {
-          if (q.some((p) => p.behind)) continue;
           if (pointInPoly(px, py, q)) return entry.layerId;
         }
       }

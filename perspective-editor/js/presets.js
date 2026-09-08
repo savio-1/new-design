@@ -47,6 +47,21 @@
   /* ---- Style presets ---------------------------------------------------- */
   const STYLES = [
     {
+      id: 'helvHeavy', name: 'Helvetica Heavy',
+      style: { font: 'Helvetica Neue', weight: 800, italic: false, color: WHITE, letterSpacing: -0.02, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.08, x: 0.01, y: 0.04, color: '#000000', opacity: 0.5 }, box: { enabled: false } },
+      css: { fontFamily: "'Helvetica Neue'", fontWeight: 800, color: WHITE, letterSpacing: '-.02em', textShadow: '0 2px 6px rgba(0,0,0,.55)' },
+    },
+    {
+      id: 'francy', name: 'Francy',
+      style: { font: 'Francy', weight: 400, italic: false, color: '#FFF3E0', letterSpacing: 0.01, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.08, x: 0, y: 0.04, color: '#000000', opacity: 0.5 }, box: { enabled: false } },
+      css: { fontFamily: 'Francy', color: '#FFF3E0', fontSize: '1.2em' },
+    },
+    {
+      id: 'helvThin', name: 'Helvetica Thin',
+      style: { font: 'Helvetica Neue', weight: 200, italic: false, color: WHITE, letterSpacing: 0.06, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.05, x: 0, y: 0.02, color: '#000000', opacity: 0.45 }, box: { enabled: false } },
+      css: { fontFamily: "'Helvetica Neue'", fontWeight: 200, color: WHITE, letterSpacing: '.06em', fontSize: '1.15em' },
+    },
+    {
       id: 'cleanBold', name: 'Clean Bold',
       style: { font: 'Inter', weight: 900, italic: false, color: WHITE, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.06, x: 0, y: 0.03, color: '#000000', opacity: 0.45 }, box: { enabled: false } },
       css: { fontFamily: 'Inter', fontWeight: 900, color: WHITE, textShadow: '0 2px 6px rgba(0,0,0,.5)' },
@@ -131,7 +146,7 @@
     return out;
   }
 
-  const BOLD = { font: 'Inter', weight: 900, italic: false };
+  const BOLD = { font: 'Helvetica Neue', weight: 800, italic: false };
   const SERIF = { font: 'Instrument Serif', weight: 400, italic: true };
 
   function L(patch) {
@@ -143,17 +158,19 @@
     {
       id: 'kinetic',
       name: 'Kinetic Words',
-      description: 'Words pop in one by one with a focus blur, mixed bold sans and italic serif, scattered in 3D — the reference look.',
+      description: 'Words fly in from the lens and settle at different depths while the camera drifts through them — the reference look.',
       sample: "here's how you can do this 3D text effect and it's much easier than you think",
       tags: ['Complex', 'Word by word'],
       previewClass: 'tp-kinetic',
-      build(text, start, duration, aspect) {
+      build(text, start, duration, aspect, cam) {
         const ws = words(text);
         if (!ws.length) return [];
+        const camDist = (cam && cam.camDist) || 2.414;
         const clusters = cluster(ws, 3, 4);
         const weights = clusters.map((c) => c.length + 1.2);
         const totalW = weights.reduce((a, b) => a + b, 0);
         const layers = [];
+        const cameraKeys = [];
         let t = start;
         clusters.forEach((cl, ci) => {
           const cdur = (duration * weights[ci]) / totalW;
@@ -162,13 +179,14 @@
           const baseY = 0.25 - Math.abs(rand(ci, 5)) * 0.45; // cluster centre height
           const lineStep = 0.3;
           const top = baseY + ((n - 1) * lineStep) / 2;
+          const sign = ci % 2 === 0 ? 1 : -1;
           cl.forEach((w, i) => {
             const gi = ci * 10 + i;
             const serif = i % 2 === 1;
             const last = i === n - 1;
             const orange = (gi % 3 === 2) || (last && ci % 2 === 1);
             const size = (serif ? 0.14 : 0.11) * (last ? 1.25 : 1) * (1 + rand(gi, 7) * 0.08) * Math.min(1, 0.75 + aspect * 0.35);
-            const xJit = (i % 2 === 0 ? -1 : 1) * (0.14 + Math.abs(rand(gi, 8)) * 0.16) * Math.min(1.4, aspect);
+            const xJit = (i % 2 === 0 ? -1 : 1) * (0.1 + Math.abs(rand(gi, 8)) * 0.12) * Math.min(1.4, aspect);
             layers.push(L({
               name: w,
               text: w,
@@ -179,22 +197,26 @@
               transform: {
                 x: xJit + rand(gi, 9) * 0.1,
                 y: top - i * lineStep + rand(gi, 10) * 0.04,
-                z: 0.05 + Math.abs(rand(gi, 11)) * 0.12,
+                z: 0.05 + Math.abs(rand(gi, 11)) * 0.5,
                 rx: rand(gi, 12) * 6,
                 ry: rand(gi, 13) * 22,
                 rz: rand(gi, 14) * 7,
                 scale: 1,
               },
               anim: {
-                in: { type: 'focus', duration: 0.42, easing: 'easeOut', stagger: 0 },
-                out: { type: 'focus', duration: 0.35, easing: 'easeIn', stagger: 0 },
+                in: { type: i % 2 === 0 ? 'zoomThrough' : 'focus', duration: 0.55, easing: i % 2 === 0 ? 'expoOut' : 'easeOut', stagger: 0 },
+                out: { type: 'fade', duration: 0.2, easing: 'easeIn', stagger: 0 },
                 loop: { type: 'float', speed: 0.6 },
               },
             }));
           });
+          // Camera: drift in with a slight orbit while the words appear, then push through them.
+          cameraKeys.push(Camera.defaultKey(t, { x: 0.04 * sign, dolly: -0.1, yaw: -2.5 * sign, easing: 'linear' }));
+          cameraKeys.push(Camera.defaultKey(t + cdur - 0.45, { x: -0.03 * sign, dolly: 0.3, yaw: 2.5 * sign, easing: 'easeInOut' }));
+          cameraKeys.push(Camera.defaultKey(t + cdur - 0.02, { x: -0.03 * sign, dolly: camDist + 0.35, yaw: 2.5 * sign, easing: 'easeIn' }));
           t += cdur;
         });
-        return layers;
+        return { layers, cameraKeys };
       },
     },
     {

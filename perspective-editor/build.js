@@ -12,10 +12,14 @@ const path = require('path');
 const root = __dirname;
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
-const inlineCss = html.replace(
-  /<link rel="stylesheet" href="style\.css">/,
-  () => `<style>\n${fs.readFileSync(path.join(root, 'style.css'), 'utf8')}\n</style>`
-);
+/* fonts.css with every url(...) replaced by a base64 data URI so the bundle is self-contained. */
+const fontsCss = fs.readFileSync(path.join(root, 'fonts.css'), 'utf8').replace(/url\('([^']+)'\)/g, (_, rel) => {
+  const buf = fs.readFileSync(path.join(root, rel));
+  return `url('data:font/woff2;base64,${buf.toString('base64')}')`;
+});
+const inlineCss = html
+  .replace(/<link rel="stylesheet" href="fonts\.css">/, () => `<style>\n${fontsCss}\n</style>`)
+  .replace(/<link rel="stylesheet" href="style\.css">/, () => `<style>\n${fs.readFileSync(path.join(root, 'style.css'), 'utf8')}\n</style>`);
 const inlined = inlineCss.replace(/<script src="([^"]+)"><\/script>/g, (_, src) => {
   const code = fs.readFileSync(path.join(root, src), 'utf8');
   if (code.includes('</script')) throw new Error(`${src} contains a closing script tag`);
@@ -28,7 +32,7 @@ if (fragIdx >= 0) {
   const out = args[fragIdx + 1] || 'perspective-fragment.html';
   const title = (inlined.match(/<title>[\s\S]*?<\/title>/) || [''])[0];
   const fontLink = (inlined.match(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/) || [''])[0];
-  const style = (inlined.match(/<style>[\s\S]*?<\/style>/) || [''])[0];
+  const style = (inlined.match(/<style>[\s\S]*?<\/style>/g) || []).join('\n');
   const body = (inlined.match(/<body>([\s\S]*)<\/body>/) || ['', ''])[1];
   fs.writeFileSync(out, `${title}\n${fontLink}\n${style}\n${body}`);
   console.log(`wrote ${out} (${(fs.statSync(out).size / 1024).toFixed(0)} KB)`);
