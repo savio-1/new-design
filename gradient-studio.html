@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Gradient Studio</title>
-<meta name="description" content="Design animated gradient-map backgrounds (15 motion types), layer custom-font text on top, add textures and shape masks, and export seamless GIF or MP4 loops." />
+<meta name="description" content="Design animated gradient-map backgrounds (15 motion types), layer text and images with alignment guides and cropping, add textures and shape masks, and export seamless GIF or MP4 loops up to 4K." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -12,11 +12,11 @@
 <script src="https://cdn.jsdelivr.net/npm/webm-muxer@5.1.3/build/webm-muxer.js" crossorigin="anonymous"></script>
 <style>
 :root{
-  --bg:#0d0e12; --panel:#14151b; --panel-2:#1a1b23; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
-  --text:#e8e9ef; --muted:#8b8f9d; --faint:#5c6070;
+  --bg:#0b0c10; --panel:#12131a; --panel-2:#191a23; --panel-3:#20212c; --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+  --text:#e9eaf0; --muted:#8e93a3; --faint:#5d6272;
   --accent:#8b7cff; --accent-2:#ff7ac6; --ok:#4cd6a0; --warn:#ffb454; --danger:#ff5e7a;
-  --radius:10px; --r-sm:7px;
-  --sb:340px;
+  --r:10px; --r-sm:7px;
+  --left:272px; --right:336px;
   --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
 }
 *{box-sizing:border-box}
@@ -27,82 +27,97 @@ button{cursor:pointer}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.10);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18);background-clip:padding-box;border:2px solid transparent}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
 /* ---------- layout ---------- */
-.app{display:grid;grid-template-columns:var(--sb) 1fr;grid-template-rows:52px 1fr;height:100vh}
-.topbar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel)}
-.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;margin-right:6px}
-.brand .logo{width:24px;height:24px;border-radius:7px;background:conic-gradient(from 200deg,#39d3ee,#c9f25c,#ff5b7f,#f0611a,#8b7cff,#39d3ee);box-shadow:0 0 0 1px rgba(255,255,255,.12) inset}
-.brand small{color:var(--muted);font-weight:500}
-.topbar .spacer{flex:1}
-.sidebar{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.sidebar .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:12px}
-.sidebar .foot{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;background:var(--panel)}
+.app{display:grid;grid-template-columns:var(--left) 1fr var(--right);grid-template-rows:52px 1fr;height:100vh}
+.top{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.01em}
+.brand .logo{width:22px;height:22px;border-radius:6px;background:conic-gradient(from 200deg,#39d3ee,#c9f25c,#ff5b7f,#f0611a,#8b7cff,#39d3ee);box-shadow:0 0 0 1px rgba(255,255,255,.12) inset}
+.brand .pn{color:var(--muted);font-weight:500;margin-left:4px}
+.top .mid{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
+.top .mid .scrub{width:min(360px,30vw);display:flex;align-items:center}
+.top .mono{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.pane{background:var(--panel);display:flex;flex-direction:column;min-height:0;min-width:0}
+.pane.left{border-right:1px solid var(--line)}
+.pane.right{border-left:1px solid var(--line)}
+.pane .head{display:flex;align-items:center;gap:8px;padding:12px 14px 8px;font-weight:600;font-size:13px}
+.pane .head .sp{flex:1}
+.pane .scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 14px 16px}
 .stage{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:
-  radial-gradient(circle at 1px 1px, rgba(255,255,255,.06) 1px, transparent 1.5px) 0 0/22px 22px, var(--bg)}
-.stage .canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:28px;min-height:0}
-.frame{position:relative;border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);background:#000;touch-action:none}
+  radial-gradient(circle at 1px 1px, rgba(255,255,255,.05) 1px, transparent 1.5px) 0 0/22px 22px, var(--bg)}
+.stage .wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 28px 84px;min-height:0}
+.frame{position:relative;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08);background:transparent;touch-action:none}
 .frame canvas{display:block;width:100%;height:100%}
 #gl{position:absolute;inset:0;visibility:hidden}
-#out{position:relative;cursor:grab}
-#out.dragging{cursor:grabbing}
-.stage .bar{display:flex;align-items:center;gap:12px;padding:10px 18px;border-top:1px solid var(--line);background:rgba(20,21,27,.7);backdrop-filter:blur(10px);font-size:12px;color:var(--muted)}
-.stage .bar .mono{font-family:var(--mono);font-size:11.5px;color:var(--text)}
-.stage .bar .spacer{flex:1}
-.timeline{flex:1;max-width:420px;height:22px;display:flex;align-items:center}
-.timeline input{width:100%}
+#out{position:relative}
+.float{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px;border-radius:14px;background:rgba(18,19,26,.85);border:1px solid var(--line-2);backdrop-filter:blur(14px);box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.float .sep{width:1px;height:22px;background:var(--line-2);margin:0 2px}
+.float select{height:30px;width:auto;background:var(--panel-3);border-color:transparent}
+.stage .status{position:absolute;left:18px;top:14px;font-family:var(--mono);font-size:11px;color:var(--faint);pointer-events:none}
+.stage .status b{color:var(--muted);font-weight:500}
 
 /* ---------- buttons ---------- */
 .btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--panel-2);color:var(--text);font-weight:500;white-space:nowrap;transition:background .15s,border-color .15s}
-.btn:hover{background:#22232d;border-color:rgba(255,255,255,.22)}
+.btn:hover{background:var(--panel-3);border-color:rgba(255,255,255,.22)}
 .btn:active{transform:translateY(1px)}
-.btn.primary{background:linear-gradient(135deg,var(--accent),#6e5cff);border-color:transparent;color:#fff;box-shadow:0 6px 18px rgba(139,124,255,.25)}
-.btn.primary:hover{filter:brightness(1.08)}
+.btn.primary{background:#fff;border-color:transparent;color:#0b0c10}
+.btn.primary:hover{background:#e9eaf0}
+.btn.accent{background:linear-gradient(135deg,var(--accent),#6e5cff);border-color:transparent;color:#fff}
 .btn.icon{width:32px;padding:0;justify-content:center}
 .btn.sm{height:26px;padding:0 9px;font-size:12px}
+.btn.xs{height:22px;padding:0 7px;font-size:11px;border-radius:5px}
 .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
 .btn.ghost:hover{background:rgba(255,255,255,.06);color:var(--text)}
 .btn.danger:hover{border-color:var(--danger);color:var(--danger)}
 .btn svg{width:15px;height:15px;flex:none}
-.btn:disabled{opacity:.5;cursor:default}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.on{background:rgba(139,124,255,.18);border-color:rgba(139,124,255,.6);color:#fff}
 .seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:2px;gap:2px}
-.seg button{height:24px;padding:0 10px;border:0;background:transparent;border-radius:5px;color:var(--muted);font-size:12px;font-weight:500}
+.seg button{height:24px;padding:0 10px;border:0;background:transparent;border-radius:5px;color:var(--muted);font-size:12px;font-weight:500;white-space:nowrap}
 .seg button.on{background:rgba(255,255,255,.10);color:var(--text)}
+.seg.fill{display:flex}.seg.fill button{flex:1}
 
-/* ---------- sections ---------- */
-.sec{border-bottom:1px solid var(--line)}
-.sec>header{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;user-select:none;font-weight:600;font-size:12.5px;letter-spacing:.01em}
-.sec>header:hover{background:rgba(255,255,255,.02)}
-.sec>header .chev{margin-left:auto;color:var(--faint);transition:transform .2s}
-.sec>header .badge{font-size:10.5px;font-weight:500;color:var(--muted);background:rgba(255,255,255,.06);padding:1px 7px;border-radius:99px}
-.sec.open>header .chev{transform:rotate(90deg)}
-.sec>.body{display:none;padding:2px 14px 14px}
-.sec.open>.body{display:block}
+/* ---------- groups (inspector) ---------- */
+.grp{border-top:1px solid var(--line)}
+.grp:first-child{border-top:0}
+.grp>header{display:flex;align-items:center;gap:8px;height:40px;cursor:pointer;user-select:none;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.grp>header:hover{color:var(--text)}
+.grp>header .chev{width:14px;height:14px;transition:transform .18s;color:var(--faint);transform:rotate(-90deg)}
+.grp.open>header .chev{transform:rotate(0)}
+.grp>header .badge{margin-left:auto;font-size:10.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint)}
+.grp>.body{display:none;padding:2px 0 14px}
+.grp.open>.body{display:block}
 .row{display:flex;align-items:center;gap:8px;margin-top:8px}
-.row.top{align-items:flex-start}
-.row>label{width:92px;flex:none;color:var(--muted);font-size:12px}
+.row>label{width:88px;flex:none;color:var(--muted);font-size:12px}
 .row .grow{flex:1;min-width:0}
-.hint{color:var(--faint);font-size:11.5px;margin-top:6px;line-height:1.4}
-.hr{height:1px;background:var(--line);margin:12px 0 4px}
-.sub{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:14px 0 2px}
+.hint{color:var(--faint);font-size:11.5px;margin-top:8px;line-height:1.45}
+.sub{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:14px 0 4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 
-/* slider control */
-.ctl{margin-top:9px}
-.ctl .lab{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:3px}
-.ctl .lab b{font-weight:500;color:var(--text)}
-.ctl .lab .val{font-family:var(--mono);font-size:11px;color:var(--muted);cursor:text}
-.ctl .lab .val input{width:64px;background:transparent;border:0;border-bottom:1px dashed var(--line-2);text-align:right;font-family:var(--mono);font-size:11px;color:var(--text);padding:0;outline:none}
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0}
-input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:rgba(255,255,255,.12)}
-input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:rgba(255,255,255,.12)}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;margin-top:-5px;box-shadow:0 1px 4px rgba(0,0,0,.5);border:0}
-input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:0}
-input[type=range]:focus{outline:none}
-input[type=range]:focus::-webkit-slider-thumb{box-shadow:0 0 0 4px rgba(139,124,255,.35)}
+/* slider: label | filled track with value inside (reference style) */
+.ctl{display:grid;grid-template-columns:88px 1fr;gap:10px;align-items:center;height:30px;margin-top:4px}
+.ctl .lab{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.ctl .lab:hover{color:var(--text)}
+.ctl .sl{position:relative;height:26px;border-radius:13px;background:var(--panel-3);overflow:hidden}
+.ctl .sl .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3a3550,#514a78);border-radius:13px;min-width:44px;display:flex;align-items:center;justify-content:flex-end;padding-right:9px;font-family:var(--mono);font-size:11px;color:#fff;pointer-events:none;white-space:nowrap}
+.ctl .sl input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}
+.ctl .sl .edit{position:absolute;left:0;top:0;bottom:0;width:100%;border:0;background:var(--panel-3);color:#fff;font-family:var(--mono);font-size:11.5px;padding:0 10px;outline:2px solid var(--accent);outline-offset:-2px;border-radius:13px;display:none}
+.ctl.editing .sl .edit{display:block}
+.ctl.editing .sl .fill,.ctl.editing .sl input[type=range]{visibility:hidden}
+.ctl:hover .sl{background:#262735}
+.ctl .sl:focus-within{box-shadow:0 0 0 2px rgba(139,124,255,.4)}
+/* generic range (scrub) */
+input[type=range].plain{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0}
+input[type=range].plain::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:rgba(255,255,255,.14)}
+input[type=range].plain::-moz-range-track{height:4px;border-radius:4px;background:rgba(255,255,255,.14)}
+input[type=range].plain::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;margin-top:-4px;border:0}
+input[type=range].plain::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:0}
 
 select,.input,textarea{width:100%;height:30px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:0 9px;color:var(--text);outline:none}
 select:focus,.input:focus,textarea:focus{border-color:var(--accent)}
-select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238b8f9d' stroke-width='1.5'/></svg>");background-repeat:no-repeat;background-position:right 9px center;padding-right:24px}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238e93a3' stroke-width='1.5'/></svg>");background-repeat:no-repeat;background-position:right 9px center;padding-right:24px}
 textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height:1.4}
 .input.sm{height:26px;padding:0 7px;font-size:12px}
 .color{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 4px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-sm)}
@@ -111,36 +126,70 @@ textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height
 .color input[type=color]::-webkit-color-swatch{border:0;border-radius:5px}
 .color input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
 .color .hex{width:66px;background:transparent;border:0;font-family:var(--mono);font-size:11.5px;outline:none}
-.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted);font-size:12px;user-select:none}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--muted);font-size:12px;user-select:none;white-space:nowrap}
 .toggle input{display:none}
-.toggle .sw{width:30px;height:17px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;transition:background .15s}
+.toggle .sw{width:30px;height:17px;border-radius:99px;background:rgba(255,255,255,.14);position:relative;transition:background .15s;flex:none}
 .toggle .sw::after{content:'';position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .15s}
 .toggle input:checked+.sw{background:var(--accent)}
 .toggle input:checked+.sw::after{transform:translateX(13px)}
 
-/* chips grid */
+/* chips */
 .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
 .chips.c4{grid-template-columns:repeat(4,1fr)}
-.chip{height:30px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-size:12px;font-weight:500;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .12s}
+.chip{height:28px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-size:12px;font-weight:500;padding:0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .12s}
 .chip:hover{border-color:var(--line-2);color:var(--text)}
 .chip.on{background:rgba(139,124,255,.18);border-color:rgba(139,124,255,.6);color:#fff}
-.types{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}
-.type{border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:0;overflow:hidden;text-align:left;transition:all .12s;position:relative}
-.type .thumb{height:44px;background:#222}
-.type .name{padding:5px 8px 6px;font-size:11.5px;font-weight:500;color:var(--muted)}
-.type:hover{border-color:var(--line-2)}
-.type:hover .name{color:var(--text)}
-.type.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.type.on .name{color:#fff}
 
-/* presets strip */
-.presets{display:flex;gap:8px;overflow-x:auto;padding:12px 14px 10px;scrollbar-width:thin}
-.preset{flex:none;width:76px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:0;overflow:hidden;text-align:left;transition:all .12s}
-.preset .sw{height:52px}
-.preset .nm{font-size:10.5px;font-weight:500;color:var(--muted);padding:4px 7px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.preset:hover{border-color:var(--line-2)}
-.preset.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.preset.on .nm{color:#fff}
+/* ---------- left pane: looks ---------- */
+.lk-sec{margin-top:6px}
+.lk-sec>header{display:flex;align-items:center;gap:6px;height:36px;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;cursor:pointer;user-select:none}
+.lk-sec>header .chev{width:14px;height:14px;color:var(--faint);transform:rotate(-90deg);transition:transform .18s}
+.lk-sec.open>header .chev{transform:rotate(0)}
+.lk-sec>.body{display:none;padding-bottom:10px}
+.lk-sec.open>.body{display:block}
+.circles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 8px;padding:4px 2px}
+.circle{width:50px;height:50px;border-radius:50%;border:0;padding:0;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.08);transition:transform .12s,box-shadow .12s;justify-self:center}
+.circle:hover{transform:scale(1.06)}
+.circle.on{box-shadow:0 0 0 2px var(--panel),0 0 0 4px #fff}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);transition:all .12s}
+.tile .th{width:44px;height:30px;border-radius:6px;background:#222;opacity:.9}
+.tile .nm{font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tile:hover{border-color:var(--line-2);color:var(--text)}
+.tile.on{border-color:#fff;color:#fff;box-shadow:0 0 0 1px #fff}
+.starters{display:flex;flex-direction:column;gap:4px}
+.starter{display:flex;align-items:center;gap:9px;height:32px;padding:0 8px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);text-align:left}
+.starter .sw{width:26px;height:18px;border-radius:5px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.starter .nm{flex:1;font-size:12px;font-weight:500;color:var(--text)}
+.starter .ty{font-size:10.5px;color:var(--faint)}
+.starter:hover{background:var(--panel-2)}
+.starter.on{background:rgba(139,124,255,.14);border-color:rgba(139,124,255,.5)}
+
+/* ---------- right pane: layers + inspector ---------- */
+.layers{display:flex;flex-direction:column;gap:3px;margin:0 0 6px}
+.layer{display:flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 8px;border-radius:8px;border:1px solid transparent;background:transparent;cursor:pointer;color:var(--muted)}
+.layer:hover{background:var(--panel-2)}
+.layer.on{background:rgba(139,124,255,.14);border-color:rgba(139,124,255,.5);color:var(--text)}
+.layer .ic{width:22px;height:22px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;background:var(--panel-3);font-size:11px;font-weight:700;flex:none;color:var(--text)}
+.layer .ic.img{background-size:cover;background-position:center}
+.layer .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text)}
+.layer .t small{color:var(--faint);margin-left:5px;font-size:10.5px}
+.layer .ib{width:22px;height:22px;border:0;background:transparent;color:var(--faint);border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.layer .ib:hover{background:rgba(255,255,255,.08);color:var(--text)}
+.layer .ib.off{opacity:.35}
+.layer.hidden .t{opacity:.45}
+.addrow{display:flex;gap:6px;margin:4px 0 10px}
+.addrow .btn{flex:1;justify-content:center}
+.dropzone{border:1.5px dashed var(--line-2);border-radius:10px;padding:14px;text-align:center;color:var(--faint);font-size:12px;margin-top:8px;transition:all .15s}
+.dropzone.over{border-color:var(--accent);color:var(--text);background:rgba(139,124,255,.08)}
+.imginfo{display:flex;gap:10px;align-items:center;margin-top:8px}
+.imginfo .thumb{width:64px;height:64px;border-radius:8px;background:var(--panel-3) center/cover no-repeat;flex:none;box-shadow:0 0 0 1px var(--line-2)}
+.imginfo .meta{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.5}
+.imginfo .meta b{display:block;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alignbar{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px}
+.alignbar button{height:28px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);display:inline-flex;align-items:center;justify-content:center}
+.alignbar button:hover{color:var(--text);border-color:var(--line-2)}
+.alignbar svg{width:15px;height:15px}
 
 /* palette editor */
 .grad{height:26px;border-radius:7px;border:1px solid var(--line-2);margin-top:8px}
@@ -152,19 +201,21 @@ textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height
 .stop .x{width:22px;height:22px;border-radius:5px;border:0;background:transparent;color:var(--faint);display:inline-flex;align-items:center;justify-content:center}
 .stop .x:hover{background:rgba(255,94,122,.15);color:var(--danger)}
 .swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px}
-.swatch{height:26px;border-radius:6px;border:1px solid rgba(255,255,255,.12);padding:0;cursor:pointer;transition:transform .1s}
+.swatch{height:24px;border-radius:6px;border:1px solid rgba(255,255,255,.12);padding:0;cursor:pointer;transition:transform .1s}
 .swatch:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.4)}
-
-/* text layers */
-.layers{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-.layer{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px 0 10px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel-2);cursor:pointer}
-.layer .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
-.layer.on{border-color:rgba(139,124,255,.6);background:rgba(139,124,255,.12)}
-.layer .eye,.layer .del{width:22px;height:22px;border:0;background:transparent;color:var(--faint);border-radius:5px;display:inline-flex;align-items:center;justify-content:center}
-.layer .eye:hover,.layer .del:hover{background:rgba(255,255,255,.08);color:var(--text)}
-.layer .eye.off{opacity:.35}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+/* ratio grid */
+.ratios{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.ratio{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px 6px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);transition:all .12s}
+.ratio .box{display:inline-flex;align-items:center;justify-content:center;border:1.5px solid currentColor;border-radius:3px;height:22px;width:22px;opacity:.8;font-size:11px}
+.ratio .box.custom{border-style:dashed}
+.ratio .rn{font-size:11.5px;font-weight:600;color:var(--text);margin-top:2px}
+.ratio .rd{font-size:10px;color:var(--faint)}
+.ratio:hover{border-color:var(--line-2)}
+.ratio.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);color:var(--accent)}
+.types-hint{font-size:11.5px;color:var(--faint);margin-top:6px}
+.kbd{font-family:var(--mono);font-size:10.5px;background:rgba(255,255,255,.08);border:1px solid var(--line-2);border-radius:4px;padding:0 5px;color:var(--muted)}
+.warn{color:var(--warn)}
+.empty{padding:22px 10px;text-align:center;color:var(--faint);font-size:12px;line-height:1.5}
 
 /* modal */
 .modal{position:fixed;inset:0;background:rgba(5,6,10,.7);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50}
@@ -185,78 +236,78 @@ textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height
 .dialog footer{display:flex;gap:8px;justify-content:flex-end;padding:0 18px 18px}
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#1f2029;border:1px solid var(--line-2);color:var(--text);padding:10px 14px;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:all .25s;z-index:60;font-size:12.5px;max-width:80vw}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-.kbd{font-family:var(--mono);font-size:10.5px;background:rgba(255,255,255,.08);border:1px solid var(--line-2);border-radius:4px;padding:0 5px;color:var(--muted)}
-.warn{color:var(--warn)}
-@media (max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:52px 1fr auto}.sidebar{order:3;max-height:48vh;border-right:0;border-top:1px solid var(--line)}}
+@media (max-width:1180px){:root{--left:220px;--right:300px}.tiles{grid-template-columns:repeat(2,1fr)}.circles{grid-template-columns:repeat(3,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="topbar">
-    <div class="brand"><span class="logo"></span>Gradient Studio <small>· gradient-map animator</small></div>
-    <div class="seg" id="playSeg">
-      <button id="btnPlay" title="Play / pause (Space)">Pause</button>
-      <button id="btnRestart" title="Restart from 0">↺</button>
+  <header class="top">
+    <div class="brand"><span class="logo"></span>Gradient Studio <span class="pn" id="presetName">Base</span></div>
+    <div class="mid">
+      <div class="seg"><button id="btnPlay" title="Play / pause (Space)">Pause</button><button id="btnRestart" title="Back to start">↺</button></div>
+      <div class="scrub"><input class="plain" type="range" id="scrub" min="0" max="1" step="0.001" value="0" title="Scrub time"></div>
+      <span class="mono" id="timeLabel">0.00s</span>
     </div>
     <button class="btn" id="btnRandom" title="Randomize (R)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>Randomize</button>
-    <span class="spacer"></span>
-    <span style="color:var(--muted);font-size:12px" title="Preview render quality">Preview</span>
-    <div class="seg" id="qualitySeg"><button data-q="0.6">Fast</button><button data-q="1" class="on">Balanced</button><button data-q="1.6">Sharp</button></div>
-    <button class="btn" id="btnSave" title="Save preset as JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>Save</button>
-    <button class="btn" id="btnLoad" title="Load a saved preset JSON"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0L8 7m4-4l4 4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>Load</button>
-    <button class="btn ghost" id="btnReset" title="Reset everything to defaults">Reset</button>
-    <button class="btn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/><path d="M12 4v11m0 0l-4-4m4 4l4-4"/></svg>Export GIF / MP4</button>
-  </div>
+    <button class="btn ghost" id="btnSave" title="Save this design as a JSON file">Save</button>
+    <button class="btn ghost" id="btnLoad" title="Open a saved design">Open</button>
+    <button class="btn ghost" id="btnReset" title="Start over with defaults">Reset</button>
+    <button class="btn primary" id="btnExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/><path d="M12 4v11m0 0l-4-4m4 4l4-4"/></svg>Export</button>
+  </header>
 
-  <aside class="sidebar">
-    <div class="scroll" id="sidebar">
-      <div class="presets" id="presets"></div>
-      <!-- sections are generated in JS -->
-    </div>
-    <div class="foot">
-      <button class="btn grow" id="btnAddText" style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M12 6v14M8 20h8"/></svg>Add text</button>
-      <button class="btn primary" id="btnExport2" style="flex:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/><path d="M12 4v11m0 0l-4-4m4 4l4-4"/></svg>Export</button>
-    </div>
+  <aside class="pane left">
+    <div class="head">✦ Looks</div>
+    <div class="scroll" id="looks"></div>
   </aside>
 
   <main class="stage">
-    <div class="canvas-wrap" id="wrap">
+    <div class="wrap" id="wrap">
       <div class="frame" id="frame">
         <canvas id="gl"></canvas>
         <canvas id="out"></canvas>
       </div>
     </div>
-    <div class="bar">
-      <span class="mono" id="sizeLabel">1080 × 1920</span>
-      <span>·</span>
-      <span class="mono" id="typeLabel">Soft Clouds</span>
-      <span class="spacer"></span>
-      <div class="timeline" title="Scrub time"><input type="range" id="scrub" min="0" max="1" step="0.001" value="0"></div>
-      <span class="mono" id="timeLabel">0.00s</span>
-      <span class="mono" id="fpsLabel" style="color:var(--faint)">60 fps</span>
+    <div class="status" id="status"></div>
+    <div class="float">
+      <select id="ratioQuick" title="Canvas ratio"></select>
+      <span class="sep"></span>
+      <button class="btn sm" id="btnAddText"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M12 6v14M8 20h8"/></svg>Text</button>
+      <button class="btn sm" id="btnAddImage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>Image</button>
+      <span class="sep"></span>
+      <button class="btn sm" id="btnGuides" title="Show centre and thirds guides (G)">Guides</button>
+      <button class="btn sm" id="btnSnap" title="Snap layers to centre, edges and each other while dragging">Snap</button>
+      <span class="sep"></span>
+      <select id="qualitySel" title="Preview render quality"><option value="0.6">Preview: Fast</option><option value="1" selected>Preview: Balanced</option><option value="1.6">Preview: Sharp</option></select>
     </div>
   </main>
+
+  <aside class="pane right">
+    <div class="head">Layers <span class="sp"></span><span class="mono" id="fpsLabel" style="font-size:10.5px;color:var(--faint)"></span></div>
+    <div class="scroll" id="inspector"></div>
+  </aside>
 </div>
 
 <div class="modal" id="exportModal">
   <div class="dialog">
-    <header>Export animation <button class="btn icon ghost x" id="exportClose">✕</button></header>
+    <header>Export <button class="btn icon ghost x" id="exportClose">✕</button></header>
     <div class="content">
-      <div class="seg" id="fmtSeg" style="display:flex">
-        <button data-f="gif" class="on" style="flex:1">GIF</button>
-        <button data-f="mp4" style="flex:1">MP4 (H.264)</button>
-        <button data-f="webm" style="flex:1">WebM</button>
-        <button data-f="png" style="flex:1">PNG frame</button>
+      <div class="seg fill" id="fmtSeg">
+        <button data-f="gif" class="on">GIF</button>
+        <button data-f="mp4">MP4 (H.264)</button>
+        <button data-f="webm">WebM</button>
+        <button data-f="png">PNG frame</button>
       </div>
       <div class="grid">
         <div class="field"><label>Resolution</label><select id="exRes"></select></div>
         <div class="field"><label>Frame rate</label><select id="exFps"></select></div>
         <div class="field"><label>Duration (seconds)</label><input class="input" id="exDur" type="number" min="0.5" max="30" step="0.5" value="4"></div>
-        <div class="field"><label>Quality</label><select id="exQ"><option value="high">High</option><option value="med">Medium</option><option value="low">Low (small file)</option></select></div>
+        <div class="field"><label>Quality</label><select id="exQ"><option value="max">Maximum (4K master)</option><option value="high">High</option><option value="med">Medium</option><option value="low">Low (small file)</option></select></div>
       </div>
-      <div class="row" style="gap:18px;margin-top:12px">
+      <div class="row" style="gap:18px;margin-top:12px;flex-wrap:wrap">
         <label class="toggle"><input type="checkbox" id="exLoop" checked><span class="sw"></span>Seamless loop</label>
         <label class="toggle" id="exDitherWrap"><input type="checkbox" id="exDither" checked><span class="sw"></span>Dither (GIF)</label>
+        <label class="toggle" title="Render at 2× and downsample for smoother edges"><input type="checkbox" id="exSS" checked><span class="sw"></span>Supersample 2×</label>
       </div>
       <div class="est" id="exEst"></div>
       <div class="progress" id="exProg"><div class="track"><div class="fill" id="exFill"></div></div><div class="txt"><span id="exStage">Rendering…</span><span id="exPct">0%</span></div></div>
@@ -269,6 +320,7 @@ textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height
 </div>
 <div class="toast" id="toast"></div>
 <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2,font/*" multiple hidden>
+<input type="file" id="fileImage" accept="image/*" multiple hidden>
 <input type="file" id="fileJson" accept="application/json,.json" hidden>
 
 <script>
@@ -663,6 +715,8 @@ void main(){
     col *= vig;
   }
   col = applyTexture(col, gl_FragCoord.xy, uv);
+  // sub-LSB dither so smooth gradients don't band in 8-bit output
+  col += (hash1(gl_FragCoord.xy + fract(uFrame * 0.137) * 61.0) - 0.5) * (1.0 / 255.0);
   col = clamp(col, 0.0, 1.0);
 
   float m = shapeMask(s, aspect);
@@ -846,6 +900,7 @@ const GIF = (() => {
 
   return { Quantizer, Encoder };
 })();
+
 </script>
 <script>
 /* ======================================================================
@@ -892,15 +947,27 @@ const PALETTES = [
 ];
 const GOOGLE_FONTS = ['Inter', 'Space Grotesk', 'Bricolage Grotesque', 'Syne', 'Unbounded', 'Archivo Black', 'Anton', 'Bebas Neue', 'Oswald', 'Montserrat', 'Poppins', 'DM Serif Display', 'Playfair Display', 'Instrument Serif', 'Fraunces', 'Cormorant Garamond', 'Righteous', 'Bungee', 'Pacifico', 'Major Mono Display', 'JetBrains Mono'];
 const SYSTEM_FONTS = ['Arial', 'Helvetica Neue', 'Georgia', 'Times New Roman', 'Courier New', 'Impact', 'Verdana'];
-const SIZES = [
-  { id: 'story', name: 'Story 9:16', w: 1080, h: 1920 },
-  { id: 'square', name: 'Square 1:1', w: 1080, h: 1080 },
-  { id: 'portrait', name: 'Portrait 4:5', w: 1080, h: 1350 },
-  { id: 'land', name: 'Landscape 16:9', w: 1920, h: 1080 },
-  { id: 'card', name: 'Card 3:4', w: 1200, h: 1600 },
-  { id: 'banner', name: 'Banner 3:1', w: 1800, h: 600 },
-  { id: 'custom', name: 'Custom', w: 1080, h: 1080 },
+// Aspect ratios. The canvas keeps a design size (short edge 1080) — export picks the real pixel size.
+const RATIOS = [
+  { id: '9:16', name: 'Story', w: 9, h: 16 },
+  { id: '1:1', name: 'Square', w: 1, h: 1 },
+  { id: '4:5', name: 'Portrait', w: 4, h: 5 },
+  { id: '3:4', name: 'Classic', w: 3, h: 4 },
+  { id: '2:3', name: 'Poster', w: 2, h: 3 },
+  { id: '3:2', name: 'Photo', w: 3, h: 2 },
+  { id: '4:3', name: 'Standard', w: 4, h: 3 },
+  { id: '16:9', name: 'Wide', w: 16, h: 9 },
+  { id: '21:9', name: 'Cinema', w: 21, h: 9 },
+  { id: '1.91:1', name: 'Social link', w: 1.91, h: 1 },
+  { id: '3:1', name: 'Banner', w: 3, h: 1 },
+  { id: 'custom', name: 'Custom', w: 1, h: 1 },
 ];
+const BASE_SHORT = 1080;
+function sizeForRatio(r, short = BASE_SHORT) {
+  if (r.w >= r.h) return { w: Math.round(short * r.w / r.h), h: short };
+  return { w: short, h: Math.round(short * r.h / r.w) };
+}
+function ratioLabel() { const r = RATIOS.find(x => x.id === S.canvas.ratio); if (r && r.id !== 'custom') return r.id; const g = (a, b) => b ? g(b, a % b) : a; const d = g(S.canvas.w, S.canvas.h); return `${S.canvas.w / d}:${S.canvas.h / d}`; }
 const BLENDS = ['source-over', 'difference', 'exclusion', 'overlay', 'screen', 'multiply', 'soft-light', 'hard-light', 'color-dodge', 'color-burn', 'lighten', 'darken'];
 const BLEND_NAMES = ['Normal', 'Difference', 'Exclusion', 'Overlay', 'Screen', 'Multiply', 'Soft light', 'Hard light', 'Colour dodge', 'Colour burn', 'Lighten', 'Darken'];
 
@@ -911,11 +978,19 @@ function paletteFrom(colors, positions) {
 }
 function defaultLayer(over = {}) {
   return Object.assign({
-    id: layerSeq++, visible: true, text: 'Your text\nhere', font: 'Inter', weight: 700, italic: false, size: 9, x: 50, y: 50,
+    kind: 'text', id: layerSeq++, visible: true, locked: false, text: 'Your text\nhere', font: 'Inter', weight: 700, italic: false, size: 9, x: 50, y: 50,
     align: 'center', letter: -0.02, lineH: 1.05, rotate: 0, upper: false, fill: 'solid', color: '#ffffff', opacity: 1,
     stroke: 0, strokeColor: '#000000', shadow: 0, shadowY: 0, shadowColor: '#000000', shadowOpacity: 0.5, blend: 'source-over',
   }, over);
 }
+function defaultImageLayer(over = {}) {
+  return Object.assign({
+    kind: 'image', id: layerSeq++, visible: true, locked: false, src: null, name: 'Image', x: 50, y: 50, w: 50, rotate: 0, flipX: false,
+    crop: { l: 0, t: 0, r: 0, b: 0 }, radius: 0, circle: false, opacity: 1, blend: 'source-over',
+    shadow: 0, shadowY: 0, shadowColor: '#000000', shadowOpacity: 0.5,
+  }, over);
+}
+function normalizeLayer(l) { return l.kind === 'image' ? defaultImageLayer(Object.assign({}, l, { crop: Object.assign({ l: 0, t: 0, r: 0, b: 0 }, l.crop || {}) })) : defaultLayer(l); }
 function defaultState() {
   return {
     type: 0, scale: 0.5, speed: 1, octaves: 3, warp: 1.0, contrast: 1.3, soft: 1, steps: 1, angle: 0, seed: 0.37, flowX: 0, flowY: 0,
@@ -923,11 +998,13 @@ function defaultState() {
     post: { sat: 1, bright: 1, hue: 0, vignette: 0 },
     texture: { type: 0, amount: 0.35, scale: 1 },
     shape: { type: 0, size: 0.8, soft: 0.05, round: 0.3, bg: '#0b0b0f' },
-    canvas: { preset: 'story', w: 1080, h: 1920 },
+    canvas: { ratio: '9:16', w: 1080, h: 1920, radius: 0, cornerColor: '#0b0b0f', transparentCorners: false },
     fillMode: 'full',
-    text: { layers: [], selected: -1 },
+    layers: [], selected: -1,
+    images: {},        // id -> { dataURL, w, h, name }  (bitmaps live in IMAGES)
+    guides: true, snap: true,
     loop: true, duration: 4,
-    export: { format: 'gif', res: '720', fps: 20, quality: 'high', dither: true },
+    export: { format: 'gif', res: '720', fps: 20, quality: 'high', dither: true, supersample: true },
     previewQ: 1,
   };
 }
@@ -1028,9 +1105,15 @@ function restore() {
     const d = JSON.parse(raw); if (!d || !d.S) return false;
     S = Object.assign(defaultState(), d.S);
     S.palette = Object.assign(defaultState().palette, d.S.palette || {});
-    S.text = Object.assign({ layers: [], selected: -1 }, d.S.text || {});
-    S.text.layers = (S.text.layers || []).map(l => defaultLayer(l));
-    layerSeq = Math.max(1, ...S.text.layers.map(l => l.id + 1));
+    S.canvas = Object.assign(defaultState().canvas, d.S.canvas || {});
+    if (!S.canvas.ratio) { const r = RATIOS.find(x => Math.abs(x.w / x.h - S.canvas.w / S.canvas.h) < 0.01); S.canvas.ratio = r ? r.id : 'custom'; }
+    S.export = Object.assign(defaultState().export, d.S.export || {});
+    // migrate v1 (text-only) documents
+    if (d.S.text && d.S.text.layers && !d.S.layers) { S.layers = d.S.text.layers; S.selected = d.S.text.selected ?? -1; }
+    S.layers = (S.layers || []).map(normalizeLayer);
+    S.images = S.images || {};
+    layerSeq = Math.max(1, ...S.layers.map(l => l.id + 1));
+    if (S.selected >= S.layers.length) S.selected = -1;
     presetName = d.presetName || 'Custom';
     return true;
   } catch (e) { return false; }
@@ -1104,502 +1187,15 @@ function renderGL(t, w, h) {
   gl.uniform1f(U.uPalOff, S.palette.offset + cyc * t);
   gl.uniform1i(U.uMirror, S.palette.mirror ? 1 : 0);
   gl.uniform1f(U.uSat, S.post.sat); gl.uniform1f(U.uBright, S.post.bright); gl.uniform1f(U.uHue, S.post.hue * Math.PI / 180); gl.uniform1f(U.uVignette, S.post.vignette);
-  gl.uniform1i(U.uTex, S.texture.type); gl.uniform1f(U.uTexAmt, S.texture.amount); gl.uniform1f(U.uTexScale, S.texture.scale * (h / 1080));
+  gl.uniform1i(U.uTex, S.texture.type); gl.uniform1f(U.uTexAmt, S.texture.amount); gl.uniform1f(U.uTexScale, S.texture.scale * (h / ssCur / 1080));
   gl.uniform1i(U.uShape, S.shape.type); gl.uniform1f(U.uShapeSize, S.shape.size); gl.uniform1f(U.uShapeSoft, S.shape.soft); gl.uniform1f(U.uShapeRound, S.shape.round);
   const bg = hexToRgb(S.shape.bg); gl.uniform3f(U.uBg, bg[0], bg[1], bg[2]);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
-/* ---------- 2D compositing (text) ---------- */
-const previewCtx = outCanvas.getContext('2d');
-const exportCanvas = document.createElement('canvas'); const exportCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
-let ctx = previewCtx, target = outCanvas; // swapped to the export canvas while exporting
-const layerCanvas = document.createElement('canvas'); const lctx = layerCanvas.getContext('2d');
-const maskCanvas = document.createElement('canvas'); const mctx = maskCanvas.getContext('2d');
-const textBoxes = []; // hit boxes in output pixels: {layer, x, y, w, h}
 
-function layerFont(l, px) { return `${l.italic ? 'italic ' : ''}${l.weight} ${px}px "${l.font}", sans-serif`; }
-function layerLines(l) { const t = l.upper ? l.text.toUpperCase() : l.text; return t.split('\n'); }
-
-function drawTextPath(c, l, W, H, mode) {
-  // mode: 'fill' | 'stroke' | 'both' — draws at layer position, sets font etc.
-  const px = l.size / 100 * H;
-  c.save();
-  c.font = layerFont(l, px);
-  if ('letterSpacing' in c) c.letterSpacing = (l.letter * px) + 'px';
-  c.textAlign = l.align; c.textBaseline = 'alphabetic';
-  const lines = layerLines(l);
-  const lh = px * l.lineH;
-  const total = lh * (lines.length - 1);
-  const cx = l.x / 100 * W, cy = l.y / 100 * H;
-  c.translate(cx, cy); c.rotate(l.rotate * Math.PI / 180);
-  // measure for hit box
-  let maxW = 0;
-  for (const ln of lines) maxW = Math.max(maxW, c.measureText(ln).width);
-  const asc = px * 0.72, desc = px * 0.22;
-  const box = { w: maxW, h: total + asc + desc };
-  const y0 = -total / 2 + (asc - desc) / 2;
-  lines.forEach((ln, i) => {
-    const y = y0 + i * lh;
-    if (mode !== 'stroke') c.fillText(ln, 0, y);
-    if (mode !== 'fill' && l.stroke > 0) c.strokeText(ln, 0, y);
-  });
-  c.restore();
-  const bx = l.align === 'left' ? 0 : l.align === 'right' ? -maxW : -maxW / 2;
-  return { x: cx + bx, y: cy - box.h / 2, w: box.w, h: box.h, cx, cy };
-}
-
-function composite(W, H, forExport) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
-  const layers = S.text.layers.filter(l => l.visible && l.text.trim().length);
-  textBoxes.length = 0;
-  if (S.fillMode === 'text' && layers.length) {
-    // animation only inside text
-    ctx.fillStyle = S.shape.bg; ctx.fillRect(0, 0, W, H);
-    // shadows underneath
-    for (const l of layers) if (l.shadow > 0) {
-      ctx.save(); ctx.globalAlpha = l.opacity * l.shadowOpacity; ctx.fillStyle = l.shadowColor;
-      ctx.shadowColor = l.shadowColor; ctx.shadowBlur = l.shadow / 100 * H; ctx.shadowOffsetY = l.shadowY / 100 * H;
-      drawTextPath(ctx, l, W, H, 'fill'); ctx.restore();
-    }
-    if (maskCanvas.width !== W || maskCanvas.height !== H) { maskCanvas.width = W; maskCanvas.height = H; }
-    mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over'; mctx.clearRect(0, 0, W, H);
-    mctx.fillStyle = '#fff';
-    for (const l of layers) { mctx.globalAlpha = l.opacity; const b = drawTextPath(mctx, l, W, H, 'fill'); textBoxes.push(Object.assign({ layer: l }, b)); }
-    mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-in'; mctx.drawImage(glCanvas, 0, 0, W, H);
-    ctx.drawImage(maskCanvas, 0, 0);
-    for (const l of layers) if (l.stroke > 0) {
-      ctx.save(); ctx.globalAlpha = l.opacity; ctx.strokeStyle = l.strokeColor; ctx.lineWidth = l.stroke / 100 * (l.size / 100 * H); ctx.lineJoin = 'round';
-      drawTextPath(ctx, l, W, H, 'stroke'); ctx.restore();
-    }
-    return;
-  }
-  ctx.drawImage(glCanvas, 0, 0, W, H);
-  for (const l of layers) {
-    const px = l.size / 100 * H;
-    if (l.fill === 'solid' || l.fill === 'bg') {
-      ctx.save();
-      ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend;
-      if (l.shadow > 0) { ctx.shadowColor = hexWithAlpha(l.shadowColor, l.shadowOpacity); ctx.shadowBlur = l.shadow / 100 * H; ctx.shadowOffsetY = l.shadowY / 100 * H; }
-      ctx.fillStyle = l.fill === 'bg' ? S.shape.bg : l.color;
-      ctx.strokeStyle = l.strokeColor; ctx.lineWidth = l.stroke / 100 * px; ctx.lineJoin = 'round';
-      const b = drawTextPath(ctx, l, W, H, l.stroke > 0 ? 'both' : 'fill');
-      ctx.restore();
-      textBoxes.push(Object.assign({ layer: l }, b));
-    } else {
-      // text filled with a transformed copy of the animation
-      if (layerCanvas.width !== W || layerCanvas.height !== H) { layerCanvas.width = W; layerCanvas.height = H; }
-      lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.filter = 'none'; lctx.clearRect(0, 0, W, H);
-      lctx.fillStyle = '#fff';
-      const b = drawTextPath(lctx, l, W, H, 'fill');
-      lctx.globalCompositeOperation = 'source-in';
-      if ('filter' in lctx) {
-        lctx.filter = l.fill === 'invert' ? 'invert(1)' : l.fill === 'hue' ? 'hue-rotate(180deg)' : 'grayscale(1) contrast(1.4)';
-        lctx.drawImage(glCanvas, 0, 0, W, H);
-        lctx.filter = 'none';
-      } else { // Safari < 18: invert via difference with white
-        lctx.drawImage(glCanvas, 0, 0, W, H);
-        lctx.globalCompositeOperation = 'source-atop'; lctx.globalCompositeOperation = 'difference'; lctx.fillStyle = '#fff'; lctx.fillRect(0, 0, W, H);
-        lctx.globalCompositeOperation = 'destination-in'; lctx.fillStyle = '#fff'; drawTextPath(lctx, l, W, H, 'fill');
-      }
-      ctx.save(); ctx.globalAlpha = l.opacity; ctx.globalCompositeOperation = l.blend;
-      if (l.shadow > 0) { ctx.shadowColor = hexWithAlpha(l.shadowColor, l.shadowOpacity); ctx.shadowBlur = l.shadow / 100 * H; ctx.shadowOffsetY = l.shadowY / 100 * H; }
-      ctx.drawImage(layerCanvas, 0, 0);
-      if (l.stroke > 0) { ctx.shadowColor = 'transparent'; ctx.strokeStyle = l.strokeColor; ctx.lineWidth = l.stroke / 100 * px; ctx.lineJoin = 'round'; drawTextPath(ctx, l, W, H, 'stroke'); }
-      ctx.restore();
-      textBoxes.push(Object.assign({ layer: l }, b));
-    }
-  }
-  if (!forExport && hoverCanvas && S.text.selected >= 0) {
-    const sel = S.text.layers[S.text.selected];
-    const b = textBoxes.find(t => t.layer === sel);
-    if (b) {
-      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.translate(b.cx, b.cy); ctx.rotate(sel.rotate * Math.PI / 180);
-      ctx.strokeStyle = 'rgba(139,124,255,.9)'; ctx.lineWidth = Math.max(1.5, W / 600); ctx.setLineDash([8 * W / 1080, 6 * W / 1080]);
-      const ox = sel.align === 'left' ? 0 : sel.align === 'right' ? -b.w : -b.w / 2;
-      ctx.strokeRect(ox - 8, -b.h / 2 - 8, b.w + 16, b.h + 16);
-      ctx.restore();
-    }
-  }
-}
-function hexWithAlpha(hex, a) { const [r, g, b] = hexToRgb(hex); return `rgba(${r * 255 | 0},${g * 255 | 0},${b * 255 | 0},${a})`; }
-
-/* ---------- render loop ---------- */
-let playing = true, time = 0, last = performance.now(), hoverCanvas = false;
-let curW = 0, curH = 0, exporting = false;
-let fpsAcc = 0, fpsN = 0, fpsT = performance.now();
-function fitPreview() {
-  if (exporting) return;
-  const wrap = $('#wrap'); const r = wrap.getBoundingClientRect();
-  const pad = 56; const aw = Math.max(100, r.width - pad), ah = Math.max(100, r.height - pad);
-  const ar = S.canvas.w / S.canvas.h;
-  let w = aw, h = w / ar; if (h > ah) { h = ah; w = h * ar; }
-  const frame = $('#frame'); frame.style.width = w + 'px'; frame.style.height = h + 'px';
-  const dpr = Math.min(window.devicePixelRatio || 1, 2) * S.previewQ;
-  let pw = Math.round(w * dpr), ph = Math.round(h * dpr);
-  const cap = 1600; if (Math.max(pw, ph) > cap) { const s = cap / Math.max(pw, ph); pw = Math.round(pw * s); ph = Math.round(ph * s); }
-  setRenderSize(pw, ph);
-  $('#sizeLabel').textContent = `${S.canvas.w} × ${S.canvas.h}`;
-}
-function setRenderSize(w, h) {
-  if (glCanvas.width !== w || glCanvas.height !== h) { glCanvas.width = w; glCanvas.height = h; }
-  if (target.width !== w || target.height !== h) { target.width = w; target.height = h; }
-  curW = w; curH = h;
-}
-function renderFrame(t, forExport = false) {
-  renderGL(t, curW, curH);
-  composite(curW, curH, forExport);
-}
-function tick(now) {
-  requestAnimationFrame(tick);
-  if (exporting) return;
-  const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (playing) {
-    time += dt;
-    if (S.loop) time = time % Math.max(0.5, S.duration);
-  }
-  renderFrame(time);
-  $('#timeLabel').textContent = time.toFixed(2) + 's';
-  const scrub = $('#scrub'); if (!scrub.matches(':active')) scrub.value = S.loop ? time / Math.max(0.5, S.duration) : (time % 10) / 10;
-  fpsN++; if (now - fpsT > 800) { $('#fpsLabel').textContent = Math.round(fpsN * 1000 / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; }
-}
-
-/* ---------- UI: control factories ---------- */
-const rerenderers = []; // functions to sync UI from state
-function slider(path, label, min, max, step, opts = {}) {
-  const wrap = el('div', { class: 'ctl' });
-  const valIn = el('input', { type: 'text' });
-  const lab = el('div', { class: 'lab' }, el('b', {}, label), el('span', { class: 'val' }, valIn));
-  const range = el('input', { type: 'range', min, max, step });
-  const fmt = opts.fmt || (v => (+v).toFixed(step < 0.1 ? 2 : step < 1 ? 1 : 0) + (opts.unit || ''));
-  const get = opts.get || (() => getPath(S, path));
-  const set = opts.set || (v => setPath(S, path, v));
-  const sync = () => { const v = get(); range.value = v; valIn.value = fmt(v); };
-  range.addEventListener('input', () => { set(+range.value); valIn.value = fmt(+range.value); persist(); opts.onChange && opts.onChange(); });
-  valIn.addEventListener('change', () => { const v = parseFloat(valIn.value); if (!isNaN(v)) { set(clamp(v, opts.hardMin ?? min, opts.hardMax ?? max)); } sync(); persist(); opts.onChange && opts.onChange(); });
-  range.addEventListener('dblclick', () => { if (opts.reset != null) { set(opts.reset); sync(); persist(); opts.onChange && opts.onChange(); } });
-  wrap.append(lab, range);
-  rerenderers.push(sync); sync();
-  return wrap;
-}
-function colorInput(get, set, opts = {}) {
-  const c = el('input', { type: 'color' }); const hex = el('input', { class: 'hex', type: 'text', spellcheck: 'false' });
-  const box = el('div', { class: 'color' }, c, hex);
-  const sync = () => { c.value = get(); hex.value = get(); };
-  c.addEventListener('input', () => { set(c.value); hex.value = c.value; persist(); opts.onChange && opts.onChange(); });
-  hex.addEventListener('change', () => { let v = hex.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) { if (v.length === 4) v = '#' + v.slice(1).split('').map(x => x + x).join(''); set(v.toLowerCase()); persist(); opts.onChange && opts.onChange(); } sync(); });
-  if (!opts.noSync) rerenderers.push(sync);
-  sync(); return box;
-}
-function selectInput(path, options, opts = {}) {
-  const s = el('select');
-  options.forEach(o => s.append(el('option', { value: o.value }, o.label)));
-  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
-  const sync = () => { s.value = get(); };
-  s.addEventListener('change', () => { let v = s.value; if (opts.number) v = +v; set(v); persist(); opts.onChange && opts.onChange(); });
-  if (!opts.noSync) rerenderers.push(sync);
-  sync(); return s;
-}
-function toggle(path, label, opts = {}) {
-  const i = el('input', { type: 'checkbox' });
-  const t = el('label', { class: 'toggle' }, i, el('span', { class: 'sw' }), el('span', {}, label));
-  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
-  const sync = () => { i.checked = !!get(); };
-  i.addEventListener('change', () => { set(i.checked); persist(); opts.onChange && opts.onChange(); });
-  if (!opts.noSync) rerenderers.push(sync);
-  sync(); return t;
-}
-function segmented(path, options, opts = {}) {
-  const seg = el('div', { class: 'seg', style: 'display:flex' });
-  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
-  const btns = options.map(o => el('button', { style: 'flex:1', onclick: () => { set(o.value); sync(); persist(); opts.onChange && opts.onChange(); } }, o.label));
-  const sync = () => btns.forEach((b, i) => b.classList.toggle('on', options[i].value === get()));
-  seg.append(...btns); if (!opts.noSync) rerenderers.push(sync); sync(); return seg;
-}
-function chips(path, names, opts = {}) {
-  const wrap = el('div', { class: 'chips' + (opts.cols === 4 ? ' c4' : '') });
-  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
-  const btns = names.map((n, i) => el('button', { class: 'chip', title: n, onclick: () => { set(i); sync(); persist(); opts.onChange && opts.onChange(); } }, n));
-  const sync = () => btns.forEach((b, i) => b.classList.toggle('on', i === get()));
-  wrap.append(...btns); rerenderers.push(sync); sync(); return wrap;
-}
-function row(label, ...content) {
-  const r = el('div', { class: 'row' }); if (label != null) r.append(el('label', {}, label));
-  content.forEach(c => { if (c.tagName !== 'BUTTON') c.classList.add('grow'); r.append(c); }); return r;
-}
-function section(title, badge, open, ...content) {
-  const sec = el('div', { class: 'sec' + (open ? ' open' : '') });
-  const hdr = el('header', { onclick: () => sec.classList.toggle('open') }, title, badge ? el('span', { class: 'badge' }, badge) : null, el('span', { class: 'chev' }, '›'));
-  const body = el('div', { class: 'body' }, ...content);
-  sec.append(hdr, body); return sec;
-}
-
-/* ---------- UI: build sidebar ---------- */
-const sidebar = $('#sidebar');
-function typeThumbStyle(i) {
-  const pal = PALETTES[i % PALETTES.length].c;
-  const kinds = [
-    `radial-gradient(circle at 30% 30%, ${pal[0]}, transparent 60%), radial-gradient(circle at 70% 70%, ${pal[1]}, transparent 60%), linear-gradient(135deg, ${pal[2]}, ${pal[3] || pal[0]})`,
-    `radial-gradient(ellipse at 50% 40%, ${pal[0]} 20%, ${pal[1]} 60%, ${pal[2]})`,
-    `linear-gradient(100deg, ${pal[0]} 35%, ${pal[1]} 50%, ${pal[2]} 65%)`,
-    `repeating-linear-gradient(115deg, ${pal[3] || pal[0]} 0 3px, ${pal[0]} 3px 14px, ${pal[1]} 14px 16px)`,
-    `conic-gradient(from 90deg at 40% 60%, ${pal.join(',')}, ${pal[0]})`,
-    `radial-gradient(circle at 20% 80%, ${pal[1]}, transparent 50%), radial-gradient(circle at 80% 20%, ${pal[2]}, transparent 50%), linear-gradient(45deg, ${pal[0]}, ${pal[3] || pal[1]})`,
-    `repeating-radial-gradient(circle at 50% 50%, ${pal[0]} 0 6px, ${pal[1]} 6px 12px, ${pal[2]} 12px 18px)`,
-    `linear-gradient(90deg, ${pal[0]}, ${pal[1]} 30%, ${pal[2]} 55%, ${pal[3] || pal[0]} 80%, ${pal[0]})`,
-    `radial-gradient(circle at 25% 30%, ${pal[1]} 20%, transparent 22%), radial-gradient(circle at 70% 60%, ${pal[2]} 24%, transparent 26%), radial-gradient(circle at 40% 85%, ${pal[3] || pal[1]} 18%, transparent 20%), ${pal[0]}`,
-    `radial-gradient(circle at 35% 50%, ${pal[2]} 25%, transparent 40%), radial-gradient(circle at 65% 50%, ${pal[1]} 25%, transparent 40%), ${pal[0]}`,
-    `linear-gradient(160deg, ${pal[0]}, ${pal[1]} 40%, ${pal[2]} 70%, ${pal[3] || pal[0]})`,
-    `repeating-linear-gradient(80deg, ${pal[0]} 0 8px, ${pal[1]} 8px 20px, ${pal[2]} 20px 26px)`,
-    `repeating-linear-gradient(90deg, ${pal[0]} 0 10px, ${pal[1]} 10px 20px, ${pal[2]} 20px 30px, ${pal[3] || pal[0]} 30px 40px)`,
-    `conic-gradient(${pal[0]} 0 60deg, ${pal[1]} 60deg 120deg, ${pal[2]} 120deg 180deg, ${pal[0]} 180deg 240deg, ${pal[1]} 240deg 300deg, ${pal[2]} 300deg)`,
-    `radial-gradient(circle at 30% 40%, ${pal[3] || pal[2]} 15%, transparent 30%), radial-gradient(circle at 70% 70%, ${pal[2]} 18%, transparent 34%), linear-gradient(0deg, ${pal[0]}, ${pal[1]})`,
-  ];
-  return `background:${kinds[i]}`;
-}
-function buildSidebar() {
-  // presets strip
-  const ps = $('#presets');
-  PRESETS.forEach(p => {
-    const pal = PALETTES.find(x => x.name === p.pal);
-    const b = el('button', { class: 'preset', title: p.name, onclick: () => applyPreset(p) },
-      el('div', { class: 'sw', style: `background:${cssGradient(paletteFrom(pal.c, pal.p))}` }), el('div', { class: 'nm' }, p.name));
-    rerenderers.push(() => b.classList.toggle('on', presetName === p.name));
-    ps.append(b);
-  });
-
-  // --- Animation
-  const typeGrid = el('div', { class: 'types' });
-  const typeBtns = TYPES.map(t => el('button', { class: 'type', title: t.desc, onclick: () => { S.type = t.id; presetName = 'Custom'; refreshAll(); } },
-    el('div', { class: 'thumb', style: typeThumbStyle(t.id) }), el('div', { class: 'name' }, t.name)));
-  typeGrid.append(...typeBtns);
-  rerenderers.push(() => { typeBtns.forEach((b, i) => b.classList.toggle('on', i === S.type)); $('#typeLabel').textContent = TYPES[S.type].name; });
-  const typeDesc = el('div', { class: 'hint' }); rerenderers.push(() => typeDesc.textContent = TYPES[S.type].desc);
-  const seedRow = el('div', { class: 'row' });
-  const seedSlider = slider('seed', 'Seed', 0, 1, 0.001, { fmt: v => (v * 1000 | 0) + '' });
-  seedSlider.style.flex = '1';
-  seedRow.append(seedSlider, el('button', { class: 'btn icon', title: 'New seed', style: 'margin-top:14px', onclick: () => { S.seed = Math.random(); refreshAll(); } }, '⚄'));
-
-  sidebar.append(section('Animation', TYPES.length + ' types', true,
-    typeGrid, typeDesc,
-    slider('scale', 'Scale', 0.2, 4, 0.01, { reset: 1 }),
-    slider('speed', 'Speed', 0, 4, 0.01, { reset: 1, unit: '×' }),
-    slider('octaves', 'Detail (octaves)', 1, 8, 1, { reset: 4 }),
-    slider('warp', 'Warp / distortion', 0, 3, 0.01, { reset: 1 }),
-    slider('contrast', 'Contrast', 0.2, 4, 0.01, { reset: 1 }),
-    slider('steps', 'Posterize bands', 1, 12, 1, { reset: 1, fmt: v => v <= 1 ? 'off' : v + '' }),
-    slider('soft', 'Band softness', 0, 1, 0.01, { reset: 1 }),
-    slider('angle', 'Rotation', -180, 180, 1, { reset: 0, unit: '°' }),
-    el('div', { class: 'two' }, slider('flowX', 'Flow X', -2, 2, 0.01, { reset: 0 }), slider('flowY', 'Flow Y', -2, 2, 0.01, { reset: 0 })),
-    seedRow,
-    el('div', { class: 'hr' }),
-    el('div', { class: 'row' }, toggle('loop', 'Seamless loop', { onChange: () => { time = 0; } })),
-    slider('duration', 'Loop length', 1, 20, 0.5, { unit: 's', reset: 4 }),
-    el('div', { class: 'hint' }, 'With loop on, motion is driven around a closed path so the last frame flows into the first. Exports use the same length.')
-  ));
-
-  // --- Colours
-  const gradBar = el('div', { class: 'grad' });
-  const stopsWrap = el('div', { class: 'stops' });
-  const renderStops = () => {
-    stopsWrap.innerHTML = '';
-    S.palette.stops.forEach((st, i) => {
-      const c = colorInput(() => st.c, v => { st.c = v; gradBar.style.background = cssGradient(); presetName = 'Custom'; }, { noSync: true });
-      const r = el('input', { type: 'range', min: 0, max: 1, step: 0.001, value: st.p });
-      const pos = el('span', { class: 'pos' }, Math.round(st.p * 100) + '%');
-      r.addEventListener('input', () => { st.p = +r.value; pos.textContent = Math.round(st.p * 100) + '%'; gradBar.style.background = cssGradient(); persist(); presetName = 'Custom'; });
-      const x = el('button', { class: 'x', title: 'Remove stop', onclick: () => { if (S.palette.stops.length > 2) { S.palette.stops.splice(i, 1); presetName = 'Custom'; refreshAll(); } } }, '✕');
-      stopsWrap.append(el('div', { class: 'stop' }, c, r, pos, x));
-    });
-    gradBar.style.background = cssGradient();
-  };
-  rerenderers.push(renderStops);
-  const addStop = el('button', { class: 'btn sm', onclick: () => { if (S.palette.stops.length < 8) { const s = sortedStops(); const c = s[Math.floor(s.length / 2)].c; S.palette.stops.push({ c, p: 0.5 }); presetName = 'Custom'; refreshAll(); } } }, '+ Add stop');
-  const reverse = el('button', { class: 'btn sm', onclick: () => { S.palette.stops.forEach(s => s.p = +(1 - s.p).toFixed(3)); presetName = 'Custom'; refreshAll(); } }, 'Reverse');
-  const spread = el('button', { class: 'btn sm', onclick: () => { const s = sortedStops(); s.forEach((st, i) => st.p = +(i / (s.length - 1)).toFixed(3)); refreshAll(); } }, 'Spread evenly');
-  const shuffle = el('button', { class: 'btn sm', onclick: () => { const cs = S.palette.stops.map(s => s.c).sort(() => Math.random() - 0.5); S.palette.stops.forEach((s, i) => s.c = cs[i]); presetName = 'Custom'; refreshAll(); } }, 'Shuffle');
-  const swatches = el('div', { class: 'swatches' });
-  PALETTES.forEach(p => swatches.append(el('button', { class: 'swatch', title: p.name, style: `background:${cssGradient(paletteFrom(p.c, p.p))}`, onclick: () => { S.palette.stops = paletteFrom(p.c, p.p); presetName = 'Custom'; refreshAll(); } })));
-  sidebar.append(section('Colours', null, true,
-    gradBar, stopsWrap,
-    el('div', { class: 'row', style: 'flex-wrap:wrap' }, addStop, reverse, spread, shuffle),
-    el('div', { class: 'sub' }, 'Palette presets'), swatches,
-    el('div', { class: 'sub' }, 'Mapping'),
-    row('Blend', segmented('palette.mode', [{ value: 'smooth', label: 'Smooth' }, { value: 'linear', label: 'Linear' }, { value: 'hard', label: 'Hard' }])),
-    row('Space', segmented('palette.space', [{ value: 'oklab', label: 'OKLab (rich)' }, { value: 'srgb', label: 'sRGB' }])),
-    slider('palette.repeat', 'Repeat', 0.25, 6, 0.01, { reset: 1, unit: '×' }),
-    slider('palette.offset', 'Offset', -1, 1, 0.001, { reset: 0 }),
-    slider('palette.cycle', 'Colour cycle', -1, 1, 0.01, { reset: 0, unit: ' turns/s' }),
-    el('div', { class: 'row' }, toggle('palette.mirror', 'Mirror repeat (no seams)')),
-    el('div', { class: 'sub' }, 'Adjust'),
-    slider('post.sat', 'Saturation', 0, 2, 0.01, { reset: 1 }),
-    slider('post.bright', 'Brightness', 0.3, 1.8, 0.01, { reset: 1 }),
-    slider('post.hue', 'Hue shift', -180, 180, 1, { reset: 0, unit: '°' }),
-  ));
-
-  // --- Texture
-  sidebar.append(section('Texture & finish', null, false,
-    chips('texture.type', TEXTURES, { cols: 4 }),
-    slider('texture.amount', 'Amount', 0, 1, 0.01, { reset: 0.35 }),
-    slider('texture.scale', 'Texture scale', 0.25, 4, 0.01, { reset: 1 }),
-    slider('post.vignette', 'Vignette', 0, 1, 0.01, { reset: 0 }),
-  ));
-
-  // --- Shape
-  sidebar.append(section('Shape mask', null, false,
-    chips('shape.type', SHAPES),
-    slider('shape.size', 'Size', 0.1, 1.5, 0.01, { reset: 0.8 }),
-    slider('shape.soft', 'Edge softness', 0, 1, 0.01, { reset: 0.05 }),
-    slider('shape.round', 'Roundness / width', 0, 1, 0.01, { reset: 0.3 }),
-    row('Background', colorInput(() => S.shape.bg, v => S.shape.bg = v)),
-    el('div', { class: 'hint' }, 'The background colour also fills the canvas when “Inside text” fill mode is used, and behind text with the “Knockout” fill.'),
-  ));
-
-  // --- Text
-  buildTextSection();
-
-  // --- Canvas
-  const wIn = el('input', { class: 'input sm', type: 'number', min: 16, max: 4096, step: 1 });
-  const hIn = el('input', { class: 'input sm', type: 'number', min: 16, max: 4096, step: 1 });
-  const applySize = () => { S.canvas.w = clamp(+wIn.value | 0 || 1080, 16, 4096); S.canvas.h = clamp(+hIn.value | 0 || 1080, 16, 4096); S.canvas.preset = 'custom'; refreshAll(); };
-  wIn.addEventListener('change', applySize); hIn.addEventListener('change', applySize);
-  rerenderers.push(() => { wIn.value = S.canvas.w; hIn.value = S.canvas.h; });
-  const sizeSel = selectInput('canvas.preset', SIZES.map(s => ({ value: s.id, label: `${s.name}${s.id !== 'custom' ? ` · ${s.w}×${s.h}` : ''}` })), {
-    onChange: () => { const sz = SIZES.find(s => s.id === S.canvas.preset); if (sz && sz.id !== 'custom') { S.canvas.w = sz.w; S.canvas.h = sz.h; } refreshAll(); }
-  });
-  sidebar.append(section('Canvas size', null, false,
-    row('Preset', sizeSel),
-    row('Custom', el('div', { class: 'two grow' }, wIn, hIn)),
-    el('div', { class: 'hint' }, 'The preview is fitted to the window; exports render at the resolution you pick in the export dialog.')
-  ));
-
-  // --- Help
-  const k = t => el('span', { class: 'kbd' }, t);
-  sidebar.append(section('Shortcuts & tips', null, false,
-    el('div', { class: 'hint', style: 'margin-top:8px;display:grid;gap:6px' },
-      el('div', {}, k('Space'), ' play / pause · ', k('R'), ' randomize · ', k('Esc'), ' close dialog'),
-      el('div', {}, 'Drag text on the canvas to place it. ', k('←↑→↓'), ' nudge the selected layer, ', k('Shift'), ' for bigger steps, ', k('Delete'), ' removes it while the pointer is over the canvas.'),
-      el('div', {}, 'Double-click any slider to reset it. Sliders accept typed values.'),
-      el('div', {}, 'GIF is capped at 256 colours and gets large fast: 540p at 15–20 fps suits social posts. MP4 needs a browser with H.264 encoding (Chrome, Edge, Safari); others fall back to WebM.'),
-      el('div', {}, 'Save writes a JSON preset you can Load later or share; your last session is restored automatically.')
-    )
-  ));
-}
-
-/* ---------- text section ---------- */
-let textSecBody, layerList, layerEditor;
-function selectedLayer() { return S.text.layers[S.text.selected] || null; }
-function addLayer(over) {
-  const l = defaultLayer(Object.assign({ y: 50 + (S.text.layers.length ? (S.text.layers.length * 12) % 40 - 20 : 0) }, over));
-  S.text.layers.push(l); S.text.selected = S.text.layers.length - 1;
-  ensureFont(l.font); refreshAll();
-  $$open('Text'); return l;
-}
-function $$open(title) { [...sidebar.querySelectorAll('.sec')].find(s => s.querySelector('header').firstChild.textContent.trim() === title)?.classList.add('open'); }
-function buildTextSection() {
-  layerList = el('div', { class: 'layers' });
-  layerEditor = el('div');
-  const fillSeg = segmented('fillMode', [{ value: 'full', label: 'Full canvas' }, { value: 'text', label: 'Inside text' }]);
-  textSecBody = section('Text', null, true,
-    row('Fill mode', fillSeg),
-    layerList,
-    el('div', { class: 'row' },
-      el('button', { class: 'btn sm', onclick: () => addLayer() }, '+ Add layer'),
-      el('button', { class: 'btn sm', onclick: () => { const l = selectedLayer(); if (l) { const { id, ...rest } = l; const c = defaultLayer(Object.assign(rest, { y: clamp(l.y + 10, 0, 100) })); S.text.layers.splice(S.text.selected + 1, 0, c); S.text.selected++; refreshAll(); } } }, 'Duplicate'),
-      el('span', { style: 'flex:1' }),
-      el('button', { class: 'btn sm', onclick: () => fontFile.click() }, '⤒ Upload font')
-    ),
-    layerEditor,
-  );
-  sidebar.append(textSecBody);
-  rerenderers.push(renderLayers);
-}
-let editorKey = '';
-function renderLayers() {
-  layerList.innerHTML = '';
-  if (!S.text.layers.length) {
-    layerList.append(el('div', { class: 'hint', style: 'margin:0' }, 'No text yet. Add a layer, then drag it around on the canvas.'));
-  }
-  S.text.layers.forEach((l, i) => {
-    const item = el('div', { class: 'layer' + (i === S.text.selected ? ' on' : ''), onclick: () => { S.text.selected = i; refreshAll(); } },
-      el('span', { class: 't' }, (l.text.split('\n')[0] || '(empty)')),
-      el('button', { class: 'eye' + (l.visible ? '' : ' off'), title: 'Toggle visibility', onclick: e => { e.stopPropagation(); l.visible = !l.visible; persist(); refreshAll(); } }, '◉'),
-      el('button', { class: 'del', title: 'Delete layer', onclick: e => { e.stopPropagation(); S.text.layers.splice(i, 1); S.text.selected = Math.min(S.text.selected, S.text.layers.length - 1); persist(); refreshAll(); } }, '✕'));
-    layerList.append(item);
-  });
-  const l = selectedLayer();
-  const key = l ? 'L' + l.id : 'none';
-  if (key === editorKey) { syncEditor && syncEditor(); return; }
-  editorKey = key;
-  layerEditor.innerHTML = '';
-  if (editorSyncStart >= 0) rerenderers.splice(editorSyncStart);
-  fontListeners.length = 0;
-  if (!l) { syncEditor = null; editorSyncStart = -1; return; }
-  editorSyncStart = rerenderers.length;
-  buildLayerEditor(l);
-}
-let editorSyncStart = -1;
-let syncEditor = null;
-function fontOptions() {
-  const groups = [];
-  if (customFonts.length) groups.push({ label: 'Your fonts', items: customFonts.map(f => f.name) });
-  groups.push({ label: 'Google Fonts', items: GOOGLE_FONTS });
-  groups.push({ label: 'System', items: SYSTEM_FONTS });
-  return groups;
-}
-function buildLayerEditor(l) {
-  const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
-  const ta = el('textarea', { spellcheck: 'false' }); ta.value = l.text;
-  ta.addEventListener('input', () => { l.text = ta.value; persist(); renderLayers(); });
-  // font select with groups
-  const fontSel = el('select');
-  const rebuildFonts = () => {
-    fontSel.innerHTML = '';
-    for (const g of fontOptions()) { const og = el('optgroup', { label: g.label }); g.items.forEach(f => og.append(el('option', { value: f }, f))); fontSel.append(og); }
-    fontSel.value = l.font;
-    if (fontSel.value !== l.font) { fontSel.append(el('option', { value: l.font }, l.font)); fontSel.value = l.font; }
-  };
-  rebuildFonts();
-  fontSel.addEventListener('change', () => { l.font = fontSel.value; ensureFont(l.font); persist(); });
-  fontListeners.push(rebuildFonts);
-  const weightSel = selectInput(null, [100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => ({ value: w, label: w + (w === 400 ? ' Regular' : w === 700 ? ' Bold' : '') })), { number: true, get: () => l.weight, set: v => { l.weight = v; ensureFont(l.font); }, noSync: true });
-  const alignSeg = segmented(null, [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }], { get: () => l.align, set: v => l.align = v, noSync: true });
-  const fillSel = selectInput(null, [{ value: 'solid', label: 'Solid colour' }, { value: 'invert', label: 'Inverted animation' }, { value: 'hue', label: 'Hue-shifted animation' }, { value: 'mono', label: 'Monochrome animation' }, { value: 'bg', label: 'Knockout (background colour)' }], { get: () => l.fill, set: v => l.fill = v, noSync: true, onChange: () => sync() });
-  const blendSel = selectInput(null, BLENDS.map((b, i) => ({ value: b, label: BLEND_NAMES[i] })), { get: () => l.blend, set: v => l.blend = v, noSync: true });
-  const colorRow = row('Colour', colorInput(() => l.color, v => l.color = v, { noSync: true }));
-  const strokeColor = row('Stroke colour', colorInput(() => l.strokeColor, v => l.strokeColor = v, { noSync: true }));
-  const shadowColor = row('Shadow colour', colorInput(() => l.shadowColor, v => l.shadowColor = v, { noSync: true }));
-  const sync = () => { colorRow.style.display = l.fill === 'solid' ? '' : 'none'; };
-  syncEditor = () => { ta.value === l.text || (ta.value = l.text); sync(); };
-  layerEditor.append(
-    el('div', { class: 'sub' }, 'Content'),
-    ta,
-    el('div', { class: 'row' }, toggle(null, 'Uppercase', { get: () => l.upper, set: v => l.upper = v, noSync: true }), toggle(null, 'Italic', { get: () => l.italic, set: v => l.italic = v, noSync: true }), toggle(null, 'Visible', { get: () => l.visible, set: v => l.visible = v, noSync: true, onChange: renderLayers })),
-    el('div', { class: 'sub' }, 'Typography'),
-    row('Font', fontSel),
-    row('Weight', weightSel),
-    sl('size', 'Size (% of height)', 1, 60, 0.1, { unit: '%' }),
-    el('div', { class: 'two' }, sl('letter', 'Letter spacing', -0.2, 0.6, 0.005, { unit: 'em', reset: 0 }), sl('lineH', 'Line height', 0.6, 2, 0.01, { reset: 1.05 })),
-    row('Align', alignSeg),
-    el('div', { class: 'sub' }, 'Position'),
-    el('div', { class: 'two' }, sl('x', 'X', 0, 100, 0.1, { unit: '%', reset: 50 }), sl('y', 'Y', 0, 100, 0.1, { unit: '%', reset: 50 })),
-    sl('rotate', 'Rotation', -180, 180, 1, { unit: '°', reset: 0 }),
-    el('div', { class: 'hint' }, 'Tip: drag the text directly on the canvas. Arrow keys nudge the selected layer.'),
-    el('div', { class: 'sub' }, 'Fill & effects'),
-    row('Fill', fillSel),
-    colorRow,
-    row('Blend', blendSel),
-    sl('opacity', 'Opacity', 0, 1, 0.01, { reset: 1 }),
-    sl('stroke', 'Stroke width', 0, 20, 0.1, { unit: '%', reset: 0 }),
-    strokeColor,
-    el('div', { class: 'two' }, sl('shadow', 'Shadow blur', 0, 20, 0.1, { unit: '%', reset: 0 }), sl('shadowY', 'Shadow offset', -10, 10, 0.1, { unit: '%', reset: 0 })),
-    el('div', { class: 'two' }, shadowColor, sl('shadowOpacity', 'Shadow opacity', 0, 1, 0.01, { reset: 0.5 })),
-  );
-  sync();
-}
-
+</script>
+<script>
 /* ---------- fonts ---------- */
 const customFonts = []; const fontListeners = [];
 const loadedGoogle = new Set();
@@ -1625,7 +1221,7 @@ fontFile.addEventListener('change', async () => {
       if (customFonts.some(c => c.name === name)) name += ' ' + (customFonts.length + 1);
       const face = new FontFace(name, buf); await face.load(); document.fonts.add(face);
       customFonts.push({ name, face });
-      const l = selectedLayer() || addLayer({ text: name });
+      const sel = selectedLayer(); const l = (sel && sel.kind === 'text') ? sel : addTextLayer({ text: name });
       l.font = name;
       toast(`Font “${name}” added and applied to the selected layer`);
     } catch (e) { toast('Could not load font: ' + f.name); console.error(e); }
@@ -1635,137 +1231,48 @@ fontFile.addEventListener('change', async () => {
 });
 if (document.fonts) document.fonts.addEventListener?.('loadingdone', () => { /* canvas re-renders every frame */ });
 
-/* ---------- refresh ---------- */
-function refreshAll() {
-  const sz = SIZES.find(s => s.id === S.canvas.preset);
-  if (sz && sz.id !== 'custom' && (sz.w !== S.canvas.w || sz.h !== S.canvas.h)) S.canvas.preset = 'custom';
-  rerenderers.forEach(fn => fn());
-  fitPreview();
-  persist();
-}
 
-/* ---------- interactions ---------- */
-function bindStage() {
-  const frame = $('#frame');
-  let drag = null;
-  const toCanvas = e => { const r = outCanvas.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * curW, y: (e.clientY - r.top) / r.height * curH }; };
-  const hit = p => {
-    for (let i = textBoxes.length - 1; i >= 0; i--) {
-      const b = textBoxes[i]; const l = b.layer;
-      // rotate point into box space
-      const a = -l.rotate * Math.PI / 180; const dx = p.x - b.cx, dy = p.y - b.cy;
-      const rx = dx * Math.cos(a) - dy * Math.sin(a), ry = dx * Math.sin(a) + dy * Math.cos(a);
-      const ox = l.align === 'left' ? 0 : l.align === 'right' ? -b.w : -b.w / 2;
-      if (rx >= ox - 10 && rx <= ox + b.w + 10 && ry >= -b.h / 2 - 10 && ry <= b.h / 2 + 10) return l;
-    }
-    return null;
-  };
-  frame.addEventListener('pointerenter', () => hoverCanvas = true);
-  frame.addEventListener('pointerleave', () => hoverCanvas = false);
-  outCanvas.addEventListener('pointerdown', e => {
-    const p = toCanvas(e); const l = hit(p);
-    if (!l) return;
-    S.text.selected = S.text.layers.indexOf(l); renderLayers();
-    drag = { l, sx: p.x, sy: p.y, ox: l.x, oy: l.y };
-    outCanvas.setPointerCapture(e.pointerId); outCanvas.classList.add('dragging');
-  });
-  outCanvas.addEventListener('pointermove', e => {
-    if (!drag) { outCanvas.style.cursor = hit(toCanvas(e)) ? 'grab' : 'default'; return; }
-    const p = toCanvas(e);
-    drag.l.x = clamp(drag.ox + (p.x - drag.sx) / curW * 100, -20, 120);
-    drag.l.y = clamp(drag.oy + (p.y - drag.sy) / curH * 100, -20, 120);
-    syncEditorSliders();
-  });
-  const end = () => { if (drag) { drag = null; outCanvas.classList.remove('dragging'); persist(); refreshAll(); } };
-  outCanvas.addEventListener('pointerup', end); outCanvas.addEventListener('pointercancel', end);
-  window.addEventListener('resize', fitPreview);
-  new ResizeObserver(fitPreview).observe($('#wrap'));
-}
-function syncEditorSliders() { rerenderers.forEach(fn => fn.name === 'sync' && fn()); }
-
-function bindTopbar() {
-  const setPlay = v => { playing = v; $('#btnPlay').textContent = playing ? 'Pause' : 'Play'; $('#btnPlay').classList.toggle('on', playing); last = performance.now(); };
-  setPlay(true);
-  $('#btnPlay').addEventListener('click', () => setPlay(!playing));
-  $('#btnRestart').addEventListener('click', () => { time = 0; });
-  $('#btnRandom').addEventListener('click', randomize);
-  $('#btnReset').addEventListener('click', () => { if (confirm('Reset all settings to defaults? Text layers will be removed.')) { S = defaultState(); presetName = 'Base'; time = 0; editorKey = ''; refreshAll(); } });
-  $('#btnSave').addEventListener('click', () => { download(new Blob([JSON.stringify({ S, presetName }, null, 2)], { type: 'application/json' }), `gradient-studio-${presetName.toLowerCase().replace(/\s+/g, '-')}.json`); });
-  $('#btnLoad').addEventListener('click', () => $('#fileJson').click());
-  $('#fileJson').addEventListener('change', async () => {
-    const f = $('#fileJson').files[0]; if (!f) return;
-    try { const d = JSON.parse(await f.text()); if (!d.S) throw 0; S = Object.assign(defaultState(), d.S); S.text.layers = (S.text.layers || []).map(l => defaultLayer(l)); S.text.layers.forEach(l => ensureFont(l.font)); presetName = d.presetName || 'Custom'; editorKey = ''; refreshAll(); toast('Preset loaded'); }
-    catch (e) { toast('That file is not a Gradient Studio preset'); }
-    $('#fileJson').value = '';
-  });
-  $('#btnAddText').addEventListener('click', () => addLayer());
-  $('#btnExport').addEventListener('click', openExport); $('#btnExport2').addEventListener('click', openExport);
-  $('#qualitySeg').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S.previewQ = +b.dataset.q; [...$('#qualitySeg').children].forEach(x => x.classList.toggle('on', x === b)); fitPreview(); persist(); }));
-  const scrub = $('#scrub');
-  scrub.addEventListener('input', () => { time = +scrub.value * (S.loop ? Math.max(0.5, S.duration) : 10); });
-  scrub.addEventListener('pointerdown', () => { scrub._was = playing; setPlay(false); });
-  scrub.addEventListener('pointerup', () => { if (scrub._was) setPlay(true); });
-  window.addEventListener('keydown', e => {
-    if (e.target.matches('input,textarea,select')) return;
-    if (e.code === 'Space') { e.preventDefault(); setPlay(!playing); }
-    else if (e.key === 'r' || e.key === 'R') randomize();
-    else if (e.key === 'Escape') closeExport();
-    else if (e.key.startsWith('Arrow') && selectedLayer()) {
-      const l = selectedLayer(); const d = e.shiftKey ? 2 : 0.25;
-      if (e.key === 'ArrowLeft') l.x -= d; if (e.key === 'ArrowRight') l.x += d; if (e.key === 'ArrowUp') l.y -= d; if (e.key === 'ArrowDown') l.y += d;
-      e.preventDefault(); refreshAll();
-    } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedLayer() && hoverCanvas) {
-      S.text.layers.splice(S.text.selected, 1); S.text.selected = Math.min(S.text.selected, S.text.layers.length - 1); refreshAll();
-    }
-  });
-}
-function randomize() {
-  S.type = Math.floor(Math.random() * TYPES.length);
-  const pal = pick(PALETTES); S.palette.stops = paletteFrom([...pal.c].sort(() => Math.random() - 0.5));
-  S.scale = +rnd(0.6, 1.8).toFixed(2); S.speed = +rnd(0.5, 1.6).toFixed(2); S.octaves = 3 + Math.floor(Math.random() * 3);
-  S.warp = +rnd(0.3, 2).toFixed(2); S.contrast = +rnd(0.9, 2.2).toFixed(2);
-  S.steps = Math.random() < 0.25 ? 3 + Math.floor(Math.random() * 5) : 1; S.soft = +rnd(0.2, 1).toFixed(2);
-  S.angle = Math.random() < 0.5 ? 0 : Math.round(rnd(-90, 90)); S.seed = Math.random();
-  S.palette.repeat = Math.random() < 0.2 ? +rnd(1.5, 3).toFixed(1) : 1; S.palette.mirror = S.palette.repeat !== 1;
-  S.texture.type = Math.random() < 0.35 ? 1 + Math.floor(Math.random() * (TEXTURES.length - 1)) : 0; S.texture.amount = +rnd(0.15, 0.5).toFixed(2);
-  S.shape.type = Math.random() < 0.2 ? 1 + Math.floor(Math.random() * (SHAPES.length - 1)) : 0;
-  presetName = 'Random'; refreshAll();
-}
-
+</script>
+<script>
 /* ---------- export ---------- */
 const modal = $('#exportModal');
+const MAX_EXPORT = Math.min(8192, gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 8192, gl.getParameter(gl.MAX_TEXTURE_SIZE) || 8192);
 let cancelExport = false;
 function resOptions() {
   const { w, h } = S.canvas; const ar = w / h;
   const byShort = s => { let W, H; if (ar >= 1) { H = s; W = Math.round(s * ar); } else { W = s; H = Math.round(s / ar); } return { W, H }; };
   const list = [];
+  const tiers = [[480, 'SD 480p'], [720, 'HD 720p'], [1080, 'Full HD 1080p'], [1440, '2K · 1440p'], [2160, '4K · 2160p']];
+  for (const [sEdge, name] of tiers) { const r = byShort(sEdge); if (Math.max(r.W, r.H) <= MAX_EXPORT) list.push({ id: String(sEdge), label: `${name} · ${r.W}×${r.H}`, ...r }); }
+  if (Math.max(w, h) <= MAX_EXPORT) list.push({ id: 'full', label: `Canvas size · ${w}×${h}`, W: w, H: h });
   const pv = { W: curW, H: curH }; list.push({ id: 'preview', label: `Preview size · ${pv.W}×${pv.H}`, ...pv });
-  for (const s of [360, 480, 540, 720, 1080]) { const r = byShort(s); if (Math.max(r.W, r.H) <= 4096) list.push({ id: String(s), label: `${s}p (short edge) · ${r.W}×${r.H}`, ...r }); }
-  list.push({ id: 'full', label: `Full canvas · ${w}×${h}`, W: w, H: h });
   return list;
 }
 function updateExportUI() {
   const fmt = S.export.format;
   const res = $('#exRes'); const cur = S.export.res; res.innerHTML = '';
   const opts = resOptions(); opts.forEach(o => res.append(el('option', { value: o.id }, o.label)));
-  res.value = opts.some(o => o.id === cur) ? cur : (fmt === 'gif' ? '540' : '1080'); S.export.res = res.value;
+  res.value = opts.some(o => o.id === cur) ? cur : (fmt === 'gif' ? '720' : '1080'); S.export.res = res.value;
   const fpsSel = $('#exFps'); const fpsList = fmt === 'gif' ? [10, 12, 15, 20, 25, 30, 50] : [24, 25, 30, 50, 60]; fpsSel.innerHTML = '';
   fpsList.forEach(f => fpsSel.append(el('option', { value: f }, f + ' fps')));
   fpsSel.value = fpsList.includes(S.export.fps) ? S.export.fps : (fmt === 'gif' ? 20 : 30); S.export.fps = +fpsSel.value;
-  $('#exDur').value = S.duration; $('#exLoop').checked = S.loop; $('#exDither').checked = S.export.dither; $('#exQ').value = S.export.quality;
+  $('#exDur').value = S.duration; $('#exLoop').checked = S.loop; $('#exDither').checked = S.export.dither; $('#exQ').value = S.export.quality; $('#exSS').checked = S.export.supersample;
   $('#exDitherWrap').style.opacity = fmt === 'gif' ? 1 : 0.35;
   $('#exDur').disabled = fmt === 'png'; fpsSel.disabled = fmt === 'png'; $('#exLoop').disabled = fmt === 'png';
   [...$('#fmtSeg').children].forEach(b => b.classList.toggle('on', b.dataset.f === fmt));
   // estimate
   const o = opts.find(x => x.id === S.export.res); const frames = Math.round(S.export.fps * S.duration);
   let est = '';
-  if (fmt === 'gif') { const px = o.W * o.H; const bytes = px * frames * 0.32 * (S.export.quality === 'high' ? 1 : S.export.quality === 'med' ? 0.75 : 0.5); est = `<b>${frames} frames</b> at ${o.W}×${o.H}. Rough GIF size: <b>~${fmtBytes(bytes)}</b>. GIF is limited to 256 colours per file; 540p at 15–20 fps is the sweet spot for social posts.`; if (px * frames > 400e6) est += ' <span class="warn">This is a very large GIF and may take a while or run out of memory — consider MP4.</span>'; }
-  else if (fmt === 'png') est = `A single ${o.W}×${o.H} PNG of the current frame (t = ${time.toFixed(2)}s).`;
-  else { const br = bitrateFor(o.W, o.H, S.export.fps, S.export.quality); est = `<b>${frames} frames</b> at ${o.W}×${o.H}, ~${(br / 1e6).toFixed(1)} Mbps → about <b>${fmtBytes(br / 8 * S.duration)}</b>. ${webCodecsOK() ? 'Encoded offline with WebCodecs at exact frame timing.' : '<span class="warn">WebCodecs is unavailable in this browser — falls back to real-time recording (WebM). Use Chrome, Edge or Safari 16.4+ for MP4.</span>'}`; }
+  const ss = ssFactor(o.W, o.H);
+  const ssNote = S.export.supersample ? (ss > 1 ? ` Rendered at ${ss}× (${o.W * ss}×${o.H * ss}) and downsampled for clean edges.` : ' <span class="warn">Supersampling skipped: this size already reaches the GPU limit.</span>') : '';
+  if (fmt === 'gif') { const px = o.W * o.H; const bytes = px * frames * 0.32 * (S.export.quality === 'low' ? 0.5 : S.export.quality === 'med' ? 0.75 : 1); est = `<b>${frames} frames</b> at ${o.W}×${o.H}. Rough GIF size: <b>~${fmtBytes(bytes)}</b>. GIF is limited to 256 colours per file; 720p at 15–20 fps suits social posts.${ssNote}`; if (px * frames > 400e6) est += ' <span class="warn">Very large GIF: slow to encode and may exceed browser memory. For 2K/4K use MP4.</span>'; }
+  else if (fmt === 'png') est = `A single ${o.W}×${o.H} PNG of the current frame (t = ${time.toFixed(2)}s).${ssNote}${S.canvas.radius > 0 && S.canvas.transparentCorners ? ' Corners stay transparent.' : ''}`;
+  else { const br = bitrateFor(o.W, o.H, S.export.fps, S.export.quality); est = `<b>${frames} frames</b> at ${o.W}×${o.H}, ~${(br / 1e6).toFixed(1)} Mbps → about <b>${fmtBytes(br / 8 * S.duration)}</b>.${ssNote} ${webCodecsOK() ? 'Encoded offline with WebCodecs at exact frame timing.' : '<span class="warn">WebCodecs is unavailable in this browser — falls back to real-time recording (WebM). Use Chrome, Edge or Safari 16.4+ for MP4.</span>'}`; if (o.W * o.H > 8.5e6 && S.export.fps > 30) est += ' <span class="warn">4K above 30 fps needs a recent hardware encoder; if the export fails, drop to 30 fps.</span>'; }
   $('#exEst').innerHTML = est;
   $('#exGo').textContent = fmt === 'png' ? 'Save PNG' : 'Render & download';
 }
-function bitrateFor(W, H, fps, q) { const px = W * H * fps; const f = q === 'high' ? 0.14 : q === 'med' ? 0.09 : 0.05; return Math.min(60e6, Math.max(1.5e6, Math.round(px * f))); }
+function bitrateFor(W, H, fps, q) { const px = W * H * fps; const f = q === 'max' ? 0.24 : q === 'high' ? 0.14 : q === 'med' ? 0.09 : 0.05; return Math.min(q === 'max' ? 200e6 : 80e6, Math.max(1.5e6, Math.round(px * f))); }
+function ssFactor(W, H) { if (!S.export.supersample) return 1; return Math.max(W, H) * 2 <= MAX_EXPORT && W * H * 4 <= 64e6 ? 2 : 1; }
 function webCodecsOK() { return typeof VideoEncoder !== 'undefined' && typeof VideoFrame !== 'undefined'; }
 function openExport() { updateExportUI(); modal.classList.add('open'); }
 function closeExport() { if (exporting) { cancelExport = true; return; } modal.classList.remove('open'); }
@@ -1777,6 +1284,7 @@ function bindExport() {
   $('#exFps').addEventListener('change', e => { S.export.fps = +e.target.value; updateExportUI(); persist(); });
   $('#exDur').addEventListener('change', e => { S.duration = clamp(+e.target.value || 4, 0.5, 30); refreshAll(); updateExportUI(); });
   $('#exQ').addEventListener('change', e => { S.export.quality = e.target.value; updateExportUI(); persist(); });
+  $('#exSS').addEventListener('change', e => { S.export.supersample = e.target.checked; updateExportUI(); persist(); });
   $('#exLoop').addEventListener('change', e => { S.loop = e.target.checked; refreshAll(); updateExportUI(); });
   $('#exDither').addEventListener('change', e => { S.export.dither = e.target.checked; persist(); });
   $('#exGo').addEventListener('click', runExport);
@@ -1797,8 +1305,8 @@ async function runExport() {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const base = `gradient-${TYPES[S.type].name.toLowerCase().replace(/\s+/g, '-')}-${W}x${H}-${stamp}`;
   try {
-    ctx = exportCtx; target = exportCanvas;
-    setRenderSize(W, H);
+    ctx = exportCtx; target = exportCanvas; exportFmt = fmt;
+    setRenderSize(W, H, ssFactor(W, H));
     if (fmt === 'png') {
       renderFrame(savedTime, true);
       const blob = await new Promise(r => target.toBlob(r, 'image/png'));
@@ -1817,7 +1325,7 @@ async function runExport() {
         if (cancelExport) throw new Error('cancelled');
         await nextTick();
       }
-      const maxColors = S.export.quality === 'high' ? 256 : S.export.quality === 'med' ? 128 : 64;
+      const maxColors = S.export.quality === 'low' ? 64 : S.export.quality === 'med' ? 128 : 256;
       const q = new GIF.Quantizer(Uint8Array.from(samples), maxColors);
       const enc = new GIF.Encoder(W, H, fps, q.palette);
       const t0 = performance.now();
@@ -1838,8 +1346,8 @@ async function runExport() {
     if (e.message === 'cancelled') toast('Export stopped'); else { console.error(e); toast('Export failed: ' + e.message, 5000); }
   } finally {
     exporting = false; playing = wasPlaying; hoverCanvas = savedHover; time = savedTime; last = performance.now();
-    ctx = previewCtx; target = outCanvas;
-    setRenderSize(savedW, savedH); fitPreview();
+    ctx = previewCtx; target = outCanvas; exportFmt = '';
+    setRenderSize(savedW, savedH, 1); fitPreview();
     $('#exGo').disabled = false; $('#exCancel').textContent = 'Cancel'; $('#exProg').classList.remove('on');
     if (!cancelExport) modal.classList.remove('open');
   }
@@ -1851,7 +1359,7 @@ async function exportVideo(fmt, W, H, fps, frames, base) {
     setProgress('Preparing encoder…', 0);
     const isMp4 = fmt === 'mp4';
     const candidates = isMp4
-      ? ['avc1.640033', 'avc1.64002A', 'avc1.640028', 'avc1.4D4028', 'avc1.42E028', 'avc1.42001F']
+      ? ['avc1.640034', 'avc1.640033', 'avc1.640032', 'avc1.64002A', 'avc1.640028', 'avc1.4D4028', 'avc1.42E028', 'avc1.42001F']
       : ['vp09.00.51.08', 'vp09.00.40.08', 'vp09.00.31.08', 'vp8'];
     let codec = null;
     for (const c of candidates) {
@@ -1867,7 +1375,7 @@ async function exportVideo(fmt, W, H, fps, frames, base) {
       : new WebMMuxer.Muxer({ target: muxTarget, video: { codec: codec.startsWith('vp09') ? 'V_VP9' : 'V_VP8', width: W, height: H, frameRate: fps }, firstTimestampBehavior: 'offset' });
     let encError = null;
     const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { encError = e; } });
-    const cfg = { codec, width: W, height: H, bitrate, framerate: fps, latencyMode: 'quality' };
+    const cfg = { codec, width: W, height: H, bitrate, framerate: fps, latencyMode: 'quality', bitrateMode: 'variable' };
     if (isMp4) cfg.avc = { format: 'avc' };
     encoder.configure(cfg);
     const us = 1e6 / fps;
@@ -1921,21 +1429,912 @@ async function recordFallback(W, H, fps, frames, base) {
   toast(`${ext.toUpperCase()} saved (real-time recording) · ${fmtBytes(blob.size)}`);
 }
 
-/* ---------- boot ---------- */
-(function boot() {
-  const restored = restore();
-  buildSidebar();
-  bindStage(); bindTopbar(); bindExport();
-  if (!restored) {
-    // a starter text layer so the text feature is discoverable
-    addLayer({ text: 'GRADIENT\nSTUDIO', size: 8, letter: 0.04, weight: 800, font: 'Inter' });
+
+</script>
+<script>
+/* ======================================================================
+   Compositing: background animation + text/image layers + guides
+   ====================================================================== */
+const previewCtx = outCanvas.getContext('2d');
+const exportCanvas = document.createElement('canvas'); const exportCtx = exportCanvas.getContext('2d', { willReadFrequently: true });
+let ctx = previewCtx, target = outCanvas; // swapped to the export canvas while exporting
+const layerCanvas = document.createElement('canvas'); const lctx = layerCanvas.getContext('2d');
+const maskCanvas = document.createElement('canvas'); const mctx = maskCanvas.getContext('2d');
+const boxes = []; // hit boxes in output pixels: {layer, cx, cy, w, h, ox, rot}
+const IMAGES = new Map(); // id -> { bmp, w, h }
+let exportFmt = '';
+let dragGuides = null; // { xs: [px], ys: [px] } while dragging with snap hits
+
+function hexWithAlpha(hex, a) { const [r, g, b] = hexToRgb(hex); return `rgba(${r * 255 | 0},${g * 255 | 0},${b * 255 | 0},${a})`; }
+function layerFont(l, px) { return `${l.italic ? 'italic ' : ''}${l.weight} ${px}px "${l.font}", sans-serif`; }
+function layerLines(l) { const t = l.upper ? l.text.toUpperCase() : l.text; return t.split('\n'); }
+function roundRectPath(c, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+
+function drawTextPath(c, l, W, H, mode) {
+  const px = l.size / 100 * H;
+  c.save();
+  c.font = layerFont(l, px);
+  if ('letterSpacing' in c) c.letterSpacing = (l.letter * px) + 'px';
+  c.textAlign = l.align; c.textBaseline = 'alphabetic';
+  const lines = layerLines(l);
+  const lh = px * l.lineH, total = lh * (lines.length - 1);
+  const cx = l.x / 100 * W, cy = l.y / 100 * H;
+  c.translate(cx, cy); c.rotate(l.rotate * Math.PI / 180);
+  let maxW = 0; for (const ln of lines) maxW = Math.max(maxW, c.measureText(ln).width);
+  const asc = px * 0.72, desc = px * 0.22;
+  const y0 = -total / 2 + (asc - desc) / 2;
+  lines.forEach((ln, i) => { const y = y0 + i * lh; if (mode !== 'stroke') c.fillText(ln, 0, y); if (mode !== 'fill' && l.stroke > 0) c.strokeText(ln, 0, y); });
+  c.restore();
+  const ox = l.align === 'left' ? 0 : l.align === 'right' ? -maxW : -maxW / 2;
+  return { layer: l, cx, cy, w: maxW, h: total + asc + desc, ox, rot: l.rotate };
+}
+
+// geometry of an image layer in output pixels (independent of drawing)
+function imageBox(l, W, H) {
+  const im = IMAGES.get(l.src);
+  const iw = im ? im.w : 800, ih = im ? im.h : 600;
+  const sw = Math.max(1, iw * (1 - l.crop.l - l.crop.r)), sh = Math.max(1, ih * (1 - l.crop.t - l.crop.b));
+  const dw = l.w / 100 * W, dh = dw * sh / sw;
+  return { layer: l, cx: l.x / 100 * W, cy: l.y / 100 * H, w: dw, h: dh, ox: -dw / 2, rot: l.rotate, sx: l.crop.l * iw, sy: l.crop.t * ih, sw, sh, im };
+}
+function drawImageLayer(c, l, W, H, forExport) {
+  const b = imageBox(l, W, H);
+  c.save();
+  c.translate(b.cx, b.cy); c.rotate(l.rotate * Math.PI / 180);
+  if (l.flipX) c.scale(-1, 1);
+  c.globalAlpha = l.opacity; c.globalCompositeOperation = l.blend;
+  c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+  const r = l.radius / 100 * Math.min(b.w, b.h);
+  const clip = () => { if (l.circle) { c.beginPath(); c.ellipse(0, 0, b.w / 2, b.h / 2, 0, 0, Math.PI * 2); } else roundRectPath(c, -b.w / 2, -b.h / 2, b.w, b.h, r); };
+  if (l.shadow > 0) { // shadow from the silhouette, drawn first so blend modes don't affect it
+    c.save(); c.shadowColor = hexWithAlpha(l.shadowColor, l.shadowOpacity); c.shadowBlur = l.shadow / 100 * H; c.shadowOffsetY = l.shadowY / 100 * H;
+    c.fillStyle = '#000'; clip(); c.fill(); c.restore();
+    c.globalCompositeOperation = l.blend;
   }
-  rerenderers.push(() => [...$('#qualitySeg').children].forEach(x => x.classList.toggle('on', +x.dataset.q === S.previewQ)));
-  S.text.layers.forEach(l => ensureFont(l.font));
-  [...$('#qualitySeg').children].forEach(x => x.classList.toggle('on', +x.dataset.q === S.previewQ));
+  if (b.im) {
+    if (l.circle || r > 0) { clip(); c.clip(); }
+    c.drawImage(b.im.bmp, b.sx, b.sy, b.sw, b.sh, -b.w / 2, -b.h / 2, b.w, b.h);
+  } else if (!forExport) { // missing bitmap: placeholder
+    c.globalAlpha = 0.9; c.fillStyle = 'rgba(30,31,42,.85)'; roundRectPath(c, -b.w / 2, -b.h / 2, b.w, b.h, r); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,.35)'; c.setLineDash([8, 6]); c.lineWidth = 2; c.stroke();
+    c.fillStyle = 'rgba(255,255,255,.7)'; c.font = `500 ${Math.max(12, b.w / 14)}px Inter, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('Image missing — replace it', 0, 0);
+  }
+  c.restore();
+  return b;
+}
+
+function composite(W, H, forExport) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.clearRect(0, 0, W, H);
+  boxes.length = 0;
+  const layers = S.layers.filter(l => l.visible && (l.kind === 'image' || l.text.trim().length));
+  drawBackground(W, H, layers.filter(l => l.kind === 'text'));
+  for (const l of layers) {
+    if (l.kind === 'image') boxes.push(drawImageLayer(ctx, l, W, H, forExport));
+    else if (!(S.fillMode === 'text')) boxes.push(drawTextLayer(ctx, l, W, H));
+  }
+  applyCorners(W, H, forExport);
+  if (!forExport) drawOverlays(W, H);
+}
+function drawBackground(W, H, textLayers) {
+  if (S.fillMode === 'text' && textLayers.length) {
+    ctx.fillStyle = S.shape.bg; ctx.fillRect(0, 0, W, H);
+    for (const l of textLayers) if (l.shadow > 0) {
+      ctx.save(); ctx.globalAlpha = l.opacity * l.shadowOpacity; ctx.fillStyle = l.shadowColor;
+      ctx.shadowColor = l.shadowColor; ctx.shadowBlur = l.shadow / 100 * H; ctx.shadowOffsetY = l.shadowY / 100 * H;
+      drawTextPath(ctx, l, W, H, 'fill'); ctx.restore();
+    }
+    if (maskCanvas.width !== W || maskCanvas.height !== H) { maskCanvas.width = W; maskCanvas.height = H; }
+    mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over'; mctx.clearRect(0, 0, W, H); mctx.fillStyle = '#fff';
+    for (const l of textLayers) { mctx.globalAlpha = l.opacity; boxes.push(drawTextPath(mctx, l, W, H, 'fill')); }
+    mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-in'; mctx.imageSmoothingQuality = 'high'; mctx.drawImage(glCanvas, 0, 0, W, H);
+    ctx.drawImage(maskCanvas, 0, 0);
+    for (const l of textLayers) if (l.stroke > 0) {
+      ctx.save(); ctx.globalAlpha = l.opacity; ctx.strokeStyle = l.strokeColor; ctx.lineWidth = l.stroke / 100 * (l.size / 100 * H); ctx.lineJoin = 'round';
+      drawTextPath(ctx, l, W, H, 'stroke'); ctx.restore();
+    }
+    return;
+  }
+  ctx.drawImage(glCanvas, 0, 0, W, H);
+}
+function drawTextLayer(c, l, W, H) {
+  const px = l.size / 100 * H;
+  if (l.fill === 'solid' || l.fill === 'bg') {
+    c.save(); c.globalAlpha = l.opacity; c.globalCompositeOperation = l.blend;
+    if (l.shadow > 0) { c.shadowColor = hexWithAlpha(l.shadowColor, l.shadowOpacity); c.shadowBlur = l.shadow / 100 * H; c.shadowOffsetY = l.shadowY / 100 * H; }
+    c.fillStyle = l.fill === 'bg' ? S.shape.bg : l.color; c.strokeStyle = l.strokeColor; c.lineWidth = l.stroke / 100 * px; c.lineJoin = 'round';
+    const b = drawTextPath(c, l, W, H, l.stroke > 0 ? 'both' : 'fill'); c.restore(); return b;
+  }
+  if (layerCanvas.width !== W || layerCanvas.height !== H) { layerCanvas.width = W; layerCanvas.height = H; }
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.filter = 'none'; lctx.clearRect(0, 0, W, H); lctx.fillStyle = '#fff';
+  const b = drawTextPath(lctx, l, W, H, 'fill');
+  lctx.globalCompositeOperation = 'source-in';
+  if ('filter' in lctx) { lctx.filter = l.fill === 'invert' ? 'invert(1)' : l.fill === 'hue' ? 'hue-rotate(180deg)' : 'grayscale(1) contrast(1.4)'; lctx.drawImage(glCanvas, 0, 0, W, H); lctx.filter = 'none'; }
+  else { lctx.drawImage(glCanvas, 0, 0, W, H); lctx.globalCompositeOperation = 'difference'; lctx.fillStyle = '#fff'; lctx.fillRect(0, 0, W, H); lctx.globalCompositeOperation = 'destination-in'; drawTextPath(lctx, l, W, H, 'fill'); }
+  c.save(); c.globalAlpha = l.opacity; c.globalCompositeOperation = l.blend;
+  if (l.shadow > 0) { c.shadowColor = hexWithAlpha(l.shadowColor, l.shadowOpacity); c.shadowBlur = l.shadow / 100 * H; c.shadowOffsetY = l.shadowY / 100 * H; }
+  c.drawImage(layerCanvas, 0, 0);
+  if (l.stroke > 0) { c.shadowColor = 'transparent'; c.strokeStyle = l.strokeColor; c.lineWidth = l.stroke / 100 * px; c.lineJoin = 'round'; drawTextPath(c, l, W, H, 'stroke'); }
+  c.restore(); return b;
+}
+function applyCorners(W, H, forExport) {
+  if (!(S.canvas.radius > 0)) return;
+  const r = S.canvas.radius / 100 * Math.min(W, H);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.filter = 'none';
+  ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = '#000'; roundRectPath(ctx, 0, 0, W, H, r); ctx.fill();
+  const keepTransparent = S.canvas.transparentCorners && (!forExport || exportFmt === 'png');
+  if (!keepTransparent) { ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = S.canvas.cornerColor; ctx.fillRect(0, 0, W, H); }
+  ctx.restore();
+}
+// preview-only overlays: guides, snap lines, selection box + handles
+function drawOverlays(W, H) {
+  const lw = Math.max(1, W / 900);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  if (S.guides && (hoverCanvas || dragState)) {
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = lw; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.beginPath();
+    [1 / 3, 2 / 3].forEach(f => { ctx.moveTo(W * f, 0); ctx.lineTo(W * f, H); ctx.moveTo(0, H * f); ctx.lineTo(W, H * f); }); ctx.stroke();
+  }
+  if (dragGuides) {
+    ctx.strokeStyle = '#ff5ec4'; ctx.lineWidth = lw * 1.4; ctx.setLineDash([]);
+    ctx.beginPath(); dragGuides.xs.forEach(x => { ctx.moveTo(x, 0); ctx.lineTo(x, H); }); dragGuides.ys.forEach(y => { ctx.moveTo(0, y); ctx.lineTo(W, y); }); ctx.stroke();
+  }
+  const sel = selectedLayer(); const b = sel && boxes.find(t => t.layer === sel);
+  if (b && (hoverCanvas || dragState)) {
+    ctx.translate(b.cx, b.cy); ctx.rotate(b.rot * Math.PI / 180);
+    const pad = 6 * lw;
+    ctx.strokeStyle = 'rgba(139,124,255,.95)'; ctx.lineWidth = lw * 1.2; ctx.setLineDash(dragState && dragState.mode === 'move' ? [] : [8 * lw, 6 * lw]);
+    ctx.strokeRect(b.ox - pad, -b.h / 2 - pad, b.w + pad * 2, b.h + pad * 2);
+    ctx.setLineDash([]);
+    const hs = handleSize(); ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(139,124,255,1)'; ctx.lineWidth = lw * 1.4;
+    for (const [hx, hy] of cornerPoints(b, pad)) { ctx.beginPath(); ctx.rect(hx - hs / 2, hy - hs / 2, hs, hs); ctx.fill(); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function handleSize() { const r = outCanvas.getBoundingClientRect(); return 9 * curW / Math.max(1, r.width); }
+function cornerPoints(b, pad = 0) { return [[b.ox - pad, -b.h / 2 - pad], [b.ox + b.w + pad, -b.h / 2 - pad], [b.ox + b.w + pad, b.h / 2 + pad], [b.ox - pad, b.h / 2 + pad]]; }
+
+/* ======================================================================
+   Render loop + sizing
+   ====================================================================== */
+let playing = true, time = 0, last = performance.now(), hoverCanvas = false;
+let curW = 0, curH = 0, exporting = false;
+let fpsN = 0, fpsT = performance.now();
+let ssCur = 1; // supersample factor of the GL canvas relative to the output
+function fitPreview() {
+  if (exporting) return;
+  const wrap = $('#wrap'); const r = wrap.getBoundingClientRect();
+  const aw = Math.max(100, r.width - 56), ah = Math.max(100, r.height - 28 - 84);
+  const ar = S.canvas.w / S.canvas.h;
+  let w = aw, h = w / ar; if (h > ah) { h = ah; w = h * ar; }
+  const frame = $('#frame'); frame.style.width = w + 'px'; frame.style.height = h + 'px';
+  frame.style.borderRadius = (S.canvas.radius / 100 * Math.min(w, h)) + 'px';
+  frame.style.background = S.canvas.transparentCorners ? 'transparent' : S.canvas.cornerColor;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2) * S.previewQ;
+  let pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+  const cap = 2400; if (Math.max(pw, ph) > cap) { const s = cap / Math.max(pw, ph); pw = Math.round(pw * s); ph = Math.round(ph * s); }
+  setRenderSize(pw, ph, 1);
+  $('#status').innerHTML = `<b>${ratioLabel()}</b> · ${S.canvas.w} × ${S.canvas.h} · ${TYPES[S.type].name}`;
+}
+function setRenderSize(w, h, ss = 1) {
+  ssCur = ss;
+  const gw = w * ss, gh = h * ss;
+  if (glCanvas.width !== gw || glCanvas.height !== gh) { glCanvas.width = gw; glCanvas.height = gh; }
+  if (target.width !== w || target.height !== h) { target.width = w; target.height = h; }
+  curW = w; curH = h;
+}
+function renderFrame(t, forExport = false) { renderGL(t, glCanvas.width, glCanvas.height); composite(curW, curH, forExport); }
+function tick(now) {
+  requestAnimationFrame(tick);
+  if (exporting) return;
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing) { time += dt; if (S.loop) time = time % Math.max(0.5, S.duration); }
+  renderFrame(time);
+  $('#timeLabel').textContent = time.toFixed(2) + 's';
+  const scrub = $('#scrub'); if (!scrub.matches(':active')) scrub.value = S.loop ? time / Math.max(0.5, S.duration) : (time % 10) / 10;
+  fpsN++; if (now - fpsT > 800) { $('#fpsLabel').textContent = Math.round(fpsN * 1000 / (now - fpsT)) + ' fps'; fpsN = 0; fpsT = now; }
+}
+
+/* ======================================================================
+   Images
+   ====================================================================== */
+const fileImage = $('#fileImage');
+function readFileAsDataURL(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+function loadBitmap(src) { // src: Blob or dataURL -> { bmp, w, h }
+  return new Promise((res, rej) => {
+    const img = new Image(); img.onload = () => res({ bmp: img, w: img.naturalWidth, h: img.naturalHeight }); img.onerror = rej;
+    img.src = typeof src === 'string' ? src : URL.createObjectURL(src);
+  });
+}
+async function addImageFiles(files, at) {
+  let added = null;
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    try {
+      const dataURL = await readFileAsDataURL(f);
+      const bm = await loadBitmap(dataURL);
+      const id = 'img' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: f.name };
+      // native size relative to the canvas so “Canvas size” exports keep the exact pixels
+      let wPct = bm.w / S.canvas.w * 100; const hPct = wPct * (bm.h / bm.w) * (S.canvas.w / S.canvas.h);
+      if (hPct > 100) wPct *= 100 / hPct; if (wPct > 100) wPct = 100;
+      const l = defaultImageLayer({ src: id, name: f.name.replace(/\.[^.]+$/, ''), w: +wPct.toFixed(2), x: at ? at.x : 50, y: at ? at.y : 50 });
+      S.layers.push(l); S.selected = S.layers.length - 1; added = l;
+    } catch (e) { console.error(e); toast('Could not load image: ' + f.name); }
+  }
+  if (added) { refreshAll(); toast(`Added ${added.name} at native size (${IMAGES.get(added.src).w}×${IMAGES.get(added.src).h}px)`); }
+}
+async function restoreImages() {
+  for (const [id, meta] of Object.entries(S.images)) {
+    if (IMAGES.has(id)) continue;
+    if (!meta.dataURL) continue;
+    try { IMAGES.set(id, await loadBitmap(meta.dataURL)); } catch (e) { /* placeholder stays */ }
+  }
+  // drop image records that no layer uses any more
+  const used = new Set(S.layers.filter(l => l.kind === 'image').map(l => l.src));
+  for (const id of Object.keys(S.images)) if (!used.has(id)) { delete S.images[id]; IMAGES.delete(id); }
+}
+function replaceImage(l) { fileImage.dataset.replace = String(l.id); fileImage.click(); }
+fileImage.addEventListener('change', async () => {
+  const files = [...fileImage.files]; const rep = fileImage.dataset.replace; fileImage.value = ''; delete fileImage.dataset.replace;
+  if (rep && files[0]) {
+    const l = S.layers.find(x => String(x.id) === rep); if (!l) return;
+    try { const dataURL = await readFileAsDataURL(files[0]); const bm = await loadBitmap(dataURL); const id = 'img' + Date.now().toString(36); IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: files[0].name }; l.src = id; l.name = files[0].name.replace(/\.[^.]+$/, ''); l.crop = { l: 0, t: 0, r: 0, b: 0 }; await restoreImages(); refreshAll(); }
+    catch (e) { toast('Could not load image'); }
+    return;
+  }
+  addImageFiles(files);
+});
+
+/* ======================================================================
+   Persistence guard (images can be big)
+   ====================================================================== */
+const _persist = persist; let warnedBig = false;
+persist = function () {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try {
+      let json = JSON.stringify({ S, presetName });
+      if (json.length > 4.5e6) { // keep the document but drop bitmaps that would overflow localStorage
+        const slim = JSON.parse(json); for (const k in slim.S.images) slim.S.images[k].dataURL = null; json = JSON.stringify(slim);
+        if (!warnedBig) { warnedBig = true; toast('Large images are kept for this session only — use Save to keep them in a file', 5000); }
+      }
+      localStorage.setItem(LS_KEY, json);
+    } catch (e) { /* quota */ }
+  }, 300);
+};
+
+/* ======================================================================
+   Control factories
+   ====================================================================== */
+const rerenderers = [];
+function slider(path, label, min, max, step, opts = {}) {
+  const get = opts.get || (() => getPath(S, path));
+  const set = opts.set || (v => setPath(S, path, v));
+  const fmt = opts.fmt || (v => (+v).toFixed(step < 0.1 ? 2 : step < 1 ? 1 : 0) + (opts.unit || ''));
+  const range = el('input', { type: 'range', min, max, step });
+  const fill = el('div', { class: 'fill' });
+  const edit = el('input', { class: 'edit', type: 'text', spellcheck: 'false' });
+  const sl = el('div', { class: 'sl' }, fill, range, edit);
+  const lab = el('div', { class: 'lab', title: 'Click to type a value · double-click to reset' }, label);
+  const wrap = el('div', { class: 'ctl' }, lab, sl);
+  const paint = v => { const p = clamp((v - min) / (max - min), 0, 1); fill.style.width = `calc(${(p * 100).toFixed(2)}% )`; fill.textContent = fmt(v); };
+  const sync = () => { const v = get(); range.value = v; paint(v); };
+  const commit = v => { set(v); paint(v); persist(); opts.onChange && opts.onChange(); };
+  range.addEventListener('input', () => commit(+range.value));
+  lab.addEventListener('click', () => { wrap.classList.add('editing'); edit.value = String(+(+get()).toFixed(4)); edit.focus(); edit.select(); });
+  lab.addEventListener('dblclick', () => { if (opts.reset != null) { commit(opts.reset); sync(); } });
+  const finish = ok => { wrap.classList.remove('editing'); if (ok) { const v = parseFloat(edit.value); if (!isNaN(v)) commit(clamp(v, opts.hardMin ?? min, opts.hardMax ?? max)); } sync(); };
+  edit.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); e.stopPropagation(); });
+  edit.addEventListener('blur', () => { if (wrap.classList.contains('editing')) finish(true); });
+  rerenderers.push(sync); sync();
+  return wrap;
+}
+function colorInput(get, set, opts = {}) {
+  const c = el('input', { type: 'color' }); const hex = el('input', { class: 'hex', type: 'text', spellcheck: 'false' });
+  const box = el('div', { class: 'color' }, c, hex);
+  const sync = () => { c.value = get(); hex.value = get(); };
+  c.addEventListener('input', () => { set(c.value); hex.value = c.value; persist(); opts.onChange && opts.onChange(); });
+  hex.addEventListener('change', () => { let v = hex.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) { if (v.length === 4) v = '#' + v.slice(1).split('').map(x => x + x).join(''); set(v.toLowerCase()); persist(); opts.onChange && opts.onChange(); } sync(); });
+  rerenderers.push(sync); sync(); return box;
+}
+function selectInput(path, options, opts = {}) {
+  const s = el('select');
+  options.forEach(o => s.append(el('option', { value: o.value }, o.label)));
+  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
+  const sync = () => { s.value = get(); };
+  s.addEventListener('change', () => { let v = s.value; if (opts.number) v = +v; set(v); persist(); opts.onChange && opts.onChange(); });
+  rerenderers.push(sync); sync(); return s;
+}
+function toggle(path, label, opts = {}) {
+  const i = el('input', { type: 'checkbox' });
+  const t = el('label', { class: 'toggle' }, i, el('span', { class: 'sw' }), el('span', {}, label));
+  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
+  const sync = () => { i.checked = !!get(); };
+  i.addEventListener('change', () => { set(i.checked); persist(); opts.onChange && opts.onChange(); });
+  rerenderers.push(sync); sync(); return t;
+}
+function segmented(path, options, opts = {}) {
+  const seg = el('div', { class: 'seg fill' });
+  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
+  const btns = options.map(o => el('button', { onclick: () => { set(o.value); sync(); persist(); opts.onChange && opts.onChange(); } }, o.label));
+  const sync = () => btns.forEach((b, i) => b.classList.toggle('on', options[i].value === get()));
+  seg.append(...btns); rerenderers.push(sync); sync(); return seg;
+}
+function chips(path, names, opts = {}) {
+  const wrap = el('div', { class: 'chips' + (opts.cols === 4 ? ' c4' : '') });
+  const get = opts.get || (() => getPath(S, path)); const set = opts.set || (v => setPath(S, path, v));
+  const btns = names.map((n, i) => el('button', { class: 'chip', title: n, onclick: () => { set(i); sync(); persist(); opts.onChange && opts.onChange(); } }, n));
+  const sync = () => btns.forEach((b, i) => b.classList.toggle('on', i === get()));
+  wrap.append(...btns); rerenderers.push(sync); sync(); return wrap;
+}
+function row(label, ...content) {
+  const r = el('div', { class: 'row' }); if (label != null) r.append(el('label', {}, label));
+  content.forEach(c => { if (c.tagName !== 'BUTTON') c.classList.add('grow'); r.append(c); }); return r;
+}
+const CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>';
+const openGroups = new Set(JSON.parse(localStorage.getItem('gs-groups') || '["Motion","Colour","Content","Typography","Image","Position & size","Crop","Position"]'));
+function group(title, open, ...content) {
+  const isOpen = openGroups.has(title) || (open && !openGroups.has('!' + title));
+  const g = el('div', { class: 'grp' + (isOpen ? ' open' : '') });
+  const hdr = el('header', { onclick: () => { g.classList.toggle('open'); if (g.classList.contains('open')) { openGroups.add(title); openGroups.delete('!' + title); } else { openGroups.delete(title); openGroups.add('!' + title); } try { localStorage.setItem('gs-groups', JSON.stringify([...openGroups])); } catch (e) { /* ignore */ } } },
+    el('span', { class: 'chev', html: CHEV }), title);
+  g.append(hdr, el('div', { class: 'body' }, ...content)); return g;
+}
+function lookSection(title, open, ...content) {
+  const g = el('div', { class: 'lk-sec' + (open ? ' open' : '') });
+  g.append(el('header', { onclick: () => g.classList.toggle('open') }, el('span', { class: 'chev', html: CHEV }), title), el('div', { class: 'body' }, ...content)); return g;
+}
+
+/* ======================================================================
+   Left pane — Looks
+   ====================================================================== */
+function paletteCircle(colors) { return `conic-gradient(from 220deg, ${[...colors, colors[0]].join(', ')})`; }
+function typeThumbStyle(i) {
+  const pal = PALETTES[i % PALETTES.length].c;
+  const kinds = [
+    `radial-gradient(circle at 30% 30%, ${pal[0]}, transparent 60%), radial-gradient(circle at 70% 70%, ${pal[1]}, transparent 60%), linear-gradient(135deg, ${pal[2]}, ${pal[3] || pal[0]})`,
+    `radial-gradient(ellipse at 50% 40%, ${pal[0]} 20%, ${pal[1]} 60%, ${pal[2]})`,
+    `linear-gradient(100deg, ${pal[0]} 35%, ${pal[1]} 50%, ${pal[2]} 65%)`,
+    `repeating-linear-gradient(115deg, ${pal[3] || pal[0]} 0 3px, ${pal[0]} 3px 14px, ${pal[1]} 14px 16px)`,
+    `conic-gradient(from 90deg at 40% 60%, ${pal.join(',')}, ${pal[0]})`,
+    `radial-gradient(circle at 20% 80%, ${pal[1]}, transparent 50%), radial-gradient(circle at 80% 20%, ${pal[2]}, transparent 50%), linear-gradient(45deg, ${pal[0]}, ${pal[3] || pal[1]})`,
+    `repeating-radial-gradient(circle at 50% 50%, ${pal[0]} 0 6px, ${pal[1]} 6px 12px, ${pal[2]} 12px 18px)`,
+    `linear-gradient(90deg, ${pal[0]}, ${pal[1]} 30%, ${pal[2]} 55%, ${pal[3] || pal[0]} 80%, ${pal[0]})`,
+    `radial-gradient(circle at 25% 30%, ${pal[1]} 20%, transparent 22%), radial-gradient(circle at 70% 60%, ${pal[2]} 24%, transparent 26%), radial-gradient(circle at 40% 85%, ${pal[3] || pal[1]} 18%, transparent 20%), ${pal[0]}`,
+    `radial-gradient(circle at 35% 50%, ${pal[2]} 25%, transparent 40%), radial-gradient(circle at 65% 50%, ${pal[1]} 25%, transparent 40%), ${pal[0]}`,
+    `linear-gradient(160deg, ${pal[0]}, ${pal[1]} 40%, ${pal[2]} 70%, ${pal[3] || pal[0]})`,
+    `repeating-linear-gradient(80deg, ${pal[0]} 0 8px, ${pal[1]} 8px 20px, ${pal[2]} 20px 26px)`,
+    `repeating-linear-gradient(90deg, ${pal[0]} 0 10px, ${pal[1]} 10px 20px, ${pal[2]} 20px 30px, ${pal[3] || pal[0]} 30px 40px)`,
+    `conic-gradient(${pal[0]} 0 60deg, ${pal[1]} 60deg 120deg, ${pal[2]} 120deg 180deg, ${pal[0]} 180deg 240deg, ${pal[1]} 240deg 300deg, ${pal[2]} 300deg)`,
+    `radial-gradient(circle at 30% 40%, ${pal[3] || pal[2]} 15%, transparent 30%), radial-gradient(circle at 70% 70%, ${pal[2]} 18%, transparent 34%), linear-gradient(0deg, ${pal[0]}, ${pal[1]})`,
+  ];
+  return `background:${kinds[i]}`;
+}
+function samePalette(p) { const cur = sortedStops().map(s => s.c.toLowerCase()).join(); return cur === p.c.map(c => c.toLowerCase()).join(); }
+function buildLooks() {
+  const looks = $('#looks');
+  // theme presets → palette circles
+  const circles = el('div', { class: 'circles' });
+  const cbtns = PALETTES.map(p => el('button', { class: 'circle', title: p.name, style: `background:${paletteCircle(p.c)}`, onclick: () => { S.palette.stops = paletteFrom(p.c, p.p); presetName = 'Custom'; refreshAll(); } }));
+  circles.append(...cbtns);
+  rerenderers.push(() => cbtns.forEach((b, i) => b.classList.toggle('on', samePalette(PALETTES[i]))));
+  // templates → animation types
+  const tiles = el('div', { class: 'tiles' });
+  const tbtns = TYPES.map(t => el('button', { class: 'tile', title: t.desc, onclick: () => { S.type = t.id; presetName = 'Custom'; refreshAll(); } }, el('span', { class: 'th', style: typeThumbStyle(t.id) }), el('span', { class: 'nm' }, t.name)));
+  tiles.append(...tbtns);
+  const tdesc = el('div', { class: 'types-hint' });
+  rerenderers.push(() => { tbtns.forEach((b, i) => b.classList.toggle('on', i === S.type)); tdesc.textContent = TYPES[S.type].desc; });
+  // starters → full presets
+  const starters = el('div', { class: 'starters' });
+  const sbtns = PRESETS.map(p => { const pal = PALETTES.find(x => x.name === p.pal); return el('button', { class: 'starter', onclick: () => applyPreset(p) }, el('span', { class: 'sw', style: `background:${cssGradient(paletteFrom(pal.c, pal.p))}` }), el('span', { class: 'nm' }, p.name), el('span', { class: 'ty' }, TYPES[p.over.type].name)); });
+  starters.append(...sbtns);
+  rerenderers.push(() => { sbtns.forEach((b, i) => b.classList.toggle('on', presetName === PRESETS[i].name)); $('#presetName').textContent = presetName; });
+  looks.append(
+    lookSection('Theme presets', true, circles),
+    lookSection('Templates', true, tiles, tdesc),
+    lookSection('Starters', true, starters),
+  );
+}
+
+/* ======================================================================
+   Right pane — Layers + Inspector
+   ====================================================================== */
+const inspector = $('#inspector');
+let layersEl, propsEl, inspectorKey = '', inspectorSyncStart = -1;
+function selectedLayer() { return S.layers[S.selected] || null; }
+function addTextLayer(over) {
+  const l = defaultLayer(Object.assign({ y: 50 + ((S.layers.length * 9) % 30) - 10 }, over));
+  S.layers.push(l); S.selected = S.layers.length - 1; ensureFont(l.font); refreshAll(); return l;
+}
+function deleteLayer(i) { if (i < 0) return; S.layers.splice(i, 1); S.selected = Math.min(S.selected, S.layers.length - 1); refreshAll(); }
+function duplicateLayer(i) { const l = S.layers[i]; if (!l) return; const { id, ...rest } = JSON.parse(JSON.stringify(l)); const c = normalizeLayer(Object.assign(rest, { x: clamp(l.x + 4, 0, 100), y: clamp(l.y + 4, 0, 100) })); S.layers.splice(i + 1, 0, c); S.selected = i + 1; refreshAll(); }
+function moveLayer(i, dir) { const j = i + dir; if (j < 0 || j >= S.layers.length) return; const t = S.layers[i]; S.layers[i] = S.layers[j]; S.layers[j] = t; S.selected = j; refreshAll(); }
+function layerTitle(l) { return l.kind === 'image' ? (l.name || 'Image') : (l.text.split('\n')[0] || '(empty text)'); }
+
+function buildInspector() {
+  layersEl = el('div', { class: 'layers' });
+  propsEl = el('div');
+  inspector.append(layersEl, el('div', { class: 'addrow' },
+    el('button', { class: 'btn sm', onclick: () => addTextLayer() }, '+ Text'),
+    el('button', { class: 'btn sm', onclick: () => fileImage.click() }, '+ Image')), propsEl);
+  rerenderers.push(renderLayers);
+}
+function renderLayers() {
+  layersEl.innerHTML = '';
+  const bgRow = el('div', { class: 'layer' + (S.selected < 0 ? ' on' : ''), onclick: () => { S.selected = -1; refreshAll(); } },
+    el('span', { class: 'ic', style: `background:${cssGradient()}` }), el('span', { class: 't' }, 'Background', el('small', {}, TYPES[S.type].name)));
+  const rows = S.layers.map((l, i) => {
+    const meta = l.kind === 'image' ? S.images[l.src] : null;
+    const ic = l.kind === 'image' ? el('span', { class: 'ic img', style: meta && meta.dataURL ? `background-image:url(${meta.dataURL})` : '' }, meta && meta.dataURL ? '' : '▣') : el('span', { class: 'ic' }, 'T');
+    return el('div', { class: 'layer' + (i === S.selected ? ' on' : '') + (l.visible ? '' : ' hidden'), onclick: () => { S.selected = i; refreshAll(); } },
+      ic, el('span', { class: 't' }, layerTitle(l), l.kind === 'image' && meta ? el('small', {}, `${meta.w}×${meta.h}`) : null),
+      el('button', { class: 'ib' + (l.visible ? '' : ' off'), title: 'Show / hide', onclick: e => { e.stopPropagation(); l.visible = !l.visible; refreshAll(); } }, '◉'),
+      el('button', { class: 'ib', title: 'Delete', onclick: e => { e.stopPropagation(); deleteLayer(i); } }, '✕'));
+  }).reverse(); // top-most first, like a layer stack
+  layersEl.append(...rows, bgRow);
+  const l = selectedLayer();
+  const key = l ? `L${l.id}:${l.kind}` : 'bg';
+  if (key === inspectorKey) return;
+  inspectorKey = key;
+  if (inspectorSyncStart >= 0) rerenderers.splice(inspectorSyncStart);
+  fontListeners.length = 0;
+  inspectorSyncStart = rerenderers.length;
+  propsEl.innerHTML = '';
+  if (!l) buildBackgroundProps(); else if (l.kind === 'text') buildTextProps(l); else buildImageProps(l);
+  rerenderers.forEach((fn, i) => { if (i >= inspectorSyncStart) fn(); });
+}
+
+/* ---- background (animation) properties ---- */
+function buildBackgroundProps() {
+  const seedRow = el('div', { class: 'ctl' }); // seed with dice
+  const seed = slider('seed', 'Seed', 0, 1, 0.001, { fmt: v => (v * 1000 | 0) + '' });
+  const dice = el('button', { class: 'btn xs', title: 'New seed', style: 'position:absolute;right:4px;top:3px', onclick: () => { S.seed = Math.random(); refreshAll(); } }, '⚄');
+  seed.querySelector('.sl').style.paddingRight = '0'; seed.querySelector('.sl').append(dice);
+  const gradBar = el('div', { class: 'grad' }); const stopsWrap = el('div', { class: 'stops' });
+  const renderStops = () => {
+    stopsWrap.innerHTML = '';
+    S.palette.stops.forEach((st, i) => {
+      const c = el('input', { type: 'color', value: st.c }); const hex = el('input', { class: 'hex', type: 'text', value: st.c, spellcheck: 'false' });
+      const box = el('div', { class: 'color' }, c, hex);
+      c.addEventListener('input', () => { st.c = c.value; hex.value = c.value; gradBar.style.background = cssGradient(); presetName = 'Custom'; persist(); });
+      hex.addEventListener('change', () => { let v = hex.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { st.c = v.toLowerCase(); c.value = st.c; gradBar.style.background = cssGradient(); persist(); } hex.value = st.c; });
+      const r = el('input', { class: 'plain', type: 'range', min: 0, max: 1, step: 0.001, value: st.p });
+      const pos = el('span', { class: 'pos' }, Math.round(st.p * 100) + '%');
+      r.addEventListener('input', () => { st.p = +r.value; pos.textContent = Math.round(st.p * 100) + '%'; gradBar.style.background = cssGradient(); persist(); presetName = 'Custom'; });
+      const x = el('button', { class: 'x', title: 'Remove stop', onclick: () => { if (S.palette.stops.length > 2) { S.palette.stops.splice(i, 1); presetName = 'Custom'; refreshAll(); } } }, '✕');
+      stopsWrap.append(el('div', { class: 'stop' }, box, r, pos, x));
+    });
+    gradBar.style.background = cssGradient();
+  };
+  rerenderers.push(renderStops);
+  const swatches = el('div', { class: 'swatches' });
+  PALETTES.forEach(p => swatches.append(el('button', { class: 'swatch', title: p.name, style: `background:${cssGradient(paletteFrom(p.c, p.p))}`, onclick: () => { S.palette.stops = paletteFrom(p.c, p.p); presetName = 'Custom'; refreshAll(); } })));
+  const fillModeSeg = segmented('fillMode', [{ value: 'full', label: 'Whole canvas' }, { value: 'text', label: 'Inside text only' }]);
+
+  propsEl.append(
+    group('Motion', true,
+      row('Animation', el('div', { class: 'hint', style: 'margin:0' }, `${TYPES[S.type].name} — pick another under Templates on the left.`)),
+      slider('scale', 'Scale', 0.2, 4, 0.01, { reset: 1 }),
+      slider('speed', 'Speed', 0, 4, 0.01, { reset: 1, unit: '×' }),
+      slider('octaves', 'Detail', 1, 8, 1, { reset: 4 }),
+      slider('warp', 'Warp', 0, 3, 0.01, { reset: 1 }),
+      slider('contrast', 'Contrast', 0.2, 4, 0.01, { reset: 1 }),
+      slider('steps', 'Bands', 1, 12, 1, { reset: 1, fmt: v => v <= 1 ? 'off' : v + '' }),
+      slider('soft', 'Band softness', 0, 1, 0.01, { reset: 1 }),
+      slider('angle', 'Rotation', -180, 180, 1, { reset: 0, unit: '°' }),
+      slider('flowX', 'Flow X', -2, 2, 0.01, { reset: 0 }),
+      slider('flowY', 'Flow Y', -2, 2, 0.01, { reset: 0 }),
+      seed,
+      el('div', { class: 'row', style: 'margin-top:10px' }, toggle('loop', 'Seamless loop', { onChange: () => { time = 0; } })),
+      slider('duration', 'Loop length', 1, 20, 0.5, { unit: 's', reset: 4 }),
+    ),
+    group('Colour', true,
+      gradBar, stopsWrap,
+      el('div', { class: 'row', style: 'flex-wrap:wrap' },
+        el('button', { class: 'btn xs', onclick: () => { if (S.palette.stops.length < 8) { const s = sortedStops(); S.palette.stops.push({ c: s[Math.floor(s.length / 2)].c, p: 0.5 }); presetName = 'Custom'; refreshAll(); } } }, '+ Stop'),
+        el('button', { class: 'btn xs', onclick: () => { S.palette.stops.forEach(s => s.p = +(1 - s.p).toFixed(3)); presetName = 'Custom'; refreshAll(); } }, 'Reverse'),
+        el('button', { class: 'btn xs', onclick: () => { const s = sortedStops(); s.forEach((st, i) => st.p = +(i / (s.length - 1)).toFixed(3)); refreshAll(); } }, 'Spread'),
+        el('button', { class: 'btn xs', onclick: () => { const cs = S.palette.stops.map(s => s.c).sort(() => Math.random() - 0.5); S.palette.stops.forEach((s, i) => s.c = cs[i]); presetName = 'Custom'; refreshAll(); } }, 'Shuffle')),
+      swatches,
+      el('div', { class: 'sub' }, 'Mapping'),
+      row('Blend', segmented('palette.mode', [{ value: 'smooth', label: 'Smooth' }, { value: 'linear', label: 'Linear' }, { value: 'hard', label: 'Hard' }])),
+      row('Space', segmented('palette.space', [{ value: 'oklab', label: 'OKLab' }, { value: 'srgb', label: 'sRGB' }])),
+      slider('palette.repeat', 'Repeat', 0.25, 6, 0.01, { reset: 1, unit: '×' }),
+      slider('palette.offset', 'Offset', -1, 1, 0.001, { reset: 0 }),
+      slider('palette.cycle', 'Colour cycle', -1, 1, 0.01, { reset: 0, unit: ' t/s' }),
+      el('div', { class: 'row' }, toggle('palette.mirror', 'Mirror repeat (no seams)')),
+      el('div', { class: 'sub' }, 'Adjust'),
+      slider('post.sat', 'Saturation', 0, 2, 0.01, { reset: 1 }),
+      slider('post.bright', 'Brightness', 0.3, 1.8, 0.01, { reset: 1 }),
+      slider('post.hue', 'Hue shift', -180, 180, 1, { reset: 0, unit: '°' }),
+      el('div', { class: 'sub' }, 'Animation shows'), fillModeSeg,
+    ),
+    group('Texture', false,
+      chips('texture.type', TEXTURES, { cols: 4 }),
+      slider('texture.amount', 'Amount', 0, 1, 0.01, { reset: 0.35 }),
+      slider('texture.scale', 'Scale', 0.25, 4, 0.01, { reset: 1 }),
+      slider('post.vignette', 'Vignette', 0, 1, 0.01, { reset: 0 }),
+    ),
+    group('Shape mask', false,
+      chips('shape.type', SHAPES),
+      slider('shape.size', 'Size', 0.1, 1.5, 0.01, { reset: 0.8 }),
+      slider('shape.soft', 'Edge softness', 0, 1, 0.01, { reset: 0.05 }),
+      slider('shape.round', 'Roundness', 0, 1, 0.01, { reset: 0.3 }),
+      row('Background', colorInput(() => S.shape.bg, v => S.shape.bg = v)),
+    ),
+    group('Canvas', false, ...canvasControls()),
+  );
+}
+function setRatio(id) {
+  const r = RATIOS.find(x => x.id === id); if (!r) return;
+  S.canvas.ratio = id;
+  if (id !== 'custom') { const sz = sizeForRatio(r); S.canvas.w = sz.w; S.canvas.h = sz.h; }
+  refreshAll();
+}
+function canvasControls() {
+  const grid = el('div', { class: 'ratios' });
+  const btns = RATIOS.map(r => {
+    const ar = r.w / r.h; const bw = ar >= 1 ? 22 : Math.round(22 * ar), bh = ar >= 1 ? Math.round(22 / ar) : 22;
+    const box = r.id === 'custom' ? el('span', { class: 'box custom' }, '?') : el('span', { class: 'box', style: `width:${bw}px;height:${bh}px` });
+    return el('button', { class: 'ratio', title: `${r.name} ${r.id}`, onclick: () => setRatio(r.id) }, box, el('span', { class: 'rn' }, r.id === 'custom' ? 'Custom' : r.id), el('span', { class: 'rd' }, r.name));
+  });
+  grid.append(...btns);
+  rerenderers.push(() => btns.forEach((b, i) => b.classList.toggle('on', RATIOS[i].id === S.canvas.ratio)));
+  const wIn = el('input', { class: 'input sm', type: 'number', min: 16, max: 8192, step: 1, title: 'Width' });
+  const hIn = el('input', { class: 'input sm', type: 'number', min: 16, max: 8192, step: 1, title: 'Height' });
+  const applySize = () => { S.canvas.w = clamp(+wIn.value | 0 || 1080, 16, 8192); S.canvas.h = clamp(+hIn.value | 0 || 1080, 16, 8192); S.canvas.ratio = 'custom'; refreshAll(); };
+  wIn.addEventListener('change', applySize); hIn.addEventListener('change', applySize);
+  rerenderers.push(() => { wIn.value = S.canvas.w; hIn.value = S.canvas.h; });
+  const swap = el('button', { class: 'btn sm', title: 'Swap orientation', onclick: () => {
+    const t = S.canvas.w; S.canvas.w = S.canvas.h; S.canvas.h = t;
+    const r = RATIOS.find(x => x.id === S.canvas.ratio);
+    if (r && r.id !== 'custom') { const inv = RATIOS.find(x => Math.abs(x.w / x.h - r.h / r.w) < 0.001); S.canvas.ratio = inv ? inv.id : 'custom'; }
+    refreshAll();
+  } }, '⇄');
+  const cornerColor = row('Corner colour', colorInput(() => S.canvas.cornerColor, v => S.canvas.cornerColor = v, { onChange: fitPreview }));
+  const transp = el('div', { class: 'row' }, toggle('canvas.transparentCorners', 'Transparent corners (PNG + preview)', { onChange: fitPreview }));
+  rerenderers.push(() => { const on = S.canvas.radius > 0; cornerColor.style.display = on ? '' : 'none'; transp.style.display = on ? '' : 'none'; });
+  return [grid,
+    el('div', { class: 'row' }, el('label', {}, 'Size'), el('div', { class: 'two grow' }, wIn, hIn), swap),
+    slider('canvas.radius', 'Corner radius', 0, 50, 0.5, { unit: '%', reset: 0, onChange: fitPreview }),
+    cornerColor, transp,
+    el('div', { class: 'hint' }, 'The ratio sets the shape; the pixel size is chosen at export (up to 4K). Corner radius is a percentage of the short edge — 50% gives a pill or circle.')];
+}
+
+/* ---- shared layer controls ---- */
+function alignBar(l) {
+  const ICO = {
+    left: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3v18"/><rect x="7" y="7" width="10" height="4" rx="1"/><rect x="7" y="13" width="14" height="4" rx="1"/></svg>',
+    hc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><rect x="6" y="7" width="12" height="4" rx="1"/><rect x="4" y="13" width="16" height="4" rx="1"/></svg>',
+    right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 3v18"/><rect x="7" y="7" width="10" height="4" rx="1"/><rect x="3" y="13" width="14" height="4" rx="1"/></svg>',
+    top: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18"/><rect x="7" y="7" width="4" height="10" rx="1"/><rect x="13" y="7" width="4" height="14" rx="1"/></svg>',
+    vc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><rect x="7" y="6" width="4" height="12" rx="1"/><rect x="13" y="4" width="4" height="16" rx="1"/></svg>',
+    bottom: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><rect x="7" y="7" width="4" height="10" rx="1"/><rect x="13" y="3" width="4" height="14" rx="1"/></svg>',
+  };
+  const doAlign = which => {
+    const b = boxes.find(t => t.layer === l); if (!b) return;
+    const W = curW, H = curH;
+    if (which === 'left') l.x -= (b.cx + b.ox) / W * 100; if (which === 'right') l.x += (W - (b.cx + b.ox + b.w)) / W * 100; if (which === 'hc') l.x -= (b.cx + b.ox + b.w / 2 - W / 2) / W * 100;
+    if (which === 'top') l.y -= (b.cy - b.h / 2) / H * 100; if (which === 'bottom') l.y += (H - (b.cy + b.h / 2)) / H * 100; if (which === 'vc') l.y = 50;
+    l.x = +l.x.toFixed(2); l.y = +l.y.toFixed(2); refreshAll();
+  };
+  const names = { left: 'Align left', hc: 'Centre horizontally', right: 'Align right', top: 'Align top', vc: 'Centre vertically', bottom: 'Align bottom' };
+  return el('div', { class: 'alignbar' }, ...Object.keys(ICO).map(k => el('button', { title: names[k], html: ICO[k], onclick: () => doAlign(k) })));
+}
+function layerActions(l, i) {
+  return el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+    el('button', { class: 'btn xs', onclick: () => duplicateLayer(i) }, 'Duplicate'),
+    el('button', { class: 'btn xs', title: 'Bring forward', onclick: () => moveLayer(i, 1) }, '↑ Forward'),
+    el('button', { class: 'btn xs', title: 'Send backward', onclick: () => moveLayer(i, -1) }, '↓ Back'),
+    el('span', { style: 'flex:1' }),
+    el('button', { class: 'btn xs danger', onclick: () => deleteLayer(i) }, 'Delete'));
+}
+function shadowControls(l) {
+  const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
+  return [el('div', { class: 'sub' }, 'Shadow'),
+    sl('shadow', 'Blur', 0, 20, 0.1, { unit: '%', reset: 0 }), sl('shadowY', 'Offset', -10, 10, 0.1, { unit: '%', reset: 0 }),
+    sl('shadowOpacity', 'Opacity', 0, 1, 0.01, { reset: 0.5 }), row('Colour', colorInput(() => l.shadowColor, v => l.shadowColor = v))];
+}
+function blendSelect(l) { return selectInput(null, BLENDS.map((b, i) => ({ value: b, label: BLEND_NAMES[i] })), { get: () => l.blend, set: v => l.blend = v }); }
+
+/* ---- text layer ---- */
+function fontOptions() {
+  const groups = [];
+  if (customFonts.length) groups.push({ label: 'Your fonts', items: customFonts.map(f => f.name) });
+  groups.push({ label: 'Google Fonts', items: GOOGLE_FONTS }, { label: 'System', items: SYSTEM_FONTS });
+  return groups;
+}
+function buildTextProps(l) {
+  const i = S.layers.indexOf(l);
+  const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
+  const ta = el('textarea', { spellcheck: 'false' }); ta.value = l.text;
+  ta.addEventListener('input', () => { l.text = ta.value; persist(); renderLayers(); });
+  rerenderers.push(() => { if (ta.value !== l.text) ta.value = l.text; });
+  const fontSel = el('select');
+  const rebuildFonts = () => { fontSel.innerHTML = ''; for (const g of fontOptions()) { const og = el('optgroup', { label: g.label }); g.items.forEach(f => og.append(el('option', { value: f }, f))); fontSel.append(og); } fontSel.value = l.font; if (fontSel.value !== l.font) { fontSel.append(el('option', { value: l.font }, l.font)); fontSel.value = l.font; } };
+  rebuildFonts(); fontListeners.push(rebuildFonts);
+  fontSel.addEventListener('change', () => { l.font = fontSel.value; ensureFont(l.font); persist(); });
+  const colorRow = row('Colour', colorInput(() => l.color, v => l.color = v));
+  rerenderers.push(() => { colorRow.style.display = l.fill === 'solid' ? '' : 'none'; });
+  propsEl.append(
+    layerActions(l, i),
+    group('Content', true,
+      ta,
+      el('div', { class: 'row', style: 'gap:14px' }, toggle(null, 'Uppercase', { get: () => l.upper, set: v => l.upper = v }), toggle(null, 'Italic', { get: () => l.italic, set: v => l.italic = v })),
+    ),
+    group('Typography', true,
+      row('Font', fontSel),
+      el('div', { class: 'row' }, el('label', {}, ''), el('button', { class: 'btn xs', onclick: () => fontFile.click() }, '⤒ Upload font file (.ttf / .otf / .woff)')),
+      row('Weight', selectInput(null, [100, 200, 300, 400, 500, 600, 700, 800, 900].map(w => ({ value: w, label: w + (w === 400 ? ' Regular' : w === 700 ? ' Bold' : '') })), { number: true, get: () => l.weight, set: v => { l.weight = v; ensureFont(l.font); } })),
+      sl('size', 'Size', 1, 60, 0.1, { unit: '%', reset: 9 }),
+      sl('letter', 'Tracking', -0.2, 0.6, 0.005, { unit: 'em', reset: 0 }),
+      sl('lineH', 'Line height', 0.6, 2, 0.01, { reset: 1.05 }),
+      row('Align', segmented(null, [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }], { get: () => l.align, set: v => l.align = v })),
+    ),
+    group('Position', true,
+      alignBar(l),
+      sl('x', 'X', -20, 120, 0.1, { unit: '%', reset: 50 }), sl('y', 'Y', -20, 120, 0.1, { unit: '%', reset: 50 }),
+      sl('rotate', 'Rotation', -180, 180, 1, { unit: '°', reset: 0 }),
+      el('div', { class: 'hint' }, 'Drag on the canvas to move; drag a corner handle to scale. Pink lines appear when the text snaps to the centre, edges or another layer.'),
+    ),
+    group('Fill & effects', false,
+      row('Fill', selectInput(null, [{ value: 'solid', label: 'Solid colour' }, { value: 'invert', label: 'Inverted animation' }, { value: 'hue', label: 'Hue-shifted animation' }, { value: 'mono', label: 'Monochrome animation' }, { value: 'bg', label: 'Knockout (background colour)' }], { get: () => l.fill, set: v => l.fill = v, onChange: refreshAll })),
+      colorRow,
+      row('Blend', blendSelect(l)),
+      sl('opacity', 'Opacity', 0, 1, 0.01, { reset: 1 }),
+      el('div', { class: 'sub' }, 'Stroke'),
+      sl('stroke', 'Width', 0, 20, 0.1, { unit: '%', reset: 0 }), row('Colour', colorInput(() => l.strokeColor, v => l.strokeColor = v)),
+      ...shadowControls(l),
+    ),
+  );
+}
+
+/* ---- image layer ---- */
+function buildImageProps(l) {
+  const i = S.layers.indexOf(l);
+  const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
+  const meta = S.images[l.src];
+  const info = el('div', { class: 'imginfo' },
+    el('div', { class: 'thumb', style: meta && meta.dataURL ? `background-image:url(${meta.dataURL})` : '' }),
+    el('div', { class: 'meta' }, el('b', {}, l.name || 'Image'), meta ? `${meta.w} × ${meta.h} px${meta.dataURL ? '' : ' · not loaded'}` : 'No file'));
+  const fitBtn = (label, mode) => el('button', { class: 'btn xs', onclick: () => {
+    const im = IMAGES.get(l.src); if (!im) return;
+    const b = imageBox(l, S.canvas.w, S.canvas.h); const ar = b.sw / b.sh, car = S.canvas.w / S.canvas.h;
+    if (mode === 'native') l.w = +(b.sw / S.canvas.w * 100).toFixed(2);
+    else if (mode === 'contain') l.w = ar >= car ? 100 : +(100 * ar / car).toFixed(2);
+    else l.w = ar >= car ? +(100 * ar / car).toFixed(2) : 100; // cover
+    l.x = 50; l.y = 50; refreshAll();
+  } }, label);
+  // crop
+  const cropSl = (key, label) => slider(null, label, 0, 90, 0.5, { unit: '%', reset: 0, get: () => l.crop[key] * 100, set: v => { const o = key === 'l' ? 'r' : key === 'r' ? 'l' : key === 't' ? 'b' : 't'; l.crop[key] = Math.min(v / 100, 0.9 - l.crop[o]); } });
+  const aspectCrop = (A, label) => el('button', { class: 'btn xs', onclick: () => {
+    const im = IMAGES.get(l.src); if (!im) return;
+    if (A === 0) { l.crop = { l: 0, t: 0, r: 0, b: 0 }; }
+    else { const iw = im.w, ih = im.h; if (iw / ih > A) { const nw = ih * A; const f = (iw - nw) / 2 / iw; l.crop = { l: f, r: f, t: 0, b: 0 }; } else { const nh = iw / A; const f = (ih - nh) / 2 / ih; l.crop = { l: 0, r: 0, t: f, b: f }; } }
+    refreshAll();
+  } }, label);
+  propsEl.append(
+    layerActions(l, i),
+    group('Image', true,
+      info,
+      el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, el('button', { class: 'btn xs', onclick: () => replaceImage(l) }, 'Replace…'), fitBtn('Native size', 'native'), fitBtn('Fit inside', 'contain'), fitBtn('Fill canvas', 'cover')),
+      el('div', { class: 'hint' }, 'Images keep their original pixels: exporting at “Canvas size” reproduces a native-size image 1:1, and larger exports scale from the original, never from the preview.'),
+    ),
+    group('Position & size', true,
+      alignBar(l),
+      sl('x', 'X', -50, 150, 0.1, { unit: '%', reset: 50 }), sl('y', 'Y', -50, 150, 0.1, { unit: '%', reset: 50 }),
+      sl('w', 'Width', 1, 300, 0.1, { unit: '%', reset: 50 }),
+      sl('rotate', 'Rotation', -180, 180, 1, { unit: '°', reset: 0 }),
+      el('div', { class: 'row', style: 'gap:14px' }, toggle(null, 'Flip horizontally', { get: () => l.flipX, set: v => l.flipX = v })),
+    ),
+    group('Crop', false,
+      el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, aspectCrop(0, 'Original'), aspectCrop(1, '1:1'), aspectCrop(4 / 5, '4:5'), aspectCrop(3 / 4, '3:4'), aspectCrop(16 / 9, '16:9'), aspectCrop(9 / 16, '9:16'), aspectCrop(4 / 3, '4:3')),
+      cropSl('l', 'Left'), cropSl('r', 'Right'), cropSl('t', 'Top'), cropSl('b', 'Bottom'),
+      el('div', { class: 'row', style: 'gap:14px' }, toggle(null, 'Circle / oval mask', { get: () => l.circle, set: v => l.circle = v })),
+      sl('radius', 'Corner radius', 0, 50, 0.5, { unit: '%', reset: 0 }),
+      el('div', { class: 'hint' }, 'Crop trims from each edge of the original. Aspect buttons centre-crop; drag the layer to reposition what shows.'),
+    ),
+    group('Style', false,
+      sl('opacity', 'Opacity', 0, 1, 0.01, { reset: 1 }),
+      row('Blend', blendSelect(l)),
+      ...shadowControls(l),
+    ),
+  );
+}
+
+/* ======================================================================
+   Refresh
+   ====================================================================== */
+function refreshAll() {
+  rerenderers.forEach(fn => fn());
+  fitPreview();
+  syncFloat();
+  persist();
+}
+function syncFloat() {
+  const q = $('#ratioQuick'); if (q.value !== S.canvas.ratio) q.value = S.canvas.ratio;
+  $('#btnGuides').classList.toggle('on', S.guides); $('#btnSnap').classList.toggle('on', S.snap);
+  $('#qualitySel').value = String(S.previewQ);
+}
+
+/* ======================================================================
+   Canvas interactions: select, move (with snapping), scale via handles
+   ====================================================================== */
+let dragState = null;
+function toCanvasPt(e) { const r = outCanvas.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * curW, y: (e.clientY - r.top) / r.height * curH }; }
+function toLocal(b, p) { const a = -b.rot * Math.PI / 180; const dx = p.x - b.cx, dy = p.y - b.cy; return { x: dx * Math.cos(a) - dy * Math.sin(a), y: dx * Math.sin(a) + dy * Math.cos(a) }; }
+function hitHandle(p) {
+  const sel = selectedLayer(); const b = sel && boxes.find(t => t.layer === sel); if (!b || sel.locked) return null;
+  const lp = toLocal(b, p); const hs = handleSize() * 1.2; const pad = 6 * Math.max(1, curW / 900);
+  const pts = cornerPoints(b, pad);
+  for (let i = 0; i < 4; i++) if (Math.abs(lp.x - pts[i][0]) <= hs && Math.abs(lp.y - pts[i][1]) <= hs) return { b, corner: i };
+  return null;
+}
+function hitLayer(p) {
+  for (let i = boxes.length - 1; i >= 0; i--) {
+    const b = boxes[i]; if (b.layer.locked) continue;
+    const lp = toLocal(b, p); const slop = 8 * Math.max(1, curW / 900);
+    if (lp.x >= b.ox - slop && lp.x <= b.ox + b.w + slop && lp.y >= -b.h / 2 - slop && lp.y <= b.h / 2 + slop) return b.layer;
+  }
+  return null;
+}
+function snapMove(l, b, nx, ny, W, H, disable) {
+  // nx, ny: proposed anchor position (px). Returns snapped anchor + guide lines.
+  const guides = { xs: [], ys: [] };
+  if (!S.snap || disable) return { x: nx, y: ny, guides: null };
+  const thr = 0.009 * Math.max(W, H);
+  const candX = [0, W / 2, W], candY = [0, H / 2, H];
+  for (const o of boxes) { if (o.layer === l || !o.layer.visible) continue; candX.push(o.cx + o.ox, o.cx + o.ox + o.w / 2, o.cx + o.ox + o.w); candY.push(o.cy - o.h / 2, o.cy, o.cy + o.h / 2); }
+  const featX = [b.ox, b.ox + b.w / 2, b.ox + b.w], featY = [-b.h / 2, 0, b.h / 2];
+  let bestX = null, bestY = null;
+  for (const f of featX) for (const c of candX) { const d = c - (nx + f); if (Math.abs(d) < thr && (!bestX || Math.abs(d) < Math.abs(bestX.d))) bestX = { d, line: c }; }
+  for (const f of featY) for (const c of candY) { const d = c - (ny + f); if (Math.abs(d) < thr && (!bestY || Math.abs(d) < Math.abs(bestY.d))) bestY = { d, line: c }; }
+  if (bestX) { nx += bestX.d; guides.xs.push(bestX.line); }
+  if (bestY) { ny += bestY.d; guides.ys.push(bestY.line); }
+  return { x: nx, y: ny, guides: (guides.xs.length || guides.ys.length) ? guides : null };
+}
+function bindStage() {
+  const frame = $('#frame');
+  frame.addEventListener('pointerenter', () => hoverCanvas = true);
+  frame.addEventListener('pointerleave', () => { if (!dragState) hoverCanvas = false; });
+  outCanvas.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const p = toCanvasPt(e);
+    const h = hitHandle(p);
+    if (h) {
+      const l = h.b.layer; const d0 = Math.hypot(p.x - h.b.cx, p.y - h.b.cy) || 1;
+      dragState = { mode: 'scale', l, d0, size0: l.kind === 'text' ? l.size : l.w };
+    } else {
+      const l = hitLayer(p);
+      if (!l) { if (S.selected !== -1) { S.selected = -1; refreshAll(); } return; }
+      const idx = S.layers.indexOf(l); if (S.selected !== idx) { S.selected = idx; refreshAll(); }
+      dragState = { mode: 'move', l, sx: p.x, sy: p.y, ox: l.x, oy: l.y, moved: false };
+    }
+    outCanvas.setPointerCapture(e.pointerId); outCanvas.style.cursor = dragState.mode === 'scale' ? 'nwse-resize' : 'grabbing';
+  });
+  outCanvas.addEventListener('pointermove', e => {
+    const p = toCanvasPt(e);
+    if (!dragState) { outCanvas.style.cursor = hitHandle(p) ? 'nwse-resize' : hitLayer(p) ? 'grab' : 'default'; return; }
+    const d = dragState;
+    if (d.mode === 'scale') {
+      const b = boxes.find(t => t.layer === d.l); if (!b) return;
+      const f = Math.hypot(p.x - b.cx, p.y - b.cy) / d.d0;
+      if (d.l.kind === 'text') d.l.size = +clamp(d.size0 * f, 0.5, 100).toFixed(2); else d.l.w = +clamp(d.size0 * f, 0.5, 400).toFixed(2);
+      syncSliders(); return;
+    }
+    let dx = p.x - d.sx, dy = p.y - d.sy;
+    if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+    d.moved = true;
+    const b = boxes.find(t => t.layer === d.l);
+    const nx = d.ox / 100 * curW + dx, ny = d.oy / 100 * curH + dy;
+    const s = b ? snapMove(d.l, b, nx, ny, curW, curH, e.altKey) : { x: nx, y: ny, guides: null };
+    d.l.x = +(s.x / curW * 100).toFixed(2); d.l.y = +(s.y / curH * 100).toFixed(2);
+    dragGuides = s.guides;
+    syncSliders();
+  });
+  const end = () => { if (dragState) { dragState = null; dragGuides = null; outCanvas.style.cursor = 'default'; persist(); refreshAll(); } };
+  outCanvas.addEventListener('pointerup', end); outCanvas.addEventListener('pointercancel', end);
+  outCanvas.addEventListener('dblclick', e => { const l = hitLayer(toCanvasPt(e)); if (l && l.kind === 'text') { const ta = propsEl.querySelector('textarea'); if (ta) { ta.focus(); ta.select(); } } });
+  // drop images onto the canvas
+  frame.addEventListener('dragover', e => { e.preventDefault(); frame.style.outline = '2px dashed var(--accent)'; });
+  frame.addEventListener('dragleave', () => frame.style.outline = '');
+  frame.addEventListener('drop', e => { e.preventDefault(); frame.style.outline = ''; const p = toCanvasPt(e); addImageFiles([...e.dataTransfer.files], { x: +(p.x / curW * 100).toFixed(1), y: +(p.y / curH * 100).toFixed(1) }); });
+  window.addEventListener('paste', e => { const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); addImageFiles(files); } });
+  window.addEventListener('resize', fitPreview);
+  new ResizeObserver(fitPreview).observe($('#wrap'));
+}
+function syncSliders() { rerenderers.forEach(fn => fn.name === 'sync' && fn()); }
+
+/* ======================================================================
+   Top bar, floating bar, keyboard
+   ====================================================================== */
+function setPlay(v) { playing = v; $('#btnPlay').textContent = playing ? 'Pause' : 'Play'; $('#btnPlay').classList.toggle('on', playing); last = performance.now(); }
+function bindChrome() {
+  setPlay(true);
+  $('#btnPlay').addEventListener('click', () => setPlay(!playing));
+  $('#btnRestart').addEventListener('click', () => { time = 0; });
+  $('#btnRandom').addEventListener('click', randomize);
+  $('#btnReset').addEventListener('click', () => { if (confirm('Reset everything to defaults? Text and image layers will be removed.')) { S = defaultState(); IMAGES.clear(); presetName = 'Base'; time = 0; inspectorKey = ''; refreshAll(); } });
+  $('#btnSave').addEventListener('click', () => download(new Blob([JSON.stringify({ S, presetName }, null, 2)], { type: 'application/json' }), `gradient-studio-${presetName.toLowerCase().replace(/\s+/g, '-')}.json`));
+  $('#btnLoad').addEventListener('click', () => $('#fileJson').click());
+  $('#fileJson').addEventListener('change', async () => {
+    const f = $('#fileJson').files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text()); if (!d.S) throw 0;
+      S = Object.assign(defaultState(), d.S);
+      S.canvas = Object.assign(defaultState().canvas, d.S.canvas || {}); S.export = Object.assign(defaultState().export, d.S.export || {});
+      if (d.S.text && d.S.text.layers && !d.S.layers) S.layers = d.S.text.layers;
+      S.layers = (S.layers || []).map(normalizeLayer); S.images = S.images || {}; S.selected = -1;
+      S.layers.forEach(l => l.kind === 'text' && ensureFont(l.font));
+      IMAGES.clear(); await restoreImages();
+      presetName = d.presetName || 'Custom'; inspectorKey = ''; refreshAll(); toast('Design loaded');
+    } catch (e) { console.error(e); toast('That file is not a Gradient Studio design'); }
+    $('#fileJson').value = '';
+  });
+  $('#btnExport').addEventListener('click', openExport);
+  $('#btnAddText').addEventListener('click', () => addTextLayer());
+  $('#btnAddImage').addEventListener('click', () => fileImage.click());
+  $('#btnGuides').addEventListener('click', () => { S.guides = !S.guides; refreshAll(); });
+  $('#btnSnap').addEventListener('click', () => { S.snap = !S.snap; refreshAll(); });
+  const rq = $('#ratioQuick'); RATIOS.forEach(r => rq.append(el('option', { value: r.id }, r.id === 'custom' ? 'Custom size' : `${r.id} · ${r.name}`)));
+  rq.addEventListener('change', () => { if (rq.value === 'custom') { S.canvas.ratio = 'custom'; S.selected = -1; refreshAll(); openGroups.add('Canvas'); inspectorKey = ''; refreshAll(); } else setRatio(rq.value); });
+  $('#qualitySel').addEventListener('change', e => { S.previewQ = +e.target.value; fitPreview(); persist(); });
+  const scrub = $('#scrub');
+  scrub.addEventListener('input', () => { time = +scrub.value * (S.loop ? Math.max(0.5, S.duration) : 10); });
+  scrub.addEventListener('pointerdown', () => { scrub._was = playing; setPlay(false); });
+  scrub.addEventListener('pointerup', () => { if (scrub._was) setPlay(true); });
+  window.addEventListener('keydown', e => {
+    if (e.target.matches('input,textarea,select')) return;
+    const l = selectedLayer(); const meta = e.metaKey || e.ctrlKey;
+    if (e.code === 'Space') { e.preventDefault(); setPlay(!playing); }
+    else if (e.key === 'r' || e.key === 'R') randomize();
+    else if (e.key === 'g' || e.key === 'G') { S.guides = !S.guides; refreshAll(); }
+    else if (e.key === 'Escape') { if (modal.classList.contains('open')) closeExport(); else if (S.selected !== -1) { S.selected = -1; refreshAll(); } }
+    else if (meta && (e.key === 'd' || e.key === 'D') && l) { e.preventDefault(); duplicateLayer(S.selected); }
+    else if (e.key.startsWith('Arrow') && l) {
+      const d = e.shiftKey ? 2 : 0.25;
+      if (e.key === 'ArrowLeft') l.x -= d; if (e.key === 'ArrowRight') l.x += d; if (e.key === 'ArrowUp') l.y -= d; if (e.key === 'ArrowDown') l.y += d;
+      l.x = +l.x.toFixed(2); l.y = +l.y.toFixed(2); e.preventDefault(); refreshAll();
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && l && hoverCanvas) deleteLayer(S.selected);
+    else if (e.key === ']' && l) moveLayer(S.selected, 1);
+    else if (e.key === '[' && l) moveLayer(S.selected, -1);
+  });
+}
+function randomize() {
+  S.type = Math.floor(Math.random() * TYPES.length);
+  const pal = pick(PALETTES); S.palette.stops = paletteFrom([...pal.c].sort(() => Math.random() - 0.5));
+  S.scale = +rnd(0.6, 1.8).toFixed(2); S.speed = +rnd(0.5, 1.6).toFixed(2); S.octaves = 3 + Math.floor(Math.random() * 3);
+  S.warp = +rnd(0.3, 2).toFixed(2); S.contrast = +rnd(0.9, 2.2).toFixed(2);
+  S.steps = Math.random() < 0.25 ? 3 + Math.floor(Math.random() * 5) : 1; S.soft = +rnd(0.2, 1).toFixed(2);
+  S.angle = Math.random() < 0.5 ? 0 : Math.round(rnd(-90, 90)); S.seed = Math.random();
+  S.palette.repeat = Math.random() < 0.2 ? +rnd(1.5, 3).toFixed(1) : 1; S.palette.mirror = S.palette.repeat !== 1;
+  S.texture.type = Math.random() < 0.35 ? 1 + Math.floor(Math.random() * (TEXTURES.length - 1)) : 0; S.texture.amount = +rnd(0.15, 0.5).toFixed(2);
+  S.shape.type = Math.random() < 0.2 ? 1 + Math.floor(Math.random() * (SHAPES.length - 1)) : 0;
+  presetName = 'Random'; refreshAll();
+}
+
+/* ======================================================================
+   Boot
+   ====================================================================== */
+(async function boot() {
+  const restored = restore();
+  buildLooks(); buildInspector();
+  bindStage(); bindChrome(); bindExport();
+  if (!restored) addTextLayer({ text: 'GRADIENT\nSTUDIO', size: 8, letter: 0.04, weight: 800, font: 'Inter' });
+  S.layers.forEach(l => l.kind === 'text' && ensureFont(l.font));
+  await restoreImages();
   refreshAll();
   requestAnimationFrame(t => { last = t; tick(t); });
 })();
+
 </script>
 </body>
 </html>
