@@ -987,10 +987,10 @@ function defaultImageLayer(over = {}) {
   return Object.assign({
     kind: 'image', id: layerSeq++, visible: true, locked: false, src: null, name: 'Image', x: 50, y: 50, w: 50, rotate: 0, flipX: false,
     crop: { l: 0, t: 0, r: 0, b: 0 }, radius: 0, circle: false, opacity: 1, blend: 'source-over',
-    shadow: 0, shadowY: 0, shadowColor: '#000000', shadowOpacity: 0.5,
+    shadow: 0, shadowY: 0, shadowColor: '#000000', shadowOpacity: 0.5, grade: Object.assign({}, GRADE_DEFAULTS),
   }, over);
 }
-function normalizeLayer(l) { return l.kind === 'image' ? defaultImageLayer(Object.assign({}, l, { crop: Object.assign({ l: 0, t: 0, r: 0, b: 0 }, l.crop || {}) })) : defaultLayer(l); }
+function normalizeLayer(l) { return l.kind === 'image' ? defaultImageLayer(Object.assign({}, l, { crop: Object.assign({ l: 0, t: 0, r: 0, b: 0 }, l.crop || {}), grade: Object.assign({}, GRADE_DEFAULTS, l.grade || {}) })) : defaultLayer(l); }
 function defaultState() {
   return {
     type: 0, scale: 0.5, speed: 1, octaves: 3, warp: 1.0, contrast: 1.3, soft: 1, steps: 1, angle: 0, seed: 0.37, flowX: 0, flowY: 0,
@@ -1193,6 +1193,225 @@ function renderGL(t, w, h) {
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
+
+</script>
+<script>
+/* ======================================================================
+   FX — GPU colour grading for image layers (own WebGL context)
+   crop → optional creative blur → detail blurs → grade pass
+   ====================================================================== */
+const GRADE_DEFAULTS = {
+  exposure: 0, contrast: 0, shadows: 0, highlights: 0,
+  temperature: 0, tint: 0, saturation: 0, vibrance: 0, bw: 0,
+  clarity: 0, sharpness: 0, smoothness: 0,
+  halation: 0, halationThreshold: 0.6,
+  grain: 0, grainSize: 1.2, grainAnimate: true,
+  blur: 0, blurType: 'gaussian', blurAngle: 0, blurBand: 0.5, blurBandWidth: 0.3,
+};
+const BLUR_TYPES = [
+  { id: 'gaussian', name: 'Gaussian' }, { id: 'box', name: 'Box' }, { id: 'radial', name: 'Radial zoom' },
+  { id: 'motion', name: 'Motion' }, { id: 'tilt', name: 'Tilt-shift' },
+];
+const IMAGE_LOOKS = [
+  { name: 'None', g: {} },
+  { name: 'Film', g: { contrast: 0.15, saturation: -0.1, grain: 0.35, halation: 0.25, shadows: 0.1, highlights: -0.15, temperature: 0.1 } },
+  { name: 'Matte', g: { contrast: -0.2, shadows: 0.35, saturation: -0.15, clarity: -0.1, highlights: -0.1 } },
+  { name: 'Vivid', g: { contrast: 0.2, vibrance: 0.5, clarity: 0.3, sharpness: 0.5 } },
+  { name: 'B&W', g: { bw: 1, contrast: 0.25, grain: 0.25, clarity: 0.2 } },
+  { name: 'Noir', g: { bw: 1, contrast: 0.5, shadows: -0.3, highlights: 0.1, grain: 0.3, clarity: 0.3 } },
+  { name: 'Vintage', g: { temperature: 0.35, tint: 0.1, saturation: -0.25, contrast: -0.1, grain: 0.4, halation: 0.3, highlights: -0.2 } },
+  { name: 'Cool', g: { temperature: -0.35, contrast: 0.1, vibrance: 0.15 } },
+  { name: 'Dreamy', g: { smoothness: 0.6, halation: 0.5, exposure: 0.3, contrast: -0.15, saturation: 0.1, halationThreshold: 0.45 } },
+  { name: 'Crisp', g: { sharpness: 1, clarity: 0.4, contrast: 0.1 } },
+];
+function gradeActive(g) {
+  if (!g) return false;
+  for (const k of Object.keys(GRADE_DEFAULTS)) {
+    if (k === 'blurType' || k === 'blurAngle' || k === 'blurBand' || k === 'blurBandWidth' || k === 'grainSize' || k === 'grainAnimate' || k === 'halationThreshold') continue;
+    if (g[k] !== GRADE_DEFAULTS[k]) return true;
+  }
+  return false;
+}
+
+const FX = (() => {
+  const cv = document.createElement('canvas');
+  const g = cv.getContext('webgl', { premultipliedAlpha: false, preserveDrawingBuffer: true, alpha: true, antialias: false });
+  if (!g) return null;
+  const MAX = Math.min(4096, g.getParameter(g.MAX_TEXTURE_SIZE));
+  const VS = 'attribute vec2 a;varying vec2 v;void main(){v=a*0.5+0.5;gl_Position=vec4(a,0.0,1.0);}';
+  const P = 'precision highp float;varying vec2 v;';
+  const COPY = P + `uniform sampler2D uTex;uniform vec4 uCrop;uniform int uFlip;
+void main(){ vec2 uv = v; if (uFlip == 1) uv.y = 1.0 - uv.y; uv = uCrop.xy + uv * uCrop.zw; gl_FragColor = texture2D(uTex, uv); }`;
+  const BLUR = P + `uniform sampler2D uTex;uniform vec2 uTexel;uniform vec2 uDir;uniform float uRadius;uniform int uMode;uniform vec2 uCenter;uniform vec2 uBand;
+#define N 16
+void main(){
+  vec4 acc = vec4(0.0); float ws = 0.0;
+  if (uMode == 2) { // radial zoom
+    vec2 d = v - uCenter;
+    for (int i = 0; i <= 24; i++) { float s = 1.0 - uRadius * 0.002 * float(i); vec4 c = texture2D(uTex, uCenter + d * s); acc += c; ws += 1.0; }
+    gl_FragColor = acc / ws; return;
+  }
+  float r = uRadius;
+  if (uMode == 4) { float m = smoothstep(uBand.y * 0.5, uBand.y * 0.5 + 0.25, abs(v.y - uBand.x)); r *= m; }
+  for (int i = -N; i <= N; i++) {
+    float t = float(i) / float(N);
+    float w = uMode == 1 ? 1.0 : exp(-t * t * 3.2);
+    acc += texture2D(uTex, v + uDir * uTexel * r * t) * w; ws += w;
+  }
+  gl_FragColor = acc / ws;
+}`;
+  const GRADE = P + `uniform sampler2D uBase, uSmall, uLarge;uniform vec2 uRes;
+uniform float uExposure, uContrast, uShadows, uHighlights, uTemp, uTint, uSat, uVib, uBW, uClarity, uSharp, uSmooth, uHal, uHalThr, uGrain, uGrainSize, uGrainSeed;
+float lum(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+void main(){
+  vec4 base = texture2D(uBase, v);
+  vec3 c = base.rgb;
+  vec3 sm = texture2D(uSmall, v).rgb;
+  vec3 lg = texture2D(uLarge, v).rgb;
+  // detail
+  float edge = clamp(length(c - sm) * 6.0, 0.0, 1.0);
+  c = mix(c, sm, uSmooth * (1.0 - edge));             // smoothness keeps edges, softens flat areas
+  c += (c - sm) * uSharp;                              // unsharp mask
+  float mid = 1.0 - abs(lum(c) * 2.0 - 1.0);           // clarity acts on midtones
+  c += (c - lg) * uClarity * (0.35 + 0.65 * mid);
+  // light
+  c *= exp2(uExposure);
+  c *= vec3(1.0 + uTemp * 0.28, 1.0 + uTemp * 0.06 - uTint * 0.18, 1.0 - uTemp * 0.28) * vec3(1.0 + uTint * 0.12, 1.0, 1.0 + uTint * 0.12);
+  float k = uContrast >= 0.0 ? 1.0 + uContrast * 1.6 : 1.0 + uContrast * 0.75;
+  c = (c - 0.5) * k + 0.5;
+  float L = clamp(lum(c), 0.0, 1.0);
+  c += uShadows * 0.55 * pow(1.0 - L, 2.0);
+  c += uHighlights * 0.55 * pow(L, 2.0) * (uHighlights > 0.0 ? 1.0 : (0.5 + 0.5 * L));
+  // colour
+  float L2 = lum(c);
+  vec3 gray = vec3(L2);
+  float satNow = clamp(length(c - gray) * 1.8, 0.0, 1.0);
+  c = mix(gray, c, 1.0 + uSat + uVib * (1.0 - satNow));
+  c = mix(c, vec3(dot(c, vec3(0.30, 0.59, 0.11))), uBW);
+  // halation: blurred highlights bleed warm
+  float hl = max(lum(lg) - uHalThr, 0.0) / max(1.0 - uHalThr, 0.05);
+  c += hl * uHal * vec3(1.0, 0.45, 0.22) * 0.9;
+  // grain: monochrome, stronger in midtones/shadows
+  if (uGrain > 0.0) {
+    vec2 cell = floor(gl_FragCoord.xy / max(uGrainSize, 1.0));
+    float n = hash(cell + uGrainSeed) - 0.5;
+    n = (n + (hash(cell * 1.7 + uGrainSeed + 7.0) - 0.5)) * 0.5;
+    c += n * uGrain * 0.45 * (1.0 - 0.6 * clamp(lum(c), 0.0, 1.0));
+  }
+  gl_FragColor = vec4(clamp(c, 0.0, 1.0), base.a);
+}`;
+  function sh(type, src) { const s = g.createShader(type); g.shaderSource(s, src); g.compileShader(s); if (!g.getShaderParameter(s, g.COMPILE_STATUS)) throw new Error('FX shader: ' + g.getShaderInfoLog(s)); return s; }
+  function prog(fs) {
+    const p = g.createProgram(); g.attachShader(p, sh(g.VERTEX_SHADER, VS)); g.attachShader(p, sh(g.FRAGMENT_SHADER, fs)); g.linkProgram(p);
+    if (!g.getProgramParameter(p, g.LINK_STATUS)) throw new Error('FX link: ' + g.getProgramInfoLog(p));
+    const u = {}; const n = g.getProgramParameter(p, g.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) { const info = g.getActiveUniform(p, i); u[info.name.replace('[0]', '')] = g.getUniformLocation(p, info.name); }
+    return { p, u };
+  }
+  const pCopy = prog(COPY), pBlur = prog(BLUR), pGrade = prog(GRADE);
+  const buf = g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER, buf); g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), g.STATIC_DRAW);
+  [pCopy, pBlur, pGrade].forEach(pr => { const a = g.getAttribLocation(pr.p, 'a'); g.enableVertexAttribArray(a); g.vertexAttribPointer(a, 2, g.FLOAT, false, 0, 0); });
+
+  const srcTex = new Map(); // image id -> { tex, w, h }
+  function sourceTexture(id, bmp) {
+    let t = srcTex.get(id); if (t) return t;
+    const tex = g.createTexture(); g.bindTexture(g.TEXTURE_2D, tex);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+    g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, false);
+    try { g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, bmp); } catch (e) { return null; }
+    t = { tex, w: bmp.naturalWidth || bmp.width, h: bmp.naturalHeight || bmp.height }; srcTex.set(id, t); return t;
+  }
+  function dropTexture(id) { const t = srcTex.get(id); if (t) { g.deleteTexture(t.tex); srcTex.delete(id); } }
+  // framebuffer pool
+  const pool = {};
+  function fbo(name, w, h) {
+    let f = pool[name];
+    if (f && f.w === w && f.h === h) return f;
+    if (f) { g.deleteFramebuffer(f.fb); g.deleteTexture(f.tex); }
+    const tex = g.createTexture(); g.bindTexture(g.TEXTURE_2D, tex);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+    g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, w, h, 0, g.RGBA, g.UNSIGNED_BYTE, null);
+    const fb = g.createFramebuffer(); g.bindFramebuffer(g.FRAMEBUFFER, fb); g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_2D, tex, 0);
+    f = { fb, tex, w, h }; pool[name] = f; return f;
+  }
+  function bind(target) { // target: fbo or null (canvas)
+    if (target) { g.bindFramebuffer(g.FRAMEBUFFER, target.fb); g.viewport(0, 0, target.w, target.h); }
+    else { g.bindFramebuffer(g.FRAMEBUFFER, null); g.viewport(0, 0, cv.width, cv.height); }
+  }
+  function draw() { g.drawArrays(g.TRIANGLES, 0, 3); }
+  function copy(srcTexture, target, crop = [0, 0, 1, 1], flip = 0) {
+    bind(target); g.useProgram(pCopy.p); g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_2D, srcTexture);
+    g.uniform1i(pCopy.u.uTex, 0); g.uniform4f(pCopy.u.uCrop, crop[0], crop[1], crop[2], crop[3]); g.uniform1i(pCopy.u.uFlip, flip); draw();
+  }
+  // blur `src` (an fbo) by radius px (relative to src size) using a downsampled pyramid for big radii. Returns an fbo.
+  let blurSeq = 0;
+  function blur(src, radius, mode, opts = {}) {
+    if (radius <= 0.01) return src;
+    const separable = mode !== 2 && mode !== 3;
+    let f = 1; while (radius / f > 14 && f < 8) f *= 2;
+    let w = Math.max(2, Math.round(src.w / f)), h = Math.max(2, Math.round(src.h / f));
+    const tag = opts.tag || ('b' + (blurSeq++ % 4));
+    let cur = src;
+    if (f > 1) { const d = fbo(tag + 'd', w, h); copy(src.tex, d); cur = d; }
+    const r = radius / f;
+    const run = (input, out, dir) => {
+      bind(out); g.useProgram(pBlur.p); g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_2D, input.tex);
+      g.uniform1i(pBlur.u.uTex, 0); g.uniform2f(pBlur.u.uTexel, 1 / input.w, 1 / input.h); g.uniform2f(pBlur.u.uDir, dir[0], dir[1]);
+      g.uniform1f(pBlur.u.uRadius, r); g.uniform1i(pBlur.u.uMode, mode); g.uniform2f(pBlur.u.uCenter, 0.5, 0.5);
+      g.uniform2f(pBlur.u.uBand, opts.band != null ? 1 - opts.band : 0.5, opts.bandWidth != null ? opts.bandWidth : 0.3); draw();
+    };
+    if (separable) {
+      const a = fbo(tag + 'a', w, h), b = fbo(tag + 'b', w, h);
+      run(cur, a, [1, 0]); run(a, b, [0, 1]); return b;
+    }
+    const a = fbo(tag + 'a', w, h);
+    if (mode === 3) { const ang = (opts.angle || 0) * Math.PI / 180; run(cur, a, [Math.cos(ang), Math.sin(ang)]); }
+    else run(cur, a, [0, 0]);
+    return a;
+  }
+  const BLUR_MODE = { gaussian: 0, box: 1, radial: 2, motion: 3, tilt: 4 };
+
+  /** Render a graded, cropped image. Returns the FX canvas (draw it immediately or copy it). */
+  function render(layer, im, crop, outW, outH, grainSeed) {
+    const src = sourceTexture(layer.src, im.bmp); if (!src) return null;
+    outW = Math.max(2, Math.min(MAX, Math.round(outW))); outH = Math.max(2, Math.min(MAX, Math.round(outH)));
+    if (cv.width !== outW || cv.height !== outH) { cv.width = outW; cv.height = outH; }
+    const gr = Object.assign({}, GRADE_DEFAULTS, layer.grade || {});
+    // 1. crop + flip into base
+    const base0 = fbo('base', outW, outH);
+    copy(src.tex, base0, [crop.sx / src.w, crop.sy / src.h, crop.sw / src.w, crop.sh / src.h], 1);
+    // 2. creative blur
+    let base = base0;
+    if (gr.blur > 0) {
+      const rad = gr.blur / 100 * 0.12 * Math.min(outW, outH);
+      base = blur(base0, rad, BLUR_MODE[gr.blurType] ?? 0, { tag: 'user', angle: gr.blurAngle, band: gr.blurBand, bandWidth: gr.blurBandWidth });
+    }
+    // 3. detail blurs (small for sharpen/smooth, large for clarity/halation)
+    const needSmall = gr.sharpness !== 0 || gr.smoothness !== 0;
+    const needLarge = gr.clarity !== 0 || gr.halation !== 0;
+    const small = needSmall ? blur(base, Math.max(1.2, outH / 700), 0, { tag: 'small' }) : base;
+    const large = needLarge ? blur(base, 0.035 * Math.min(outW, outH), 0, { tag: 'large' }) : base;
+    // 4. grade to canvas
+    bind(null); g.useProgram(pGrade.p);
+    g.activeTexture(g.TEXTURE0); g.bindTexture(g.TEXTURE_2D, base.tex); g.uniform1i(pGrade.u.uBase, 0);
+    g.activeTexture(g.TEXTURE1); g.bindTexture(g.TEXTURE_2D, small.tex); g.uniform1i(pGrade.u.uSmall, 1);
+    g.activeTexture(g.TEXTURE2); g.bindTexture(g.TEXTURE_2D, large.tex); g.uniform1i(pGrade.u.uLarge, 2);
+    const U = pGrade.u;
+    g.uniform2f(U.uRes, outW, outH);
+    g.uniform1f(U.uExposure, gr.exposure); g.uniform1f(U.uContrast, gr.contrast); g.uniform1f(U.uShadows, gr.shadows); g.uniform1f(U.uHighlights, gr.highlights);
+    g.uniform1f(U.uTemp, gr.temperature); g.uniform1f(U.uTint, gr.tint); g.uniform1f(U.uSat, gr.saturation); g.uniform1f(U.uVib, gr.vibrance); g.uniform1f(U.uBW, gr.bw);
+    g.uniform1f(U.uClarity, gr.clarity); g.uniform1f(U.uSharp, gr.sharpness); g.uniform1f(U.uSmooth, gr.smoothness);
+    g.uniform1f(U.uHal, gr.halation); g.uniform1f(U.uHalThr, gr.halationThreshold);
+    g.uniform1f(U.uGrain, gr.grain); g.uniform1f(U.uGrainSize, gr.grainSize * Math.max(0.5, outH / 1080)); g.uniform1f(U.uGrainSeed, grainSeed);
+    g.activeTexture(g.TEXTURE0);
+    draw();
+    return cv;
+  }
+  return { render, dropTexture, canvas: cv, MAX };
+})();
 
 </script>
 <script>
@@ -1496,7 +1715,9 @@ function drawImageLayer(c, l, W, H, forExport) {
   }
   if (b.im) {
     if (l.circle || r > 0) { clip(); c.clip(); }
-    c.drawImage(b.im.bmp, b.sx, b.sy, b.sw, b.sh, -b.w / 2, -b.h / 2, b.w, b.h);
+    const graded = gradedSource(l, b, forExport);
+    if (graded) c.drawImage(graded.canvas, 0, 0, graded.w, graded.h, -b.w / 2, -b.h / 2, b.w, b.h);
+    else c.drawImage(b.im.bmp, b.sx, b.sy, b.sw, b.sh, -b.w / 2, -b.h / 2, b.w, b.h);
   } else if (!forExport) { // missing bitmap: placeholder
     c.globalAlpha = 0.9; c.fillStyle = 'rgba(30,31,42,.85)'; roundRectPath(c, -b.w / 2, -b.h / 2, b.w, b.h, r); c.fill();
     c.strokeStyle = 'rgba(255,255,255,.35)'; c.setLineDash([8, 6]); c.lineWidth = 2; c.stroke();
@@ -1507,6 +1728,26 @@ function drawImageLayer(c, l, W, H, forExport) {
   return b;
 }
 
+// Colour-graded copy of an image layer, rendered from the original pixels at up to 2x its on-canvas size.
+const fxCache = new Map(); // layer id -> { key, canvas, w, h }
+function gradedSource(l, b, forExport) {
+  if (!FX || !gradeActive(l.grade)) return null;
+  const g = l.grade;
+  const scale = Math.min(2 * ssCur, b.sw / Math.max(1, b.w)); // never above source resolution
+  let outW = Math.round(b.w * Math.max(1, scale)), outH = Math.round(b.h * Math.max(1, scale));
+  if (outW > FX.MAX || outH > FX.MAX) { const f = FX.MAX / Math.max(outW, outH); outW = Math.round(outW * f); outH = Math.round(outH * f); }
+  const seed = g.grain > 0 && g.grainAnimate ? (forExport ? Math.round(time * 1000) : Math.floor(time * 24)) : 0;
+  const key = JSON.stringify([g, l.crop, l.src, outW, outH, seed]);
+  let e = fxCache.get(l.id);
+  if (e && e.key === key) return e;
+  const cvs = FX.render(l, b.im, b, outW, outH, seed);
+  if (!cvs) return null;
+  if (!e) { e = { canvas: document.createElement('canvas') }; fxCache.set(l.id, e); }
+  if (e.canvas.width !== outW || e.canvas.height !== outH) { e.canvas.width = outW; e.canvas.height = outH; }
+  const c2 = e.canvas.getContext('2d'); c2.clearRect(0, 0, outW, outH); c2.drawImage(cvs, 0, 0);
+  e.key = key; e.w = outW; e.h = outH;
+  return e;
+}
 function composite(W, H, forExport) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.filter = 'none';
@@ -1679,7 +1920,7 @@ async function restoreImages() {
   }
   // drop image records that no layer uses any more
   const used = new Set(S.layers.filter(l => l.kind === 'image').map(l => l.src));
-  for (const id of Object.keys(S.images)) if (!used.has(id)) { delete S.images[id]; IMAGES.delete(id); }
+  for (const id of Object.keys(S.images)) if (!used.has(id)) { delete S.images[id]; IMAGES.delete(id); if (FX) FX.dropTexture(id); }
 }
 function replaceImage(l) { fileImage.dataset.replace = String(l.id); fileImage.click(); }
 fileImage.addEventListener('change', async () => {
@@ -1854,7 +2095,7 @@ function addTextLayer(over) {
   const l = defaultLayer(Object.assign({ y: 50 + ((S.layers.length * 9) % 30) - 10 }, over));
   S.layers.push(l); S.selected = S.layers.length - 1; ensureFont(l.font); refreshAll(); return l;
 }
-function deleteLayer(i) { if (i < 0) return; S.layers.splice(i, 1); S.selected = Math.min(S.selected, S.layers.length - 1); refreshAll(); }
+function deleteLayer(i) { if (i < 0) return; fxCache.delete(S.layers[i].id); S.layers.splice(i, 1); S.selected = Math.min(S.selected, S.layers.length - 1); refreshAll(); }
 function duplicateLayer(i) { const l = S.layers[i]; if (!l) return; const { id, ...rest } = JSON.parse(JSON.stringify(l)); const c = normalizeLayer(Object.assign(rest, { x: clamp(l.x + 4, 0, 100), y: clamp(l.y + 4, 0, 100) })); S.layers.splice(i + 1, 0, c); S.selected = i + 1; refreshAll(); }
 function moveLayer(i, dir) { const j = i + dir; if (j < 0 || j >= S.layers.length) return; const t = S.layers[i]; S.layers[i] = S.layers[j]; S.layers[j] = t; S.selected = j; refreshAll(); }
 function layerTitle(l) { return l.kind === 'image' ? (l.name || 'Image') : (l.text.split('\n')[0] || '(empty text)'); }
@@ -2147,7 +2388,59 @@ function buildImageProps(l) {
       row('Blend', blendSelect(l)),
       ...shadowControls(l),
     ),
+    buildGradeGroup(l),
   );
+}
+function buildGradeGroup(l) {
+  if (!l.grade) l.grade = Object.assign({}, GRADE_DEFAULTS);
+  const gr = l.grade;
+  const gs = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => gr[key], set: v => gr[key] = v, reset: GRADE_DEFAULTS[key] }, o));
+  const pct = v => Math.round(v * 100) + '';
+  const signed = v => (v > 0 ? '+' : '') + Math.round(v * 100);
+  // looks
+  const looks = el('div', { class: 'chips', style: 'grid-template-columns:repeat(5,1fr)' });
+  const lbtns = IMAGE_LOOKS.map(lk => el('button', { class: 'chip', title: lk.name, onclick: () => { Object.assign(gr, GRADE_DEFAULTS, lk.g); refreshAll(); } }, lk.name));
+  looks.append(...lbtns);
+  rerenderers.push(() => lbtns.forEach((b, i) => { const lk = IMAGE_LOOKS[i]; const on = Object.keys(GRADE_DEFAULTS).every(k => (lk.g[k] ?? GRADE_DEFAULTS[k]) === gr[k]); b.classList.toggle('on', on); }));
+  const blurType = selectInput(null, BLUR_TYPES.map(b => ({ value: b.id, label: b.name })), { get: () => gr.blurType, set: v => gr.blurType = v, onChange: refreshAll });
+  const angleRow = gs('blurAngle', 'Angle', -180, 180, 1, { unit: '°' });
+  const bandRow = gs('blurBand', 'Focus line', 0, 1, 0.01, { fmt: pct, unit: '%' });
+  const bandW = gs('blurBandWidth', 'Focus width', 0.05, 1, 0.01, { fmt: pct, unit: '%' });
+  rerenderers.push(() => { angleRow.style.display = gr.blurType === 'motion' ? '' : 'none'; bandRow.style.display = bandW.style.display = gr.blurType === 'tilt' ? '' : 'none'; });
+  const badge = el('span', { class: 'badge' });
+  rerenderers.push(() => badge.textContent = gradeActive(gr) ? 'edited' : '');
+  const grp = group('Colour & effects', true,
+    el('div', { class: 'row' }, el('label', {}, 'Looks'), el('button', { class: 'btn xs', style: 'margin-left:auto', onclick: () => { Object.assign(gr, GRADE_DEFAULTS); refreshAll(); } }, 'Reset all')),
+    looks,
+    el('div', { class: 'sub' }, 'Light'),
+    gs('exposure', 'Exposure', -3, 3, 0.01, { fmt: v => (v > 0 ? '+' : '') + v.toFixed(2) + ' EV' }),
+    gs('contrast', 'Contrast', -1, 1, 0.01, { fmt: signed }),
+    gs('shadows', 'Shadows', -1, 1, 0.01, { fmt: signed }),
+    gs('highlights', 'Highlights', -1, 1, 0.01, { fmt: signed }),
+    el('div', { class: 'sub' }, 'Colour'),
+    gs('temperature', 'Temperature', -1, 1, 0.01, { fmt: v => (v > 0 ? 'warm +' : v < 0 ? 'cool ' : '') + Math.round(v * 100) }),
+    gs('tint', 'Tint', -1, 1, 0.01, { fmt: v => (v > 0 ? 'magenta +' : v < 0 ? 'green ' : '') + Math.round(v * 100) }),
+    gs('saturation', 'Saturation', -1, 1, 0.01, { fmt: signed }),
+    gs('vibrance', 'Vibrance', -1, 1, 0.01, { fmt: signed }),
+    gs('bw', 'Black & white', 0, 1, 0.01, { fmt: pct, unit: '%' }),
+    el('div', { class: 'sub' }, 'Detail'),
+    gs('clarity', 'Clarity', -1, 1, 0.01, { fmt: signed }),
+    gs('sharpness', 'Sharpness', 0, 2, 0.01, { fmt: pct }),
+    gs('smoothness', 'Smoothness', 0, 1, 0.01, { fmt: pct }),
+    el('div', { class: 'sub' }, 'Effects'),
+    gs('halation', 'Halation', 0, 1, 0.01, { fmt: pct }),
+    gs('halationThreshold', 'Halation from', 0.2, 0.95, 0.01, { fmt: pct, unit: '% bright' }),
+    gs('grain', 'Grain', 0, 1, 0.01, { fmt: pct }),
+    gs('grainSize', 'Grain size', 0.6, 4, 0.1, { fmt: v => v.toFixed(1) + 'px' }),
+    el('div', { class: 'row' }, toggle(null, 'Animate grain (film-like flicker in video)', { get: () => gr.grainAnimate, set: v => gr.grainAnimate = v })),
+    el('div', { class: 'sub' }, 'Blur'),
+    row('Type', blurType),
+    gs('blur', 'Amount', 0, 100, 0.5, { fmt: pct => Math.round(pct) + '' }),
+    angleRow, bandRow, bandW,
+    el('div', { class: 'hint' }, 'Grading runs on the GPU from the original pixels at up to 2× the on-canvas size, so exports stay sharp. Click a slider label to type a value; double-click resets it.'),
+  );
+  grp.querySelector('header').append(badge);
+  return grp;
 }
 
 /* ======================================================================
