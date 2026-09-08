@@ -60,37 +60,41 @@
   function scatter(n, W, H, rand, opt = {}) {
     const pts = [];
     const m = opt.margin ?? 0.05;
-    const ax = (opt.avoidW ?? 0) / 2, ay = (opt.avoidH ?? 0) / 2;
     const sizeOf = opt.sizeOf || (() => ({ w: 0, h: 0 }));
     const pad = opt.pad ?? 0;
+    // Rectangles to keep clear of (centre offset + half sizes, px). Legacy avoidW/avoidH = one centred box.
+    let rects = opt.rects || [];
+    if (!rects.length && opt.avoidW && opt.avoidH) rects = [{ cx: 0, cy: 0, hw: opt.avoidW / 2, hh: opt.avoidH / 2 }];
     for (let i = 0; i < n; i++) {
       const sz = sizeOf(i);
       const hw = Math.max(20, W * (0.5 - m) - sz.w / 2), hh = Math.max(20, H * (0.5 - m) - sz.h / 2);
-      const ex = ax + sz.w / 2 + pad, ey = ay + sz.h / 2 + pad;   // card must clear the copy box entirely
-      let best = null, bestD = -1;
-      for (let k = 0; k < 28; k++) {
+      const blocked = (x, y) => rects.some((r) => Math.abs(x - r.cx) < r.hw + sz.w / 2 + pad && Math.abs(y - r.cy) < r.hh + sz.h / 2 + pad);
+      let best = null, bestD = -1, fallback = null;
+      for (let k = 0; k < 32; k++) {
         const x = (rand() * 2 - 1) * hw, y = (rand() * 2 - 1) * hh;
-        if (ax && ay && Math.abs(x) < ex && Math.abs(y) < ey) continue;
+        if (!fallback) fallback = { x, y };
+        if (blocked(x, y)) continue;
         let d = Infinity;
         for (const p of pts) d = Math.min(d, (p.x - x) ** 2 + (p.y - y) ** 2);
         if (d > bestD) { bestD = d; best = { x, y }; }
       }
-      if (!best) {                                                  // no room outside the box: park on its rim
-        const side = rand() < 0.5 ? -1 : 1;
-        best = rand() < 0.5 ? { x: side * Math.min(hw, ex), y: (rand() * 2 - 1) * hh } : { x: (rand() * 2 - 1) * hw, y: side * Math.min(hh, ey) };
-      }
-      pts.push(best);
+      pts.push(best || fallback);
     }
     return pts;
   }
 
-  /** Scatter options that respect the copy safe-zone and each card's real size. */
+  /** Scatter options that respect the copy safe-zone(s) and each card's real size. */
   function scatterOpts(ctx, pad = 0) {
+    const { cfg, W, H } = ctx;
+    let rects = [];
+    if (cfg.avoidCenter) {
+      if (Array.isArray(cfg.avoidRects)) rects = cfg.avoidRects.map((r) => ({ cx: r.x * W, cy: r.y * H, hw: (r.w * W) / 2, hh: (r.h * H) / 2 }));
+      else rects = [{ cx: 0, cy: 0, hw: (W * cfg.avoidWidth) / 2, hh: (H * cfg.avoidHeight) / 2 }];
+    }
     return {
-      avoidW: ctx.cfg.avoidCenter ? ctx.W * ctx.cfg.avoidWidth : 0,
-      avoidH: ctx.cfg.avoidCenter ? ctx.H * ctx.cfg.avoidHeight : 0,
-      sizeOf: (i) => ({ w: ctx.cards[i]?.w || ctx.cfg.cardWidth, h: ctx.cards[i]?.h || ctx.cfg.cardHeight }),
-      pad,
+      rects,
+      sizeOf: (i) => ({ w: ctx.cards[i]?.w || cfg.cardWidth, h: ctx.cards[i]?.h || cfg.cardHeight }),
+      pad: pad + (cfg.avoidPad || 0),
     };
   }
 
@@ -131,9 +135,11 @@
     seed: 7,
     autoplay: true,
     respectReducedMotion: true,
-    avoidCenter: true,     // keep collage layouts away from the headline area
-    avoidWidth: 0.56,      // fraction of stage width reserved for copy
+    avoidCenter: true,     // keep collage layouts away from the copy
+    avoidWidth: 0.56,      // fraction of stage width reserved for copy (single centred box)
     avoidHeight: 0.46,
+    avoidRects: null,      // or [{x,y,w,h}] fractions of the stage, x/y = centre offset from the stage centre
+    avoidPad: 0,           // extra clearance around the copy, px
   };
 
   const DEFAULT_LABELS = [

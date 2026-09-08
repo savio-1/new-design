@@ -98,7 +98,9 @@ Global options (all optional) and their defaults:
 | `hoverLift` / `hoverPause` | `true` / `false` | hover behaviour |
 | `seed` | `7` | same seed = same layout |
 | `avoidCenter` | `true` | keep collage layouts off the copy area |
-| `avoidWidth` / `avoidHeight` | `0.56` / `0.46` | copy safe zone as a fraction of the stage |
+| `avoidWidth` / `avoidHeight` | `0.56` / `0.46` | single centred safe zone, as a fraction of the stage |
+| `avoidRects` | `null` | explicit safe zones instead: `[{ x, y, w, h }]` as fractions of the stage, `x`/`y` being the centre offset from the stage centre |
+| `avoidPad` | `0` | extra clearance around safe zones, px |
 | `autoplay` | `true` | |
 | `respectReducedMotion` | `true` | renders a static frame when the OS asks for reduced motion |
 | `params` | mode defaults | per-mode settings, see `ImageMotion.getMode(id).schema` |
@@ -131,14 +133,28 @@ which is what the playground uses to build its panel. You can register your own 
 * `--im-shadow`, `--im-label-color`, `--im-accent` (ticker marker) — CSS variables you can override.
 * The ticker list inherits `font-family` and `color` from the stage.
 
-## Playground
+## Playground and layout editor
 
-`index.html` is the control panel. It lets you pick presets that mirror the reference videos,
-switch modes, tune every global and per-mode parameter, choose the image source (the bundled
-portrait set, gradient placeholders, or your own URLs), edit the preview copy and colours, and copy
-the resulting config, an embed snippet or a share link. The full state is stored in the URL hash.
+`index.html` is a small hero editor built on the library. Everything on the canvas is a layer:
 
-Keyboard: `space` play/pause · `R` restart · `H` hide panel · `F` fullscreen.
+* **Text layers** — add headings, body text, labels and buttons; as many as you like. Each has
+  its own font (a curated set of Google Fonts plus system stacks), weight, size, letter spacing,
+  line height, alignment, case, italic, colour, opacity and width. Drag to place, use the
+  3 × 3 anchor grid, or type exact percentages. Double-press a layer to edit its text in place.
+* **The animation box** — the ImageMotion stage is its own layer: drag it, resize it from the
+  handles, or use the quick placements (full bleed, left/right half, top/bottom band, inset).
+* **Smart guides** — while dragging or resizing, pink lines appear and snap to the canvas
+  centre and edges and to every other layer's edges and centres. Hold `Alt` to drag freely.
+* **Text safe zones** — collage modes route cards around every visible text layer
+  automatically (via `avoidRects`); toggle "Show zones" to see them.
+
+The panel also carries presets that mirror the reference videos, mode switching, every global
+and per-mode parameter, the image source (bundled portraits, gradients, or your own URLs), and
+page colours. The Export section produces three things: the complete hero markup with CSS and
+the mount call, the motion config alone, and a share link. The whole state lives in the URL hash.
+
+Keyboard: `space` play/pause · `R` restart · `H` hide panel · `F` fullscreen · arrows nudge the
+selected layer (`Shift` for 10 px) · `Delete` removes it · `Ctrl/Cmd+D` duplicates · `Esc` deselects.
 
 ## Notes
 

@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ImageMotion — Playground</title>
-  <meta name="description" content="Playground and control panel for the ImageMotion image choreography library." />
+  <meta name="description" content="Layout editor and control panel for the ImageMotion image choreography library." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Space+Grotesk:wght@300..700&family=Syne:wght@400..800&family=Sora:wght@100..800&family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=DM+Serif+Display:ital@0;1&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@100..800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="image-motion.css" />
   <style>
     :root {
@@ -22,10 +22,10 @@
     body.panel-hidden { grid-template-columns: 1fr 0; }
     body.panel-hidden aside { display: none; }
 
-    /* ── stage / hero preview ─────────────────────────── */
+    /* ── canvas ─────────────────────────────────────────── */
     main { position: relative; min-width: 0; }
     .topbar {
-      position: absolute; left: 16px; top: 14px; z-index: 5; display: flex; align-items: center; gap: 8px;
+      position: absolute; left: 16px; top: 14px; z-index: 20; display: flex; align-items: center; gap: 8px;
       padding: 6px 8px 6px 12px; background: rgba(15, 16, 19, .72); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.08); border-radius: 999px;
       font-size: 12px; color: #cfd4de;
     }
@@ -34,22 +34,47 @@
     .topbar button:hover { background: rgba(255,255,255,.14); }
     .topbar kbd { font: 10px ui-monospace, Menlo, monospace; color: var(--ui-muted); margin-left: 4px; }
 
-    .hero {
-      position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
-      background: var(--page-bg, #050507); color: var(--page-fg, #fff);
-      font-family: var(--page-font, 'Inter', system-ui, sans-serif);
-      transition: background .4s ease, color .4s ease;
-    }
-    .hero__copy { max-width: 620px; padding: 0 24px; }
-    .hero__copy[hidden] { display: none; }
-    .hero__eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .7; margin: 0 0 14px; font-weight: 600; }
-    .hero__title { font-size: clamp(32px, 4.6vw, 64px); line-height: 1; letter-spacing: -.035em; margin: 0; font-weight: 800; text-wrap: balance; }
-    .hero__sub { font-size: clamp(14px, 1.2vw, 18px); line-height: 1.5; opacity: .75; margin: 18px auto 0; max-width: 460px; }
-    .hero__cta { display: inline-flex; align-items: center; gap: 8px; margin-top: 26px; padding: 12px 22px; border-radius: 999px; background: var(--page-fg, #fff); color: var(--page-bg, #000); font-weight: 600; font-size: 14px; text-decoration: none; }
-    .hero__cta[hidden] { display: none; }
+    .hero { position: absolute; inset: 0; overflow: hidden; background: var(--page-bg, #050507); color: var(--page-fg, #fff); transition: background .4s ease, color .4s ease; }
+    #motion.motion-box { position: absolute; }
+    #motion.motion-box.is-selectable { cursor: move; }
     .hero .im-ticker { --im-accent: var(--ui-accent); }
-    .safezone { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 1px dashed rgba(255, 62, 165, .6); pointer-events: none; z-index: 3; display: none; }
-    body.show-safezone .safezone { display: block; }
+
+    .layer { position: absolute; margin: 0; white-space: pre-wrap; cursor: move; user-select: none; z-index: 2; outline: 1px dashed transparent; outline-offset: 6px; transition: outline-color .15s; }
+    .layer:hover { outline-color: rgba(255, 62, 165, .5); }
+    .layer.is-editing { cursor: text; user-select: text; outline-color: var(--ui-accent); }
+    .layer[data-hidden] { display: none; }
+    .layer--button { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; white-space: nowrap; }
+    .layer--auto { width: max-content; max-width: 100%; }
+
+    .guides, .zones { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+    .guide { position: absolute; background: var(--ui-accent); box-shadow: 0 0 0 1px rgba(255, 62, 165, .18); }
+    .guide.v { top: 0; bottom: 0; width: 1px; }
+    .guide.h { left: 0; right: 0; height: 1px; }
+    .zone { position: absolute; border: 1px dashed rgba(255, 62, 165, .55); background: rgba(255, 62, 165, .06); border-radius: 4px; }
+    .zones[hidden] { display: none; }
+    .readout { position: absolute; z-index: 8; pointer-events: none; background: #111318; color: #fff; font: 10.5px/1 ui-monospace, Menlo, monospace; padding: 5px 7px; border-radius: 5px; white-space: nowrap; border: 1px solid rgba(255,255,255,.1); }
+    .readout[hidden] { display: none; }
+
+    .frame { position: absolute; z-index: 7; pointer-events: none; outline: 1.5px solid var(--ui-accent); }
+    .frame[hidden] { display: none; }
+    .frame__label { position: absolute; left: -1.5px; bottom: 100%; margin-bottom: 4px; background: var(--ui-accent); color: #fff; font: 600 10px/1 'Inter', system-ui, sans-serif; padding: 5px 7px; border-radius: 4px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+    .handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid var(--ui-accent); border-radius: 2px; pointer-events: auto; }
+    .handle[data-dir="n"]  { top: -5px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+    .handle[data-dir="s"]  { bottom: -5px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+    .handle[data-dir="e"]  { right: -5px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+    .handle[data-dir="w"]  { left: -5px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+    .handle[data-dir="ne"] { top: -5px; right: -5px; cursor: nesw-resize; }
+    .handle[data-dir="nw"] { top: -5px; left: -5px; cursor: nwse-resize; }
+    .handle[data-dir="se"] { bottom: -5px; right: -5px; cursor: nwse-resize; }
+    .handle[data-dir="sw"] { bottom: -5px; left: -5px; cursor: nesw-resize; }
+    .frame[data-kind="motion"] .handle { width: 12px; height: 12px; }
+    .frame[data-kind="motion"] .handle[data-dir="n"]  { top: 3px; }    .frame[data-kind="motion"] .handle[data-dir="s"]  { bottom: 3px; }
+    .frame[data-kind="motion"] .handle[data-dir="e"]  { right: 3px; }  .frame[data-kind="motion"] .handle[data-dir="w"]  { left: 3px; }
+    .frame[data-kind="motion"] .handle[data-dir="ne"] { top: 3px; right: 3px; }   .frame[data-kind="motion"] .handle[data-dir="nw"] { top: 3px; left: 3px; }
+    .frame[data-kind="motion"] .handle[data-dir="se"] { bottom: 3px; right: 3px; } .frame[data-kind="motion"] .handle[data-dir="sw"] { bottom: 3px; left: 3px; }
+    .frame[data-kind="motion"] .frame__label { bottom: auto; top: 6px; left: 22px; margin: 0; border-radius: 4px; }
+    .frame[data-kind="text"] .handle:not([data-dir="e"]):not([data-dir="w"]) { display: none; }
+    .frame[data-kind="button"] .handle { display: none; }
 
     /* ── panel ─────────────────────────────────────────── */
     aside { background: var(--ui-panel); border-left: 1px solid var(--ui-line); overflow-y: auto; overflow-x: hidden; font-size: 12.5px; scrollbar-width: thin; scrollbar-color: #2b3038 transparent; }
@@ -74,7 +99,8 @@
     input[type=range]::-moz-range-track { height: 3px; background: var(--ui-line-2); border-radius: 2px; }
     input[type=range]::-moz-range-thumb { width: 8px; height: 8px; border-radius: 50%; background: #fff; border: 3px solid var(--ui-accent); }
     select, input[type=text], textarea, input[type=number] { width: 100%; background: #0f1115; color: var(--ui-text); border: 1px solid var(--ui-line-2); border-radius: 7px; padding: 7px 9px; font: inherit; font-size: 12.5px; }
-    textarea { min-height: 78px; resize: vertical; font-family: ui-monospace, Menlo, monospace; font-size: 11px; line-height: 1.45; }
+    textarea { min-height: 64px; resize: vertical; font-family: inherit; font-size: 12.5px; line-height: 1.45; }
+    textarea.mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
     select:focus, input:focus, textarea:focus { outline: none; border-color: var(--ui-accent); }
     .switch { position: relative; width: 34px; height: 20px; background: var(--ui-line-2); border-radius: 999px; cursor: pointer; transition: background .2s; flex: none; }
     .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
@@ -84,9 +110,18 @@
     .color input[type=color] { width: 30px; height: 26px; padding: 0; border: 1px solid var(--ui-line-2); border-radius: 6px; background: transparent; cursor: pointer; }
     .color input[type=text] { flex: 1; }
     .chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-    .chips button { text-align: left; background: #0f1115; border: 1px solid var(--ui-line-2); color: #d5dae4; border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 12px; cursor: pointer; line-height: 1.2; }
-    .chips button:hover { border-color: #4a5160; }
-    .chips button.on { border-color: var(--ui-accent); background: rgba(255,62,165,.1); color: #fff; }
+    .chips button, .seg button, .anchor button, .quick button { text-align: left; background: #0f1115; border: 1px solid var(--ui-line-2); color: #d5dae4; border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 12px; cursor: pointer; line-height: 1.2; }
+    .chips button:hover, .seg button:hover, .anchor button:hover, .quick button:hover { border-color: #4a5160; }
+    .chips button.on, .seg button.on { border-color: var(--ui-accent); background: rgba(255,62,165,.1); color: #fff; }
+    .seg { display: grid; grid-auto-flow: column; gap: 4px; }
+    .seg button { text-align: center; padding: 7px 6px; }
+    .anchor { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 96px; }
+    .anchor button { aspect-ratio: 1; padding: 0; display: grid; place-items: center; }
+    .anchor button::after { content: ''; width: 8px; height: 8px; border-radius: 2px; background: #6b7386; }
+    .anchor button:hover::after { background: var(--ui-accent); }
+    .anchor-row { display: flex; gap: 12px; align-items: flex-start; }
+    .anchor-row .quick { display: grid; gap: 4px; flex: 1; }
+    .quick button { padding: 6px 9px; }
     .group-label { color: var(--ui-muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
     .desc { color: var(--ui-muted); font-size: 11.5px; line-height: 1.45; margin: 0; }
     .btnrow { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -94,6 +129,16 @@
     .btn:hover { background: #2b303a; }
     .btn.primary { background: var(--ui-accent); border-color: var(--ui-accent); color: #fff; }
     .btn.primary:hover { filter: brightness(1.08); }
+    .btn.danger { color: #ff8a8a; }
+    .layers { display: grid; gap: 4px; }
+    .layer-row { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--ui-line-2); border-radius: 8px; background: #0f1115; cursor: pointer; }
+    .layer-row:hover { border-color: #4a5160; }
+    .layer-row.on { border-color: var(--ui-accent); background: rgba(255,62,165,.08); }
+    .layer-row .glyph { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 5px; background: #1c2029; color: #c9cfda; font: 700 10px/1 'Inter', system-ui, sans-serif; flex: none; }
+    .layer-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e3e7ef; }
+    .layer-row .icon { background: none; border: 0; color: var(--ui-muted); cursor: pointer; padding: 2px 4px; font-size: 13px; line-height: 1; }
+    .layer-row .icon:hover { color: #fff; }
+    .layer-row .icon.off { opacity: .35; }
     pre.code { margin: 0; background: #0a0b0e; border: 1px solid var(--ui-line); border-radius: 8px; padding: 10px; font: 10.5px/1.5 ui-monospace, Menlo, monospace; color: #b8c2d4; overflow: auto; max-height: 260px; white-space: pre; }
     .toast { position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 10px); background: #fff; color: #000; padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50; }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -106,15 +151,18 @@
 </head>
 <body>
   <main>
-    <section class="hero" id="stage">
-      <div class="hero__copy" id="copy">
-        <p class="hero__eyebrow" id="eyebrow">Image motion</p>
-        <h1 class="hero__title" id="headline">Level up your visuals</h1>
-        <p class="hero__sub" id="sub">Seventeen natural image choreographies, one tiny library. Tune every parameter from the panel, then copy the config into your site.</p>
-        <a class="hero__cta" id="cta" href="#">Get started →</a>
+    <section class="hero" id="canvas">
+      <div class="motion-box is-selectable" id="motion"></div>
+      <div class="zones" id="zones" hidden></div>
+      <div class="guides" id="guides"></div>
+      <div class="frame" id="frame" hidden>
+        <div class="frame__label" id="frameLabel">Layer</div>
+        <div class="handle" data-dir="nw"></div><div class="handle" data-dir="n"></div><div class="handle" data-dir="ne"></div>
+        <div class="handle" data-dir="w"></div><div class="handle" data-dir="e"></div>
+        <div class="handle" data-dir="sw"></div><div class="handle" data-dir="s"></div><div class="handle" data-dir="se"></div>
       </div>
+      <div class="readout" id="readout" hidden></div>
     </section>
-    <div class="safezone" id="safezone"></div>
     <div class="topbar">
       <strong>ImageMotion</strong>
       <button id="btnPlay" title="Play / pause (space)">Pause <kbd>␣</kbd></button>
@@ -127,7 +175,7 @@
   <aside id="panel">
     <div class="panel__head">
       <h1>Control panel</h1>
-      <p>Every change updates the stage live and is written to the URL, so you can share exact setups.</p>
+      <p>Drag anything on the canvas. Pink lines snap to centres and edges. Double-click text to edit in place. Everything is saved to the URL.</p>
     </div>
     <div id="sections"></div>
   </aside>
@@ -135,7 +183,7 @@
 
   <script src="image-motion.js"></script>
   <script>
-    /* ═══════════════════════ demo data ═══════════════════════ */
+    /* ═══════════════════════ data ═══════════════════════ */
     /* Bundled portrait set. Photographer credits live in images/CREDITS.md. */
     const PEOPLE = [
       ['portrait-01', 'Unattributed'], ['portrait-02', 'Good Faces'], ['portrait-03', 'Brendan Franks'],
@@ -145,86 +193,337 @@
     ];
     const people = () => PEOPLE.map(([file, credit]) => ({ src: `images/${file}.jpg`, alt: 'Portrait', label: credit }));
 
+    const FONTS = [
+      { name: 'Inter', css: "'Inter', system-ui, sans-serif", q: 'Inter:wght@100..900' },
+      { name: 'Manrope', css: "'Manrope', system-ui, sans-serif", q: 'Manrope:wght@200..800' },
+      { name: 'Space Grotesk', css: "'Space Grotesk', system-ui, sans-serif", q: 'Space+Grotesk:wght@300..700' },
+      { name: 'Syne', css: "'Syne', system-ui, sans-serif", q: 'Syne:wght@400..800' },
+      { name: 'Sora', css: "'Sora', system-ui, sans-serif", q: 'Sora:wght@100..800' },
+      { name: 'Bricolage Grotesque', css: "'Bricolage Grotesque', system-ui, sans-serif", q: 'Bricolage+Grotesque:opsz,wght@12..96,200..800' },
+      { name: 'Playfair Display', css: "'Playfair Display', Georgia, serif", q: 'Playfair+Display:ital,wght@0,400..900;1,400..900' },
+      { name: 'Fraunces', css: "'Fraunces', Georgia, serif", q: 'Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900' },
+      { name: 'DM Serif Display', css: "'DM Serif Display', Georgia, serif", q: 'DM+Serif+Display:ital@0;1' },
+      { name: 'Instrument Serif', css: "'Instrument Serif', Georgia, serif", q: 'Instrument+Serif:ital@0;1' },
+      { name: 'JetBrains Mono', css: "'JetBrains Mono', ui-monospace, monospace", q: 'JetBrains+Mono:wght@100..800' },
+      { name: 'System sans', css: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" },
+      { name: 'System serif', css: "Georgia, 'Times New Roman', serif" },
+    ];
+    const fontCss = (name) => (FONTS.find((f) => f.name === name) || FONTS[0]).css;
+
+    /* ═══════════════════════ layers ═══════════════════════ */
+    let uid = 1;
+    const ROLE = {
+      eyebrow: { size: 12, weight: 600, spacing: 0.18, lineHeight: 1.4, transform: 'uppercase', opacity: .7, auto: true },
+      heading: { size: 64, weight: 800, spacing: -0.035, lineHeight: 1.0, transform: 'none', opacity: 1, auto: false },
+      text:    { size: 18, weight: 400, spacing: 0, lineHeight: 1.5, transform: 'none', opacity: .78, auto: false },
+      button:  { kind: 'button', size: 14, weight: 600, spacing: 0, lineHeight: 1, transform: 'none', opacity: 1, auto: true, radius: 999, padX: 22, padY: 12 },
+    };
+    function mkLayer(role, o = {}) {
+      return {
+        id: 'L' + (uid++), kind: 'text', role, text: 'New text', x: 20, y: 40, w: 60, align: 'center', font: 'Inter', italic: false,
+        color: '', bg: '', fgColor: '', visible: true, ...ROLE[role], ...o,
+      };
+    }
+    /** A stacked block of copy. y values get resolved by stackGroup() once the text is measured. */
+    function copyBlock({ x = 20, w = 60, align = 'center', centerY = 50, font = 'Inter', items = [] }) {
+      const layers = items.map((it) => mkLayer(it.role, { x, w: it.role === 'text' ? Math.max(20, w * 0.8) : w, align, font, ...it, role: it.role }));
+      return { layers, stack: { ids: layers.map((l) => l.id), x, w, align, centerY } };
+    }
+
+    /* ═══════════════════════ presets ═══════════════════════ */
     const PRESETS = {
-      'stepping-up':   { label: 'Stepping up (video 1)', im: { mode: 'stack', count: 8, cardWidth: 150, cardHeight: 178, radius: 16, depthBlur: 0, parallax: .25, params: { groups: 2, period: 1.5, tilt: 28, gap: .46, lift: 1, spread: .24 } }, page: { bg: '#050507', fg: '#ffffff', eyebrow: 'We are', headline: 'stepping up', sub: '', cta: '' } },
-      'level-up':      { label: 'Level up ring (video 1)', im: { mode: 'burst', count: 14, cardWidth: 120, cardHeight: 150, speed: 1, params: { radius: .36, period: 7, force: 2.6, spin: 1.2 } }, page: { bg: '#050507', fg: '#ffffff', eyebrow: 'So you can', headline: 'level up', sub: '', cta: '' } },
-      'expand':        { label: 'Expand your reach (video 1)', im: { mode: 'converge', count: 12, cardWidth: 140, cardHeight: 170, params: { period: 9, cluster: .1, hold: .45, stagger: .7 } }, page: { bg: '#2a0709', fg: '#ffffff', eyebrow: '', headline: 'EXPAND YOUR REACH', sub: '', cta: '' } },
-      'endless-tools': { label: 'Endless tools ticker (video 1)', im: { mode: 'ticker', count: 12, cardWidth: 150, cardHeight: 180, radius: 10, params: { period: 1, rowHeight: 40, side: 1, offset: .2, thumb: .8 } }, page: { bg: '#050507', fg: '#ffffff', eyebrow: '', headline: 'and endless tools', sub: '', cta: '' } },
-      'shuffle':       { label: 'Shuffle collage (video 2)', im: { mode: 'shuffle', count: 13, cardWidth: 165, cardHeight: 190, sizeVariance: .3, aspectMix: true, radius: 8, depthBlur: 0, params: { period: 4, swap: .2, style: 'pop', idle: .8 } }, page: { bg: '#000000', fg: '#ffffff', eyebrow: '', headline: 'MultiAdaptor 2.0', sub: '', cta: '' } },
-      'marketplace':   { label: 'Marketplace float (video 3)', im: { mode: 'float', count: 9, cardWidth: 130, cardHeight: 150, sizeVariance: .35, aspectMix: true, radius: 18, showLabels: false, depthBlur: 1.5, avoidWidth: .56, avoidHeight: .52, params: { amplitude: 12, sway: 4, depth: 380 } }, page: { bg: '#f6f4f0', fg: '#111111', eyebrow: '', headline: 'Get exclusive access to our marketplace', sub: 'Unlimited tools to transform your health and change your life.', cta: 'Join the waitlist →' } },
-      'tunnel':        { label: 'Creative tunnel (video 4)', im: { mode: 'tunnel', count: 16, cardWidth: 180, cardHeight: 215, radius: 6, depthBlur: 2, parallax: .8, params: { width: 1.28, gap: 1.2, travel: 80, splay: 14, walls: 'sides', panelScale: 1.55, jitter: .45 } }, page: { bg: '#e9e9e9', fg: '#111111', eyebrow: '', headline: 'One platform. Every creative outcome.', sub: 'Be the creative director. Let agents be your team.', cta: 'Start a brief →', font: 'Georgia, "Times New Roman", serif' } },
-      'belts':         { label: 'Editorial belts', im: { mode: 'marquee', count: 20, cardWidth: 145, cardHeight: 180, radius: 12, params: { rows: 4, gap: .14, velocity: 55, depthSpread: 520, tilt: 0, slant: 0, centerGap: .34 } }, page: { bg: '#0b0d12', fg: '#ffffff', eyebrow: 'Our studio', headline: 'The people behind it', sub: 'Three lanes of portraits glide past at different depths while your headline stays put.', cta: 'See the work →' } },
-      'showroom':      { label: 'Showroom coverflow', im: { mode: 'coverflow', count: 9, cardWidth: 260, cardHeight: 340, radius: 18, depthBlur: 2, params: { period: 2.4, spacing: .7, angle: 50, depth: 180 } }, page: { bg: '#101014', fg: '#ffffff', eyebrow: 'New season', headline: '', sub: '', cta: '' } },
-      'globe':         { label: 'Globe', im: { mode: 'sphere', count: 22, cardWidth: 110, cardHeight: 140, radius: 12, params: { radius: .4, spin: .22, tilt: 16, backFade: .8 } }, page: { bg: '#07080c', fg: '#ffffff', eyebrow: 'Worldwide', headline: 'A team on every continent', sub: '', cta: '' } },
-      'mosaic':        { label: 'Mosaic assemble', im: { mode: 'mosaic', count: 16, cardWidth: 190, cardHeight: 220, radius: 10, params: { cols: 4, period: 8, hold: .45, distance: 1.2, stagger: .55 } }, page: { bg: '#f3efe7', fg: '#1a1a1a', eyebrow: '', headline: '', sub: '', cta: '' } },
+      'stepping-up':   { label: 'Stepping up (video 1)', page: { bg: '#050507', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'stack', count: 8, cardWidth: 150, cardHeight: 178, radius: 16, depthBlur: 0, parallax: .25, params: { groups: 2, period: 1.5, tilt: 28, gap: .46, lift: 1, spread: .24 } }, copy: { items: [{ role: 'eyebrow', text: 'We are' }, { role: 'heading', text: 'stepping up' }] } },
+      'level-up':      { label: 'Level up ring (video 1)', page: { bg: '#050507', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'burst', count: 14, cardWidth: 120, cardHeight: 150, params: { radius: .36, period: 7, force: 2.6, spin: 1.2 } }, copy: { items: [{ role: 'eyebrow', text: 'So you can' }, { role: 'heading', text: 'level up' }] } },
+      'expand':        { label: 'Expand your reach (video 1)', page: { bg: '#2a0709', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'converge', count: 12, cardWidth: 140, cardHeight: 170, params: { period: 9, cluster: .1, hold: .45, stagger: .7 } }, copy: { w: 50, x: 25, items: [{ role: 'heading', text: 'EXPAND\nYOUR REACH', size: 60, spacing: -.02 }] } },
+      'endless-tools': { label: 'Endless tools ticker (video 1)', page: { bg: '#050507', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'ticker', count: 12, cardWidth: 150, cardHeight: 180, radius: 10, params: { period: 1, rowHeight: 40, side: 1, offset: .2, thumb: .8 } }, copy: { items: [{ role: 'heading', text: 'and endless tools', size: 44 }] } },
+      'shuffle':       { label: 'Shuffle collage (video 2)', page: { bg: '#000000', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'shuffle', count: 13, cardWidth: 165, cardHeight: 190, sizeVariance: .3, aspectMix: true, radius: 8, depthBlur: 0, params: { period: 4, swap: .2, style: 'pop', idle: .8 } }, copy: { font: 'Manrope', items: [{ role: 'heading', text: 'MultiAdaptor 2.0', size: 52, weight: 700, spacing: -.02 }] } },
+      'marketplace':   { label: 'Marketplace float (video 3)', page: { bg: '#f6f4f0', fg: '#111111' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'float', count: 9, cardWidth: 130, cardHeight: 150, sizeVariance: .35, aspectMix: true, radius: 18, depthBlur: 1.5, params: { amplitude: 12, sway: 4, depth: 380 } }, copy: { w: 50, x: 25, items: [{ role: 'heading', text: 'Get exclusive access to our marketplace', size: 56 }, { role: 'text', text: 'Unlimited tools to transform your health and change your life.' }, { role: 'button', text: 'Join the waitlist →' }] } },
+      'tunnel':        { label: 'Creative tunnel (video 4)', page: { bg: '#e9e9e9', fg: '#111111' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'tunnel', count: 16, cardWidth: 180, cardHeight: 215, radius: 6, depthBlur: 2, parallax: .8, params: { width: 1.28, gap: 1.2, travel: 80, splay: 14, walls: 'sides', panelScale: 1.55, jitter: .45 } }, copy: { font: 'Instrument Serif', w: 46, x: 27, items: [{ role: 'heading', text: 'One platform.\nEvery creative outcome.', size: 54, weight: 400, spacing: -.01, lineHeight: 1.05 }, { role: 'text', text: 'Be the creative director. Let agents be your team.', size: 16 }, { role: 'button', text: 'Start a brief →', font: 'Inter' }] } },
+      'belts':         { label: 'Editorial belts', page: { bg: '#0b0d12', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'marquee', count: 20, cardWidth: 145, cardHeight: 180, radius: 12, params: { rows: 4, gap: .14, velocity: 55, depthSpread: 520, tilt: 0, slant: 0, centerGap: .34 } }, copy: { font: 'Bricolage Grotesque', items: [{ role: 'eyebrow', text: 'Our studio' }, { role: 'heading', text: 'The people behind it', size: 58, weight: 700 }, { role: 'text', text: 'Four lanes of portraits glide past at different depths while your headline stays put.', size: 16 }, { role: 'button', text: 'See the work →', font: 'Inter' }] } },
+      'split':         { label: 'Split hero (motion on the right)', page: { bg: '#f1ede4', fg: '#141414' }, motion: { x: 46, y: 6, w: 50, h: 88 }, im: { mode: 'sphere', count: 22, cardWidth: 100, cardHeight: 128, radius: 12, params: { radius: .42, spin: .22, tilt: 16, backFade: .8 } }, copy: { x: 7, w: 36, align: 'left', font: 'Fraunces', items: [{ role: 'eyebrow', text: 'Worldwide' }, { role: 'heading', text: 'A team on every continent', size: 58, weight: 600, spacing: -.02 }, { role: 'text', text: 'Placement is free: the animation lives in its own box, and every text layer can sit anywhere.', size: 16, font: 'Inter' }, { role: 'button', text: 'Meet the team →', font: 'Inter' }] } },
+      'showroom':      { label: 'Showroom coverflow', page: { bg: '#101014', fg: '#ffffff' }, motion: { x: 0, y: 0, w: 100, h: 100 }, im: { mode: 'coverflow', count: 9, cardWidth: 260, cardHeight: 340, radius: 18, depthBlur: 2, params: { period: 2.4, spacing: .7, angle: 50, depth: 180 } }, copy: { x: 5, w: 30, align: 'left', centerY: 88, font: 'Space Grotesk', items: [{ role: 'eyebrow', text: 'New season' }, { role: 'heading', text: 'Portraits, volume two', size: 28, weight: 500, spacing: -.01 }] } },
+      'mosaic':        { label: 'Mosaic assemble', page: { bg: '#f3efe7', fg: '#1a1a1a' }, motion: { x: 4, y: 6, w: 92, h: 88 }, im: { mode: 'mosaic', count: 16, cardWidth: 190, cardHeight: 220, radius: 10, params: { cols: 4, period: 8, hold: .45, distance: 1.2, stagger: .55 } }, copy: { items: [] } },
     };
 
     /* ═══════════════════════ state ═══════════════════════ */
-    const page = { bg: '#050507', fg: '#ffffff', eyebrow: 'Image motion', headline: 'Level up your visuals', sub: 'Seventeen natural image choreographies, one tiny library. Tune every parameter from the panel, then copy the config into your site.', cta: 'Get started →', showCopy: true, font: '', source: 'people', custom: '', labels: '', safezone: false };
-    const stage = document.getElementById('stage');
+    const state = {
+      page: { bg: '#050507', fg: '#ffffff', source: 'people', custom: '', labels: '', keepOff: true, zonePad: 24, showZones: false, snap: true },
+      motion: { x: 0, y: 0, w: 100, h: 100 },
+      layers: [],
+      selected: null,
+      stack: null,
+    };
     const $ = (id) => document.getElementById(id);
+    const canvas = $('canvas'), motionEl = $('motion'), guidesEl = $('guides'), zonesEl = $('zones'), frameEl = $('frame'), readoutEl = $('readout');
+    const layerEls = new Map();
 
     function readHash() {
-      try {
-        const m = location.hash.match(/cfg=([^&]+)/);
-        if (!m) return null;
-        return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
-      } catch (e) { return null; }
+      try { const m = location.hash.match(/cfg=([^&]+)/); if (!m) return null; return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return null; }
     }
     let hashTimer;
     function writeHash() {
       clearTimeout(hashTimer);
       hashTimer = setTimeout(() => {
-        const data = { im: exportConfig(), page };
+        const data = { v: 2, im: exportConfig(false), page: state.page, motion: state.motion, layers: state.layers };
         const b = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         history.replaceState(null, '', '#cfg=' + b);
       }, 250);
     }
 
-    const saved = readHash();
-    if (saved?.page) Object.assign(page, saved.page);
-    const initial = saved?.im ? { ...saved.im } : { mode: 'orbit', count: 12 };
-    initial.images = imagesFor(page);
-    initial.labels = labelsFor(page);
-    const im = ImageMotion.mount(stage, initial);
-    applyPage();
-
     function imagesFor(p) {
       if (p.source === 'gradient') return [];
-      if (p.source === 'custom') {
-        const lines = p.custom.split('\n').map((s) => s.trim()).filter(Boolean);
-        return lines.map((l) => { const [src, label] = l.split('|').map((s) => s.trim()); return { src, label }; });
-      }
+      if (p.source === 'custom') return p.custom.split('\n').map((s) => s.trim()).filter(Boolean).map((l) => { const [src, label] = l.split('|').map((s) => s.trim()); return { src, label }; });
       return people();
     }
     function labelsFor(p) { const l = p.labels.split('\n').map((s) => s.trim()).filter(Boolean); return l.length ? l : null; }
 
+    /* — boot — */
+    const saved = readHash();
+    let initialIm = { mode: 'orbit', count: 12 };
+    if (saved && saved.v === 2 && Array.isArray(saved.layers)) {
+      Object.assign(state.page, saved.page || {});
+      Object.assign(state.motion, saved.motion || {});
+      state.layers = saved.layers;
+      uid = 1 + Math.max(0, ...state.layers.map((l) => parseInt(l.id.slice(1), 10) || 0));
+      initialIm = saved.im || initialIm;
+    } else {
+      const blk = copyBlock({ items: [{ role: 'eyebrow', text: 'Image motion' }, { role: 'heading', text: 'Level up your visuals' }, { role: 'text', text: 'Seventeen natural image choreographies, one tiny library. Drag the text and the animation box anywhere, then copy the config into your site.' }, { role: 'button', text: 'Get started →' }] });
+      state.layers = blk.layers; state.stack = blk.stack;
+    }
+    applyPage(); renderMotionBox(); renderLayers();
+    const im = ImageMotion.mount(motionEl, { ...initialIm, images: imagesFor(state.page), labels: labelsFor(state.page), avoidCenter: true });
+    window.im = im;
+
+    /* ═══════════════════════ rendering ═══════════════════════ */
     function applyPage() {
-      stage.style.setProperty('--page-bg', page.bg);
-      stage.style.setProperty('--page-fg', page.fg);
-      stage.style.setProperty('--page-font', page.font || "'Inter', system-ui, sans-serif");
-      $('copy').hidden = !page.showCopy;
-      for (const k of ['eyebrow', 'headline', 'sub', 'cta']) { const el = $(k); el.textContent = page[k]; el.hidden = !page[k]; }
-      document.body.classList.toggle('show-safezone', page.safezone);
-      const sz = $('safezone'); sz.style.width = (im.cfg.avoidWidth * 100) + '%'; sz.style.height = (im.cfg.avoidHeight * 100) + '%';
+      canvas.style.setProperty('--page-bg', state.page.bg);
+      canvas.style.setProperty('--page-fg', state.page.fg);
+      zonesEl.hidden = !state.page.showZones;
+    }
+    function renderMotionBox() {
+      const m = state.motion;
+      motionEl.style.left = m.x + '%'; motionEl.style.top = m.y + '%'; motionEl.style.width = m.w + '%'; motionEl.style.height = m.h + '%';
+    }
+    function layerStyle(l) {
+      const el = layerEls.get(l.id);
+      el.className = 'layer' + (l.kind === 'button' ? ' layer--button' : '') + (l.auto ? ' layer--auto' : '');
+      el.style.left = l.x + '%'; el.style.top = l.y + '%';
+      el.style.width = l.auto ? '' : l.w + '%';
+      el.style.textAlign = l.align;
+      el.style.fontFamily = fontCss(l.font);
+      el.style.fontWeight = l.weight; el.style.fontStyle = l.italic ? 'italic' : 'normal';
+      el.style.fontSize = l.size + 'px'; el.style.letterSpacing = l.spacing + 'em'; el.style.lineHeight = l.lineHeight;
+      el.style.textTransform = l.transform; el.style.opacity = l.opacity;
+      el.style.color = l.kind === 'button' ? (l.fgColor || state.page.bg) : (l.color || '');
+      if (l.kind === 'button') { el.style.background = l.bg || state.page.fg; el.style.padding = `${l.padY}px ${l.padX}px`; el.style.borderRadius = l.radius + 'px'; el.style.justifyContent = l.align === 'left' ? 'flex-start' : l.align === 'right' ? 'flex-end' : 'center'; }
+      else { el.style.background = ''; el.style.padding = ''; el.style.borderRadius = ''; }
+      if (l.visible) el.removeAttribute('data-hidden'); else el.setAttribute('data-hidden', '');
+      if (!el.isContentEditable) el.textContent = l.text;
+      el.href = l.kind === 'button' ? '#' : null;
+    }
+    function renderLayers() {
+      const ids = new Set(state.layers.map((l) => l.id));
+      for (const [id, el] of layerEls) if (!ids.has(id)) { el.remove(); layerEls.delete(id); }
+      state.layers.forEach((l, i) => {
+        let el = layerEls.get(l.id);
+        if (!el || (l.kind === 'button') !== (el.tagName === 'A')) {
+          el?.remove();
+          el = document.createElement(l.kind === 'button' ? 'a' : 'div');
+          el.dataset.id = l.id;
+          if (l.kind === 'button') { el.addEventListener('click', (e) => e.preventDefault()); el.draggable = false; }
+          layerEls.set(l.id, el);
+        }
+        canvas.insertBefore(el, zonesEl);
+        el.style.zIndex = 2 + i;
+        layerStyle(l);
+      });
+      updateFrame(); updateZones();
+    }
+    const canvasRect = () => canvas.getBoundingClientRect();
+    function rectOf(id) {
+      const c = canvasRect();
+      if (id === 'motion') { const m = state.motion; return { x: (m.x / 100) * c.width, y: (m.y / 100) * c.height, w: (m.w / 100) * c.width, h: (m.h / 100) * c.height }; }
+      const el = layerEls.get(id); if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height };
+    }
+    function updateFrame() {
+      const sel = state.selected;
+      const r = sel ? rectOf(sel) : null;
+      const l = layerById(sel);
+      if (!r || (l && !l.visible)) { frameEl.hidden = true; return; }
+      frameEl.hidden = false;
+      frameEl.style.left = r.x + 'px'; frameEl.style.top = r.y + 'px'; frameEl.style.width = r.w + 'px'; frameEl.style.height = r.h + 'px';
+      frameEl.dataset.kind = sel === 'motion' ? 'motion' : l.kind;
+      $('frameLabel').textContent = sel === 'motion' ? 'Image animation' : `${l.role} · ${l.font} ${l.weight}`;
+    }
+    /** Copy safe zones = every visible text layer, expressed relative to the animation box. */
+    function computeAvoidRects() {
+      const c = canvasRect(); const m = rectOf('motion');
+      const rects = [];
+      for (const l of state.layers) {
+        if (!l.visible) continue;
+        const r = rectOf(l.id); if (!r || !r.w) continue;
+        const ix = Math.max(r.x, m.x), iy = Math.max(r.y, m.y), ax = Math.min(r.x + r.w, m.x + m.w), ay = Math.min(r.y + r.h, m.y + m.h);
+        if (ax <= ix || ay <= iy) continue;
+        rects.push({ x: ((ix + ax) / 2 - (m.x + m.w / 2)) / m.w, y: ((iy + ay) / 2 - (m.y + m.h / 2)) / m.h, w: (ax - ix) / m.w, h: (ay - iy) / m.h });
+      }
+      return rects;
+    }
+    function updateAvoid() {
+      const rects = state.page.keepOff ? computeAvoidRects() : [];
+      im.set({ avoidCenter: state.page.keepOff, avoidRects: rects, avoidPad: state.page.zonePad });
+      updateZones();
+    }
+    function updateZones() {
+      zonesEl.innerHTML = '';
+      if (!state.page.showZones || !state.page.keepOff) return;
+      const m = rectOf('motion'); const pad = state.page.zonePad;
+      for (const r of computeAvoidRects()) {
+        const z = document.createElement('div'); z.className = 'zone';
+        const w = r.w * m.w + pad * 2, h = r.h * m.h + pad * 2;
+        z.style.left = (m.x + m.w / 2 + r.x * m.w - w / 2) + 'px'; z.style.top = (m.y + m.h / 2 + r.y * m.h - h / 2) + 'px'; z.style.width = w + 'px'; z.style.height = h + 'px';
+        zonesEl.appendChild(z);
+      }
+    }
+    /** Vertically stack a block of copy around a centre line, centring auto-width layers horizontally. */
+    function stackGroup(stack) {
+      if (!stack) return;
+      const c = canvasRect(); const gap = { eyebrow: 14, heading: 18, text: 26, button: 0 };
+      const ls = stack.ids.map(layerById).filter(Boolean);
+      if (!ls.length) return;
+      let total = 0; const hs = ls.map((l) => { const r = rectOf(l.id); total += r.h; return r; });
+      total += ls.slice(0, -1).reduce((s, l) => s + (gap[l.role] ?? 16), 0);
+      let y = (stack.centerY / 100) * c.height - total / 2;
+      ls.forEach((l, i) => {
+        l.y = (y / c.height) * 100;
+        if (l.auto) { const w = (hs[i].w / c.width) * 100; l.x = stack.align === 'center' ? stack.x + stack.w / 2 - w / 2 : stack.align === 'right' ? stack.x + stack.w - w : stack.x; }
+        y += hs[i].h + (gap[l.role] ?? 16);
+      });
+      renderLayers();
+    }
+    function layerById(id) { return state.layers.find((l) => l.id === id) || null; }
+
+    /* ═══════════════════════ selection, drag, snap ═══════════════════════ */
+    function select(id) { state.selected = id; updateFrame(); rebuildLayerPanel(); }
+    function snapTargets(excludeId) {
+      const c = canvasRect(); const W = c.width, H = c.height;
+      const vs = [0, W / 2, W], hs = [0, H / 2, H];
+      const add = (r) => { if (!r) return; vs.push(r.x, r.x + r.w / 2, r.x + r.w); hs.push(r.y, r.y + r.h / 2, r.y + r.h); };
+      if (excludeId !== 'motion') add(rectOf('motion'));
+      state.layers.forEach((l) => { if (l.id !== excludeId && l.visible) add(rectOf(l.id)); });
+      return { vs, hs };
+    }
+    function snapAxis(edges, targets, TH = 6) {
+      let best = { d: 0, at: null, dist: TH + 1 };
+      for (const e of edges) for (const t of targets) { const d = t - e; if (Math.abs(d) < best.dist) best = { d, at: t, dist: Math.abs(d) }; }
+      return best.at === null ? { d: 0, at: null } : best;
+    }
+    function showGuides(v, h) {
+      guidesEl.innerHTML = '';
+      const mk = (cls, pos, prop) => { const g = document.createElement('div'); g.className = 'guide ' + cls; g.style[prop] = pos + 'px'; guidesEl.appendChild(g); };
+      v.forEach((x) => mk('v', x, 'left')); h.forEach((y) => mk('h', y, 'top'));
+    }
+    function showReadout(r, text) {
+      readoutEl.hidden = false; readoutEl.textContent = text;
+      readoutEl.style.left = (r.x + r.w + 10) + 'px'; readoutEl.style.top = Math.max(4, r.y - 4) + 'px';
+    }
+    let drag = null, lastPress = { id: null, t: 0 };
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      const editing = canvas.querySelector('.layer.is-editing');
+      if (editing && !editing.contains(e.target)) editing.blur();
+      const handle = e.target.closest('.handle');
+      const layerEl = e.target.closest('.layer');
+      if (handle && state.selected) start(e, state.selected, handle.dataset.dir);
+      else if (layerEl) {
+        if (layerEl.isContentEditable) return;
+        const now = performance.now();
+        if (lastPress.id === layerEl.dataset.id && now - lastPress.t < 380) { lastPress = { id: null, t: 0 }; beginEdit(layerEl); return; }
+        lastPress = { id: layerEl.dataset.id, t: now };
+        select(layerEl.dataset.id); start(e, layerEl.dataset.id, 'move');
+      }
+      else if (motionEl.contains(e.target) || e.target === motionEl) { select('motion'); start(e, 'motion', 'move'); }
+      else select(null);
+      function start(e, id, dir) {
+        drag = { id, dir, sx: e.clientX, sy: e.clientY, r0: rectOf(id), moved: false };
+        canvas.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const c = canvasRect(); const W = c.width, H = c.height;
+      const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 2) return;
+      drag.moved = true;
+      let r = { ...drag.r0 };
+      const dir = drag.dir; const MIN = 40;
+      if (dir === 'move') { r.x += dx; r.y += dy; }
+      else {
+        if (dir.includes('e')) r.w = Math.max(MIN, r.w + dx);
+        if (dir.includes('s')) r.h = Math.max(MIN, r.h + dy);
+        if (dir.includes('w')) { const nx = Math.min(r.x + dx, r.x + r.w - MIN); r.w += r.x - nx; r.x = nx; }
+        if (dir.includes('n')) { const ny = Math.min(r.y + dy, r.y + r.h - MIN); r.h += r.y - ny; r.y = ny; }
+      }
+      const gv = [], gh = [];
+      if (state.page.snap && !e.altKey) {
+        const t = snapTargets(drag.id);
+        if (dir === 'move') {
+          const sx = snapAxis([r.x, r.x + r.w / 2, r.x + r.w], t.vs), sy = snapAxis([r.y, r.y + r.h / 2, r.y + r.h], t.hs);
+          r.x += sx.d; r.y += sy.d; if (sx.at !== null) gv.push(sx.at); if (sy.at !== null) gh.push(sy.at);
+        } else {
+          if (dir.includes('e')) { const s = snapAxis([r.x + r.w], t.vs); r.w += s.d; if (s.at !== null) gv.push(s.at); }
+          if (dir.includes('w')) { const s = snapAxis([r.x], t.vs); r.x += s.d; r.w -= s.d; if (s.at !== null) gv.push(s.at); }
+          if (dir.includes('s')) { const s = snapAxis([r.y + r.h], t.hs); r.h += s.d; if (s.at !== null) gh.push(s.at); }
+          if (dir.includes('n')) { const s = snapAxis([r.y], t.hs); r.y += s.d; r.h -= s.d; if (s.at !== null) gh.push(s.at); }
+        }
+      }
+      // exact alignment with the canvas centre always shows a guide, even when reached without snapping
+      if (Math.abs(r.x + r.w / 2 - W / 2) < .5 && !gv.length) gv.push(W / 2);
+      if (Math.abs(r.y + r.h / 2 - H / 2) < .5 && !gh.length) gh.push(H / 2);
+      showGuides(gv, gh);
+      const pct = (v, tot) => Math.round((v / tot) * 1000) / 10;
+      if (drag.id === 'motion') {
+        Object.assign(state.motion, { x: pct(r.x, W), y: pct(r.y, H), w: pct(r.w, W), h: pct(r.h, H) });
+        renderMotionBox();
+        showReadout(r, `${state.motion.x}%, ${state.motion.y}%  ·  ${state.motion.w}% × ${state.motion.h}%`);
+      } else {
+        const l = layerById(drag.id); if (!l) return;
+        l.x = pct(r.x, W); l.y = pct(r.y, H);
+        if (dir !== 'move') { l.w = pct(r.w, W); l.auto = false; }
+        layerStyle(l);
+        showReadout(r, dir === 'move' ? `${l.x}%, ${l.y}%` : `w ${l.w}%`);
+      }
+      updateFrame();
+    });
+    const endDrag = () => {
+      if (!drag) return;
+      const moved = drag.moved; drag = null;
+      guidesEl.innerHTML = ''; readoutEl.hidden = true;
+      if (moved) { updateAvoid(); refreshAll(); afterChange(); }
+    };
+    canvas.addEventListener('pointerup', endDrag); canvas.addEventListener('pointercancel', endDrag);
+
+    /* inline editing (double-press a layer; Esc or Ctrl/Cmd+Enter to finish) */
+    function beginEdit(el) {
+      const l = layerById(el.dataset.id); if (!l) return;
+      select(l.id);
+      try { el.contentEditable = 'plaintext-only'; } catch (_) { el.contentEditable = 'true'; }
+      if (!el.isContentEditable) el.contentEditable = 'true';
+      el.classList.add('is-editing'); el.focus();
+      const sel = window.getSelection(); if (sel) sel.selectAllChildren(el);
+      const finish = () => {
+        el.removeEventListener('blur', finish); el.removeEventListener('keydown', onKey);
+        el.contentEditable = 'false'; el.classList.remove('is-editing');
+        l.text = el.innerText.replace(/\n$/, '');
+        layerStyle(l); updateFrame(); updateAvoid(); rebuildLayersList(); refreshAll(); afterChange();
+      };
+      const onKey = (ev) => { if (ev.key === 'Escape' || (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey))) { ev.preventDefault(); el.blur(); } };
+      el.addEventListener('blur', finish); el.addEventListener('keydown', onKey);
     }
 
-    /** Config as a user would paste into their site (images inlined only when they are explicit URLs). */
-    function exportConfig() {
-      const c = im.getConfig();
-      const out = { mode: c.mode };
-      for (const k of Object.keys(ImageMotion.defaults)) {
-        if (k === 'mode' || k === 'images' || k === 'labels' || k === 'autoplay') continue;
-        if (JSON.stringify(c[k]) !== JSON.stringify(ImageMotion.defaults[k])) out[k] = c[k];
-      }
-      const md = ImageMotion.getMode(c.mode).defaults;
-      const params = {};
-      for (const k of Object.keys(c.params)) if (JSON.stringify(c.params[k]) !== JSON.stringify(md[k])) params[k] = c.params[k];
-      if (Object.keys(params).length) out.params = params;
-      if (page.source !== 'gradient') out.images = im.cfg.images;
-      if (im.cfg.labels) out.labels = im.cfg.labels;
-      return out;
-    }
+    new ResizeObserver(() => { updateFrame(); updateAvoid(); }).observe(canvas);
 
     /* ═══════════════════════ panel builder ═══════════════════════ */
     const sections = $('sections');
@@ -243,10 +542,10 @@
       if (desc.type === 'range') {
         const val = document.createElement('span'); val.className = 'val'; row.appendChild(val);
         input = document.createElement('input'); input.type = 'range'; input.min = desc.min; input.max = desc.max; input.step = desc.step; input.value = get();
-        val.textContent = fmt(get(), desc.step);
-        input.addEventListener('input', () => { val.textContent = fmt(input.value, desc.step); set(Number(input.value)); });
+        val.textContent = fmt(get(), desc.step) + (desc.unit || '');
+        input.addEventListener('input', () => { val.textContent = fmt(input.value, desc.step) + (desc.unit || ''); set(Number(input.value)); });
         wrap.appendChild(input);
-        wrap.update = () => { input.value = get(); val.textContent = fmt(get(), desc.step); };
+        wrap.update = () => { input.value = get(); val.textContent = fmt(get(), desc.step) + (desc.unit || ''); };
       } else if (desc.type === 'select') {
         input = document.createElement('select');
         desc.options.forEach((o) => { const op = document.createElement('option'); op.value = String(o.value); op.textContent = o.label; input.appendChild(op); });
@@ -262,19 +561,29 @@
         wrap.update = () => input.classList.toggle('on', !!get());
       } else if (desc.type === 'color') {
         const box = document.createElement('div'); box.className = 'color';
-        const c = document.createElement('input'); c.type = 'color'; c.value = get();
-        const t = document.createElement('input'); t.type = 'text'; t.value = get();
+        const c = document.createElement('input'); c.type = 'color';
+        const t = document.createElement('input'); t.type = 'text'; t.placeholder = desc.placeholder || '';
+        const sync = () => { const v = get() || ''; t.value = v; c.value = /^#[0-9a-f]{6}$/i.test(v) ? v : (desc.fallback?.() || '#888888'); };
+        sync();
         c.addEventListener('input', () => { t.value = c.value; set(c.value); });
-        t.addEventListener('change', () => { set(t.value); if (/^#[0-9a-f]{6}$/i.test(t.value)) c.value = t.value; });
-        box.append(c, t); wrap.appendChild(box);
-        wrap.update = () => { c.value = /^#[0-9a-f]{6}$/i.test(get()) ? get() : c.value; t.value = get(); };
+        t.addEventListener('change', () => { set(t.value); sync(); });
+        box.append(c, t);
+        if (desc.clearable) { const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Auto'; b.title = 'Use the page colour'; b.onclick = () => { set(''); sync(); }; box.appendChild(b); }
+        wrap.appendChild(box);
+        wrap.update = sync;
       } else if (desc.type === 'text' || desc.type === 'textarea') {
         input = document.createElement(desc.type === 'text' ? 'input' : 'textarea');
-        if (desc.type === 'text') input.type = 'text';
+        if (desc.type === 'text') input.type = 'text'; if (desc.mono) input.classList.add('mono');
         input.value = get(); if (desc.placeholder) input.placeholder = desc.placeholder;
-        input.addEventListener(desc.type === 'text' ? 'input' : 'change', () => set(input.value));
+        input.addEventListener(desc.live ? 'input' : 'change', () => set(input.value));
         wrap.appendChild(input);
-        wrap.update = () => { input.value = get(); };
+        wrap.update = () => { if (document.activeElement !== input) input.value = get(); };
+      } else if (desc.type === 'segment') {
+        input = document.createElement('div'); input.className = 'seg';
+        desc.options.forEach((o) => { const b = document.createElement('button'); b.textContent = o.label; b.title = o.title || ''; b.onclick = () => { set(o.value); wrap.update(); }; b.dataset.v = String(o.value); input.appendChild(b); });
+        wrap.appendChild(input);
+        wrap.update = () => input.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === String(get())));
+        wrap.update();
       }
       if (desc.hint) { const h = document.createElement('div'); h.className = 'hint'; h.textContent = desc.hint; wrap.appendChild(h); }
       return wrap;
@@ -283,7 +592,8 @@
     const add = (parent, desc, get, set) => { const f = field(desc, get, set); parent.appendChild(f); registry.push(f); return f; };
     const refreshAll = () => registry.forEach((f) => f.update && f.update());
     const imSet = (patch) => { im.set(patch); afterChange(); };
-    const pageSet = (patch) => { Object.assign(page, patch); applyPage(); afterChange(); };
+    const pageSet = (patch) => { Object.assign(state.page, patch); applyPage(); renderLayers(); updateAvoid(); afterChange(); };
+    function layerSet(l, patch) { Object.assign(l, patch); layerStyle(l); updateFrame(); updateAvoid(); afterChange(); }
     function afterChange() { writeHash(); renderExport(); }
 
     /* — presets — */
@@ -301,34 +611,158 @@
     }
     function applyPreset(key) {
       const p = PRESETS[key];
-      Object.assign(page, { eyebrow: '', sub: '', cta: '', font: '' }, p.page, { showCopy: true });
-      const cfg = { ...ImageMotion.defaults, ...p.im };
-      delete cfg.autoplay;
+      Object.assign(state.page, p.page);
+      Object.assign(state.motion, p.motion);
+      const blk = copyBlock(p.copy);
+      state.layers = blk.layers; state.stack = blk.stack; state.selected = null;
+      const cfg = { ...ImageMotion.defaults, ...p.im }; delete cfg.autoplay; delete cfg.avoidRects;
       const { params, mode, ...rest } = cfg;
-      im.setMode(mode, params);
-      im.resetParams();
-      im.set({ ...rest, params, images: imagesFor(page), labels: labelsFor(page) });
+      im.setMode(mode, params); im.resetParams();
+      im.set({ ...rest, params, images: imagesFor(state.page), labels: labelsFor(state.page) });
       im.restart();
-      applyPage(); rebuildModeParams(); refreshAll(); afterChange();
+      applyPage(); renderMotionBox(); renderLayers();
+      stackGroup(state.stack);
+      document.fonts?.ready.then(() => { stackGroup(state.stack); updateAvoid(); });
+      updateAvoid(); rebuildModeParams(); rebuildLayersList(); rebuildLayerPanel(); refreshAll(); afterChange();
     }
 
-    /* — modes — */
+    /* — layers list — */
+    let layersList;
+    {
+      const b = section('Layers');
+      const row = document.createElement('div'); row.className = 'btnrow';
+      row.innerHTML = '<button class="btn" data-add="heading">+ Heading</button><button class="btn" data-add="text">+ Text</button><button class="btn" data-add="eyebrow">+ Label</button><button class="btn" data-add="button">+ Button</button>';
+      row.querySelectorAll('button').forEach((btn) => btn.onclick = () => addLayer(btn.dataset.add));
+      b.appendChild(row);
+      layersList = document.createElement('div'); layersList.className = 'layers'; b.appendChild(layersList);
+      const h = document.createElement('p'); h.className = 'desc'; h.textContent = 'Top of the list is on top of the canvas. Click a row to edit it; drag on the canvas to place it.'; b.appendChild(h);
+    }
+    function addLayer(role) {
+      const texts = { heading: 'New heading', text: 'Supporting copy goes here. Drag it anywhere.', eyebrow: 'Label', button: 'Call to action →' };
+      const l = mkLayer(role, { text: texts[role], x: role === 'heading' || role === 'text' ? 20 : 44, y: 42 + state.layers.length * 4, w: 60, align: 'center' });
+      state.layers.push(l); renderLayers(); select(l.id); rebuildLayersList(); updateAvoid(); afterChange();
+    }
+    function removeLayer(id) { state.layers = state.layers.filter((l) => l.id !== id); if (state.selected === id) state.selected = null; renderLayers(); rebuildLayersList(); rebuildLayerPanel(); updateAvoid(); afterChange(); }
+    function duplicateLayer(id) { const l = layerById(id); if (!l) return; const c = { ...l, id: 'L' + (uid++), y: Math.min(95, l.y + 6) }; state.layers.push(c); renderLayers(); select(c.id); rebuildLayersList(); updateAvoid(); afterChange(); }
+    function rebuildLayersList() {
+      layersList.innerHTML = '';
+      const rows = [...state.layers].reverse().map((l) => ({ id: l.id, glyph: { heading: 'H', text: 'T', eyebrow: 'L', button: 'B' }[l.role] || 'T', name: l.text.split('\n')[0] || '(empty)', l }));
+      rows.push({ id: 'motion', glyph: '▦', name: `Image animation · ${im.mode.name}` });
+      rows.forEach((r) => {
+        const row = document.createElement('div'); row.className = 'layer-row' + (state.selected === r.id ? ' on' : '');
+        row.innerHTML = `<span class="glyph">${r.glyph}</span><span class="name"></span>`;
+        row.querySelector('.name').textContent = r.name;
+        if (r.l) {
+          const eye = document.createElement('button'); eye.className = 'icon' + (r.l.visible ? '' : ' off'); eye.textContent = '◉'; eye.title = 'Show / hide';
+          eye.onclick = (e) => { e.stopPropagation(); r.l.visible = !r.l.visible; renderLayers(); updateAvoid(); rebuildLayersList(); afterChange(); };
+          const del = document.createElement('button'); del.className = 'icon'; del.textContent = '×'; del.title = 'Delete layer';
+          del.onclick = (e) => { e.stopPropagation(); removeLayer(r.id); };
+          row.append(eye, del);
+        }
+        row.onclick = () => select(r.id);
+        layersList.appendChild(row);
+      });
+    }
+
+    /* — selected layer — */
+    let selBody;
+    { selBody = section('Selected layer'); }
+    function anchorGrid(apply) {
+      const wrap = document.createElement('div'); wrap.className = 'anchor-row';
+      const g = document.createElement('div'); g.className = 'anchor';
+      [['tl', 'Top left'], ['tc', 'Top centre'], ['tr', 'Top right'], ['ml', 'Middle left'], ['mc', 'Centre'], ['mr', 'Middle right'], ['bl', 'Bottom left'], ['bc', 'Bottom centre'], ['br', 'Bottom right']].forEach(([k, t]) => {
+        const b = document.createElement('button'); b.title = t; b.onclick = () => apply(k); g.appendChild(b);
+      });
+      wrap.appendChild(g);
+      return wrap;
+    }
+    function placeRect(id, anchor, margin = 6) {
+      const c = canvasRect(); const r = rectOf(id); if (!r) return;
+      const wp = (r.w / c.width) * 100, hp = (r.h / c.height) * 100;
+      const xs = { l: margin, c: 50 - wp / 2, r: 100 - margin - wp }, ys = { t: margin + 2, m: 50 - hp / 2, b: 100 - margin - 2 - hp };
+      const target = id === 'motion' ? state.motion : layerById(id);
+      const [v, h] = anchor.split('');
+      if (anchor === 'mc' && id === 'motion') { Object.assign(target, { x: 0, y: 0, w: 100, h: 100 }); }
+      else { target.x = Math.round(xs[h] * 10) / 10; target.y = Math.round(ys[v] * 10) / 10; }
+      if (id === 'motion') renderMotionBox(); else layerStyle(target);
+      updateFrame(); updateAvoid(); refreshAll(); afterChange();
+    }
+    function rebuildLayerPanel() {
+      registry.splice(0, registry.length, ...registry.filter((f) => !f.isLayerField));
+      selBody.innerHTML = '';
+      rebuildLayersList();
+      const sel = state.selected;
+      const addL = (desc, get, set) => { const f = add(selBody, desc, get, set); f.isLayerField = true; return f; };
+      if (!sel) { const p = document.createElement('p'); p.className = 'desc'; p.textContent = 'Click a text layer or the animation on the canvas, or pick one from the list above.'; selBody.appendChild(p); return; }
+      if (sel === 'motion') {
+        const m = state.motion; const ms = (patch) => { Object.assign(m, patch); renderMotionBox(); updateFrame(); updateAvoid(); afterChange(); };
+        const l1 = document.createElement('div'); l1.className = 'group-label'; l1.textContent = 'Animation box'; selBody.appendChild(l1);
+        addL({ type: 'range', label: 'Left', min: -50, max: 100, step: .5, unit: '%' }, () => m.x, (v) => ms({ x: v }));
+        addL({ type: 'range', label: 'Top', min: -50, max: 100, step: .5, unit: '%' }, () => m.y, (v) => ms({ y: v }));
+        addL({ type: 'range', label: 'Width', min: 10, max: 200, step: .5, unit: '%' }, () => m.w, (v) => ms({ w: v }));
+        addL({ type: 'range', label: 'Height', min: 10, max: 200, step: .5, unit: '%' }, () => m.h, (v) => ms({ h: v }));
+        const l2 = document.createElement('div'); l2.className = 'group-label'; l2.textContent = 'Place'; selBody.appendChild(l2);
+        const row = anchorGrid((k) => placeRect('motion', k, 4));
+        const quick = document.createElement('div'); quick.className = 'quick';
+        [['Full bleed', { x: 0, y: 0, w: 100, h: 100 }], ['Left half', { x: 0, y: 0, w: 52, h: 100 }], ['Right half', { x: 48, y: 0, w: 52, h: 100 }], ['Top band', { x: 0, y: 0, w: 100, h: 46 }], ['Bottom band', { x: 0, y: 54, w: 100, h: 46 }], ['Inset', { x: 6, y: 8, w: 88, h: 84 }]].forEach(([label, box]) => {
+          const b = document.createElement('button'); b.textContent = label; b.onclick = () => { ms(box); refreshAll(); }; quick.appendChild(b);
+        });
+        row.appendChild(quick); selBody.appendChild(row);
+        const h = document.createElement('p'); h.className = 'desc'; h.textContent = 'The box can extend past the canvas: cards are clipped at the box edge, so oversize it for bleed. Motion settings are further down.'; selBody.appendChild(h);
+        return;
+      }
+      const l = layerById(sel); if (!l) return;
+      const ls = (patch) => layerSet(l, patch);
+      addL({ type: 'textarea', label: 'Text', live: true, hint: 'Shift+Enter or a new line in this box starts a new line on the canvas.' }, () => l.text, (v) => { ls({ text: v }); rebuildLayersList(); });
+      const g1 = document.createElement('div'); g1.className = 'group-label'; g1.textContent = 'Type'; selBody.appendChild(g1);
+      addL({ type: 'select', label: 'Font', options: FONTS.map((f) => ({ value: f.name, label: f.name })) }, () => l.font, (v) => ls({ font: v }));
+      addL({ type: 'range', label: 'Weight', min: 100, max: 900, step: 100 }, () => l.weight, (v) => ls({ weight: v }));
+      addL({ type: 'range', label: 'Size', min: 8, max: 220, step: 1, unit: 'px' }, () => l.size, (v) => ls({ size: v }));
+      addL({ type: 'range', label: 'Letter spacing', min: -0.1, max: 0.5, step: 0.005, unit: 'em' }, () => l.spacing, (v) => ls({ spacing: v }));
+      addL({ type: 'range', label: 'Line height', min: 0.8, max: 2.2, step: 0.02 }, () => l.lineHeight, (v) => ls({ lineHeight: v }));
+      addL({ type: 'segment', label: 'Align', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }] }, () => l.align, (v) => ls({ align: v }));
+      addL({ type: 'segment', label: 'Case', options: [{ value: 'none', label: 'Aa' }, { value: 'uppercase', label: 'AA' }, { value: 'capitalize', label: 'Aa Bb' }] }, () => l.transform, (v) => ls({ transform: v }));
+      addL({ type: 'boolean', label: 'Italic' }, () => l.italic, (v) => ls({ italic: v }));
+      if (l.kind === 'button') {
+        addL({ type: 'color', label: 'Background', clearable: true, placeholder: 'page text colour', fallback: () => state.page.fg }, () => l.bg, (v) => ls({ bg: v }));
+        addL({ type: 'color', label: 'Text colour', clearable: true, placeholder: 'page background', fallback: () => state.page.bg }, () => l.fgColor, (v) => ls({ fgColor: v }));
+        addL({ type: 'range', label: 'Padding X', min: 0, max: 60, step: 1, unit: 'px' }, () => l.padX, (v) => ls({ padX: v }));
+        addL({ type: 'range', label: 'Padding Y', min: 0, max: 40, step: 1, unit: 'px' }, () => l.padY, (v) => ls({ padY: v }));
+        addL({ type: 'range', label: 'Corner radius', min: 0, max: 999, step: 1, unit: 'px' }, () => l.radius, (v) => ls({ radius: v }));
+      } else {
+        addL({ type: 'color', label: 'Colour', clearable: true, placeholder: 'page text colour', fallback: () => state.page.fg }, () => l.color, (v) => ls({ color: v }));
+      }
+      addL({ type: 'range', label: 'Opacity', min: 0, max: 1, step: 0.02 }, () => l.opacity, (v) => ls({ opacity: v }));
+      const g2 = document.createElement('div'); g2.className = 'group-label'; g2.textContent = 'Box & placement'; selBody.appendChild(g2);
+      addL({ type: 'boolean', label: 'Fit width to text' }, () => l.auto, (v) => { ls({ auto: v }); refreshAll(); });
+      addL({ type: 'range', label: 'Width', min: 5, max: 100, step: .5, unit: '%' }, () => l.w, (v) => ls({ w: v, auto: false }));
+      addL({ type: 'range', label: 'Left', min: -20, max: 100, step: .1, unit: '%' }, () => l.x, (v) => ls({ x: v }));
+      addL({ type: 'range', label: 'Top', min: -20, max: 100, step: .1, unit: '%' }, () => l.y, (v) => ls({ y: v }));
+      const row = anchorGrid((k) => placeRect(sel, k));
+      const quick = document.createElement('div'); quick.className = 'quick';
+      [['Centre horizontally', () => { const c = canvasRect(), r = rectOf(sel); ls({ x: Math.round((50 - (r.w / c.width) * 50) * 10) / 10 }); }],
+       ['Centre vertically', () => { const c = canvasRect(), r = rectOf(sel); ls({ y: Math.round((50 - (r.h / c.height) * 50) * 10) / 10 }); }],
+       ['Duplicate', () => duplicateLayer(sel)],
+       ['Delete layer', () => removeLayer(sel)]].forEach(([label, fn], i) => { const b = document.createElement('button'); b.textContent = label; if (i === 3) b.classList.add('danger'); b.onclick = () => { fn(); refreshAll(); }; quick.appendChild(b); });
+      row.appendChild(quick); selBody.appendChild(row);
+    }
+
+    /* — motion mode chips — */
     let modeDesc, modeBody;
     {
-      const b = section('Motion');
+      const b = section('Motion', false);
       const chips = document.createElement('div'); chips.className = 'chips';
-      const groups = [['reference', 'From the references'], ['extra', 'More variations']];
-      for (const [g, label] of groups) {
+      for (const [g, label] of [['reference', 'From the references'], ['extra', 'More variations']]) {
         const gl = document.createElement('div'); gl.className = 'group-label'; gl.textContent = label; gl.style.gridColumn = '1 / -1'; chips.appendChild(gl);
         ImageMotion.modes.filter((m) => m.group === g).forEach((m) => {
           const btn = document.createElement('button'); btn.textContent = m.name; btn.dataset.mode = m.id; btn.title = m.description;
-          btn.onclick = () => { im.setMode(m.id); im.restart(); rebuildModeParams(); afterChange(); };
+          btn.onclick = () => { im.setMode(m.id); im.restart(); updateAvoid(); rebuildModeParams(); rebuildLayersList(); afterChange(); };
           chips.appendChild(btn);
         });
       }
       b.appendChild(chips);
       modeDesc = document.createElement('p'); modeDesc.className = 'desc'; b.appendChild(modeDesc);
-      modeBody = section('Mode settings');
+      modeBody = section('Mode settings', false);
     }
     function rebuildModeParams() {
       const m = im.mode;
@@ -336,107 +770,134 @@
       modeDesc.textContent = m.description;
       registry.splice(0, registry.length, ...registry.filter((f) => !f.isModeField));
       modeBody.innerHTML = '';
-      m.schema.forEach((desc) => {
-        const f = add(modeBody, desc, () => im.params[desc.key], (v) => imSet({ params: { [desc.key]: v } }));
-        f.isModeField = true;
-      });
+      m.schema.forEach((desc) => { const f = add(modeBody, desc, () => im.params[desc.key], (v) => imSet({ params: { [desc.key]: v } })); f.isModeField = true; });
       if (m.usesLabels) { const h = document.createElement('p'); h.className = 'desc'; h.textContent = 'This mode reads the “Labels” list in the Images section.'; modeBody.appendChild(h); }
-      applyPage();
     }
-
-    /* — cards — */
-    {
-      const b = section('Cards');
+    { /* cards */
+      const b = section('Cards', false);
       add(b, { type: 'range', label: 'Count', min: 1, max: 40, step: 1 }, () => im.cfg.count, (v) => imSet({ count: v }));
-      add(b, { type: 'range', label: 'Card width', min: 40, max: 480, step: 2 }, () => im.cfg.cardWidth, (v) => imSet({ cardWidth: v }));
-      add(b, { type: 'range', label: 'Card height', min: 40, max: 480, step: 2 }, () => im.cfg.cardHeight, (v) => imSet({ cardHeight: v }));
+      add(b, { type: 'range', label: 'Card width', min: 40, max: 480, step: 2, unit: 'px' }, () => im.cfg.cardWidth, (v) => imSet({ cardWidth: v }));
+      add(b, { type: 'range', label: 'Card height', min: 40, max: 480, step: 2, unit: 'px' }, () => im.cfg.cardHeight, (v) => imSet({ cardHeight: v }));
       add(b, { type: 'range', label: 'Size variance', min: 0, max: 0.6, step: 0.01, hint: 'Collage modes only' }, () => im.cfg.sizeVariance, (v) => imSet({ sizeVariance: v }));
       add(b, { type: 'boolean', label: 'Mix aspect ratios' }, () => im.cfg.aspectMix, (v) => imSet({ aspectMix: v }));
-      add(b, { type: 'range', label: 'Corner radius', min: 0, max: 60, step: 1 }, () => im.cfg.radius, (v) => imSet({ radius: v }));
+      add(b, { type: 'range', label: 'Corner radius', min: 0, max: 60, step: 1, unit: 'px' }, () => im.cfg.radius, (v) => imSet({ radius: v }));
       add(b, { type: 'boolean', label: 'Drop shadow' }, () => im.cfg.shadow, (v) => imSet({ shadow: v }));
       add(b, { type: 'boolean', label: 'Show captions' }, () => im.cfg.showLabels, (v) => imSet({ showLabels: v }));
     }
-    /* — timing — */
-    {
-      const b = section('Timing & feel');
+    { /* timing */
+      const b = section('Timing & feel', false);
       add(b, { type: 'range', label: 'Speed', min: 0, max: 3, step: 0.05 }, () => im.cfg.speed, (v) => imSet({ speed: v }));
       add(b, { type: 'range', label: 'Intensity', min: 0, max: 2.5, step: 0.05, hint: 'Scales drift, wobble and lift amounts' }, () => im.cfg.intensity, (v) => imSet({ intensity: v }));
       add(b, { type: 'select', label: 'Easing', options: ImageMotion.easings.map((e) => ({ value: e, label: e })) }, () => im.cfg.easing, (v) => imSet({ easing: v }));
       add(b, { type: 'boolean', label: 'Pause on hover' }, () => im.cfg.hoverPause, (v) => imSet({ hoverPause: v }));
     }
-    /* — depth & camera — */
-    {
+    { /* depth */
       const b = section('Depth & camera', false);
-      add(b, { type: 'range', label: 'Perspective', min: 300, max: 3000, step: 10 }, () => im.cfg.perspective, (v) => imSet({ perspective: v }));
+      add(b, { type: 'range', label: 'Perspective', min: 300, max: 3000, step: 10, unit: 'px' }, () => im.cfg.perspective, (v) => imSet({ perspective: v }));
       add(b, { type: 'range', label: 'Depth fade', min: 0, max: 1, step: 0.05 }, () => im.cfg.depthFade, (v) => imSet({ depthFade: v }));
-      add(b, { type: 'range', label: 'Depth blur (px)', min: 0, max: 12, step: 0.5 }, () => im.cfg.depthBlur, (v) => imSet({ depthBlur: v }));
+      add(b, { type: 'range', label: 'Depth blur', min: 0, max: 12, step: 0.5, unit: 'px' }, () => im.cfg.depthBlur, (v) => imSet({ depthBlur: v }));
       add(b, { type: 'range', label: 'Mouse parallax', min: 0, max: 2, step: 0.05 }, () => im.cfg.parallax, (v) => imSet({ parallax: v }));
       add(b, { type: 'boolean', label: 'Lift card on hover' }, () => im.cfg.hoverLift, (v) => imSet({ hoverLift: v }));
     }
-    /* — layout — */
-    {
-      const b = section('Copy safe zone', false);
-      add(b, { type: 'boolean', label: 'Keep cards off the copy', hint: 'Collage modes avoid a central box' }, () => im.cfg.avoidCenter, (v) => imSet({ avoidCenter: v }));
-      add(b, { type: 'range', label: 'Safe zone width', min: 0.1, max: 0.9, step: 0.01 }, () => im.cfg.avoidWidth, (v) => { imSet({ avoidWidth: v }); applyPage(); });
-      add(b, { type: 'range', label: 'Safe zone height', min: 0.1, max: 0.9, step: 0.01 }, () => im.cfg.avoidHeight, (v) => { imSet({ avoidHeight: v }); applyPage(); });
-      add(b, { type: 'boolean', label: 'Show safe zone' }, () => page.safezone, (v) => pageSet({ safezone: v }));
+    { /* safe zones */
+      const b = section('Text safe zones', false);
+      add(b, { type: 'boolean', label: 'Keep cards off the text', hint: 'Collage modes route around every visible text layer' }, () => state.page.keepOff, (v) => pageSet({ keepOff: v }));
+      add(b, { type: 'range', label: 'Clearance', min: 0, max: 120, step: 2, unit: 'px' }, () => state.page.zonePad, (v) => pageSet({ zonePad: v }));
+      add(b, { type: 'boolean', label: 'Show zones' }, () => state.page.showZones, (v) => pageSet({ showZones: v }));
+      add(b, { type: 'boolean', label: 'Snap while dragging', hint: 'Hold Alt to drag freely' }, () => state.page.snap, (v) => pageSet({ snap: v }));
     }
-    /* — images — */
-    {
+    { /* images */
       const b = section('Images', false);
-      add(b, { type: 'select', label: 'Source', options: [{ value: 'people', label: 'Portrait set (bundled)' }, { value: 'gradient', label: 'Gradient placeholders' }, { value: 'custom', label: 'Custom URLs' }] }, () => page.source, (v) => { page.source = v; imSet({ images: imagesFor(page) }); afterChange(); });
-      add(b, { type: 'textarea', label: 'Custom URLs', placeholder: 'https://…/a.jpg | Caption\nhttps://…/b.jpg', hint: 'One per line. Optional “| caption” after the URL. Used when Source = Custom.' }, () => page.custom, (v) => { page.custom = v; if (page.source === 'custom') imSet({ images: imagesFor(page) }); afterChange(); });
-      add(b, { type: 'textarea', label: 'Labels (ticker list)', placeholder: ImageMotion.defaultLabels.join('\n') }, () => page.labels, (v) => { page.labels = v; imSet({ labels: labelsFor(page) }); });
+      add(b, { type: 'select', label: 'Source', options: [{ value: 'people', label: 'Portrait set (bundled)' }, { value: 'gradient', label: 'Gradient placeholders' }, { value: 'custom', label: 'Custom URLs' }] }, () => state.page.source, (v) => { state.page.source = v; imSet({ images: imagesFor(state.page) }); });
+      add(b, { type: 'textarea', label: 'Custom URLs', mono: true, placeholder: 'https://…/a.jpg | Caption\nhttps://…/b.jpg', hint: 'One per line. Optional “| caption” after the URL. Used when Source = Custom.' }, () => state.page.custom, (v) => { state.page.custom = v; if (state.page.source === 'custom') imSet({ images: imagesFor(state.page) }); else afterChange(); });
+      add(b, { type: 'textarea', label: 'Labels (ticker list)', mono: true, placeholder: ImageMotion.defaultLabels.join('\n') }, () => state.page.labels, (v) => { state.page.labels = v; imSet({ labels: labelsFor(state.page) }); });
       add(b, { type: 'range', label: 'Seed', min: 1, max: 9999, step: 1, hint: 'Same seed = same layout' }, () => im.cfg.seed, (v) => imSet({ seed: v }));
     }
-    /* — page — */
-    {
-      const b = section('Page preview', false);
-      add(b, { type: 'boolean', label: 'Show copy' }, () => page.showCopy, (v) => pageSet({ showCopy: v }));
-      add(b, { type: 'color', label: 'Background' }, () => page.bg, (v) => pageSet({ bg: v }));
-      add(b, { type: 'color', label: 'Text colour' }, () => page.fg, (v) => pageSet({ fg: v }));
-      add(b, { type: 'text', label: 'Eyebrow' }, () => page.eyebrow, (v) => pageSet({ eyebrow: v }));
-      add(b, { type: 'text', label: 'Headline' }, () => page.headline, (v) => pageSet({ headline: v }));
-      add(b, { type: 'text', label: 'Sub copy' }, () => page.sub, (v) => pageSet({ sub: v }));
-      add(b, { type: 'text', label: 'Button label' }, () => page.cta, (v) => pageSet({ cta: v }));
-      add(b, { type: 'text', label: 'Font stack', placeholder: "'Inter', system-ui, sans-serif" }, () => page.font, (v) => pageSet({ font: v }));
+    { /* page */
+      const b = section('Page', false);
+      add(b, { type: 'color', label: 'Background' }, () => state.page.bg, (v) => pageSet({ bg: v }));
+      add(b, { type: 'color', label: 'Text colour', hint: 'Layers and buttons without their own colour follow this' }, () => state.page.fg, (v) => pageSet({ fg: v }));
     }
     /* — export — */
     let codeJson, codeEmbed;
     {
       const b = section('Export');
       const row = document.createElement('div'); row.className = 'btnrow';
-      row.innerHTML = '<button class="btn primary" id="bCopyCfg">Copy config</button><button class="btn" id="bCopyEmbed">Copy embed snippet</button><button class="btn" id="bCopyLink">Copy share link</button>';
+      row.innerHTML = '<button class="btn primary" id="bCopyEmbed">Copy hero HTML</button><button class="btn" id="bCopyCfg">Copy motion config</button><button class="btn" id="bCopyLink">Copy share link</button>';
       b.appendChild(row);
-      const l1 = document.createElement('div'); l1.className = 'group-label'; l1.textContent = 'Config (JSON)'; b.appendChild(l1);
-      codeJson = document.createElement('pre'); codeJson.className = 'code'; b.appendChild(codeJson);
-      const l2 = document.createElement('div'); l2.className = 'group-label'; l2.textContent = 'Embed snippet'; b.appendChild(l2);
+      const l2 = document.createElement('div'); l2.className = 'group-label'; l2.textContent = 'Hero markup + CSS + mount'; b.appendChild(l2);
       codeEmbed = document.createElement('pre'); codeEmbed.className = 'code'; b.appendChild(codeEmbed);
-      row.querySelector('#bCopyCfg').onclick = () => copy(JSON.stringify(exportConfig(), null, 2), 'Config copied');
-      row.querySelector('#bCopyEmbed').onclick = () => copy(embedSnippet(), 'Snippet copied');
+      const l1 = document.createElement('div'); l1.className = 'group-label'; l1.textContent = 'Motion config (JSON)'; b.appendChild(l1);
+      codeJson = document.createElement('pre'); codeJson.className = 'code'; b.appendChild(codeJson);
+      row.querySelector('#bCopyCfg').onclick = () => copy(JSON.stringify(exportConfig(true), null, 2), 'Config copied');
+      row.querySelector('#bCopyEmbed').onclick = () => copy(embedSnippet(), 'Hero HTML copied');
       row.querySelector('#bCopyLink').onclick = () => { writeHash(); setTimeout(() => copy(location.href, 'Link copied'), 300); };
     }
+    /** Motion config as a user would paste into mount(). withLayout bakes in the current text safe zones. */
+    function exportConfig(withLayout) {
+      const c = im.getConfig();
+      const out = { mode: c.mode };
+      for (const k of Object.keys(ImageMotion.defaults)) {
+        if (['mode', 'images', 'labels', 'autoplay', 'avoidRects', 'avoidPad', 'avoidCenter'].includes(k)) continue;
+        if (JSON.stringify(c[k]) !== JSON.stringify(ImageMotion.defaults[k])) out[k] = c[k];
+      }
+      const md = ImageMotion.getMode(c.mode).defaults;
+      const params = {};
+      for (const k of Object.keys(c.params)) if (JSON.stringify(c.params[k]) !== JSON.stringify(md[k])) params[k] = c.params[k];
+      if (Object.keys(params).length) out.params = params;
+      if (withLayout) {
+        if (state.page.keepOff) { out.avoidRects = computeAvoidRects().map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round(v * 1000) / 1000]))); out.avoidPad = state.page.zonePad; }
+        else out.avoidCenter = false;
+        if (state.page.source !== 'gradient') out.images = im.cfg.images;
+      }
+      if (im.cfg.labels) out.labels = im.cfg.labels;
+      return out;
+    }
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     function embedSnippet() {
-      const cfg = JSON.stringify(exportConfig(), null, 2).replace(/\n/g, '\n  ');
+      const used = [...new Set(state.layers.filter((l) => l.visible).map((l) => l.font))].map((n) => FONTS.find((f) => f.name === n)).filter((f) => f && f.q);
+      const fontLink = used.length ? `<link href="https://fonts.googleapis.com/css2?${used.map((f) => 'family=' + f.q).join('&')}&display=swap" rel="stylesheet">\n` : '';
+      const m = state.motion;
+      const vis = state.layers.filter((l) => l.visible);
+      const heading = vis.filter((l) => l.kind === 'text').sort((a, b) => b.size - a.size)[0];
+      const css = [
+        `.hero { position: relative; min-height: 100vh; overflow: hidden; background: ${state.page.bg}; color: ${state.page.fg}; }`,
+        `.hero__motion { position: absolute; left: ${m.x}%; top: ${m.y}%; width: ${m.w}%; height: ${m.h}%; }`,
+        `.hero__layer { position: absolute; margin: 0; white-space: pre-wrap; z-index: 1; }`,
+        `.hero__button { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }`,
+      ];
+      const html = [];
+      vis.forEach((l, i) => {
+        const cls = `hero__l${i + 1}`;
+        const rules = [`left: ${l.x}%`, `top: ${l.y}%`, l.auto ? 'width: max-content; max-width: 100%' : `width: ${l.w}%`, `text-align: ${l.align}`, `font: ${l.italic ? 'italic ' : ''}${l.weight} ${l.size}px/${l.lineHeight} ${fontCss(l.font)}`, `letter-spacing: ${l.spacing}em`];
+        if (l.transform !== 'none') rules.push(`text-transform: ${l.transform}`);
+        if (l.opacity !== 1) rules.push(`opacity: ${l.opacity}`);
+        if (l.kind === 'button') { rules.push(`background: ${l.bg || state.page.fg}`, `color: ${l.fgColor || state.page.bg}`, `padding: ${l.padY}px ${l.padX}px`, `border-radius: ${l.radius}px`, `justify-content: ${l.align === 'left' ? 'flex-start' : l.align === 'right' ? 'flex-end' : 'center'}`); }
+        else if (l.color) rules.push(`color: ${l.color}`);
+        css.push(`.${cls} { ${rules.join('; ')}; }`);
+        const tag = l.kind === 'button' ? 'a' : l === heading ? 'h1' : 'p';
+        html.push(`  <${tag} class="hero__layer${l.kind === 'button' ? ' hero__button' : ''} ${cls}"${tag === 'a' ? ' href="#"' : ''}>${esc(l.text)}</${tag}>`);
+      });
+      const cfg = JSON.stringify(exportConfig(true), null, 2).replace(/\n/g, '\n  ');
       return `<link rel="stylesheet" href="image-motion/image-motion.css">
+${fontLink}<style>
+${css.join('\n')}
+</style>
 
-<section class="hero" id="hero">
-  <!-- Anything inside the stage renders above the cards -->
-  <div class="hero__copy">
-    <h1>${page.headline || 'Your headline'}</h1>
-  </div>
+<section class="hero">
+  <div class="hero__motion" id="hero-motion"></div>
+${html.join('\n')}
 </section>
 
 <script src="image-motion/image-motion.js"><\/script>
 <script>
-  const hero = ImageMotion.mount('#hero', ${cfg});
-  // hero.setMode('float'); hero.set({ speed: 1.4 }); hero.pause(); hero.play();
+  // Positions are percentages of the hero, so the layout scales with it.
+  // Font sizes are px: swap in clamp() values for fluid type if you need them.
+  const hero = ImageMotion.mount('#hero-motion', ${cfg});
 <\/script>`;
     }
-    function renderExport() { codeJson.textContent = JSON.stringify(exportConfig(), null, 2); codeEmbed.textContent = embedSnippet(); }
-    function copy(text, msg) {
-      navigator.clipboard?.writeText(text).then(() => toast(msg), () => toast('Copy failed — select the code manually'));
-    }
+    function renderExport() { codeJson.textContent = JSON.stringify(exportConfig(true), null, 2); codeEmbed.textContent = embedSnippet(); }
+    function copy(text, msg) { navigator.clipboard?.writeText(text).then(() => toast(msg), () => toast('Copy failed — select the code manually')); }
     let toastTimer;
     function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1600); }
 
@@ -445,20 +906,34 @@
     const syncPlay = () => { btnPlay.innerHTML = (im.playing ? 'Pause' : 'Play') + ' <kbd>␣</kbd>'; };
     btnPlay.onclick = () => { im.toggle(); syncPlay(); };
     $('btnRestart').onclick = () => im.restart();
-    $('btnPanel').onclick = () => { document.body.classList.toggle('panel-hidden'); im.refresh(); };
+    $('btnPanel').onclick = () => { document.body.classList.toggle('panel-hidden'); im.refresh(); updateFrame(); };
     $('btnFull').onclick = () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.(); };
     window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-      if (e.key === ' ') { e.preventDefault(); im.toggle(); syncPlay(); }
+      const a = document.activeElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(a?.tagName) || a?.isContentEditable) return;
+      const sel = state.selected;
+      if (e.key === 'Escape') { select(null); return; }
+      if (e.key === ' ') { e.preventDefault(); im.toggle(); syncPlay(); return; }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && sel && sel !== 'motion') { e.preventDefault(); removeLayer(sel); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && sel && sel !== 'motion') { e.preventDefault(); duplicateLayer(sel); return; }
+      if (e.key.startsWith('Arrow') && sel) {
+        e.preventDefault();
+        const c = canvasRect(); const step = e.shiftKey ? 10 : 1;
+        const dx = (e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0) / c.width * 100, dy = (e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0) / c.height * 100;
+        const t = sel === 'motion' ? state.motion : layerById(sel);
+        t.x = Math.round((t.x + dx) * 100) / 100; t.y = Math.round((t.y + dy) * 100) / 100;
+        if (sel === 'motion') renderMotionBox(); else layerStyle(t);
+        updateFrame(); updateAvoid(); refreshAll(); afterChange(); return;
+      }
       if (e.key.toLowerCase() === 'h') $('btnPanel').click();
       if (e.key.toLowerCase() === 'r') im.restart();
       if (e.key.toLowerCase() === 'f') $('btnFull').click();
     });
 
-    rebuildModeParams();
-    renderExport();
-    syncPlay();
-    window.im = im; // handy for poking from the console
+    /* — first paint — */
+    rebuildModeParams(); rebuildLayerPanel(); renderExport(); syncPlay();
+    if (state.stack) { stackGroup(state.stack); document.fonts?.ready.then(() => { stackGroup(state.stack); updateAvoid(); afterChange(); }); }
+    updateAvoid();
   </script>
 </body>
 </html>
