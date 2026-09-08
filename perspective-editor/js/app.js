@@ -83,6 +83,32 @@
   }
   const stripper = (k, v) => (k.startsWith('_') ? undefined : v);
 
+  /* When hosted inside a claude.ai artifact, plain <a download> links are blocked; the page must hand
+   * files to the viewer through the `downloads` capability instead. Resolved lazily; null elsewhere. */
+  let downloadsCap = null;
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('downloads').then((d) => { downloadsCap = d; }).catch(() => {});
+  }
+  async function saveFile(blob, filename) {
+    if (downloadsCap) {
+      try {
+        await downloadsCap.save({ filename, data: blob });
+        toast(`Saved ${filename}`);
+      } catch (e) {
+        if (e && e.code === 'declined') return;
+        toast(`Could not save the file: ${(e && (e.message || e.code)) || e}`, true);
+      }
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  }
+
   /* ------------------------------------------------------------------ clock */
   const clock = {
     _t: 0, _playing: false, _last: 0,
@@ -1077,12 +1103,8 @@
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'perspective-project.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    toast('Project saved (video is not embedded — re-import it when opening)');
+    saveFile(blob, 'perspective-project.json');
+    if (!downloadsCap) toast('Project saved (video is not embedded — re-import it when opening)');
   }
   async function loadProjectFile(file) {
     try {
@@ -1306,11 +1328,19 @@
       $('#progCancel').classList.add('hidden');
       $('#progClose').classList.remove('hidden');
       if (result.blob) {
-        lastUrl = URL.createObjectURL(result.blob);
         const a = $('#progDownload');
-        a.href = lastUrl;
-        a.download = `perspective-${cfg.w}x${cfg.h}.${result.ext}`;
-        a.textContent = `Download ${result.ext.toUpperCase()} (${(result.blob.size / 1048576).toFixed(1)} MB)`;
+        const filename = `perspective-${cfg.w}x${cfg.h}.${result.ext}`;
+        if (downloadsCap) {
+          a.removeAttribute('href');
+          a.removeAttribute('download');
+          a.onclick = (ev) => { ev.preventDefault(); saveFile(result.blob, filename); };
+        } else {
+          lastUrl = URL.createObjectURL(result.blob);
+          a.href = lastUrl;
+          a.download = filename;
+          a.onclick = null;
+        }
+        a.textContent = `${downloadsCap ? 'Save' : 'Download'} ${result.ext.toUpperCase()} (${(result.blob.size / 1048576).toFixed(1)} MB)`;
         a.classList.remove('hidden');
         $('#progStage').textContent = `${cfg.w}×${cfg.h} · ${cfg.fps} fps · ${result.codec || result.mime}${result.audio ? ' · with audio' : ' · no audio'} · rendered in ${secs}s`;
       } else {
