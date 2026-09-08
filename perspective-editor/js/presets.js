@@ -158,31 +158,33 @@
     {
       id: 'reveal',
       name: 'Camera Reveal',
-      description: 'Words sit still in 3D at different depths; the camera tracks backwards and reveals each one as it passes — like a tracked 3D title in Resolve.',
-      sample: "here's how you",
+      description: 'Zoomed into the footage, the camera pulls back and reveals words placed at different depths — the After Effects 3D-camera look. Sets the video to 160 % so it keeps filling the frame.',
+      sample: 'and done easy right?',
       tags: ['Camera', 'Static text'],
       previewClass: 'tp-reveal',
       build(text, start, duration, aspect, cam) {
         const ws = words(text);
         if (!ws.length) return [];
         const d = (cam && cam.camDist) || 2.414;
+        const S = 1.6;                       // video scale
+        const camEnd = d * S;                // camera distance where the scaled video exactly fills the frame
+        const pull = Math.min(2.2, camEnd * 0.55); // how far the camera travels back
         const n = ws.length;
         const layers = [];
-        // Screen layout at the resting camera: a tight stack, alternating left / centre / right.
-        const lineStep = 0.24;
-        const top = ((n - 1) * lineStep) / 2 - 0.05;
-        const xs = [-0.22, 0.02, 0.28];
-        const zStep = Math.min(0.55, 1.6 / Math.max(1, n - 1));
+        const xs = [-0.28, 0.2, -0.05, 0.3, -0.25];
+        const ys = [0.18, 0.02, -0.16, -0.3, 0.3];
         ws.forEach((w, i) => {
-          const z = 0.15 + i * zStep;                    // later words sit closer to the lens
-          const k = (d - z) / d;                        // keep the apparent size at rest
-          const wx = xs[i % xs.length] * Math.min(1.3, aspect) + rand(i, 41) * 0.04;
-          const wy = top - i * lineStep;
+          // later words sit closer to the final camera; all lie inside the pull-back so each is revealed
+          const z = camEnd - pull + 0.35 + (i * (pull - 0.9)) / Math.max(1, n - 1);
+          const depthAtEnd = camEnd - z;
+          const k = depthAtEnd / d;          // keeps the designed apparent size at the end frame
           const big = i === n - 1;
+          const wx = xs[i % xs.length] * Math.min(1.3, aspect) + rand(i, 41) * 0.03;
+          const wy = ys[i % ys.length] + rand(i, 42) * 0.03;
           layers.push(L({
             name: w, text: w, start, end: start + duration,
-            style: Object.assign({ size: (big ? 0.15 : 0.11) * k, color: WHITE, letterSpacing: -0.02,
-              shadow: { blur: 0.1, x: 0.01, y: 0.05, color: '#000000', opacity: 0.55 } }, BOLD),
+            style: Object.assign({ size: (big ? 0.15 : 0.1) * k, color: big ? '#FFD65C' : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.12, x: 0, y: 0.04, color: '#000000', opacity: 0.6 } }, BOLD),
             transform: { x: wx * k, y: wy * k, z, rx: 0, ry: 0, rz: 0, scale: 1 },
             anim: {
               in: { type: 'none', duration: 0.3, easing: 'easeOut', stagger: 0 },
@@ -191,13 +193,12 @@
             },
           }));
         });
-        const nearest = 0.15 + (n - 1) * zStep;
         const cameraKeys = [
-          Camera.defaultKey(start, { dolly: nearest + 0.25, x: 0.03, easing: 'linear' }),
-          Camera.defaultKey(start + duration * 0.7, { dolly: 0, x: 0, easing: 'easeOut' }),
-          Camera.defaultKey(start + duration, { dolly: -0.45, x: -0.02, easing: 'smooth' }),
+          Camera.defaultKey(start, { dolly: d - (camEnd - pull), easing: 'linear' }),
+          Camera.defaultKey(start + duration * 0.85, { dolly: d - camEnd, easing: 'easeOut' }),
+          Camera.defaultKey(start + duration, { dolly: d - camEnd, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.1, autoFocus: false, farFade: 2.7 } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.35, focusMode: 'video', farFade: 8 }, mediaSettings: { scale: S, locked: false } };
       },
     },
     {
@@ -261,7 +262,7 @@
           cameraKeys.push(Camera.defaultKey(t + cdur - 0.02, { x: -0.03 * sign, dolly: camDist + 0.35, yaw: 2.5 * sign, easing: 'easeIn' }));
           t += cdur;
         });
-        return { layers, cameraKeys };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, focusMode: 'newest', farFade: 8 }, mediaSettings: { locked: true } };
       },
     },
     {

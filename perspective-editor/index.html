@@ -18,12 +18,6 @@
       <span class="brand-sub">3D text for video</span>
     </div>
     <div class="topbar-actions">
-      <button id="btnImport" class="btn">
-        <svg viewBox="0 0 20 20"><path d="M10 3v9m0-9L6.5 6.5M10 3l3.5 3.5M4 13v3h12v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Import video
-      </button>
-      <input id="fileInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v,.avi" hidden>
-      <div class="divider"></div>
       <button id="btnLoad" class="btn ghost" title="Open a saved project (.json)">Open</button>
       <button id="btnSave" class="btn ghost" title="Save project as .json">Save</button>
       <input id="projectInput" type="file" accept=".json,application/json" hidden>
@@ -38,62 +32,186 @@
   </header>
 
   <main class="workspace">
-    <!-- Left: add + templates + styles -->
+    <!-- Left: three steps -->
     <aside class="panel left">
       <div class="tabs" id="leftTabs">
-        <button class="tab active" data-tab="templates">Templates</button>
-        <button class="tab" data-tab="styles">Styles</button>
-        <button class="tab" data-tab="camera">Camera</button>
+        <button class="tab active" data-tab="media"><span class="step">1</span>Media</button>
+        <button class="tab" data-tab="text"><span class="step">2</span>Text</button>
+        <button class="tab" data-tab="camera"><span class="step">3</span>Camera</button>
       </div>
-      <div class="tab-body" id="tab-templates">
+
+      <!-- 1 · Media -->
+      <div class="tab-body" id="tab-media">
+        <div class="howto">
+          <b>How it works</b>
+          <ol>
+            <li>Add a video, or just pick a background colour.</li>
+            <li>Add words and drag them into place in the <b>3D layout</b> — nearer words sit closer to the camera.</li>
+            <li>Choose a camera move. The camera pulls back and reveals the words one by one.</li>
+          </ol>
+        </div>
+
+        <div class="subhead">Video</div>
+        <div class="media-card" id="mediaCard">
+          <div class="media-empty" id="mediaEmpty">
+            <button id="btnImport" class="btn primary wide-btn">
+              <svg viewBox="0 0 20 20"><path d="M10 3v9m0-9L6.5 6.5M10 3l3.5 3.5M4 13v3h12v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Import video
+            </button>
+            <small class="muted">MP4, MOV, WebM… or drop a file onto the preview. You can also work without a video on a plain colour.</small>
+          </div>
+          <div class="media-info hidden" id="mediaInfo">
+            <div class="media-name" id="mediaName"></div>
+            <div class="media-meta muted" id="mediaMeta"></div>
+            <div class="two">
+              <button id="btnReplace" class="btn small">Replace</button>
+              <button id="btnRemoveVideo" class="btn small">Remove</button>
+            </div>
+          </div>
+          <input id="fileInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v,.avi" hidden>
+        </div>
+
+        <div class="ctl">
+          <label title="Shown behind the video, and as the whole frame when there is no video">Background</label>
+          <div class="color-wrap"><input id="bgColor" type="color" value="#0f0f12"><input id="bgHex" class="hex" type="text" value="#0f0f12" spellcheck="false"></div>
+        </div>
+
+        <div id="noVideoFields">
+          <div class="ctl">
+            <label>Canvas</label>
+            <select id="aspectSelect">
+              <option value="16:9">16:9 landscape</option>
+              <option value="9:16" selected>9:16 vertical</option>
+              <option value="1:1">1:1 square</option>
+              <option value="4:5">4:5 portrait</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label>Length (s)</label>
+            <input id="durationInput" type="number" min="1" max="600" step="0.5" value="10">
+          </div>
+        </div>
+
+        <div class="subhead">Video in the 3D scene</div>
+        <label class="toggle block-toggle">
+          <input id="mediaIn3D" type="checkbox" checked>
+          <span>Video zooms with the camera <small class="muted">Off: the video stays fixed and only the words move</small></span>
+        </label>
+        <div class="ctl">
+          <label title="Scale the footage up so it still fills the frame when the camera pulls back">Video scale</label>
+          <div class="range-wrap"><input id="mediaScale" type="range" min="1" max="3" step="0.01" value="1"><input id="mediaScaleNum" type="number" min="100" max="300" step="1" value="100"></div>
+        </div>
+        <div class="ctl">
+          <label>Video X</label>
+          <div class="range-wrap"><input id="mediaX" type="range" min="-1.5" max="1.5" step="0.01" value="0"><input id="mediaXNum" type="number" min="-150" max="150" step="1" value="0"></div>
+        </div>
+        <div class="ctl">
+          <label>Video Y</label>
+          <div class="range-wrap"><input id="mediaY" type="range" min="-1.5" max="1.5" step="0.01" value="0"><input id="mediaYNum" type="number" min="-150" max="150" step="1" value="0"></div>
+        </div>
+        <p class="panel-hint">Tip: with the video at 150–200 % the camera can pull back a long way and the footage still fills the frame. The Camera Reveal template sets this up for you.</p>
+      </div>
+
+      <!-- 2 · Text -->
+      <div class="tab-body hidden" id="tab-text">
         <button id="btnAddText" class="add-text">
           <span class="plus">+</span>
-          <span>Add text<small>Blank layer at the playhead</small></span>
+          <span>Add text<small>Blank word at the playhead — then drag it in the 3D layout</small></span>
         </button>
-        <p class="panel-hint">Templates build a ready-made sequence from your text. Click one, type your words, insert.</p>
-        <div class="template-grid" id="templateGrid"></div>
+        <div class="section open">
+          <button class="section-head" type="button"><span>Templates</span><svg viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="section-body">
+            <p class="panel-hint">A template builds a whole sequence from your words, including the camera move.</p>
+            <div class="template-grid" id="templateGrid"></div>
+          </div>
+        </div>
+        <div class="section open">
+          <button class="section-head" type="button"><span>Text styles</span><svg viewBox="0 0 20 20"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="section-body">
+            <p class="panel-hint">Click a style to apply it to the selected words.</p>
+            <div class="style-grid" id="styleGrid"></div>
+          </div>
+        </div>
       </div>
-      <div class="tab-body hidden" id="tab-styles">
-        <p class="panel-hint">Click a style to apply it to the selected layers, or to create a new layer with that look.</p>
-        <div class="style-grid" id="styleGrid"></div>
-      </div>
+
+      <!-- 3 · Camera -->
       <div class="tab-body hidden" id="tab-camera">
-        <p class="panel-hint">The camera moves through the text world while the video stays put. Place words at different depths, then move the camera to reveal them.</p>
-        <div class="scene-map-wrap">
-          <canvas id="sceneMap" width="248" height="210"></canvas>
-          <div class="scene-map-legend"><span><i class="dot cam"></i>Camera — drag to keyframe at the playhead</span><span><i class="dot word"></i>Words — drag to place in X and depth</span></div>
-        </div>
-        <div class="ctl">
-          <label>Fade far text</label>
-          <div class="range-wrap"><input id="camFarFade" type="range" min="1" max="8" step="0.1" value="3.2"><input id="camFarFadeNum" type="number" min="1" max="8" step="0.1" value="3.2"></div>
-        </div>
-        <div class="ctl">
-          <label>Depth of field</label>
-          <div class="range-wrap"><input id="camAperture" type="range" min="0" max="1" step="0.01" value="0.6"><input id="camApertureNum" type="number" min="0" max="100" step="1" value="60"></div>
-        </div>
-        <div class="ctl">
-          <label>Focus</label>
-          <label class="toggle"><input id="camAutofocus" type="checkbox" checked><span class="muted">Follow newest word</span></label>
+        <p class="panel-hint">Pick a move, or drag the camera yourself in the <b>3D layout</b> — every drag writes a keyframe at the playhead.</p>
+        <div class="two">
+          <button id="btnOpenLayout" class="btn small">Open 3D layout</button>
+          <button id="btnAddKey" class="btn small">Add keyframe here</button>
         </div>
         <div class="subhead">Camera moves</div>
-        <p class="panel-hint">A move is written as keyframes over the selected layers' time span, or 3 seconds from the playhead. Double-click the camera track to add a key by hand.</p>
         <div class="move-grid" id="moveGrid"></div>
-        <button id="btnClearCamera" class="btn small" style="margin-top:10px">Remove all camera keys</button>
+        <p class="panel-hint small">Moves apply over the selected words' time span, or 3 s from the playhead.</p>
+
+        <div class="subhead">Depth of field</div>
+        <div class="ctl">
+          <label>Blur amount</label>
+          <div class="range-wrap"><input id="camAperture" type="range" min="0" max="1" step="0.01" value="0.25"><input id="camApertureNum" type="number" min="0" max="100" step="1" value="25"></div>
+        </div>
+        <div class="ctl">
+          <label>Focus on</label>
+          <select id="camFocusMode">
+            <option value="video">The video</option>
+            <option value="newest">Newest word</option>
+            <option value="nearest">Nearest word</option>
+            <option value="manual">Manual (per keyframe)</option>
+          </select>
+        </div>
+        <div class="ctl">
+          <label title="Words further than this behind the lens dissolve">Fade far words</label>
+          <div class="range-wrap"><input id="camFarFade" type="range" min="1" max="8" step="0.1" value="8"><input id="camFarFadeNum" type="number" min="1" max="8" step="0.1" value="8"></div>
+        </div>
+        <div class="ctl">
+          <label>Lens</label>
+          <select id="fovSelect">
+            <option value="30">Long (subtle perspective)</option>
+            <option value="45" selected>Normal</option>
+            <option value="65">Wide (strong perspective)</option>
+            <option value="85">Ultra wide</option>
+          </select>
+        </div>
+        <div class="two" style="margin-top:8px">
+          <button id="btnFitVideo" class="btn small" title="Set the keyframe at the playhead so the scaled video exactly fills the frame">Fit video at this key</button>
+          <button id="btnClearCamera" class="btn small">Remove all keys</button>
+        </div>
       </div>
     </aside>
 
-    <!-- Centre: preview + timeline -->
+    <!-- Centre: preview / 3D layout + timeline -->
     <section class="stage">
-      <div class="preview-wrap" id="previewWrap">
-        <canvas id="preview"></canvas>
-        <div class="drop-hint" id="dropHint">
-          <div class="drop-card">
-            <svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 18l10 6-10 6z" fill="currentColor"/></svg>
-            <div><strong>Drop a video here</strong><br><span>MP4, MOV, WebM… or design the text first and add the video later.</span></div>
-            <button class="btn primary" id="btnImport2">Choose a video</button>
-          </div>
+      <div class="stage-head">
+        <div class="segment view-switch" id="viewSwitch">
+          <button data-view="preview" class="on">Preview</button>
+          <button data-view="split">Split</button>
+          <button data-view="layout">3D layout</button>
         </div>
-        <div class="canvas-tip" id="canvasTip">Drag to move · Alt+drag to rotate · Wheel to resize · Double-click to edit text</div>
+        <div class="layout-tools hidden" id="layoutTools">
+          <div class="segment" id="layoutMode">
+            <button data-mode="top" class="on" title="Top view: left/right and depth">Top</button>
+            <button data-mode="side" title="Side view: up/down and depth">Side</button>
+          </div>
+          <button id="btnLayoutFit" class="btn small ghost">Fit</button>
+          <span class="muted small layout-legend"><i class="dot cam"></i>camera <i class="dot word"></i>words <i class="dot video"></i>video · drag to move · wheel to zoom</span>
+        </div>
+      </div>
+      <div class="views" id="views">
+        <div class="view preview-wrap" id="previewWrap">
+          <canvas id="preview"></canvas>
+          <div class="drop-hint" id="dropHint">
+            <div class="drop-card">
+              <svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 18l10 6-10 6z" fill="currentColor"/></svg>
+              <div><strong>No video yet</strong><br><span>Drop one here, or keep designing on the plain background.</span></div>
+              <button class="btn primary" id="btnImport2">Choose a video</button>
+            </div>
+          </div>
+          <div class="canvas-tip" id="canvasTip">Drag words to move · Alt+drag to rotate · Wheel to resize · Double-click to edit</div>
+        </div>
+        <div class="view layout-wrap hidden" id="layoutWrap">
+          <canvas id="layoutCanvas"></canvas>
+          <div class="layout-hint" id="layoutHint"></div>
+        </div>
       </div>
 
       <div class="transport">
@@ -105,26 +223,7 @@
         <button id="btnStepFwd" class="btn icon ghost" title="Next frame (.)"><svg viewBox="0 0 20 20"><path d="M7 4l7 6-7 6z" fill="currentColor"/></svg></button>
         <span class="time-label" id="timeLabel">00:00.00 <span class="muted">/ 00:10.00</span></span>
         <div class="spacer"></div>
-        <label class="inline-field" id="noVideoFields">
-          <span>Canvas</span>
-          <select id="aspectSelect">
-            <option value="16:9">16:9 landscape</option>
-            <option value="9:16" selected>9:16 vertical</option>
-            <option value="1:1">1:1 square</option>
-            <option value="4:5">4:5 portrait</option>
-          </select>
-          <span>Length</span>
-          <input id="durationInput" type="number" min="1" max="600" step="0.5" value="10"> s
-        </label>
-        <label class="inline-field">
-          <span>Perspective</span>
-          <select id="fovSelect">
-            <option value="30">Subtle</option>
-            <option value="45" selected>Normal</option>
-            <option value="65">Strong</option>
-            <option value="85">Extreme</option>
-          </select>
-        </label>
+        <span class="muted small" id="camReadout"></span>
         <button id="btnLoop" class="btn icon ghost active" title="Loop playback"><svg viewBox="0 0 20 20"><path d="M4 9a4 4 0 014-4h6m0 0l-2-2m2 2l-2 2M16 11a4 4 0 01-4 4H6m0 0l2 2m-2-2l2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <button id="btnMute" class="btn icon ghost" title="Mute"><svg viewBox="0 0 20 20"><path d="M4 8v4h3l4 3V5L7 8zM14 7a4 4 0 010 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
@@ -135,15 +234,15 @@
           <div class="tl-ruler" id="ruler"></div>
         </div>
         <div class="tl-camera" id="tlCamera">
-          <div class="tl-name" title="Camera keyframes">
+          <div class="tl-name" title="Camera keyframes — double-click the track to add one">
             <svg viewBox="0 0 20 20"><path d="M3 7h9v7H3zM12 9.5l5-2.5v7l-5-2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
             <span class="nm">Camera</span>
-            <button class="tl-eye" id="btnAddKey" title="Add keyframe at playhead">+</button>
+            <button class="tl-eye" id="btnAddKey2" title="Add keyframe at playhead">+</button>
           </div>
           <div class="tl-track" id="camTrack"></div>
         </div>
         <div class="tl-body" id="tlBody">
-          <div class="tl-empty" id="tlEmpty">No text yet. Click <b>Add text</b> or pick a template.</div>
+          <div class="tl-empty" id="tlEmpty">No words yet. Go to <b>2 · Text</b> and click <b>Add text</b>, or pick a template.</div>
         </div>
         <div class="playhead" id="playhead"><div class="ph-knob"></div></div>
       </div>
@@ -153,7 +252,8 @@
     <aside class="panel right" id="inspector">
       <div class="inspector-empty" id="inspectorEmpty">
         <p><strong>Nothing selected</strong></p>
-        <p>Select a text layer on the canvas or in the timeline to edit its look, 3D position, and animation. Shift-click to select several and edit them together.</p>
+        <p>Click a word in the preview, the 3D layout, or the timeline to edit it. Shift-click to select several and change them together.</p>
+        <p>Click a camera keyframe (diamond) to edit the camera at that moment.</p>
       </div>
       <div class="inspector-body hidden" id="inspectorBody">
         <div class="inspector-head">
@@ -180,7 +280,6 @@
     </aside>
   </main>
 
-  <!-- Hidden media -->
   <video id="video" playsinline preload="auto" crossorigin="anonymous" style="display:none"></video>
 
   <!-- Template dialog -->
@@ -207,12 +306,12 @@
           <input id="tplDuration" type="number" step="0.5" min="0.5">
         </label>
         <label class="field check">
-          <input id="tplReplace" type="checkbox"> <span>Replace existing layers</span>
+          <input id="tplReplace" type="checkbox" checked> <span>Replace existing words</span>
         </label>
       </div>
       <div class="dialog-actions">
         <button type="button" class="btn ghost" data-close>Cancel</button>
-        <button type="submit" class="btn primary" id="tplInsert">Insert into timeline</button>
+        <button type="submit" class="btn primary" id="tplInsert">Insert</button>
       </div>
     </form>
   </dialog>
@@ -302,6 +401,7 @@
   <script src="js/camera.js"></script>
   <script src="js/presets.js"></script>
   <script src="js/exporter.js"></script>
+  <script src="js/layout-view.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

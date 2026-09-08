@@ -33,68 +33,51 @@ HEVC MOV files from iPhones need to be transcoded to H.264 first.
 
 ## Using the editor
 
-1. **Import a video** (button or drag-and-drop onto the canvas). You can also design text first on
-   a blank 16:9 / 9:16 / 1:1 / 4:5 canvas and import the video later.
-2. **Add text** with the `+ Add text` button (or press `T`), or pick a **template** from the left
-   panel, type your words, and insert a ready-made sequence at the playhead.
-3. **Move text on the canvas**: drag to move, `Alt`+drag to rotate in 3D, mouse wheel to resize,
-   double-click to edit the words. Arrow keys nudge; `Shift` nudges further.
-4. **Inspector** (right panel):
-   - *Text* — font, weight, italic, size, fill, alignment, tracking, and whether animation applies to
-     the whole block, each word, or each letter.
-   - *Look* — stroke, soft or hard shadow, fake 3D extrusion, background box, opacity.
-   - *Position & 3D* — X / Y / depth and tilt / turn / roll, plus scale.
-   - *Animation* — entrance, exit, and a looping "while visible" motion, each with duration,
-     easing and stagger between words or letters.
-   - *Timing* — start / end, or snap them to the playhead.
-5. **Timeline**: drag bars to move layers in time, drag their edges to trim, click the eye to hide a
-   layer. Bars snap to the playhead and to other layers' edges.
-6. **Text styles** tab: one-click looks (Clean Bold, Editorial Italic, Orange 3D, Neon, Caption
-   Box, Retro Pop, …) applied to the selected layer.
-7. **Export**: choose Original / 720p / 1080p / 1440p / 4K, frame rate, quality, range, audio.
-   For 4K or long clips tick *Stream straight to a file* to avoid holding the whole file in memory.
-8. **Save / Open** stores the project as JSON (the video itself is not embedded — re-import it).
+The left panel is three steps.
 
-Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove layer or key ·
+**1 · Media.** Import a video (or drop one on the preview), or skip it and work on a plain
+background colour. The video is a layer inside the 3D scene: *Video scale* zooms the footage up
+(150–200 % is typical) so it still fills the frame when the camera pulls back, and *Video X / Y*
+reframe it. Untick *Video zooms with the camera* to pin the footage as a fixed backdrop and move
+only the words. Without a video, choose the canvas shape and length here.
+
+**2 · Text.** *Add text* drops a word just in front of the camera. Templates build a whole
+sequence, including the camera move — *Camera Reveal* is the After-Effects-style pull-back. Text
+styles apply a look to the selected words.
+
+**3 · Camera.** Pick a camera move, set depth of field (blur amount and what to focus on), fade
+for far words, and the lens. *Add keyframe here* and *Fit video at this key* write keyframes at the
+playhead.
+
+**The stage** has three views: *Preview* (the final picture), *3D layout* (a big top-down or side
+diagram of the scene), or *Split*. In the 3D layout the red line is the video, the blue dot is the
+camera with its field of view and focus line, the dashed line is the camera path with its keyframes
+as diamonds, and every word is a pill you can drag left/right and nearer/further (top view) or
+up/down (side view). Dragging the camera writes a keyframe at the playhead; dragging a diamond edits
+that keyframe. Scroll to zoom, drag empty space to pan, double-click empty space to fit everything.
+
+**The inspector** (right) edits the selected word or camera keyframe. Shift-click words in the
+preview, layout, or timeline to select several and change them together.
+
+**Timeline**: drag bars to move words in time, drag their edges to trim, click the eye to hide.
+The Camera row shows keyframes as diamonds — drag to retime, double-click to add.
+
+**Export**: Original / 720p / 1080p / 1440p / 4K, frame rate, quality, range, audio. For 4K or long
+clips tick *Stream straight to a file*. **Save / Open** stores the project as JSON (the video is not
+embedded — re-import it).
+
+Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove word or key ·
 `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
-`K` add camera key · `Ctrl+S` save · `Ctrl+E` export.
+`K` add camera key · `L` cycle Preview / Split / 3D layout · `Ctrl+S` save · `Ctrl+E` export.
 
-## Camera and depth
+## How the 3D reveal works
 
-The text lives in a 3D world in front of the footage, and a virtual camera moves through it while
-the video stays put — this is what gives the reference clips their depth. Open the **Camera** tab:
-
-- **Depth of field** blurs words the further they sit from the focal plane, more strongly when they
-  are close to the lens. **Follow newest word** keeps focus on the word that just appeared, easing
-  over from the previous one, exactly like the reference.
-- **Camera moves** write keyframes over the selected layers' time span (or 3 s from the playhead):
-  Dolly in/out, Push through (approach, then fly past the words so they blur out of frame),
-  Orbit left/right, Crane up, Pull-back reveal, Handheld drift, Whip in.
-- The **Camera** track above the layers shows keyframes as diamonds. Drag to retime, click to edit
-  dolly / truck / pedestal / yaw / pitch / roll and easing in the inspector, double-click the track
-  (or press `K`) to add a key at the playhead.
-- The **Scene map** at the top of the Camera tab is a top-down view of the whole setup: the red line
-  is the video plane, the blue dot is the camera with its field of view, and each word is a dot.
-  Drag a word to place it in X and depth; drag the camera to write a keyframe at the playhead.
-- **Fade far text** dissolves words once they fall this far behind the lens, so a pull-back leaves
-  distant words behind naturally. Words about to pass the lens also dissolve rather than pop.
-- **Camera Reveal** template: words sit still at increasing depths along the line of sight and the
-  camera tracks backwards, revealing each one as it passes — the tracked-3D-title look. Use the
-  *Tracking shot* moves to match footage where the real camera walks backwards or forwards.
-- Templates such as *Kinetic Words* insert their own camera moves along with the layers.
-
-## Multi-selection
-
-Shift-click (or Ctrl/Cmd-click) layers in the timeline or on the canvas to select several, or press
-`Ctrl+A` for all. The inspector then edits every selected layer at once: font, weight, size, colour,
-animation and so on are applied to all of them, while position, rotation and timing move each layer
-by the same amount. Dragging on the canvas or in the timeline moves the whole selection.
-
-## Fonts
-
-Google Fonts plus two local families shipped in `fonts/` as Latin-subset WOFF2: **Helvetica Neue**
-(Ultra Light to Black, with italics) and **Francy**. Helvetica Neue is a licensed typeface supplied
-by the project owner; check your licence before distributing the bundle.
+The footage sits on a plane at depth 0 inside a 3D scene; the camera starts close to it (so the
+video looks zoomed in) and pulls back to where the scaled video exactly fills the frame. Words are
+static objects placed between those two camera positions at different depths. Each word starts
+behind the lens and is revealed as the camera passes it, growing smaller and settling into place;
+depth of field keeps whatever the lens is focused on sharp. Words far behind the lens can dissolve
+(*Fade far words*). The *Camera Reveal* template sets all of this up from a sentence.
 
 ## Animations
 
@@ -122,6 +105,7 @@ Floor Crawl, Wall Text, Lower Third, Scatter Assemble, Neon Sign, Bouncy Pop, El
 - `js/animations.js` — easing curves plus the entrance / exit / loop library. Each animation is a
   pure function of progress that returns translation, rotation, scale, opacity and blur.
 - `js/camera.js` — camera keyframes, interpolation, and the library of camera moves.
+- `js/layout-view.js` — the large top/side diagram of the scene with draggable words, camera and keyframes.
 - `js/presets.js` — style presets and template generators.
 - `js/exporter.js` — frame-accurate export: seeks the source video frame by frame, renders,
   encodes with WebCodecs (H.264, falling back to VP9 / AV1) and muxes with

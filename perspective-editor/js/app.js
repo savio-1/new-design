@@ -1,4 +1,4 @@
-/* Perspective — application: state, UI, interactions, camera, export flow. */
+/* Perspective — application: state, UI, interactions, camera, 3D layout, export flow. */
 (function () {
   'use strict';
 
@@ -9,11 +9,14 @@
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   /* ------------------------------------------------------------------ state */
+  const defaultCamera = () => ({ aperture: 0.25, focusMode: 'video', farFade: 8, keys: [] });
+  const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
   const state = {
     layers: [],
     selectedIds: [],       // ordered; the first entry is the primary selection
     selectedKeyId: null,   // selected camera keyframe (mutually exclusive with layer selection)
-    camera: { aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] },
+    camera: defaultCamera(),
+    media: defaultMedia(),
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -21,6 +24,7 @@
     loop: true,
     muted: false,
     exporting: false,
+    view: 'preview',       // preview | split | layout
     undo: [],
     redo: [],
     lastCommitted: null,
@@ -29,6 +33,11 @@
   const els = {
     canvas: $('#preview'),
     wrap: $('#previewWrap'),
+    views: $('#views'),
+    layoutWrap: $('#layoutWrap'),
+    layoutCanvas: $('#layoutCanvas'),
+    layoutHint: $('#layoutHint'),
+    layoutTools: $('#layoutTools'),
     video: $('#video'),
     dropHint: $('#dropHint'),
     tlBody: $('#tlBody'),
@@ -36,6 +45,7 @@
     ruler: $('#ruler'),
     playhead: $('#playhead'),
     timeLabel: $('#timeLabel'),
+    camReadout: $('#camReadout'),
     btnPlay: $('#btnPlay'),
     inspectorEmpty: $('#inspectorEmpty'),
     inspectorBody: $('#inspectorBody'),
@@ -91,6 +101,18 @@
   const stripper = (k, v) => (k.startsWith('_') ? undefined : v);
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function hexToRgb01(hex) {
+    let h = (hex || '#000000').replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    const n = parseInt(h.slice(0, 6), 16);
+    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  }
+  function normaliseHex(v) {
+    v = String(v || '').trim();
+    if (!v.startsWith('#')) v = '#' + v;
+    if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v.slice(1).split('').map((ch) => ch + ch).join('');
+    return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : null;
   }
 
   /* When hosted inside a claude.ai artifact, plain <a download> links are blocked; the page must hand
@@ -163,34 +185,43 @@
   function layerDepth(cam, l) {
     return renderer.viewDepth(cam, l.transform.x, l.transform.y, l.transform.z);
   }
+  function planeDepth(cam) {
+    return Math.max(0.1, renderer.viewDepth(cam, state.media.x, state.media.y, 0));
+  }
 
-  /* Absolute camera for the renderer at time t: keyframe offsets + focus. */
+  /* Absolute camera for the renderer at time t: keyframe offsets + focus + fade. */
   function cameraAt(t) {
     const d = renderer.camDist;
     const k = Camera.evaluate(state.camera.keys, t);
-    const far = state.camera.farFade == null ? 3.2 : state.camera.farFade;
+    const far = state.camera.farFade == null ? 8 : state.camera.farFade;
     const cam = {
       x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll,
       aperture: state.camera.aperture, focus: d,
       fade: { near: 0.28, farStart: far, farEnd: far >= 8 ? 0 : far * 1.35 },
     };
-    if (state.camera.autoFocus) cam.focus = autoFocus(cam, t);
-    else cam.focus = k.focus != null ? k.focus : Math.max(0.1, renderer.viewDepth(cam, 0, 0, 0));
+    const mode = state.camera.focusMode || 'video';
+    if (mode === 'newest') cam.focus = autoFocusNewest(cam, t);
+    else if (mode === 'nearest') cam.focus = autoFocusNearest(cam, t);
+    else if (mode === 'manual') cam.focus = k.focus != null ? k.focus : planeDepth(cam);
+    else cam.focus = planeDepth(cam);
     return cam;
   }
-
-  /* Focus follows the most recently started visible layer, easing over from the previous one. */
-  function autoFocus(cam, t) {
-    const planeDepth = Math.max(0.1, renderer.viewDepth(cam, 0, 0, 0));
+  function autoFocusNewest(cam, t) {
+    const pd = planeDepth(cam);
     const vis = state.layers.filter((l) => !l.hidden && t >= l.start && t < l.end).sort((a, b) => b.start - a.start);
-    if (!vis.length) return planeDepth;
+    if (!vis.length) return pd;
     const d0 = Math.max(0.1, layerDepth(cam, vis[0]));
-    const d1 = vis[1] ? Math.max(0.1, layerDepth(cam, vis[1])) : planeDepth;
+    const d1 = vis[1] ? Math.max(0.1, layerDepth(cam, vis[1])) : pd;
     const k = easeInOut(clamp((t - vis[0].start) / 0.45, 0, 1));
     return d1 + (d0 - d1) * k;
   }
+  function autoFocusNearest(cam, t) {
+    const depths = state.layers.filter((l) => !l.hidden && t >= l.start && t < l.end).map((l) => layerDepth(cam, l)).filter((d) => d > 0.12);
+    return depths.length ? Math.min(...depths) : planeDepth(cam);
+  }
 
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
+  const selectedKey = () => getKey(state.selectedKeyId);
 
   /* Keys past the end of the timeline are pulled back to the end (keeping only the last of them) so a
    * camera move still completes instead of freezing on its first key. */
@@ -204,18 +235,25 @@
     }
     state.camera.keys = Camera.sorted(inside);
   }
-  const selectedKey = () => getKey(state.selectedKeyId);
 
   function addCameraKey(t, patch) {
     const cur = Camera.evaluate(state.camera.keys, t);
     const key = Camera.defaultKey(t, Object.assign({ x: cur.x, y: cur.y, dolly: cur.dolly, yaw: cur.yaw, pitch: cur.pitch, roll: cur.roll, focus: cur.focus }, patch || {}));
     key.x = round(key.x, 3); key.y = round(key.y, 3); key.dolly = round(key.dolly, 3);
     key.yaw = round(key.yaw, 1); key.pitch = round(key.pitch, 1); key.roll = round(key.roll, 1);
-    // one key per time: replace an existing key at the same instant
     state.camera.keys = state.camera.keys.filter((k) => Math.abs(k.t - t) > 0.02).concat([key]);
     state.camera.keys = Camera.sorted(state.camera.keys);
     return key;
   }
+  /* The key at the playhead, creating one when there is none within 50 ms. */
+  function keyAtPlayhead() {
+    const t = round(clock.time, 2);
+    let key = state.camera.keys.find((k) => Math.abs(k.t - t) <= 0.05);
+    if (!key) key = addCameraKey(t);
+    return key;
+  }
+  /* Dolly that makes the scaled video fill the frame exactly. */
+  const fitDolly = () => round(renderer.camDist * (1 - state.media.scale), 3);
 
   function applyCameraMove(move) {
     const sel = selectedLayers();
@@ -229,14 +267,12 @@
     }
     if (e - s < 0.2) { toast('The range is too short for a camera move', true); return; }
     const pool = sel.length ? sel : state.layers.filter((l) => !l.hidden && l.start < e && l.end > s);
-    const ctx = { maxZ: pool.length ? Math.max(...pool.map((l) => l.transform.z)) : null };
+    const ctx = { maxZ: pool.length ? Math.max(...pool.map((l) => l.transform.z)) : null, fitDolly: fitDolly() };
     const keys = move.build(s, e, renderer.camDist, ctx);
     state.camera.keys = Camera.replaceRange(state.camera.keys, s, e, keys);
     state.selectedKeyId = null;
     commit();
-    renderCameraTrack();
-    refreshInspector();
-    drawSceneMap();
+    refreshAll();
     clock.pause();
     clock.time = s;
     clock.play();
@@ -260,6 +296,10 @@
     invalidate();
   }
 
+  function mediaForRender() {
+    return { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: !!state.media.locked, bg: hexToRgb01(state.media.bg) };
+  }
+
   function draw(time) {
     renderer.fovDeg = state.fov;
     renderer.render({
@@ -270,6 +310,7 @@
       frameHeightPx: els.canvas.height,
       selectedIds: state.exporting ? [] : state.selectedIds,
       camera: cameraAt(time),
+      media: mediaForRender(),
     });
   }
 
@@ -278,9 +319,9 @@
       clock.tick(now);
       if (clock.playing || needsRender) {
         needsRender = false;
-        draw(clock.time);
+        if (state.view !== 'layout') draw(clock.time);
         updateTimeUI();
-        if (sceneMapVisible()) drawSceneMap();
+        if (layoutVisible()) layoutView.draw();
       }
     }
     requestAnimationFrame(frame);
@@ -292,6 +333,9 @@
     const trackW = els.ruler.clientWidth;
     const namesW = 150;
     els.playhead.style.left = `${namesW + (t / Math.max(0.001, T)) * trackW}px`;
+    const cam = cameraAt(t);
+    const zoom = (renderer.camDist * state.media.scale) / planeDepth(cam);
+    els.camReadout.textContent = `Camera ${cam.z.toFixed(2)} from video · footage ${Math.round(zoom * 100)}%`;
   }
 
   /* ------------------------------------------------------------------ layers, selection & undo */
@@ -314,9 +358,18 @@
 
   function addBlankText() {
     let t = clock.time;
-    let dur = Math.min(3, duration() - t);
-    if (dur < 0.5) { t = 0; dur = Math.min(3, duration()); }
-    const l = addLayer({ text: 'Your text', name: 'Text', start: t, end: t + dur });
+    let dur = Math.min(4, duration() - t);
+    if (dur < 0.5) { t = 0; dur = Math.min(4, duration()); }
+    // Place the new word just in front of the camera's current position so it is visible right away.
+    const cam = cameraAt(clock.time);
+    const z = round(clamp(cam.z - 1.2, -1, 2.2), 2);
+    const k = Math.max(0.3, (cam.z - z) / renderer.camDist);
+    const l = addLayer({
+      text: 'Your text', name: 'Text', start: t, end: t + dur,
+      style: { font: 'Helvetica Neue', weight: 800, size: round(0.1 * k, 3) },
+      transform: { x: round(cam.x, 2), y: round(cam.y, 2), z, rx: 0, ry: 0, rz: 0, scale: 1 },
+      anim: { in: { type: 'none' }, out: { type: 'none' } },
+    });
     commit();
     refreshAll();
     focusTextInput();
@@ -397,7 +450,7 @@
   }
 
   function snapshot() {
-    return JSON.stringify({ layers: state.layers, camera: state.camera, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId }, stripper);
+    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId }, stripper);
   }
   function commit() {
     const snap = snapshot();
@@ -411,11 +464,13 @@
   function restore(snap) {
     const data = JSON.parse(snap);
     state.layers = data.layers;
-    state.camera = Object.assign({ aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] }, data.camera || {});
+    state.camera = Object.assign(defaultCamera(), data.camera || {});
+    state.media = Object.assign(defaultMedia(), data.media || {});
     state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
     state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
     state.lastCommitted = snap;
     syncCameraControls();
+    syncMediaControls();
     refreshAll();
   }
   function undo() {
@@ -439,7 +494,7 @@
     renderTimeline();
     refreshInspector();
     invalidate();
-    drawSceneMap();
+    if (layoutVisible()) layoutView.draw();
   }
 
   /* ------------------------------------------------------------------ timeline */
@@ -578,7 +633,7 @@
       const k = addCameraKey(round(timeFromEvent(e), 2));
       commit();
       selectKey(k.id);
-      toast('Camera keyframe added — adjust it in the inspector');
+      toast('Camera keyframe added — adjust it in the inspector or drag the camera in the 3D layout');
     });
     els.camTrack.addEventListener('pointermove', (e) => {
       if (!drag) return;
@@ -599,11 +654,6 @@
     };
     els.camTrack.addEventListener('pointerup', endKeyDrag);
     els.camTrack.addEventListener('pointercancel', endKeyDrag);
-    $('#btnAddKey').addEventListener('click', () => {
-      const k = addCameraKey(round(clock.time, 2));
-      commit();
-      selectKey(k.id);
-    });
 
     // Layer rows
     els.tlBody.addEventListener('click', (e) => {
@@ -652,7 +702,6 @@
       const T = duration();
       const targets = snapTargets(new Set(drag.ids));
       if (drag.mode === 'move') {
-        // Shared delta, clamped so no layer leaves the timeline; snap using the grabbed layer.
         const o = drag.orig[drag.id];
         const len = o.end - o.start;
         let s = clamp(o.start + dt, 0, T - len);
@@ -711,11 +760,28 @@
         { type: 'segment', path: 'style.align', label: 'Align', options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }] },
         { type: 'range', path: 'style.letterSpacing', label: 'Tracking', min: -0.1, max: 0.5, step: 0.005, scale: 100, unit: '' },
         { type: 'range', path: 'style.lineHeight', label: 'Line height', min: 0.7, max: 2, step: 0.05, scale: 1, unit: '' },
-        { type: 'segment', path: 'split', label: 'Animate by', options: [{ value: 'whole', label: 'Block' }, { value: 'word', label: 'Words' }, { value: 'char', label: 'Letters' }] },
+      ],
+    },
+    {
+      title: 'Position in 3D',
+      fields: [
+        { type: 'range', path: 'transform.z', label: 'Depth', min: -2, max: 3.8, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Distance in front of the video. Bigger = closer to the camera; the resting camera sits at about 2.4' },
+        { type: 'range', path: 'transform.x', label: 'Left / right', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
+        { type: 'range', path: 'transform.y', label: 'Down / up', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
+        { type: 'sub', label: 'Rotation' },
+        { type: 'range', path: 'transform.rx', label: 'Tilt', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
+        { type: 'range', path: 'transform.ry', label: 'Turn', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
+        { type: 'range', path: 'transform.rz', label: 'Roll', min: -180, max: 180, step: 1, scale: 1, unit: '°', delta: true },
+        { type: 'range', path: 'transform.scale', label: 'Scale', min: 0.1, max: 4, step: 0.01, scale: 100, unit: '%' },
+        { type: 'buttons', buttons: [
+          { label: 'Face the camera', action: (l) => { l.transform.rx = 0; l.transform.ry = 0; l.transform.rz = 0; } },
+          { label: 'Centre on screen', action: (l) => { l.transform.x = 0; l.transform.y = 0; } },
+        ] },
       ],
     },
     {
       title: 'Look',
+      collapsed: true,
       fields: [
         { type: 'range', path: 'style.opacity', label: 'Opacity', min: 0, max: 1, step: 0.01, scale: 100, unit: '%' },
         { type: 'sub', label: 'Stroke' },
@@ -740,24 +806,10 @@
       ],
     },
     {
-      title: 'Position & 3D',
-      fields: [
-        { type: 'range', path: 'transform.x', label: 'X', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
-        { type: 'range', path: 'transform.y', label: 'Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
-        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 2.2, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Positive brings the text toward the camera; the resting lens sits at about 2.4' },
-        { type: 'range', path: 'transform.rx', label: 'Tilt X', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
-        { type: 'range', path: 'transform.ry', label: 'Turn Y', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
-        { type: 'range', path: 'transform.rz', label: 'Roll Z', min: -180, max: 180, step: 1, scale: 1, unit: '°', delta: true },
-        { type: 'range', path: 'transform.scale', label: 'Scale', min: 0.1, max: 4, step: 0.01, scale: 100, unit: '%' },
-        { type: 'buttons', buttons: [
-          { label: 'Centre', action: (l) => { l.transform.x = 0; l.transform.y = 0; l.transform.z = 0; } },
-          { label: 'Reset rotation', action: (l) => { l.transform.rx = 0; l.transform.ry = 0; l.transform.rz = 0; l.transform.scale = 1; } },
-        ] },
-      ],
-    },
-    {
       title: 'Animation',
+      collapsed: true,
       fields: [
+        { type: 'segment', path: 'split', label: 'Animate by', options: [{ value: 'whole', label: 'Block' }, { value: 'word', label: 'Words' }, { value: 'char', label: 'Letters' }] },
         { type: 'sub', label: 'In' },
         { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
         { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
@@ -775,6 +827,7 @@
     },
     {
       title: 'Timing',
+      collapsed: true,
       fields: [
         { type: 'two', fields: [
           { type: 'number', path: 'start', label: 'Start (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.start = clamp(l.start, 0, l.end - 0.1); } },
@@ -799,22 +852,23 @@
     {
       title: 'Camera position',
       fields: [
-        { type: 'range', path: 'dolly', label: 'Dolly', min: -1.5, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive moves toward the text; beyond ~2.4 the camera passes the video plane' },
-        { type: 'range', path: 'x', label: 'Truck X', min: -2, max: 2, step: 0.01, scale: 1, unit: '' },
-        { type: 'range', path: 'y', label: 'Pedestal Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '' },
-        { type: 'range', path: 'yaw', label: 'Yaw', min: -90, max: 90, step: 0.5, scale: 1, unit: '°' },
-        { type: 'range', path: 'pitch', label: 'Pitch', min: -60, max: 60, step: 0.5, scale: 1, unit: '°' },
+        { type: 'range', path: 'dolly', label: 'Dolly', min: -3, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive = closer to the video (zooms it in); negative = further back' },
+        { type: 'range', path: 'x', label: 'Left / right', min: -2, max: 2, step: 0.01, scale: 1, unit: '' },
+        { type: 'range', path: 'y', label: 'Down / up', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '' },
+        { type: 'range', path: 'yaw', label: 'Pan', min: -90, max: 90, step: 0.5, scale: 1, unit: '°' },
+        { type: 'range', path: 'pitch', label: 'Tilt', min: -60, max: 60, step: 0.5, scale: 1, unit: '°' },
         { type: 'range', path: 'roll', label: 'Roll', min: -45, max: 45, step: 0.5, scale: 1, unit: '°' },
         { type: 'buttons', buttons: [
-          { label: 'Reset to rest', action: (k) => { k.x = 0; k.y = 0; k.dolly = 0; k.yaw = 0; k.pitch = 0; k.roll = 0; } },
+          { label: 'Fit video to frame', action: (k) => { k.dolly = fitDolly(); k.x = 0; k.y = 0; k.yaw = 0; k.pitch = 0; k.roll = 0; } },
           { label: 'Copy previous key', action: (k) => { const ks = Camera.sorted(state.camera.keys); const i = ks.indexOf(k); if (i > 0) for (const f of Camera.FIELDS) k[f] = ks[i - 1][f]; } },
         ] },
       ],
     },
     {
       title: 'Focus',
+      collapsed: true,
       fields: [
-        { type: 'range', path: 'focus', label: 'Distance', min: 0.2, max: 5, step: 0.01, scale: 1, unit: '', hint: 'Only used when "Follow the newest word" is off in the Camera tab' },
+        { type: 'range', path: 'focus', label: 'Distance', min: 0.2, max: 6, step: 0.01, scale: 1, unit: '', hint: 'Only used when "Focus on" is set to Manual in the Camera tab' },
       ],
     },
   ];
@@ -868,6 +922,7 @@
         }
       }
       invalidate();
+      if (layoutVisible()) layoutView.draw();
       if (isFinal) {
         commit();
         refreshInspectorValues();
@@ -891,6 +946,7 @@
       if (field.onChange) field.onChange(key);
       if (field.path === 't') { state.camera.keys = Camera.sorted(state.camera.keys); renderCameraTrack(); }
       invalidate();
+      if (layoutVisible()) layoutView.draw();
       if (isFinal) { commit(); refreshKeyValues(); renderCameraTrack(); }
     },
     buttonAction(action) {
@@ -901,6 +957,7 @@
       refreshKeyValues();
       renderCameraTrack();
       invalidate();
+      if (layoutVisible()) layoutView.draw();
     },
   };
 
@@ -908,7 +965,7 @@
   function buildSections(schema, container, ctx) {
     for (const sec of schema) {
       const section = document.createElement('div');
-      section.className = 'section';
+      section.className = `section${sec.collapsed ? ' collapsed' : ''}`;
       const head = document.createElement('button');
       head.className = 'section-head';
       head.type = 'button';
@@ -1042,12 +1099,10 @@
       c.addEventListener('change', () => { const l = target(); if (l) ctx.apply(f, l, c.value, true); });
       hex.addEventListener('change', () => {
         const l = target(); if (!l) return;
-        let v = hex.value.trim();
-        if (!v.startsWith('#')) v = '#' + v;
-        if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v.slice(1).split('').map((ch) => ch + ch).join('');
-        if (!/^#[0-9a-f]{6}$/i.test(v)) { hex.value = c.value; return; }
-        c.value = v.toLowerCase(); if (none) none.checked = false;
-        ctx.apply(f, l, v.toLowerCase(), true);
+        const v = normaliseHex(hex.value);
+        if (!v) { hex.value = c.value; return; }
+        c.value = v; if (none) none.checked = false;
+        ctx.apply(f, l, v, true);
       });
       wrap.appendChild(cw);
       update = (l) => {
@@ -1090,6 +1145,7 @@
     els.cameraKeyBody.classList.toggle('hidden', !k);
     if (l) refreshInspectorValues();
     if (k) refreshKeyValues();
+    updateLayoutHint();
   }
   function refreshInspectorValues() {
     const l = selected();
@@ -1097,11 +1153,10 @@
     const n = state.selectedIds.length;
     els.layerName.classList.toggle('hidden', n > 1);
     els.multiTitle.classList.toggle('hidden', n <= 1);
-    if (n > 1) els.multiTitle.textContent = `${n} layers selected`;
+    if (n > 1) els.multiTitle.textContent = `${n} words selected`;
     if (document.activeElement !== els.layerName) els.layerName.value = l.name || '';
     for (const c of layerCtx.controls) {
       c.update(l);
-      // Text edits only ever touch the primary layer; grey the field out when several are selected.
       if (c.field.perLayer) c.el.style.opacity = n > 1 ? 0.55 : 1;
     }
   }
@@ -1123,7 +1178,7 @@
   $('#btnLayerUp').addEventListener('click', () => { if (selected()) moveLayer(selected().id, +1); });
   $('#btnLayerDown').addEventListener('click', () => { if (selected()) moveLayer(selected().id, -1); });
 
-  /* ------------------------------------------------------------------ canvas interaction */
+  /* ------------------------------------------------------------------ preview canvas interaction */
   (function canvasInteractions() {
     const c = els.canvas;
     let drag = null;
@@ -1170,6 +1225,7 @@
       }
       refreshInspectorValues();
       invalidate();
+      if (layoutVisible()) layoutView.draw();
     });
     const end = () => {
       if (drag && drag.moved) commit();
@@ -1202,165 +1258,122 @@
     }, { passive: false });
   })();
 
-
-  /* ------------------------------------------------------------------ scene map (top view) */
-  const sceneCanvas = $('#sceneMap');
-  const sctx = sceneCanvas.getContext('2d');
-  const SM = { pad: 14, zMin: -1.2, zMax: 4.2, xHalf: 1.9 };
-  function sceneMapVisible() { return !$('#tab-camera').classList.contains('hidden'); }
-  function smToPx(x, z) {
-    const W = sceneCanvas.width, H = sceneCanvas.height;
-    return {
-      px: W / 2 + (x / SM.xHalf) * (W / 2 - SM.pad),
-      py: SM.pad + ((SM.zMax - z) / (SM.zMax - SM.zMin)) * (H - SM.pad * 2),
-    };
+  /* ------------------------------------------------------------------ 3D layout view */
+  function layoutVisible() { return state.view !== 'preview'; }
+  function layerFootprint(l) {
+    const lay = l._layout;
+    const w = lay ? lay.blockW : (l.text || 'text').length * l.style.size * 1.1;
+    const h = lay ? lay.blockH : l.style.size * 2.2;
+    return { w: w * (l.transform.scale || 1), h: h * (l.transform.scale || 1) };
   }
-  function smFromPx(px, py) {
-    const W = sceneCanvas.width, H = sceneCanvas.height;
-    return {
-      x: ((px - W / 2) / (W / 2 - SM.pad)) * SM.xHalf,
-      z: SM.zMax - ((py - SM.pad) / (H - SM.pad * 2)) * (SM.zMax - SM.zMin),
-    };
+  function cameraPath() {
+    const keys = Camera.sorted(state.camera.keys);
+    if (keys.length < 2) return [];
+    const t0 = keys[0].t, t1 = keys[keys.length - 1].t;
+    const pts = [];
+    const n = 48;
+    for (let i = 0; i <= n; i++) {
+      const c = cameraAt(t0 + ((t1 - t0) * i) / n);
+      pts.push({ x: c.x, y: c.y, z: c.z });
+    }
+    return pts;
   }
-  function drawSceneMap() {
-    if (!sceneMapVisible()) return;
-    const W = sceneCanvas.width, H = sceneCanvas.height;
-    const c = sctx;
-    c.clearRect(0, 0, W, H);
-    c.fillStyle = '#101014';
-    c.fillRect(0, 0, W, H);
-
-    const t = clock.time;
-    const cam = cameraAt(t);
-    const aspect = frameAspect();
-
-    // depth grid
-    c.strokeStyle = '#1f1f26';
-    c.lineWidth = 1;
-    for (let z = Math.ceil(SM.zMin); z <= SM.zMax; z += 0.5) {
-      const { py } = smToPx(0, z);
-      c.beginPath(); c.moveTo(SM.pad, py); c.lineTo(W - SM.pad, py); c.stroke();
-    }
-
-    // far-fade band
-    if (cam.fade && cam.fade.farEnd > 0) {
-      const zStart = cam.z - cam.fade.farStart, zEnd = cam.z - cam.fade.farEnd;
-      const a = smToPx(0, zStart).py, b = smToPx(0, Math.max(SM.zMin, zEnd)).py;
-      const g = c.createLinearGradient(0, a, 0, b);
-      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0.09)');
-      c.fillStyle = g;
-      c.fillRect(SM.pad, Math.min(a, b), W - SM.pad * 2, Math.abs(b - a));
-    }
-
-    // video plane
-    const pl = smToPx(-aspect, 0), pr = smToPx(aspect, 0);
-    c.strokeStyle = '#ff5c5c';
-    c.lineWidth = 2;
-    c.beginPath(); c.moveTo(pl.px, pl.py); c.lineTo(pr.px, pr.py); c.stroke();
-    c.fillStyle = '#8f8f99';
-    c.font = '10px Inter, sans-serif';
-    c.fillText('video', pr.px + 4, pr.py + 3);
-
-    // camera + frustum
-    const cp = smToPx(cam.x, cam.z);
-    const halfH = Math.atan(Math.tan((state.fov * Math.PI) / 360) * aspect);
-    const yaw = (cam.yaw * Math.PI) / 180;
-    const len = 6;
-    c.strokeStyle = 'rgba(90,200,250,0.35)';
-    c.lineWidth = 1;
-    for (const sgn of [-1, 1]) {
-      const a = yaw + sgn * halfH; // view axis is -z; angle measured from -z toward +x
-      const end = smToPx(cam.x + Math.sin(a) * len, cam.z - Math.cos(a) * len);
-      c.beginPath(); c.moveTo(cp.px, cp.py); c.lineTo(end.px, end.py); c.stroke();
-    }
-    c.fillStyle = '#5ac8fa';
-    c.beginPath(); c.arc(cp.px, cp.py, 6, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = '#0d2733'; c.lineWidth = 1.5; c.stroke();
-
-    // words
-    c.font = '600 10px Inter, sans-serif';
-    for (const l of state.layers) {
-      if (l.hidden) continue;
-      const visible = t >= l.start && t < l.end;
-      const p = smToPx(l.transform.x, l.transform.z);
-      const sel = isSelected(l.id);
-      c.globalAlpha = visible ? 1 : 0.35;
-      c.fillStyle = sel ? '#f28c28' : '#e0e0e8';
-      c.beginPath(); c.arc(p.px, p.py, sel ? 5 : 4, 0, Math.PI * 2); c.fill();
-      c.fillStyle = sel ? '#ffb266' : '#a8a8b3';
-      c.fillText((l.text || l.name || '').split('\n')[0].slice(0, 12), p.px + 7, p.py + 3);
-      c.globalAlpha = 1;
-    }
-  }
-
-  (function sceneMapInteractions() {
-    let drag = null;
-    const toCanvas = (e) => {
-      const r = sceneCanvas.getBoundingClientRect();
-      return { px: ((e.clientX - r.left) / r.width) * sceneCanvas.width, py: ((e.clientY - r.top) / r.height) * sceneCanvas.height };
-    };
-    const hit = (p) => {
-      const cam = cameraAt(clock.time);
-      const cp = smToPx(cam.x, cam.z);
-      if (Math.hypot(cp.px - p.px, cp.py - p.py) < 9) return { kind: 'camera' };
-      let best = null, bd = 10;
-      for (const l of state.layers) {
-        if (l.hidden) continue;
-        const q = smToPx(l.transform.x, l.transform.z);
-        const d = Math.hypot(q.px - p.px, q.py - p.py);
-        if (d < bd) { bd = d; best = l; }
+  let dragStartPositions = null;
+  const layoutView = new LayoutView(els.layoutCanvas, {
+    scene() {
+      const t = clock.time;
+      const cam = cameraAt(t);
+      const d = renderer.camDist;
+      return {
+        time: t, cam, camDist: d, fov: state.fov, aspect: frameAspect(), hasVideo: state.video.ready,
+        video: { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: state.media.locked },
+        layers: state.layers.map((l) => Object.assign({
+          id: l.id, text: l.text, x: l.transform.x, y: l.transform.y, z: l.transform.z,
+          active: t >= l.start && t < l.end, hidden: l.hidden, selected: isSelected(l.id), primary: state.selectedIds[0] === l.id,
+        }, layerFootprint(l))),
+        keys: state.camera.keys.map((k) => ({ id: k.id, t: k.t, x: k.x, y: k.y, z: d - k.dolly, selected: k.id === state.selectedKeyId })),
+        path: cameraPath(),
+      };
+    },
+    onSelectLayer(id, additive) { select(id, { toggle: additive }); },
+    onSelectKey(id) { selectKey(id); },
+    onDeselect() { select(null); },
+    onLayerDragStart(ids) {
+      dragStartPositions = Object.fromEntries(ids.map((id) => { const l = getLayer(id); return [id, { x: l.transform.x, y: l.transform.y, z: l.transform.z }]; }));
+    },
+    onLayerDragMove(ids, delta) {
+      for (const id of ids) {
+        const l = getLayer(id), o = dragStartPositions && dragStartPositions[id];
+        if (!l || !o) continue;
+        l.transform.x = round(clamp(o.x + delta.dx, -4, 4), 3);
+        l.transform.y = round(clamp(o.y + delta.dy, -2.5, 2.5), 3);
+        l.transform.z = round(clamp(o.z + delta.dz, -2, 3.8), 3);
       }
-      return best ? { kind: 'layer', layer: best } : null;
-    };
-    sceneCanvas.addEventListener('pointerdown', (e) => {
-      const p = toCanvas(e);
-      const h = hit(p);
-      if (!h) return;
-      sceneCanvas.setPointerCapture(e.pointerId);
-      if (h.kind === 'camera') {
-        // Dragging the camera writes a keyframe at the playhead (reusing one that already sits there).
-        clock.pause();
-        const t = round(clock.time, 2);
-        let key = state.camera.keys.find((k) => Math.abs(k.t - t) <= 0.05);
-        if (!key) key = addCameraKey(t);
-        selectKey(key.id);
-        drag = { kind: 'camera', key, moved: false };
-      } else {
-        if (!isSelected(h.layer.id)) select(h.layer.id, { toggle: e.shiftKey });
-        const items = selectedLayers().map((l) => ({ l, x0: l.transform.x, z0: l.transform.z }));
-        drag = { kind: 'layer', items, start: smFromPx(p.px, p.py), moved: false };
-      }
-      e.preventDefault();
-    });
-    sceneCanvas.addEventListener('pointermove', (e) => {
-      const p = toCanvas(e);
-      if (!drag) { sceneCanvas.style.cursor = hit(p) ? 'grab' : 'crosshair'; return; }
-      const w = smFromPx(p.px, p.py);
-      drag.moved = true;
-      if (drag.kind === 'camera') {
-        drag.key.x = round(clamp(w.x, -SM.xHalf, SM.xHalf), 3);
-        drag.key.dolly = round(renderer.camDist - clamp(w.z, SM.zMin + 0.1, SM.zMax), 3);
-        refreshKeyValues();
-        renderCameraTrack();
-      } else {
-        const dx = w.x - drag.start.x, dz = w.z - drag.start.z;
-        for (const it of drag.items) {
-          it.l.transform.x = round(clamp(it.x0 + dx, -3, 3), 3);
-          it.l.transform.z = round(clamp(it.z0 + dz, -2, 2.2), 3);
-        }
-        refreshInspectorValues();
-      }
+      refreshInspectorValues();
       invalidate();
-      drawSceneMap();
-    });
-    const end = () => { if (drag && drag.moved) commit(); drag = null; };
-    sceneCanvas.addEventListener('pointerup', end);
-    sceneCanvas.addEventListener('pointercancel', end);
-  })();
+      updateLayoutHint();
+    },
+    onLayerDragEnd(moved) { dragStartPositions = null; if (moved) commit(); },
+    onCameraDragMove(p) {
+      clock.pause();
+      const key = keyAtPlayhead();
+      if (state.selectedKeyId !== key.id) selectKey(key.id);
+      key.x = round(clamp(p.x, -3, 3), 3);
+      key.y = round(clamp(p.y, -2, 2), 3);
+      key.dolly = round(renderer.camDist - clamp(p.z, -1.5, 6), 3);
+      refreshKeyValues();
+      renderCameraTrack();
+      invalidate();
+      updateLayoutHint();
+    },
+    onCameraDragEnd() { commit(); },
+    onKeyDragMove(id, p) {
+      const k = getKey(id);
+      if (!k) return;
+      k.x = round(clamp(p.x, -3, 3), 3);
+      k.y = round(clamp(p.y, -2, 2), 3);
+      k.dolly = round(renderer.camDist - clamp(p.z, -1.5, 6), 3);
+      refreshKeyValues();
+      invalidate();
+    },
+    onKeyDragEnd(moved) { if (moved) commit(); },
+    onDoubleClickLayer(id) { select(id); focusTextInput(); },
+  });
 
-  /* ------------------------------------------------------------------ templates, styles & camera tab */
+  function updateLayoutHint() {
+    const l = selected();
+    const k = selectedKey();
+    if (l) els.layoutHint.textContent = `${(l.text || '').split('\n')[0]} · depth ${l.transform.z.toFixed(2)} · x ${l.transform.x.toFixed(2)} · y ${l.transform.y.toFixed(2)}`;
+    else if (k) els.layoutHint.textContent = `Camera key at ${k.t.toFixed(2)}s · ${(renderer.camDist - k.dolly).toFixed(2)} from video`;
+    else els.layoutHint.textContent = layoutView.mode === 'top' ? 'Top view — drag words left/right and nearer/further. Drag the camera to keyframe it at the playhead.' : 'Side view — drag words up/down and nearer/further.';
+  }
+
+  function setView(view) {
+    state.view = view;
+    $$('#viewSwitch button').forEach((b) => b.classList.toggle('on', b.dataset.view === view));
+    els.views.classList.toggle('split', view === 'split');
+    els.wrap.classList.toggle('hidden', view === 'layout');
+    els.layoutWrap.classList.toggle('hidden', view === 'preview');
+    els.layoutTools.classList.toggle('hidden', view === 'preview');
+    requestAnimationFrame(() => {
+      fitPreview();
+      if (layoutVisible()) { layoutView.resize(); layoutView.fitted = false; layoutView.draw(); updateLayoutHint(); }
+    });
+  }
+  $('#viewSwitch').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setView(b.dataset.view); });
+  $('#layoutMode').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('#layoutMode button').forEach((x) => x.classList.toggle('on', x === b));
+    layoutView.setMode(b.dataset.mode);
+    updateLayoutHint();
+  });
+  $('#btnLayoutFit').addEventListener('click', () => { layoutView.fit(); layoutView.draw(); });
+  $('#btnOpenLayout').addEventListener('click', () => setView(state.view === 'preview' ? 'split' : state.view));
+
+  /* ------------------------------------------------------------------ templates, styles, moves */
   const TEMPLATE_PREVIEWS = {
-    reveal: "<span>here's</span><span>how</span><span>you</span>",
+    reveal: '<span>and</span><span>done</span><span>right?</span>',
     kinetic: "<span>here's</span><span>how you</span><span>can do</span><span>this</span>",
     stack: '<span>MAKE</span><span>IT</span><span>BOLD</span>',
     flyTitle: '<span>NEW SEASON</span><span>Available now</span>',
@@ -1417,16 +1430,17 @@
   function applyStylePreset(preset) {
     let targets = selectedLayers();
     if (!targets.length) {
-      let t = clock.time;
-      let dur = Math.min(3, duration() - t);
-      if (dur < 0.5) { t = 0; dur = Math.min(3, duration()); }
-      targets = [addLayer({ text: preset.name, name: preset.name, start: t, end: t + dur })];
-      toast(`Created a new layer with the ${preset.name} style`);
+      const l = addBlankText();
+      l.text = preset.name; l.name = preset.name;
+      targets = [l];
+      toast(`Created a new word with the ${preset.name} style`);
     } else {
-      toast(`Applied ${preset.name}${targets.length > 1 ? ` to ${targets.length} layers` : ''}`);
+      toast(`Applied ${preset.name}${targets.length > 1 ? ` to ${targets.length} words` : ''}`);
     }
     for (const l of targets) {
+      const size = l.style.size;
       l.style = Presets.deepMerge(l.style, preset.style);
+      l.style.size = size;
       normaliseWeight(l);
       l._layout = null;
     }
@@ -1446,22 +1460,28 @@
       grid.appendChild(card);
     }
   }
+
+  // Left-panel collapsible sections (Templates, Styles)
+  $$('.panel.left .section-head').forEach((h) => h.addEventListener('click', () => h.parentElement.classList.toggle('collapsed')));
+
+  /* ------------------------------------------------------------------ camera & media controls */
   function syncCameraControls() {
     $('#camAperture').value = state.camera.aperture;
     $('#camApertureNum').value = Math.round(state.camera.aperture * 100);
-    $('#camAutofocus').checked = !!state.camera.autoFocus;
-    const far = state.camera.farFade == null ? 3.2 : state.camera.farFade;
+    $('#camFocusMode').value = state.camera.focusMode || 'video';
+    const far = state.camera.farFade == null ? 8 : state.camera.farFade;
     $('#camFarFade').value = far;
     $('#camFarFadeNum').value = far >= 8 ? 'off' : round(far, 1);
-    drawSceneMap();
+    $('#fovSelect').value = String(state.fov);
   }
-  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); drawSceneMap(); });
-  $('#camFarFade').addEventListener('change', commit);
-  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
   $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
   $('#camAperture').addEventListener('change', commit);
   $('#camApertureNum').addEventListener('change', (e) => { state.camera.aperture = clamp(Number(e.target.value) / 100, 0, 1); syncCameraControls(); commit(); invalidate(); });
-  $('#camAutofocus').addEventListener('change', (e) => { state.camera.autoFocus = e.target.checked; commit(); invalidate(); });
+  $('#camFocusMode').addEventListener('change', (e) => { state.camera.focusMode = e.target.value; commit(); invalidate(); if (layoutVisible()) layoutView.draw(); });
+  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
+  $('#camFarFade').addEventListener('change', commit);
+  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
+  $('#fovSelect').addEventListener('change', (e) => { state.fov = Number(e.target.value); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#btnClearCamera').addEventListener('click', () => {
     if (!state.camera.keys.length) return;
     state.camera.keys = [];
@@ -1470,6 +1490,52 @@
     refreshAll();
     toast('Camera keyframes removed');
   });
+  const addKeyHere = () => { const k = keyAtPlayhead(); commit(); selectKey(k.id); toast(`Camera keyframe at ${fmtTime(k.t)}`); };
+  $('#btnAddKey').addEventListener('click', addKeyHere);
+  $('#btnAddKey2').addEventListener('click', addKeyHere);
+  $('#btnFitVideo').addEventListener('click', () => {
+    const k = keyAtPlayhead();
+    k.dolly = fitDolly(); k.x = 0; k.y = 0; k.yaw = 0; k.pitch = 0; k.roll = 0;
+    commit();
+    selectKey(k.id);
+    toast(`Camera set so the video fills the frame at ${fmtTime(k.t)}`);
+  });
+
+  function syncMediaControls() {
+    $('#bgColor').value = state.media.bg;
+    $('#bgHex').value = state.media.bg;
+    $('#mediaScale').value = state.media.scale;
+    $('#mediaScaleNum').value = Math.round(state.media.scale * 100);
+    $('#mediaX').value = state.media.x; $('#mediaXNum').value = Math.round(state.media.x * 100);
+    $('#mediaY').value = state.media.y; $('#mediaYNum').value = Math.round(state.media.y * 100);
+    $('#mediaIn3D').checked = !state.media.locked;
+    $('#aspectSelect').value = aspectToLabel(state.aspect);
+    $('#durationInput').value = state.duration;
+    updateMediaUI();
+  }
+  function updateMediaUI() {
+    const has = state.video.ready;
+    $('#mediaEmpty').classList.toggle('hidden', has);
+    $('#mediaInfo').classList.toggle('hidden', !has);
+    $('#noVideoFields').classList.toggle('hidden', has);
+    els.dropHint.classList.toggle('hidden', has);
+    if (has) {
+      $('#mediaName').textContent = state.video.file ? state.video.file.name : 'Video';
+      $('#mediaMeta').textContent = `${state.video.width}×${state.video.height} · ${fmtTime(state.video.duration)}`;
+    }
+  }
+  const bindMediaRange = (rangeId, numId, key, scale) => {
+    $(rangeId).addEventListener('input', (e) => { state.media[key] = Number(e.target.value); $(numId).value = Math.round(state.media[key] * scale); invalidate(); if (layoutVisible()) layoutView.draw(); });
+    $(rangeId).addEventListener('change', commit);
+    $(numId).addEventListener('change', (e) => { const min = Number($(rangeId).min), max = Number($(rangeId).max); state.media[key] = clamp(Number(e.target.value) / scale, min, max); syncMediaControls(); commit(); invalidate(); });
+  };
+  bindMediaRange('#mediaScale', '#mediaScaleNum', 'scale', 100);
+  bindMediaRange('#mediaX', '#mediaXNum', 'x', 100);
+  bindMediaRange('#mediaY', '#mediaYNum', 'y', 100);
+  $('#mediaIn3D').addEventListener('change', (e) => { state.media.locked = !e.target.checked; commit(); invalidate(); });
+  $('#bgColor').addEventListener('input', (e) => { state.media.bg = e.target.value; $('#bgHex').value = e.target.value; invalidate(); });
+  $('#bgColor').addEventListener('change', commit);
+  $('#bgHex').addEventListener('change', (e) => { const v = normaliseHex(e.target.value); if (v) { state.media.bg = v; syncMediaControls(); commit(); invalidate(); } else e.target.value = state.media.bg; });
 
   // Template dialog
   const tplDialog = $('#templateDialog');
@@ -1483,8 +1549,8 @@
     let remaining = duration() - start;
     if (remaining < 1) { start = 0; remaining = duration(); }
     $('#tplStart').value = start;
-    $('#tplDuration').value = round(Math.min(t.id === 'kinetic' ? 8 : 5, remaining), 2);
-    $('#tplReplace').checked = false;
+    $('#tplDuration').value = round(Math.min(t.id === 'kinetic' ? 8 : 6, remaining), 2);
+    $('#tplReplace').checked = true;
     tplDialog.showModal();
     setTimeout(() => { $('#tplText').focus(); $('#tplText').select(); }, 30);
   }
@@ -1499,7 +1565,7 @@
       $('#durationInput').value = state.duration;
     }
     dur = Math.min(dur, duration() - start);
-    const built = activeTemplate.build(text, start, dur, frameAspect(), { camDist: renderer.camDist });
+    const built = activeTemplate.build(text, start, dur, frameAspect(), { camDist: renderer.camDist, hasVideo: state.video.ready });
     const layers = Array.isArray(built) ? built : built.layers;
     const cameraKeys = Array.isArray(built) ? [] : (built.cameraKeys || []);
     if (!layers.length) { toast('Please enter some text first', true); return; }
@@ -1507,15 +1573,21 @@
     const ids = [];
     for (const l of layers) ids.push(addLayer(l, { select: false }).id);
     if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
-    if (!Array.isArray(built) && built.cameraSettings) { Object.assign(state.camera, built.cameraSettings); syncCameraControls(); }
-    state.selectedIds = ids.slice(0, 1);
+    if (!Array.isArray(built)) {
+      if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
+      if (built.mediaSettings) Object.assign(state.media, built.mediaSettings);
+      syncCameraControls();
+      syncMediaControls();
+    }
+    state.selectedIds = [];
     state.selectedKeyId = null;
     commit();
     refreshAll();
+    if (layoutVisible()) { layoutView.fitted = false; layoutView.draw(); }
     tplDialog.close();
     clock.time = start;
     clock.play();
-    toast(`Inserted ${layers.length} layer${layers.length > 1 ? 's' : ''}${cameraKeys.length ? ' and a camera move' : ''} from ${activeTemplate.name}`);
+    toast(`Inserted ${layers.length} word${layers.length > 1 ? 's' : ''}${cameraKeys.length ? ' with a camera move' : ''} from ${activeTemplate.name}`);
   });
   $$('[data-close]').forEach((b) => b.addEventListener('click', () => b.closest('dialog').close()));
 
@@ -1533,6 +1605,18 @@
     v.load();
     toast(`Loading ${file.name}…`);
   }
+  function removeVideo() {
+    if (!state.video.ready && !state.video.url) return;
+    if (state.video.url) URL.revokeObjectURL(state.video.url);
+    els.video.removeAttribute('src');
+    els.video.load();
+    state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false };
+    clock._t = Math.min(clock._t, state.duration);
+    syncMediaControls();
+    fitPreview();
+    refreshAll();
+    toast('Video removed — working on the plain background');
+  }
 
   els.video.addEventListener('loadedmetadata', () => {
     const v = els.video;
@@ -1547,14 +1631,14 @@
       l._layout = null;
     }
     clampCameraKeys(state.video.duration);
-    $('#noVideoFields').classList.add('hidden');
     $('#expAudioWrap').classList.remove('hidden');
-    els.dropHint.classList.add('hidden');
     v.currentTime = 0;
+    syncMediaControls();
     fitPreview();
     renderTimeline();
     refreshInspectorValues();
     commit();
+    if (layoutVisible()) { layoutView.fitted = false; layoutView.draw(); }
     toast(`${state.video.file.name} · ${v.videoWidth}×${v.videoHeight} · ${fmtTime(v.duration)}`);
   });
   els.video.addEventListener('loadeddata', invalidate);
@@ -1563,16 +1647,19 @@
   els.video.addEventListener('pause', updatePlayButton);
   els.video.addEventListener('ended', updatePlayButton);
   els.video.addEventListener('error', () => {
+    if (!state.video.url) return;
     const err = els.video.error;
     toast(`This browser cannot decode that video${err && err.code === 4 ? ' (unsupported codec — try MP4/H.264)' : ''}.`, true);
     state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false };
-    els.dropHint.classList.remove('hidden');
-    $('#noVideoFields').classList.remove('hidden');
+    syncMediaControls();
     fitPreview();
   });
 
-  $('#btnImport').addEventListener('click', () => $('#fileInput').click());
-  $('#btnImport2').addEventListener('click', () => $('#fileInput').click());
+  const pickVideo = () => $('#fileInput').click();
+  $('#btnImport').addEventListener('click', pickVideo);
+  $('#btnImport2').addEventListener('click', pickVideo);
+  $('#btnReplace').addEventListener('click', pickVideo);
+  $('#btnRemoveVideo').addEventListener('click', removeVideo);
   $('#fileInput').addEventListener('change', (e) => { loadVideoFile(e.target.files[0]); e.target.value = ''; });
 
   ['dragenter', 'dragover'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.add('active'); }));
@@ -1587,10 +1674,11 @@
   /* ------------------------------------------------------------------ project save / load */
   function saveProject() {
     const data = {
-      app: 'perspective-editor', version: 2,
+      app: 'perspective-editor', version: 3,
       aspect: state.aspect, duration: state.duration, fov: state.fov,
       videoName: state.video.file ? state.video.file.name : null,
       camera: state.camera,
+      media: state.media,
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
@@ -1602,15 +1690,19 @@
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
-      state.camera = Object.assign({ aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] }, data.camera || {});
+      state.camera = Object.assign(defaultCamera(), data.camera || {});
+      if (data.camera && data.camera.autoFocus != null && !data.camera.focusMode) state.camera.focusMode = data.camera.autoFocus ? 'newest' : 'video';
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
-      if (data.aspect) { state.aspect = data.aspect; $('#aspectSelect').value = aspectToLabel(data.aspect); }
-      if (data.duration) { state.duration = data.duration; $('#durationInput').value = data.duration; }
-      if (data.fov) { state.fov = data.fov; $('#fovSelect').value = String(data.fov); }
+      state.media = Object.assign(defaultMedia(), data.media || {});
+      if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
+      if (data.aspect) state.aspect = data.aspect;
+      if (data.duration) state.duration = data.duration;
+      if (data.fov) state.fov = data.fov;
       state.selectedIds = []; state.selectedKeyId = null;
       state.undo = []; state.redo = []; state.lastCommitted = null;
       commit();
       syncCameraControls();
+      syncMediaControls();
       fitPreview();
       refreshAll();
       toast(`Opened project${data.videoName ? ` — re-import "${data.videoName}" to see the video` : ''}`);
@@ -1628,18 +1720,18 @@
   $('#btnLoad').addEventListener('click', () => $('#projectInput').click());
   $('#projectInput').addEventListener('change', (e) => { if (e.target.files[0]) loadProjectFile(e.target.files[0]); e.target.value = ''; });
 
-  /* ------------------------------------------------------------------ transport */
+  /* ------------------------------------------------------------------ transport & tabs */
   $('#btnAddText').addEventListener('click', addBlankText);
   els.btnPlay.addEventListener('click', () => clock.toggle());
   $('#btnStepBack').addEventListener('click', () => { clock.pause(); clock.time = clock.time - 1 / 30; });
   $('#btnStepFwd').addEventListener('click', () => { clock.pause(); clock.time = clock.time + 1 / 30; });
   $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; els.video.loop = state.loop; e.currentTarget.classList.toggle('active', state.loop); });
   $('#btnMute').addEventListener('click', (e) => { state.muted = !state.muted; els.video.muted = state.muted; e.currentTarget.classList.toggle('active', state.muted); e.currentTarget.title = state.muted ? 'Unmute' : 'Mute'; });
-  $('#fovSelect').addEventListener('change', (e) => { state.fov = Number(e.target.value); invalidate(); });
   $('#aspectSelect').addEventListener('change', (e) => {
     const [w, h] = e.target.value.split(':').map(Number);
     state.aspect = w / h;
     fitPreview();
+    if (layoutVisible()) layoutView.draw();
   });
   $('#durationInput').addEventListener('change', (e) => {
     state.duration = clamp(Number(e.target.value) || 10, 1, 600);
@@ -1653,13 +1745,11 @@
   $('#btnUndo').addEventListener('click', undo);
   $('#btnRedo').addEventListener('click', redo);
 
-  $('#leftTabs').addEventListener('click', (e) => {
-    const b = e.target.closest('.tab');
-    if (!b) return;
-    $$('.tab', $('#leftTabs')).forEach((t) => t.classList.toggle('active', t === b));
-    for (const name of ['templates', 'styles', 'camera']) $(`#tab-${name}`).classList.toggle('hidden', b.dataset.tab !== name);
-    drawSceneMap();
-  });
+  function showTab(name) {
+    $$('.tab', $('#leftTabs')).forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
+    for (const n of ['media', 'text', 'camera']) $(`#tab-${n}`).classList.toggle('hidden', n !== name);
+  }
+  $('#leftTabs').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab); });
 
   /* ------------------------------------------------------------------ export */
   const expDialog = $('#exportDialog');
@@ -1793,12 +1883,13 @@
 
     renderer.resize(cfg.w, cfg.h);
     renderer.fovDeg = state.fov;
+    const media = mediaForRender();
     const renderFrame = async (t, realtime) => {
       if (state.video.ready && !realtime) await seekVideo(t);
       renderer.render({
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
-        layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t),
+        layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
       });
     };
 
@@ -1889,7 +1980,8 @@
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
-      case 'k': case 'K': { const k = addCameraKey(round(clock.time, 2)); commit(); selectKey(k.id); break; }
+      case 'k': case 'K': addKeyHere(); break;
+      case 'l': case 'L': setView(state.view === 'preview' ? 'split' : state.view === 'split' ? 'layout' : 'preview'); break;
       case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': {
         if (!targets.length) {
           e.preventDefault();
@@ -1907,6 +1999,7 @@
           l.transform.x = round(l.transform.x, 3); l.transform.y = round(l.transform.y, 3);
         }
         refreshInspectorValues(); invalidate();
+        if (layoutVisible()) layoutView.draw();
         clearTimeout(nudgeTimer); nudgeTimer = setTimeout(commit, 400);
         break;
       }
@@ -1931,26 +2024,29 @@
     buildMoveGrid();
     buildSections(LAYER_SCHEMA, els.sections, layerCtx);
     buildSections(KEY_SCHEMA, els.keySections, keyCtx);
-    syncCameraControls();
-    new ResizeObserver(() => { fitPreview(); renderTimeline(); }).observe(els.wrap);
+    new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
-    // Demo content so the first impression shows the effect
+    // Demo content so the first impression shows the camera-reveal effect on the plain background.
     const demo = Presets.TEMPLATES.find((t) => t.id === 'reveal');
-    const built = demo.build(demo.sample, 0.2, 6, frameAspect(), { camDist: renderer.camDist });
+    const built = demo.build(demo.sample, 0.2, 6, frameAspect(), { camDist: renderer.camDist, hasVideo: false });
     for (const l of built.layers) addLayer(l, { select: false });
     state.camera.keys = built.cameraKeys || [];
     if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
-    syncCameraControls();
+    if (built.mediaSettings) Object.assign(state.media, built.mediaSettings);
+    state.media.bg = '#141419';
     state.selectedIds = [];
     state.lastCommitted = snapshot();
     updateUndoButtons();
+    syncCameraControls();
+    syncMediaControls();
     refreshAll();
     updatePlayButton();
+    setView('split');
     requestAnimationFrame(frame);
     clock.play();
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView };
 })();

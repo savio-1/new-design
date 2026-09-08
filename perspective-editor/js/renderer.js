@@ -243,7 +243,8 @@
 
     /**
      * Render a frame.
-     * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera }
+     * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera, media }
+     *   media: { scale, x, y, locked, bg:[r,g,b] }
      *   camera: { x, y, z, yaw, pitch, roll, focus, aperture } — absolute; defaults to the resting camera.
      */
     render(opts) {
@@ -257,18 +258,20 @@
       const proj = this._proj();
       const defaultCam = this.defaultCamera();
       const cam = Object.assign(defaultCam, opts.camera || {});
-
-      // Video plane fills the frustum exactly at z = 0, seen from the resting camera (the footage is
-      // a backdrop, not part of the 3D text world).
-      if (opts.video && opts.videoReady) {
-        const planeMVP = M4.multiply(proj, this.viewMatrix(this.defaultCamera()));
-        if (this._uploadVideo(opts.video)) {
-          this._drawQuad(planeMVP, 2 * this.aspect, 2, this.videoTex, 1, null, null);
-        }
-      }
+      const media = Object.assign({ scale: 1, x: 0, y: 0, locked: false, bg: null }, opts.media || {});
+      if (media.bg) { gl.clearColor(media.bg[0], media.bg[1], media.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT); }
 
       const view = this.viewMatrix(cam);
       const VP = M4.multiply(proj, view);
+
+      // Video plane at z = 0. At 100 % it fills the frustum of the resting camera exactly. Normally it is
+      // part of the 3D scene (so a dolly zooms it, like a scaled footage layer in After Effects); when
+      // locked it is drawn from the resting camera and only the text moves.
+      if (opts.video && opts.videoReady && this._uploadVideo(opts.video)) {
+        const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
+        const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
+        this._drawQuad(planeMVP, 2 * this.aspect * media.scale, 2 * media.scale, this.videoTex, 1, null, null);
+      }
       const selected = new Set(opts.selectedIds || []);
       const aperture = cam.aperture || 0;
       const focus = cam.focus || defaultCam.z;
@@ -335,8 +338,10 @@
           // for things close to the lens.
           let blurWorld = st.blur * fw;
           if (aperture > 0) {
-            const coc = (aperture * 0.28 * Math.abs(depth - focus)) / Math.max(0.6, depth);
-            blurWorld += Math.min(coc, 0.45 * fw * Math.max(1, st.sx));
+            // Gentle circle of confusion: grows with distance from the focal plane, never beyond a
+            // quarter of the text height so words stay readable while out of focus.
+            const coc = (aperture * 0.08 * Math.abs(depth - focus)) / Math.max(1, depth);
+            blurWorld += Math.min(coc, 0.09 * fw * Math.max(1, st.sx));
           }
           let blurUV = null;
           if (blurWorld > 0.0005) {
