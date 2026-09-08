@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Perspective — 3D text for video</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Archivo+Black&family=Anton&family=Bebas+Neue&family=Oswald:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Space+Grotesk:wght@400;700&family=Instrument+Serif:ital@0;1&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=DM+Serif+Display:ital@0;1&family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400;1,700&family=Bangers&family=Pacifico&family=Caveat:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">P</span>
+      <span class="brand-name">Perspective</span>
+      <span class="brand-sub">3D text for video</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="btnImport" class="btn">
+        <svg viewBox="0 0 20 20"><path d="M10 3v9m0-9L6.5 6.5M10 3l3.5 3.5M4 13v3h12v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Import video
+      </button>
+      <input id="fileInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v,.avi" hidden>
+      <div class="divider"></div>
+      <button id="btnLoad" class="btn ghost" title="Open a saved project (.json)">Open</button>
+      <button id="btnSave" class="btn ghost" title="Save project as .json">Save</button>
+      <input id="projectInput" type="file" accept=".json,application/json" hidden>
+      <div class="divider"></div>
+      <button id="btnUndo" class="btn icon ghost" title="Undo (Ctrl+Z)"><svg viewBox="0 0 20 20"><path d="M8 5L4 9l4 4M4 9h7a4 4 0 010 8h-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="btnRedo" class="btn icon ghost" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 20 20"><path d="M12 5l4 4-4 4M16 9H9a4 4 0 000 8h1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="btnExport" class="btn primary">
+        <svg viewBox="0 0 20 20"><path d="M10 13V4m0 9l-3.5-3.5M10 13l3.5-3.5M4 14v2h12v-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- Left: add + templates + styles -->
+    <aside class="panel left">
+      <div class="tabs" id="leftTabs">
+        <button class="tab active" data-tab="templates">Templates</button>
+        <button class="tab" data-tab="styles">Text styles</button>
+      </div>
+      <div class="tab-body" id="tab-templates">
+        <button id="btnAddText" class="add-text">
+          <span class="plus">+</span>
+          <span>Add text<small>Blank layer at the playhead</small></span>
+        </button>
+        <p class="panel-hint">Templates build a ready-made sequence from your text. Click one, type your words, insert.</p>
+        <div class="template-grid" id="templateGrid"></div>
+      </div>
+      <div class="tab-body hidden" id="tab-styles">
+        <p class="panel-hint">Click a style to apply it to the selected layer, or to create a new layer with that look.</p>
+        <div class="style-grid" id="styleGrid"></div>
+      </div>
+    </aside>
+
+    <!-- Centre: preview + timeline -->
+    <section class="stage">
+      <div class="preview-wrap" id="previewWrap">
+        <canvas id="preview"></canvas>
+        <div class="drop-hint" id="dropHint">
+          <div class="drop-card">
+            <svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 18l10 6-10 6z" fill="currentColor"/></svg>
+            <div><strong>Drop a video here</strong><br><span>MP4, MOV, WebM… or design the text first and add the video later.</span></div>
+            <button class="btn primary" id="btnImport2">Choose a video</button>
+          </div>
+        </div>
+        <div class="canvas-tip" id="canvasTip">Drag to move · Alt+drag to rotate · Wheel to resize · Double-click to edit text</div>
+      </div>
+
+      <div class="transport">
+        <button id="btnPlay" class="btn icon play" title="Play / pause (Space)">
+          <svg class="ic-play" viewBox="0 0 20 20"><path d="M6 4l10 6-10 6z" fill="currentColor"/></svg>
+          <svg class="ic-pause" viewBox="0 0 20 20"><path d="M6 4h3v12H6zM11 4h3v12h-3z" fill="currentColor"/></svg>
+        </button>
+        <button id="btnStepBack" class="btn icon ghost" title="Previous frame (,)"><svg viewBox="0 0 20 20"><path d="M13 4L6 10l7 6z" fill="currentColor"/></svg></button>
+        <button id="btnStepFwd" class="btn icon ghost" title="Next frame (.)"><svg viewBox="0 0 20 20"><path d="M7 4l7 6-7 6z" fill="currentColor"/></svg></button>
+        <span class="time-label" id="timeLabel">00:00.00 <span class="muted">/ 00:10.00</span></span>
+        <div class="spacer"></div>
+        <label class="inline-field" id="noVideoFields">
+          <span>Canvas</span>
+          <select id="aspectSelect">
+            <option value="16:9">16:9 landscape</option>
+            <option value="9:16" selected>9:16 vertical</option>
+            <option value="1:1">1:1 square</option>
+            <option value="4:5">4:5 portrait</option>
+          </select>
+          <span>Length</span>
+          <input id="durationInput" type="number" min="1" max="600" step="0.5" value="10"> s
+        </label>
+        <label class="inline-field">
+          <span>Perspective</span>
+          <select id="fovSelect">
+            <option value="30">Subtle</option>
+            <option value="45" selected>Normal</option>
+            <option value="65">Strong</option>
+            <option value="85">Extreme</option>
+          </select>
+        </label>
+        <button id="btnLoop" class="btn icon ghost active" title="Loop playback"><svg viewBox="0 0 20 20"><path d="M4 9a4 4 0 014-4h6m0 0l-2-2m2 2l-2 2M16 11a4 4 0 01-4 4H6m0 0l2 2m-2-2l2-2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button id="btnMute" class="btn icon ghost" title="Mute"><svg viewBox="0 0 20 20"><path d="M4 8v4h3l4 3V5L7 8zM14 7a4 4 0 010 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+
+      <div class="timeline" id="timeline">
+        <div class="tl-head">
+          <div class="tl-names-head">Layers <span id="layerCount" class="muted"></span></div>
+          <div class="tl-ruler" id="ruler"></div>
+        </div>
+        <div class="tl-body" id="tlBody">
+          <div class="tl-empty" id="tlEmpty">No text yet. Click <b>Add text</b> or pick a template.</div>
+        </div>
+        <div class="playhead" id="playhead"><div class="ph-knob"></div></div>
+      </div>
+    </section>
+
+    <!-- Right: inspector -->
+    <aside class="panel right" id="inspector">
+      <div class="inspector-empty" id="inspectorEmpty">
+        <p><strong>Nothing selected</strong></p>
+        <p>Select a text layer on the canvas or in the timeline to edit its look, 3D position, and animation.</p>
+      </div>
+      <div class="inspector-body hidden" id="inspectorBody">
+        <div class="inspector-head">
+          <input id="layerName" class="layer-name" type="text" spellcheck="false" title="Layer name">
+          <div class="head-actions">
+            <button class="btn icon ghost" id="btnLayerUp" title="Bring forward"><svg viewBox="0 0 20 20"><path d="M10 15V5m0 0L6 9m4-4l4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="btn icon ghost" id="btnLayerDown" title="Send backward"><svg viewBox="0 0 20 20"><path d="M10 5v10m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <button class="btn icon ghost" id="btnDuplicate" title="Duplicate (Ctrl+D)"><svg viewBox="0 0 20 20"><rect x="7" y="7" width="9" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13 7V5.5A1.5 1.5 0 0011.5 4h-6A1.5 1.5 0 004 5.5v6A1.5 1.5 0 005.5 13H7" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            <button class="btn icon ghost danger" id="btnDelete" title="Delete (Del)"><svg viewBox="0 0 20 20"><path d="M5 6h10M8 6V4h4v2M6.5 6l.7 9h5.6l.7-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div id="inspectorSections"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Hidden media -->
+  <video id="video" playsinline preload="auto" crossorigin="anonymous" style="display:none"></video>
+
+  <!-- Template dialog -->
+  <dialog id="templateDialog" class="dialog">
+    <form method="dialog" class="dialog-form" id="templateForm">
+      <div class="dialog-head">
+        <div>
+          <h2 id="tplName">Template</h2>
+          <p id="tplDesc" class="muted"></p>
+        </div>
+        <button type="button" class="btn icon ghost" data-close>✕</button>
+      </div>
+      <label class="field">
+        <span>Your text <small class="muted" id="tplHint">Separate lines with Enter</small></span>
+        <textarea id="tplText" rows="4" spellcheck="false"></textarea>
+      </label>
+      <div class="row">
+        <label class="field">
+          <span>Start at (s)</span>
+          <input id="tplStart" type="number" step="0.1" min="0">
+        </label>
+        <label class="field">
+          <span>Duration (s)</span>
+          <input id="tplDuration" type="number" step="0.5" min="0.5">
+        </label>
+        <label class="field check">
+          <input id="tplReplace" type="checkbox"> <span>Replace existing layers</span>
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="tplInsert">Insert into timeline</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Export dialog -->
+  <dialog id="exportDialog" class="dialog">
+    <form method="dialog" class="dialog-form" id="exportForm">
+      <div class="dialog-head">
+        <div>
+          <h2>Export video</h2>
+          <p class="muted" id="exportSummary"></p>
+        </div>
+        <button type="button" class="btn icon ghost" data-close>✕</button>
+      </div>
+      <div class="row">
+        <label class="field">
+          <span>Resolution</span>
+          <select id="expRes"></select>
+        </label>
+        <label class="field">
+          <span>Frame rate</span>
+          <select id="expFps">
+            <option value="24">24 fps</option>
+            <option value="25">25 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="50">50 fps</option>
+            <option value="60">60 fps</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Quality</span>
+          <select id="expQuality">
+            <option value="standard">Standard</option>
+            <option value="high" selected>High</option>
+            <option value="max">Maximum</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <label class="field">
+          <span>From (s)</span>
+          <input id="expStart" type="number" step="0.1" min="0">
+        </label>
+        <label class="field">
+          <span>To (s)</span>
+          <input id="expEnd" type="number" step="0.1" min="0">
+        </label>
+        <label class="field check" id="expAudioWrap">
+          <input id="expAudio" type="checkbox" checked> <span>Include audio</span>
+        </label>
+      </div>
+      <label class="field check" id="expStreamWrap">
+        <input id="expStream" type="checkbox"> <span>Stream straight to a file on disk <small class="muted">(recommended for 4K or long clips — you will be asked where to save)</small></span>
+      </label>
+      <p class="muted small" id="expEngine"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" data-close>Cancel</button>
+        <button type="submit" class="btn primary">Start export</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Progress dialog -->
+  <dialog id="progressDialog" class="dialog">
+    <div class="dialog-form">
+      <div class="dialog-head">
+        <h2 id="progTitle">Exporting…</h2>
+      </div>
+      <p id="progStage" class="muted">Preparing…</p>
+      <div class="progress"><div class="progress-bar" id="progBar"></div></div>
+      <p id="progEta" class="muted small"></p>
+      <div class="dialog-actions" id="progActions">
+        <button type="button" class="btn ghost" id="progCancel">Cancel</button>
+        <a class="btn primary hidden" id="progDownload" download>Download</a>
+        <button type="button" class="btn primary hidden" id="progClose">Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="vendor/mp4-muxer.js"></script>
+  <script src="js/mat4.js"></script>
+  <script src="js/animations.js"></script>
+  <script src="js/text-render.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/exporter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

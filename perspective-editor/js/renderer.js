@@ -1,0 +1,344 @@
+/* WebGL compositor: video plane at z = 0 plus perspective-transformed text quads. */
+(function (global) {
+  'use strict';
+
+  const VERT = `
+    attribute vec2 aPos;
+    attribute vec2 aUV;
+    uniform mat4 uMVP;
+    uniform vec2 uSize;
+    varying vec2 vUV;
+    void main() {
+      vUV = aUV;
+      gl_Position = uMVP * vec4(aPos * uSize, 0.0, 1.0);
+    }`;
+
+  const FRAG = `
+    precision mediump float;
+    varying vec2 vUV;
+    uniform sampler2D uTex;
+    uniform float uOpacity;
+    uniform vec2 uBlur;      // blur radius in UV units (x, y)
+    uniform vec4 uTint;      // solid colour override when uTint.a > 0
+    void main() {
+      vec4 c;
+      if (uBlur.x <= 0.00001) {
+        c = texture2D(uTex, vUV);
+      } else {
+        // 25-tap disk blur (two rings + centre); cheap and good enough for a focus effect
+        c = texture2D(uTex, vUV) * 1.5;
+        float total = 1.5;
+        for (int i = 0; i < 12; i++) {
+          float a = float(i) * 0.5235988; // 30 degrees
+          vec2 d = vec2(cos(a), sin(a));
+          c += texture2D(uTex, vUV + d * uBlur);
+          c += texture2D(uTex, vUV + d * uBlur * 0.5) * 1.2;
+          total += 2.2;
+        }
+        c /= total;
+      }
+      if (uTint.a > 0.0) { c = vec4(uTint.rgb * c.a, c.a) * uTint.a; }
+      gl_FragColor = c * uOpacity;
+    }`;
+
+  class Renderer {
+    constructor(canvas) {
+      this.canvas = canvas;
+      const gl = canvas.getContext('webgl', {
+        alpha: false,
+        antialias: true,
+        premultipliedAlpha: true,
+        preserveDrawingBuffer: true,
+        powerPreference: 'high-performance',
+      });
+      if (!gl) throw new Error('WebGL is not available in this browser.');
+      this.gl = gl;
+      this.fovDeg = 45;
+      this.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      this.maxRB = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+      this.texCache = new Map(); // canvas -> { tex, w, h }
+      this.TEX_LIMIT = 900;
+      this.lastQuads = [];
+      this.bgColor = [0.07, 0.07, 0.08];
+      this._initGL();
+    }
+
+    _initGL() {
+      const gl = this.gl;
+      const compile = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+        return s;
+      };
+      const prog = gl.createProgram();
+      gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+      gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+      this.prog = prog;
+      this.loc = {
+        aPos: gl.getAttribLocation(prog, 'aPos'),
+        aUV: gl.getAttribLocation(prog, 'aUV'),
+        uMVP: gl.getUniformLocation(prog, 'uMVP'),
+        uSize: gl.getUniformLocation(prog, 'uSize'),
+        uTex: gl.getUniformLocation(prog, 'uTex'),
+        uOpacity: gl.getUniformLocation(prog, 'uOpacity'),
+        uBlur: gl.getUniformLocation(prog, 'uBlur'),
+        uTint: gl.getUniformLocation(prog, 'uTint'),
+      };
+
+      // Unit quad centred at origin: pos.xy, uv.xy (uv y flipped so canvas top maps to quad top)
+      const quad = new Float32Array([
+        -0.5, -0.5, 0, 1,
+         0.5, -0.5, 1, 1,
+        -0.5,  0.5, 0, 0,
+         0.5,  0.5, 1, 0,
+      ]);
+      this.quadBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+
+      const loop = new Float32Array([
+        -0.5, -0.5, 0, 1,
+         0.5, -0.5, 1, 1,
+         0.5,  0.5, 1, 0,
+        -0.5,  0.5, 0, 0,
+      ]);
+      this.loopBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.loopBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, loop, gl.STATIC_DRAW);
+
+      // Video texture
+      this.videoTex = this._createTexture();
+      // 1x1 white texture for outlines / solid quads
+      this.whiteTex = this._createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.whiteTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.CULL_FACE);
+    }
+
+    _createTexture() {
+      const gl = this.gl;
+      const t = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      return t;
+    }
+
+    resize(w, h) {
+      if (this.canvas.width !== w || this.canvas.height !== h) {
+        this.canvas.width = w;
+        this.canvas.height = h;
+      }
+      this.gl.viewport(0, 0, w, h);
+    }
+
+    get aspect() { return this.canvas.width / Math.max(1, this.canvas.height); }
+    get camDist() { return 1 / Math.tan((this.fovDeg * Math.PI) / 360); }
+
+    /* World units per screen pixel at depth z (z = 0 is the video plane). */
+    worldPerPixel(z) {
+      const visibleH = 2 * (this.camDist - z) * Math.tan((this.fovDeg * Math.PI) / 360);
+      return visibleH / this.canvas.height;
+    }
+
+    _viewProj() {
+      const proj = M4.perspective((this.fovDeg * Math.PI) / 180, this.aspect, 0.05, 100);
+      const view = M4.translation(0, 0, -this.camDist);
+      return M4.multiply(proj, view);
+    }
+
+    _textureFor(canvas) {
+      const gl = this.gl;
+      let entry = this.texCache.get(canvas);
+      if (entry) {
+        this.texCache.delete(canvas);
+        this.texCache.set(canvas, entry);
+        return entry.tex;
+      }
+      const tex = this._createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      this.texCache.set(canvas, { tex });
+      if (this.texCache.size > this.TEX_LIMIT) {
+        const [k, v] = this.texCache.entries().next().value;
+        gl.deleteTexture(v.tex);
+        this.texCache.delete(k);
+      }
+      return tex;
+    }
+
+    clearTextures() {
+      for (const v of this.texCache.values()) this.gl.deleteTexture(v.tex);
+      this.texCache.clear();
+    }
+
+    _drawQuad(mvp, w, h, tex, opacity, blurUV, tint, mode) {
+      const gl = this.gl, L = this.loc;
+      gl.bindBuffer(gl.ARRAY_BUFFER, mode === 'loop' ? this.loopBuf : this.quadBuf);
+      gl.enableVertexAttribArray(L.aPos);
+      gl.vertexAttribPointer(L.aPos, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(L.aUV);
+      gl.vertexAttribPointer(L.aUV, 2, gl.FLOAT, false, 16, 8);
+      gl.uniformMatrix4fv(L.uMVP, false, mvp);
+      gl.uniform2f(L.uSize, w, h);
+      gl.uniform1f(L.uOpacity, opacity);
+      gl.uniform2f(L.uBlur, blurUV ? blurUV[0] : 0, blurUV ? blurUV[1] : 0);
+      gl.uniform4fv(L.uTint, tint || [0, 0, 0, 0]);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1i(L.uTex, 0);
+      if (mode === 'loop') gl.drawArrays(gl.LINE_LOOP, 0, 4);
+      else gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    _uploadVideo(video) {
+      const gl = this.gl;
+      gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
+      try {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    /**
+     * Render a frame.
+     * opts = { video, videoReady, layers, time, frameHeightPx, selectedId, hideVideo }
+     */
+    render(opts) {
+      const gl = this.gl;
+      const W = this.canvas.width, H = this.canvas.height;
+      gl.viewport(0, 0, W, H);
+      gl.clearColor(this.bgColor[0], this.bgColor[1], this.bgColor[2], 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.useProgram(this.prog);
+
+      const VP = this._viewProj();
+      const plane = M4.identity();
+      const planeMVP = M4.multiply(VP, plane);
+
+      // Video plane fills the frustum exactly at z = 0.
+      if (opts.video && opts.videoReady) {
+        if (this._uploadVideo(opts.video)) {
+          this._drawQuad(planeMVP, 2 * this.aspect, 2, this.videoTex, 1, null, null);
+        }
+      }
+
+      this.lastQuads = [];
+      const t = opts.time;
+      const frameH = opts.frameHeightPx || H;
+
+      for (const layer of opts.layers) {
+        if (layer.hidden) continue;
+        if (t < layer.start || t >= layer.end) continue;
+        const lay = this._layoutFor(layer, frameH);
+        const dur = layer.end - layer.start;
+        const lt = t - layer.start;
+        const tr = layer.transform;
+        const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
+        const VPL = M4.multiply(VP, layerM);
+        const fw = lay.fontWorld;
+        const count = lay.groups.length;
+        const quads = [];
+
+        for (const g of lay.groups) {
+          const st = Anim.evaluate(layer, lt, dur, { index: g.index, count, text: g.text });
+          const opacity = st.opacity * (layer.style.opacity == null ? 1 : layer.style.opacity);
+          if (opacity <= 0.001) continue;
+
+          let gm = M4.translation(g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw);
+          const pivot = st.pivotY ? st.pivotY * g.h : 0;
+          if (pivot) gm = M4.multiply(gm, M4.translation(0, pivot, 0));
+          if (st.rz) gm = M4.multiply(gm, M4.rotationZ((st.rz * Math.PI) / 180));
+          if (st.ry) gm = M4.multiply(gm, M4.rotationY((st.ry * Math.PI) / 180));
+          if (st.rx) gm = M4.multiply(gm, M4.rotationX((st.rx * Math.PI) / 180));
+          if (pivot) gm = M4.multiply(gm, M4.translation(0, -pivot, 0));
+          if (st.sx !== 1 || st.sy !== 1) gm = M4.multiply(gm, M4.scaling(Math.max(0.0001, st.sx), Math.max(0.0001, st.sy), 1));
+          const mvp = M4.multiply(VPL, gm);
+
+          let blurUV = null;
+          if (st.blur > 0.0005) {
+            const blurPx = st.blur * lay.fontPx; // in unscaled texture pixels
+            const scale = g.canvas.width / (g.w * frameH / 2);
+            blurUV = [(blurPx * scale) / g.canvas.width, (blurPx * scale) / g.canvas.height];
+          }
+
+          const tex = this._textureFor(g.canvas);
+          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity), blurUV, null);
+
+          // Screen-space corners for hit testing (shrunk to the glyph area, ignoring padding)
+          const hw = g.w * 0.42, hh = g.h * 0.42;
+          quads.push([
+            this._toScreen(mvp, -hw, -hh), this._toScreen(mvp, hw, -hh),
+            this._toScreen(mvp, hw, hh), this._toScreen(mvp, -hw, hh),
+          ]);
+        }
+        this.lastQuads.push({ layerId: layer.id, quads });
+
+        if (opts.selectedId === layer.id) {
+          const pad = fw * 0.25;
+          const bw = lay.blockW + pad * 2, bh = lay.blockH + pad * 2;
+          this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, [1, 0.55, 0.1, 0.95], 'loop');
+        }
+      }
+    }
+
+    _toScreen(mvp, x, y) {
+      const p = M4.transformPoint(mvp, x, y, 0);
+      return { x: ((p.x + 1) / 2) * this.canvas.width, y: ((1 - p.y) / 2) * this.canvas.height, behind: p.w <= 0 };
+    }
+
+    _layoutFor(layer, frameH) {
+      const key = `${frameH}|${layer.split}|${layer.text}|${JSON.stringify(layer.style)}`;
+      if (!layer._layout || layer._layout.key !== key) {
+        layer._layout = Object.assign({ key }, TextRender.layout(layer, frameH));
+      }
+      return layer._layout;
+    }
+
+    /* Screen bounds (pixels) of a layer's text block, or null if not visible right now. */
+    layerScreenBox(layer, frameH) {
+      const lay = this._layoutFor(layer, frameH);
+      const tr = layer.transform;
+      const VPL = M4.multiply(this._viewProj(), M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale));
+      const hw = lay.blockW / 2, hh = lay.blockH / 2;
+      return [this._toScreen(VPL, -hw, -hh), this._toScreen(VPL, hw, -hh), this._toScreen(VPL, hw, hh), this._toScreen(VPL, -hw, hh)];
+    }
+
+    /* Topmost layer id whose glyphs contain the screen point, or null. */
+    hitTest(px, py) {
+      for (let i = this.lastQuads.length - 1; i >= 0; i--) {
+        const entry = this.lastQuads[i];
+        for (const q of entry.quads) {
+          if (q.some((p) => p.behind)) continue;
+          if (pointInPoly(px, py, q)) return entry.layerId;
+        }
+      }
+      return null;
+    }
+  }
+
+  function pointInPoly(x, y, pts) {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  global.Renderer = Renderer;
+})(window);
