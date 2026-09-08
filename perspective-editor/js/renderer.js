@@ -272,6 +272,7 @@
       const selected = new Set(opts.selectedIds || []);
       const aperture = cam.aperture || 0;
       const focus = cam.focus || defaultCam.z;
+      const fade = cam.fade || null; // { near, farStart, farEnd } in view depth
 
       this.lastQuads = [];
       const t = opts.time;
@@ -280,10 +281,15 @@
       for (const layer of opts.layers) {
         if (layer.hidden) continue;
         if (t < layer.start || t >= layer.end) continue;
-        const lay = this._layoutFor(layer, frameH);
+        const tr = layer.transform;
+        // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
+        // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
+        const depthL = -M4.transformPoint(view, tr.x, tr.y, tr.z).z;
+        const mag = Math.min(8, Math.max(1, this.camDist / Math.max(0.05, depthL)));
+        const bucket = Math.min(8, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
+        const lay = this._layoutFor(layer, Math.round(frameH * bucket));
         const dur = layer.end - layer.start;
         const lt = t - layer.start;
-        const tr = layer.transform;
         const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
         const VPL = M4.multiply(VP, layerM);
         const viewL = M4.multiply(view, layerM);
@@ -314,12 +320,22 @@
           ];
           if (corners.some((p) => p.behind)) continue;
 
+          const depth = -M4.transformPoint(viewL, g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw).z;
+
+          // Distance fade: text about to pass behind the lens dissolves instead of popping, and text
+          // left far behind the camera fades like fog.
+          let fadeMul = 1;
+          if (fade) {
+            if (fade.near > 0) fadeMul *= Math.min(1, Math.max(0, (depth - fade.near * 0.4) / (fade.near * 0.6)));
+            if (fade.farEnd > fade.farStart) fadeMul *= 1 - Math.min(1, Math.max(0, (depth - fade.farStart) / (fade.farEnd - fade.farStart)));
+          }
+          if (fadeMul <= 0.002) continue;
+
           // Depth of field: circle of confusion grows with distance from the focal plane, faster
           // for things close to the lens.
           let blurWorld = st.blur * fw;
           if (aperture > 0) {
-            const depth = -M4.transformPoint(viewL, g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw).z;
-            const coc = (aperture * 0.28 * Math.abs(depth - focus)) / Math.max(0.15, depth);
+            const coc = (aperture * 0.28 * Math.abs(depth - focus)) / Math.max(0.6, depth);
             blurWorld += Math.min(coc, 0.45 * fw * Math.max(1, st.sx));
           }
           let blurUV = null;
@@ -328,7 +344,7 @@
           }
 
           const tex = this._textureFor(g.canvas);
-          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity), blurUV, null);
+          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null);
           quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });

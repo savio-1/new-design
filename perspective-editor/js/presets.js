@@ -156,6 +156,51 @@
   /* ---- Templates -------------------------------------------------------- */
   const TEMPLATES = [
     {
+      id: 'reveal',
+      name: 'Camera Reveal',
+      description: 'Words sit still in 3D at different depths; the camera tracks backwards and reveals each one as it passes — like a tracked 3D title in Resolve.',
+      sample: "here's how you",
+      tags: ['Camera', 'Static text'],
+      previewClass: 'tp-reveal',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const n = ws.length;
+        const layers = [];
+        // Screen layout at the resting camera: a tight stack, alternating left / centre / right.
+        const lineStep = 0.24;
+        const top = ((n - 1) * lineStep) / 2 - 0.05;
+        const xs = [-0.22, 0.02, 0.28];
+        const zStep = Math.min(0.55, 1.6 / Math.max(1, n - 1));
+        ws.forEach((w, i) => {
+          const z = 0.15 + i * zStep;                    // later words sit closer to the lens
+          const k = (d - z) / d;                        // keep the apparent size at rest
+          const wx = xs[i % xs.length] * Math.min(1.3, aspect) + rand(i, 41) * 0.04;
+          const wy = top - i * lineStep;
+          const big = i === n - 1;
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: (big ? 0.15 : 0.11) * k, color: WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.1, x: 0.01, y: 0.05, color: '#000000', opacity: 0.55 } }, BOLD),
+            transform: { x: wx * k, y: wy * k, z, rx: 0, ry: 0, rz: 0, scale: 1 },
+            anim: {
+              in: { type: 'none', duration: 0.3, easing: 'easeOut', stagger: 0 },
+              out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 },
+              loop: { type: 'none', speed: 1 },
+            },
+          }));
+        });
+        const nearest = 0.15 + (n - 1) * zStep;
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: nearest + 0.25, x: 0.03, easing: 'linear' }),
+          Camera.defaultKey(start + duration * 0.7, { dolly: 0, x: 0, easing: 'easeOut' }),
+          Camera.defaultKey(start + duration, { dolly: -0.45, x: -0.02, easing: 'smooth' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.1, autoFocus: false, farFade: 2.7 } };
+      },
+    },
+    {
       id: 'kinetic',
       name: 'Kinetic Words',
       description: 'Words fly in from the lens and settle at different depths while the camera drifts through them — the reference look.',

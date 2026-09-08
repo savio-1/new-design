@@ -73,6 +73,14 @@ the video stays put — this is what gives the reference clips their depth. Open
 - The **Camera** track above the layers shows keyframes as diamonds. Drag to retime, click to edit
   dolly / truck / pedestal / yaw / pitch / roll and easing in the inspector, double-click the track
   (or press `K`) to add a key at the playhead.
+- The **Scene map** at the top of the Camera tab is a top-down view of the whole setup: the red line
+  is the video plane, the blue dot is the camera with its field of view, and each word is a dot.
+  Drag a word to place it in X and depth; drag the camera to write a keyframe at the playhead.
+- **Fade far text** dissolves words once they fall this far behind the lens, so a pull-back leaves
+  distant words behind naturally. Words about to pass the lens also dissolve rather than pop.
+- **Camera Reveal** template: words sit still at increasing depths along the line of sight and the
+  camera tracks backwards, revealing each one as it passes — the tracked-3D-title look. Use the
+  *Tracking shot* moves to match footage where the real camera walks backwards or forwards.
 - Templates such as *Kinetic Words* insert their own camera moves along with the layers.
 
 ## Multi-selection

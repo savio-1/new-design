@@ -13,7 +13,7 @@
     layers: [],
     selectedIds: [],       // ordered; the first entry is the primary selection
     selectedKeyId: null,   // selected camera keyframe (mutually exclusive with layer selection)
-    camera: { aperture: 0.6, autoFocus: true, keys: [] },
+    camera: { aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] },
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -168,7 +168,12 @@
   function cameraAt(t) {
     const d = renderer.camDist;
     const k = Camera.evaluate(state.camera.keys, t);
-    const cam = { x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll, aperture: state.camera.aperture, focus: d };
+    const far = state.camera.farFade == null ? 3.2 : state.camera.farFade;
+    const cam = {
+      x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll,
+      aperture: state.camera.aperture, focus: d,
+      fade: { near: 0.28, farStart: far, farEnd: far >= 8 ? 0 : far * 1.35 },
+    };
     if (state.camera.autoFocus) cam.focus = autoFocus(cam, t);
     else cam.focus = k.focus != null ? k.focus : Math.max(0.1, renderer.viewDepth(cam, 0, 0, 0));
     return cam;
@@ -186,6 +191,19 @@
   }
 
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
+
+  /* Keys past the end of the timeline are pulled back to the end (keeping only the last of them) so a
+   * camera move still completes instead of freezing on its first key. */
+  function clampCameraKeys(T) {
+    const inside = state.camera.keys.filter((k) => k.t <= T);
+    const beyond = state.camera.keys.filter((k) => k.t > T).sort((a, b) => b.t - a.t);
+    if (beyond.length) {
+      const last = beyond[0];
+      last.t = T;
+      if (!inside.some((k) => Math.abs(k.t - T) < 0.02)) inside.push(last);
+    }
+    state.camera.keys = Camera.sorted(inside);
+  }
   const selectedKey = () => getKey(state.selectedKeyId);
 
   function addCameraKey(t, patch) {
@@ -210,12 +228,15 @@
       e = Math.min(duration(), s + 3);
     }
     if (e - s < 0.2) { toast('The range is too short for a camera move', true); return; }
-    const keys = move.build(s, e, renderer.camDist);
+    const pool = sel.length ? sel : state.layers.filter((l) => !l.hidden && l.start < e && l.end > s);
+    const ctx = { maxZ: pool.length ? Math.max(...pool.map((l) => l.transform.z)) : null };
+    const keys = move.build(s, e, renderer.camDist, ctx);
     state.camera.keys = Camera.replaceRange(state.camera.keys, s, e, keys);
     state.selectedKeyId = null;
     commit();
     renderCameraTrack();
     refreshInspector();
+    drawSceneMap();
     clock.pause();
     clock.time = s;
     clock.play();
@@ -259,6 +280,7 @@
         needsRender = false;
         draw(clock.time);
         updateTimeUI();
+        if (sceneMapVisible()) drawSceneMap();
       }
     }
     requestAnimationFrame(frame);
@@ -389,7 +411,7 @@
   function restore(snap) {
     const data = JSON.parse(snap);
     state.layers = data.layers;
-    state.camera = data.camera || { aperture: 0.6, autoFocus: true, keys: [] };
+    state.camera = Object.assign({ aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] }, data.camera || {});
     state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
     state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
     state.lastCommitted = snap;
@@ -417,6 +439,7 @@
     renderTimeline();
     refreshInspector();
     invalidate();
+    drawSceneMap();
   }
 
   /* ------------------------------------------------------------------ timeline */
@@ -721,7 +744,7 @@
       fields: [
         { type: 'range', path: 'transform.x', label: 'X', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
         { type: 'range', path: 'transform.y', label: 'Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
-        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Positive brings the text toward the camera' },
+        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 2.2, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Positive brings the text toward the camera; the resting lens sits at about 2.4' },
         { type: 'range', path: 'transform.rx', label: 'Tilt X', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
         { type: 'range', path: 'transform.ry', label: 'Turn Y', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
         { type: 'range', path: 'transform.rz', label: 'Roll Z', min: -180, max: 180, step: 1, scale: 1, unit: '°', delta: true },
@@ -1179,8 +1202,165 @@
     }, { passive: false });
   })();
 
+
+  /* ------------------------------------------------------------------ scene map (top view) */
+  const sceneCanvas = $('#sceneMap');
+  const sctx = sceneCanvas.getContext('2d');
+  const SM = { pad: 14, zMin: -1.2, zMax: 4.2, xHalf: 1.9 };
+  function sceneMapVisible() { return !$('#tab-camera').classList.contains('hidden'); }
+  function smToPx(x, z) {
+    const W = sceneCanvas.width, H = sceneCanvas.height;
+    return {
+      px: W / 2 + (x / SM.xHalf) * (W / 2 - SM.pad),
+      py: SM.pad + ((SM.zMax - z) / (SM.zMax - SM.zMin)) * (H - SM.pad * 2),
+    };
+  }
+  function smFromPx(px, py) {
+    const W = sceneCanvas.width, H = sceneCanvas.height;
+    return {
+      x: ((px - W / 2) / (W / 2 - SM.pad)) * SM.xHalf,
+      z: SM.zMax - ((py - SM.pad) / (H - SM.pad * 2)) * (SM.zMax - SM.zMin),
+    };
+  }
+  function drawSceneMap() {
+    if (!sceneMapVisible()) return;
+    const W = sceneCanvas.width, H = sceneCanvas.height;
+    const c = sctx;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = '#101014';
+    c.fillRect(0, 0, W, H);
+
+    const t = clock.time;
+    const cam = cameraAt(t);
+    const aspect = frameAspect();
+
+    // depth grid
+    c.strokeStyle = '#1f1f26';
+    c.lineWidth = 1;
+    for (let z = Math.ceil(SM.zMin); z <= SM.zMax; z += 0.5) {
+      const { py } = smToPx(0, z);
+      c.beginPath(); c.moveTo(SM.pad, py); c.lineTo(W - SM.pad, py); c.stroke();
+    }
+
+    // far-fade band
+    if (cam.fade && cam.fade.farEnd > 0) {
+      const zStart = cam.z - cam.fade.farStart, zEnd = cam.z - cam.fade.farEnd;
+      const a = smToPx(0, zStart).py, b = smToPx(0, Math.max(SM.zMin, zEnd)).py;
+      const g = c.createLinearGradient(0, a, 0, b);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0.09)');
+      c.fillStyle = g;
+      c.fillRect(SM.pad, Math.min(a, b), W - SM.pad * 2, Math.abs(b - a));
+    }
+
+    // video plane
+    const pl = smToPx(-aspect, 0), pr = smToPx(aspect, 0);
+    c.strokeStyle = '#ff5c5c';
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(pl.px, pl.py); c.lineTo(pr.px, pr.py); c.stroke();
+    c.fillStyle = '#8f8f99';
+    c.font = '10px Inter, sans-serif';
+    c.fillText('video', pr.px + 4, pr.py + 3);
+
+    // camera + frustum
+    const cp = smToPx(cam.x, cam.z);
+    const halfH = Math.atan(Math.tan((state.fov * Math.PI) / 360) * aspect);
+    const yaw = (cam.yaw * Math.PI) / 180;
+    const len = 6;
+    c.strokeStyle = 'rgba(90,200,250,0.35)';
+    c.lineWidth = 1;
+    for (const sgn of [-1, 1]) {
+      const a = yaw + sgn * halfH; // view axis is -z; angle measured from -z toward +x
+      const end = smToPx(cam.x + Math.sin(a) * len, cam.z - Math.cos(a) * len);
+      c.beginPath(); c.moveTo(cp.px, cp.py); c.lineTo(end.px, end.py); c.stroke();
+    }
+    c.fillStyle = '#5ac8fa';
+    c.beginPath(); c.arc(cp.px, cp.py, 6, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#0d2733'; c.lineWidth = 1.5; c.stroke();
+
+    // words
+    c.font = '600 10px Inter, sans-serif';
+    for (const l of state.layers) {
+      if (l.hidden) continue;
+      const visible = t >= l.start && t < l.end;
+      const p = smToPx(l.transform.x, l.transform.z);
+      const sel = isSelected(l.id);
+      c.globalAlpha = visible ? 1 : 0.35;
+      c.fillStyle = sel ? '#f28c28' : '#e0e0e8';
+      c.beginPath(); c.arc(p.px, p.py, sel ? 5 : 4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = sel ? '#ffb266' : '#a8a8b3';
+      c.fillText((l.text || l.name || '').split('\n')[0].slice(0, 12), p.px + 7, p.py + 3);
+      c.globalAlpha = 1;
+    }
+  }
+
+  (function sceneMapInteractions() {
+    let drag = null;
+    const toCanvas = (e) => {
+      const r = sceneCanvas.getBoundingClientRect();
+      return { px: ((e.clientX - r.left) / r.width) * sceneCanvas.width, py: ((e.clientY - r.top) / r.height) * sceneCanvas.height };
+    };
+    const hit = (p) => {
+      const cam = cameraAt(clock.time);
+      const cp = smToPx(cam.x, cam.z);
+      if (Math.hypot(cp.px - p.px, cp.py - p.py) < 9) return { kind: 'camera' };
+      let best = null, bd = 10;
+      for (const l of state.layers) {
+        if (l.hidden) continue;
+        const q = smToPx(l.transform.x, l.transform.z);
+        const d = Math.hypot(q.px - p.px, q.py - p.py);
+        if (d < bd) { bd = d; best = l; }
+      }
+      return best ? { kind: 'layer', layer: best } : null;
+    };
+    sceneCanvas.addEventListener('pointerdown', (e) => {
+      const p = toCanvas(e);
+      const h = hit(p);
+      if (!h) return;
+      sceneCanvas.setPointerCapture(e.pointerId);
+      if (h.kind === 'camera') {
+        // Dragging the camera writes a keyframe at the playhead (reusing one that already sits there).
+        clock.pause();
+        const t = round(clock.time, 2);
+        let key = state.camera.keys.find((k) => Math.abs(k.t - t) <= 0.05);
+        if (!key) key = addCameraKey(t);
+        selectKey(key.id);
+        drag = { kind: 'camera', key, moved: false };
+      } else {
+        if (!isSelected(h.layer.id)) select(h.layer.id, { toggle: e.shiftKey });
+        const items = selectedLayers().map((l) => ({ l, x0: l.transform.x, z0: l.transform.z }));
+        drag = { kind: 'layer', items, start: smFromPx(p.px, p.py), moved: false };
+      }
+      e.preventDefault();
+    });
+    sceneCanvas.addEventListener('pointermove', (e) => {
+      const p = toCanvas(e);
+      if (!drag) { sceneCanvas.style.cursor = hit(p) ? 'grab' : 'crosshair'; return; }
+      const w = smFromPx(p.px, p.py);
+      drag.moved = true;
+      if (drag.kind === 'camera') {
+        drag.key.x = round(clamp(w.x, -SM.xHalf, SM.xHalf), 3);
+        drag.key.dolly = round(renderer.camDist - clamp(w.z, SM.zMin + 0.1, SM.zMax), 3);
+        refreshKeyValues();
+        renderCameraTrack();
+      } else {
+        const dx = w.x - drag.start.x, dz = w.z - drag.start.z;
+        for (const it of drag.items) {
+          it.l.transform.x = round(clamp(it.x0 + dx, -3, 3), 3);
+          it.l.transform.z = round(clamp(it.z0 + dz, -2, 2.2), 3);
+        }
+        refreshInspectorValues();
+      }
+      invalidate();
+      drawSceneMap();
+    });
+    const end = () => { if (drag && drag.moved) commit(); drag = null; };
+    sceneCanvas.addEventListener('pointerup', end);
+    sceneCanvas.addEventListener('pointercancel', end);
+  })();
+
   /* ------------------------------------------------------------------ templates, styles & camera tab */
   const TEMPLATE_PREVIEWS = {
+    reveal: "<span>here's</span><span>how</span><span>you</span>",
     kinetic: "<span>here's</span><span>how you</span><span>can do</span><span>this</span>",
     stack: '<span>MAKE</span><span>IT</span><span>BOLD</span>',
     flyTitle: '<span>NEW SEASON</span><span>Available now</span>',
@@ -1270,7 +1450,14 @@
     $('#camAperture').value = state.camera.aperture;
     $('#camApertureNum').value = Math.round(state.camera.aperture * 100);
     $('#camAutofocus').checked = !!state.camera.autoFocus;
+    const far = state.camera.farFade == null ? 3.2 : state.camera.farFade;
+    $('#camFarFade').value = far;
+    $('#camFarFadeNum').value = far >= 8 ? 'off' : round(far, 1);
+    drawSceneMap();
   }
+  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); drawSceneMap(); });
+  $('#camFarFade').addEventListener('change', commit);
+  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
   $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
   $('#camAperture').addEventListener('change', commit);
   $('#camApertureNum').addEventListener('change', (e) => { state.camera.aperture = clamp(Number(e.target.value) / 100, 0, 1); syncCameraControls(); commit(); invalidate(); });
@@ -1320,6 +1507,7 @@
     const ids = [];
     for (const l of layers) ids.push(addLayer(l, { select: false }).id);
     if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
+    if (!Array.isArray(built) && built.cameraSettings) { Object.assign(state.camera, built.cameraSettings); syncCameraControls(); }
     state.selectedIds = ids.slice(0, 1);
     state.selectedKeyId = null;
     commit();
@@ -1358,7 +1546,7 @@
       l.start = Math.min(l.start, Math.max(0, l.end - 0.1));
       l._layout = null;
     }
-    state.camera.keys = state.camera.keys.filter((k) => k.t <= state.video.duration);
+    clampCameraKeys(state.video.duration);
     $('#noVideoFields').classList.add('hidden');
     $('#expAudioWrap').classList.remove('hidden');
     els.dropHint.classList.add('hidden');
@@ -1414,7 +1602,7 @@
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
-      state.camera = Object.assign({ aperture: 0.6, autoFocus: true, keys: [] }, data.camera || {});
+      state.camera = Object.assign({ aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] }, data.camera || {});
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       if (data.aspect) { state.aspect = data.aspect; $('#aspectSelect').value = aspectToLabel(data.aspect); }
       if (data.duration) { state.duration = data.duration; $('#durationInput').value = data.duration; }
@@ -1457,7 +1645,7 @@
     state.duration = clamp(Number(e.target.value) || 10, 1, 600);
     e.target.value = state.duration;
     for (const l of state.layers) { l.end = Math.min(l.end, state.duration); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
-    state.camera.keys = state.camera.keys.filter((k) => k.t <= state.duration);
+    clampCameraKeys(state.duration);
     if (clock.time > state.duration) clock.time = 0;
     commit();
     refreshAll();
@@ -1470,6 +1658,7 @@
     if (!b) return;
     $$('.tab', $('#leftTabs')).forEach((t) => t.classList.toggle('active', t === b));
     for (const name of ['templates', 'styles', 'camera']) $(`#tab-${name}`).classList.toggle('hidden', b.dataset.tab !== name);
+    drawSceneMap();
   });
 
   /* ------------------------------------------------------------------ export */
@@ -1747,10 +1936,12 @@
     fitPreview();
 
     // Demo content so the first impression shows the effect
-    const demo = Presets.TEMPLATES.find((t) => t.id === 'kinetic');
-    const built = demo.build(demo.sample, 0.3, 9, frameAspect(), { camDist: renderer.camDist });
+    const demo = Presets.TEMPLATES.find((t) => t.id === 'reveal');
+    const built = demo.build(demo.sample, 0.2, 6, frameAspect(), { camDist: renderer.camDist });
     for (const l of built.layers) addLayer(l, { select: false });
     state.camera.keys = built.cameraKeys || [];
+    if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
+    syncCameraControls();
     state.selectedIds = [];
     state.lastCommitted = snapshot();
     updateUndoButtons();
@@ -1760,4 +1951,6 @@
     clock.play();
   }
   init();
+  // Debug / automation hook (read-only use).
+  window.__perspective = { state, renderer, cameraAt, clock };
 })();

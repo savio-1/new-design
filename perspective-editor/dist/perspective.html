@@ -439,6 +439,19 @@ svg { width: 18px; height: 18px; display: block; }
 .tl-row.selected.secondary { background: rgba(242,140,40,.04); }
 .tl-row.selected.secondary .tl-bar { background: linear-gradient(180deg, #d99a5a, #b87a3a); border-color: #e8b27a; }
 
+/* Scene map */
+.scene-map-wrap { border: 1px solid var(--border); border-radius: 10px; background: #101014; overflow: hidden; margin-bottom: 10px; }
+#sceneMap { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: none; }
+.scene-map-legend { display: flex; flex-direction: column; gap: 3px; padding: 7px 10px 9px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); }
+.scene-map-legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.scene-map-legend .dot.cam { background: #5ac8fa; }
+.scene-map-legend .dot.word { background: var(--accent); }
+.tp-reveal span { font: 800 16px 'Helvetica Neue', Inter; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,.6); letter-spacing: -.3px; }
+.tp-reveal span:nth-child(1) { left: 62px; top: 18px; font-size: 13px; opacity: .55; }
+.tp-reveal span:nth-child(2) { left: 84px; top: 36px; font-size: 18px; }
+.tp-reveal span:nth-child(3) { left: 128px; top: 58px; font-size: 26px; }
+.tp-reveal::after { content: ''; position: absolute; left: 14px; top: 46px; width: 40px; height: 1px; background: linear-gradient(90deg, #5ac8fa, transparent); }
+
 </style>
 </head>
 <body>
@@ -489,7 +502,15 @@ svg { width: 18px; height: 18px; display: block; }
         <div class="style-grid" id="styleGrid"></div>
       </div>
       <div class="tab-body hidden" id="tab-camera">
-        <p class="panel-hint">The camera flies through the text world while the video stays put. Words off the focal plane blur like a real lens.</p>
+        <p class="panel-hint">The camera moves through the text world while the video stays put. Place words at different depths, then move the camera to reveal them.</p>
+        <div class="scene-map-wrap">
+          <canvas id="sceneMap" width="248" height="210"></canvas>
+          <div class="scene-map-legend"><span><i class="dot cam"></i>Camera — drag to keyframe at the playhead</span><span><i class="dot word"></i>Words — drag to place in X and depth</span></div>
+        </div>
+        <div class="ctl">
+          <label>Fade far text</label>
+          <div class="range-wrap"><input id="camFarFade" type="range" min="1" max="8" step="0.1" value="3.2"><input id="camFarFadeNum" type="number" min="1" max="8" step="0.1" value="3.2"></div>
+        </div>
         <div class="ctl">
           <label>Depth of field</label>
           <div class="range-wrap"><input id="camAperture" type="range" min="0" max="1" step="0.01" value="0.6"><input id="camApertureNum" type="number" min="0" max="100" step="1" value="60"></div>
@@ -3656,6 +3677,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const selected = new Set(opts.selectedIds || []);
       const aperture = cam.aperture || 0;
       const focus = cam.focus || defaultCam.z;
+      const fade = cam.fade || null; // { near, farStart, farEnd } in view depth
 
       this.lastQuads = [];
       const t = opts.time;
@@ -3664,10 +3686,15 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       for (const layer of opts.layers) {
         if (layer.hidden) continue;
         if (t < layer.start || t >= layer.end) continue;
-        const lay = this._layoutFor(layer, frameH);
+        const tr = layer.transform;
+        // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
+        // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
+        const depthL = -M4.transformPoint(view, tr.x, tr.y, tr.z).z;
+        const mag = Math.min(8, Math.max(1, this.camDist / Math.max(0.05, depthL)));
+        const bucket = Math.min(8, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
+        const lay = this._layoutFor(layer, Math.round(frameH * bucket));
         const dur = layer.end - layer.start;
         const lt = t - layer.start;
-        const tr = layer.transform;
         const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
         const VPL = M4.multiply(VP, layerM);
         const viewL = M4.multiply(view, layerM);
@@ -3698,12 +3725,22 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           ];
           if (corners.some((p) => p.behind)) continue;
 
+          const depth = -M4.transformPoint(viewL, g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw).z;
+
+          // Distance fade: text about to pass behind the lens dissolves instead of popping, and text
+          // left far behind the camera fades like fog.
+          let fadeMul = 1;
+          if (fade) {
+            if (fade.near > 0) fadeMul *= Math.min(1, Math.max(0, (depth - fade.near * 0.4) / (fade.near * 0.6)));
+            if (fade.farEnd > fade.farStart) fadeMul *= 1 - Math.min(1, Math.max(0, (depth - fade.farStart) / (fade.farEnd - fade.farStart)));
+          }
+          if (fadeMul <= 0.002) continue;
+
           // Depth of field: circle of confusion grows with distance from the focal plane, faster
           // for things close to the lens.
           let blurWorld = st.blur * fw;
           if (aperture > 0) {
-            const depth = -M4.transformPoint(viewL, g.cx + st.tx * fw, g.cy + st.ty * fw, st.tz * fw).z;
-            const coc = (aperture * 0.28 * Math.abs(depth - focus)) / Math.max(0.15, depth);
+            const coc = (aperture * 0.28 * Math.abs(depth - focus)) / Math.max(0.6, depth);
             blurWorld += Math.min(coc, 0.45 * fw * Math.max(1, st.sx));
           }
           let blurUV = null;
@@ -3712,7 +3749,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           }
 
           const tex = this._textureFor(g.canvas);
-          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity), blurUV, null);
+          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null);
           quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });
@@ -3894,8 +3931,28 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     },
     {
       id: 'reveal', name: 'Pull-back reveal',
-      description: 'Opens very close and out of focus, then pulls back until everything is sharp.',
-      build: (s, e) => [K(s, { dolly: 1.3, yaw: 6 }), K(e, { dolly: 0, yaw: 0, easing: 'easeOut' })],
+      description: 'Starts with the lens in front of the nearest word, then tracks back so each word is revealed as the camera passes it.',
+      build: (s, e, camDist, ctx) => {
+        const nearest = ctx && ctx.maxZ != null ? ctx.maxZ : 0.6;
+        return [
+          K(s, { dolly: nearest + 0.25, x: 0.03 }),
+          K(s + (e - s) * 0.7, { dolly: 0, x: 0, easing: 'easeOut' }),
+          K(e, { dolly: -0.35, x: -0.02, easing: 'smooth' }),
+        ];
+      },
+    },
+    {
+      id: 'trackBack', name: 'Tracking shot · back',
+      description: 'A steady pull back for footage where the real camera walks backwards; far words fade as they fall behind.',
+      build: (s, e, camDist, ctx) => {
+        const nearest = ctx && ctx.maxZ != null ? ctx.maxZ : 0.6;
+        return [K(s, { dolly: nearest + 0.2, easing: 'linear' }), K(e, { dolly: -0.8, easing: 'linear' })];
+      },
+    },
+    {
+      id: 'trackIn', name: 'Tracking shot · forward',
+      description: 'A steady push forward for footage where the real camera walks toward the subject.',
+      build: (s, e) => [K(s, { dolly: -0.8, easing: 'linear' }), K(e, { dolly: 0.9, easing: 'linear' })],
     },
     {
       id: 'drift', name: 'Handheld drift',
@@ -4085,6 +4142,51 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
   /* ---- Templates -------------------------------------------------------- */
   const TEMPLATES = [
+    {
+      id: 'reveal',
+      name: 'Camera Reveal',
+      description: 'Words sit still in 3D at different depths; the camera tracks backwards and reveals each one as it passes — like a tracked 3D title in Resolve.',
+      sample: "here's how you",
+      tags: ['Camera', 'Static text'],
+      previewClass: 'tp-reveal',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const n = ws.length;
+        const layers = [];
+        // Screen layout at the resting camera: a tight stack, alternating left / centre / right.
+        const lineStep = 0.24;
+        const top = ((n - 1) * lineStep) / 2 - 0.05;
+        const xs = [-0.22, 0.02, 0.28];
+        const zStep = Math.min(0.55, 1.6 / Math.max(1, n - 1));
+        ws.forEach((w, i) => {
+          const z = 0.15 + i * zStep;                    // later words sit closer to the lens
+          const k = (d - z) / d;                        // keep the apparent size at rest
+          const wx = xs[i % xs.length] * Math.min(1.3, aspect) + rand(i, 41) * 0.04;
+          const wy = top - i * lineStep;
+          const big = i === n - 1;
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: (big ? 0.15 : 0.11) * k, color: WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.1, x: 0.01, y: 0.05, color: '#000000', opacity: 0.55 } }, BOLD),
+            transform: { x: wx * k, y: wy * k, z, rx: 0, ry: 0, rz: 0, scale: 1 },
+            anim: {
+              in: { type: 'none', duration: 0.3, easing: 'easeOut', stagger: 0 },
+              out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 },
+              loop: { type: 'none', speed: 1 },
+            },
+          }));
+        });
+        const nearest = 0.15 + (n - 1) * zStep;
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: nearest + 0.25, x: 0.03, easing: 'linear' }),
+          Camera.defaultKey(start + duration * 0.7, { dolly: 0, x: 0, easing: 'easeOut' }),
+          Camera.defaultKey(start + duration, { dolly: -0.45, x: -0.02, easing: 'smooth' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.1, autoFocus: false, farFade: 2.7 } };
+      },
+    },
     {
       id: 'kinetic',
       name: 'Kinetic Words',
@@ -4716,7 +4818,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     layers: [],
     selectedIds: [],       // ordered; the first entry is the primary selection
     selectedKeyId: null,   // selected camera keyframe (mutually exclusive with layer selection)
-    camera: { aperture: 0.6, autoFocus: true, keys: [] },
+    camera: { aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] },
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -4871,7 +4973,12 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function cameraAt(t) {
     const d = renderer.camDist;
     const k = Camera.evaluate(state.camera.keys, t);
-    const cam = { x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll, aperture: state.camera.aperture, focus: d };
+    const far = state.camera.farFade == null ? 3.2 : state.camera.farFade;
+    const cam = {
+      x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll,
+      aperture: state.camera.aperture, focus: d,
+      fade: { near: 0.28, farStart: far, farEnd: far >= 8 ? 0 : far * 1.35 },
+    };
     if (state.camera.autoFocus) cam.focus = autoFocus(cam, t);
     else cam.focus = k.focus != null ? k.focus : Math.max(0.1, renderer.viewDepth(cam, 0, 0, 0));
     return cam;
@@ -4889,6 +4996,19 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
 
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
+
+  /* Keys past the end of the timeline are pulled back to the end (keeping only the last of them) so a
+   * camera move still completes instead of freezing on its first key. */
+  function clampCameraKeys(T) {
+    const inside = state.camera.keys.filter((k) => k.t <= T);
+    const beyond = state.camera.keys.filter((k) => k.t > T).sort((a, b) => b.t - a.t);
+    if (beyond.length) {
+      const last = beyond[0];
+      last.t = T;
+      if (!inside.some((k) => Math.abs(k.t - T) < 0.02)) inside.push(last);
+    }
+    state.camera.keys = Camera.sorted(inside);
+  }
   const selectedKey = () => getKey(state.selectedKeyId);
 
   function addCameraKey(t, patch) {
@@ -4913,12 +5033,15 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       e = Math.min(duration(), s + 3);
     }
     if (e - s < 0.2) { toast('The range is too short for a camera move', true); return; }
-    const keys = move.build(s, e, renderer.camDist);
+    const pool = sel.length ? sel : state.layers.filter((l) => !l.hidden && l.start < e && l.end > s);
+    const ctx = { maxZ: pool.length ? Math.max(...pool.map((l) => l.transform.z)) : null };
+    const keys = move.build(s, e, renderer.camDist, ctx);
     state.camera.keys = Camera.replaceRange(state.camera.keys, s, e, keys);
     state.selectedKeyId = null;
     commit();
     renderCameraTrack();
     refreshInspector();
+    drawSceneMap();
     clock.pause();
     clock.time = s;
     clock.play();
@@ -4962,6 +5085,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         needsRender = false;
         draw(clock.time);
         updateTimeUI();
+        if (sceneMapVisible()) drawSceneMap();
       }
     }
     requestAnimationFrame(frame);
@@ -5092,7 +5216,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function restore(snap) {
     const data = JSON.parse(snap);
     state.layers = data.layers;
-    state.camera = data.camera || { aperture: 0.6, autoFocus: true, keys: [] };
+    state.camera = Object.assign({ aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] }, data.camera || {});
     state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
     state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
     state.lastCommitted = snap;
@@ -5120,6 +5244,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     renderTimeline();
     refreshInspector();
     invalidate();
+    drawSceneMap();
   }
 
   /* ------------------------------------------------------------------ timeline */
@@ -5424,7 +5549,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       fields: [
         { type: 'range', path: 'transform.x', label: 'X', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
         { type: 'range', path: 'transform.y', label: 'Y', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
-        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Positive brings the text toward the camera' },
+        { type: 'range', path: 'transform.z', label: 'Depth (Z)', min: -2, max: 2.2, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Positive brings the text toward the camera; the resting lens sits at about 2.4' },
         { type: 'range', path: 'transform.rx', label: 'Tilt X', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
         { type: 'range', path: 'transform.ry', label: 'Turn Y', min: -90, max: 90, step: 1, scale: 1, unit: '°', delta: true },
         { type: 'range', path: 'transform.rz', label: 'Roll Z', min: -180, max: 180, step: 1, scale: 1, unit: '°', delta: true },
@@ -5882,8 +6007,165 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     }, { passive: false });
   })();
 
+
+  /* ------------------------------------------------------------------ scene map (top view) */
+  const sceneCanvas = $('#sceneMap');
+  const sctx = sceneCanvas.getContext('2d');
+  const SM = { pad: 14, zMin: -1.2, zMax: 4.2, xHalf: 1.9 };
+  function sceneMapVisible() { return !$('#tab-camera').classList.contains('hidden'); }
+  function smToPx(x, z) {
+    const W = sceneCanvas.width, H = sceneCanvas.height;
+    return {
+      px: W / 2 + (x / SM.xHalf) * (W / 2 - SM.pad),
+      py: SM.pad + ((SM.zMax - z) / (SM.zMax - SM.zMin)) * (H - SM.pad * 2),
+    };
+  }
+  function smFromPx(px, py) {
+    const W = sceneCanvas.width, H = sceneCanvas.height;
+    return {
+      x: ((px - W / 2) / (W / 2 - SM.pad)) * SM.xHalf,
+      z: SM.zMax - ((py - SM.pad) / (H - SM.pad * 2)) * (SM.zMax - SM.zMin),
+    };
+  }
+  function drawSceneMap() {
+    if (!sceneMapVisible()) return;
+    const W = sceneCanvas.width, H = sceneCanvas.height;
+    const c = sctx;
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = '#101014';
+    c.fillRect(0, 0, W, H);
+
+    const t = clock.time;
+    const cam = cameraAt(t);
+    const aspect = frameAspect();
+
+    // depth grid
+    c.strokeStyle = '#1f1f26';
+    c.lineWidth = 1;
+    for (let z = Math.ceil(SM.zMin); z <= SM.zMax; z += 0.5) {
+      const { py } = smToPx(0, z);
+      c.beginPath(); c.moveTo(SM.pad, py); c.lineTo(W - SM.pad, py); c.stroke();
+    }
+
+    // far-fade band
+    if (cam.fade && cam.fade.farEnd > 0) {
+      const zStart = cam.z - cam.fade.farStart, zEnd = cam.z - cam.fade.farEnd;
+      const a = smToPx(0, zStart).py, b = smToPx(0, Math.max(SM.zMin, zEnd)).py;
+      const g = c.createLinearGradient(0, a, 0, b);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(255,255,255,0.09)');
+      c.fillStyle = g;
+      c.fillRect(SM.pad, Math.min(a, b), W - SM.pad * 2, Math.abs(b - a));
+    }
+
+    // video plane
+    const pl = smToPx(-aspect, 0), pr = smToPx(aspect, 0);
+    c.strokeStyle = '#ff5c5c';
+    c.lineWidth = 2;
+    c.beginPath(); c.moveTo(pl.px, pl.py); c.lineTo(pr.px, pr.py); c.stroke();
+    c.fillStyle = '#8f8f99';
+    c.font = '10px Inter, sans-serif';
+    c.fillText('video', pr.px + 4, pr.py + 3);
+
+    // camera + frustum
+    const cp = smToPx(cam.x, cam.z);
+    const halfH = Math.atan(Math.tan((state.fov * Math.PI) / 360) * aspect);
+    const yaw = (cam.yaw * Math.PI) / 180;
+    const len = 6;
+    c.strokeStyle = 'rgba(90,200,250,0.35)';
+    c.lineWidth = 1;
+    for (const sgn of [-1, 1]) {
+      const a = yaw + sgn * halfH; // view axis is -z; angle measured from -z toward +x
+      const end = smToPx(cam.x + Math.sin(a) * len, cam.z - Math.cos(a) * len);
+      c.beginPath(); c.moveTo(cp.px, cp.py); c.lineTo(end.px, end.py); c.stroke();
+    }
+    c.fillStyle = '#5ac8fa';
+    c.beginPath(); c.arc(cp.px, cp.py, 6, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#0d2733'; c.lineWidth = 1.5; c.stroke();
+
+    // words
+    c.font = '600 10px Inter, sans-serif';
+    for (const l of state.layers) {
+      if (l.hidden) continue;
+      const visible = t >= l.start && t < l.end;
+      const p = smToPx(l.transform.x, l.transform.z);
+      const sel = isSelected(l.id);
+      c.globalAlpha = visible ? 1 : 0.35;
+      c.fillStyle = sel ? '#f28c28' : '#e0e0e8';
+      c.beginPath(); c.arc(p.px, p.py, sel ? 5 : 4, 0, Math.PI * 2); c.fill();
+      c.fillStyle = sel ? '#ffb266' : '#a8a8b3';
+      c.fillText((l.text || l.name || '').split('\n')[0].slice(0, 12), p.px + 7, p.py + 3);
+      c.globalAlpha = 1;
+    }
+  }
+
+  (function sceneMapInteractions() {
+    let drag = null;
+    const toCanvas = (e) => {
+      const r = sceneCanvas.getBoundingClientRect();
+      return { px: ((e.clientX - r.left) / r.width) * sceneCanvas.width, py: ((e.clientY - r.top) / r.height) * sceneCanvas.height };
+    };
+    const hit = (p) => {
+      const cam = cameraAt(clock.time);
+      const cp = smToPx(cam.x, cam.z);
+      if (Math.hypot(cp.px - p.px, cp.py - p.py) < 9) return { kind: 'camera' };
+      let best = null, bd = 10;
+      for (const l of state.layers) {
+        if (l.hidden) continue;
+        const q = smToPx(l.transform.x, l.transform.z);
+        const d = Math.hypot(q.px - p.px, q.py - p.py);
+        if (d < bd) { bd = d; best = l; }
+      }
+      return best ? { kind: 'layer', layer: best } : null;
+    };
+    sceneCanvas.addEventListener('pointerdown', (e) => {
+      const p = toCanvas(e);
+      const h = hit(p);
+      if (!h) return;
+      sceneCanvas.setPointerCapture(e.pointerId);
+      if (h.kind === 'camera') {
+        // Dragging the camera writes a keyframe at the playhead (reusing one that already sits there).
+        clock.pause();
+        const t = round(clock.time, 2);
+        let key = state.camera.keys.find((k) => Math.abs(k.t - t) <= 0.05);
+        if (!key) key = addCameraKey(t);
+        selectKey(key.id);
+        drag = { kind: 'camera', key, moved: false };
+      } else {
+        if (!isSelected(h.layer.id)) select(h.layer.id, { toggle: e.shiftKey });
+        const items = selectedLayers().map((l) => ({ l, x0: l.transform.x, z0: l.transform.z }));
+        drag = { kind: 'layer', items, start: smFromPx(p.px, p.py), moved: false };
+      }
+      e.preventDefault();
+    });
+    sceneCanvas.addEventListener('pointermove', (e) => {
+      const p = toCanvas(e);
+      if (!drag) { sceneCanvas.style.cursor = hit(p) ? 'grab' : 'crosshair'; return; }
+      const w = smFromPx(p.px, p.py);
+      drag.moved = true;
+      if (drag.kind === 'camera') {
+        drag.key.x = round(clamp(w.x, -SM.xHalf, SM.xHalf), 3);
+        drag.key.dolly = round(renderer.camDist - clamp(w.z, SM.zMin + 0.1, SM.zMax), 3);
+        refreshKeyValues();
+        renderCameraTrack();
+      } else {
+        const dx = w.x - drag.start.x, dz = w.z - drag.start.z;
+        for (const it of drag.items) {
+          it.l.transform.x = round(clamp(it.x0 + dx, -3, 3), 3);
+          it.l.transform.z = round(clamp(it.z0 + dz, -2, 2.2), 3);
+        }
+        refreshInspectorValues();
+      }
+      invalidate();
+      drawSceneMap();
+    });
+    const end = () => { if (drag && drag.moved) commit(); drag = null; };
+    sceneCanvas.addEventListener('pointerup', end);
+    sceneCanvas.addEventListener('pointercancel', end);
+  })();
+
   /* ------------------------------------------------------------------ templates, styles & camera tab */
   const TEMPLATE_PREVIEWS = {
+    reveal: "<span>here's</span><span>how</span><span>you</span>",
     kinetic: "<span>here's</span><span>how you</span><span>can do</span><span>this</span>",
     stack: '<span>MAKE</span><span>IT</span><span>BOLD</span>',
     flyTitle: '<span>NEW SEASON</span><span>Available now</span>',
@@ -5973,7 +6255,14 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     $('#camAperture').value = state.camera.aperture;
     $('#camApertureNum').value = Math.round(state.camera.aperture * 100);
     $('#camAutofocus').checked = !!state.camera.autoFocus;
+    const far = state.camera.farFade == null ? 3.2 : state.camera.farFade;
+    $('#camFarFade').value = far;
+    $('#camFarFadeNum').value = far >= 8 ? 'off' : round(far, 1);
+    drawSceneMap();
   }
+  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); drawSceneMap(); });
+  $('#camFarFade').addEventListener('change', commit);
+  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
   $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
   $('#camAperture').addEventListener('change', commit);
   $('#camApertureNum').addEventListener('change', (e) => { state.camera.aperture = clamp(Number(e.target.value) / 100, 0, 1); syncCameraControls(); commit(); invalidate(); });
@@ -6023,6 +6312,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const ids = [];
     for (const l of layers) ids.push(addLayer(l, { select: false }).id);
     if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
+    if (!Array.isArray(built) && built.cameraSettings) { Object.assign(state.camera, built.cameraSettings); syncCameraControls(); }
     state.selectedIds = ids.slice(0, 1);
     state.selectedKeyId = null;
     commit();
@@ -6061,7 +6351,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       l.start = Math.min(l.start, Math.max(0, l.end - 0.1));
       l._layout = null;
     }
-    state.camera.keys = state.camera.keys.filter((k) => k.t <= state.video.duration);
+    clampCameraKeys(state.video.duration);
     $('#noVideoFields').classList.add('hidden');
     $('#expAudioWrap').classList.remove('hidden');
     els.dropHint.classList.add('hidden');
@@ -6117,7 +6407,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const data = JSON.parse(await file.text());
       if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
-      state.camera = Object.assign({ aperture: 0.6, autoFocus: true, keys: [] }, data.camera || {});
+      state.camera = Object.assign({ aperture: 0.6, autoFocus: true, farFade: 3.2, keys: [] }, data.camera || {});
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       if (data.aspect) { state.aspect = data.aspect; $('#aspectSelect').value = aspectToLabel(data.aspect); }
       if (data.duration) { state.duration = data.duration; $('#durationInput').value = data.duration; }
@@ -6160,7 +6450,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     state.duration = clamp(Number(e.target.value) || 10, 1, 600);
     e.target.value = state.duration;
     for (const l of state.layers) { l.end = Math.min(l.end, state.duration); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
-    state.camera.keys = state.camera.keys.filter((k) => k.t <= state.duration);
+    clampCameraKeys(state.duration);
     if (clock.time > state.duration) clock.time = 0;
     commit();
     refreshAll();
@@ -6173,6 +6463,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     if (!b) return;
     $$('.tab', $('#leftTabs')).forEach((t) => t.classList.toggle('active', t === b));
     for (const name of ['templates', 'styles', 'camera']) $(`#tab-${name}`).classList.toggle('hidden', b.dataset.tab !== name);
+    drawSceneMap();
   });
 
   /* ------------------------------------------------------------------ export */
@@ -6450,10 +6741,12 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     fitPreview();
 
     // Demo content so the first impression shows the effect
-    const demo = Presets.TEMPLATES.find((t) => t.id === 'kinetic');
-    const built = demo.build(demo.sample, 0.3, 9, frameAspect(), { camDist: renderer.camDist });
+    const demo = Presets.TEMPLATES.find((t) => t.id === 'reveal');
+    const built = demo.build(demo.sample, 0.2, 6, frameAspect(), { camDist: renderer.camDist });
     for (const l of built.layers) addLayer(l, { select: false });
     state.camera.keys = built.cameraKeys || [];
+    if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
+    syncCameraControls();
     state.selectedIds = [];
     state.lastCommitted = snapshot();
     updateUndoButtons();
@@ -6463,6 +6756,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     clock.play();
   }
   init();
+  // Debug / automation hook (read-only use).
+  window.__perspective = { state, renderer, cameraAt, clock };
 })();
 
 </script>

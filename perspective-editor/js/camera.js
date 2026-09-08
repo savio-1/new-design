@@ -127,8 +127,28 @@
     },
     {
       id: 'reveal', name: 'Pull-back reveal',
-      description: 'Opens very close and out of focus, then pulls back until everything is sharp.',
-      build: (s, e) => [K(s, { dolly: 1.3, yaw: 6 }), K(e, { dolly: 0, yaw: 0, easing: 'easeOut' })],
+      description: 'Starts with the lens in front of the nearest word, then tracks back so each word is revealed as the camera passes it.',
+      build: (s, e, camDist, ctx) => {
+        const nearest = ctx && ctx.maxZ != null ? ctx.maxZ : 0.6;
+        return [
+          K(s, { dolly: nearest + 0.25, x: 0.03 }),
+          K(s + (e - s) * 0.7, { dolly: 0, x: 0, easing: 'easeOut' }),
+          K(e, { dolly: -0.35, x: -0.02, easing: 'smooth' }),
+        ];
+      },
+    },
+    {
+      id: 'trackBack', name: 'Tracking shot · back',
+      description: 'A steady pull back for footage where the real camera walks backwards; far words fade as they fall behind.',
+      build: (s, e, camDist, ctx) => {
+        const nearest = ctx && ctx.maxZ != null ? ctx.maxZ : 0.6;
+        return [K(s, { dolly: nearest + 0.2, easing: 'linear' }), K(e, { dolly: -0.8, easing: 'linear' })];
+      },
+    },
+    {
+      id: 'trackIn', name: 'Tracking shot · forward',
+      description: 'A steady push forward for footage where the real camera walks toward the subject.',
+      build: (s, e) => [K(s, { dolly: -0.8, easing: 'linear' }), K(e, { dolly: 0.9, easing: 'linear' })],
     },
     {
       id: 'drift', name: 'Handheld drift',
