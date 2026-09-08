@@ -508,10 +508,11 @@
   registerMode({
     id: 'marquee', name: 'Marquee belts', group: 'extra', uniform: true,
     description: 'Rows of cards glide sideways at different speeds and depths, like layered conveyor belts.',
-    defaults: { rows: 3, gap: 0.18, velocity: 60, depthSpread: 500, tilt: 0, slant: 0 },
+    defaults: { rows: 3, gap: 0.18, velocity: 60, depthSpread: 500, tilt: 0, slant: 0, centerGap: 0 },
     schema: [
       range('rows', 'Rows', 1, 5, 1), range('gap', 'Gap', 0, 0.8, 0.01), range('velocity', 'Velocity', 10, 240, 5),
       range('depthSpread', 'Depth spread', 0, 1200, 10), range('tilt', 'Row tilt (deg)', -45, 45, 1), range('slant', 'Slant (deg)', -30, 30, 1),
+      range('centerGap', 'Centre gap', 0, 0.6, 0.01, 'Pushes rows apart to clear a band for your copy'),
     ],
     layout(ctx) {
       const rows = Math.max(1, Math.round(ctx.p.rows));
@@ -528,7 +529,8 @@
       const z = ((d.row * 0.618 + 0.25) % 1 - 0.5) * p.depthSpread;
       const parallaxV = p.velocity * (1 + z / (cfg.perspective * 1.2));
       pose.x = mod(d.k * spacing + dir * t * parallaxV + len / 2, len) - len / 2;
-      pose.y = (d.row - (d.rows - 1) / 2) * rowH;
+      const rowOffset = (d.row - (d.rows - 1) / 2) * rowH;
+      pose.y = rowOffset + Math.sign(rowOffset || 1) * (ctx.H * p.centerGap) / 2;
       pose.z = z;
       pose.rx = p.tilt; pose.rz = p.slant;
       const edge = clamp((len / 2 - Math.abs(pose.x)) / (cfg.cardWidth * 0.6), 0, 1);
@@ -898,7 +900,7 @@
     _sizeCards() {
       const { cardWidth, cardHeight, sizeVariance, aspectMix } = this.cfg;
       const uniform = this.mode.uniform;
-      const aspects = [0.78, 1, 1.28, 1.5];
+      const aspects = [0.7, 0.8, 1, 1.25];   // portrait-leaning, so faces are not cropped to bands
       this.cards.forEach((c, i) => {
         let w = cardWidth, h = cardHeight;
         if (!uniform) {

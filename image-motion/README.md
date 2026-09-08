@@ -9,6 +9,7 @@ image-motion/
 ├── image-motion.js    the library (≈ 30 KB, no dependencies, classic script or CommonJS)
 ├── image-motion.css   base styles for the stage, cards and the ticker list
 ├── index.html         playground with the control panel
+├── images/            12 demo portraits (640×800) + CREDITS.md
 └── README.md
 ```
 
@@ -59,7 +60,7 @@ Declarative alternative, auto-initialised on `DOMContentLoaded`:
 | `float` | Floating field | video 3 | Cards hover with soft drift, sway and depth parallax |
 | `tunnel` | Gallery tunnel | video 4 | Panels on the walls of a corridor glide toward the viewer |
 | `ticker` | List ticker | video 1 | Vertical word list with the active row highlighted and a swapping thumbnail |
-| `marquee` | Marquee belts | extra | Rows of cards scroll sideways at different depths and speeds |
+| `marquee` | Marquee belts | extra | Rows of cards scroll sideways at different depths and speeds; `centerGap` opens a band for your copy |
 | `coverflow` | Coverflow | extra | Centre card with angled neighbours, stepping on a beat |
 | `wave` | Grid wave | extra | A grid that ripples in depth |
 | `helix` | Helix | extra | Cards climb a rotating spiral |
@@ -133,9 +134,9 @@ which is what the playground uses to build its panel. You can register your own 
 ## Playground
 
 `index.html` is the control panel. It lets you pick presets that mirror the reference videos,
-switch modes, tune every global and per-mode parameter, choose the image source (sample photos,
-offline gradients, or your own URLs), edit the preview copy and colours, and copy the resulting
-config, an embed snippet or a share link. The full state is stored in the URL hash.
+switch modes, tune every global and per-mode parameter, choose the image source (the bundled
+portrait set, gradient placeholders, or your own URLs), edit the preview copy and colours, and copy
+the resulting config, an embed snippet or a share link. The full state is stored in the URL hash.
 
 Keyboard: `space` play/pause · `R` restart · `H` hide panel · `F` fullscreen.
 
@@ -146,3 +147,8 @@ Keyboard: `space` play/pause · `R` restart · `H` hide panel · `F` fullscreen.
 * Images that fail to load fall back to a seeded gradient so layouts never show broken cards.
 * Put any element inside the stage to render it above the cards; the layer under it uses
   `pointer-events: none` so buttons stay clickable while cards still get hover lift.
+* Portrait imagery suits most modes; the collage modes mix portrait-leaning aspect ratios so
+  faces are never cropped to thin bands. Cards use `object-fit: cover`, so supply images whose
+  subject sits near the centre, or crop them beforehand.
+* The demo portraits in `images/` are for the playground. See `images/CREDITS.md` for
+  photographer credits, and check each photograph's licence before shipping it.
