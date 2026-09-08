@@ -1,27 +1,29 @@
 # ImageMotion
 
-Reusable, dependency-free image choreography for hero sections and marketing pages.
-Drop a set of images into a container and pick one of 17 motion modes; everything is
-tuneable live from the playground and exportable as a small JSON config.
+Image choreography for hero sections, plus a small studio that turns those choreographies into
+MP4 / WebM / GIF clips. Dependency-free library, browser-only export.
 
 ```
 image-motion/
-├── image-motion.js    the library (≈ 30 KB, no dependencies, classic script or CommonJS)
+├── image-motion.js    the library: 30 motion templates, DOM/CSS-3D renderer (≈ 45 KB, no dependencies)
 ├── image-motion.css   base styles for the stage, cards and the ticker list
-├── index.html         playground with the control panel
+├── render.js          ImageMotionRenderer — draws a frame to a canvas (WebGL2 + 2D), used for export
+├── export.js          ImageMotionExport — MP4/WebM via WebCodecs, GIF via gifenc
+├── index.html         ImageMotion Studio (the editor)
+├── editor.js          studio logic
 ├── images/            12 demo portraits (640×800) + CREDITS.md
 └── README.md
 ```
 
-Open `index.html` through any static server (for example `npx http-server .`) to use the playground.
+Open `index.html` through any static server (for example `npx http-server .`).
 
-## Quick start
+## Using the library on a site
 
 ```html
 <link rel="stylesheet" href="image-motion/image-motion.css">
 
 <section class="hero" id="hero">
-  <!-- Anything inside the stage is rendered above the cards -->
+  <!-- Anything inside the stage renders above the cards -->
   <h1>One platform. Every creative outcome.</h1>
 </section>
 
@@ -36,135 +38,114 @@ Open `index.html` through any static server (for example `npx http-server .`) to
 </script>
 ```
 
-The container needs a size (the library positions cards relative to its box) and can hold
-any content of your own. Cards are inserted behind that content and never intercept clicks
-on it.
+The container needs a size; cards are inserted behind your own content and never intercept
+clicks on it. Declarative alternative: `<section data-image-motion='{"mode":"float","count":10}'>`.
+The studio's **Embed code** button writes this snippet for you, with your text layers and
+safe zones included.
 
-Declarative alternative, auto-initialised on `DOMContentLoaded`:
+## Templates
 
-```html
-<section data-image-motion='{"mode":"float","count":10,"images":["/img/a.jpg","/img/b.jpg"]}'>
-  …
-</section>
-```
+| category | ids |
+| --- | --- |
+| Rings & orbits | `orbit` `burst` `sphere` `helix` `cylinder` `wheel` |
+| Carousels & decks | `coverflow` `stack` `fan` `slideshow` `split` `heroreel` |
+| Grids | `wave` `mosaic` `focus` `popgrid` `flipgrid` |
+| Collage & float | `float` `shuffle` `converge` `drift` `toss` `trail` |
+| Belts & streams | `marquee` `cascade` `columns` `iso` |
+| Depth & 3D | `tunnel` `depthstack` |
+| Text & lists | `ticker` |
 
-## Modes
-
-| id | name | inspired by | what it does |
-| --- | --- | --- | --- |
-| `orbit` | Orbit ring | video 1 | Cards circle the copy on 1 – 3 rings, optional tilt and wobble |
-| `stack` | Stack cascade | video 1 | Plates stacked above/below the copy; the front plate flips to the back on a beat |
-| `burst` | Burst & re-form | video 1 | A ring that periodically explodes outward, fades and regroups |
-| `converge` | Converge & expand | video 1 | Cluster in the centre → collage around the copy → gather again |
-| `shuffle` | Shuffle collage | video 2 | Scattered collage; cards pop / flip / slide / zoom out and swap one by one |
-| `float` | Floating field | video 3 | Cards hover with soft drift, sway and depth parallax |
-| `tunnel` | Gallery tunnel | video 4 | Panels on the walls of a corridor glide toward the viewer |
-| `ticker` | List ticker | video 1 | Vertical word list with the active row highlighted and a swapping thumbnail |
-| `marquee` | Marquee belts | extra | Rows of cards scroll sideways at different depths and speeds; `centerGap` opens a band for your copy |
-| `coverflow` | Coverflow | extra | Centre card with angled neighbours, stepping on a beat |
-| `wave` | Grid wave | extra | A grid that ripples in depth |
-| `helix` | Helix | extra | Cards climb a rotating spiral |
-| `cascade` | Cascade | extra | Slow rain of cards at different depths |
-| `fan` | Fan deck | extra | A hand of cards fans open, holds, and closes |
-| `mosaic` | Mosaic assemble | extra | Cards fly in to form a grid, hold, and scatter out |
-| `sphere` | Sphere | extra | Cards on a slowly turning globe |
-| `drift` | Slow drift | extra | A calm collage creeping sideways with parallax, wrapping seamlessly |
-
-Every mode is a pure function of time, so timelines are deterministic, scrubbable
-(`seek(t)`), and parameter changes take effect instantly without restarting.
+`ImageMotion.modes` lists every template with `id`, `name`, `category`, `description`, `defaults`
+and a `schema` describing its settings; the studio builds its panel from that. Register your own
+with `ImageMotion.registerMode({ id, name, defaults, schema, layout(ctx), frame(ctx, i, pose) })`.
+Every template is a pure function of time, so it is scrubbable and its export is frame-exact.
 
 ## Options
-
-Global options (all optional) and their defaults:
 
 | option | default | notes |
 | --- | --- | --- |
 | `mode` | `'orbit'` | one of the ids above |
 | `images` | `null` | array of URLs or `{ src, label, alt }`; `null`/`[]` renders gradient placeholders |
-| `labels` | `null` | list of strings for the `ticker` mode; captions fall back to image labels |
+| `labels` | `null` | list of strings for the `ticker` template |
 | `count` | `12` | number of cards (images repeat if there are fewer) |
 | `cardWidth` / `cardHeight` | `150` / `190` | base card size in px |
-| `sizeVariance` | `0.18` | random size variation for collage modes |
-| `aspectMix` | `true` | mix aspect ratios in collage modes |
-| `radius` | `14` | corner radius in px |
-| `shadow` | `true` | drop shadow under each card |
-| `showLabels` | `false` | caption under each card |
-| `speed` | `1` | timeline speed multiplier |
-| `intensity` | `1` | scales drift, wobble and lift amounts |
-| `easing` | `'inOutCubic'` | easing for discrete transitions (`ImageMotion.easings` lists them) |
-| `perspective` | `1200` | camera perspective in px |
-| `depthFade` / `depthBlur` | `0.55` / `3` | fade and blur applied to far cards |
-| `parallax` | `0.5` | mouse parallax strength, `0` disables |
-| `hoverLift` / `hoverPause` | `true` / `false` | hover behaviour |
+| `sizeVariance` / `aspectMix` | `0.18` / `true` | size and aspect variation in collage templates |
+| `radius` / `shadow` / `showLabels` | `14` / `true` / `false` | card style |
+| `speed` / `intensity` | `1` / `1` | timeline speed; scale of drift, wobble and lift |
+| `easing` | `'inOutCubic'` | easing for discrete transitions (`ImageMotion.easings`) |
+| `perspective` / `depthFade` / `depthBlur` | `1200` / `0.55` / `3` | camera and depth cues |
+| `parallax` / `hoverLift` / `hoverPause` | `0.5` / `true` / `false` | mouse behaviour |
 | `seed` | `7` | same seed = same layout |
-| `avoidCenter` | `true` | keep collage layouts off the copy area |
-| `avoidWidth` / `avoidHeight` | `0.56` / `0.46` | single centred safe zone, as a fraction of the stage |
-| `avoidRects` | `null` | explicit safe zones instead: `[{ x, y, w, h }]` as fractions of the stage, `x`/`y` being the centre offset from the stage centre |
+| `avoidCenter` | `true` | keep collage layouts off the copy |
+| `avoidWidth` / `avoidHeight` | `0.56` / `0.46` | single centred safe zone, fractions of the stage |
+| `avoidRects` | `null` | explicit safe zones instead: `[{ x, y, w, h }]` as fractions of the stage, `x`/`y` = centre offset from the stage centre |
 | `avoidPad` | `0` | extra clearance around safe zones, px |
-| `autoplay` | `true` | |
-| `respectReducedMotion` | `true` | renders a static frame when the OS asks for reduced motion |
-| `params` | mode defaults | per-mode settings, see `ImageMotion.getMode(id).schema` |
+| `autoplay` / `respectReducedMotion` | `true` / `true` | |
+| `params` | template defaults | per-template settings |
 
-## Instance API
+### Instance API
 
 ```js
-const im = ImageMotion.mount(el, options);
-
-im.set({ speed: 1.4, params: { radius: 0.45 } }); // patch anything live
-im.setMode('float', { amplitude: 20 });           // switch mode (params are remembered per mode)
-im.resetParams();                                 // back to the mode defaults
-im.setImages([...]);
-im.play(); im.pause(); im.toggle();
-im.seek(seconds); im.restart();
-im.refresh();                                     // re-measure after you resize the container yourself
-im.getConfig();                                   // serialisable config, paste it back into mount()
-im.on('change', fn); im.on('frame', fn);
-im.destroy();
+im.set({ speed: 1.4, params: { radius: 0.45 } });  im.setMode('float', { amplitude: 20 });
+im.resetParams();  im.setImages([...]);  im.play();  im.pause();  im.toggle();
+im.seek(seconds);  im.restart();  im.refresh();  im.getConfig();  im.on('frame'|'change', fn);  im.destroy();
 ```
 
-`ImageMotion.modes` lists mode definitions (`id`, `name`, `description`, `defaults`, `schema`),
-which is what the playground uses to build its panel. You can register your own mode with
-`ImageMotion.registerMode({ id, name, defaults, schema, layout(ctx), frame(ctx, i, pose) })`.
+## Rendering frames and exporting video
 
-## Styling hooks
+`render.js` draws the current frame of an ImageMotion instance — and any text sitting on the same
+stage — into a canvas at any scale, reproducing the CSS 3D maths exactly:
 
-* `.im-stage` — the container. The stage sets `--im-perspective` and `--im-radius`.
-* `.im-card`, `.im-card__inner`, `.im-card__img`, `.im-card__label` — card parts.
-* `--im-shadow`, `--im-label-color`, `--im-accent` (ticker marker) — CSS variables you can override.
-* The ticker list inherits `font-family` and `color` from the stage.
+```js
+const renderer = new ImageMotionRenderer({ im, stage: heroElement, width: 1920, height: 1080, scale: 2 }); // 4K
+im.seek(1.25);
+renderer.render({ background: { type: 'gradient', kind: 'linear', angle: 135, stops: [{ at: 0, color: '#2b1055' }, { at: 1, color: '#7597de' }] } });
+renderer.canvas; // the frame
+```
 
-## Playground and layout editor
+`export.js` walks the timeline and encodes:
 
-`index.html` is a small hero editor built on the library. Everything on the canvas is a layer:
+```js
+const blob = await ImageMotionExport.record({ im, renderer, format: 'mp4', fps: 30, duration: 8, background, onProgress: (p) => … });
+await ImageMotionExport.save(blob, 'hero.mp4');
+```
 
-* **Text layers** — add headings, body text, labels and buttons; as many as you like. Each has
-  its own font (a curated set of Google Fonts plus system stacks), weight, size, letter spacing,
-  line height, alignment, case, italic, colour, opacity and width. Drag to place, use the
-  3 × 3 anchor grid, or type exact percentages. Double-press a layer to edit its text in place.
-* **The animation box** — the ImageMotion stage is its own layer: drag it, resize it from the
-  handles, or use the quick placements (full bleed, left/right half, top/bottom band, inset).
-* **Smart guides** — while dragging or resizing, pink lines appear and snap to the canvas
-  centre and edges and to every other layer's edges and centres. Hold `Alt` to drag freely.
-* **Text safe zones** — collage modes route cards around every visible text layer
-  automatically (via `avoidRects`); toggle "Show zones" to see them.
+* **MP4** and **WebM** use WebCodecs (Chrome, Edge). MP4 tries H.264 (up to level 5.2 for 4K60), then HEVC and AV1;
+  WebM tries VP9, AV1, VP8. Browsers without WebCodecs fall back to a real-time WebM recording.
+* **GIF** uses gifenc (256 colours per frame). The studio caps GIFs at 1080p.
+* Load the muxers and gifenc from jsdelivr before `export.js`; see the header of that file.
+* Exports use a still camera: mouse parallax is preview-only. Card captions are not drawn.
 
-The panel also carries presets that mirror the reference videos, mode switching, every global
-and per-mode parameter, the image source (bundled portraits, gradients, or your own URLs), and
-page colours. The Export section produces three things: the complete hero markup with CSS and
-the mount call, the motion config alone, and a share link. The whole state lives in the URL hash.
+## The studio (`index.html`)
 
-Keyboard: `space` play/pause · `R` restart · `H` hide panel · `F` fullscreen · arrows nudge the
-selected layer (`Shift` for 10 px) · `Delete` removes it · `Ctrl/Cmd+D` duplicates · `Esc` deselects.
+An editor in the spirit of template tools such as Animos:
+
+* **Templates rail** — 30 templates grouped by category with generated thumbnails and search.
+* **Canvas sizes** — 16:9, 9:16, 1:1, 4:5, 3:4, 4:3 or any custom size from 240 to 4096 px. The
+  canvas is a fixed design size scaled to fit; switching size scales type and cards to keep the look.
+* **Motion tab** — the template's own settings, cards, timing, and camera/depth under *Advanced*;
+  starter looks that mirror the reference videos.
+* **Media tab** — bundled portraits, your own uploads (drag and drop), remote URLs, or blank
+  gradient cards; the word list for the ticker template.
+* **Style tab** — background as a colour or a gradient (presets, linear/radial, angle, up to five
+  colour stops); text colour; card radius and shadow.
+* **Text tab** — any number of text layers (headings, body, labels, buttons) with font, weight, size,
+  spacing, line height, alignment, case, colour and width; drag to place, snap guides to centres and
+  edges, anchor grid, in-place editing (double-press). Collage templates keep cards off the text.
+* **Export** — MP4, WebM or GIF; canvas size, 720p, 1080p, 1440p or 4K; 24–60 fps; duration and
+  start time; quality. Frames are rendered from the same timeline as the preview.
+* **Embed code** — the hero as HTML + CSS + mount call, type sizes in `cqw` so it scales with the hero.
+* The whole state lives in the URL hash (**Copy link**). Uploaded images stay in the browser tab.
+
+Keyboard: `space` play/pause · `R` restart · `E` export · `T` templates · `H` panel · arrows nudge
+(`Shift` = 10 px) · `Delete` removes the layer · `Ctrl/Cmd+D` duplicates · `Esc` deselects ·
+`Alt` while dragging disables snapping.
 
 ## Notes
 
-* Only `transform`, `opacity` and (optionally) `filter: blur()` change per frame, so 20 – 40
-  cards run at 60 fps on typical hardware. Set `depthBlur: 0` for the cheapest path.
-* Images that fail to load fall back to a seeded gradient so layouts never show broken cards.
-* Put any element inside the stage to render it above the cards; the layer under it uses
-  `pointer-events: none` so buttons stay clickable while cards still get hover lift.
-* Portrait imagery suits most modes; the collage modes mix portrait-leaning aspect ratios so
-  faces are never cropped to thin bands. Cards use `object-fit: cover`, so supply images whose
-  subject sits near the centre, or crop them beforehand.
-* The demo portraits in `images/` are for the playground. See `images/CREDITS.md` for
-  photographer credits, and check each photograph's licence before shipping it.
+* Only `transform`, `opacity` and (optionally) `filter: blur()` change per frame in the DOM
+  renderer, so 20–40 cards run at 60 fps. Set `depthBlur: 0` for the cheapest path.
+* Images that fail to load fall back to a seeded gradient. Remote images need CORS headers to appear
+  in exports; same-origin files, uploads and data URLs always work.
+* The demo portraits in `images/` are for the playground; see `images/CREDITS.md` and check each
+  licence before shipping them.
