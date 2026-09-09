@@ -89,7 +89,7 @@ button{cursor:pointer}
 .grp>.body{display:none;padding:2px 0 14px}
 .grp.open>.body{display:block}
 .row{display:flex;align-items:center;gap:8px;margin-top:8px}
-.row>label{width:88px;flex:none;color:var(--muted);font-size:12px}
+.row>label:not(.toggle){width:88px;flex:none;color:var(--muted);font-size:12px}
 .row .grow{flex:1;min-width:0}
 .hint{color:var(--faint);font-size:11.5px;margin-top:8px;line-height:1.45}
 .sub{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;margin:14px 0 4px}
@@ -985,12 +985,21 @@ function defaultLayer(over = {}) {
 }
 function defaultImageLayer(over = {}) {
   return Object.assign({
-    kind: 'image', id: layerSeq++, visible: true, locked: false, src: null, name: 'Image', x: 50, y: 50, w: 50, rotate: 0, flipX: false,
+    kind: 'image', id: layerSeq++, visible: true, locked: false, src: null, name: 'Image', x: 50, y: 50, w: 50, rotate: 0, flipX: false, lockAspect: true,
     crop: { l: 0, t: 0, r: 0, b: 0 }, radius: 0, circle: false, opacity: 1, blend: 'source-over',
     shadow: 0, shadowY: 0, shadowColor: '#000000', shadowOpacity: 0.5, grade: Object.assign({}, GRADE_DEFAULTS),
   }, over);
 }
-function normalizeLayer(l) { return l.kind === 'image' ? defaultImageLayer(Object.assign({}, l, { crop: Object.assign({ l: 0, t: 0, r: 0, b: 0 }, l.crop || {}), grade: Object.assign({}, GRADE_DEFAULTS, l.grade || {}) })) : defaultLayer(l); }
+// The animated gradient itself is a layer too, so it can be reordered, dimmed or blended like any other.
+function defaultBackgroundLayer(over = {}) {
+  return Object.assign({ kind: 'background', id: 0, visible: true, opacity: 1, blend: 'source-over' }, over);
+}
+function ensureBackgroundLayer() { if (!S.layers.some(x => x.kind === 'background')) S.layers.unshift(defaultBackgroundLayer()); }
+function normalizeLayer(l) {
+  if (l.kind === 'image') return defaultImageLayer(Object.assign({}, l, { crop: Object.assign({ l: 0, t: 0, r: 0, b: 0 }, l.crop || {}), grade: Object.assign({}, GRADE_DEFAULTS, l.grade || {}) }));
+  if (l.kind === 'background') return defaultBackgroundLayer(l);
+  return defaultLayer(l);
+}
 function defaultState() {
   return {
     type: 0, scale: 0.5, speed: 1, octaves: 3, warp: 1.0, contrast: 1.3, soft: 1, steps: 1, angle: 0, seed: 0.37, flowX: 0, flowY: 0,
@@ -1009,6 +1018,7 @@ function defaultState() {
   };
 }
 let S = defaultState();
+ensureBackgroundLayer();
 let presetName = 'Base';
 
 /* ---------- presets (types × palettes × attributes) ---------- */
@@ -1112,6 +1122,7 @@ function restore() {
     if (d.S.text && d.S.text.layers && !d.S.layers) { S.layers = d.S.text.layers; S.selected = d.S.text.selected ?? -1; }
     S.layers = (S.layers || []).map(normalizeLayer);
     S.images = S.images || {};
+    ensureBackgroundLayer();
     layerSeq = Math.max(1, ...S.layers.map(l => l.id + 1));
     if (S.selected >= S.layers.length) S.selected = -1;
     presetName = d.presetName || 'Custom';
@@ -1692,11 +1703,21 @@ function drawTextPath(c, l, W, H, mode) {
 }
 
 // geometry of an image layer in output pixels (independent of drawing)
+function imageCropSize(l) {
+  const im = IMAGES.get(l.src);
+  const iw = im ? im.w : 800, ih = im ? im.h : 600;
+  return { sw: Math.max(1, iw * (1 - l.crop.l - l.crop.r)), sh: Math.max(1, ih * (1 - l.crop.t - l.crop.b)) };
+}
+// width/height % are independent axes; "k" is the width%->height% ratio that preserves the cropped image's aspect.
+function imageAspectK(l) { const { sw, sh } = imageCropSize(l); return (sw / sh) / (S.canvas.w / S.canvas.h); }
+function applyAspectFromWidth(l) { l.h = +(l.w / imageAspectK(l)).toFixed(2); }
+function applyAspectFromHeight(l) { l.w = +(l.h * imageAspectK(l)).toFixed(2); }
+function fixImageSizes() { for (const l of S.layers) if (l.kind === 'image' && l.h == null) applyAspectFromWidth(l); }
 function imageBox(l, W, H) {
   const im = IMAGES.get(l.src);
   const iw = im ? im.w : 800, ih = im ? im.h : 600;
   const sw = Math.max(1, iw * (1 - l.crop.l - l.crop.r)), sh = Math.max(1, ih * (1 - l.crop.t - l.crop.b));
-  const dw = l.w / 100 * W, dh = dw * sh / sw;
+  const dw = l.w / 100 * W, dh = l.h != null ? l.h / 100 * H : dw * sh / sw;
   return { layer: l, cx: l.x / 100 * W, cy: l.y / 100 * H, w: dw, h: dh, ox: -dw / 2, rot: l.rotate, sx: l.crop.l * iw, sy: l.crop.t * ih, sw, sh, im };
 }
 function drawImageLayer(c, l, W, H, forExport) {
@@ -1754,35 +1775,44 @@ function composite(W, H, forExport) {
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.clearRect(0, 0, W, H);
   boxes.length = 0;
-  const layers = S.layers.filter(l => l.visible && (l.kind === 'image' || l.text.trim().length));
-  drawBackground(W, H, layers.filter(l => l.kind === 'text'));
-  for (const l of layers) {
-    if (l.kind === 'image') boxes.push(drawImageLayer(ctx, l, W, H, forExport));
-    else if (!(S.fillMode === 'text')) boxes.push(drawTextLayer(ctx, l, W, H));
+  const drawn = S.layers.filter(l => l.visible && (l.kind === 'background' || l.kind === 'image' || l.text.trim().length));
+  const textOnly = drawn.filter(l => l.kind === 'text');
+  if (S.fillMode === 'text' && textOnly.length) {
+    // "Inside text only" is a special composite mode: it always samples the animation directly, so the
+    // background layer's position in the stack has no effect here (only its own visibility/opacity/blend would).
+    drawBackgroundMasked(W, H, textOnly);
+    for (const l of drawn) if (l.kind === 'image') boxes.push(drawImageLayer(ctx, l, W, H, forExport));
+  } else {
+    for (const l of drawn) {
+      if (l.kind === 'background') drawBackgroundLayer(l, W, H);
+      else if (l.kind === 'image') boxes.push(drawImageLayer(ctx, l, W, H, forExport));
+      else boxes.push(drawTextLayer(ctx, l, W, H));
+    }
   }
   applyCorners(W, H, forExport);
   if (!forExport) drawOverlays(W, H);
 }
-function drawBackground(W, H, textLayers) {
-  if (S.fillMode === 'text' && textLayers.length) {
-    ctx.fillStyle = S.shape.bg; ctx.fillRect(0, 0, W, H);
-    for (const l of textLayers) if (l.shadow > 0) {
-      ctx.save(); ctx.globalAlpha = l.opacity * l.shadowOpacity; ctx.fillStyle = l.shadowColor;
-      ctx.shadowColor = l.shadowColor; ctx.shadowBlur = l.shadow / 100 * H; ctx.shadowOffsetY = l.shadowY / 100 * H;
-      drawTextPath(ctx, l, W, H, 'fill'); ctx.restore();
-    }
-    if (maskCanvas.width !== W || maskCanvas.height !== H) { maskCanvas.width = W; maskCanvas.height = H; }
-    mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over'; mctx.clearRect(0, 0, W, H); mctx.fillStyle = '#fff';
-    for (const l of textLayers) { mctx.globalAlpha = l.opacity; boxes.push(drawTextPath(mctx, l, W, H, 'fill')); }
-    mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-in'; mctx.imageSmoothingQuality = 'high'; mctx.drawImage(glCanvas, 0, 0, W, H);
-    ctx.drawImage(maskCanvas, 0, 0);
-    for (const l of textLayers) if (l.stroke > 0) {
-      ctx.save(); ctx.globalAlpha = l.opacity; ctx.strokeStyle = l.strokeColor; ctx.lineWidth = l.stroke / 100 * (l.size / 100 * H); ctx.lineJoin = 'round';
-      drawTextPath(ctx, l, W, H, 'stroke'); ctx.restore();
-    }
-    return;
-  }
+function drawBackgroundLayer(l, W, H) {
+  ctx.save(); ctx.globalAlpha = l.opacity ?? 1; ctx.globalCompositeOperation = l.blend || 'source-over';
   ctx.drawImage(glCanvas, 0, 0, W, H);
+  ctx.restore();
+}
+function drawBackgroundMasked(W, H, textLayers) {
+  ctx.fillStyle = S.shape.bg; ctx.fillRect(0, 0, W, H);
+  for (const l of textLayers) if (l.shadow > 0) {
+    ctx.save(); ctx.globalAlpha = l.opacity * l.shadowOpacity; ctx.fillStyle = l.shadowColor;
+    ctx.shadowColor = l.shadowColor; ctx.shadowBlur = l.shadow / 100 * H; ctx.shadowOffsetY = l.shadowY / 100 * H;
+    drawTextPath(ctx, l, W, H, 'fill'); ctx.restore();
+  }
+  if (maskCanvas.width !== W || maskCanvas.height !== H) { maskCanvas.width = W; maskCanvas.height = H; }
+  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.globalCompositeOperation = 'source-over'; mctx.clearRect(0, 0, W, H); mctx.fillStyle = '#fff';
+  for (const l of textLayers) { mctx.globalAlpha = l.opacity; boxes.push(drawTextPath(mctx, l, W, H, 'fill')); }
+  mctx.globalAlpha = 1; mctx.globalCompositeOperation = 'source-in'; mctx.imageSmoothingQuality = 'high'; mctx.drawImage(glCanvas, 0, 0, W, H);
+  ctx.drawImage(maskCanvas, 0, 0);
+  for (const l of textLayers) if (l.stroke > 0) {
+    ctx.save(); ctx.globalAlpha = l.opacity; ctx.strokeStyle = l.strokeColor; ctx.lineWidth = l.stroke / 100 * (l.size / 100 * H); ctx.lineJoin = 'round';
+    drawTextPath(ctx, l, W, H, 'stroke'); ctx.restore();
+  }
 }
 function drawTextLayer(c, l, W, H) {
   const px = l.size / 100 * H;
@@ -1904,9 +1934,11 @@ async function addImageFiles(files, at) {
       const id = 'img' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: f.name };
       // native size relative to the canvas so “Canvas size” exports keep the exact pixels
-      let wPct = bm.w / S.canvas.w * 100; const hPct = wPct * (bm.h / bm.w) * (S.canvas.w / S.canvas.h);
-      if (hPct > 100) wPct *= 100 / hPct; if (wPct > 100) wPct = 100;
-      const l = defaultImageLayer({ src: id, name: f.name.replace(/\.[^.]+$/, ''), w: +wPct.toFixed(2), x: at ? at.x : 50, y: at ? at.y : 50 });
+      let wPct = bm.w / S.canvas.w * 100;
+      let hPct = wPct * (bm.h / bm.w) * (S.canvas.w / S.canvas.h);
+      if (hPct > 100) { wPct *= 100 / hPct; hPct = 100; }
+      if (wPct > 100) { hPct *= 100 / wPct; wPct = 100; }
+      const l = defaultImageLayer({ src: id, name: f.name.replace(/\.[^.]+$/, ''), w: +wPct.toFixed(2), h: +hPct.toFixed(2), x: at ? at.x : 50, y: at ? at.y : 50 });
       S.layers.push(l); S.selected = S.layers.length - 1; added = l;
     } catch (e) { console.error(e); toast('Could not load image: ' + f.name); }
   }
@@ -1927,7 +1959,7 @@ fileImage.addEventListener('change', async () => {
   const files = [...fileImage.files]; const rep = fileImage.dataset.replace; fileImage.value = ''; delete fileImage.dataset.replace;
   if (rep && files[0]) {
     const l = S.layers.find(x => String(x.id) === rep); if (!l) return;
-    try { const dataURL = await readFileAsDataURL(files[0]); const bm = await loadBitmap(dataURL); const id = 'img' + Date.now().toString(36); IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: files[0].name }; l.src = id; l.name = files[0].name.replace(/\.[^.]+$/, ''); l.crop = { l: 0, t: 0, r: 0, b: 0 }; await restoreImages(); refreshAll(); }
+    try { const dataURL = await readFileAsDataURL(files[0]); const bm = await loadBitmap(dataURL); const id = 'img' + Date.now().toString(36); IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: files[0].name }; l.src = id; l.name = files[0].name.replace(/\.[^.]+$/, ''); l.crop = { l: 0, t: 0, r: 0, b: 0 }; if (l.lockAspect) applyAspectFromWidth(l); await restoreImages(); refreshAll(); }
     catch (e) { toast('Could not load image'); }
     return;
   }
@@ -2095,10 +2127,13 @@ function addTextLayer(over) {
   const l = defaultLayer(Object.assign({ y: 50 + ((S.layers.length * 9) % 30) - 10 }, over));
   S.layers.push(l); S.selected = S.layers.length - 1; ensureFont(l.font); refreshAll(); return l;
 }
-function deleteLayer(i) { if (i < 0) return; fxCache.delete(S.layers[i].id); S.layers.splice(i, 1); S.selected = Math.min(S.selected, S.layers.length - 1); refreshAll(); }
-function duplicateLayer(i) { const l = S.layers[i]; if (!l) return; const { id, ...rest } = JSON.parse(JSON.stringify(l)); const c = normalizeLayer(Object.assign(rest, { x: clamp(l.x + 4, 0, 100), y: clamp(l.y + 4, 0, 100) })); S.layers.splice(i + 1, 0, c); S.selected = i + 1; refreshAll(); }
-function moveLayer(i, dir) { const j = i + dir; if (j < 0 || j >= S.layers.length) return; const t = S.layers[i]; S.layers[i] = S.layers[j]; S.layers[j] = t; S.selected = j; refreshAll(); }
+function deleteLayer(i) { if (i < 0 || S.layers[i]?.kind === 'background') return; fxCache.delete(S.layers[i].id); S.layers.splice(i, 1); S.selected = Math.min(S.selected, S.layers.length - 1); refreshAll(); }
+function duplicateLayer(i) { const l = S.layers[i]; if (!l || l.kind === 'background') return; const { id, ...rest } = JSON.parse(JSON.stringify(l)); const c = normalizeLayer(Object.assign(rest, { x: clamp(l.x + 4, 0, 100), y: clamp(l.y + 4, 0, 100) })); S.layers.splice(i + 1, 0, c); S.selected = i + 1; refreshAll(); }
+function moveLayer(i, dir) { const j = i + dir; if (i < 0 || j < 0 || j >= S.layers.length) return; const t = S.layers[i]; S.layers[i] = S.layers[j]; S.layers[j] = t; S.selected = j; refreshAll(); }
+function moveLayerTo(i, j) { if (i < 0) return; j = clamp(j, 0, S.layers.length - 1); if (i === j) return; const [item] = S.layers.splice(i, 1); S.layers.splice(j, 0, item); S.selected = j; refreshAll(); }
 function layerTitle(l) { return l.kind === 'image' ? (l.name || 'Image') : (l.text.split('\n')[0] || '(empty text)'); }
+function backgroundLayer() { return S.layers.find(x => x.kind === 'background'); }
+function backgroundIndex() { return S.layers.findIndex(x => x.kind === 'background'); }
 
 function buildInspector() {
   layersEl = el('div', { class: 'layers' });
@@ -2110,31 +2145,38 @@ function buildInspector() {
 }
 function renderLayers() {
   layersEl.innerHTML = '';
-  const bgRow = el('div', { class: 'layer' + (S.selected < 0 ? ' on' : ''), onclick: () => { S.selected = -1; refreshAll(); } },
-    el('span', { class: 'ic', style: `background:${cssGradient()}` }), el('span', { class: 't' }, 'Background', el('small', {}, TYPES[S.type].name)));
   const rows = S.layers.map((l, i) => {
-    const meta = l.kind === 'image' ? S.images[l.src] : null;
-    const ic = l.kind === 'image' ? el('span', { class: 'ic img', style: meta && meta.dataURL ? `background-image:url(${meta.dataURL})` : '' }, meta && meta.dataURL ? '' : '▣') : el('span', { class: 'ic' }, 'T');
+    let ic, label, sub;
+    if (l.kind === 'background') {
+      ic = el('span', { class: 'ic', style: `background:${cssGradient()}` }); label = 'Background'; sub = TYPES[S.type].name;
+    } else if (l.kind === 'image') {
+      const meta = S.images[l.src];
+      ic = el('span', { class: 'ic img', style: meta && meta.dataURL ? `background-image:url(${meta.dataURL})` : '' }, meta && meta.dataURL ? '' : '▣');
+      label = layerTitle(l); sub = meta ? `${meta.w}×${meta.h}` : null;
+    } else { ic = el('span', { class: 'ic' }, 'T'); label = layerTitle(l); sub = null; }
+    const delBtn = l.kind === 'background'
+      ? el('span', { class: 'ib', style: 'opacity:.3', title: 'The animation can be hidden, not deleted' }, '—')
+      : el('button', { class: 'ib', title: 'Delete', onclick: e => { e.stopPropagation(); deleteLayer(i); } }, '✕');
     return el('div', { class: 'layer' + (i === S.selected ? ' on' : '') + (l.visible ? '' : ' hidden'), onclick: () => { S.selected = i; refreshAll(); } },
-      ic, el('span', { class: 't' }, layerTitle(l), l.kind === 'image' && meta ? el('small', {}, `${meta.w}×${meta.h}`) : null),
+      ic, el('span', { class: 't' }, label, sub ? el('small', {}, sub) : null),
       el('button', { class: 'ib' + (l.visible ? '' : ' off'), title: 'Show / hide', onclick: e => { e.stopPropagation(); l.visible = !l.visible; refreshAll(); } }, '◉'),
-      el('button', { class: 'ib', title: 'Delete', onclick: e => { e.stopPropagation(); deleteLayer(i); } }, '✕'));
-  }).reverse(); // top-most first, like a layer stack
-  layersEl.append(...rows, bgRow);
+      delBtn);
+  }).reverse(); // top-most first, like a layer stack — the animated background is a row here too and can be reordered
+  layersEl.append(...rows);
   const l = selectedLayer();
-  const key = l ? `L${l.id}:${l.kind}` : 'bg';
+  const key = (l && l.kind !== 'background') ? `L${l.id}:${l.kind}` : 'bg';
   if (key === inspectorKey) return;
   inspectorKey = key;
   if (inspectorSyncStart >= 0) rerenderers.splice(inspectorSyncStart);
   fontListeners.length = 0;
   inspectorSyncStart = rerenderers.length;
   propsEl.innerHTML = '';
-  if (!l) buildBackgroundProps(); else if (l.kind === 'text') buildTextProps(l); else buildImageProps(l);
+  if (l && l.kind === 'text') buildTextProps(l); else if (l && l.kind === 'image') buildImageProps(l); else buildBackgroundProps(backgroundLayer());
   rerenderers.forEach((fn, i) => { if (i >= inspectorSyncStart) fn(); });
 }
 
 /* ---- background (animation) properties ---- */
-function buildBackgroundProps() {
+function buildBackgroundProps(bg) {
   const seedRow = el('div', { class: 'ctl' }); // seed with dice
   const seed = slider('seed', 'Seed', 0, 1, 0.001, { fmt: v => (v * 1000 | 0) + '' });
   const dice = el('button', { class: 'btn xs', title: 'New seed', style: 'position:absolute;right:4px;top:3px', onclick: () => { S.seed = Math.random(); refreshAll(); } }, '⚄');
@@ -2160,7 +2202,21 @@ function buildBackgroundProps() {
   PALETTES.forEach(p => swatches.append(el('button', { class: 'swatch', title: p.name, style: `background:${cssGradient(paletteFrom(p.c, p.p))}`, onclick: () => { S.palette.stops = paletteFrom(p.c, p.p); presetName = 'Custom'; refreshAll(); } })));
   const fillModeSeg = segmented('fillMode', [{ value: 'full', label: 'Whole canvas' }, { value: 'text', label: 'Inside text only' }]);
 
+  const bgIdx = () => S.layers.indexOf(bg);
+  const bgOrder = el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+    el('button', { class: 'btn xs', title: 'Bring forward one step', onclick: () => moveLayer(bgIdx(), 1) }, '↑ Forward'),
+    el('button', { class: 'btn xs', title: 'Send backward one step', onclick: () => moveLayer(bgIdx(), -1) }, '↓ Back'),
+    el('button', { class: 'btn xs', title: 'Bring in front of every other layer', onclick: () => moveLayerTo(bgIdx(), S.layers.length - 1) }, '⤒ Front'),
+    el('button', { class: 'btn xs', title: 'Send behind everything', onclick: () => moveLayerTo(bgIdx(), 0) }, '⤓ Back'),
+  );
   propsEl.append(
+    group('Layer', true,
+      bgOrder,
+      slider(null, 'Opacity', 0, 1, 0.01, { get: () => bg.opacity, set: v => bg.opacity = v, reset: 1 }),
+      row('Blend', blendSelect(bg)),
+      el('div', { class: 'row', style: 'gap:14px' }, toggle(null, 'Visible', { get: () => bg.visible, set: v => bg.visible = v, onChange: renderLayers })),
+      el('div', { class: 'hint' }, 'The animation is a layer like any other: reorder it, dim it, or blend it with the layers above and below — for example, send an image to back and lower the background’s opacity or blend mode so the photo shows through as the backdrop. In “Inside text only” mode below, this order has no visual effect.'),
+    ),
     group('Motion', true,
       row('Animation', el('div', { class: 'hint', style: 'margin:0' }, `${TYPES[S.type].name} — pick another under Templates on the left.`)),
       slider('scale', 'Scale', 0.2, 4, 0.01, { reset: 1 }),
@@ -2270,13 +2326,16 @@ function alignBar(l) {
   const names = { left: 'Align left', hc: 'Centre horizontally', right: 'Align right', top: 'Align top', vc: 'Centre vertically', bottom: 'Align bottom' };
   return el('div', { class: 'alignbar' }, ...Object.keys(ICO).map(k => el('button', { title: names[k], html: ICO[k], onclick: () => doAlign(k) })));
 }
-function layerActions(l, i) {
+function layerActions(l) {
+  const idx = () => S.layers.indexOf(l); // looked up live: the panel isn't rebuilt on reorder, only the layer list is
   return el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
-    el('button', { class: 'btn xs', onclick: () => duplicateLayer(i) }, 'Duplicate'),
-    el('button', { class: 'btn xs', title: 'Bring forward', onclick: () => moveLayer(i, 1) }, '↑ Forward'),
-    el('button', { class: 'btn xs', title: 'Send backward', onclick: () => moveLayer(i, -1) }, '↓ Back'),
+    el('button', { class: 'btn xs', onclick: () => duplicateLayer(idx()) }, 'Duplicate'),
+    el('button', { class: 'btn xs', title: 'Bring forward one step', onclick: () => moveLayer(idx(), 1) }, '↑ Forward'),
+    el('button', { class: 'btn xs', title: 'Send backward one step', onclick: () => moveLayer(idx(), -1) }, '↓ Back'),
+    el('button', { class: 'btn xs', title: 'Bring in front of every other layer', onclick: () => moveLayerTo(idx(), S.layers.length - 1) }, '⤒ Front'),
+    el('button', { class: 'btn xs', title: 'Send behind everything, including the animated background', onclick: () => moveLayerTo(idx(), 0) }, '⤓ Back'),
     el('span', { style: 'flex:1' }),
-    el('button', { class: 'btn xs danger', onclick: () => deleteLayer(i) }, 'Delete'));
+    el('button', { class: 'btn xs danger', onclick: () => deleteLayer(idx()) }, 'Delete'));
 }
 function shadowControls(l) {
   const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
@@ -2294,7 +2353,6 @@ function fontOptions() {
   return groups;
 }
 function buildTextProps(l) {
-  const i = S.layers.indexOf(l);
   const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
   const ta = el('textarea', { spellcheck: 'false' }); ta.value = l.text;
   ta.addEventListener('input', () => { l.text = ta.value; persist(); renderLayers(); });
@@ -2306,7 +2364,7 @@ function buildTextProps(l) {
   const colorRow = row('Colour', colorInput(() => l.color, v => l.color = v));
   rerenderers.push(() => { colorRow.style.display = l.fill === 'solid' ? '' : 'none'; });
   propsEl.append(
-    layerActions(l, i),
+    layerActions(l),
     group('Content', true,
       ta,
       el('div', { class: 'row', style: 'gap:14px' }, toggle(null, 'Uppercase', { get: () => l.upper, set: v => l.upper = v }), toggle(null, 'Italic', { get: () => l.italic, set: v => l.italic = v })),
@@ -2340,7 +2398,6 @@ function buildTextProps(l) {
 
 /* ---- image layer ---- */
 function buildImageProps(l) {
-  const i = S.layers.indexOf(l);
   const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
   const meta = S.images[l.src];
   const info = el('div', { class: 'imginfo' },
@@ -2348,22 +2405,27 @@ function buildImageProps(l) {
     el('div', { class: 'meta' }, el('b', {}, l.name || 'Image'), meta ? `${meta.w} × ${meta.h} px${meta.dataURL ? '' : ' · not loaded'}` : 'No file'));
   const fitBtn = (label, mode) => el('button', { class: 'btn xs', onclick: () => {
     const im = IMAGES.get(l.src); if (!im) return;
-    const b = imageBox(l, S.canvas.w, S.canvas.h); const ar = b.sw / b.sh, car = S.canvas.w / S.canvas.h;
-    if (mode === 'native') l.w = +(b.sw / S.canvas.w * 100).toFixed(2);
-    else if (mode === 'contain') l.w = ar >= car ? 100 : +(100 * ar / car).toFixed(2);
-    else l.w = ar >= car ? +(100 * ar / car).toFixed(2) : 100; // cover
+    const { sw, sh } = imageCropSize(l); const k = (sw / sh) / (S.canvas.w / S.canvas.h); // width%->height% ratio at 1:1 pixel scale
+    if (mode === 'native') { l.w = +(sw / S.canvas.w * 100).toFixed(2); l.h = +(sh / S.canvas.h * 100).toFixed(2); }
+    else if (mode === 'contain') { if (k >= 1) { l.w = 100; l.h = +(100 / k).toFixed(2); } else { l.h = 100; l.w = +(100 * k).toFixed(2); } }
+    else { if (k >= 1) { l.h = 100; l.w = +(100 * k).toFixed(2); } else { l.w = 100; l.h = +(100 / k).toFixed(2); } } // cover
     l.x = 50; l.y = 50; refreshAll();
   } }, label);
   // crop
-  const cropSl = (key, label) => slider(null, label, 0, 90, 0.5, { unit: '%', reset: 0, get: () => l.crop[key] * 100, set: v => { const o = key === 'l' ? 'r' : key === 'r' ? 'l' : key === 't' ? 'b' : 't'; l.crop[key] = Math.min(v / 100, 0.9 - l.crop[o]); } });
+  const cropSl = (key, label) => slider(null, label, 0, 90, 0.5, {
+    unit: '%', reset: 0, get: () => l.crop[key] * 100,
+    set: v => { const o = key === 'l' ? 'r' : key === 'r' ? 'l' : key === 't' ? 'b' : 't'; l.crop[key] = Math.min(v / 100, 0.9 - l.crop[o]); },
+    onChange: () => { if (l.lockAspect) applyAspectFromWidth(l); syncSliders(); },
+  });
   const aspectCrop = (A, label) => el('button', { class: 'btn xs', onclick: () => {
     const im = IMAGES.get(l.src); if (!im) return;
     if (A === 0) { l.crop = { l: 0, t: 0, r: 0, b: 0 }; }
     else { const iw = im.w, ih = im.h; if (iw / ih > A) { const nw = ih * A; const f = (iw - nw) / 2 / iw; l.crop = { l: f, r: f, t: 0, b: 0 }; } else { const nh = iw / A; const f = (ih - nh) / 2 / ih; l.crop = { l: 0, r: 0, t: f, b: f }; } }
+    if (l.lockAspect) applyAspectFromWidth(l);
     refreshAll();
   } }, label);
   propsEl.append(
-    layerActions(l, i),
+    layerActions(l),
     group('Image', true,
       info,
       el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, el('button', { class: 'btn xs', onclick: () => replaceImage(l) }, 'Replace…'), fitBtn('Native size', 'native'), fitBtn('Fit inside', 'contain'), fitBtn('Fill canvas', 'cover')),
@@ -2372,9 +2434,14 @@ function buildImageProps(l) {
     group('Position & size', true,
       alignBar(l),
       sl('x', 'X', -50, 150, 0.1, { unit: '%', reset: 50 }), sl('y', 'Y', -50, 150, 0.1, { unit: '%', reset: 50 }),
-      sl('w', 'Width', 1, 300, 0.1, { unit: '%', reset: 50 }),
+      sl('w', 'Width', 1, 400, 0.1, { unit: '%', reset: 50, onChange: () => { if (l.lockAspect) applyAspectFromWidth(l); syncSliders(); } }),
+      sl('h', 'Height', 1, 400, 0.1, { unit: '%', reset: 50, onChange: () => { if (l.lockAspect) applyAspectFromHeight(l); syncSliders(); } }),
+      el('div', { class: 'row', style: 'gap:14px' },
+        toggle(null, 'Lock aspect ratio', { get: () => l.lockAspect !== false, set: v => l.lockAspect = v }),
+        toggle(null, 'Flip horizontally', { get: () => l.flipX, set: v => l.flipX = v }),
+      ),
       sl('rotate', 'Rotation', -180, 180, 1, { unit: '°', reset: 0 }),
-      el('div', { class: 'row', style: 'gap:14px' }, toggle(null, 'Flip horizontally', { get: () => l.flipX, set: v => l.flipX = v })),
+      el('div', { class: 'hint' }, 'Turn off the lock to set width and height independently — useful for matching the same size across several images.'),
     ),
     group('Crop', false,
       el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, aspectCrop(0, 'Original'), aspectCrop(1, '1:1'), aspectCrop(4 / 5, '4:5'), aspectCrop(3 / 4, '3:4'), aspectCrop(16 / 9, '16:9'), aspectCrop(9 / 16, '9:16'), aspectCrop(4 / 3, '4:3')),
@@ -2504,10 +2571,10 @@ function bindStage() {
     const h = hitHandle(p);
     if (h) {
       const l = h.b.layer; const d0 = Math.hypot(p.x - h.b.cx, p.y - h.b.cy) || 1;
-      dragState = { mode: 'scale', l, d0, size0: l.kind === 'text' ? l.size : l.w };
+      dragState = { mode: 'scale', l, d0, size0: l.kind === 'text' ? l.size : l.w, h0: l.kind === 'image' ? l.h : undefined };
     } else {
       const l = hitLayer(p);
-      if (!l) { if (S.selected !== -1) { S.selected = -1; refreshAll(); } return; }
+      if (!l) { const bi = backgroundIndex(); if (S.selected !== bi) { S.selected = bi; refreshAll(); } return; }
       const idx = S.layers.indexOf(l); if (S.selected !== idx) { S.selected = idx; refreshAll(); }
       dragState = { mode: 'move', l, sx: p.x, sy: p.y, ox: l.x, oy: l.y, moved: false };
     }
@@ -2520,7 +2587,8 @@ function bindStage() {
     if (d.mode === 'scale') {
       const b = boxes.find(t => t.layer === d.l); if (!b) return;
       const f = Math.hypot(p.x - b.cx, p.y - b.cy) / d.d0;
-      if (d.l.kind === 'text') d.l.size = +clamp(d.size0 * f, 0.5, 100).toFixed(2); else d.l.w = +clamp(d.size0 * f, 0.5, 400).toFixed(2);
+      if (d.l.kind === 'text') d.l.size = +clamp(d.size0 * f, 0.5, 100).toFixed(2);
+      else { d.l.w = +clamp(d.size0 * f, 0.5, 400).toFixed(2); d.l.h = +clamp(d.h0 * f, 0.5, 400).toFixed(2); } // corner drag always scales both axes together
       syncSliders(); return;
     }
     let dx = p.x - d.sx, dy = p.y - d.sy;
@@ -2565,9 +2633,9 @@ function bindChrome() {
       S = Object.assign(defaultState(), d.S);
       S.canvas = Object.assign(defaultState().canvas, d.S.canvas || {}); S.export = Object.assign(defaultState().export, d.S.export || {});
       if (d.S.text && d.S.text.layers && !d.S.layers) S.layers = d.S.text.layers;
-      S.layers = (S.layers || []).map(normalizeLayer); S.images = S.images || {}; S.selected = -1;
+      S.layers = (S.layers || []).map(normalizeLayer); S.images = S.images || {}; ensureBackgroundLayer(); S.selected = -1;
       S.layers.forEach(l => l.kind === 'text' && ensureFont(l.font));
-      IMAGES.clear(); await restoreImages();
+      IMAGES.clear(); await restoreImages(); fixImageSizes();
       presetName = d.presetName || 'Custom'; inspectorKey = ''; refreshAll(); toast('Design loaded');
     } catch (e) { console.error(e); toast('That file is not a Gradient Studio design'); }
     $('#fileJson').value = '';
@@ -2591,12 +2659,12 @@ function bindChrome() {
     else if (e.key === 'r' || e.key === 'R') randomize();
     else if (e.key === 'g' || e.key === 'G') { S.guides = !S.guides; refreshAll(); }
     else if (e.key === 'Escape') { if (modal.classList.contains('open')) closeExport(); else if (S.selected !== -1) { S.selected = -1; refreshAll(); } }
-    else if (meta && (e.key === 'd' || e.key === 'D') && l) { e.preventDefault(); duplicateLayer(S.selected); }
-    else if (e.key.startsWith('Arrow') && l) {
+    else if (meta && (e.key === 'd' || e.key === 'D') && l && l.kind !== 'background') { e.preventDefault(); duplicateLayer(S.selected); }
+    else if (e.key.startsWith('Arrow') && l && l.kind !== 'background') {
       const d = e.shiftKey ? 2 : 0.25;
       if (e.key === 'ArrowLeft') l.x -= d; if (e.key === 'ArrowRight') l.x += d; if (e.key === 'ArrowUp') l.y -= d; if (e.key === 'ArrowDown') l.y += d;
       l.x = +l.x.toFixed(2); l.y = +l.y.toFixed(2); e.preventDefault(); refreshAll();
-    } else if ((e.key === 'Delete' || e.key === 'Backspace') && l && hoverCanvas) deleteLayer(S.selected);
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && l && l.kind !== 'background' && hoverCanvas) deleteLayer(S.selected);
     else if (e.key === ']' && l) moveLayer(S.selected, 1);
     else if (e.key === '[' && l) moveLayer(S.selected, -1);
   });
@@ -2624,6 +2692,7 @@ function randomize() {
   if (!restored) addTextLayer({ text: 'GRADIENT\nSTUDIO', size: 8, letter: 0.04, weight: 800, font: 'Inter' });
   S.layers.forEach(l => l.kind === 'text' && ensureFont(l.font));
   await restoreImages();
+  fixImageSizes();
   refreshAll();
   requestAnimationFrame(t => { last = t; tick(t); });
 })();
