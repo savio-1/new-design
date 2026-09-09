@@ -1306,7 +1306,7 @@
        goes from white straight to transparent leaves a cut edge at
        exactly the brightest point, which is what made the beam read
        as a stroke that ends instead of a light that fades. */
-    .beam::before, .beam::after {
+    .beam::before, .beam::after, .beam-far {
       content: ""; position: absolute; border-radius: inherit;
       background: conic-gradient(from var(--beam-angle),
         transparent 0,
@@ -1327,16 +1327,27 @@
               mask-composite: exclude;
     }
     .beam::before { inset: 0; padding: 1.2px; opacity: .7; }
-    /* The spill, and the piece that carries the glow. A wide band
-       blurred by more than its own width, so the light has no outer
-       edge of its own to show: it is brightest against the border
-       and gone by the time it reaches the page. */
+    /* The spill, in two layers, because a glow is a falloff and one
+       band cannot be one. A wide band blurred by about its own width
+       comes out an even ring the thickness of the band, which is the
+       opposite of light coming off an edge.
+       So: a thin band on the border blurred several times its width,
+       which puts the brightest light right at the edge and halves it
+       within a few pixels, and a wider, fainter one behind it that
+       carries the last of the light out to nothing. Their sum falls
+       off the whole way, and neither has an edge of its own. */
     .beam::after {
-      inset: -16px; border-radius: 36px; padding: 18px;
-      filter: blur(20px) saturate(1.25);
+      inset: -2px; border-radius: 23px; padding: 4px;
+      filter: blur(7px) saturate(1.2);
       opacity: var(--beam-glow);
     }
-    :root[data-mode="light"] .beam::after { filter: blur(22px) saturate(1.12); opacity: calc(var(--beam-glow) * .82); }
+    .beam-far {
+      position: absolute; inset: -12px; border-radius: 32px; padding: 13px;
+      filter: blur(26px) saturate(1.15);
+      opacity: calc(var(--beam-glow) * .42);
+    }
+    :root[data-mode="light"] .beam::after { filter: blur(8px) saturate(1.1); opacity: calc(var(--beam-glow) * .8); }
+    :root[data-mode="light"] .beam-far { opacity: calc(var(--beam-glow) * .34); }
 
     /* ── The settled ring ─────────────────────────────────────────
        Once you are in the field the beam has said what it had to
@@ -1370,17 +1381,17 @@
       content: ""; position: absolute; inset: 0; border-radius: 20px;
       background: transparent;
       box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--ring-c) 22%, transparent),
-        0 0 16px 1px color-mix(in srgb, var(--ring-c) 42%, transparent),
-        0 0 44px 6px color-mix(in srgb, var(--ring-c) 24%, transparent),
-        0 0 90px 18px color-mix(in srgb, var(--ring-c) 12%, transparent);
+        0 0 0 1px color-mix(in srgb, var(--ring-c) 20%, transparent),
+        0 0 8px 0 color-mix(in srgb, var(--ring-c) 40%, transparent),
+        0 0 26px 0 color-mix(in srgb, var(--ring-c) 22%, transparent),
+        0 0 64px 4px color-mix(in srgb, var(--ring-c) 11%, transparent);
       transition: box-shadow .5s ease;
     }
     :root[data-mode="light"] .ring::after {
       box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--ring-c) 26%, transparent),
-        0 0 14px 1px color-mix(in srgb, var(--ring-c) 30%, transparent),
-        0 0 40px 6px color-mix(in srgb, var(--ring-c) 16%, transparent);
+        0 0 0 1px color-mix(in srgb, var(--ring-c) 24%, transparent),
+        0 0 8px 0 color-mix(in srgb, var(--ring-c) 28%, transparent),
+        0 0 30px 2px color-mix(in srgb, var(--ring-c) 14%, transparent);
     }
     .prompt.is-focus .beam { opacity: 0; }
     .prompt.is-focus .ring { opacity: 1; }
@@ -1389,15 +1400,15 @@
     .prompt.is-sending .ring::after { animation: ring-pulse 1.1s ease-in-out infinite; }
     @keyframes ring-pulse {
       0%, 100% { box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--ring-c) 22%, transparent),
-        0 0 16px 1px color-mix(in srgb, var(--ring-c) 42%, transparent),
-        0 0 44px 6px color-mix(in srgb, var(--ring-c) 24%, transparent),
-        0 0 90px 18px color-mix(in srgb, var(--ring-c) 12%, transparent); }
+        0 0 0 1px color-mix(in srgb, var(--ring-c) 20%, transparent),
+        0 0 8px 0 color-mix(in srgb, var(--ring-c) 40%, transparent),
+        0 0 26px 0 color-mix(in srgb, var(--ring-c) 22%, transparent),
+        0 0 64px 4px color-mix(in srgb, var(--ring-c) 11%, transparent); }
       50%      { box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--ring-c) 32%, transparent),
-        0 0 22px 2px color-mix(in srgb, var(--ring-c) 60%, transparent),
-        0 0 60px 10px color-mix(in srgb, var(--ring-c) 34%, transparent),
-        0 0 120px 24px color-mix(in srgb, var(--ring-c) 16%, transparent); }
+        0 0 0 1px color-mix(in srgb, var(--ring-c) 28%, transparent),
+        0 0 12px 0 color-mix(in srgb, var(--ring-c) 56%, transparent),
+        0 0 38px 2px color-mix(in srgb, var(--ring-c) 30%, transparent),
+        0 0 88px 8px color-mix(in srgb, var(--ring-c) 14%, transparent); }
     }
 
     /* ── The switch, in the bar's top left corner ─────────────────
@@ -2047,7 +2058,7 @@
               <div class="promptwrap">
                 <p class="prompt-lead">I'm building an</p>
                 <form class="prompt" id="prompt" autocomplete="off" novalidate>
-                  <div class="beam" aria-hidden="true"></div>
+                  <div class="beam" aria-hidden="true"><span class="beam-far"></span></div>
                   <div class="ring" aria-hidden="true"></div>
 
                   <div class="prompt-step">
