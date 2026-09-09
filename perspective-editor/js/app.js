@@ -9,7 +9,8 @@
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   /* ------------------------------------------------------------------ state */
-  const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 8, keys: [] });
+  const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: FADE_OFF, keys: [] });
+  const FADE_OFF = 12;   // the top of the Fade far words range means "never fade"
   const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
   const state = {
     layers: [],
@@ -193,7 +194,7 @@
   function cameraAt(t) {
     const d = renderer.camDist;
     const k = Camera.evaluate(state.camera.keys, t);
-    const far = state.camera.farFade == null ? 8 : state.camera.farFade;
+    const far = state.camera.farFade == null ? FADE_OFF : state.camera.farFade;
     const sharpNear = state.camera.sharpNear == null ? 0.9 : state.camera.sharpNear;
     const sharpFar = state.camera.sharpFar == null ? 3.6 : state.camera.sharpFar;
     return {
@@ -201,7 +202,7 @@
       aperture: state.camera.aperture,
       // The sharp band travels with the camera: crisp between these distances from the lens.
       sharpNear, sharpFar: Math.max(sharpFar, sharpNear + 0.2),
-      fade: { near: 0.28, farStart: far, farEnd: far >= 8 ? 0 : far * 1.35 },
+      fade: { near: 0.28, farStart: far, farEnd: far >= FADE_OFF ? 0 : far * 1.35 },
     };
   }
 
@@ -341,13 +342,14 @@
     return l;
   }
 
+  const SHARP_GAP = 1.6;   // a comfortable distance in front of the lens, matching the sharp band
   function addBlankText() {
     let t = clock.time;
     let dur = Math.min(4, duration() - t);
     if (dur < 0.5) { t = 0; dur = Math.min(4, duration()); }
     // Place the new word just in front of the camera's current position so it is visible right away.
     const cam = cameraAt(clock.time);
-    const z = round(clamp(cam.z - 1.2, -1, 2.2), 2);
+    const z = round(clamp(cam.z - SHARP_GAP, -3, 10), 2);
     const k = Math.max(0.3, (cam.z - z) / renderer.camDist);
     const l = addLayer({
       text: 'Your text', name: 'Text', start: t, end: t + dur,
@@ -750,7 +752,7 @@
     {
       title: 'Position in 3D',
       fields: [
-        { type: 'range', path: 'transform.z', label: 'Depth', min: -2, max: 3.8, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Distance in front of the video. Bigger = closer to the camera; the resting camera sits at about 2.4' },
+        { type: 'range', path: 'transform.z', label: 'Depth', min: -3, max: 10, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Distance out from the video. Bigger = further from the video and closer to the viewer; the resting camera sits at about 2.4, so anything beyond that needs the camera pulled back' },
         { type: 'range', path: 'transform.x', label: 'Left / right', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
         { type: 'range', path: 'transform.y', label: 'Down / up', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
         { type: 'sub', label: 'Rotation' },
@@ -837,7 +839,7 @@
     {
       title: 'Camera position',
       fields: [
-        { type: 'range', path: 'dolly', label: 'Dolly', min: -3, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive = closer to the video (zooms it in); negative = further back' },
+        { type: 'range', path: 'dolly', label: 'Dolly', min: -12, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive = closer to the video (zooms it in); negative = further back, which is what makes room for deep text' },
         { type: 'range', path: 'x', label: 'Left / right', min: -2, max: 2, step: 0.01, scale: 1, unit: '' },
         { type: 'range', path: 'y', label: 'Down / up', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '' },
         { type: 'range', path: 'yaw', label: 'Pan', min: -90, max: 90, step: 0.5, scale: 1, unit: '°' },
@@ -1285,7 +1287,7 @@
         if (!l || !o) continue;
         l.transform.x = round(clamp(o.x + delta.dx, -4, 4), 3);
         l.transform.y = round(clamp(o.y + delta.dy, -2.5, 2.5), 3);
-        l.transform.z = round(clamp(o.z + delta.dz, -2, 3.8), 3);
+        l.transform.z = round(clamp(o.z + delta.dz, -3, 10), 3);
       }
       refreshInspectorValues();
       invalidate();
@@ -1298,7 +1300,7 @@
       if (state.selectedKeyId !== key.id) selectKey(key.id);
       key.x = round(clamp(p.x, -3, 3), 3);
       key.y = round(clamp(p.y, -2, 2), 3);
-      key.dolly = round(renderer.camDist - clamp(p.z, -1.5, 6), 3);
+      key.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
       refreshKeyValues();
       renderCameraTrack();
       invalidate();
@@ -1310,7 +1312,7 @@
       if (!k) return;
       k.x = round(clamp(p.x, -3, 3), 3);
       k.y = round(clamp(p.y, -2, 2), 3);
-      k.dolly = round(renderer.camDist - clamp(p.z, -1.5, 6), 3);
+      k.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
       refreshKeyValues();
       invalidate();
     },
@@ -1456,9 +1458,9 @@
     const sf = state.camera.sharpFar == null ? 3.6 : state.camera.sharpFar;
     $('#camSharpNear').value = sn; $('#camSharpNearNum').value = round(sn, 2);
     $('#camSharpFar').value = sf; $('#camSharpFarNum').value = round(sf, 2);
-    const far = state.camera.farFade == null ? 8 : state.camera.farFade;
+    const far = state.camera.farFade == null ? FADE_OFF : state.camera.farFade;
     $('#camFarFade').value = far;
-    $('#camFarFadeNum').value = far >= 8 ? 'off' : round(far, 1);
+    $('#camFarFadeNum').value = far >= FADE_OFF ? 'off' : round(far, 1);
     $('#fovSelect').value = String(state.fov);
   }
   $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
@@ -1484,9 +1486,9 @@
   };
   bindSharp('#camSharpNear', '#camSharpNearNum', 'sharpNear');
   bindSharp('#camSharpFar', '#camSharpFarNum', 'sharpFar');
-  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
+  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= FADE_OFF ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#camFarFade').addEventListener('change', commit);
-  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
+  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, FADE_OFF) : FADE_OFF; syncCameraControls(); commit(); invalidate(); });
   $('#fovSelect').addEventListener('change', (e) => { state.fov = Number(e.target.value); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#btnClearCamera').addEventListener('click', () => {
     if (!state.camera.keys.length) return;
@@ -1703,6 +1705,7 @@
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
       state.camera = Object.assign(defaultCamera(), data.camera || {});
       if (data.camera && data.camera.sharpNear == null) { state.camera.sharpNear = 0.9; state.camera.sharpFar = 3.6; }
+      if (state.camera.farFade >= 8 && state.camera.farFade < FADE_OFF) state.camera.farFade = FADE_OFF; // 8 used to mean "off"
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       state.media = Object.assign(defaultMedia(), data.media || {});
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop

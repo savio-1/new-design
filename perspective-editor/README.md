@@ -82,6 +82,11 @@ should read.
 
 ## Depth of field
 
+Text can sit anywhere from 3 units behind the video plane to 10 units out in front of it, and the
+camera can pull back about 14 units, so there is room for a long line of words in depth. Remember
+that the footage has to be scaled up to keep filling the frame as the camera retreats — roughly the
+camera distance divided by 2.4, which *Fit video at this key* works out for you.
+
 Focus is a **band that travels with the camera**, not a plane locked to one object. *Sharp from* and
 *Sharp to* set the two distances between which text is crisp; nearer or further than that it softens,
 with a smooth edge either side. So a word coming toward the lens is soft, snaps into focus once it is

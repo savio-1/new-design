@@ -353,7 +353,8 @@ svg { width: 18px; height: 18px; display: block; }
 .ctl input:focus, .ctl select:focus, .ctl textarea:focus { outline: none; border-color: var(--accent); }
 .range-wrap { display: grid; grid-template-columns: 1fr 52px; gap: 6px; align-items: center; }
 .range-wrap input[type=range] { width: 100%; accent-color: var(--accent); height: 26px; margin: 0; }
-.range-wrap input[type=number] { text-align: right; padding: 0 4px; height: 26px; }
+.range-wrap input[type=number], .range-wrap input[type=text] { text-align: right; padding: 0 4px; height: 26px; }
+.range-wrap input[type=text] { background: var(--panel-2); border: 1px solid var(--border-2); border-radius: 6px; color: var(--text); font-size: 12px; width: 100%; min-width: 0; }
 .range-wrap input[type=number]::-webkit-inner-spin-button { display: none; }
 .color-wrap { display: flex; align-items: center; gap: 6px; }
 .color-wrap input[type=color] { width: 34px; height: 26px; padding: 0; border: 1px solid var(--border-2); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
@@ -605,7 +606,7 @@ svg { width: 18px; height: 18px; display: block; }
         </label>
         <div class="ctl">
           <label title="Scale the footage up so it still fills the frame when the camera pulls back">Video scale</label>
-          <div class="range-wrap"><input id="mediaScale" type="range" min="1" max="3" step="0.01" value="1"><input id="mediaScaleNum" type="number" min="100" max="300" step="1" value="100"></div>
+          <div class="range-wrap"><input id="mediaScale" type="range" min="1" max="5" step="0.01" value="1"><input id="mediaScaleNum" type="number" min="100" max="500" step="1" value="100"></div>
         </div>
         <div class="ctl">
           <label>Video X</label>
@@ -615,7 +616,7 @@ svg { width: 18px; height: 18px; display: block; }
           <label>Video Y</label>
           <div class="range-wrap"><input id="mediaY" type="range" min="-1.5" max="1.5" step="0.01" value="0"><input id="mediaYNum" type="number" min="-150" max="150" step="1" value="0"></div>
         </div>
-        <p class="panel-hint">Tip: with the video at 150–200 % the camera can pull back a long way and the footage still fills the frame. The Camera Reveal template sets this up for you.</p>
+        <p class="panel-hint">Tip: the further back the camera goes, the more the footage has to be scaled to keep filling the frame — roughly the camera distance divided by 2.4. The camera templates set this up for you.</p>
       </div>
 
       <!-- 2 · Text -->
@@ -666,8 +667,8 @@ svg { width: 18px; height: 18px; display: block; }
         </div>
         <p class="panel-hint small">Between these two distances from the camera the text is crisp. Nearer or further and it softens, so words blur in as they pass the lens and blur out as they fall behind.</p>
         <div class="ctl">
-          <label title="Words further than this behind the lens dissolve">Fade far words</label>
-          <div class="range-wrap"><input id="camFarFade" type="range" min="1" max="8" step="0.1" value="8"><input id="camFarFadeNum" type="number" min="1" max="8" step="0.1" value="8"></div>
+          <label title="Words further than this from the lens dissolve away. Set it to the top of the range for off.">Far fade</label>
+          <div class="range-wrap"><input id="camFarFade" type="range" min="1" max="12" step="0.1" value="12"><input id="camFarFadeNum" type="text" inputmode="decimal" value="off" title="Distance at which far words start to dissolve. Type a number, or 'off'"></div>
         </div>
         <div class="ctl">
           <label>Lens</label>
@@ -4379,7 +4380,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           Camera.defaultKey(start + duration * 0.85, { dolly: d - camEnd, easing: 'easeOut' }),
           Camera.defaultKey(start + duration, { dolly: d - camEnd, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -4416,7 +4417,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -10, easing: 'linear' }),
           Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 0, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -4528,7 +4529,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
             easing: i === 0 ? 'linear' : i === 1 ? 'easeOut' : i === steps - 1 ? 'easeIn' : 'linear',
           }));
         }
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 1.1, sharpFar: 3.4, farFade: 8 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 1.1, sharpFar: 3.4, farFade: 12 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
       },
     },
     {
@@ -4563,7 +4564,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           Camera.defaultKey(start, { dolly: round3(d - camStart), y: -0.16, pitch: 4, easing: 'linear' }),
           Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), y: 0.2, pitch: -5, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -4602,7 +4603,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           Camera.defaultKey(start, { dolly: round3(d - camStart), easing: 'linear' }),
           Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.4, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.4, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -4666,7 +4667,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           cameraKeys.push(Camera.defaultKey(t + cdur - 0.02, { x: -0.03 * sign, dolly: camDist + 0.35, yaw: 2.5 * sign, easing: 'easeIn' }));
           t += cdur;
         });
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.7, sharpNear: 0.7, sharpFar: 2.6, farFade: 8 }, mediaSettings: { locked: true } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.7, sharpNear: 0.7, sharpFar: 2.6, farFade: 12 }, mediaSettings: { locked: true } };
       },
     },
     {
@@ -5646,7 +5647,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   /* ------------------------------------------------------------------ state */
-  const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 8, keys: [] });
+  const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: FADE_OFF, keys: [] });
+  const FADE_OFF = 12;   // the top of the Fade far words range means "never fade"
   const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
   const state = {
     layers: [],
@@ -5830,7 +5832,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function cameraAt(t) {
     const d = renderer.camDist;
     const k = Camera.evaluate(state.camera.keys, t);
-    const far = state.camera.farFade == null ? 8 : state.camera.farFade;
+    const far = state.camera.farFade == null ? FADE_OFF : state.camera.farFade;
     const sharpNear = state.camera.sharpNear == null ? 0.9 : state.camera.sharpNear;
     const sharpFar = state.camera.sharpFar == null ? 3.6 : state.camera.sharpFar;
     return {
@@ -5838,7 +5840,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       aperture: state.camera.aperture,
       // The sharp band travels with the camera: crisp between these distances from the lens.
       sharpNear, sharpFar: Math.max(sharpFar, sharpNear + 0.2),
-      fade: { near: 0.28, farStart: far, farEnd: far >= 8 ? 0 : far * 1.35 },
+      fade: { near: 0.28, farStart: far, farEnd: far >= FADE_OFF ? 0 : far * 1.35 },
     };
   }
 
@@ -5978,13 +5980,14 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     return l;
   }
 
+  const SHARP_GAP = 1.6;   // a comfortable distance in front of the lens, matching the sharp band
   function addBlankText() {
     let t = clock.time;
     let dur = Math.min(4, duration() - t);
     if (dur < 0.5) { t = 0; dur = Math.min(4, duration()); }
     // Place the new word just in front of the camera's current position so it is visible right away.
     const cam = cameraAt(clock.time);
-    const z = round(clamp(cam.z - 1.2, -1, 2.2), 2);
+    const z = round(clamp(cam.z - SHARP_GAP, -3, 10), 2);
     const k = Math.max(0.3, (cam.z - z) / renderer.camDist);
     const l = addLayer({
       text: 'Your text', name: 'Text', start: t, end: t + dur,
@@ -6387,7 +6390,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     {
       title: 'Position in 3D',
       fields: [
-        { type: 'range', path: 'transform.z', label: 'Depth', min: -2, max: 3.8, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Distance in front of the video. Bigger = closer to the camera; the resting camera sits at about 2.4' },
+        { type: 'range', path: 'transform.z', label: 'Depth', min: -3, max: 10, step: 0.01, scale: 1, unit: '', delta: true, hint: 'Distance out from the video. Bigger = further from the video and closer to the viewer; the resting camera sits at about 2.4, so anything beyond that needs the camera pulled back' },
         { type: 'range', path: 'transform.x', label: 'Left / right', min: -3, max: 3, step: 0.01, scale: 1, unit: '', delta: true },
         { type: 'range', path: 'transform.y', label: 'Down / up', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '', delta: true },
         { type: 'sub', label: 'Rotation' },
@@ -6474,7 +6477,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     {
       title: 'Camera position',
       fields: [
-        { type: 'range', path: 'dolly', label: 'Dolly', min: -3, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive = closer to the video (zooms it in); negative = further back' },
+        { type: 'range', path: 'dolly', label: 'Dolly', min: -12, max: 3.5, step: 0.01, scale: 1, unit: '', hint: 'Positive = closer to the video (zooms it in); negative = further back, which is what makes room for deep text' },
         { type: 'range', path: 'x', label: 'Left / right', min: -2, max: 2, step: 0.01, scale: 1, unit: '' },
         { type: 'range', path: 'y', label: 'Down / up', min: -1.5, max: 1.5, step: 0.01, scale: 1, unit: '' },
         { type: 'range', path: 'yaw', label: 'Pan', min: -90, max: 90, step: 0.5, scale: 1, unit: '°' },
@@ -6922,7 +6925,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         if (!l || !o) continue;
         l.transform.x = round(clamp(o.x + delta.dx, -4, 4), 3);
         l.transform.y = round(clamp(o.y + delta.dy, -2.5, 2.5), 3);
-        l.transform.z = round(clamp(o.z + delta.dz, -2, 3.8), 3);
+        l.transform.z = round(clamp(o.z + delta.dz, -3, 10), 3);
       }
       refreshInspectorValues();
       invalidate();
@@ -6935,7 +6938,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       if (state.selectedKeyId !== key.id) selectKey(key.id);
       key.x = round(clamp(p.x, -3, 3), 3);
       key.y = round(clamp(p.y, -2, 2), 3);
-      key.dolly = round(renderer.camDist - clamp(p.z, -1.5, 6), 3);
+      key.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
       refreshKeyValues();
       renderCameraTrack();
       invalidate();
@@ -6947,7 +6950,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       if (!k) return;
       k.x = round(clamp(p.x, -3, 3), 3);
       k.y = round(clamp(p.y, -2, 2), 3);
-      k.dolly = round(renderer.camDist - clamp(p.z, -1.5, 6), 3);
+      k.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
       refreshKeyValues();
       invalidate();
     },
@@ -7093,9 +7096,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const sf = state.camera.sharpFar == null ? 3.6 : state.camera.sharpFar;
     $('#camSharpNear').value = sn; $('#camSharpNearNum').value = round(sn, 2);
     $('#camSharpFar').value = sf; $('#camSharpFarNum').value = round(sf, 2);
-    const far = state.camera.farFade == null ? 8 : state.camera.farFade;
+    const far = state.camera.farFade == null ? FADE_OFF : state.camera.farFade;
     $('#camFarFade').value = far;
-    $('#camFarFadeNum').value = far >= 8 ? 'off' : round(far, 1);
+    $('#camFarFadeNum').value = far >= FADE_OFF ? 'off' : round(far, 1);
     $('#fovSelect').value = String(state.fov);
   }
   $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
@@ -7121,9 +7124,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   };
   bindSharp('#camSharpNear', '#camSharpNearNum', 'sharpNear');
   bindSharp('#camSharpFar', '#camSharpFarNum', 'sharpFar');
-  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
+  $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= FADE_OFF ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#camFarFade').addEventListener('change', commit);
-  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
+  $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, FADE_OFF) : FADE_OFF; syncCameraControls(); commit(); invalidate(); });
   $('#fovSelect').addEventListener('change', (e) => { state.fov = Number(e.target.value); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#btnClearCamera').addEventListener('click', () => {
     if (!state.camera.keys.length) return;
@@ -7340,6 +7343,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
       state.camera = Object.assign(defaultCamera(), data.camera || {});
       if (data.camera && data.camera.sharpNear == null) { state.camera.sharpNear = 0.9; state.camera.sharpFar = 3.6; }
+      if (state.camera.farFade >= 8 && state.camera.farFade < FADE_OFF) state.camera.farFade = FADE_OFF; // 8 used to mean "off"
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       state.media = Object.assign(defaultMedia(), data.media || {});
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop

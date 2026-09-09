@@ -220,7 +220,7 @@
           Camera.defaultKey(start + duration * 0.85, { dolly: d - camEnd, easing: 'easeOut' }),
           Camera.defaultKey(start + duration, { dolly: d - camEnd, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -257,7 +257,7 @@
           Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -10, easing: 'linear' }),
           Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 0, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -369,7 +369,7 @@
             easing: i === 0 ? 'linear' : i === 1 ? 'easeOut' : i === steps - 1 ? 'easeIn' : 'linear',
           }));
         }
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 1.1, sharpFar: 3.4, farFade: 8 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 1.1, sharpFar: 3.4, farFade: 12 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
       },
     },
     {
@@ -404,7 +404,7 @@
           Camera.defaultKey(start, { dolly: round3(d - camStart), y: -0.16, pitch: 4, easing: 'linear' }),
           Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), y: 0.2, pitch: -5, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -443,7 +443,7 @@
           Camera.defaultKey(start, { dolly: round3(d - camStart), easing: 'linear' }),
           Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.4, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.4, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -507,7 +507,7 @@
           cameraKeys.push(Camera.defaultKey(t + cdur - 0.02, { x: -0.03 * sign, dolly: camDist + 0.35, yaw: 2.5 * sign, easing: 'easeIn' }));
           t += cdur;
         });
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.7, sharpNear: 0.7, sharpFar: 2.6, farFade: 8 }, mediaSettings: { locked: true } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.7, sharpNear: 0.7, sharpFar: 2.6, farFade: 12 }, mediaSettings: { locked: true } };
       },
     },
     {
