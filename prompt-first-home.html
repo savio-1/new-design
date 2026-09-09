@@ -1072,57 +1072,134 @@
     /* ══════════════════════════════════════════════════════════════
        VARIATION B — PROMPT FIRST
 
-       The two hero cards are gone. The page opens on one thing: a
-       prompt bar, with the choice of what is being built folded into
-       the bar itself as a two-step stepper. Everything the old page
-       put in cards and chips — tools, guardrails, models, blocks — is
-       still here, a step back, as attachments on the bar's own footer
-       and a quiet row beneath it.
+       The page opens on one thing: a prompt bar. The choice of what is
+       being built is folded into the bar as a small switch in its top
+       left corner; everything else that used to crowd the home page is
+       either gone or pushed below the fold.
 
-       The bar wears a beam: a ring of the library's own ramps that
-       rides its border, the way the reference's Border Beam rides a
-       card. The angle is driven from script rather than a CSS
-       animation so its speed can ease between states — idle, focused,
-       typing, sending — without the jump that changing an animation's
-       duration mid-flight would make.
+       The bar wears a beam: a ring of the library's own ramps riding
+       its border, the way the reference's Border Beam rides a card.
+       The angle is driven from script rather than a CSS animation so
+       its speed can ease between states (idle, focused, typing,
+       sending) without the jump a mid-flight duration change makes.
+
+       Behind it, two atmospheres from the current home, both held
+       back so the bar keeps the eye: the glyph field, and a crown of
+       aurora light along the top edge at a fraction of its strength.
        ══════════════════════════════════════════════════════════════ */
 
-    /* The void: the aurora variation's ground, kept. A step below the
-       ink ramp so the beam has depth to burn against. */
+    /* The void. A step below the ink ramp so the beam and the crown
+       have depth to burn against. */
     .content-wrapper.is-home { position: relative; background: #09090b; }
     :root[data-mode="light"] .content-wrapper.is-home { background: var(--backgrounds-page-bg-3); }
     .home { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
     .home-scroll {
-      position: relative; flex: 1 1 auto; min-width: 0;
+      position: relative;
+      flex: 1 1 auto; min-width: 0;
       display: flex; flex-direction: column; overflow-y: auto;
-      padding-top: 48px;
+      padding-top: 48px;                 /* the height of the floating header */
     }
 
-    /* ── The canvas lattice ────────────────────────────────────────
-       The builder's own dot grid, laid faint under the hero and
-       faded out in a wide ellipse around the bar — a nod to where the
-       prompt is about to take you, not decoration. */
-    .hero-lattice {
-      position: absolute; left: 0; right: 0; top: 0; height: 78vh;
-      pointer-events: none; z-index: 0;
-      background-image: radial-gradient(circle, var(--strokes-canvas-dots) 1px, transparent 1.2px);
-      background-size: 22px 22px;
-      background-position: 50% 0;
-      opacity: .55;
-      -webkit-mask-image: radial-gradient(70% 62% at 50% 46%, #000 20%, rgba(0,0,0,.5) 55%, transparent 100%);
-              mask-image: radial-gradient(70% 62% at 50% 46%, #000 20%, rgba(0,0,0,.5) 55%, transparent 100%);
+    /* ══ The background ═══════════════════════════════════════════ */
+    .hero-sky {
+      position: absolute; left: 0; right: 0; top: 0; height: 76vh;
+      overflow: hidden; pointer-events: none; z-index: 0;
     }
-    :root[data-mode="light"] .hero-lattice { opacity: .8; }
 
-    /* ── The hero column ─────────────────────────────────────────── */
+    /* ── The crown ────────────────────────────────────────────────
+       The aurora rim from the current home, kept as a band across the
+       top and turned right down. Two oversized conic wheels spun in
+       opposite directions, clipped to a feathered top band; screened
+       on the void, multiplied on paper, so the chroma survives in
+       both themes rather than washing to pastel in one.
+
+       The strength is the whole point of the variation: enough colour
+       that the page has weather, not enough to compete with the bar. */
+    .crown {
+      position: absolute; left: 0; right: 0; top: 0; height: 100%;
+      overflow: hidden; pointer-events: none;
+      --crown-reach: clamp(150px, 26vh, 300px);
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,.34) 42%, rgba(0,0,0,.1) 70%, transparent 100%);
+              mask-image: linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,.34) 42%, rgba(0,0,0,.1) 70%, transparent 100%);
+      -webkit-mask-size: 100% var(--crown-reach); mask-size: 100% var(--crown-reach);
+      -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+      mix-blend-mode: screen;
+      opacity: .2;
+    }
+    :root[data-mode="light"] .crown { mix-blend-mode: multiply; opacity: .15; }
+    .crown-spin, .crown-spin2 {
+      position: absolute; left: 50%; top: 0;
+      width: 180%; aspect-ratio: 1;
+      translate: -50% -62%;
+      will-change: rotate;
+    }
+    .crown-spin {
+      background: conic-gradient(from 210deg,
+        #0a84ff, #64d2ff 9%, #0a84ff 19%, #5e5ce6 31%, #7d5cf0 42%,
+        #bf5af2 52%, #ff6b5c 61%, #ff9f0a 68%, #ffab26 76%, #ff9f0a 82%,
+        #c471ec 89%, #5e5ce6 94%, #0a84ff);
+      filter: blur(64px) saturate(1.1);
+      animation: crown-turn 44s linear infinite;
+    }
+    .crown-spin2 {
+      background: conic-gradient(from 40deg,
+        transparent, rgba(255, 214, 165, .8) 8%, rgba(255, 255, 255, .85) 12%, transparent 26%,
+        transparent 46%, rgba(100, 210, 255, .7) 54%, transparent 66%,
+        rgba(191, 90, 242, .6) 88%, transparent);
+      filter: blur(78px);
+      mix-blend-mode: screen;
+      opacity: .7;
+      animation: crown-turn 63s linear infinite reverse;
+    }
+    :root[data-mode="light"] .crown-spin2 {
+      mix-blend-mode: normal; opacity: .5;
+      background: conic-gradient(from 40deg,
+        transparent, rgba(255, 159, 10, .85) 8%, rgba(255, 90, 60, .8) 12%, transparent 26%,
+        transparent 46%, rgba(100, 210, 255, .8) 54%, transparent 66%,
+        rgba(191, 90, 242, .7) 88%, transparent);
+    }
+    @keyframes crown-turn { to { rotate: 1turn; } }
+
+    /* ── The glyph field ──────────────────────────────────────────
+       The canvas dots from the current home, carried over whole: a
+       lattice of small filled squares, each choosing between three
+       alphas by sampling a slow three-dimensional noise, with the
+       pointer pulling the noise down inside a soft radius so the
+       field lights under the cursor. Nothing in it moves; what
+       drifts is which dots are bright.
+
+       Held a step back from the current home's, because here it is
+       the only texture the page has and there is no gradient over it
+       to soften it. */
+    :root {
+      --glyph-1: .30;   /* accent: the 16% the noise puts lowest */
+      --glyph-2: .12;   /* mid tone: the next 16% */
+      --glyph-3: .05;   /* base: the two thirds that are only tooth */
+    }
+    :root[data-mode="light"] { --glyph-1: .30; --glyph-2: .13; --glyph-3: .055; }
+    .hero-glyphs {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      /* Open at the top and gone by two thirds down, on an ellipse
+         rather than a flat fade, so the field never draws a straight
+         edge across the page. The bar sits in the clearing at its
+         centre: the mask lifts around 46% where the prompt is. */
+      --fade: radial-gradient(78% 74% at 50% 8%,
+                #000 0%, #000 34%,
+                rgba(0, 0, 0, .62) 52%, rgba(0, 0, 0, .3) 70%,
+                rgba(0, 0, 0, .1) 86%, transparent 100%);
+      -webkit-mask-image: var(--fade); mask-image: var(--fade);
+      -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    }
+
+    /* ══ The hero column ══════════════════════════════════════════ */
     .hero {
       position: relative; z-index: 1;
       flex: none;
       display: flex; flex-direction: column; align-items: center;
       text-align: center;
-      /* Sized to what it holds, pushed down enough to breathe under
-         the header without spending the viewport. */
-      padding: clamp(40px, 9vh, 96px) 24px 0;
+      /* Sized to what it holds rather than to the viewport, so the
+         page's next section is already in the first frame. */
+      padding: clamp(44px, 10vh, 104px) 24px 0;
     }
     .hero-eyebrow {
       margin: 0 0 6px; color: var(--text-secondary);
@@ -1137,16 +1214,15 @@
       text-wrap: balance;
     }
 
-    /* ── Ambient light behind the bar ────────────────────────────
-       Two washes, one per build type, crossfaded so the choice tints
-       the room. Screened on the void, multiplied on paper — the same
-       arithmetic the aurora rim uses. */
+    /* Ambient light behind the bar, one wash per kind, crossfaded so
+       the choice tints the room. The same screen-on-void,
+       multiply-on-paper arithmetic the crown uses. */
     .hero-ambient {
       position: absolute; left: 50%; top: 50%; z-index: -1;
-      width: min(1080px, 120vw); height: 420px;
-      translate: -50% -46%;
+      width: min(1000px, 118vw); height: 380px;
+      translate: -50% -42%;
       pointer-events: none;
-      filter: blur(48px);
+      filter: blur(52px);
       mix-blend-mode: screen;
     }
     :root[data-mode="light"] .hero-ambient { mix-blend-mode: multiply; }
@@ -1156,32 +1232,40 @@
     }
     .hero-ambient .amb-automation {
       background:
-        radial-gradient(42% 60% at 38% 50%, rgba(13, 153, 255, .30), transparent 70%),
-        radial-gradient(38% 56% at 66% 52%, rgba(53, 202, 240, .22), transparent 72%);
+        radial-gradient(42% 60% at 38% 50%, rgba(13, 153, 255, .26), transparent 70%),
+        radial-gradient(38% 56% at 66% 52%, rgba(53, 202, 240, .18), transparent 72%);
     }
     .hero-ambient .amb-assistant {
       background:
-        radial-gradient(42% 60% at 40% 50%, rgba(151, 71, 255, .30), transparent 70%),
-        radial-gradient(38% 56% at 66% 52%, rgba(240, 77, 132, .20), transparent 72%);
+        radial-gradient(42% 60% at 40% 50%, rgba(151, 71, 255, .26), transparent 70%),
+        radial-gradient(38% 56% at 66% 52%, rgba(240, 77, 132, .17), transparent 72%);
     }
     :root[data-mode="light"] .hero-ambient .amb-automation {
       background:
-        radial-gradient(42% 60% at 38% 50%, rgba(13, 153, 255, .22), transparent 70%),
-        radial-gradient(38% 56% at 66% 52%, rgba(53, 202, 240, .18), transparent 72%);
+        radial-gradient(42% 60% at 38% 50%, rgba(13, 153, 255, .18), transparent 70%),
+        radial-gradient(38% 56% at 66% 52%, rgba(53, 202, 240, .14), transparent 72%);
     }
     :root[data-mode="light"] .hero-ambient .amb-assistant {
       background:
-        radial-gradient(42% 60% at 40% 50%, rgba(151, 71, 255, .20), transparent 70%),
-        radial-gradient(38% 56% at 66% 52%, rgba(240, 77, 132, .16), transparent 72%);
+        radial-gradient(42% 60% at 40% 50%, rgba(151, 71, 255, .16), transparent 70%),
+        radial-gradient(38% 56% at 66% 52%, rgba(240, 77, 132, .13), transparent 72%);
     }
     .hero[data-kind="automation"] .amb-automation,
     .hero[data-kind="assistant"]  .amb-assistant { opacity: 1; }
 
-    /* ── The prompt bar ──────────────────────────────────────────── */
+    /* ══ The prompt bar ═══════════════════════════════════════════ */
     .promptwrap {
       position: relative; z-index: 1;
-      width: min(760px, 100%);
-      margin-top: 36px;
+      width: min(740px, 100%);
+      margin-top: 34px;
+      display: flex; flex-direction: column;
+    }
+    /* The one line of chrome the bar keeps, and it sits outside it:
+       the sentence the switch completes. */
+    .prompt-lead {
+      margin: 0 0 8px 4px; text-align: left;
+      color: var(--text-teritiary);
+      font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px;
     }
     .prompt {
       position: relative;
@@ -1191,31 +1275,33 @@
       border: 1px solid var(--strokes-card-default);
       box-shadow: var(--shadow-pop);
       text-align: left;
-      transition: border-color .2s ease, box-shadow .25s ease, transform .3s cubic-bezier(.22, .61, .36, 1);
       /* The beam's clock. Script writes the angle; the strength and
-         the reach of the tail are state, eased in CSS. */
+         the reach of the tail are state, eased here. */
       --beam-angle: 0deg;
-      --beam-glow: .42;
+      --beam-glow: .5;
       --beam-tail: 26%;
+      transition: border-color .2s ease, box-shadow .25s ease,
+                  transform .3s cubic-bezier(.22, .61, .36, 1),
+                  --beam-glow .5s ease, --beam-tail .6s ease;
     }
     :root:not([data-mode="light"]) .prompt { background: #121214; }
     .prompt.is-focus {
       border-color: color-mix(in srgb, var(--strokes-card-default) 40%, transparent);
-      --beam-glow: .82;
+      --beam-glow: .98;
       --beam-tail: 34%;
     }
-    .prompt.is-sending { --beam-glow: 1; --beam-tail: 48%; }
+    .prompt.is-sending { --beam-glow: 1.2; --beam-tail: 48%; }
     .prompt.is-sent { transform: scale(.992); }
 
     /* The beam. Two rings from one conic gradient: a hairline drawn
        crisp on the border, and the same ring widened and blurred to
        throw light onto the ground. The gradient is mostly transparent
-       — only the tail is painted — so what you see is one comet, not
-       a rainbow border. Colours are the library's own 450/500 rungs. */
+       and only the tail is painted, so what you see is one comet
+       rather than a rainbow border. Colours are the library's own
+       450 and 500 rungs. */
     @property --beam-angle { syntax: "<angle>"; inherits: true; initial-value: 0deg; }
-    @property --beam-glow  { syntax: "<number>"; inherits: true; initial-value: .4; }
+    @property --beam-glow  { syntax: "<number>"; inherits: true; initial-value: .5; }
     @property --beam-tail  { syntax: "<percentage>"; inherits: true; initial-value: 26%; }
-    .prompt { transition: border-color .2s ease, box-shadow .25s ease, transform .3s cubic-bezier(.22,.61,.36,1), --beam-glow .5s ease, --beam-tail .6s ease; }
     .beam { position: absolute; inset: -1px; border-radius: 21px; pointer-events: none; }
     .beam::before, .beam::after {
       content: ""; position: absolute; border-radius: inherit;
@@ -1236,33 +1322,32 @@
               mask-composite: exclude;
     }
     .beam::before { inset: 0; padding: 1.5px; opacity: .95; }
-    .beam::after  {
-      inset: -7px; border-radius: 28px; padding: 9px;
-      filter: blur(10px) saturate(1.2);
+    /* The spill. Wider and hotter than the hairline, and the piece
+       that carries the glow: a second, larger ring behind the first
+       so the light reads as coming off the border rather than as a
+       thicker border. */
+    .beam::after {
+      inset: -9px; border-radius: 30px; padding: 11px;
+      filter: blur(12px) saturate(1.25);
       opacity: var(--beam-glow);
     }
-    :root[data-mode="light"] .beam::after { filter: blur(11px) saturate(1.1); opacity: calc(var(--beam-glow) * .8); }
+    :root[data-mode="light"] .beam::after { filter: blur(13px) saturate(1.12); opacity: calc(var(--beam-glow) * .82); }
 
-    /* Row 1 · the stepper --------------------------------------- */
-    .prompt-step {
-      display: flex; align-items: center; gap: 12px;
-      padding: 14px 16px 0 18px;
-    }
-    .prompt-step-lbl {
-      color: var(--text-secondary);
-      font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
-      white-space: nowrap;
-    }
+    /* ── The switch, in the bar's top left corner ─────────────────
+       6px off both borders, and small: it is a qualifier on the
+       sentence above the bar, not a control competing with the
+       field. */
+    .prompt-step { display: flex; padding: 6px 6px 0; }
     .seg {
       position: relative; display: inline-flex; gap: 2px;
-      padding: 3px; border-radius: 10px;
+      padding: 2px; border-radius: 8px;
       background: var(--backgrounds-page-bg-2);
       border: 1px solid var(--strokes-line-3);
     }
     :root:not([data-mode="light"]) .seg { background: #1a1a1d; }
     .seg-ind {
-      position: absolute; top: 3px; bottom: 3px; left: 3px;
-      width: 0; border-radius: 7px;
+      position: absolute; top: 2px; bottom: 2px; left: 2px;
+      width: 0; border-radius: 6px;
       background: var(--backgrounds-card-bg-3);
       box-shadow: var(--shadow-tab), inset 0 0 0 1px var(--strokes-card-default);
       transition: transform .32s cubic-bezier(.22, .8, .3, 1), width .32s cubic-bezier(.22, .8, .3, 1), background .3s ease;
@@ -1270,154 +1355,59 @@
     :root:not([data-mode="light"]) .seg-ind { background: #2a2a2e; }
     .seg-btn {
       position: relative; z-index: 1;
-      display: inline-flex; align-items: center; gap: 7px;
-      height: 30px; padding: 0 12px 0 10px; border-radius: 7px;
+      display: inline-flex; align-items: center; gap: 5px;
+      height: 22px; padding: 0 9px 0 7px; border-radius: 6px;
       color: var(--text-teritiary);
-      font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+      font: 500 11.5px/1 var(--font-geist); letter-spacing: -0.1px;
       transition: color .2s ease;
     }
     .seg-btn .ic { color: var(--text-teritiary); transition: color .2s ease, transform .3s cubic-bezier(.22, .8, .3, 1); }
     .seg-btn:hover { color: var(--text-secondary); }
     .seg-btn[aria-selected="true"] { color: var(--text-primary); }
-    .seg-btn[aria-selected="true"] .ic { color: var(--seg-accent); transform: scale(1.08); }
+    .seg-btn[aria-selected="true"] .ic { color: var(--seg-accent); transform: scale(1.06); }
     .seg-btn:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 1px; }
     .seg-btn[data-kind="automation"] { --seg-accent: var(--text-coloured-blue); }
     .seg-btn[data-kind="assistant"]  { --seg-accent: var(--text-coloured-indigo); }
     /* The kind's own tint on the pill, so the choice reads in colour
        before it reads in words. */
-    .hero[data-kind="assistant"] .seg-ind { background: color-mix(in srgb, var(--indigo-500) 16%, var(--backgrounds-card-bg-3)); }
+    .hero[data-kind="assistant"]  .seg-ind { background: color-mix(in srgb, var(--indigo-500) 16%, var(--backgrounds-card-bg-3)); }
     .hero[data-kind="automation"] .seg-ind { background: color-mix(in srgb, var(--blue-500) 14%, var(--backgrounds-card-bg-3)); }
-    :root:not([data-mode="light"]) .hero[data-kind="assistant"] .seg-ind { background: color-mix(in srgb, var(--indigo-500) 26%, #2a2a2e); }
+    :root:not([data-mode="light"]) .hero[data-kind="assistant"]  .seg-ind { background: color-mix(in srgb, var(--indigo-500) 26%, #2a2a2e); }
     :root:not([data-mode="light"]) .hero[data-kind="automation"] .seg-ind { background: color-mix(in srgb, var(--blue-500) 24%, #2a2a2e); }
 
-    /* A keyboard hint on the far side of the stepper — the one piece
-       of chrome that says the bar is where the page starts. */
-    .prompt-kbd {
-      margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
-      color: var(--text-teritiary);
-      font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
-      opacity: 1; transition: opacity .2s ease;
-    }
-    .prompt.is-focus .prompt-kbd { opacity: 0; }
-    .prompt-kbd kbd {
-      display: inline-flex; align-items: center; justify-content: center;
-      min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px;
-      background: var(--backgrounds-page-bg-2);
-      border: 1px solid var(--strokes-line-1);
-      color: var(--text-secondary);
-      font: 500 11px/1 var(--font-geist-mono);
-    }
-    @media (max-width: 560px) { .prompt-kbd { display: none; } }
-
-    /* Row 2 · the field ----------------------------------------- */
-    .prompt-field { position: relative; padding: 10px 18px 6px; }
+    /* ── The field ────────────────────────────────────────────────
+       The placeholder is a layer of its own, so a change of kind can
+       animate it. Its box is the textarea's box exactly: same font,
+       same line height, same left edge, same top edge. Anything less
+       and the line shifts the moment the real caret appears. */
+    .prompt-field { position: relative; padding: 10px 18px 0; }
     .prompt-ta {
-      display: block; width: 100%; resize: none;
-      min-height: 72px; max-height: 260px;
-      padding: 6px 0;
+      display: block; width: 100%; resize: none; padding: 0;
+      min-height: 60px; max-height: 260px;
       color: var(--text-primary);
-      font: 400 17px/26px var(--font-geist); letter-spacing: -0.5px;
+      font: 400 17px/26px var(--font-geist); letter-spacing: -0.4px;
       caret-color: var(--text-coloured-blue);
     }
     .prompt-ta::placeholder { color: transparent; }
-    /* The placeholder is a layer of its own so the tab switch can move
-       it: the leaving line lifts out, the arriving one rises in. */
     .prompt-ph {
-      position: absolute; left: 18px; right: 18px; top: 16px;
-      pointer-events: none;
+      position: absolute; left: 18px; right: 18px; top: 10px;
+      margin: 0; pointer-events: none;
       color: var(--text-teritiary);
-      font: 400 17px/26px var(--font-geist); letter-spacing: -0.5px;
+      font: 400 17px/26px var(--font-geist); letter-spacing: -0.4px;
     }
     .prompt-ph span { display: block; }
-    .prompt-ph.is-out span { animation: ph-out .22s cubic-bezier(.4, 0, 1, 1) forwards; }
-    .prompt-ph.is-in  span { animation: ph-in  .34s cubic-bezier(.22, .61, .36, 1) backwards; }
-    @keyframes ph-out { to   { opacity: 0; transform: translateY(-8px); filter: blur(2px); } }
-    @keyframes ph-in  { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+    .prompt-ph.is-out span { animation: ph-out .2s cubic-bezier(.4, 0, 1, 1) forwards; }
+    .prompt-ph.is-in  span { animation: ph-in .32s cubic-bezier(.22, .61, .36, 1) backwards; }
+    @keyframes ph-out { to   { opacity: 0; transform: translateY(-7px); filter: blur(2px); } }
+    @keyframes ph-in  { from { opacity: 0; transform: translateY(9px);  filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
     .prompt.has-text .prompt-ph { display: none; }
-    /* The blinking cue: a caret drawn before the placeholder while the
-       field is empty and unfocused, so the bar reads as waiting. */
-    .prompt-ph::before {
-      content: ""; display: inline-block; vertical-align: -3px;
-      width: 2px; height: 20px; margin-right: 2px; border-radius: 1px;
-      background: var(--text-coloured-blue);
-      animation: caret-blink 1.1s steps(2, start) infinite;
-    }
-    .prompt.is-focus .prompt-ph::before { display: none; }
-    @keyframes caret-blink { to { visibility: hidden; } }
 
-    /* Row 3 · attachments and send ------------------------------- */
-    .prompt-foot {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 10px 10px 12px;
-    }
-    .prompt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
-    .tool {
-      position: relative;
-      display: inline-flex; align-items: center; gap: 6px;
-      height: 30px; padding: 0 10px 0 8px; border-radius: 8px;
-      color: var(--text-teritiary);
-      font: 400 13px/20px var(--font-geist); letter-spacing: -0.3px;
-      transition: background .15s ease, color .15s ease;
-    }
-    .tool .ic { color: var(--text-teritiary); transition: color .15s ease; }
-    .tool:hover { background: var(--backgrounds-card-bg-4); color: var(--text-secondary); }
-    .tool:hover .ic { color: var(--text-secondary); }
-    .tool:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 1px; }
-    /* Attached: the label comes forward, the count sits in a badge. */
-    .tool.is-on { color: var(--text-primary); }
-    .tool.is-on .ic { color: var(--text-coloured-blue); }
-    .tool-count {
-      display: none; align-items: center; justify-content: center;
-      min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
-      background: var(--backgrounds-badge-blue);
-      border: 1px solid var(--strokes-colour-blue);
-      color: var(--text-coloured-blue);
-      font: 500 11px/1 var(--font-geist);
-      animation: pop .28s cubic-bezier(.34, 1.56, .64, 1);
-    }
-    .tool.is-on .tool-count { display: inline-flex; }
-    @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
-    .tool-sep { width: 1px; height: 16px; background: var(--strokes-line-1); margin: 0 4px; flex: none; }
-    .tool .chev { transition: transform .2s ease; }
-    .tool[aria-expanded="true"] .chev { transform: rotate(180deg); }
-    .tool[aria-expanded="true"] { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
-
-    /* The model menu, hung off its chip. */
-    .menu {
-      position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20;
-      width: 260px; padding: 6px;
-      background: var(--backgrounds-card-bg-5);
-      border: 1px solid var(--strokes-line-3);
-      border-radius: 12px;
-      box-shadow: var(--shadow-pop);
-      opacity: 0; transform: translateY(6px) scale(.98);
-      pointer-events: none;
-      transition: opacity .16s ease, transform .2s cubic-bezier(.22, .8, .3, 1);
-    }
-    .menu.is-open { opacity: 1; transform: none; pointer-events: auto; }
-    .menu-lbl {
-      margin: 0; padding: 6px 10px 4px;
-      color: var(--text-teritiary);
-      font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
-      letter-spacing: .04em; text-transform: uppercase;
-    }
-    .menu-row {
-      display: flex; align-items: center; gap: 10px;
-      width: 100%; padding: 8px 10px; border-radius: 8px;
-      color: var(--text-primary); text-align: left;
-      font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
-      transition: background .13s ease;
-    }
-    .menu-row:hover, .menu-row:focus-visible { background: var(--backgrounds-card-bg-4); }
-    .menu-row .ic { flex: none; color: var(--text-teritiary); }
-    .menu-row small { margin-left: auto; color: var(--text-teritiary); font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); }
-    .menu-row .tick { display: none; margin-left: 8px; color: var(--text-coloured-blue); }
-    .menu-row[aria-checked="true"] .tick { display: block; }
-    .menu-row[aria-checked="true"] small { margin-left: auto; }
-
+    /* ── Send ─────────────────────────────────────────────────────
+       The bar's only button, and the last thing in it. */
+    .prompt-foot { display: flex; justify-content: flex-end; padding: 6px 8px 8px; }
     .send {
-      flex: none; margin-left: auto;
-      width: 36px; height: 36px; border-radius: 12px;
+      flex: none;
+      width: 32px; height: 32px; border-radius: 11px;
       display: flex; align-items: center; justify-content: center;
       background: var(--backgrounds-card-bg-4);
       color: var(--text-teritiary);
@@ -1433,51 +1423,34 @@
     .prompt.has-text .send:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(13, 153, 255, .45); }
     .prompt.has-text .send:hover .ic { transform: translateY(-1px); }
     .send:active { transform: scale(.94); }
-    .send .spin { display: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; animation: spin .7s linear infinite; }
+    .send .spin {
+      display: none; width: 15px; height: 15px; border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+      animation: spin .7s linear infinite;
+    }
     .prompt.is-sending .send .ic { display: none; }
     .prompt.is-sending .send .spin { display: block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* A hint under the bar that answers "what happens when I press
-       enter" — it swaps with the kind, like everything else. */
-    .prompt-hint {
-      margin: 10px 4px 0; min-height: 16px;
-      color: var(--text-teritiary);
-      font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
-      text-align: left;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .prompt-hint kbd {
-      display: inline-flex; align-items: center; justify-content: center;
-      height: 18px; padding: 0 5px; border-radius: 4px;
-      background: var(--backgrounds-page-bg-2); border: 1px solid var(--strokes-line-1);
-      color: var(--text-secondary); font: 500 10.5px/1 var(--font-geist-mono);
-    }
-
     /* ── Examples ─────────────────────────────────────────────────
-       Three per kind. A row of "try one" chips is the cheapest way to
-       make a blank field feel already half full. */
+       Four per kind, unlabelled and low: a blank field asks a
+       question, and these are the cheapest way to answer it. Compact
+       enough to read as suggestions rather than as buttons. */
     .examples {
       position: relative; z-index: 1;
-      width: min(760px, 100%); margin-top: 22px;
-      display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px;
-    }
-    .examples-lbl {
-      color: var(--text-teritiary);
-      font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist);
-      letter-spacing: .72px; text-transform: uppercase;
-      margin-right: 4px;
+      width: min(740px, 100%); margin-top: 18px;
+      display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px;
     }
     .ex {
-      display: inline-flex; align-items: center; gap: 8px;
-      height: 34px; padding: 0 12px 0 10px; border-radius: 999px;
-      background: color-mix(in srgb, var(--backgrounds-card-bg-2) 70%, transparent);
+      display: inline-flex; align-items: center; gap: 6px;
+      height: 28px; padding: 0 11px 0 9px; border-radius: 999px;
+      background: color-mix(in srgb, var(--backgrounds-card-bg-2) 62%, transparent);
       border: 1px solid var(--strokes-card-default);
       color: var(--text-secondary);
-      font: 400 13px/20px var(--font-geist); letter-spacing: -0.3px;
+      font: 400 12.5px/1 var(--font-geist); letter-spacing: -0.2px;
       transition: color .15s ease, border-color .15s ease, background .15s ease, transform .2s ease;
       animation: ex-in .4s cubic-bezier(.22, .61, .36, 1) backwards;
-      animation-delay: calc(var(--i) * 60ms);
+      animation-delay: calc(var(--i) * 55ms);
     }
     .ex .ic { color: var(--text-teritiary); transition: color .15s ease; }
     .ex:hover, .ex:focus-visible {
@@ -1486,18 +1459,18 @@
     }
     .ex:hover .ic { color: var(--text-coloured-blue); }
     .ex:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 2px; }
-    .examples.is-out .ex { animation: ex-out .18s ease forwards; animation-delay: calc(var(--i) * 30ms); }
+    .examples.is-out .ex { animation: ex-out .18s ease forwards; animation-delay: calc(var(--i) * 28ms); }
     @keyframes ex-in  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     @keyframes ex-out { to   { opacity: 0; transform: translateY(-6px); } }
 
-    /* ── The ground: blocks, then tutorials ─────────────────────── */
+    /* ══ The ground: blocks, then tutorials ═══════════════════════ */
     .ground { position: relative; z-index: 1; flex: 1 1 auto; padding: 0 24px 56px; }
     .ground-inner {
       width: min(1120px, 100%); margin: 0 auto;
       display: flex; flex-direction: column; align-items: center;
     }
     .home-more {
-      width: 100%; max-width: 760px; margin-top: 56px;
+      width: 100%; max-width: 740px; margin-top: 60px;
       display: flex; flex-direction: column; align-items: center; gap: 14px;
     }
     .home-more-lbl {
@@ -1528,7 +1501,7 @@
     .chip:hover .ic, .chip:focus-visible .ic { color: var(--text-coloured-blue); }
     .chip:focus-visible { outline: 2px solid var(--strokes-card-selected); outline-offset: 2px; }
 
-    /* Tutorials — the shelf from the current home, unchanged but for
+    /* Tutorials: the shelf from the current home, unchanged but for
        its distance from the bar. */
     :root            { --panel-glass: rgba(33, 33, 33, .52); }
     :root[data-mode="light"] { --panel-glass: rgba(255, 255, 255, .58); }
@@ -1608,8 +1581,7 @@
     }
     .tut:hover .tut-play { background: rgba(255, 255, 255, .3); transform: scale(1.08); }
 
-    /* ── The header on the void ───────────────────────────────────
-       Transparent while the page is at rest, glassed once it moves. */
+    /* ══ The header on the void ═══════════════════════════════════ */
     .header.is-transparent {
       position: absolute; top: 0; left: 0; right: 0; z-index: 3;
       background: transparent;
@@ -1626,7 +1598,7 @@
     .header.is-transparent .ws-dropdown { color: var(--text-secondary); }
     .header.is-transparent .header-left { color: var(--text-primary); }
 
-    /* ── Toast ────────────────────────────────────────────────────── */
+    /* ══ Toast ════════════════════════════════════════════════════ */
     .toast {
       position: fixed; left: 50%; bottom: 28px; z-index: 300;
       translate: -50% 0;
@@ -1644,7 +1616,7 @@
     .toast.is-shown { opacity: 1; transform: none; }
     .toast .ic { color: var(--text-coloured-blue); }
 
-    /* ── Arrival ──────────────────────────────────────────────────── */
+    /* ══ Arrival ══════════════════════════════════════════════════ */
     .hero > .hero-eyebrow, .hero > .hero-title, .hero > .promptwrap, .hero > .examples, .ground-inner > * {
       animation: home-rise .55s ease-out backwards;
     }
@@ -1655,10 +1627,9 @@
     @keyframes home-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
     @media (prefers-reduced-motion: reduce) {
-      .hero > *, .ground-inner > *, .ex, .prompt-ph span, .tool-count { animation: none !important; }
-      .prompt, .seg-ind, .send, .send .ic, .ex, .chip, .tool, .menu, .toast, .hero-ambient span { transition: none; }
-      .prompt-ph::before { animation: none; }
-      .beam::after { opacity: .3; }
+      .hero > *, .ground-inner > *, .ex, .prompt-ph span { animation: none !important; }
+      .crown-spin, .crown-spin2 { animation: none; }
+      .prompt, .seg-ind, .send, .send .ic, .ex, .chip, .toast, .hero-ambient span { transition: none; }
     }
   </style>
 
@@ -1952,7 +1923,16 @@
         <section class="home" id="home">
           <div class="home-scroll" id="homeScroll">
 
-            <div class="hero-lattice" aria-hidden="true"></div>
+            <!-- The background: the glyph field under a faint crown of
+                 aurora light. Both belong to the top of the page and
+                 travel with it, so the header floats over them. -->
+            <div class="hero-sky" id="heroSky" aria-hidden="true">
+              <div class="crown">
+                <div class="crown-spin"></div>
+                <div class="crown-spin2"></div>
+              </div>
+              <canvas class="hero-glyphs" id="heroGlyphs"></canvas>
+            </div>
 
             <div class="hero" id="hero" data-kind="automation">
               <div class="hero-ambient" aria-hidden="true">
@@ -1964,59 +1944,34 @@
               <h1 class="hero-title">What do you want to build?</h1>
 
               <div class="promptwrap">
+                <p class="prompt-lead">I'm building an</p>
                 <form class="prompt" id="prompt" autocomplete="off" novalidate>
                   <div class="beam" aria-hidden="true"></div>
 
-                  <!-- Step 1 · what kind of thing -->
                   <div class="prompt-step">
-                    <span class="prompt-step-lbl" id="stepLbl">I'm building an</span>
                     <div class="seg" role="tablist" aria-label="What you are building" id="seg">
                       <span class="seg-ind" id="segInd" aria-hidden="true"></span>
                       <button class="seg-btn" type="button" role="tab" data-kind="automation" aria-selected="true" id="tab-automation" aria-controls="promptField">
-                        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg>Automation
+                        <svg class="ic" width="13" height="13" viewBox="0 0 16 16"><use href="#ic-pp_automation"/></svg>Automation
                       </button>
                       <button class="seg-btn" type="button" role="tab" data-kind="assistant" aria-selected="false" id="tab-assistant" aria-controls="promptField" tabindex="-1">
-                        <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_aiassistant"/></svg>Assistant
+                        <svg class="ic" width="13" height="13" viewBox="0 0 16 16"><use href="#ic-pp_aiassistant"/></svg>Assistant
                       </button>
                     </div>
-                    <span class="prompt-kbd" aria-hidden="true"><kbd>/</kbd> to focus</span>
                   </div>
 
-                  <!-- Step 2 · describe it -->
                   <div class="prompt-field">
-                    <label class="prompt-ph" id="promptPh" for="promptField"><span id="promptPhText">Describe what you want to automate — the trigger, the steps, and where the result should go.</span></label>
-                    <textarea class="prompt-ta" id="promptField" rows="2" placeholder="Describe what you want to automate" aria-describedby="promptHint" spellcheck="true"></textarea>
+                    <label class="prompt-ph" id="promptPh" for="promptField"><span id="promptPhText">Describe what you want to automate</span></label>
+                    <textarea class="prompt-ta" id="promptField" rows="2" placeholder="Describe what you want to automate" spellcheck="true"></textarea>
                   </div>
 
-                  <!-- Secondary options ride on the bar, quietly -->
                   <div class="prompt-foot">
-                    <div class="prompt-tools">
-                      <span style="position:relative">
-                        <button class="tool" type="button" id="modelBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="modelMenu">
-                          <svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>
-                          <span id="modelName">Claude Sonnet 4.5</span>
-                          <svg class="ic chev" width="12" height="12" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-                        </button>
-                        <div class="menu" id="modelMenu" role="menu" aria-label="Model">
-                          <p class="menu-lbl">Model</p>
-                          <button class="menu-row" type="button" role="menuitemradio" aria-checked="true" data-model="Claude Sonnet 4.5"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>Claude Sonnet 4.5<small>Balanced</small><svg class="ic tick" width="14" height="14" viewBox="0 0 16 16"><use href="#ic-tick"/></svg></button>
-                          <button class="menu-row" type="button" role="menuitemradio" aria-checked="false" data-model="Claude Opus 4.1"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>Claude Opus 4.1<small>Deepest</small><svg class="ic tick" width="14" height="14" viewBox="0 0 16 16"><use href="#ic-tick"/></svg></button>
-                          <button class="menu-row" type="button" role="menuitemradio" aria-checked="false" data-model="GPT-4.1"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>GPT-4.1<small>Fast</small><svg class="ic tick" width="14" height="14" viewBox="0 0 16 16"><use href="#ic-tick"/></svg></button>
-                        </div>
-                      </span>
-                      <span class="tool-sep" aria-hidden="true"></span>
-                      <button class="tool" type="button" data-attach="Tools" aria-pressed="false"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_toolsskills"/></svg>Tools<span class="tool-count">2</span></button>
-                      <button class="tool" type="button" data-attach="Integrations" aria-pressed="false"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg>Integrations<span class="tool-count">1</span></button>
-                      <button class="tool" type="button" data-attach="Guardrails" aria-pressed="false"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_guardrails"/></svg>Guardrails<span class="tool-count">3</span></button>
-                      <button class="tool" type="button" data-attach="Knowledge" aria-pressed="false"><svg class="ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_folder"/></svg>Knowledge<span class="tool-count">1</span></button>
-                    </div>
                     <button class="send" type="submit" id="sendBtn" aria-label="Start building">
                       <svg class="ic" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 13V3.5M3.75 7.75 8 3.5l4.25 4.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                       <span class="spin" aria-hidden="true"></span>
                     </button>
                   </div>
                 </form>
-                <p class="prompt-hint" id="promptHint"><kbd>↵</kbd> to start building · <kbd>⇧↵</kbd> for a new line</p>
               </div>
 
               <div class="examples" id="examples" aria-label="Example prompts"></div>
@@ -2149,10 +2104,10 @@ document.querySelectorAll('.rail-btn').forEach(b => {
   });
 });
 document.querySelector('.rail-group[data-group="context-studio"]').classList.add('is-locked');
-$('ctxStudio').title = 'Context Studio — not on your plan';
+$('ctxStudio').title = 'Context Studio, not on your plan';
 
 /* ═══════════════════════════════════════════════════════════════
-   Theme — dark is the design's default; the stored choice is shared
+   Theme. Dark is the design's default; the stored choice is shared
    with the rest of the Builder pages.
    ═══════════════════════════════════════════════════════════════ */
 const root = document.documentElement;
@@ -2174,7 +2129,7 @@ $('themeToggle').addEventListener('click', () => {
 applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
 
 /* ═══════════════════════════════════════════════════════════════
-   The header search — unchanged from the current home.
+   The header search, unchanged from the current home.
    ═══════════════════════════════════════════════════════════════ */
 (function () {
   const wrap = $('searchWrap'), input = $('searchInput'), panel = $('searchPanel');
@@ -2218,44 +2173,42 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
   const seg = $('seg'), ind = $('segInd');
   const tabs = [...seg.querySelectorAll('.seg-btn')];
   const examples = $('examples');
-  const hint = $('promptHint');
   const toast = $('toast'), toastText = $('toastText');
 
-  /* Copy per kind. The placeholder is the one line that has to say
-     what a good prompt is; the examples show three. */
+  /* Copy per kind. The placeholder says what to write in as few
+     words as it can; the four examples show what a good one looks
+     like, and clicking one types it in. */
   const KINDS = {
     automation: {
-      article: 'an',
-      placeholder: 'Describe what you want to automate — the trigger, the steps, and where the result should go.',
-      hint: 'to start building · we’ll draft the flow step by step',
+      placeholder: 'Describe what you want to automate',
       icon: '#ic-pp_automation',
+      opening: 'Drafting your automation',
       examples: [
-        'When an invoice lands in NetSuite, match it to its PO and route mismatches to Finance for approval',
-        'Every Monday, pull last week’s pipeline from Salesforce and post a summary to #revenue',
-        'Onboard a new vendor: collect documents, run the compliance check, create the record',
+        { label: 'Match invoices to purchase orders', text: 'When an invoice arrives in NetSuite, match it to its purchase order and send mismatches to Finance for approval' },
+        { label: 'Post a weekly pipeline summary', text: 'Every Monday, pull last week’s pipeline from Salesforce and post a summary to the revenue channel' },
+        { label: 'Onboard a new vendor', text: 'Onboard a new vendor: collect their documents, run the compliance check, then create the record' },
+        { label: 'Route expense claims', text: 'Send expense claims over 500 dollars to the cost centre owner for approval and log every decision' },
       ],
-      opening: 'Drafting your automation…',
     },
     assistant: {
-      article: 'an',
-      placeholder: 'Describe what your assistant should do — who it’s for, what it needs to know, and how it should answer.',
-      hint: 'to start building · we’ll set up the persona, knowledge and tone',
+      placeholder: 'Describe what your assistant should do',
       icon: '#ic-pp_aiassistant',
+      opening: 'Setting up your assistant',
       examples: [
-        'A policy assistant for new hires that answers from the HR handbook and escalates anything about pay',
-        'A contract reviewer for Legal that flags non-standard clauses and drafts redlines',
-        'A support assistant that resolves order questions from Shopify and hands off refunds',
+        { label: 'Answer HR policy questions', text: 'A policy assistant for new hires that answers from the HR handbook and escalates anything about pay' },
+        { label: 'Review contracts for Legal', text: 'A contract reviewer for Legal that flags non-standard clauses and drafts the redlines' },
+        { label: 'Resolve order questions', text: 'A support assistant that answers order questions from Shopify and hands refunds to a person' },
+        { label: 'Brief the sales team daily', text: 'A morning assistant that briefs the sales team on account changes and open renewals' },
       ],
-      opening: 'Setting up your assistant…',
     },
   };
   let kind = 'automation';
 
   /* ── The beam's clock ───────────────────────────────────────────
-     Degrees per second, eased toward a target so a change of state
-     is a change of pace, never a jump. Idle is a slow lap; focus
-     picks it up; typing gives it a nudge per keystroke; sending is a
-     sprint. Reduced motion holds it still on the top edge. */
+     Degrees per second, eased toward a target, so a change of state
+     is a change of pace rather than a jump. Idle is a slow lap,
+     focus picks it up, typing nudges it, sending sprints. Reduced
+     motion parks it on the top edge. */
   let angle = 0, speed = 40, target = 40, last = 0, raf = 0;
   const PACE = { idle: 40, focus: 95, send: 720 };
   function tick(ts) {
@@ -2275,10 +2228,10 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
   reduced.addEventListener('change', () => { stopBeam(); startBeam(); });
   startBeam();
 
-  /* ── The stepper ──────────────────────────────────────────────── */
+  /* ── The switch ───────────────────────────────────────────────── */
   function placeInd(btn) {
     ind.style.width = btn.offsetWidth + 'px';
-    ind.style.transform = 'translateX(' + (btn.offsetLeft - 3) + 'px)';
+    ind.style.transform = 'translateX(' + (btn.offsetLeft - 2) + 'px)';
   }
   function setKind(next, viaUser) {
     if (next === kind && viaUser) { ta.focus(); return; }
@@ -2291,17 +2244,14 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
       t.tabIndex = on ? 0 : -1;
       if (on) placeInd(t);
     });
-    $('stepLbl').textContent = 'I’m building ' + k.article;
     ta.placeholder = k.placeholder;
-    hint.innerHTML = '<kbd>↵</kbd> ' + k.hint;
 
-    /* Placeholder: out, swap, in. */
     if (from !== kind && !reduced.matches) {
       ph.classList.remove('is-in'); ph.classList.add('is-out');
       setTimeout(() => {
         phText.textContent = k.placeholder;
         ph.classList.remove('is-out'); ph.classList.add('is-in');
-      }, 200);
+      }, 190);
     } else {
       phText.textContent = k.placeholder;
     }
@@ -2322,28 +2272,21 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
     const k = KINDS[kind];
     const build = () => {
       examples.classList.remove('is-out');
-      examples.innerHTML = '<span class="examples-lbl">Try one</span>' + k.examples.map((t, i) =>
-        '<button class="ex" type="button" style="--i:' + i + '" title="' + t.replace(/"/g, '&quot;') + '">' +
-          '<svg class="ic" width="14" height="14" viewBox="0 0 16 16"><use href="' + k.icon + '"/></svg>' +
-          '<span>' + shorten(t) + '</span></button>').join('');
-      examples.querySelectorAll('.ex').forEach((b, i) => b.addEventListener('click', () => useExample(k.examples[i])));
+      examples.innerHTML = k.examples.map((ex, i) =>
+        '<button class="ex" type="button" style="--i:' + i + '" title="' + ex.text.replace(/"/g, '&quot;') + '">' +
+          '<svg class="ic" width="12" height="12" viewBox="0 0 16 16"><use href="' + k.icon + '"/></svg>' +
+          '<span>' + ex.label + '</span></button>').join('');
+      examples.querySelectorAll('.ex').forEach((b, i) => b.addEventListener('click', () => useExample(k.examples[i].text)));
     };
     if (animateOut && examples.children.length && !reduced.matches) {
       examples.classList.add('is-out');
       setTimeout(build, 220);
     } else build();
   }
-  function shorten(t) {
-    /* The chip shows the opening clause; the whole prompt lands in the field. */
-    const cut = t.search(/[,:]| and /);
-    let s = cut > 24 ? t.slice(0, cut) : t;
-    if (s.length > 58) s = s.slice(0, 56).replace(/\s+\S*$/, '') + '…';
-    else if (s.length < t.length) s += '…';
-    return s;
-  }
 
-  /* An example arrives typed, not pasted: the field fills at a pace
-     the eye can follow, and the send button lights when it is in. */
+  /* An example arrives typed rather than pasted: the field fills at
+     a pace the eye can follow, and the send button lights as it
+     lands. */
   let typing = 0;
   function useExample(text) {
     clearInterval(typing);
@@ -2362,73 +2305,32 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
   /* ── The field ────────────────────────────────────────────────── */
   function grow() {
     ta.style.height = 'auto';
-    ta.style.height = Math.min(260, Math.max(72, ta.scrollHeight)) + 'px';
+    ta.style.height = Math.min(260, Math.max(60, ta.scrollHeight)) + 'px';
   }
   function syncText() { form.classList.toggle('has-text', ta.value.trim().length > 0); }
   ta.addEventListener('input', () => {
     clearInterval(typing);
     grow(); syncText();
-    /* A nudge to the beam per keystroke, decaying back to focus pace. */
-    if (!reduced.matches) { speed = Math.min(speed + 60, 260); }
+    if (!reduced.matches) speed = Math.min(speed + 60, 260);   /* a nudge per keystroke */
   });
   ta.addEventListener('focus', () => { form.classList.add('is-focus'); target = PACE.focus; });
   ta.addEventListener('blur',  () => { form.classList.remove('is-focus'); target = PACE.idle; });
   ta.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
-    if (e.key === 'Escape') { ta.blur(); }
+    if (e.key === 'Escape') ta.blur();
   });
-  /* "/" anywhere on the page puts you in the bar. */
-  document.addEventListener('keydown', e => {
-    if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
-    const a = document.activeElement;
-    if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA')) return;
-    e.preventDefault(); ta.focus();
-  });
-  /* Clicking anywhere on the bar that is not a control focuses the field. */
+  /* Clicking anywhere on the bar that is not a control puts you in
+     the field. */
   form.addEventListener('click', e => {
-    if (e.target.closest('button, .menu, textarea')) return;
+    if (e.target.closest('button, textarea')) return;
     ta.focus();
   });
-
-  /* ── Attachments ──────────────────────────────────────────────── */
-  form.querySelectorAll('.tool[data-attach]').forEach(b => {
-    b.addEventListener('click', () => {
-      const on = !b.classList.contains('is-on');
-      b.classList.toggle('is-on', on);
-      b.setAttribute('aria-pressed', String(on));
-      if (on) {
-        const c = b.querySelector('.tool-count');
-        c.style.animation = 'none'; void c.offsetWidth; c.style.animation = '';
-      }
-      showToast(on ? b.dataset.attach + ' attached to this build' : b.dataset.attach + ' removed');
-    });
-  });
-
-  /* ── Model menu ───────────────────────────────────────────────── */
-  const modelBtn = $('modelBtn'), modelMenu = $('modelMenu');
-  let menuOpen = false;
-  function setMenu(on) {
-    menuOpen = on;
-    modelMenu.classList.toggle('is-open', on);
-    modelBtn.setAttribute('aria-expanded', String(on));
-  }
-  modelBtn.addEventListener('click', e => { e.stopPropagation(); setMenu(!menuOpen); });
-  modelMenu.addEventListener('click', e => {
-    const row = e.target.closest('.menu-row'); if (!row) return;
-    modelMenu.querySelectorAll('.menu-row').forEach(r => r.setAttribute('aria-checked', String(r === row)));
-    $('modelName').textContent = row.dataset.model;
-    setMenu(false);
-    showToast('Model set to ' + row.dataset.model);
-  });
-  document.addEventListener('pointerdown', e => { if (menuOpen && !e.target.closest('#modelMenu, #modelBtn')) setMenu(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) { setMenu(false); modelBtn.focus(); } });
 
   /* ── Send ─────────────────────────────────────────────────────── */
   let sending = false;
   function submit() {
     if (sending) return;
     if (!ta.value.trim()) {
-      /* Nothing to send: the bar shakes its head, gently. */
       form.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 260, easing: 'ease-in-out' });
       ta.focus(); return;
     }
@@ -2459,6 +2361,283 @@ applyMode(readStoredMode() === 'light' ? 'light' : 'dark');
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(boot);
   boot();
   setKind('automation', false);
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   The pointer, for the glyph field below: the field wants the cursor
+   in its own coordinates, and its box scrolls with the column, so
+   the box is measured once and re-measured only when something can
+   have moved it.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  const home = $('home'), sky = $('heroSky'), scroller = $('homeScroll');
+  let box = null;
+  const measure = () => { box = sky.getBoundingClientRect(); };
+  scroller.addEventListener('scroll', measure, { passive: true });
+  window.addEventListener('resize', measure);
+  measure();
+  home.addEventListener('pointermove', e => {
+    if (!window.__glyphPointer) return;
+    if (!box || !box.height) measure();
+    const y = e.clientY - box.top;
+    window.__glyphPointer(e.clientX - box.left, y, y >= 0 && y <= box.height);
+  });
+  home.addEventListener('pointerleave', () => { if (window.__glyphPointer) window.__glyphPointer(0, 0, false); });
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════
+   The glyph field.
+
+   A lattice of small filled squares laid over the sky, each one
+   choosing between three alphas of white by sampling a slow noise
+   at its own position. The dots never move and never fade in; what
+   travels is the boundary between the tones, which is what lets a
+   field this dense animate without ever asking to be looked at.
+
+   The engine is the one from Glyph Field Studio, carried over with
+   its settings intact:
+
+     shimmer          the noise is sampled in three dimensions, with
+                      time as the third — no direction, just drift
+     speed     0.40x  how fast time moves through it
+     field     0.115  cells per unit of noise; the size of a cloud
+     grain      22%   per-cell dither, so the tone edges break up
+                      into dots instead of reading as contours
+     cell       7px   the lattice
+     element    44%   glyph size as a fraction of the cell
+     tones   16 / 16  the share of the field at each of the top two
+                      alphas; the remainder is the base whisper
+     pointer     on   pulls the noise down inside ~170px, which
+                      promotes everything under the cursor a tone
+
+   Two things differ from the studio. The palette is three alphas of
+   one white rather than three inks, since the field sits on colour
+   here. And there is no shape mask — the studio gates the field to a
+   silhouette; the sky wants it edge to edge.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  const sky = $('heroSky');
+  const cv  = $('heroGlyphs');
+  if (!cv || !cv.getContext) return;
+  const ctx = cv.getContext('2d', { alpha: true });
+
+  const CELL = 7, ELEMENT = .44;
+  /* The element is U+25A0, the filled square, and the studio draws it
+     with fillText. Here it is drawn as the square it is. Its ink box
+     in the studio's mono face is about 0.65 of the em, which at these
+     numbers is 2px on a 7px lattice — exactly what the reference
+     renders. Measuring the glyph instead would be the more faithful
+     move if the measurement were worth anything: at a three-pixel
+     font size the metrics quantise, and the face that answers for
+     U+25A0 differs by platform, so the same page would come out with
+     a different lattice on each. A constant is both the true shape
+     and the stable one. */
+  const INK = .65;
+  const SPEED = .40, FIELD = .115, GRAIN = .22;
+  const MIX = .16, MID = .16;      /* accent share, mid-tone share */
+  const PULL = .85, REACH = 170;   /* the pointer's depth and radius, px */
+  const SEED = 11.3;
+  /* Past this the lattice coarsens a step at a time. A cell is a
+     noise sample and a glyph draw, so the count is the frame budget;
+     the panel is deep enough on a tall window to want the ceiling. */
+  const BUDGET = 46000;
+
+  /* ---- the noise, verbatim: a 3D value noise on a hashed lattice,
+          two octaves deep ---- */
+  function hash(x, y, z) {
+    let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(z | 0, 1442695041);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967295;
+  }
+  function smooth(a) { return a * a * (3 - 2 * a); }
+  function noise3(x, y, z) {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    const xf = smooth(x - xi), yf = smooth(y - yi), zf = smooth(z - zi);
+    const c000 = hash(xi, yi, zi),         c100 = hash(xi + 1, yi, zi);
+    const c010 = hash(xi, yi + 1, zi),     c110 = hash(xi + 1, yi + 1, zi);
+    const c001 = hash(xi, yi, zi + 1),     c101 = hash(xi + 1, yi, zi + 1);
+    const c011 = hash(xi, yi + 1, zi + 1), c111 = hash(xi + 1, yi + 1, zi + 1);
+    const x00 = c000 + (c100 - c000) * xf, x10 = c010 + (c110 - c010) * xf;
+    const x01 = c001 + (c101 - c001) * xf, x11 = c011 + (c111 - c011) * xf;
+    const y0 = x00 + (x10 - x00) * yf, y1 = x01 + (x11 - x01) * yf;
+    return y0 + (y1 - y0) * zf;
+  }
+  /* One octave of the noise along a whole row at once.
+     x advances by `step` per column while the noise lattice is coarse
+     against the cells — at a field scale of .115 one lattice cell
+     spans nearly nine columns — so the eight corner hashes only
+     change every few columns. Folding y and z in first collapses
+     those eight into two values per lattice column, and walking the
+     lattice across the row hands each step its predecessor's right
+     edge. Every column then costs one lerp instead of eight hashes:
+     the same numbers noise3 would return, for about a tenth of the
+     work. */
+  function octave(out, w, x0, step, y, z) {
+    const yi = Math.floor(y), zi = Math.floor(z);
+    const yf = smooth(y - yi), zf = smooth(z - zi);
+    const edge = xi => {
+      const a = hash(xi, yi, zi),     b = hash(xi, yi + 1, zi);
+      const c = hash(xi, yi, zi + 1), d = hash(xi, yi + 1, zi + 1);
+      const p = a + (b - a) * yf, q = c + (d - c) * yf;
+      return p + (q - p) * zf;
+    };
+    let xi = Math.floor(x0), A = edge(xi), B = edge(xi + 1), x = x0;
+    for (let c = 0; c < w; c++, x += step) {
+      const nx = Math.floor(x);
+      if (nx !== xi) {
+        if (nx === xi + 1) { A = B; B = edge(nx + 1); }
+        else { A = edge(nx); B = edge(nx + 1); }
+        xi = nx;
+      }
+      out[c] = A + (B - A) * smooth(x - xi);
+    }
+  }
+
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let W = 0, H = 0, dpr = 1, cell = CELL, cols = 0, rows = 0;
+  let dither = null, buckets = null, tone = ['', '', ''];
+  let oct1 = null, oct2 = null;              /* one row of each octave */
+  let colX = null, rowY = null;              /* each column's and row's edge */
+  let side = 0;                              /* the square, in CSS px */
+  let t = 0, last = 0, px = -1e5, py = -1e5, on = false, raf = 0;
+
+  const bucket = n => ({ xs: new Float32Array(n), ys: new Float32Array(n), n: 0 });
+
+  /* The three alphas live in the stylesheet with the rest of the
+     tokens, so the mode toggle moves them the way it moves every
+     other colour on the page. */
+  function readTones() {
+    const cs = getComputedStyle(document.documentElement);
+    /* On the void the grain is white; on paper it is drawn as ink
+       directly — an invert filter would have turned the hover's blue
+       into orange. */
+    const ink = document.documentElement.getAttribute('data-mode') === 'light' ? '17,17,17' : '255,255,255';
+    for (let i = 0; i < 3; i++) {
+      const a = parseFloat(cs.getPropertyValue('--glyph-' + (i + 1))) || 0;
+      tone[i] = 'rgba(' + ink + ',' + a + ')';
+    }
+  }
+  new MutationObserver(readTones).observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+
+  function resize() {
+    const r = sky.getBoundingClientRect();
+    W = Math.round(r.width); H = Math.round(r.height);
+    if (!W || !H) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+
+    cell = CELL;
+    cols = Math.max(4, Math.ceil(W / cell)); rows = Math.max(4, Math.ceil(H / cell));
+    while (cols * rows > BUDGET) { cell += 1; cols = Math.ceil(W / cell); rows = Math.ceil(H / cell); }
+
+    const n = cols * rows;
+    dither = new Float32Array(n);
+    for (let i = 0; i < n; i++) dither[i] = hash(i % cols, (i / cols) | 0, 91);
+    buckets = [bucket(n), bucket(n), bucket(n)];
+    oct1 = new Float32Array(cols); oct2 = new Float32Array(cols);
+    readTones();
+
+    /* Snapped to whole device pixels — position and size both. Two
+       CSS pixels landing on a half-pixel boundary is a four-pixel
+       grey smear, and a lattice of those reads as haze instead of as
+       dots. Snapped, every square is the same square. */
+    side = Math.max(1, Math.round(cell * ELEMENT * INK * dpr)) / dpr;
+    const snap = v => Math.round(v * dpr) / dpr;
+    colX = new Float32Array(cols); rowY = new Float32Array(rows);
+    for (let c = 0; c < cols; c++) colX[c] = snap(c * cell + (cell - side) * .5);
+    for (let r = 0; r < rows; r++) rowY[r] = snap(r * cell + (cell - side) * .5);
+    draw();
+  }
+
+  function draw() {
+    if (!cols || !rows) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const pcx = on ? px / cell : -1e5, pcy = on ? py / cell : -1e5;
+    const pr = Math.max(6, REACH / cell), pr2 = pr * pr;
+    const z = t * .42 + SEED;
+    const b0 = buckets[0], b1 = buckets[1], b2 = buckets[2];
+    const t2 = MIX + MID, g2 = GRAIN * .55;
+    b0.n = b1.n = b2.n = 0;
+
+    for (let r = 0; r < rows; r++) {
+      const ny = r * FIELD, cy = rowY[r], i0 = r * cols;
+      octave(oct1, cols, 0, FIELD, ny, z);
+      octave(oct2, cols, 5.2, FIELD * 2.13, ny * 2.13 - 3.7, z * 1.7);
+      /* The pointer's pull dies at two radii; outside that band the
+         row is the field alone. */
+      const dy = r - pcy, dy2 = dy * dy;
+      const span = on && dy2 < 4 * pr2 ? Math.sqrt(4 * pr2 - dy2) : -1;
+      const lo = span < 0 ? cols : Math.max(0, Math.ceil(pcx - span));
+      const hi = span < 0 ? cols : Math.min(cols, Math.floor(pcx + span) + 1);
+
+      for (let c = 0; c < cols; c++) {
+        let v = oct1[c] * .65 + oct2[c] * .35 + (dither[i0 + c] - .5) * g2;
+        if (c >= lo && c < hi) {
+          const dx = c - pcx, dd = (dx * dx + dy2) / pr2;
+          if (dd < 4) v -= PULL * Math.exp(-dd * 1.6);
+        }
+        const b = v < MIX ? b0 : (v < t2 ? b1 : b2);
+        b.xs[b.n] = colX[c]; b.ys[b.n] = cy; b.n++;
+      }
+    }
+
+    /* Faintest first, so the bright tones land on top of their own
+       neighbours rather than under them. */
+    for (const k of [2, 1, 0]) {
+      const b = buckets[k];
+      if (!b.n) continue;
+      ctx.beginPath();
+      for (let q = 0; q < b.n; q++) ctx.rect(b.xs[q], b.ys[q], side, side);
+      ctx.fillStyle = tone[k];
+      ctx.fill();
+    }
+  }
+
+  /* The noise crosses one lattice cell every six seconds at this
+     speed, so a frame of the field is worth about as much as the one
+     before it. Redrawing at thirty rather than sixty halves what the
+     page spends on it and changes nothing anyone can see — including
+     the pointer bloom, which lags by at most a frame. */
+  const STEP = 1000 / 30;
+  let drawn = 0;
+  function loop(ts) {
+    raf = requestAnimationFrame(loop);
+    if (!last) last = ts;
+    t += Math.min(.05, (ts - last) / 1000) * SPEED;
+    last = ts;
+    if (ts - drawn < STEP) return;
+    drawn = ts;
+    draw();
+  }
+
+  /* The pointer arrives from the sweep handler above, already in the
+     sky's coordinates. Held still, the field is redrawn on the next
+     frame anyway; stopped, it is redrawn once so the bloom clears. */
+  window.__glyphPointer = (x, y, inside) => {
+    px = x; py = y;
+    if (inside === on && !inside) return;
+    on = inside;
+    if (!raf) draw();
+  };
+
+  const start = () => {
+    if (reduced.matches) { draw(); return; }   /* the field, held still */
+    if (!raf) { last = 0; raf = requestAnimationFrame(loop); }
+  };
+  const stop = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+
+  window.addEventListener('resize', resize);
+  /* A tab in the background would keep the field on the main thread
+     for nothing. */
+  document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
+  reduced.addEventListener('change', () => { stop(); start(); });
+
+  resize();
+  start();
 })();
 </script>
 <style>
