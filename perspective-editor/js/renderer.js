@@ -21,6 +21,9 @@
     uniform float uOpacity;
     uniform vec2 uBlur;      // blur radius in UV units (x, y)
     uniform vec4 uTint;      // solid colour override when uTint.a > 0
+    uniform vec4 uMaskBox;   // subject mask: centre.xy, half size.xy, in device pixels (y up)
+    uniform vec2 uMaskEdge;  // corner radius, feather (device pixels)
+    uniform float uMaskCut;  // 1 = erase this layer wherever the mask covers it
     void main() {
       vec4 c;
       if (uBlur.x <= 0.00001) {
@@ -40,6 +43,15 @@
         c /= total;
       }
       if (uTint.a > 0.0) { c = vec4(uTint.rgb * c.a, c.a) * uTint.a; }
+      if (uMaskCut > 0.5) {
+        // Rounded-box coverage: this layer sits behind the subject, so it is erased inside the mask.
+        vec2 pt = gl_FragCoord.xy - uMaskBox.xy;
+        vec2 ext = max(uMaskBox.zw - uMaskEdge.x, vec2(0.0));
+        vec2 q = abs(pt) - ext;
+        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uMaskEdge.x;
+        float cover = 1.0 - smoothstep(0.0, max(uMaskEdge.y, 0.75), d);
+        c *= 1.0 - cover;
+      }
       gl_FragColor = c * uOpacity;
     }`;
 
@@ -91,6 +103,9 @@
         uOpacity: gl.getUniformLocation(prog, 'uOpacity'),
         uBlur: gl.getUniformLocation(prog, 'uBlur'),
         uTint: gl.getUniformLocation(prog, 'uTint'),
+        uMaskBox: gl.getUniformLocation(prog, 'uMaskBox'),
+        uMaskEdge: gl.getUniformLocation(prog, 'uMaskEdge'),
+        uMaskCut: gl.getUniformLocation(prog, 'uMaskCut'),
       };
 
       const quad = new Float32Array([
@@ -211,7 +226,7 @@
       this.texCache.clear();
     }
 
-    _drawQuad(mvp, w, h, tex, opacity, blurUV, tint, mode) {
+    _drawQuad(mvp, w, h, tex, opacity, blurUV, tint, mode, mask) {
       const gl = this.gl, L = this.loc;
       gl.bindBuffer(gl.ARRAY_BUFFER, mode === 'loop' ? this.loopBuf : this.quadBuf);
       gl.enableVertexAttribArray(L.aPos);
@@ -223,6 +238,13 @@
       gl.uniform1f(L.uOpacity, opacity);
       gl.uniform2f(L.uBlur, blurUV ? blurUV[0] : 0, blurUV ? blurUV[1] : 0);
       gl.uniform4fv(L.uTint, tint || [0, 0, 0, 0]);
+      if (mask) {
+        gl.uniform4f(L.uMaskBox, mask.cx, mask.cy, mask.hw, mask.hh);
+        gl.uniform2f(L.uMaskEdge, mask.radius, mask.feather);
+        gl.uniform1f(L.uMaskCut, 1);
+      } else {
+        gl.uniform1f(L.uMaskCut, 0);
+      }
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(L.uTex, 0);
@@ -267,10 +289,34 @@
       // Video plane at z = 0. At 100 % it fills the frustum of the resting camera exactly. Normally it is
       // part of the 3D scene (so a dolly zooms it, like a scaled footage layer in After Effects); when
       // locked it is drawn from the resting camera and only the text moves.
+      const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
+      const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
       if (opts.video && opts.videoReady && this._uploadVideo(opts.video)) {
-        const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
-        const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
         this._drawQuad(planeMVP, 2 * this.aspect * media.scale, 2 * media.scale, this.videoTex, 1, null, null);
+      }
+
+      // Subject mask. It is pinned to the video plane (coordinates are fractions of the video's own
+      // half-width and half-height) and projected to device pixels, so it tracks the footage as the
+      // camera moves. Layers flagged `behindSubject` are erased inside it.
+      this.lastMask = null;
+      const mk = opts.mask;
+      if (mk && mk.enabled) {
+        const cx = mk.x * this.aspect * media.scale, cy = mk.y * media.scale;
+        const hwWorld = Math.max(0.01, mk.w) * this.aspect * media.scale;
+        const hhWorld = Math.max(0.01, mk.h) * media.scale;
+        const c0 = this._toScreen(planeMVP, cx, cy);
+        const cX = this._toScreen(planeMVP, cx + hwWorld, cy);
+        const cY = this._toScreen(planeMVP, cx, cy + hhWorld);
+        if (!c0.behind && !cX.behind && !cY.behind) {
+          const hw = Math.abs(cX.x - c0.x), hh = Math.abs(cY.y - c0.y);
+          const small = Math.min(hw, hh);
+          this.lastMask = {
+            cx: c0.x, cy: H - c0.y, hw, hh,
+            radius: Math.max(0, (mk.roundness == null ? 0.5 : mk.roundness)) * small,
+            feather: Math.max(0.75, (mk.feather == null ? 0.06 : mk.feather) * small),
+            world: { cx, cy, hw: hwWorld, hh: hhWorld, mvp: planeMVP },
+          };
+        }
       }
       const selected = new Set(opts.selectedIds || []);
       const aperture = cam.aperture || 0;
@@ -355,7 +401,7 @@
           }
 
           const tex = this._textureFor(g.canvas);
-          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null);
+          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null, null, layer.behindSubject ? this.lastMask : null);
           quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });
@@ -366,6 +412,13 @@
           const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
           this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop');
         }
+      }
+
+      // Mask outline, so the shape can be placed while editing.
+      if (this.lastMask && opts.showMask) {
+        const m = this.lastMask.world;
+        const outline = M4.multiply(m.mvp, M4.translation(m.cx, m.cy, 0));
+        this._drawQuad(outline, m.hw * 2, m.hh * 2, this.whiteTex, 1, null, [0.35, 0.85, 1, 0.9], 'loop');
       }
     }
 

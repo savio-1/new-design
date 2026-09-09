@@ -12,12 +12,17 @@
   const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: FADE_OFF, keys: [] });
   const FADE_OFF = 12;   // the top of the Fade far words range means "never fade"
   const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
+  const defaultMask = () => ({ enabled: false, roundness: 0.55, feather: 0.08, show: true, keys: [] });
+  const MASK_FIELDS = ['x', 'y', 'w', 'h'];
   const state = {
     layers: [],
     selectedIds: [],       // ordered; the first entry is the primary selection
-    selectedKeyId: null,   // selected camera keyframe (mutually exclusive with layer selection)
+    selectedKeyId: null,      // selected camera keyframe (exclusive with the other selections)
+    selectedMaskKeyId: null,  // selected subject-mask keyframe
     camera: defaultCamera(),
     media: defaultMedia(),
+    mask: defaultMask(),
+    maskEdit: false,      // dragging on the preview moves the mask instead of the text
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -206,6 +211,32 @@
     };
   }
 
+  /* ---- subject mask ---------------------------------------------------- */
+  const getMaskKey = (id) => state.mask.keys.find((k) => k.id === id);
+  const selectedMaskKey = () => getMaskKey(state.selectedMaskKeyId);
+  const MASK_DEFAULT = { x: 0, y: -0.15, w: 0.45, h: 0.85 };
+
+  /* The mask shape at time t, or null when there are no keys. */
+  function maskShapeAt(t) {
+    return Camera.evaluateOn(state.mask.keys, t, MASK_FIELDS);
+  }
+  function maskForRender(t) {
+    if (!state.mask.enabled) return null;
+    const shape = maskShapeAt(t) || MASK_DEFAULT;
+    return Object.assign({ enabled: true, roundness: state.mask.roundness, feather: state.mask.feather }, shape);
+  }
+  /* The mask key at the playhead, creating one from the current shape when there is none. */
+  function maskKeyAtPlayhead() {
+    const t = round(clock.time, 2);
+    let key = state.mask.keys.find((k) => Math.abs(k.t - t) <= 0.05);
+    if (!key) {
+      const shape = maskShapeAt(t) || MASK_DEFAULT;
+      key = Camera.defaultKey(t, Object.assign({}, shape));
+      state.mask.keys = Camera.sorted(state.mask.keys.concat([key]));
+    }
+    return key;
+  }
+
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
   const selectedKey = () => getKey(state.selectedKeyId);
 
@@ -297,6 +328,8 @@
       selectedIds: state.exporting ? [] : state.selectedIds,
       camera: cameraAt(time),
       media: mediaForRender(),
+      mask: maskForRender(time),
+      showMask: !state.exporting && state.mask.enabled && state.mask.show,
     });
   }
 
@@ -364,7 +397,11 @@
   }
 
   function deleteSelected() {
-    if (state.selectedKeyId) {
+    if (state.selectedMaskKeyId) {
+      state.mask.keys = state.mask.keys.filter((k) => k.id !== state.selectedMaskKeyId);
+      state.selectedMaskKeyId = null;
+      if (!state.mask.keys.length) { state.mask.enabled = false; syncMaskControls(); toast('Last mask key removed — the subject mask is off'); }
+    } else if (state.selectedKeyId) {
       state.camera.keys = state.camera.keys.filter((k) => k.id !== state.selectedKeyId);
       state.selectedKeyId = null;
     } else if (state.selectedIds.length) {
@@ -407,6 +444,7 @@
   /* Selection: select(id) replaces; select(id, {toggle:true}) adds/removes; select(null) clears. */
   function select(id, opts = {}) {
     state.selectedKeyId = null;
+    state.selectedMaskKeyId = null;
     if (opts.toggle && id) {
       if (isSelected(id)) state.selectedIds = state.selectedIds.filter((x) => x !== id);
       else state.selectedIds = state.selectedIds.concat([id]);
@@ -423,13 +461,23 @@
   }
   function selectKey(id) {
     state.selectedIds = [];
+    state.selectedMaskKeyId = null;
     state.selectedKeyId = id;
+    refreshInspector();
+    renderTimeline();
+    invalidate();
+  }
+  function selectMaskKey(id) {
+    state.selectedIds = [];
+    state.selectedKeyId = null;
+    state.selectedMaskKeyId = id;
     refreshInspector();
     renderTimeline();
     invalidate();
   }
   function selectAll() {
     state.selectedKeyId = null;
+    state.selectedMaskKeyId = null;
     state.selectedIds = state.layers.map((l) => l.id);
     refreshInspector();
     renderTimeline();
@@ -437,7 +485,7 @@
   }
 
   function snapshot() {
-    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId }, stripper);
+    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, mask: state.mask, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId, selectedMaskKeyId: state.selectedMaskKeyId }, stripper);
   }
   function commit() {
     const snap = snapshot();
@@ -453,11 +501,14 @@
     state.layers = data.layers;
     state.camera = Object.assign(defaultCamera(), data.camera || {});
     state.media = Object.assign(defaultMedia(), data.media || {});
+    state.mask = Object.assign(defaultMask(), data.mask || {});
     state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
     state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
+    state.selectedMaskKeyId = getMaskKey(data.selectedMaskKeyId) ? data.selectedMaskKeyId : null;
     state.lastCommitted = snap;
     syncCameraControls();
     syncMediaControls();
+    syncMaskControls();
     refreshAll();
   }
   function undo() {
@@ -529,9 +580,26 @@
     els.camTrack.innerHTML = html;
   }
 
+  function renderMaskTrack() {
+    $('#tlMask').classList.toggle('hidden', !state.mask.enabled);
+    if (!state.mask.enabled) return;
+    const T = duration();
+    const keys = Camera.sorted(state.mask.keys);
+    let html = '';
+    if (keys.length > 1) {
+      const a = (keys[0].t / T) * 100, b = (keys[keys.length - 1].t / T) * 100;
+      html += `<div class="tl-key-line" style="left:${a}%; width:${b - a}%"></div>`;
+    }
+    for (const k of keys) {
+      html += `<div class="tl-key${k.id === state.selectedMaskKeyId ? ' selected' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · ${Math.round(k.w * 100)}×${Math.round(k.h * 100)}"></div>`;
+    }
+    $('#maskTrack').innerHTML = html;
+  }
+
   function renderTimeline() {
     renderRuler();
     renderCameraTrack();
+    renderMaskTrack();
     const rows = state.layers.slice().reverse();
     els.tlEmpty.classList.toggle('hidden', rows.length > 0);
     $('#layerCount').textContent = rows.length ? `(${rows.length})` : '';
@@ -641,6 +709,51 @@
     };
     els.camTrack.addEventListener('pointerup', endKeyDrag);
     els.camTrack.addEventListener('pointercancel', endKeyDrag);
+
+    // Mask track
+    const maskTrack = $('#maskTrack');
+    maskTrack.addEventListener('pointerdown', (e) => {
+      const key = e.target.closest('.tl-key');
+      if (key) {
+        selectMaskKey(key.dataset.id);
+        const k = getMaskKey(key.dataset.id);
+        drag = { mode: 'maskKey', id: k.id, x0: e.clientX, t0: k.t, moved: false };
+        maskTrack.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      } else {
+        clock.time = timeFromEvent(e);
+        drag = { mode: 'scrub' };
+        maskTrack.setPointerCapture(e.pointerId);
+      }
+    });
+    maskTrack.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.tl-key')) return;
+      clock.time = round(timeFromEvent(e), 2);
+      const k = maskKeyAtPlayhead();
+      commit();
+      selectMaskKey(k.id);
+      renderMaskTrack();
+      toast('Mask keyframe added — move the shape here and it will animate');
+    });
+    maskTrack.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
+      if (drag.mode !== 'maskKey') return;
+      const k = getMaskKey(drag.id);
+      if (!k) return;
+      const dt = (e.clientX - drag.x0) / pxPerSec();
+      if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
+      k.t = round(clamp(snap(drag.t0 + dt, snapTargets(new Set())), 0, duration()), 3);
+      renderMaskTrack();
+      refreshMaskKeyValues();
+      invalidate();
+    });
+    const endMaskDrag = () => {
+      if (drag && drag.mode === 'maskKey' && drag.moved) { state.mask.keys = Camera.sorted(state.mask.keys); commit(); }
+      drag = null;
+    };
+    maskTrack.addEventListener('pointerup', endMaskDrag);
+    maskTrack.addEventListener('pointercancel', endMaskDrag);
 
     // Layer rows
     els.tlBody.addEventListener('click', (e) => {
@@ -764,6 +877,8 @@
           { label: 'Face the camera', action: (l) => { l.transform.rx = 0; l.transform.ry = 0; l.transform.rz = 0; } },
           { label: 'Centre on screen', action: (l) => { l.transform.x = 0; l.transform.y = 0; } },
         ] },
+        { type: 'sub', label: 'Subject mask' },
+        { type: 'toggle', path: 'behindSubject', label: 'Behind subject', hint: 'Erase this word wherever the subject mask covers it, so it reads as passing behind the person. Turn the mask on in step 1.' },
       ],
     },
     {
@@ -853,6 +968,20 @@
     },
   ];
 
+  const MASK_KEY_SCHEMA = [
+    {
+      title: 'Mask keyframe',
+      fields: [
+        { type: 'number', path: 't', label: 'Time (s)', step: 0.05, min: 0, onChange: (k) => { k.t = clamp(k.t, 0, duration()); } },
+        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })) },
+        { type: 'range', path: 'x', label: 'Centre X', min: -1.2, max: 1.2, step: 0.005, scale: 100, unit: '' },
+        { type: 'range', path: 'y', label: 'Centre Y', min: -1.2, max: 1.2, step: 0.005, scale: 100, unit: '' },
+        { type: 'range', path: 'w', label: 'Width', min: 0.03, max: 1.3, step: 0.005, scale: 100, unit: '' },
+        { type: 'range', path: 'h', label: 'Height', min: 0.03, max: 1.3, step: 0.005, scale: 100, unit: '' },
+      ],
+    },
+  ];
+
   function weightOptions(l) {
     const f = TextRender.FONTS.find((x) => x.family === l.style.font);
     const ws = f ? f.weights : [400, 700];
@@ -938,6 +1067,29 @@
       renderCameraTrack();
       invalidate();
       if (layoutVisible()) layoutView.draw();
+    },
+  };
+
+  const maskCtx = {
+    controls: [],
+    get: () => selectedMaskKey(),
+    apply(field, key, value, isFinal) {
+      setPath(key, field.path, value);
+      if (field.onChange) field.onChange(key);
+      if (field.path === 't') { state.mask.keys = Camera.sorted(state.mask.keys); }
+      renderMaskTrack();
+      syncMaskControls();
+      invalidate();
+      if (isFinal) { commit(); refreshMaskKeyValues(); }
+    },
+    buttonAction(action) {
+      const k = selectedMaskKey();
+      if (!k) return;
+      action(k);
+      commit();
+      refreshMaskKeyValues();
+      renderMaskTrack();
+      invalidate();
     },
   };
 
@@ -1120,12 +1272,20 @@
   function refreshInspector() {
     const l = selected();
     const k = selectedKey();
-    els.inspectorEmpty.classList.toggle('hidden', !!(l || k));
+    const mk = selectedMaskKey();
+    els.inspectorEmpty.classList.toggle('hidden', !!(l || k || mk));
     els.inspectorBody.classList.toggle('hidden', !l);
     els.cameraKeyBody.classList.toggle('hidden', !k);
+    $('#maskKeyBody').classList.toggle('hidden', !mk);
     if (l) refreshInspectorValues();
     if (k) refreshKeyValues();
+    if (mk) refreshMaskKeyValues();
     updateLayoutHint();
+  }
+  function refreshMaskKeyValues() {
+    const k = selectedMaskKey();
+    if (!k) return;
+    for (const c of maskCtx.controls) c.update(k);
   }
   function refreshInspectorValues() {
     const l = selected();
@@ -1167,9 +1327,24 @@
       return { x: ((e.clientX - rect.left) / rect.width) * c.width, y: ((e.clientY - rect.top) / rect.height) * c.height };
     };
 
+    /* World units per screen pixel on the video plane, for dragging the mask. */
+    const planePixels = () => {
+      const cam = cameraAt(clock.time);
+      const depth = state.media.locked ? renderer.camDist : planeDepth(cam);
+      return renderer.worldPerPixelAtDepth(depth);
+    };
+
     c.addEventListener('pointerdown', (e) => {
       if (state.exporting) return;
       const p = toBuffer(e);
+      if (state.maskEdit && state.mask.enabled) {
+        const k = maskKeyAtPlayhead();
+        if (state.selectedMaskKeyId !== k.id) selectMaskKey(k.id);
+        drag = { mode: 'mask', key: k, x0: p.x, y0: p.y, kx: k.x, ky: k.y, wpp: planePixels(), moved: false };
+        c.setPointerCapture(e.pointerId);
+        c.classList.add('grabbing');
+        return;
+      }
       const id = renderer.hitTest(p.x, p.y);
       if (id) {
         if (e.shiftKey || e.ctrlKey || e.metaKey) { select(id, { toggle: true }); return; }
@@ -1189,7 +1364,18 @@
       if (state.exporting) return;
       const p = toBuffer(e);
       if (!drag) {
-        c.classList.toggle('hover', !!renderer.hitTest(p.x, p.y));
+        c.classList.toggle('hover', !state.maskEdit && !!renderer.hitTest(p.x, p.y));
+        return;
+      }
+      if (drag.mode === 'mask') {
+        drag.moved = true;
+        const dxu = ((p.x - drag.x0) * drag.wpp) / (renderer.aspect * state.media.scale);
+        const dyu = -((p.y - drag.y0) * drag.wpp) / state.media.scale;
+        drag.key.x = round(clamp(drag.kx + dxu, -1.2, 1.2), 4);
+        drag.key.y = round(clamp(drag.ky + dyu, -1.2, 1.2), 4);
+        syncMaskControls();
+        refreshMaskKeyValues();
+        invalidate();
         return;
       }
       const dx = p.x - drag.x0, dy = p.y - drag.y0;
@@ -1223,6 +1409,19 @@
 
     let wheelTimer = 0;
     c.addEventListener('wheel', (e) => {
+      if (state.maskEdit && state.mask.enabled && !state.exporting) {
+        e.preventDefault();
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        const k = maskKeyAtPlayhead();
+        if (!e.shiftKey) k.w = round(clamp(k.w * factor, 0.03, 1.3), 4);
+        k.h = round(clamp(k.h * factor, 0.03, 1.3), 4);
+        syncMaskControls();
+        refreshMaskKeyValues();
+        invalidate();
+        clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(commit, 400);
+        return;
+      }
       const targets = selectedLayers();
       if (!targets.length || state.exporting) return;
       e.preventDefault();
@@ -1509,6 +1708,87 @@
     toast(`Camera set so the video fills the frame at ${fmtTime(k.t)}`);
   });
 
+  function syncMaskControls() {
+    const on = state.mask.enabled;
+    $('#maskEnabled').checked = on;
+    $('#maskFields').classList.toggle('hidden', !on);
+    $('#maskShow').checked = !!state.mask.show;
+    $('#maskRound').value = state.mask.roundness;
+    $('#maskRoundNum').value = Math.round(state.mask.roundness * 100);
+    $('#maskFeather').value = state.mask.feather;
+    $('#maskFeatherNum').value = Math.round(state.mask.feather * 100);
+    const shape = maskShapeAt(clock.time) || MASK_DEFAULT;
+    for (const [f, id] of [['x', 'maskX'], ['y', 'maskY'], ['w', 'maskW'], ['h', 'maskH']]) {
+      $(`#${id}`).value = shape[f];
+      const num = $(`#${id}Num`);
+      if (document.activeElement !== num) num.value = Math.round(shape[f] * 100);
+    }
+    $('#btnMaskAdjust').classList.toggle('on', !!state.maskEdit);
+    els.canvas.classList.toggle('mask-edit', !!state.maskEdit);
+    renderMaskTrack();
+  }
+  /* Shape sliders always write to the key at the playhead, so adjusting at a new time animates the mask
+   * the same way dragging the camera does. */
+  const bindMaskShape = (id, field) => {
+    const range = $(`#${id}`), num = $(`#${id}Num`);
+    const write = (v, final) => {
+      const k = maskKeyAtPlayhead();
+      k[field] = round(v, 4);
+      if (state.selectedMaskKeyId && state.selectedMaskKeyId !== k.id) state.selectedMaskKeyId = k.id;
+      syncMaskControls();
+      refreshMaskKeyValues();
+      invalidate();
+      if (final) commit();
+    };
+    range.addEventListener('input', (e) => write(Number(e.target.value), false));
+    range.addEventListener('change', (e) => write(Number(e.target.value), true));
+    num.addEventListener('change', (e) => {
+      const min = Number(range.min), max = Number(range.max);
+      write(clamp((Number(e.target.value) || 0) / 100, min, max), true);
+    });
+  };
+  bindMaskShape('maskX', 'x');
+  bindMaskShape('maskY', 'y');
+  bindMaskShape('maskW', 'w');
+  bindMaskShape('maskH', 'h');
+  const bindMaskGlobal = (id, key, scale) => {
+    const range = $(`#${id}`), num = $(`#${id}Num`);
+    range.addEventListener('input', (e) => { state.mask[key] = Number(e.target.value); num.value = Math.round(state.mask[key] * scale); invalidate(); });
+    range.addEventListener('change', commit);
+    num.addEventListener('change', (e) => { state.mask[key] = clamp((Number(e.target.value) || 0) / scale, Number(range.min), Number(range.max)); syncMaskControls(); commit(); invalidate(); });
+  };
+  bindMaskGlobal('maskRound', 'roundness', 100);
+  bindMaskGlobal('maskFeather', 'feather', 100);
+  $('#maskEnabled').addEventListener('change', (e) => {
+    state.mask.enabled = e.target.checked;
+    if (state.mask.enabled && !state.mask.keys.length) {
+      state.mask.keys = [Camera.defaultKey(round(clock.time, 2), Object.assign({}, MASK_DEFAULT))];
+      toast('Subject mask on — place it over the person, then mark words “Behind subject”');
+    }
+    if (!state.mask.enabled) state.maskEdit = false;
+    syncMaskControls();
+    commit();
+    refreshAll();
+  });
+  $('#maskShow').addEventListener('change', (e) => { state.mask.show = e.target.checked; commit(); invalidate(); });
+  $('#btnMaskAdjust').addEventListener('click', () => {
+    if (!state.mask.enabled) { toast('Turn the subject mask on first', true); return; }
+    state.maskEdit = !state.maskEdit;
+    syncMaskControls();
+    toast(state.maskEdit ? 'Drag on the preview to move the mask, wheel to resize' : 'Back to editing text');
+  });
+  const addMaskKey = () => {
+    if (!state.mask.enabled) { toast('Turn the subject mask on first', true); return; }
+    const k = maskKeyAtPlayhead();
+    commit();
+    selectMaskKey(k.id);
+    renderMaskTrack();
+    toast(`Mask keyframe at ${fmtTime(k.t)}`);
+  };
+  $('#btnMaskKey').addEventListener('click', addMaskKey);
+  $('#btnMaskKey2').addEventListener('click', addMaskKey);
+  $('#btnDeleteMaskKey').addEventListener('click', deleteSelected);
+
   function syncMediaControls() {
     $('#bgColor').value = state.media.bg;
     $('#bgHex').value = state.media.bg;
@@ -1692,6 +1972,7 @@
       videoName: state.video.file ? state.video.file.name : null,
       camera: state.camera,
       media: state.media,
+      mask: state.mask,
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
@@ -1708,15 +1989,18 @@
       if (state.camera.farFade >= 8 && state.camera.farFade < FADE_OFF) state.camera.farFade = FADE_OFF; // 8 used to mean "off"
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       state.media = Object.assign(defaultMedia(), data.media || {});
+      state.mask = Object.assign(defaultMask(), data.mask || {});
+      state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
       if (data.aspect) state.aspect = data.aspect;
       if (data.duration) state.duration = data.duration;
       if (data.fov) state.fov = data.fov;
-      state.selectedIds = []; state.selectedKeyId = null;
+      state.selectedIds = []; state.selectedKeyId = null; state.selectedMaskKeyId = null;
       state.undo = []; state.redo = []; state.lastCommitted = null;
       commit();
       syncCameraControls();
       syncMediaControls();
+      syncMaskControls();
       fitPreview();
       refreshAll();
       toast(`Opened project${data.videoName ? ` — re-import "${data.videoName}" to see the video` : ''}`);
@@ -1904,6 +2188,7 @@
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
         layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
+        mask: maskForRender(t), showMask: false,
       });
     };
 
@@ -1988,13 +2273,14 @@
     switch (e.key) {
       case ' ': e.preventDefault(); clock.toggle(); break;
       case 'Escape': select(null); break;
-      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId) { e.preventDefault(); deleteSelected(); } break;
+      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId || state.selectedMaskKeyId) { e.preventDefault(); deleteSelected(); } break;
       case 'Home': clock.pause(); clock.time = 0; break;
       case 'End': clock.pause(); clock.time = duration(); break;
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
       case 'k': case 'K': addKeyHere(); break;
+      case 'm': case 'M': if (state.mask.enabled) { state.maskEdit = !state.maskEdit; syncMaskControls(); } break;
       case 'l': case 'L': setView(state.view === 'preview' ? 'split' : state.view === 'split' ? 'layout' : 'preview'); break;
       case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': {
         if (!targets.length) {
@@ -2038,6 +2324,7 @@
     buildMoveGrid();
     buildSections(LAYER_SCHEMA, els.sections, layerCtx);
     buildSections(KEY_SCHEMA, els.keySections, keyCtx);
+    buildSections(MASK_KEY_SCHEMA, $('#maskKeySections'), maskCtx);
     new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
@@ -2054,6 +2341,7 @@
     updateUndoButtons();
     syncCameraControls();
     syncMediaControls();
+    syncMaskControls();
     refreshAll();
     updatePlayButton();
     setView('split');
@@ -2062,5 +2350,5 @@
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender };
 })();

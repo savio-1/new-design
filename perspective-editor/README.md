@@ -39,7 +39,8 @@ The left panel is three steps.
 background colour. The video is a layer inside the 3D scene: *Video scale* zooms the footage up
 (150–200 % is typical) so it still fills the frame when the camera pulls back, and *Video X / Y*
 reframe it. Untick *Video zooms with the camera* to pin the footage as a fixed backdrop and move
-only the words. Without a video, choose the canvas shape and length here.
+only the words. *Subject mask* lets words pass behind the person in the shot (see below). Without a
+video, choose the canvas shape and length here.
 
 **2 · Text.** *Add text* drops a word just in front of the camera. Templates build a whole
 sequence, including the camera move — *Camera Reveal* is the After-Effects-style pull-back. Text
@@ -68,7 +69,8 @@ embedded — re-import it).
 
 Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove word or key ·
 `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
-`K` add camera key · `L` cycle Preview / Split / 3D layout · `Ctrl+S` save · `Ctrl+E` export.
+`K` add camera key · `M` adjust the subject mask · `L` cycle Preview / Split / 3D layout · `Ctrl+S`
+save · `Ctrl+E` export.
 
 ## How the 3D reveal works
 
@@ -94,6 +96,28 @@ a sensible distance away, and softens again as it falls far behind. *Blur amount
 that softening is, and the band is drawn as a green zone in the 3D layout so you can see which words
 sit inside it.
 
+## Letting text pass behind the subject
+
+Text normally draws over the footage. *Subject mask* (step 1 · Media) covers the person with a soft
+rounded shape; any word you mark **Behind subject** in the inspector is erased wherever that shape
+covers it, so the word reads as if it were standing behind them — the strongest depth cue there is,
+because the subject overlaps the text instead of the other way round.
+
+1. Tick **Let text pass behind the subject**.
+2. Press **Adjust on canvas** (or `M`) and drag on the preview to place the shape; the wheel resizes
+   it, `Shift`+wheel changes only the height. *Centre X/Y*, *Width*, *Height*, *Roundness* and
+   *Softness* do the same thing numerically — roundness 100 % gives a capsule, which fits a standing
+   person well, and softness feathers the edge so the cut is not a hard line.
+3. Select the words that should go behind and tick **Behind subject**.
+4. If the subject moves, scrub to another time and press **Add mask key** (or just drag the shape —
+   dragging at a new time writes a key by itself). The Mask row in the timeline shows the keys as
+   diamonds, exactly like the camera row, and the shape interpolates between them.
+
+The shape is pinned to the footage, not to the screen: it moves and scales with *Video scale* /
+*Video X / Y* and with the camera, so a mask placed once stays on the subject as the camera pulls
+back. It is a shape you place by hand, not an automatic cut-out. *Show the outline while editing*
+draws it while you work; it is never in the export.
+
 ## Animations
 
 Entrances double as exits (played in reverse), so every combination works.
@@ -111,7 +135,7 @@ Entrances double as exits (played in reverse), so every combination works.
 | Template | What it does |
 | --- | --- |
 | Camera Reveal | Zoomed into the footage, the camera pulls back and reveals a stack of words. |
-| Spiral Reveal | Words wind outward on a helix; the camera pulls back with a slow roll. |
+| Spiral Reveal | The sentence winds out of a vortex — small and deep at the eye, big and near the lens at the outside, each word turned along the curve. The camera pulls back through it with a slow roll. |
 | Tunnel Fly-through | Words ring the centre; the camera flies forward down the middle. |
 | Corridor Signs | Words hang left and right like street signs; the camera tracks past them. |
 | Orbit Cloud | Words float in a cloud; the camera arcs around them for parallax. |
@@ -126,7 +150,9 @@ Bouncy Pop, Elegant Quote.
 
 - `js/renderer.js` — WebGL compositor. The video is a plane at z = 0 filling a perspective camera's
   view; each text group is a textured quad with its own model matrix, so rotation and depth produce
-  true perspective. A fragment-shader disk blur drives the focus effect.
+  true perspective. A fragment-shader disk blur drives the focus effect, and a rounded-box SDF —
+  projected from the video plane so it tracks the footage — erases the words marked as being behind
+  the subject.
 - `js/text-render.js` — lays out text (block / words / letters), rasterises each group with
   shadow, extrusion, stroke and box into a canvas, and caches the result. Textures are re-rendered at
   the export resolution so 4K output stays sharp.

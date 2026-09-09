@@ -26,6 +26,7 @@
       start: 0,
       end: 3,
       hidden: false,
+      behindSubject: false,   // erased where the subject mask covers it
       split: 'whole',
       style: {
         font: 'Inter', weight: 900, italic: false,
@@ -226,8 +227,8 @@
     {
       id: 'spiral',
       name: 'Spiral Reveal',
-      description: 'Words wind outward on a helix. The camera pulls back through them with a slow roll, so each one spins into place as it passes, then settles into a spiral.',
-      sample: 'this one spirals right out of the frame',
+      description: 'Words wrap around the centre in a vortex, each turned to follow the curve, winding outward and toward the lens. The camera pulls back through them with a slow roll.',
+      sample: 'how do you do that 3D text',
       tags: ['Camera', 'Spiral'],
       previewClass: 'tp-spiral',
       build(text, start, duration, aspect, cam) {
@@ -236,26 +237,45 @@
         const d = (cam && cam.camDist) || 2.414;
         const S = 1.6, camEnd = d * S, pull = Math.min(2.4, camEnd * 0.6), camStart = camEnd - pull;
         const n = ws.length;
+        // A vortex: the sentence winds out from a clear centre, small and deep at the eye of the
+        // spiral, larger and nearer the lens at the outside, every word turned along the curve.
+        // 100° per word: enough to open a real spiral, and never lands a later word back on top of
+        // an earlier one (the closest any two turns come is 40°).
+        const aStep = n <= 3 ? 62 : 100;
+        // Pull the ring most of the way back to a circle in pixels, so a tall frame does not squash
+        // the vortex into a narrow oval that makes neighbouring words collide.
+        const ex = 1 - 0.7 * (1 - Math.min(1, 1 / Math.max(aspect, 0.01)));
+        const ey = 1 - 0.7 * (1 - Math.min(1, aspect));
         const layers = [];
         ws.forEach((w, i) => {
-          const p = n > 1 ? 0.18 + (0.74 * i) / (n - 1) : 0.5;
-          const z = zForReveal(camStart, camEnd, p, SHARP);
-          const depthEnd = camEnd - z;                     // depth in the settled last frame
-          const a = (i * 155) * Math.PI / 180;
-          const R = n > 1 ? 0.26 + (0.46 * i) / (n - 1) : 0.35;
+          const f = n > 1 ? i / (n - 1) : 1;                 // 0 at the eye, 1 at the outside
+          const p = 0.14 + 0.64 * f;                         // all seven are in place before the end
+          // Later words are revealed further from the lens, so the big outer ones do not sweep in
+          // enormous and half out of frame — each lands close to the size it settles at.
+          const z = zForReveal(camStart, camEnd, p, SHARP + 0.9 * f);
+          const depthEnd = camEnd - z;                       // depth in the settled last frame
+          const deg = -105 + i * aStep;                      // starts low, winds anticlockwise
+          const a = (deg * Math.PI) / 180;
+          // The radius opens quickly at the eye so the inner words do not crowd each other.
+          const R = 0.32 + 0.42 * Math.pow(f, 0.65);         // fraction of the frame, spirals out
           const last = i === n - 1;
-          const pos = atScreen(Math.cos(a) * R, Math.sin(a) * R, depthEnd, d, aspect);
+          const pos = atScreen(Math.cos(a) * R * ex, Math.sin(a) * R * ey, depthEnd, d, aspect);
+          // Turn each word along the tangent of the curve — this is what makes the ring read as a
+          // spiral instead of a scatter, and words on the far side end up upside down.
+          let roll = deg + 90;
+          while (roll > 180) roll -= 360;
+          while (roll < -180) roll += 360;
           layers.push(L({
             name: w, text: w, start, end: start + duration,
-            style: Object.assign({ size: sizeAt(last ? 0.13 : 0.095, depthEnd, d), color: last ? HILITE : WHITE, letterSpacing: -0.02,
-              shadow: { blur: 0.12, x: 0, y: 0.04, color: '#000000', opacity: 0.55 } }, BOLD),
-            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: 0, rz: round3(Math.sin(a) * 7), scale: 1 },
+            style: Object.assign({ size: sizeAt(0.052 + 0.088 * f, depthEnd, d), color: last ? HILITE : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.16, x: 0, y: 0.02, color: '#000000', opacity: 0.5 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: 0, rz: round3(roll), scale: 1 },
             anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
           }));
         });
         const cameraKeys = [
-          Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -10, easing: 'linear' }),
-          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 0, easing: 'linear' }),
+          Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -14, easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 4, easing: 'linear' }),
         ];
         return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },

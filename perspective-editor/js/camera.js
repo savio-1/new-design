@@ -176,5 +176,26 @@
     },
   ];
 
-  global.Camera = { EASINGS, EASING_LABELS, FIELDS, defaultKey, evaluate, replaceRange, sorted, MOVES };
+  /* Interpolate an arbitrary set of numeric fields across a key list (used by the subject mask). */
+  function evaluateOn(keys, t, fields) {
+    const out = {};
+    if (!keys || !keys.length) return null;
+    const ks = sorted(keys);
+    const first = ks[0], last = ks[ks.length - 1];
+    if (t <= first.t) { for (const f of fields) out[f] = first[f]; return out; }
+    if (t >= last.t) { for (const f of fields) out[f] = last[f]; return out; }
+    for (let i = 0; i < ks.length - 1; i++) {
+      const A = ks[i], B = ks[i + 1];
+      if (t >= A.t && t <= B.t) {
+        const span = Math.max(0.0001, B.t - A.t);
+        const p = (EASINGS[B.easing] || EASINGS.easeInOut)(clamp01((t - A.t) / span));
+        for (const f of fields) out[f] = A[f] + (B[f] - A[f]) * p;
+        return out;
+      }
+    }
+    for (const f of fields) out[f] = last[f];
+    return out;
+  }
+
+  global.Camera = { EASINGS, EASING_LABELS, FIELDS, defaultKey, evaluate, evaluateOn, replaceRange, sorted, MOVES };
 })(window);

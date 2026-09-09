@@ -491,10 +491,10 @@ svg { width: 18px; height: 18px; display: block; }
   font-family: 'Helvetica Neue', Inter, sans-serif; font-weight: 800; color: #fff;
   text-shadow: 0 3px 6px rgba(0,0,0,.6); letter-spacing: -.02em;
 }
-.tp-spiral span:nth-child(1) { left: 96px; top: 42px; font-size: 11px; opacity: .5; }
-.tp-spiral span:nth-child(2) { left: 118px; top: 30px; font-size: 14px; opacity: .75; }
-.tp-spiral span:nth-child(3) { left: 78px; top: 56px; font-size: 20px; color: #FFD65C; }
-.tp-spiral span:nth-child(4) { left: 150px; top: 66px; font-size: 26px; filter: blur(1.2px); }
+.tp-spiral span:nth-child(1) { left: 96px; top: 8px; font-size: 12px; transform: rotate(175deg); opacity: .85; }
+.tp-spiral span:nth-child(2) { right: 30px; top: 26px; font-size: 14px; transform: rotate(-125deg); }
+.tp-spiral span:nth-child(3) { right: 16px; bottom: 26px; font-size: 17px; transform: rotate(-60deg); color: #FFD65C; }
+.tp-spiral span:nth-child(4) { left: 34px; bottom: 10px; font-size: 20px; transform: rotate(18deg); filter: blur(1px); }
 .tp-tunnel span:nth-child(1) { left: 18px; top: 14px; font-size: 22px; filter: blur(1.4px); }
 .tp-tunnel span:nth-child(2) { right: 14px; top: 26px; font-size: 17px; }
 .tp-tunnel span:nth-child(3) { left: 104px; top: 46px; font-size: 12px; color: #FFD65C; }
@@ -514,6 +514,18 @@ svg { width: 18px; height: 18px; display: block; }
 .tp-steps span:nth-child(4) { left: 158px; top: 24px; font-size: 10px; color: #FFD65C; transform: rotateY(-14deg); }
 .tp-punch span:nth-child(1) { left: 50%; top: 24px; transform: translateX(-50%); font-size: 24px; color: #FFD65C; }
 .tp-punch span:nth-child(2) { left: 50%; top: 54px; transform: translateX(-50%); font-size: 14px; opacity: .5; filter: blur(1.1px); }
+
+/* Subject-mask timeline row */
+.tl-mask { display: flex; height: 28px; flex: none; border-bottom: 1px solid var(--border); background: #14161a; }
+.tl-mask .tl-name { color: var(--muted); }
+.tl-mask .tl-name svg { width: 14px; height: 14px; flex: none; }
+.tl-mask .tl-name .nm { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.tl-mask .tl-eye { font-size: 16px; line-height: 1; font-weight: 600; }
+.tl-mask .tl-track { cursor: copy; }
+.tl-mask .tl-key { background: #7ad7ff; }
+.tl-mask .tl-key.selected { background: var(--accent); }
+.btn.small.on { background: var(--accent); border-color: var(--accent); color: #1a0d00; font-weight: 700; }
+#preview.mask-edit { cursor: move; }
 
 </style>
 </head>
@@ -616,6 +628,44 @@ svg { width: 18px; height: 18px; display: block; }
           <label>Video Y</label>
           <div class="range-wrap"><input id="mediaY" type="range" min="-1.5" max="1.5" step="0.01" value="0"><input id="mediaYNum" type="number" min="-150" max="150" step="1" value="0"></div>
         </div>
+        <div class="subhead">Subject mask</div>
+        <label class="toggle block-toggle">
+          <input id="maskEnabled" type="checkbox">
+          <span>Let text pass behind the subject <small class="muted">Cover the person with a soft shape, then mark words “Behind subject”</small></span>
+        </label>
+        <div id="maskFields" class="hidden">
+          <div class="two">
+            <button id="btnMaskAdjust" class="btn small" title="Drag on the preview to move the shape, wheel to resize">Adjust on canvas</button>
+            <button id="btnMaskKey" class="btn small" title="Pin the current shape at the playhead so it can move with the subject">Add mask key</button>
+          </div>
+          <div class="ctl">
+            <label>Centre X</label>
+            <div class="range-wrap"><input id="maskX" type="range" min="-1.2" max="1.2" step="0.005" value="0"><input id="maskXNum" type="number" min="-120" max="120" step="1" value="0"></div>
+          </div>
+          <div class="ctl">
+            <label>Centre Y</label>
+            <div class="range-wrap"><input id="maskY" type="range" min="-1.2" max="1.2" step="0.005" value="-0.15"><input id="maskYNum" type="number" min="-120" max="120" step="1" value="-15"></div>
+          </div>
+          <div class="ctl">
+            <label>Width</label>
+            <div class="range-wrap"><input id="maskW" type="range" min="0.03" max="1.3" step="0.005" value="0.45"><input id="maskWNum" type="number" min="3" max="130" step="1" value="45"></div>
+          </div>
+          <div class="ctl">
+            <label>Height</label>
+            <div class="range-wrap"><input id="maskH" type="range" min="0.03" max="1.3" step="0.005" value="0.85"><input id="maskHNum" type="number" min="3" max="130" step="1" value="85"></div>
+          </div>
+          <div class="ctl">
+            <label>Roundness</label>
+            <div class="range-wrap"><input id="maskRound" type="range" min="0" max="1" step="0.01" value="0.55"><input id="maskRoundNum" type="number" min="0" max="100" step="1" value="55"></div>
+          </div>
+          <div class="ctl">
+            <label>Softness</label>
+            <div class="range-wrap"><input id="maskFeather" type="range" min="0" max="0.5" step="0.005" value="0.08"><input id="maskFeatherNum" type="number" min="0" max="50" step="1" value="8"></div>
+          </div>
+          <label class="toggle"><input id="maskShow" type="checkbox" checked><span class="muted">Show the outline while editing</span></label>
+          <p class="panel-hint">This is a shape you place by hand, not automatic cut-out. A soft rounded shape over a person reads convincingly as text passes behind them. If the subject moves, add mask keys at a few times and the shape will follow.</p>
+        </div>
+
         <p class="panel-hint">Tip: the further back the camera goes, the more the footage has to be scaled to keep filling the frame — roughly the camera distance divided by 2.4. The camera templates set this up for you.</p>
       </div>
 
@@ -748,6 +798,14 @@ svg { width: 18px; height: 18px; display: block; }
           </div>
           <div class="tl-track" id="camTrack"></div>
         </div>
+        <div class="tl-mask hidden" id="tlMask">
+          <div class="tl-name" title="Subject mask keyframes — double-click the track to add one">
+            <svg viewBox="0 0 20 20"><ellipse cx="10" cy="10" rx="5" ry="7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            <span class="nm">Mask</span>
+            <button class="tl-eye" id="btnMaskKey2" title="Add mask keyframe at playhead">+</button>
+          </div>
+          <div class="tl-track" id="maskTrack"></div>
+        </div>
         <div class="tl-body" id="tlBody">
           <div class="tl-empty" id="tlEmpty">No words yet. Go to <b>2 · Text</b> and click <b>Add text</b>, or pick a template.</div>
         </div>
@@ -774,6 +832,15 @@ svg { width: 18px; height: 18px; display: block; }
           </div>
         </div>
         <div id="inspectorSections"></div>
+      </div>
+      <div class="inspector-body hidden" id="maskKeyBody">
+        <div class="inspector-head">
+          <span class="head-title">Mask keyframe</span>
+          <div class="head-actions">
+            <button class="btn icon ghost danger" id="btnDeleteMaskKey" title="Delete keyframe (Del)"><svg viewBox="0 0 20 20"><path d="M5 6h10M8 6V4h4v2M6.5 6l.7 9h5.6l.7-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div id="maskKeySections"></div>
       </div>
       <div class="inspector-body hidden" id="cameraKeyBody">
         <div class="inspector-head">
@@ -3588,6 +3655,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     uniform float uOpacity;
     uniform vec2 uBlur;      // blur radius in UV units (x, y)
     uniform vec4 uTint;      // solid colour override when uTint.a > 0
+    uniform vec4 uMaskBox;   // subject mask: centre.xy, half size.xy, in device pixels (y up)
+    uniform vec2 uMaskEdge;  // corner radius, feather (device pixels)
+    uniform float uMaskCut;  // 1 = erase this layer wherever the mask covers it
     void main() {
       vec4 c;
       if (uBlur.x <= 0.00001) {
@@ -3607,6 +3677,15 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         c /= total;
       }
       if (uTint.a > 0.0) { c = vec4(uTint.rgb * c.a, c.a) * uTint.a; }
+      if (uMaskCut > 0.5) {
+        // Rounded-box coverage: this layer sits behind the subject, so it is erased inside the mask.
+        vec2 pt = gl_FragCoord.xy - uMaskBox.xy;
+        vec2 ext = max(uMaskBox.zw - uMaskEdge.x, vec2(0.0));
+        vec2 q = abs(pt) - ext;
+        float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - uMaskEdge.x;
+        float cover = 1.0 - smoothstep(0.0, max(uMaskEdge.y, 0.75), d);
+        c *= 1.0 - cover;
+      }
       gl_FragColor = c * uOpacity;
     }`;
 
@@ -3658,6 +3737,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         uOpacity: gl.getUniformLocation(prog, 'uOpacity'),
         uBlur: gl.getUniformLocation(prog, 'uBlur'),
         uTint: gl.getUniformLocation(prog, 'uTint'),
+        uMaskBox: gl.getUniformLocation(prog, 'uMaskBox'),
+        uMaskEdge: gl.getUniformLocation(prog, 'uMaskEdge'),
+        uMaskCut: gl.getUniformLocation(prog, 'uMaskCut'),
       };
 
       const quad = new Float32Array([
@@ -3778,7 +3860,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       this.texCache.clear();
     }
 
-    _drawQuad(mvp, w, h, tex, opacity, blurUV, tint, mode) {
+    _drawQuad(mvp, w, h, tex, opacity, blurUV, tint, mode, mask) {
       const gl = this.gl, L = this.loc;
       gl.bindBuffer(gl.ARRAY_BUFFER, mode === 'loop' ? this.loopBuf : this.quadBuf);
       gl.enableVertexAttribArray(L.aPos);
@@ -3790,6 +3872,13 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       gl.uniform1f(L.uOpacity, opacity);
       gl.uniform2f(L.uBlur, blurUV ? blurUV[0] : 0, blurUV ? blurUV[1] : 0);
       gl.uniform4fv(L.uTint, tint || [0, 0, 0, 0]);
+      if (mask) {
+        gl.uniform4f(L.uMaskBox, mask.cx, mask.cy, mask.hw, mask.hh);
+        gl.uniform2f(L.uMaskEdge, mask.radius, mask.feather);
+        gl.uniform1f(L.uMaskCut, 1);
+      } else {
+        gl.uniform1f(L.uMaskCut, 0);
+      }
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(L.uTex, 0);
@@ -3834,10 +3923,34 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       // Video plane at z = 0. At 100 % it fills the frustum of the resting camera exactly. Normally it is
       // part of the 3D scene (so a dolly zooms it, like a scaled footage layer in After Effects); when
       // locked it is drawn from the resting camera and only the text moves.
+      const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
+      const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
       if (opts.video && opts.videoReady && this._uploadVideo(opts.video)) {
-        const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
-        const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
         this._drawQuad(planeMVP, 2 * this.aspect * media.scale, 2 * media.scale, this.videoTex, 1, null, null);
+      }
+
+      // Subject mask. It is pinned to the video plane (coordinates are fractions of the video's own
+      // half-width and half-height) and projected to device pixels, so it tracks the footage as the
+      // camera moves. Layers flagged `behindSubject` are erased inside it.
+      this.lastMask = null;
+      const mk = opts.mask;
+      if (mk && mk.enabled) {
+        const cx = mk.x * this.aspect * media.scale, cy = mk.y * media.scale;
+        const hwWorld = Math.max(0.01, mk.w) * this.aspect * media.scale;
+        const hhWorld = Math.max(0.01, mk.h) * media.scale;
+        const c0 = this._toScreen(planeMVP, cx, cy);
+        const cX = this._toScreen(planeMVP, cx + hwWorld, cy);
+        const cY = this._toScreen(planeMVP, cx, cy + hhWorld);
+        if (!c0.behind && !cX.behind && !cY.behind) {
+          const hw = Math.abs(cX.x - c0.x), hh = Math.abs(cY.y - c0.y);
+          const small = Math.min(hw, hh);
+          this.lastMask = {
+            cx: c0.x, cy: H - c0.y, hw, hh,
+            radius: Math.max(0, (mk.roundness == null ? 0.5 : mk.roundness)) * small,
+            feather: Math.max(0.75, (mk.feather == null ? 0.06 : mk.feather) * small),
+            world: { cx, cy, hw: hwWorld, hh: hhWorld, mvp: planeMVP },
+          };
+        }
       }
       const selected = new Set(opts.selectedIds || []);
       const aperture = cam.aperture || 0;
@@ -3922,7 +4035,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           }
 
           const tex = this._textureFor(g.canvas);
-          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null);
+          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null, null, layer.behindSubject ? this.lastMask : null);
           quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });
@@ -3933,6 +4046,13 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
           this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop');
         }
+      }
+
+      // Mask outline, so the shape can be placed while editing.
+      if (this.lastMask && opts.showMask) {
+        const m = this.lastMask.world;
+        const outline = M4.multiply(m.mvp, M4.translation(m.cx, m.cy, 0));
+        this._drawQuad(outline, m.hw * 2, m.hh * 2, this.whiteTex, 1, null, [0.35, 0.85, 1, 0.9], 'loop');
       }
     }
 
@@ -4153,7 +4273,28 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     },
   ];
 
-  global.Camera = { EASINGS, EASING_LABELS, FIELDS, defaultKey, evaluate, replaceRange, sorted, MOVES };
+  /* Interpolate an arbitrary set of numeric fields across a key list (used by the subject mask). */
+  function evaluateOn(keys, t, fields) {
+    const out = {};
+    if (!keys || !keys.length) return null;
+    const ks = sorted(keys);
+    const first = ks[0], last = ks[ks.length - 1];
+    if (t <= first.t) { for (const f of fields) out[f] = first[f]; return out; }
+    if (t >= last.t) { for (const f of fields) out[f] = last[f]; return out; }
+    for (let i = 0; i < ks.length - 1; i++) {
+      const A = ks[i], B = ks[i + 1];
+      if (t >= A.t && t <= B.t) {
+        const span = Math.max(0.0001, B.t - A.t);
+        const p = (EASINGS[B.easing] || EASINGS.easeInOut)(clamp01((t - A.t) / span));
+        for (const f of fields) out[f] = A[f] + (B[f] - A[f]) * p;
+        return out;
+      }
+    }
+    for (const f of fields) out[f] = last[f];
+    return out;
+  }
+
+  global.Camera = { EASINGS, EASING_LABELS, FIELDS, defaultKey, evaluate, evaluateOn, replaceRange, sorted, MOVES };
 })(window);
 
 </script>
@@ -4186,6 +4327,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       start: 0,
       end: 3,
       hidden: false,
+      behindSubject: false,   // erased where the subject mask covers it
       split: 'whole',
       style: {
         font: 'Inter', weight: 900, italic: false,
@@ -4386,8 +4528,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     {
       id: 'spiral',
       name: 'Spiral Reveal',
-      description: 'Words wind outward on a helix. The camera pulls back through them with a slow roll, so each one spins into place as it passes, then settles into a spiral.',
-      sample: 'this one spirals right out of the frame',
+      description: 'Words wrap around the centre in a vortex, each turned to follow the curve, winding outward and toward the lens. The camera pulls back through them with a slow roll.',
+      sample: 'how do you do that 3D text',
       tags: ['Camera', 'Spiral'],
       previewClass: 'tp-spiral',
       build(text, start, duration, aspect, cam) {
@@ -4396,26 +4538,45 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         const d = (cam && cam.camDist) || 2.414;
         const S = 1.6, camEnd = d * S, pull = Math.min(2.4, camEnd * 0.6), camStart = camEnd - pull;
         const n = ws.length;
+        // A vortex: the sentence winds out from a clear centre, small and deep at the eye of the
+        // spiral, larger and nearer the lens at the outside, every word turned along the curve.
+        // 100° per word: enough to open a real spiral, and never lands a later word back on top of
+        // an earlier one (the closest any two turns come is 40°).
+        const aStep = n <= 3 ? 62 : 100;
+        // Pull the ring most of the way back to a circle in pixels, so a tall frame does not squash
+        // the vortex into a narrow oval that makes neighbouring words collide.
+        const ex = 1 - 0.7 * (1 - Math.min(1, 1 / Math.max(aspect, 0.01)));
+        const ey = 1 - 0.7 * (1 - Math.min(1, aspect));
         const layers = [];
         ws.forEach((w, i) => {
-          const p = n > 1 ? 0.18 + (0.74 * i) / (n - 1) : 0.5;
-          const z = zForReveal(camStart, camEnd, p, SHARP);
-          const depthEnd = camEnd - z;                     // depth in the settled last frame
-          const a = (i * 155) * Math.PI / 180;
-          const R = n > 1 ? 0.26 + (0.46 * i) / (n - 1) : 0.35;
+          const f = n > 1 ? i / (n - 1) : 1;                 // 0 at the eye, 1 at the outside
+          const p = 0.14 + 0.64 * f;                         // all seven are in place before the end
+          // Later words are revealed further from the lens, so the big outer ones do not sweep in
+          // enormous and half out of frame — each lands close to the size it settles at.
+          const z = zForReveal(camStart, camEnd, p, SHARP + 0.9 * f);
+          const depthEnd = camEnd - z;                       // depth in the settled last frame
+          const deg = -105 + i * aStep;                      // starts low, winds anticlockwise
+          const a = (deg * Math.PI) / 180;
+          // The radius opens quickly at the eye so the inner words do not crowd each other.
+          const R = 0.32 + 0.42 * Math.pow(f, 0.65);         // fraction of the frame, spirals out
           const last = i === n - 1;
-          const pos = atScreen(Math.cos(a) * R, Math.sin(a) * R, depthEnd, d, aspect);
+          const pos = atScreen(Math.cos(a) * R * ex, Math.sin(a) * R * ey, depthEnd, d, aspect);
+          // Turn each word along the tangent of the curve — this is what makes the ring read as a
+          // spiral instead of a scatter, and words on the far side end up upside down.
+          let roll = deg + 90;
+          while (roll > 180) roll -= 360;
+          while (roll < -180) roll += 360;
           layers.push(L({
             name: w, text: w, start, end: start + duration,
-            style: Object.assign({ size: sizeAt(last ? 0.13 : 0.095, depthEnd, d), color: last ? HILITE : WHITE, letterSpacing: -0.02,
-              shadow: { blur: 0.12, x: 0, y: 0.04, color: '#000000', opacity: 0.55 } }, BOLD),
-            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: 0, rz: round3(Math.sin(a) * 7), scale: 1 },
+            style: Object.assign({ size: sizeAt(0.052 + 0.088 * f, depthEnd, d), color: last ? HILITE : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.16, x: 0, y: 0.02, color: '#000000', opacity: 0.5 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: 0, rz: round3(roll), scale: 1 },
             anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
           }));
         });
         const cameraKeys = [
-          Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -10, easing: 'linear' }),
-          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 0, easing: 'linear' }),
+          Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -14, easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 4, easing: 'linear' }),
         ];
         return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 12 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
@@ -5650,12 +5811,17 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: FADE_OFF, keys: [] });
   const FADE_OFF = 12;   // the top of the Fade far words range means "never fade"
   const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
+  const defaultMask = () => ({ enabled: false, roundness: 0.55, feather: 0.08, show: true, keys: [] });
+  const MASK_FIELDS = ['x', 'y', 'w', 'h'];
   const state = {
     layers: [],
     selectedIds: [],       // ordered; the first entry is the primary selection
-    selectedKeyId: null,   // selected camera keyframe (mutually exclusive with layer selection)
+    selectedKeyId: null,      // selected camera keyframe (exclusive with the other selections)
+    selectedMaskKeyId: null,  // selected subject-mask keyframe
     camera: defaultCamera(),
     media: defaultMedia(),
+    mask: defaultMask(),
+    maskEdit: false,      // dragging on the preview moves the mask instead of the text
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -5844,6 +6010,32 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     };
   }
 
+  /* ---- subject mask ---------------------------------------------------- */
+  const getMaskKey = (id) => state.mask.keys.find((k) => k.id === id);
+  const selectedMaskKey = () => getMaskKey(state.selectedMaskKeyId);
+  const MASK_DEFAULT = { x: 0, y: -0.15, w: 0.45, h: 0.85 };
+
+  /* The mask shape at time t, or null when there are no keys. */
+  function maskShapeAt(t) {
+    return Camera.evaluateOn(state.mask.keys, t, MASK_FIELDS);
+  }
+  function maskForRender(t) {
+    if (!state.mask.enabled) return null;
+    const shape = maskShapeAt(t) || MASK_DEFAULT;
+    return Object.assign({ enabled: true, roundness: state.mask.roundness, feather: state.mask.feather }, shape);
+  }
+  /* The mask key at the playhead, creating one from the current shape when there is none. */
+  function maskKeyAtPlayhead() {
+    const t = round(clock.time, 2);
+    let key = state.mask.keys.find((k) => Math.abs(k.t - t) <= 0.05);
+    if (!key) {
+      const shape = maskShapeAt(t) || MASK_DEFAULT;
+      key = Camera.defaultKey(t, Object.assign({}, shape));
+      state.mask.keys = Camera.sorted(state.mask.keys.concat([key]));
+    }
+    return key;
+  }
+
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
   const selectedKey = () => getKey(state.selectedKeyId);
 
@@ -5935,6 +6127,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       selectedIds: state.exporting ? [] : state.selectedIds,
       camera: cameraAt(time),
       media: mediaForRender(),
+      mask: maskForRender(time),
+      showMask: !state.exporting && state.mask.enabled && state.mask.show,
     });
   }
 
@@ -6002,7 +6196,11 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
 
   function deleteSelected() {
-    if (state.selectedKeyId) {
+    if (state.selectedMaskKeyId) {
+      state.mask.keys = state.mask.keys.filter((k) => k.id !== state.selectedMaskKeyId);
+      state.selectedMaskKeyId = null;
+      if (!state.mask.keys.length) { state.mask.enabled = false; syncMaskControls(); toast('Last mask key removed — the subject mask is off'); }
+    } else if (state.selectedKeyId) {
       state.camera.keys = state.camera.keys.filter((k) => k.id !== state.selectedKeyId);
       state.selectedKeyId = null;
     } else if (state.selectedIds.length) {
@@ -6045,6 +6243,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   /* Selection: select(id) replaces; select(id, {toggle:true}) adds/removes; select(null) clears. */
   function select(id, opts = {}) {
     state.selectedKeyId = null;
+    state.selectedMaskKeyId = null;
     if (opts.toggle && id) {
       if (isSelected(id)) state.selectedIds = state.selectedIds.filter((x) => x !== id);
       else state.selectedIds = state.selectedIds.concat([id]);
@@ -6061,13 +6260,23 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
   function selectKey(id) {
     state.selectedIds = [];
+    state.selectedMaskKeyId = null;
     state.selectedKeyId = id;
+    refreshInspector();
+    renderTimeline();
+    invalidate();
+  }
+  function selectMaskKey(id) {
+    state.selectedIds = [];
+    state.selectedKeyId = null;
+    state.selectedMaskKeyId = id;
     refreshInspector();
     renderTimeline();
     invalidate();
   }
   function selectAll() {
     state.selectedKeyId = null;
+    state.selectedMaskKeyId = null;
     state.selectedIds = state.layers.map((l) => l.id);
     refreshInspector();
     renderTimeline();
@@ -6075,7 +6284,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
 
   function snapshot() {
-    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId }, stripper);
+    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, mask: state.mask, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId, selectedMaskKeyId: state.selectedMaskKeyId }, stripper);
   }
   function commit() {
     const snap = snapshot();
@@ -6091,11 +6300,14 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     state.layers = data.layers;
     state.camera = Object.assign(defaultCamera(), data.camera || {});
     state.media = Object.assign(defaultMedia(), data.media || {});
+    state.mask = Object.assign(defaultMask(), data.mask || {});
     state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
     state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
+    state.selectedMaskKeyId = getMaskKey(data.selectedMaskKeyId) ? data.selectedMaskKeyId : null;
     state.lastCommitted = snap;
     syncCameraControls();
     syncMediaControls();
+    syncMaskControls();
     refreshAll();
   }
   function undo() {
@@ -6167,9 +6379,26 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     els.camTrack.innerHTML = html;
   }
 
+  function renderMaskTrack() {
+    $('#tlMask').classList.toggle('hidden', !state.mask.enabled);
+    if (!state.mask.enabled) return;
+    const T = duration();
+    const keys = Camera.sorted(state.mask.keys);
+    let html = '';
+    if (keys.length > 1) {
+      const a = (keys[0].t / T) * 100, b = (keys[keys.length - 1].t / T) * 100;
+      html += `<div class="tl-key-line" style="left:${a}%; width:${b - a}%"></div>`;
+    }
+    for (const k of keys) {
+      html += `<div class="tl-key${k.id === state.selectedMaskKeyId ? ' selected' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · ${Math.round(k.w * 100)}×${Math.round(k.h * 100)}"></div>`;
+    }
+    $('#maskTrack').innerHTML = html;
+  }
+
   function renderTimeline() {
     renderRuler();
     renderCameraTrack();
+    renderMaskTrack();
     const rows = state.layers.slice().reverse();
     els.tlEmpty.classList.toggle('hidden', rows.length > 0);
     $('#layerCount').textContent = rows.length ? `(${rows.length})` : '';
@@ -6279,6 +6508,51 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     };
     els.camTrack.addEventListener('pointerup', endKeyDrag);
     els.camTrack.addEventListener('pointercancel', endKeyDrag);
+
+    // Mask track
+    const maskTrack = $('#maskTrack');
+    maskTrack.addEventListener('pointerdown', (e) => {
+      const key = e.target.closest('.tl-key');
+      if (key) {
+        selectMaskKey(key.dataset.id);
+        const k = getMaskKey(key.dataset.id);
+        drag = { mode: 'maskKey', id: k.id, x0: e.clientX, t0: k.t, moved: false };
+        maskTrack.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      } else {
+        clock.time = timeFromEvent(e);
+        drag = { mode: 'scrub' };
+        maskTrack.setPointerCapture(e.pointerId);
+      }
+    });
+    maskTrack.addEventListener('dblclick', (e) => {
+      if (e.target.closest('.tl-key')) return;
+      clock.time = round(timeFromEvent(e), 2);
+      const k = maskKeyAtPlayhead();
+      commit();
+      selectMaskKey(k.id);
+      renderMaskTrack();
+      toast('Mask keyframe added — move the shape here and it will animate');
+    });
+    maskTrack.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
+      if (drag.mode !== 'maskKey') return;
+      const k = getMaskKey(drag.id);
+      if (!k) return;
+      const dt = (e.clientX - drag.x0) / pxPerSec();
+      if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
+      k.t = round(clamp(snap(drag.t0 + dt, snapTargets(new Set())), 0, duration()), 3);
+      renderMaskTrack();
+      refreshMaskKeyValues();
+      invalidate();
+    });
+    const endMaskDrag = () => {
+      if (drag && drag.mode === 'maskKey' && drag.moved) { state.mask.keys = Camera.sorted(state.mask.keys); commit(); }
+      drag = null;
+    };
+    maskTrack.addEventListener('pointerup', endMaskDrag);
+    maskTrack.addEventListener('pointercancel', endMaskDrag);
 
     // Layer rows
     els.tlBody.addEventListener('click', (e) => {
@@ -6402,6 +6676,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           { label: 'Face the camera', action: (l) => { l.transform.rx = 0; l.transform.ry = 0; l.transform.rz = 0; } },
           { label: 'Centre on screen', action: (l) => { l.transform.x = 0; l.transform.y = 0; } },
         ] },
+        { type: 'sub', label: 'Subject mask' },
+        { type: 'toggle', path: 'behindSubject', label: 'Behind subject', hint: 'Erase this word wherever the subject mask covers it, so it reads as passing behind the person. Turn the mask on in step 1.' },
       ],
     },
     {
@@ -6491,6 +6767,20 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     },
   ];
 
+  const MASK_KEY_SCHEMA = [
+    {
+      title: 'Mask keyframe',
+      fields: [
+        { type: 'number', path: 't', label: 'Time (s)', step: 0.05, min: 0, onChange: (k) => { k.t = clamp(k.t, 0, duration()); } },
+        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })) },
+        { type: 'range', path: 'x', label: 'Centre X', min: -1.2, max: 1.2, step: 0.005, scale: 100, unit: '' },
+        { type: 'range', path: 'y', label: 'Centre Y', min: -1.2, max: 1.2, step: 0.005, scale: 100, unit: '' },
+        { type: 'range', path: 'w', label: 'Width', min: 0.03, max: 1.3, step: 0.005, scale: 100, unit: '' },
+        { type: 'range', path: 'h', label: 'Height', min: 0.03, max: 1.3, step: 0.005, scale: 100, unit: '' },
+      ],
+    },
+  ];
+
   function weightOptions(l) {
     const f = TextRender.FONTS.find((x) => x.family === l.style.font);
     const ws = f ? f.weights : [400, 700];
@@ -6576,6 +6866,29 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       renderCameraTrack();
       invalidate();
       if (layoutVisible()) layoutView.draw();
+    },
+  };
+
+  const maskCtx = {
+    controls: [],
+    get: () => selectedMaskKey(),
+    apply(field, key, value, isFinal) {
+      setPath(key, field.path, value);
+      if (field.onChange) field.onChange(key);
+      if (field.path === 't') { state.mask.keys = Camera.sorted(state.mask.keys); }
+      renderMaskTrack();
+      syncMaskControls();
+      invalidate();
+      if (isFinal) { commit(); refreshMaskKeyValues(); }
+    },
+    buttonAction(action) {
+      const k = selectedMaskKey();
+      if (!k) return;
+      action(k);
+      commit();
+      refreshMaskKeyValues();
+      renderMaskTrack();
+      invalidate();
     },
   };
 
@@ -6758,12 +7071,20 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function refreshInspector() {
     const l = selected();
     const k = selectedKey();
-    els.inspectorEmpty.classList.toggle('hidden', !!(l || k));
+    const mk = selectedMaskKey();
+    els.inspectorEmpty.classList.toggle('hidden', !!(l || k || mk));
     els.inspectorBody.classList.toggle('hidden', !l);
     els.cameraKeyBody.classList.toggle('hidden', !k);
+    $('#maskKeyBody').classList.toggle('hidden', !mk);
     if (l) refreshInspectorValues();
     if (k) refreshKeyValues();
+    if (mk) refreshMaskKeyValues();
     updateLayoutHint();
+  }
+  function refreshMaskKeyValues() {
+    const k = selectedMaskKey();
+    if (!k) return;
+    for (const c of maskCtx.controls) c.update(k);
   }
   function refreshInspectorValues() {
     const l = selected();
@@ -6805,9 +7126,24 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       return { x: ((e.clientX - rect.left) / rect.width) * c.width, y: ((e.clientY - rect.top) / rect.height) * c.height };
     };
 
+    /* World units per screen pixel on the video plane, for dragging the mask. */
+    const planePixels = () => {
+      const cam = cameraAt(clock.time);
+      const depth = state.media.locked ? renderer.camDist : planeDepth(cam);
+      return renderer.worldPerPixelAtDepth(depth);
+    };
+
     c.addEventListener('pointerdown', (e) => {
       if (state.exporting) return;
       const p = toBuffer(e);
+      if (state.maskEdit && state.mask.enabled) {
+        const k = maskKeyAtPlayhead();
+        if (state.selectedMaskKeyId !== k.id) selectMaskKey(k.id);
+        drag = { mode: 'mask', key: k, x0: p.x, y0: p.y, kx: k.x, ky: k.y, wpp: planePixels(), moved: false };
+        c.setPointerCapture(e.pointerId);
+        c.classList.add('grabbing');
+        return;
+      }
       const id = renderer.hitTest(p.x, p.y);
       if (id) {
         if (e.shiftKey || e.ctrlKey || e.metaKey) { select(id, { toggle: true }); return; }
@@ -6827,7 +7163,18 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       if (state.exporting) return;
       const p = toBuffer(e);
       if (!drag) {
-        c.classList.toggle('hover', !!renderer.hitTest(p.x, p.y));
+        c.classList.toggle('hover', !state.maskEdit && !!renderer.hitTest(p.x, p.y));
+        return;
+      }
+      if (drag.mode === 'mask') {
+        drag.moved = true;
+        const dxu = ((p.x - drag.x0) * drag.wpp) / (renderer.aspect * state.media.scale);
+        const dyu = -((p.y - drag.y0) * drag.wpp) / state.media.scale;
+        drag.key.x = round(clamp(drag.kx + dxu, -1.2, 1.2), 4);
+        drag.key.y = round(clamp(drag.ky + dyu, -1.2, 1.2), 4);
+        syncMaskControls();
+        refreshMaskKeyValues();
+        invalidate();
         return;
       }
       const dx = p.x - drag.x0, dy = p.y - drag.y0;
@@ -6861,6 +7208,19 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
     let wheelTimer = 0;
     c.addEventListener('wheel', (e) => {
+      if (state.maskEdit && state.mask.enabled && !state.exporting) {
+        e.preventDefault();
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        const k = maskKeyAtPlayhead();
+        if (!e.shiftKey) k.w = round(clamp(k.w * factor, 0.03, 1.3), 4);
+        k.h = round(clamp(k.h * factor, 0.03, 1.3), 4);
+        syncMaskControls();
+        refreshMaskKeyValues();
+        invalidate();
+        clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(commit, 400);
+        return;
+      }
       const targets = selectedLayers();
       if (!targets.length || state.exporting) return;
       e.preventDefault();
@@ -7147,6 +7507,87 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     toast(`Camera set so the video fills the frame at ${fmtTime(k.t)}`);
   });
 
+  function syncMaskControls() {
+    const on = state.mask.enabled;
+    $('#maskEnabled').checked = on;
+    $('#maskFields').classList.toggle('hidden', !on);
+    $('#maskShow').checked = !!state.mask.show;
+    $('#maskRound').value = state.mask.roundness;
+    $('#maskRoundNum').value = Math.round(state.mask.roundness * 100);
+    $('#maskFeather').value = state.mask.feather;
+    $('#maskFeatherNum').value = Math.round(state.mask.feather * 100);
+    const shape = maskShapeAt(clock.time) || MASK_DEFAULT;
+    for (const [f, id] of [['x', 'maskX'], ['y', 'maskY'], ['w', 'maskW'], ['h', 'maskH']]) {
+      $(`#${id}`).value = shape[f];
+      const num = $(`#${id}Num`);
+      if (document.activeElement !== num) num.value = Math.round(shape[f] * 100);
+    }
+    $('#btnMaskAdjust').classList.toggle('on', !!state.maskEdit);
+    els.canvas.classList.toggle('mask-edit', !!state.maskEdit);
+    renderMaskTrack();
+  }
+  /* Shape sliders always write to the key at the playhead, so adjusting at a new time animates the mask
+   * the same way dragging the camera does. */
+  const bindMaskShape = (id, field) => {
+    const range = $(`#${id}`), num = $(`#${id}Num`);
+    const write = (v, final) => {
+      const k = maskKeyAtPlayhead();
+      k[field] = round(v, 4);
+      if (state.selectedMaskKeyId && state.selectedMaskKeyId !== k.id) state.selectedMaskKeyId = k.id;
+      syncMaskControls();
+      refreshMaskKeyValues();
+      invalidate();
+      if (final) commit();
+    };
+    range.addEventListener('input', (e) => write(Number(e.target.value), false));
+    range.addEventListener('change', (e) => write(Number(e.target.value), true));
+    num.addEventListener('change', (e) => {
+      const min = Number(range.min), max = Number(range.max);
+      write(clamp((Number(e.target.value) || 0) / 100, min, max), true);
+    });
+  };
+  bindMaskShape('maskX', 'x');
+  bindMaskShape('maskY', 'y');
+  bindMaskShape('maskW', 'w');
+  bindMaskShape('maskH', 'h');
+  const bindMaskGlobal = (id, key, scale) => {
+    const range = $(`#${id}`), num = $(`#${id}Num`);
+    range.addEventListener('input', (e) => { state.mask[key] = Number(e.target.value); num.value = Math.round(state.mask[key] * scale); invalidate(); });
+    range.addEventListener('change', commit);
+    num.addEventListener('change', (e) => { state.mask[key] = clamp((Number(e.target.value) || 0) / scale, Number(range.min), Number(range.max)); syncMaskControls(); commit(); invalidate(); });
+  };
+  bindMaskGlobal('maskRound', 'roundness', 100);
+  bindMaskGlobal('maskFeather', 'feather', 100);
+  $('#maskEnabled').addEventListener('change', (e) => {
+    state.mask.enabled = e.target.checked;
+    if (state.mask.enabled && !state.mask.keys.length) {
+      state.mask.keys = [Camera.defaultKey(round(clock.time, 2), Object.assign({}, MASK_DEFAULT))];
+      toast('Subject mask on — place it over the person, then mark words “Behind subject”');
+    }
+    if (!state.mask.enabled) state.maskEdit = false;
+    syncMaskControls();
+    commit();
+    refreshAll();
+  });
+  $('#maskShow').addEventListener('change', (e) => { state.mask.show = e.target.checked; commit(); invalidate(); });
+  $('#btnMaskAdjust').addEventListener('click', () => {
+    if (!state.mask.enabled) { toast('Turn the subject mask on first', true); return; }
+    state.maskEdit = !state.maskEdit;
+    syncMaskControls();
+    toast(state.maskEdit ? 'Drag on the preview to move the mask, wheel to resize' : 'Back to editing text');
+  });
+  const addMaskKey = () => {
+    if (!state.mask.enabled) { toast('Turn the subject mask on first', true); return; }
+    const k = maskKeyAtPlayhead();
+    commit();
+    selectMaskKey(k.id);
+    renderMaskTrack();
+    toast(`Mask keyframe at ${fmtTime(k.t)}`);
+  };
+  $('#btnMaskKey').addEventListener('click', addMaskKey);
+  $('#btnMaskKey2').addEventListener('click', addMaskKey);
+  $('#btnDeleteMaskKey').addEventListener('click', deleteSelected);
+
   function syncMediaControls() {
     $('#bgColor').value = state.media.bg;
     $('#bgHex').value = state.media.bg;
@@ -7330,6 +7771,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       videoName: state.video.file ? state.video.file.name : null,
       camera: state.camera,
       media: state.media,
+      mask: state.mask,
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
@@ -7346,15 +7788,18 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       if (state.camera.farFade >= 8 && state.camera.farFade < FADE_OFF) state.camera.farFade = FADE_OFF; // 8 used to mean "off"
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       state.media = Object.assign(defaultMedia(), data.media || {});
+      state.mask = Object.assign(defaultMask(), data.mask || {});
+      state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
       if (data.aspect) state.aspect = data.aspect;
       if (data.duration) state.duration = data.duration;
       if (data.fov) state.fov = data.fov;
-      state.selectedIds = []; state.selectedKeyId = null;
+      state.selectedIds = []; state.selectedKeyId = null; state.selectedMaskKeyId = null;
       state.undo = []; state.redo = []; state.lastCommitted = null;
       commit();
       syncCameraControls();
       syncMediaControls();
+      syncMaskControls();
       fitPreview();
       refreshAll();
       toast(`Opened project${data.videoName ? ` — re-import "${data.videoName}" to see the video` : ''}`);
@@ -7542,6 +7987,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
         layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
+        mask: maskForRender(t), showMask: false,
       });
     };
 
@@ -7626,13 +8072,14 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     switch (e.key) {
       case ' ': e.preventDefault(); clock.toggle(); break;
       case 'Escape': select(null); break;
-      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId) { e.preventDefault(); deleteSelected(); } break;
+      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId || state.selectedMaskKeyId) { e.preventDefault(); deleteSelected(); } break;
       case 'Home': clock.pause(); clock.time = 0; break;
       case 'End': clock.pause(); clock.time = duration(); break;
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
       case 'k': case 'K': addKeyHere(); break;
+      case 'm': case 'M': if (state.mask.enabled) { state.maskEdit = !state.maskEdit; syncMaskControls(); } break;
       case 'l': case 'L': setView(state.view === 'preview' ? 'split' : state.view === 'split' ? 'layout' : 'preview'); break;
       case 'ArrowLeft': case 'ArrowRight': case 'ArrowUp': case 'ArrowDown': {
         if (!targets.length) {
@@ -7676,6 +8123,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     buildMoveGrid();
     buildSections(LAYER_SCHEMA, els.sections, layerCtx);
     buildSections(KEY_SCHEMA, els.keySections, keyCtx);
+    buildSections(MASK_KEY_SCHEMA, $('#maskKeySections'), maskCtx);
     new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
@@ -7692,6 +8140,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     updateUndoButtons();
     syncCameraControls();
     syncMediaControls();
+    syncMaskControls();
     refreshAll();
     updatePlayButton();
     setView('split');
@@ -7700,7 +8149,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender };
 })();
 
 </script>
