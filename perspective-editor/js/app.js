@@ -9,7 +9,7 @@
   const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 
   /* ------------------------------------------------------------------ state */
-  const defaultCamera = () => ({ aperture: 0.25, focusMode: 'video', farFade: 8, keys: [] });
+  const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 8, keys: [] });
   const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
   const state = {
     layers: [],
@@ -194,30 +194,15 @@
     const d = renderer.camDist;
     const k = Camera.evaluate(state.camera.keys, t);
     const far = state.camera.farFade == null ? 8 : state.camera.farFade;
-    const cam = {
+    const sharpNear = state.camera.sharpNear == null ? 0.9 : state.camera.sharpNear;
+    const sharpFar = state.camera.sharpFar == null ? 3.6 : state.camera.sharpFar;
+    return {
       x: k.x, y: k.y, z: d - k.dolly, yaw: k.yaw, pitch: k.pitch, roll: k.roll,
-      aperture: state.camera.aperture, focus: d,
+      aperture: state.camera.aperture,
+      // The sharp band travels with the camera: crisp between these distances from the lens.
+      sharpNear, sharpFar: Math.max(sharpFar, sharpNear + 0.2),
       fade: { near: 0.28, farStart: far, farEnd: far >= 8 ? 0 : far * 1.35 },
     };
-    const mode = state.camera.focusMode || 'video';
-    if (mode === 'newest') cam.focus = autoFocusNewest(cam, t);
-    else if (mode === 'nearest') cam.focus = autoFocusNearest(cam, t);
-    else if (mode === 'manual') cam.focus = k.focus != null ? k.focus : planeDepth(cam);
-    else cam.focus = planeDepth(cam);
-    return cam;
-  }
-  function autoFocusNewest(cam, t) {
-    const pd = planeDepth(cam);
-    const vis = state.layers.filter((l) => !l.hidden && t >= l.start && t < l.end).sort((a, b) => b.start - a.start);
-    if (!vis.length) return pd;
-    const d0 = Math.max(0.1, layerDepth(cam, vis[0]));
-    const d1 = vis[1] ? Math.max(0.1, layerDepth(cam, vis[1])) : pd;
-    const k = easeInOut(clamp((t - vis[0].start) / 0.45, 0, 1));
-    return d1 + (d0 - d1) * k;
-  }
-  function autoFocusNearest(cam, t) {
-    const depths = state.layers.filter((l) => !l.hidden && t >= l.start && t < l.end).map((l) => layerDepth(cam, l)).filter((d) => d > 0.12);
-    return depths.length ? Math.min(...depths) : planeDepth(cam);
   }
 
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
@@ -864,13 +849,6 @@
         ] },
       ],
     },
-    {
-      title: 'Focus',
-      collapsed: true,
-      fields: [
-        { type: 'range', path: 'focus', label: 'Distance', min: 0.2, max: 6, step: 0.01, scale: 1, unit: '', hint: 'Only used when "Focus on" is set to Manual in the Camera tab' },
-      ],
-    },
   ];
 
   function weightOptions(l) {
@@ -1374,6 +1352,12 @@
   /* ------------------------------------------------------------------ templates, styles, moves */
   const TEMPLATE_PREVIEWS = {
     reveal: '<span>and</span><span>done</span><span>right?</span>',
+    spiral: '<span>this</span><span>one</span><span>spirals</span><span>out</span>',
+    tunnel: '<span>straight</span><span>through</span><span>it</span><span>all</span>',
+    corridor: '<span>walk</span><span>past</span><span>every</span><span>word</span>',
+    orbit: '<span>look</span><span>around</span><span>the</span><span>idea</span>',
+    steps: '<span>one</span><span>step</span><span>at</span><span>a time</span>',
+    punch: '<span>punchy</span><span>lines</span>',
     kinetic: "<span>here's</span><span>how you</span><span>can do</span><span>this</span>",
     stack: '<span>MAKE</span><span>IT</span><span>BOLD</span>',
     flyTitle: '<span>NEW SEASON</span><span>Available now</span>',
@@ -1468,7 +1452,10 @@
   function syncCameraControls() {
     $('#camAperture').value = state.camera.aperture;
     $('#camApertureNum').value = Math.round(state.camera.aperture * 100);
-    $('#camFocusMode').value = state.camera.focusMode || 'video';
+    const sn = state.camera.sharpNear == null ? 0.9 : state.camera.sharpNear;
+    const sf = state.camera.sharpFar == null ? 3.6 : state.camera.sharpFar;
+    $('#camSharpNear').value = sn; $('#camSharpNearNum').value = round(sn, 2);
+    $('#camSharpFar').value = sf; $('#camSharpFarNum').value = round(sf, 2);
     const far = state.camera.farFade == null ? 8 : state.camera.farFade;
     $('#camFarFade').value = far;
     $('#camFarFadeNum').value = far >= 8 ? 'off' : round(far, 1);
@@ -1477,7 +1464,26 @@
   $('#camAperture').addEventListener('input', (e) => { state.camera.aperture = Number(e.target.value); $('#camApertureNum').value = Math.round(state.camera.aperture * 100); invalidate(); });
   $('#camAperture').addEventListener('change', commit);
   $('#camApertureNum').addEventListener('change', (e) => { state.camera.aperture = clamp(Number(e.target.value) / 100, 0, 1); syncCameraControls(); commit(); invalidate(); });
-  $('#camFocusMode').addEventListener('change', (e) => { state.camera.focusMode = e.target.value; commit(); invalidate(); if (layoutVisible()) layoutView.draw(); });
+  const bindSharp = (rangeId, numId, key) => {
+    $(rangeId).addEventListener('input', (e) => {
+      state.camera[key] = Number(e.target.value);
+      if (state.camera.sharpFar < state.camera.sharpNear + 0.2) {
+        if (key === 'sharpNear') state.camera.sharpFar = round(state.camera.sharpNear + 0.2, 2);
+        else state.camera.sharpNear = round(Math.max(0.2, state.camera.sharpFar - 0.2), 2);
+      }
+      syncCameraControls();
+      invalidate();
+      if (layoutVisible()) layoutView.draw();
+    });
+    $(rangeId).addEventListener('change', commit);
+    $(numId).addEventListener('change', (e) => {
+      const min = Number($(rangeId).min), max = Number($(rangeId).max);
+      state.camera[key] = clamp(Number(e.target.value) || min, min, max);
+      syncCameraControls(); commit(); invalidate();
+    });
+  };
+  bindSharp('#camSharpNear', '#camSharpNearNum', 'sharpNear');
+  bindSharp('#camSharpFar', '#camSharpFarNum', 'sharpFar');
   $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= 8 ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#camFarFade').addEventListener('change', commit);
   $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, 8) : 8; syncCameraControls(); commit(); invalidate(); });
@@ -1573,12 +1579,17 @@
     const ids = [];
     for (const l of layers) ids.push(addLayer(l, { select: false }).id);
     if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
+    const replaced = $('#tplReplace').checked;
     if (!Array.isArray(built)) {
       if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
       if (built.mediaSettings) Object.assign(state.media, built.mediaSettings);
-      syncCameraControls();
-      syncMediaControls();
+      // A flat template composes for the resting camera, so starting fresh returns the footage to 100 %.
+      else if (replaced) Object.assign(state.media, { scale: 1, x: 0, y: 0 });
+    } else if (replaced) {
+      Object.assign(state.media, { scale: 1, x: 0, y: 0 });
     }
+    syncCameraControls();
+    syncMediaControls();
     state.selectedIds = [];
     state.selectedKeyId = null;
     commit();
@@ -1691,7 +1702,7 @@
       if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
       state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
       state.camera = Object.assign(defaultCamera(), data.camera || {});
-      if (data.camera && data.camera.autoFocus != null && !data.camera.focusMode) state.camera.focusMode = data.camera.autoFocus ? 'newest' : 'video';
+      if (data.camera && data.camera.sharpNear == null) { state.camera.sharpNear = 0.9; state.camera.sharpFar = 3.6; }
       state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       state.media = Object.assign(defaultMedia(), data.media || {});
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop

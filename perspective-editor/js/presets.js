@@ -153,6 +153,28 @@
     return deepMerge(defaultLayer(), patch);
   }
 
+  /* Depth-placement helpers ------------------------------------------------
+   * Words in these templates are static objects in 3D; the camera reveals them. Two facts drive the
+   * geometry: at `depth` units from the lens the visible half-height is depth / camDist, and a layer
+   * whose `size` is s appears (s * camDist / depth) of the frame height. So to compose a shot we say
+   * where a word should sit ON SCREEN (u, v in half-frame units, ±1 = frame edge) and how big it
+   * should look AT a chosen depth, and convert. */
+  const SHARP = 1.6;               // middle of the default sharp band: where a word reads crisply
+  const HILITE = '#FFD65C';
+  function round3(v) { return Math.round(v * 1000) / 1000; }
+  function atScreen(u, v, depth, camDist, aspect) {
+    const halfH = depth / camDist;
+    return { x: round3(u * halfH * aspect), y: round3(v * halfH) };
+  }
+  function sizeAt(base, depth, camDist) {
+    return round3(base * (depth / camDist));
+  }
+  /* Depth of a word that the camera (travelling from camA to camB over the shot) passes at progress p,
+   * arriving `gap` units in front of the lens at that moment. */
+  function zForReveal(camA, camB, p, gap) {
+    return round3(camA + (camB - camA) * p - gap);
+  }
+
   /* ---- Templates -------------------------------------------------------- */
   const TEMPLATES = [
     {
@@ -198,7 +220,230 @@
           Camera.defaultKey(start + duration * 0.85, { dolly: d - camEnd, easing: 'easeOut' }),
           Camera.defaultKey(start + duration, { dolly: d - camEnd, easing: 'linear' }),
         ];
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.35, focusMode: 'video', farFade: 8 }, mediaSettings: { scale: S, locked: false } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+      },
+    },
+    {
+      id: 'spiral',
+      name: 'Spiral Reveal',
+      description: 'Words wind outward on a helix. The camera pulls back through them with a slow roll, so each one spins into place as it passes, then settles into a spiral.',
+      sample: 'this one spirals right out of the frame',
+      tags: ['Camera', 'Spiral'],
+      previewClass: 'tp-spiral',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const S = 1.6, camEnd = d * S, pull = Math.min(2.4, camEnd * 0.6), camStart = camEnd - pull;
+        const n = ws.length;
+        const layers = [];
+        ws.forEach((w, i) => {
+          const p = n > 1 ? 0.18 + (0.74 * i) / (n - 1) : 0.5;
+          const z = zForReveal(camStart, camEnd, p, SHARP);
+          const depthEnd = camEnd - z;                     // depth in the settled last frame
+          const a = (i * 155) * Math.PI / 180;
+          const R = n > 1 ? 0.26 + (0.46 * i) / (n - 1) : 0.35;
+          const last = i === n - 1;
+          const pos = atScreen(Math.cos(a) * R, Math.sin(a) * R, depthEnd, d, aspect);
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: sizeAt(last ? 0.13 : 0.095, depthEnd, d), color: last ? HILITE : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.12, x: 0, y: 0.04, color: '#000000', opacity: 0.55 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: 0, rz: round3(Math.sin(a) * 7), scale: 1 },
+            anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
+          }));
+        });
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: round3(d - camStart), roll: -10, easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), roll: 0, easing: 'linear' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+      },
+    },
+    {
+      id: 'tunnel',
+      name: 'Tunnel Fly-through',
+      description: 'Words ring the centre at rising depths and the camera flies forward down the middle, each word sweeping out past the edge of the frame.',
+      sample: 'straight through the middle of it all',
+      tags: ['Camera', 'Fly-through'],
+      previewClass: 'tp-tunnel',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const camStart = d + 2.2, camEnd = 1.75;           // pushes forward, stopping short of the video
+        const n = ws.length;
+        const layers = [];
+        ws.forEach((w, i) => {
+          const p = n > 1 ? 0.12 + (0.78 * i) / (n - 1) : 0.5;
+          const z = zForReveal(camStart, camEnd, p, SHARP);
+          const a = (i * 104) * Math.PI / 180;
+          const R = 0.5 + (i % 2) * 0.14;
+          const pos = atScreen(Math.cos(a) * R, Math.sin(a) * R, SHARP, d, aspect);
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: sizeAt(0.1, SHARP, d), color: i % 3 === 2 ? HILITE : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.12, x: 0, y: 0.04, color: '#000000', opacity: 0.55 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: round3(-Math.cos(a) * 12), rz: 0, scale: 1 },
+            anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
+          }));
+        });
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: round3(d - camStart), easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), easing: 'linear' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.7, sharpNear: 1, sharpFar: 3.2, farFade: 5.5 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
+      },
+    },
+    {
+      id: 'corridor',
+      name: 'Corridor Signs',
+      description: 'Words hang left and right like signs along a street, angled toward the lens, while the camera tracks steadily forward past them.',
+      sample: 'walk past every single word',
+      tags: ['Camera', 'Left / right'],
+      previewClass: 'tp-corridor',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const camStart = d + 1.9, camEnd = 1.8;
+        const n = ws.length;
+        const layers = [];
+        ws.forEach((w, i) => {
+          const p = n > 1 ? 0.12 + (0.78 * i) / (n - 1) : 0.5;
+          const z = zForReveal(camStart, camEnd, p, SHARP);
+          const left = i % 2 === 0;
+          const pos = atScreen(left ? -0.6 : 0.6, round3(0.12 + rand(i, 61) * 0.3), SHARP, d, aspect);
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: sizeAt(0.105, SHARP, d), color: WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.14, x: left ? 0.03 : -0.03, y: 0.04, color: '#000000', opacity: 0.6 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: round3(left ? 32 : -32), rz: 0, scale: 1 },
+            anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
+          }));
+        });
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: round3(d - camStart), easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), easing: 'linear' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.65, sharpNear: 1, sharpFar: 3, farFade: 5 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
+      },
+    },
+    {
+      id: 'orbit',
+      name: 'Orbit Cloud',
+      description: 'Words float in a loose cloud at mixed depths while the camera arcs around them, so they slide past each other with real parallax.',
+      sample: 'look around the whole idea',
+      tags: ['Camera', 'Orbit'],
+      previewClass: 'tp-orbit',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const pivot = 1.0;                 // depth of the cloud centre in front of the video
+        const radius = 2.0;                // camera distance from the cloud centre
+        const layers = [];
+        ws.forEach((w, i) => {
+          const z = round3(pivot + rand(i, 71) * 0.45);
+          const depth = radius - (z - pivot);
+          const big = i % 4 === 3;
+          const pos = atScreen(round3(rand(i, 72) * 0.55), round3(rand(i, 73) * 0.45), depth, d, aspect);
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: sizeAt(big ? 0.125 : 0.095, depth, d), color: big ? HILITE : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.12, x: 0, y: 0.04, color: '#000000', opacity: 0.55 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: round3(rand(i, 74) * 12), rz: round3(rand(i, 75) * 4), scale: 1 },
+            anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
+          }));
+        });
+        const cameraKeys = [];
+        const steps = 6, sweep = 40;
+        for (let i = 0; i < steps; i++) {
+          const q = i / (steps - 1);
+          const a = -sweep / 2 + sweep * q;
+          const rad = (a * Math.PI) / 180;
+          cameraKeys.push(Camera.defaultKey(start + duration * q, {
+            x: round3(Math.sin(rad) * radius),
+            dolly: round3(d - (pivot + Math.cos(rad) * radius)),
+            yaw: round3(a),
+            easing: i === 0 ? 'linear' : i === 1 ? 'easeOut' : i === steps - 1 ? 'easeIn' : 'linear',
+          }));
+        }
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 1.1, sharpFar: 3.4, farFade: 8 }, mediaSettings: { scale: 1, x: 0, y: 0, locked: true } };
+      },
+    },
+    {
+      id: 'steps',
+      name: 'Rising Steps',
+      description: 'Words climb like a staircase into the distance while the camera cranes up and pulls back, revealing one step at a time.',
+      sample: 'one step at a time',
+      tags: ['Camera', 'Staircase'],
+      previewClass: 'tp-steps',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const S = 1.5, camEnd = d * S, pull = Math.min(2.2, camEnd * 0.56), camStart = camEnd - pull;
+        const n = ws.length;
+        const layers = [];
+        ws.forEach((w, i) => {
+          const p = n > 1 ? 0.18 + (0.74 * i) / (n - 1) : 0.5;
+          const z = zForReveal(camStart, camEnd, p, SHARP);
+          const depthEnd = camEnd - z;
+          const q = n > 1 ? i / (n - 1) : 0.5;
+          const pos = atScreen(round3(-0.5 + q), round3(-0.45 + q * 0.9), depthEnd, d, aspect);
+          layers.push(L({
+            name: w, text: w, start, end: start + duration,
+            style: Object.assign({ size: sizeAt(0.1, depthEnd, d), color: i === n - 1 ? HILITE : WHITE, letterSpacing: -0.02,
+              shadow: { blur: 0.12, x: 0.02, y: 0.05, color: '#000000', opacity: 0.6 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: -13, rz: 0, scale: 1 },
+            anim: { in: { type: 'none' }, out: { type: 'none' }, loop: { type: 'none', speed: 1 } },
+          }));
+        });
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: round3(d - camStart), y: -0.16, pitch: 4, easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), y: 0.2, pitch: -5, easing: 'linear' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, sharpNear: 0.9, sharpFar: 4.2, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
+      },
+    },
+    {
+      id: 'punch',
+      name: 'Centre Punch',
+      description: 'One word at a time, dead centre, each sitting deeper than the last while the camera keeps pulling back — a punchy read that still has depth.',
+      sample: 'quick sharp punchy lines',
+      tags: ['Camera', 'One at a time'],
+      previewClass: 'tp-punch',
+      build(text, start, duration, aspect, cam) {
+        const ws = words(text);
+        if (!ws.length) return [];
+        const d = (cam && cam.camDist) || 2.414;
+        const S = 1.7, camEnd = d * S, pull = Math.min(2.6, camEnd * 0.6), camStart = camEnd - pull;
+        const n = ws.length;
+        const each = duration / n;
+        const layers = [];
+        ws.forEach((w, i) => {
+          const p = (i + 0.5) / n;
+          const z = zForReveal(camStart, camEnd, p, SHARP);
+          const pos = atScreen(round3(rand(i, 81) * 0.08), round3(rand(i, 82) * 0.1), SHARP, d, aspect);
+          layers.push(L({
+            name: w, text: w,
+            start: round3(start + i * each), end: round3(start + (i + 1) * each + Math.min(0.1, each * 0.15)),
+            style: Object.assign({ size: sizeAt(i % 2 ? 0.11 : 0.145, SHARP, d), color: i % 2 ? WHITE : HILITE, letterSpacing: -0.03,
+              shadow: { blur: 0.14, x: 0, y: 0.05, color: '#000000', opacity: 0.6 } }, BOLD),
+            transform: { x: pos.x, y: pos.y, z, rx: 0, ry: 0, rz: 0, scale: 1 },
+            anim: {
+              in: { type: 'focus', duration: Math.min(0.25, each * 0.3), easing: 'easeOut', stagger: 0 },
+              out: { type: 'fade', duration: Math.min(0.18, each * 0.22), easing: 'easeIn', stagger: 0 },
+              loop: { type: 'none', speed: 1 },
+            },
+          }));
+        });
+        const cameraKeys = [
+          Camera.defaultKey(start, { dolly: round3(d - camStart), easing: 'linear' }),
+          Camera.defaultKey(start + duration, { dolly: round3(d - camEnd), easing: 'linear' }),
+        ];
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.55, sharpNear: 0.9, sharpFar: 3.4, farFade: 8 }, mediaSettings: { scale: S, x: 0, y: 0, locked: false } };
       },
     },
     {
@@ -262,7 +507,7 @@
           cameraKeys.push(Camera.defaultKey(t + cdur - 0.02, { x: -0.03 * sign, dolly: camDist + 0.35, yaw: 2.5 * sign, easing: 'easeIn' }));
           t += cdur;
         });
-        return { layers, cameraKeys, cameraSettings: { aperture: 0.6, focusMode: 'newest', farFade: 8 }, mediaSettings: { locked: true } };
+        return { layers, cameraKeys, cameraSettings: { aperture: 0.7, sharpNear: 0.7, sharpFar: 2.6, farFade: 8 }, mediaSettings: { locked: true } };
       },
     },
     {

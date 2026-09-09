@@ -75,9 +75,19 @@ Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete
 The footage sits on a plane at depth 0 inside a 3D scene; the camera starts close to it (so the
 video looks zoomed in) and pulls back to where the scaled video exactly fills the frame. Words are
 static objects placed between those two camera positions at different depths. Each word starts
-behind the lens and is revealed as the camera passes it, growing smaller and settling into place;
-depth of field keeps whatever the lens is focused on sharp. Words far behind the lens can dissolve
-(*Fade far words*). The *Camera Reveal* template sets all of this up from a sentence.
+behind the lens and is revealed as the camera passes it, growing smaller and settling into place.
+Words far behind the lens can dissolve (*Fade far words*). The camera templates set all of this up
+from a sentence — each derives every word's depth from where the camera will be when that word
+should read.
+
+## Depth of field
+
+Focus is a **band that travels with the camera**, not a plane locked to one object. *Sharp from* and
+*Sharp to* set the two distances between which text is crisp; nearer or further than that it softens,
+with a smooth edge either side. So a word coming toward the lens is soft, snaps into focus once it is
+a sensible distance away, and softens again as it falls far behind. *Blur amount* scales how strong
+that softening is, and the band is drawn as a green zone in the 3D layout so you can see which words
+sit inside it.
 
 ## Animations
 
@@ -91,8 +101,21 @@ Entrances double as exits (played in reverse), so every combination works.
 
 ## Templates
 
-Kinetic Words (the reference look), Stacked Headline, Fly-in Title, Typewriter Caption, Word Swap,
-Floor Crawl, Wall Text, Lower Third, Scatter Assemble, Neon Sign, Bouncy Pop, Elegant Quote.
+**Camera templates** place static words in depth and let the camera move do the work:
+
+| Template | What it does |
+| --- | --- |
+| Camera Reveal | Zoomed into the footage, the camera pulls back and reveals a stack of words. |
+| Spiral Reveal | Words wind outward on a helix; the camera pulls back with a slow roll. |
+| Tunnel Fly-through | Words ring the centre; the camera flies forward down the middle. |
+| Corridor Signs | Words hang left and right like street signs; the camera tracks past them. |
+| Orbit Cloud | Words float in a cloud; the camera arcs around them for parallax. |
+| Rising Steps | Words climb into the distance; the camera cranes up while pulling back. |
+| Centre Punch | One word at a time, dead centre, each deeper than the last. |
+
+**Flat templates** compose for a still camera: Kinetic Words, Stacked Headline, Fly-in Title,
+Typewriter Caption, Word Swap, Floor Crawl, Wall Text, Lower Third, Scatter Assemble, Neon Sign,
+Bouncy Pop, Elegant Quote.
 
 ## How it works
 

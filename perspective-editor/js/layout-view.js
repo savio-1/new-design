@@ -208,60 +208,63 @@
       const c = this.ctx;
       const top = this.mode === 'top';
       const cam = s.cam;
+      // Half-angle of the frustum in the drawn plane, and the camera's forward / right axes there.
       const half = top ? Math.atan(Math.tan((s.fov * D2R) / 2) * s.aspect) : (s.fov * D2R) / 2;
-      const ang = top ? cam.yaw * D2R : -cam.pitch * D2R; // rotation of the view axis in the drawn plane
-      const len = Math.max(1, cam.z + 1.5);
-      // direction: view axis points toward -z. In top view: (x, z) = (sin(a), -cos(a)); side view: (z, y) = (-cos(a), sin(a))
-      const dir = (a) => top
-        ? { x: cam.x + Math.sin(a) * len, y: cam.y, z: cam.z - Math.cos(a) * len }
-        : { x: cam.x, y: cam.y + Math.sin(a) * len, z: cam.z - Math.cos(a) * len };
+      const ang = (top ? cam.yaw : cam.pitch) * D2R;
+      // The renderer's camera looks along (-sin(yaw), sin(pitch), -cos) — mirror that here.
+      const fwd = (dist, a) => top
+        ? { x: cam.x - Math.sin(a) * dist, y: cam.y, z: cam.z - Math.cos(a) * dist }
+        : { x: cam.x, y: cam.y + Math.sin(a) * dist, z: cam.z - Math.cos(a) * dist };
+      // Sideways step across the frame at a given distance (perpendicular to forward).
+      const across = (pt, w) => top
+        ? [{ x: pt.x - Math.cos(ang) * w, y: pt.y, z: pt.z + Math.sin(ang) * w }, { x: pt.x + Math.cos(ang) * w, y: pt.y, z: pt.z - Math.sin(ang) * w }]
+        : [{ x: pt.x, y: pt.y - Math.cos(ang) * w, z: pt.z - Math.sin(ang) * w }, { x: pt.x, y: pt.y + Math.cos(ang) * w, z: pt.z + Math.sin(ang) * w }];
+
+      // Frustum
+      const len = Math.max(1.2, cam.z + 1.5);
       const p0 = this.worldPt(cam.x, cam.y, cam.z);
-      const p1 = this.worldPt(...vals(dir(ang - half)));
-      const p2 = this.worldPt(...vals(dir(ang + half)));
+      const e1 = fwd(len, ang - half), e2 = fwd(len, ang + half);
+      const p1 = this.worldPt(e1.x, e1.y, e1.z), p2 = this.worldPt(e2.x, e2.y, e2.z);
       c.fillStyle = 'rgba(90,200,250,0.07)';
       c.beginPath(); c.moveTo(p0.px, p0.py); c.lineTo(p1.px, p1.py); c.lineTo(p2.px, p2.py); c.closePath(); c.fill();
       c.strokeStyle = 'rgba(90,200,250,0.5)';
       c.lineWidth = 1.2 * dpr;
       c.beginPath(); c.moveTo(p0.px, p0.py); c.lineTo(p1.px, p1.py); c.moveTo(p0.px, p0.py); c.lineTo(p2.px, p2.py); c.stroke();
 
-      // focus plane (perpendicular to the axis at focus distance)
-      if (cam.focus && cam.aperture > 0) {
-        const f = cam.focus;
-        const along = (d) => top ? { x: cam.x + Math.sin(ang) * d, y: cam.y, z: cam.z - Math.cos(ang) * d } : { x: cam.x, y: cam.y + Math.sin(ang) * d, z: cam.z - Math.cos(ang) * d };
-        const centre = along(f);
-        const hw = Math.tan(half) * f;
-        const perp = top
-          ? [{ x: centre.x - Math.cos(ang) * hw, y: 0, z: centre.z - Math.sin(ang) * hw }, { x: centre.x + Math.cos(ang) * hw, y: 0, z: centre.z + Math.sin(ang) * hw }]
-          : [{ x: 0, y: centre.y - Math.cos(ang) * hw, z: centre.z + Math.sin(ang) * hw }, { x: 0, y: centre.y + Math.cos(ang) * hw, z: centre.z - Math.sin(ang) * hw }];
-        const a = this.worldPt(perp[0].x, perp[0].y, perp[0].z), b = this.worldPt(perp[1].x, perp[1].y, perp[1].z);
-        c.strokeStyle = 'rgba(255,214,102,0.7)';
-        c.setLineDash([4 * dpr, 4 * dpr]);
-        c.lineWidth = 1.2 * dpr;
-        c.beginPath(); c.moveTo(a.px, a.py); c.lineTo(b.px, b.py); c.stroke();
+      // A line across the frustum at distance `dist` from the lens.
+      const band = (dist, colour, label, dash) => {
+        const centre = fwd(dist, ang);
+        const ends = across(centre, Math.tan(half) * dist);
+        const q = [this.worldPt(ends[0].x, ends[0].y, ends[0].z), this.worldPt(ends[1].x, ends[1].y, ends[1].z)];
+        c.strokeStyle = colour;
+        c.setLineDash(dash || [5 * dpr, 4 * dpr]);
+        c.lineWidth = 1.3 * dpr;
+        c.beginPath(); c.moveTo(q[0].px, q[0].py); c.lineTo(q[1].px, q[1].py); c.stroke();
         c.setLineDash([]);
-        c.fillStyle = 'rgba(255,214,102,0.8)';
-        c.font = `${10 * dpr}px Inter, sans-serif`;
-        c.textAlign = 'left';
-        c.fillText('focus', b.px + 5 * dpr, b.py);
+        if (label) {
+          c.fillStyle = colour;
+          c.font = `${10 * dpr}px Inter, sans-serif`;
+          c.textAlign = 'left';
+          c.fillText(label, q[1].px + 5 * dpr, q[1].py);
+        }
+        return q;
+      };
+
+      // Sharp band: the depth range in which text is in focus.
+      if (cam.aperture > 0 && cam.sharpNear != null) {
+        const nearQ = band(cam.sharpNear, 'rgba(120,230,160,0.85)', 'sharp from');
+        if (cam.sharpFar > cam.sharpNear && cam.sharpFar < 12) {
+          const farQ = band(cam.sharpFar, 'rgba(120,230,160,0.5)', 'sharp to');
+          c.fillStyle = 'rgba(120,230,160,0.07)';
+          c.beginPath();
+          c.moveTo(nearQ[0].px, nearQ[0].py); c.lineTo(nearQ[1].px, nearQ[1].py);
+          c.lineTo(farQ[1].px, farQ[1].py); c.lineTo(farQ[0].px, farQ[0].py);
+          c.closePath(); c.fill();
+        }
       }
 
-      // far fade start
-      if (cam.fade && cam.fade.farEnd > 0) {
-        const d = cam.fade.farStart;
-        const centre = top ? { x: cam.x + Math.sin(ang) * d, y: 0, z: cam.z - Math.cos(ang) * d } : { x: 0, y: cam.y + Math.sin(ang) * d, z: cam.z - Math.cos(ang) * d };
-        const hw = Math.tan(half) * d;
-        const perp = top
-          ? [{ x: centre.x - Math.cos(ang) * hw, y: 0, z: centre.z - Math.sin(ang) * hw }, { x: centre.x + Math.cos(ang) * hw, y: 0, z: centre.z + Math.sin(ang) * hw }]
-          : [{ x: 0, y: centre.y - Math.cos(ang) * hw, z: centre.z + Math.sin(ang) * hw }, { x: 0, y: centre.y + Math.cos(ang) * hw, z: centre.z - Math.sin(ang) * hw }];
-        const a = this.worldPt(perp[0].x, perp[0].y, perp[0].z), b = this.worldPt(perp[1].x, perp[1].y, perp[1].z);
-        c.strokeStyle = 'rgba(255,255,255,0.22)';
-        c.setLineDash([2 * dpr, 4 * dpr]);
-        c.beginPath(); c.moveTo(a.px, a.py); c.lineTo(b.px, b.py); c.stroke();
-        c.setLineDash([]);
-        c.fillStyle = 'rgba(255,255,255,0.35)';
-        c.font = `${10 * dpr}px Inter, sans-serif`;
-        c.fillText('fade', b.px + 5 * dpr, b.py);
-      }
+      // Where far words start to dissolve.
+      if (cam.fade && cam.fade.farEnd > 0) band(cam.fade.farStart, 'rgba(255,255,255,0.3)', 'fade', [2 * dpr, 4 * dpr]);
     }
 
     /* ---- interaction -------------------------------------------------------- */

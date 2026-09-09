@@ -274,7 +274,9 @@
       }
       const selected = new Set(opts.selectedIds || []);
       const aperture = cam.aperture || 0;
-      const focus = cam.focus || defaultCam.z;
+      // Sharp band: text is crisp between these distances from the lens and softens outside it.
+      const sharpNear = cam.sharpNear == null ? 0.9 : cam.sharpNear;
+      const sharpFar = cam.sharpFar == null ? 3.2 : cam.sharpFar;
       const fade = cam.fade || null; // { near, farStart, farEnd } in view depth
 
       this.lastQuads = [];
@@ -334,14 +336,18 @@
           }
           if (fadeMul <= 0.002) continue;
 
-          // Depth of field: circle of confusion grows with distance from the focal plane, faster
-          // for things close to the lens.
+          // Depth of field as a band: crisp between sharpNear and sharpFar, softening on both sides.
+          // A word entering close to the lens is soft, sharpens as it reaches the band, and softens
+          // again once it falls far behind.
           let blurWorld = st.blur * fw;
           if (aperture > 0) {
-            // Gentle circle of confusion: grows with distance from the focal plane, never beyond a
-            // quarter of the text height so words stay readable while out of focus.
-            const coc = (aperture * 0.08 * Math.abs(depth - focus)) / Math.max(1, depth);
-            blurWorld += Math.min(coc, 0.09 * fw * Math.max(1, st.sx));
+            let amount = 0;
+            if (depth < sharpNear) amount = Math.min(1, (sharpNear - depth) / Math.max(0.15, sharpNear * 0.85));
+            else if (sharpFar > 0 && depth > sharpFar) amount = Math.min(1, (depth - sharpFar) / Math.max(0.4, sharpFar * 0.9));
+            if (amount > 0) {
+              const soft = amount * amount * (3 - 2 * amount); // smoothstep so the band edges are gentle
+              blurWorld += aperture * 0.3 * soft * fw * Math.max(1, st.sx);
+            }
           }
           let blurUV = null;
           if (blurWorld > 0.0005) {
