@@ -719,7 +719,7 @@
   function animShade(l) {
     const dur = l.end - l.start;
     const n = (l._layout && l._layout.groups.length) || 1;
-    const inW = clamp(((l.anim.in.duration + l.anim.in.stagger * (n - 1)) / dur) * 100, 0, 100);
+    const inW = clamp(((l.anim.in.duration + Anim.staggerFor(l, dur, n) * (n - 1)) / dur) * 100, 0, 100);
     const outW = clamp(((l.anim.out.duration + l.anim.out.stagger * (n - 1)) / dur) * 100, 0, 100);
     return { inW: l.anim.in.type === 'none' ? 0 : inW, outW: l.anim.out.type === 'none' ? 0 : outW };
   }
@@ -1151,14 +1151,16 @@
       fields: [
         { type: 'segment', path: 'split', label: 'Animate by', options: [{ value: 'whole', label: 'Block' }, { value: 'word', label: 'Words' }, { value: 'char', label: 'Letters' }] },
         { type: 'buttons', buttons: [
-          { label: 'Words appear one by one', action: (l) => { l.split = 'word'; l.anim.in = { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
-          { label: 'Type it out', action: (l) => { l.split = 'char'; l.anim.in = { type: 'typewriter', duration: 0.05, easing: 'linear', stagger: 0.06 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
+          { label: 'Words appear one by one', action: (l) => { l.split = 'word'; l.anim.in = { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4, fit: true, hold: 0.5 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
+          { label: 'Type it out', action: (l) => { l.split = 'char'; l.anim.in = { type: 'typewriter', duration: 0.05, easing: 'linear', stagger: 0.06, fit: true, hold: 0.5 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
         ] },
         { type: 'sub', label: 'In' },
         { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
         { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
         { type: 'select', path: 'anim.in.easing', label: 'Easing', options: easingOptions },
-        { type: 'range', path: 'anim.in.stagger', label: 'Stagger', min: 0, max: 2, step: 0.01, scale: 1, unit: 's', hint: 'Delay between words/letters. Around 0.3–0.6 s per word paces a spoken line.' },
+        { type: 'toggle', path: 'anim.in.fit', label: 'Fit to layer length', hint: 'Spread the words (or letters) over the layer\'s whole time, so the last one has appeared before the layer ends however many there are. Make the layer longer or shorter on the timeline to set the pace.' },
+        { type: 'range', path: 'anim.in.hold', label: 'Hold at end', min: 0, max: 4, step: 0.05, scale: 1, unit: 's', hint: 'With Fit on: how long the complete text stays before the layer ends' },
+        { type: 'range', path: 'anim.in.stagger', label: 'Gap per word', min: 0, max: 2, step: 0.01, scale: 1, unit: 's', hint: 'With Fit off: fixed delay between words/letters. Around 0.3–0.6 s per word paces a spoken line — but words that would start after the layer ends are never shown.' },
         { type: 'sub', label: 'Out' },
         { type: 'select', path: 'anim.out.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'out') },
         { type: 'range', path: 'anim.out.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
@@ -2257,7 +2259,7 @@
       style: { font: 'Instrument Serif', weight: 400, italic: true, size: 0.07, shadow: { blur: 0.05, x: 0, y: 0.02, color: '#000000', opacity: 0.6 } },
       transform: { x: 0, y: 0, z: 0.02, rx: 0, ry: 0, rz: 0, scale: 1 },
       split: 'word',
-      anim: { in: { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4 }, out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
+      anim: { in: { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4, fit: true, hold: 0.6 }, out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
       track: { id: tr.id },
     });
     // sit just above the tracked point rather than on top of it
@@ -2887,5 +2889,5 @@
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate };
 })();

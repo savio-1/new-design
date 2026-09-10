@@ -39,7 +39,7 @@
       },
       transform: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 },
       anim: {
-        in: { type: 'focus', duration: 0.5, easing: 'easeOut', stagger: 0.06 },
+        in: { type: 'focus', duration: 0.5, easing: 'easeOut', stagger: 0.06, fit: false, hold: 0.5 },
         out: { type: 'focus', duration: 0.4, easing: 'easeIn', stagger: 0.03 },
         loop: { type: 'none', speed: 1 },
       },

@@ -3348,6 +3348,19 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
    * Compute the animation state of one glyph group at local time `t` (seconds since layer start).
    * layer.anim = { in: {type, duration, easing, stagger}, out: {type, duration, easing, stagger}, loop: {type, speed} }
    */
+  /* Delay between one group's entrance and the next. Normally the fixed `stagger`; with `fit` on, the
+   * groups are spread so the LAST one has finished appearing — and held for `hold` seconds — before the
+   * layer ends (or before its exit begins), so every word of a long line always gets shown. */
+  function staggerFor(layer, layerDuration, n) {
+    const a = layer.anim;
+    if (!a.in.fit || n <= 1) return a.in.stagger || 0;
+    const outDef = Animations[a.out.type] || Animations.none;
+    const inDur = Math.max(0.001, a.in.duration);
+    const outTotal = outDef === Animations.none ? 0 : Math.max(0.001, a.out.duration) + (a.out.stagger || 0) * (n - 1);
+    const avail = layerDuration - inDur - outTotal - (a.in.hold == null ? 0.5 : a.in.hold);
+    return Math.max(0, avail / (n - 1));
+  }
+
   function evaluate(layer, t, layerDuration, ctx) {
     const a = layer.anim;
     const inDef = Animations[a.in.type] || Animations.none;
@@ -3355,7 +3368,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const n = Math.max(1, ctx.count);
 
     // Entrance
-    const inStagger = a.in.stagger || 0;
+    const inStagger = staggerFor(layer, layerDuration, n);
     const inStart = ctx.index * inStagger;
     const inDur = Math.max(0.001, a.in.duration);
     let pIn = clamp01((t - inStart) / inDur);
@@ -3388,7 +3401,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     return state;
   }
 
-  global.Anim = { Easing, EASING_LABELS, Animations, Loops, evaluate, rest, hashRand, combine };
+  global.Anim = { Easing, EASING_LABELS, Animations, Loops, evaluate, staggerFor, rest, hashRand, combine };
 })(window);
 
 </script>
@@ -3421,7 +3434,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     { family: 'Permanent Marker', weights: [400], italic: false, category: 'Display' },
   ];
 
-  const MAX_TEX = 4096;
+  let MAX_TEX = 4096;   // raised to the GPU's real limit by the renderer
+  function setMaxTexture(n) { MAX_TEX = Math.max(2048, Math.min(16384, n | 0)); }
   const measureCanvas = document.createElement('canvas');
   const mctx = measureCanvas.getContext('2d');
 
@@ -3693,7 +3707,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     return Promise.all(jobs);
   }
 
-  global.TextRender = { FONTS, layout, clearCache, preloadFonts, fontString, hexToRgba };
+  global.TextRender = { FONTS, layout, clearCache, preloadFonts, fontString, hexToRgba, setMaxTexture };
 })(window);
 
 </script>
@@ -3771,6 +3785,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       this.gl = gl;
       this.fovDeg = 45;
       this.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      if (global.TextRender) TextRender.setMaxTexture(Math.min(this.maxTex, 8192));
       this.maxRB = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
       this.texCache = new Map(); // canvas -> { tex }
       this.TEX_LIMIT = 900;
@@ -4042,9 +4057,12 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         const viewBase = pinned && media.locked ? this.viewMatrix(this.defaultCamera()) : view;
         // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
         // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
+        // The magnification is the camera closing in AND the layer's own scale (a pinned word grows with
+        // the tracked object; the Scale slider goes to 400 %) — both must be rasterised for, or the
+        // texture is stretched and the edges go soft.
         const depthL = -M4.transformPoint(viewBase, tr.x, tr.y, tr.z).z;
-        const mag = Math.min(8, Math.max(1, this.camDist / Math.max(0.05, depthL)));
-        const bucket = Math.min(8, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
+        const mag = Math.min(12, Math.max(1, (this.camDist / Math.max(0.05, depthL)) * Math.max(1, tr.scale || 1)));
+        const bucket = Math.min(12, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
         const lay = this._layoutFor(layer, Math.round(frameH * bucket));
         const dur = layer.end - layer.start;
         const lt = t - layer.start;
@@ -4776,7 +4794,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       },
       transform: { x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1 },
       anim: {
-        in: { type: 'focus', duration: 0.5, easing: 'easeOut', stagger: 0.06 },
+        in: { type: 'focus', duration: 0.5, easing: 'easeOut', stagger: 0.06, fit: false, hold: 0.5 },
         out: { type: 'focus', duration: 0.4, easing: 'easeIn', stagger: 0.03 },
         loop: { type: 'none', speed: 1 },
       },
@@ -6955,7 +6973,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function animShade(l) {
     const dur = l.end - l.start;
     const n = (l._layout && l._layout.groups.length) || 1;
-    const inW = clamp(((l.anim.in.duration + l.anim.in.stagger * (n - 1)) / dur) * 100, 0, 100);
+    const inW = clamp(((l.anim.in.duration + Anim.staggerFor(l, dur, n) * (n - 1)) / dur) * 100, 0, 100);
     const outW = clamp(((l.anim.out.duration + l.anim.out.stagger * (n - 1)) / dur) * 100, 0, 100);
     return { inW: l.anim.in.type === 'none' ? 0 : inW, outW: l.anim.out.type === 'none' ? 0 : outW };
   }
@@ -7387,14 +7405,16 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       fields: [
         { type: 'segment', path: 'split', label: 'Animate by', options: [{ value: 'whole', label: 'Block' }, { value: 'word', label: 'Words' }, { value: 'char', label: 'Letters' }] },
         { type: 'buttons', buttons: [
-          { label: 'Words appear one by one', action: (l) => { l.split = 'word'; l.anim.in = { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
-          { label: 'Type it out', action: (l) => { l.split = 'char'; l.anim.in = { type: 'typewriter', duration: 0.05, easing: 'linear', stagger: 0.06 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
+          { label: 'Words appear one by one', action: (l) => { l.split = 'word'; l.anim.in = { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4, fit: true, hold: 0.5 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
+          { label: 'Type it out', action: (l) => { l.split = 'char'; l.anim.in = { type: 'typewriter', duration: 0.05, easing: 'linear', stagger: 0.06, fit: true, hold: 0.5 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
         ] },
         { type: 'sub', label: 'In' },
         { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
         { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
         { type: 'select', path: 'anim.in.easing', label: 'Easing', options: easingOptions },
-        { type: 'range', path: 'anim.in.stagger', label: 'Stagger', min: 0, max: 2, step: 0.01, scale: 1, unit: 's', hint: 'Delay between words/letters. Around 0.3–0.6 s per word paces a spoken line.' },
+        { type: 'toggle', path: 'anim.in.fit', label: 'Fit to layer length', hint: 'Spread the words (or letters) over the layer\'s whole time, so the last one has appeared before the layer ends however many there are. Make the layer longer or shorter on the timeline to set the pace.' },
+        { type: 'range', path: 'anim.in.hold', label: 'Hold at end', min: 0, max: 4, step: 0.05, scale: 1, unit: 's', hint: 'With Fit on: how long the complete text stays before the layer ends' },
+        { type: 'range', path: 'anim.in.stagger', label: 'Gap per word', min: 0, max: 2, step: 0.01, scale: 1, unit: 's', hint: 'With Fit off: fixed delay between words/letters. Around 0.3–0.6 s per word paces a spoken line — but words that would start after the layer ends are never shown.' },
         { type: 'sub', label: 'Out' },
         { type: 'select', path: 'anim.out.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'out') },
         { type: 'range', path: 'anim.out.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
@@ -8493,7 +8513,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       style: { font: 'Instrument Serif', weight: 400, italic: true, size: 0.07, shadow: { blur: 0.05, x: 0, y: 0.02, color: '#000000', opacity: 0.6 } },
       transform: { x: 0, y: 0, z: 0.02, rx: 0, ry: 0, rz: 0, scale: 1 },
       split: 'word',
-      anim: { in: { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4 }, out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
+      anim: { in: { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4, fit: true, hold: 0.6 }, out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
       track: { id: tr.id },
     });
     // sit just above the tracked point rather than on top of it
@@ -9123,7 +9143,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate };
 })();
 
 </script>

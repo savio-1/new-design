@@ -71,6 +71,7 @@
       this.gl = gl;
       this.fovDeg = 45;
       this.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+      if (global.TextRender) TextRender.setMaxTexture(Math.min(this.maxTex, 8192));
       this.maxRB = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
       this.texCache = new Map(); // canvas -> { tex }
       this.TEX_LIMIT = 900;
@@ -342,9 +343,12 @@
         const viewBase = pinned && media.locked ? this.viewMatrix(this.defaultCamera()) : view;
         // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
         // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
+        // The magnification is the camera closing in AND the layer's own scale (a pinned word grows with
+        // the tracked object; the Scale slider goes to 400 %) — both must be rasterised for, or the
+        // texture is stretched and the edges go soft.
         const depthL = -M4.transformPoint(viewBase, tr.x, tr.y, tr.z).z;
-        const mag = Math.min(8, Math.max(1, this.camDist / Math.max(0.05, depthL)));
-        const bucket = Math.min(8, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
+        const mag = Math.min(12, Math.max(1, (this.camDist / Math.max(0.05, depthL)) * Math.max(1, tr.scale || 1)));
+        const bucket = Math.min(12, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
         const lay = this._layoutFor(layer, Math.round(frameH * bucket));
         const dur = layer.end - layer.start;
         const lt = t - layer.start;

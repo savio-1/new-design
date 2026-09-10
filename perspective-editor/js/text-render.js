@@ -26,7 +26,8 @@
     { family: 'Permanent Marker', weights: [400], italic: false, category: 'Display' },
   ];
 
-  const MAX_TEX = 4096;
+  let MAX_TEX = 4096;   // raised to the GPU's real limit by the renderer
+  function setMaxTexture(n) { MAX_TEX = Math.max(2048, Math.min(16384, n | 0)); }
   const measureCanvas = document.createElement('canvas');
   const mctx = measureCanvas.getContext('2d');
 
@@ -298,5 +299,5 @@
     return Promise.all(jobs);
   }
 
-  global.TextRender = { FONTS, layout, clearCache, preloadFonts, fontString, hexToRgba };
+  global.TextRender = { FONTS, layout, clearCache, preloadFonts, fontString, hexToRgba, setMaxTexture };
 })(window);

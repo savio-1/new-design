@@ -154,9 +154,13 @@ translation and scale only — no rotation or perspective warp — which is what
 needs. It is not a planar tracker: text will not bend onto a surface seen at a steep angle.
 
 **Word-by-word captions.** In the Animation section, **Words appear one by one** sets the layer to
-animate by words with a fade and a 0.4 s stagger — raise the stagger to pace a spoken line — and
-**Type it out** does the same by letters. Both leave the exit off so the caption stays until the
-layer ends.
+animate by words with a fade, and **Type it out** does the same by letters; both leave the exit off so
+the caption stays until the layer ends. Pacing works one of two ways. With **Fit to layer length** on
+(the default for these presets and for pinned text) the words are spread over the layer's whole time
+so the last one has appeared — and stayed for *Hold at end* — before the layer ends, however many
+words there are: drag the layer longer or shorter on the timeline to set the speed. With it off,
+**Gap per word** is a fixed delay, which is precise but means words scheduled past the layer's end
+are simply never shown.
 
 ## Animations
 
@@ -190,7 +194,9 @@ Bouncy Pop, Elegant Quote.
 
 - `js/renderer.js` — WebGL compositor. The video is a plane at z = 0 filling a perspective camera's
   view; each text group is a textured quad with its own model matrix, so rotation and depth produce
-  true perspective. A fragment-shader disk blur drives the focus effect, and a rounded-box SDF —
+  true perspective. Text is rasterised for the magnification it will actually be seen at — camera
+  distance times the layer's own scale, in steps up to 12× — so words close to the lens or pinned to a
+  growing object stay crisp. A fragment-shader disk blur drives the focus effect, and a rounded-box SDF —
   projected from the video plane so it tracks the footage — erases the words marked as being behind
   the subject.
 - `js/text-render.js` — lays out text (block / words / letters), rasterises each group with

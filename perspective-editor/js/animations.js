@@ -306,6 +306,19 @@
    * Compute the animation state of one glyph group at local time `t` (seconds since layer start).
    * layer.anim = { in: {type, duration, easing, stagger}, out: {type, duration, easing, stagger}, loop: {type, speed} }
    */
+  /* Delay between one group's entrance and the next. Normally the fixed `stagger`; with `fit` on, the
+   * groups are spread so the LAST one has finished appearing — and held for `hold` seconds — before the
+   * layer ends (or before its exit begins), so every word of a long line always gets shown. */
+  function staggerFor(layer, layerDuration, n) {
+    const a = layer.anim;
+    if (!a.in.fit || n <= 1) return a.in.stagger || 0;
+    const outDef = Animations[a.out.type] || Animations.none;
+    const inDur = Math.max(0.001, a.in.duration);
+    const outTotal = outDef === Animations.none ? 0 : Math.max(0.001, a.out.duration) + (a.out.stagger || 0) * (n - 1);
+    const avail = layerDuration - inDur - outTotal - (a.in.hold == null ? 0.5 : a.in.hold);
+    return Math.max(0, avail / (n - 1));
+  }
+
   function evaluate(layer, t, layerDuration, ctx) {
     const a = layer.anim;
     const inDef = Animations[a.in.type] || Animations.none;
@@ -313,7 +326,7 @@
     const n = Math.max(1, ctx.count);
 
     // Entrance
-    const inStagger = a.in.stagger || 0;
+    const inStagger = staggerFor(layer, layerDuration, n);
     const inStart = ctx.index * inStagger;
     const inDur = Math.max(0.001, a.in.duration);
     let pIn = clamp01((t - inStart) / inDur);
@@ -346,5 +359,5 @@
     return state;
   }
 
-  global.Anim = { Easing, EASING_LABELS, Animations, Loops, evaluate, rest, hashRand, combine };
+  global.Anim = { Easing, EASING_LABELS, Animations, Loops, evaluate, staggerFor, rest, hashRand, combine };
 })(window);
