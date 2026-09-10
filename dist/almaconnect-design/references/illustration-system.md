@@ -157,14 +157,25 @@ squeezed. What that costs, measured on the AlmaConnect News card:
 - **Feed rows get `text-overflow: ellipsis`.** A wrapped second line makes one row
   taller than its twin and breaks the stack; truncation is also what a real feed does.
 
-**Shipped example — AlmaConnect News.** Ground: the card's existing grained aqua
-wash. Three alumni in the news cascading down-left, the two behind frost and the
-front one solid white with a 62px photo tile, a hairline, and a `Verified - 24h`
-footer with a tick. A glass satellite carries a newspaper glyph and an ink badge
-with the day's count, lapping the top card's corner. One caption states the
-outcome. Every text colour was checked against the rendered pixels; the badge
-started as white on `--accent-dark` and measured **3.1:1**, so it took the ink
-fill like every other button on the page.
+**Shipped — the four homepage product cards.** One construction each, so the row
+reads as a family without four versions of the same picture:
+
+| Card | Construction | What carries it |
+|---|---|---|
+| News | Layered pair (C) | A 0.75-aspect portrait, a white alert card lapping it and running off the right edge, a glass tile with the day's count |
+| Data Mine | Glass split (D) | A white card bleeding off the top with two found-field rows, a 6px connector, a frost card below holding an 84px avatar |
+| Institutions | Screen pair (N) | Two alumni in one 11px rim frame, a gradient pill across its edge, three glass tiles for what the network carries |
+| Corporates | Roster (L) | A halo card, three former employees in tinted rings with role tags, a gradient pill lapping the card's bottom edge |
+
+Two things that only showed up once they were built:
+
+- **A landscape photo tile zooms a portrait source into the face.** `object-fit:
+  cover` on a 256x214 tile scaled a 500x625 portrait until only the face fit. Give
+  the tile the source's own aspect (~0.75-0.8) and the whole person reads.
+- **`av_n` is a face crop of `p_(n+1)`.** All three faces in the Corporates roster
+  were the same people as cards 1-3 under different names. Check the crops, not the
+  filenames — and keep p3, p5 and p8 out of artwork entirely, since they sit beside
+  real named testimonial authors.
 
 ### Generating a new one
 
