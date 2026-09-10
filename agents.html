@@ -1787,7 +1787,11 @@ body.cq { margin: 0; }
     .new-pop .cq-option { height: auto; padding: 8px 10px; align-items: flex-start; }
     .new-pop .cq-option .cq-ic { color: var(--text-teritiary); margin-top: 2px; }
     .new-pop .cq-option:hover .cq-ic { color: var(--text-coloured-blue); }
+    /* .cq-option paints its label secondary, which is right for a filter
+       row and wrong for a menu whose three headings are the choice. */
+    .new-pop .cq-option { color: var(--text-primary); }
     .new-opt__txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; white-space: normal; }
+    .new-opt__txt > .cq-body2-med { color: var(--text-primary); }
     .new-opt__note { color: var(--text-teritiary); }
     .new-pop__rule { height: 1px; margin: 6px 8px; background: var(--strokes-line-1); border: 0; }
 
@@ -1864,28 +1868,28 @@ body.cq { margin: 0; }
     @media (prefers-reduced-motion: reduce) { .ag-card:hover { transform: none; } }
 
     /* ── The mark ──
-       One asset, two states: grey at rest so a wall of cards stays calm,
-       and its own gradient on the card the pointer is on. A grayscale
-       filter rather than a second set of files, so the two can never
-       drift apart. The tile keeps a faint ring at rest — without it a
-       desaturated mark on a dark ground has no edge at all. */
+       In colour at rest. Grey read as "switched off" on a page where
+       some agents genuinely are, which is exactly the signal the status
+       pill is already carrying. It also hid a bug: the light-theme
+       filter was more specific than the hover rule, so a hovered mark
+       in light mode never got its colour back.
+
+       What hover does now is lift it, which says "this one" without
+       claiming anything about the agent's state. */
     .ag-mark {
       width: 44px; height: 44px; flex: none;
       display: block; border-radius: 12px;
-      box-shadow: 0 0 0 1px var(--card-edge);
-      filter: grayscale(1) brightness(.82) contrast(.92);
-      opacity: .9;
-      transition: filter .28s ease, opacity .28s ease, box-shadow .28s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .28);
+      transition: box-shadow .28s ease, transform .28s cubic-bezier(.2,.8,.2,1);
     }
+    :root[data-mode="light"] .ag-mark { box-shadow: 0 2px 6px rgba(18, 18, 18, .14); }
     .ag-card:hover .ag-mark,
     .ag-card:focus-visible .ag-mark,
     .ag-card.is-selected .ag-mark {
-      filter: none; opacity: 1;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, .34);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .38);
     }
-    :root[data-mode="light"] .ag-mark { filter: grayscale(1) brightness(.94) contrast(.96); }
-    :root[data-mode="light"] .ag-card:hover .ag-mark { box-shadow: 0 4px 14px rgba(18, 18, 18, .18); }
+    :root[data-mode="light"] .ag-card:hover .ag-mark { box-shadow: 0 6px 16px rgba(18, 18, 18, .2); }
 
     /* ── Head, body, foot ── */
     .ag-card__top { display: flex; align-items: flex-start; gap: 12px; }
@@ -1907,12 +1911,30 @@ body.cq { margin: 0; }
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
     .ag-card__tags { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
-    /* At three to a row the foot is tight, and a tag clipped by the row's
-       overflow gets sheared mid-word. Letting the tag do its own
-       truncation turns that into an ellipsis. The lead tag says what the
-       agent runs on and never shrinks; the category tag gives way. */
-    .ag-card__tags > .cq-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: inline-block; line-height: 14px; }
-    .ag-card__tags > .cq-tag--model { flex: none; }
+
+    /* ── The capability chips ──
+       A row of small equal boxes: the model's mark, then a count each for
+       tools, skills and guardrails. Square where the count is a glyph and
+       a number, wider where a word has to fit. */
+    .ag-cap {
+      height: 30px; min-width: 30px; flex: none;
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+      padding: 0 8px; border-radius: 9px;
+      background: var(--backgrounds-card-bg-4);
+      color: var(--text-secondary);
+      font: 500 var(--fs-caption)/1 var(--font-geist); letter-spacing: -0.24px;
+      font-variant-numeric: tabular-nums;
+      transition: background .15s ease, color .15s ease;
+    }
+    .ag-cap .cq-ic { color: var(--text-teritiary); transition: color .15s ease; }
+    .ag-card:hover .ag-cap { background: var(--backgrounds-page-bg-3); }
+    .ag-card:hover .ag-cap .cq-ic { color: var(--text-secondary); }
+    /* The logo chip is the mark alone, so it holds the square. */
+    .ag-cap--logo { padding: 0; }
+    .ag-cap--logo img, .ag-cap--logo svg { display: block; }
+    /* Where a word stands in for the mark it may shrink, and ellipse
+       rather than be sheared by the row's overflow. */
+    .ag-cap--text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 30px; }
     .ag-card__end { flex: none; display: inline-flex; align-items: center; gap: 6px; }
 
     /* ══════════════════════════════════════════════════════════════
@@ -1957,6 +1979,9 @@ body.cq { margin: 0; }
     .ag-member__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
     .ag-member__role { color: var(--text-teritiary); }
     .ag-note { color: var(--text-teritiary); margin: 0; }
+    /* A hint belongs to the field above it, not to the gap between two
+       sections — 6px says so, and the pane's own 20px would not. */
+    .ag-hint-under { margin-top: -14px; }
     .ag-mono { font: 400 11px/16px var(--font-geist-mono); letter-spacing: -0.11px; }
 
     /* ══════════════════════════════════════════════════════════════
@@ -1968,6 +1993,13 @@ body.cq { margin: 0; }
        call the result.
        ══════════════════════════════════════════════════════════════ */
     .ag-modal { width: 680px; height: min(620px, calc(100vh - 48px)); }
+    /* A single-line field is 44px here. .cq-control's 12px padding puts
+       it at 46 with its border, so the height is stated and the padding
+       trimmed to match rather than left to add up. */
+    .ag-modal .cq-control { height: 44px; padding: 0 12px; }
+    .ag-modal .cq-control--textarea { height: auto; min-height: 96px; padding: 10px 12px; }
+    .ag-modal .ag-pick__auth .cq-control { height: 34px; padding: 0 8px; }
+
     .ag-modal__steps { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--strokes-line-1); }
     .ag-modal__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 20px; }
     .ag-pane { display: flex; flex-direction: column; gap: 20px; }
@@ -2007,8 +2039,7 @@ body.cq { margin: 0; }
        The same asset at the sizes those two places have. A table row is
        scanned rather than reached for, so its mark keeps the grey; the
        panel is already the thing you chose, so its mark is in colour. */
-    .ag-row-mark { width: 28px; height: 28px; flex: none; display: block; border-radius: 8px; filter: grayscale(1) brightness(.86); opacity: .92; transition: filter .18s ease, opacity .18s ease; }
-    .cq-row:hover .ag-row-mark, .cq-row.is-selected .ag-row-mark { filter: none; opacity: 1; }
+    .ag-row-mark { width: 28px; height: 28px; flex: none; display: block; border-radius: 8px; }
     .ag-panel-mark { width: 40px; height: 40px; flex: none; display: block; border-radius: 11px; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
     :root[data-mode="light"] .ag-panel-mark { box-shadow: 0 3px 10px rgba(18,18,18,.14); }
     .ag-menu-mark { width: 28px; height: 28px; flex: none; display: block; border-radius: 8px; }
@@ -2026,50 +2057,60 @@ body.cq { margin: 0; }
     .cq-option:hover .ag-menu-tile { color: var(--text-coloured-blue); }
 
     /* ══════════════════════════════════════════════════════════════
-       PROTOCOL CARDS
-       Two options, side by side, each showing what it is and what it
-       costs — a segment could only carry the two labels, and the choice
-       turns on the sentence under them.
+       CONNECTION CARDS
+       Two ways in, side by side. Plain surfaces, not the gradient the
+       agent cards wear — this is a form control, and a card that looks
+       as rich as the content it sits above competes with it.
        ══════════════════════════════════════════════════════════════ */
     .ag-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .ag-choice {
-      position: relative;
-      display: flex; flex-direction: column; gap: 8px;
-      padding: 14px; border-radius: 12px;
-      background: var(--card-grad);
-      border: 1px solid var(--card-edge);
-      box-shadow: var(--card-lift);
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 14px; border-radius: 10px;
+      background: var(--backgrounds-card-bg-5);
+      border: 1px solid var(--strokes-card-default);
       text-align: left;
-      transition: border-color .16s ease, box-shadow .18s ease;
+      transition: border-color .16s ease, background .16s ease;
     }
-    .ag-choice:hover { border-color: var(--card-edge-hover); }
-    .ag-choice.is-on {
-      border-color: var(--strokes-card-selected);
-      box-shadow: 0 0 0 1px var(--strokes-card-selected), var(--card-lift);
-    }
+    .ag-choice:hover { border-color: var(--strokes-icon-default); }
+    .ag-choice.is-on { border-color: var(--strokes-card-selected); background: var(--backgrounds-table-select); }
     .ag-choice__top { display: flex; align-items: center; gap: 8px; }
-    .ag-choice__ic {
-      width: 30px; height: 30px; flex: none;
-      display: inline-flex; align-items: center; justify-content: center;
-      border-radius: 8px;
-      background: var(--backgrounds-page-bg-3);
-      color: var(--text-teritiary);
-      transition: background .16s ease, color .16s ease;
-    }
-    .ag-choice.is-on .ag-choice__ic { background: var(--backgrounds-badge-blue); color: var(--text-coloured-blue); }
     .ag-choice__name { color: var(--text-primary); }
     .ag-choice__tick { margin-left: auto; flex: none; color: transparent; transition: color .16s ease; }
     .ag-choice.is-on .ag-choice__tick { color: var(--text-coloured-blue); }
     .ag-choice__note { color: var(--text-teritiary); }
-    .ag-choice__how {
-      margin-top: 2px; padding-top: 10px;
-      border-top: 1px solid var(--strokes-line-3);
-      color: var(--text-teritiary);
-      font: 400 11px/16px var(--font-geist-mono); letter-spacing: -0.11px;
-    }
-    .ag-choice__how b { color: var(--text-secondary); font-weight: 400; }
 
-    .ag-dashed {
+    /* The link that opens the comparison. Sits on the label row, because
+       that is where the question forms. */
+    .ag-label-row { display: flex; align-items: center; gap: 8px; }
+    .ag-help {
+      margin-left: auto;
+      display: inline-flex; align-items: center; gap: 4px;
+      color: var(--text-coloured-blue);
+      font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+    }
+    .ag-help:hover { text-decoration: underline; }
+
+    /* ── The comparison sheet ──
+       One table, two columns, five questions somebody actually asks
+       before choosing. It sits above the wizard rather than replacing
+       it, so the choice is still on screen behind it. */
+    .ag-compare { width: 620px; max-height: min(560px, calc(100vh - 48px)); }
+    .ag-compare__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 0 8px; }
+    .ag-cmp { display: grid; grid-template-columns: 132px 1fr 1fr; align-items: stretch; }
+    .ag-cmp > * { padding: 12px 14px; border-bottom: 1px solid var(--strokes-line-3); }
+    .ag-cmp__head {
+      position: sticky; top: 0; z-index: 1;
+      background: var(--backgrounds-page-bg-3);
+      border-bottom: 1px solid var(--strokes-line-1);
+      color: var(--text-primary);
+    }
+    .ag-cmp__q { color: var(--text-teritiary); }
+    .ag-cmp__v { color: var(--text-secondary); }
+    .ag-cmp__v b { color: var(--text-primary); font-weight: 500; }
+    .ag-cmp > *:nth-child(3n+2) { border-left: 1px solid var(--strokes-line-3); }
+    .ag-cmp > *:nth-child(3n+3) { border-left: 1px solid var(--strokes-line-3); }
+
+    .ag-dashed {    .ag-dashed {
       padding: 24px 16px; border-radius: var(--radius-md);
       border: 1px dashed var(--strokes-line-1);
       text-align: center; color: var(--text-teritiary);
@@ -2384,9 +2425,12 @@ body.cq { margin: 0; }
   <symbol id="i-orch" viewBox="0 0 16 16"><rect x="5.6" y="1.6" width="4.8" height="3.4" rx="1.1" stroke="currentColor" stroke-width="1.3" fill="none"/><rect x="1.3" y="11" width="4.4" height="3.4" rx="1.1" stroke="currentColor" stroke-width="1.3" fill="none"/><rect x="10.3" y="11" width="4.4" height="3.4" rx="1.1" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M8 5v2.4M3.5 11V8.6h9V11" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-server" viewBox="0 0 16 16"><rect x="2" y="2.6" width="12" height="4.6" rx="1.4" stroke="currentColor" stroke-width="1.3" fill="none"/><rect x="2" y="8.8" width="12" height="4.6" rx="1.4" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M4.5 4.9h.01M4.5 11.1h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
   <symbol id="i-key" viewBox="0 0 16 16"><circle cx="5.4" cy="6.1" r="2.9" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="m7.5 8.2 5 5M10.7 11.4l1.2-1.2M12.1 12.8l1.2-1.2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M8 7.2v4M8 4.9v.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 16 16"><path d="M10.4 2.2a3.9 3.9 0 0 0-4.5 5.2L2.4 10.9a1.6 1.6 0 0 0 2.3 2.3l3.5-3.5a3.9 3.9 0 0 0 5.2-4.5l-2 2-2-.7-.7-2 1.7-2Z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/></symbol>
   <symbol id="i-x" viewBox="0 0 16 16"><path d="m4.2 4.2 7.6 7.6M11.8 4.2l-7.6 7.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
 </svg>
 
+<svg class="sprite" aria-hidden="true"><symbol id="ic-openai" viewBox="0 0 12.6261 12.8" fill="none"><path id="openai__Vector" d="M11.7967 5.23791C11.9398 4.80691 11.9893 4.35033 11.9419 3.89867C11.8945 3.44702 11.7512 3.01068 11.5217 2.61881C11.1814 2.02651 10.6618 1.55756 10.0378 1.27959C9.41385 1.00162 8.71772 0.92898 8.04979 1.07215C7.67033 0.650047 7.18648 0.335225 6.64684 0.1593C6.10719 -0.0166249 5.53076 -0.0474587 4.97543 0.0698955C4.42011 0.18725 3.90543 0.44866 3.4831 0.827872C3.06078 1.20708 2.74567 1.69075 2.56942 2.23028C2.12444 2.32153 1.70406 2.5067 1.33638 2.77342C0.968697 3.04015 0.66218 3.38228 0.437311 3.77695C0.0933292 4.36827 -0.0536862 5.05366 0.0175191 5.73403C0.0887244 6.41441 0.37446 7.05451 0.833417 7.5618C0.689772 7.99259 0.639777 8.44909 0.686777 8.90076C0.733777 9.35243 0.876688 9.78885 1.10595 10.1808C1.44667 10.7734 1.96671 11.2424 2.59113 11.5204C3.21555 11.7984 3.9121 11.8709 4.5804 11.7276C4.88188 12.0671 5.25231 12.3383 5.66697 12.5233C6.08163 12.7082 6.53097 12.8025 6.98499 12.8C7.6696 12.8006 8.33669 12.5837 8.88999 12.1805C9.44328 11.7773 9.85415 11.2088 10.0633 10.5569C10.5082 10.4655 10.9285 10.2802 11.2962 10.0135C11.6638 9.74681 11.9704 9.40475 12.1954 9.01017C12.5353 8.41972 12.6798 7.7369 12.6082 7.05937C12.5366 6.38185 12.2526 5.74426 11.7967 5.23791ZM6.98499 11.9622C6.42431 11.9631 5.88121 11.7666 5.45091 11.4071L5.52659 11.3643L8.07502 9.89321C8.13845 9.85602 8.1911 9.80296 8.22782 9.73925C8.26454 9.67555 8.28406 9.60338 8.28446 9.52985V5.93684L9.36179 6.56009C9.36712 6.56279 9.37173 6.56671 9.37525 6.57153C9.37877 6.57635 9.38111 6.58193 9.38206 6.58783V9.56521C9.38071 10.2005 9.12772 10.8094 8.67848 11.2587C8.22923 11.7079 7.62031 11.9609 6.98499 11.9622ZM1.83262 9.76201C1.55143 9.27648 1.45047 8.70733 1.5475 8.15471L1.62323 8.20015L4.17416 9.67119C4.23728 9.70822 4.30914 9.72775 4.38232 9.72775C4.45551 9.72775 4.52737 9.70822 4.59048 9.67119L7.70664 7.87465V9.1186C7.70635 9.12505 7.70461 9.13135 7.70154 9.13703C7.69848 9.1427 7.69417 9.14762 7.68894 9.1514L5.10771 10.6401C4.55685 10.9574 3.90256 11.0432 3.28852 10.8786C2.67447 10.7139 2.15085 10.3124 1.83262 9.76201ZM1.16147 4.21097C1.44461 3.72232 1.89151 3.3496 2.42307 3.15881V6.18665C2.42211 6.2598 2.4408 6.33187 2.47719 6.39533C2.51358 6.4588 2.56634 6.51133 2.62995 6.54745L5.73096 8.33641L4.65358 8.95961C4.64775 8.96271 4.64125 8.96433 4.63464 8.96433C4.62804 8.96433 4.62154 8.96271 4.61571 8.95961L2.03955 7.47348C1.48972 7.15477 1.08859 6.63116 0.924013 6.01731C0.759435 5.40346 0.844821 4.74941 1.16147 4.19839V4.21097ZM10.0128 6.2674L6.90174 4.46079L7.97662 3.83999C7.98245 3.83689 7.98895 3.83527 7.99555 3.83527C8.00215 3.83527 8.00865 3.83689 8.01448 3.83999L10.5906 5.32868C10.9845 5.55596 11.3057 5.8906 11.5165 6.29354C11.7273 6.69647 11.8192 7.15107 11.7814 7.60426C11.7435 8.05744 11.5776 8.49052 11.3028 8.85292C11.0281 9.21532 10.656 9.49209 10.2298 9.65092V6.62308C10.2276 6.55005 10.2064 6.47886 10.1684 6.4165C10.1303 6.35413 10.0767 6.30279 10.0128 6.2674ZM11.0852 4.65508L11.0095 4.60964L8.46361 3.12601C8.4001 3.08875 8.3278 3.0691 8.25416 3.0691C8.18053 3.0691 8.10823 3.08875 8.04472 3.12601L4.93118 4.92249V3.6786C4.93051 3.67228 4.93157 3.66589 4.93424 3.66012C4.9369 3.65434 4.94108 3.6494 4.94632 3.6458L7.52248 2.15961C7.91732 1.93216 8.36875 1.82182 8.82399 1.84151C9.27923 1.8612 9.71945 2.0101 10.0932 2.2708C10.4669 2.5315 10.7587 2.89322 10.9343 3.31366C11.11 3.73409 11.1624 4.19586 11.0853 4.64495L11.0852 4.65508ZM4.34318 6.86025L3.26584 6.23956C3.26045 6.23632 3.25584 6.23192 3.25234 6.2267C3.24884 6.22147 3.24653 6.21554 3.24558 6.20932V3.23956C3.24617 2.78397 3.37645 2.33797 3.62118 1.95369C3.86591 1.56942 4.21498 1.26275 4.62757 1.06955C5.04017 0.876355 5.49924 0.804606 5.95111 0.862696C6.40298 0.920785 6.82897 1.10631 7.17928 1.39759L7.10355 1.44052L4.55518 2.91145C4.49175 2.94865 4.43909 3.00171 4.40237 3.06542C4.36565 3.12912 4.34613 3.20128 4.34574 3.27481L4.34318 6.86025ZM4.92856 5.59871L6.3163 4.79881L7.70664 5.59871V7.19839L6.32136 7.99823L4.93112 7.19839L4.92856 5.59871Z" fill="currentColor"/></symbol></svg>
 <!-- ══ The page ══ -->
 <div class="cq-page">
   <div class="cq-page__main">
@@ -2626,9 +2670,9 @@ body.cq { margin: 0; }
 
     <div class="ag-modal__steps">
       <div class="cq-seg cq-seg--steps" id="wizSteps" role="tablist" aria-label="Steps">
-        <button data-step="1" class="is-active" role="tab" aria-selected="true">1 &nbsp;Details</button>
-        <button data-step="2" role="tab" aria-selected="false">2 &nbsp;Server</button>
-        <button data-step="3" role="tab" aria-selected="false">3 &nbsp;Agent cards</button>
+        <button data-step="1" class="is-active" role="tab" aria-selected="true">Details</button>
+        <button data-step="2" role="tab" aria-selected="false">Connection</button>
+        <button data-step="3" role="tab" aria-selected="false">Capabilities</button>
       </div>
     </div>
 
@@ -2647,9 +2691,9 @@ body.cq { margin: 0; }
           <span class="cq-field__label cq-caption-med">Description</span>
           <span class="cq-control cq-control--textarea"><textarea id="wizDesc" placeholder="What this agent is for, and when someone should reach for it."></textarea></span>
         </label>
-        <p class="ag-note cq-caption-reg">
-          This is how the agent will read on the Agents page, so write it for
-          whoever has to choose between it and something else.
+        <p class="ag-note ag-hint-under cq-caption-reg">
+          This is what people see on the Agents page, so write it for whoever
+          has to choose between this agent and another one.
         </p>
       </div>
 
@@ -2660,31 +2704,36 @@ body.cq { margin: 0; }
            choice turns on the sentence under the name. -->
       <div class="ag-pane" data-pane="2" hidden>
         <div class="ag-group">
-          <span class="ag-label cq-caption-med">HOW THE AGENT SPEAKS</span>
+          <div class="ag-label-row">
+            <span class="ag-label cq-caption-med">WHERE IS THIS AGENT?</span>
+            <button class="ag-help" id="cmpOpen" type="button">
+              <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16"><use href="#i-info"/></svg>
+              Which one do I pick?
+            </button>
+          </div>
+          <!-- The question is not "which protocol" — it is "has somebody
+               already built this as an agent, or is it just an API?" That
+               is the thing a person actually knows the answer to. -->
           <div class="ag-choices" id="protoCards">
             <button class="ag-choice is-on" data-proto="a2a">
               <span class="ag-choice__top">
-                <span class="ag-choice__ic"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-server"/></svg></span>
-                <span class="ag-choice__name cq-body2-med">A2A server</span>
+                <span class="ag-choice__name cq-body2-med">It is already an agent</span>
                 <svg class="cq-ic ag-choice__tick" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
               </span>
               <span class="ag-choice__note cq-caption-reg">
-                The agent already publishes Agent Cards. Cogentiq calls it
-                directly — nothing is translated in between.
+                Someone has published it as an agent on an A2A server. It can
+                already hold a conversation, so Cogentiq just talks to it.
               </span>
-              <span class="ag-choice__how"><b>Agent</b> → Cogentiq</span>
             </button>
             <button class="ag-choice" data-proto="rest">
               <span class="ag-choice__top">
-                <span class="ag-choice__ic"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-api"/></svg></span>
-                <span class="ag-choice__name cq-body2-med">REST endpoint</span>
+                <span class="ag-choice__name cq-body2-med">It is a plain API</span>
                 <svg class="cq-ic ag-choice__tick" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
               </span>
               <span class="ag-choice__note cq-caption-reg">
-                A plain HTTP service, not A2A. Cogentiq wraps it in a managed
-                adapter and serves it as an A2A agent.
+                A normal web service that answers requests. Cogentiq turns it
+                into an agent for you, and hosts that agent itself.
               </span>
-              <span class="ag-choice__how"><b>Service</b> → adapter → Cogentiq</span>
             </button>
           </div>
         </div>
@@ -2800,6 +2849,47 @@ body.cq { margin: 0; }
   </div>
 </div>
 
+<!-- ══ Which one do I pick? ══
+     Opened from the connection step and closed back to it, so the choice
+     it explains is still on screen behind it. -->
+<div class="cq-scrim" id="cmpScrim" role="dialog" aria-modal="true" aria-labelledby="cmpTitle">
+  <div class="cq-modal ag-compare">
+    <div class="cq-modal__head">
+      <span class="cq-body1-med" id="cmpTitle">Already an agent, or a plain API?</span>
+      <button class="cq-icon-btn" id="cmpX" aria-label="Close" title="Close">
+        <svg class="cq-ic" width="20" height="20" viewBox="0 0 16 16"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="ag-compare__body cq-scroll-y">
+      <div class="ag-cmp">
+        <span class="ag-cmp__head cq-caption-med"></span>
+        <span class="ag-cmp__head cq-body2-med">Already an agent</span>
+        <span class="ag-cmp__head cq-body2-med">A plain API</span>
+
+        <span class="ag-cmp__q cq-caption-med">Pick this when</span>
+        <span class="ag-cmp__v cq-caption-reg">A team or vendor tells you their agent is <b>A2A</b> and gives you a server address.</span>
+        <span class="ag-cmp__v cq-caption-reg">All you have is an <b>API</b> — a URL, some endpoints and a key.</span>
+
+        <span class="ag-cmp__q cq-caption-med">What you need</span>
+        <span class="ag-cmp__v cq-caption-reg">The server address, and credentials for the agents you want to use.</span>
+        <span class="ag-cmp__v cq-caption-reg">The base URL, its API documentation, and a key.</span>
+
+        <span class="ag-cmp__q cq-caption-med">Who does the work</span>
+        <span class="ag-cmp__v cq-caption-reg">Nobody — the agent already exists. Cogentiq just connects to it.</span>
+        <span class="ag-cmp__v cq-caption-reg">Cogentiq builds the agent around your API and hosts it.</span>
+      </div>
+      <p class="ag-note cq-caption-reg" style="padding:14px 16px 4px">
+        Not sure? Choose <b style="color:var(--text-primary);font-weight:500">a plain API</b>. It
+        works for anything with a URL, and you can always register it properly later if the
+        team publishes a real agent.
+      </p>
+    </div>
+    <div class="cq-modal__foot">
+      <button class="cq-btn cq-btn--primary" id="cmpDone">Got it</button>
+    </div>
+  </div>
+</div>
+
 <div class="ag-toast" id="toast" role="status" aria-live="polite">
   <svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
   <span class="cq-body2-reg" id="toastMsg"></span>
@@ -2853,6 +2943,43 @@ function markFor(a) {
   let h = 0;
   for (const ch of a.name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return MARK[a.type === 'orchestrator' ? 'orch' : 'single'][HUES[h % HUES.length]];
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   MODEL PROVIDER MARKS
+   Taken from the Model hub, so a model reads the same wherever it is
+   named. Each mark is a share of its slot — the fraction the Figma
+   component gives it — centred in the tile by .ag-model.
+   ════════════════════════════════════════════════════════════════════ */
+const LOGO_SRC = {
+  claude: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAq/0lEQVR42u19eZhdVZXvb+29zzn33ppSQcKkTCFTJeCQ2DQqVqK20jaO9L0VQUVtHzg00CEkqYh66ziQSsJgA0+f2HaLrZLUEWm61VbpRyq2E09oIJDKRMARgZDUfO895+y91/vjnFtVqTlJBWy/vt9XXyVVt849Z6+91vqt3xo24Ti9GCAUi7Tv0AMOaupvVSTeaZgdAL8SoKeEwOMHnx/YuOyO75YYIAJ4Rj+7Iy+oEJjqzzryeVkIhv//x/Ki43XhbcVmtcLfrnevLXxhTl32mucHQxAARwoIImSURH8Y/VjEpuXMmqbn0OYz0bELYaQwd61teU2dJ8/bdzD+xoovBgNcLAryffvHJABxPC7akc/LFf52vWtt/q/rM+41zw9UYmuZLTOHsbalKLaHSmE0O5d5fUh0G/m+DQp5MUOLj71XXeTta235rKfEjx2pvnR2o7Nz5+r8+8j3bUc+L/+kNYCLRQHf572tl56lhH2QmBpCY0nQmM9iIrICMAyzeF57sJ+LRTraHcoAgYF9V1/kmmz9fSfWZi88OFhhZtZZRzmW2UaRXrrgxuCRPyZNEMdJqsxWfynnqMbQGB5n8QGArGWuyziuseIjALgTnUd9P53FZkkEplzDRSfkMhceHKhEDICInHKstRRCQIqv71+Xb2iDnwjsT1IAvl+14ydGxjJN/qByINJMxJfvaL20cYW/3RztwizHcgsABvajsTGWAVn9bCJSpSjWs7LeuTHjLb4P21lsln+aAuhIbDkBe10piUATqjoRSGtrGjLeSzxrLgPAR7MwVZPStbqwxCH5xoFIExFGXYfkYBQzLP0eAA50zeE/TQHsfI4SA88PTGcrM1iE2rBl/tiDVyx1lrdtP2KoWDVdQtGFNZ6jwDCj/ANLQRQZW2ESTwFAvqPjT9UHJKaApLNtMIwtj9mJo7WARFkbW591F9U2nvNWIjB3HBlSWV69FvPJ6YKPkjKzIwUI/PRg774D6eceNcLjfF5WvzMfmy9RM+6AUx/Qf0btztr9Pb/NOOr0SqwtEYnJIAwzwGyvBXAvdjbxkWnAkPc/bVxoR8SOEAiBXy2746H4aFAQM0gQeEwwd4yuXB0HrWLuyEsq3BHvXddyS0bJL1RiYybTNiLIwTC2Wcd5/d61hT8n33+A83lJ04xcl6f2nIGTLfNQPDB0fQZLQQCwLxWZADBtAXCxKIgSge1f33Kh1axYSduYcUR3pfz4/A3BAWbQ0QSSxwWGohBYLhbFI0/a23sr4YM1rlI8yi6P87KekjCMVQA4OCK7EKSLSScYZkxkXZix5zCNmabJId+3P1uVn72/deU9Wcf5seOq+x1CJ4D72Yp7uFgUCPLiaBDccYsDgq4uKgSBYY2PGWYjkh3Ik/yR7K9E7Crxjn2t+XMKQSLE6XwcEZiLRQHm2dYymJlGXZu0tSCBvQCwfPH0EBCn/NFj17XMPTnr/DTnOe/sq8SmEmsbamMPDlbixqz32l3lXeuoEJijQXDHRwMAFILAbCs2q4U3dfyyEuvbGzKOtDyp2pNlmFrP8Szj4wAYi7um3FHVldxderiGgAbDSfg1Ot4oRdrC0lMJUpvax3SkJvDhVfnTahzxQ0+Jhb3lMCaCJCJBRAJEqrcSmaySbbvW5c9d4W/XR0p1HNdokBmEtiI9WemqsyS6pBCnxNoyaHzBM8BKEKzlbk3u/EXt/3woNeg88WcwERHvWrPyVCK7TwmR04kKUHoP7EpBkTXPsa2cs2jzv/ZPxb5WnfSD1178kka3dlvGUUv6w0gTkRrnGU2Np2Q50r9syNg3fBFBqc0HT5fdFUeymEdq44gSemHuxqBXa3t91lHEk9wYAaQNm4asO1ty9CECuLNtCrVuayMAkMrMIqKsSXAhjbgH6ygBYtq3aPO/9jPzpItfLELA9/kna95eN8ut/V7WnXjxqwBioBLbGs95dV9FLPN9WOSnTyyK6S4+0bBUuVgU08XqVbVcuDm4s7ccPlDjKTm5Q2ZRijSD+WNPFS/PLG+bnJ4IuhIzZS1me0oSmO3oSM8RAiDeAQCdbcvlZIReG4roLDbLk2T2O7We82d95YkXf0jDlBT9lfiAymQeSW4qsDMmgGKxKIjAO1ovbXyqeHkmxfqWCoFhBk03ECECM+haY5nFJEEQEYlQW9uQ9c4MK5UPEk1OT+TzQ49ygiMFmIjH9RPMD0/FpnYWmyX5vj21cvLXGjLem3oqYUyCpoLqNutIEOGnZ/l39nTk8/JIkkuTCmBbsVn5vm93rSl8plHRE3Gl0rVnXctjv7r+PffvW7fyKiIwEXgqx1MIAsMdeblo09aflWP9zfrEIZuJTRFTOdYM8PpHVr+3phPb7URa0JlSH8Q0RxCB+PCHZ0BWYg0CPTYZB9RZbJZJAqnlxsasd1l3OYwJ5EwH8REBIPw7AJzY9NwRmWkxGQpY4W/XO9fkr5mV8z4VGjPbkeKsjJJLlBArGrLurU+uX9mxo/XSxirimZwjamJmkISzfiCK+x1BE/sDIlHR1jZmvZe5IrxiMvaySkMIgZeIUVuPAXYkUWhsrxbRvoQDGmseOM3e7VyTv6Yx567uKYcxgCkXn5PFFwOhBiD/YyQre0wCqOZPu9YWVtZn3C8MhrHWxtpIG1uOtR2ItDlUquic6+TrBP989+rCq1f42zV35OVEO5V83yLIi/mbvvm7yNgNdRlXYBItEGAajDRLQWv2XnVZ/US+oBpUGWtP4tFvYGZHShDjiab2fznIGButcj4vyd+ud65peWON69zSV4mN5WkyBAwzK+sJzWbTgvZvPVkN2o5ZAPlUjQSwwpUCxjKnuFcQkSBAEpHqKYdaCLEg48kf72ltuYIKgSGkQdEkEXJPzF/oKYVPZBwpebTTHKEFobZ2VtY7xWaij07kC6pBFRGdwmPMA1lHCjD4saqZGQM3g8DsXP3uM7KOuMsyw1hLRFP7NcswDVlXdZcqP1q4MWjlYlHkj8D5TiqAzmFb/KBNbCpN4DBVKYptbDlT7zpffqK15Y5tlzdnyPfteCaJ0uDqNbcEZWZe40hBAPEkN0cDoWYhxbU7Wi9tXN623Yxx+vmUVmacZqwFRi0eAWCiR8ZDdkFXF+296iLPVW7gSnlipO3kpOHQ4rPNOVKWovhXrOVliU75OJrKDjEpuUXYH2oDBk94U4JIGMvcW4lNXcb7X2eedmrnzjXvnrfC3655PCEUApPA0o5/6StH99VlnIlhKUHExpqGjDtHWX010Zi4gIiItxWbFQMn6VE0BINFaAwAPDryuZL4oVkWgsCYTP2X67PuqwfCSNMU1HkVdjpSsrWISpEtLLz5rueDQl6Qj6PKL4y7sG1NSajuAE+E2pBIDCdPltkiguwuVbQjxfk51/v5nnUr30X+ds3FoihOYJJIiesibbSYTOUJsj+M2RHi6v9anz9xpBZwekcnhY0NBD7BWDtEQyRRtRDlSJdYRntGPhcXmxX523XX2sLfzc55l/eUwkmx/iiNMjWulCUdf/Tcmzp+ua3YrI6l3mjchfHT8o25G4PfMPjG2TUZQYyYp1AxIlIDoTbW4oScI7+zd13hc+T71vd9OzJwq8LShRu27KjE5s76jCsmgqXV6Lg+48zOaqw6TAvaiqngvBMYaDAjwWo1CUP05KLP3/NM9bm4o+p0L3ljzlE394ex5mns/PSSelbOUz2V6EuLNwf/WEVPxyUjlg8CWywWxYL2jrUHB8r3nlCTcSnlPqYIuGRkDJcibRuymeufXL/yezuuXnkSFUZB1SospbhtIIwHJoeliRYoKT/21HX5k5e3bTfFIkQ1Cmbmk7OOEsxshxLxIOsqAYC7qlk2LhYFFapO173LMkNbK2gaFAszTF3GVb3l8IHB7lnXcD4v4W8/5ko7MVmA0ZZmt+Zv7HhXT7nS6koRJVQCTyp1keAI0V0KddZRb62rwQN7WgtvWuFv18UiRJXs6mxrlvM33fO72Jib6jKu4AnY0hFa0BAKcR0ReDmaRTUKVpZPc6QARhUACCJY8KMAgO5GgdTpKqW+7Ul5YjhNp8vM1pFCVGJzyAArl91xR4ymJp6JckoxVZRX3RvntG/dGBu+IDL2gcZcRnFS6Gan0AbVU4kNkTjDFeq+J9a3fNr3YasoaXnbdsPFopAV9+becvj7jBITCiHJF8RWCbpy79rLXrq8bbvZuTM1HUK8NM03HIZBY2PBVuwAgH2Pe4KCwOhM3d83ZjPL+sJIi+k4XYAlCetKQaHV71+0ceuvthWb1UwVdolpOB0mAm8rNqv5G7c8/NA+/fr+MLq5xnWEq6SwU5gkQZAVrW1kjK3zXH//+vf88KHV7z5jhb9dJ7a8U8y/7Zt91nLbZGwpAaQt27qMU6sRrSUCu7NPrq76qaP+ipM0p9aKsYsBmn/bbeHONfn3NWa9K7tLoRbTdLpgmPqsowai+DNNG4PvzYTdP+p8wMgK433rWt6hlPiSJ+UpfQnZIiezpSkhpuszrgq1eTaMzUcWbu74F2amh668Ui095RTeW9n1UNZxzi3H2gJjdycDLIgggHIYR01NN37nN0TgvWtb7qzLuu/vK0caBMXM1nOUiGL9KzebXXSWf2dlz9qWRY6iX1qLrLY8/WAr48iBKP6P+e1b/yItODaYwUruI8qIFYLAMEDbis1q3sat9x4ol84vx/rfG3OuEgTiSQm2BCX1VmLDwEk1nnPP/vUrN3W2LZfL7rgjDrq6mJlaJ4OklJQzmlrPySml1lVpBUt8AjODq39LxK4UYNATZ+LM6MErLs4JwhZHyBptmaez+MxsPSVERZtntVDvZ4BSnmdGC7rEUagMV3mfP7v53t/O3bDlrf2VqNURIqxNuH49GVwVBBlpYwej2NZ67poz4lM7d63JLygEgVmwaesP+ivRf9R6kwZnsj+MGUyXd33iXaekPzzhsBA5zQEI4Bfk+7Z2Vs2X6rPueYNRPK1gCwAkCauEoFKkP9B0wzf/gI78cSnoPeqcMBUCUywWBReL4pz2rRtLleiCyNj/bMxOQxtSTqm7VNGulK/NOOqBPesK7yeAIdEaG4uJNIEAMokvyAmtLky362HJeEqT8Aa2d/fa/Kdm5dz395SiaQdbzKwbsq4aCOPPL7kx+MG2YrMa2ewxk68ZyQlXmzGKgLh8/crrQNTmSZntD6fhGxhGSZI5R6Ec6S/Pbd/yka41hc2za7zrekuJTR/HoeiGrCt7KtHXFrRv/Zs96wp/8JQ8KdLGYgSsJAKySqEUaTtRHnp8vO/I/kr84wUbtyxHUBAoBJZm2PQcswaMTjtysSjaGHz2hi2bBo25IDSmc1bWVZJoCm2A1MZyXxibhpx35e61+e9JSWfE2k7CQbGoaENgbv7N+ktnEUFaBkZXBDEDg1E87cVHivfDWD8vNd5LRMDOGcH7xMzE+SQYnHENGE8bEqS0crWS5LtS1vSFsaEkNppUG2o8JQnAQKgxVfkmEWCYv0SMy5QU9doy07E9k8m5SvZF+p2LN269N6nwOzLTwwwKCnlRzYwd6JozppyR83mJpiYm37fHpSyFi0VR7fnqWl1YkvXkF7KOemN/GMNYNlM4wurNTstZ5lyFcqyHiLmjvueE35c9pfCeRZs73r1tCrxfbULE4i7CzucIi+fwRMLiYlH8On7iJEs8Lzb43YL2bz1ZvcZxrQsa+RBPrGu5RkrxWVfJuv5pxA1HsmunK6zJ1l8QWJAITWzPnbd565NoO6xdijhd7M6dz9FyLLcTIaId61ee5DHOFGwXgEQTEy8ipnnM/DJPyVpteUAQ7uqPotvPu/HuHce9TSfRhjYmIn5sbcuiGkm35jznTf2VaWnDC/KyDDM758qDg+HnmzZ3fPLBK65wnuzutic2PUfLJ9jZv1mVzw4qnK6ABZByMYDzGFjE4DMdIRqySoKSIjPExiIyFsZaK4UQtZ6DMDY61Pp9L1if1GG+obXlWiXEZxwpawbCGdWGozA9bDOOEpExTzvlzOJfPl3qH2Ozi0WxN9x3phK82DK/mi0vBWEJGKflXCUdIWCZEdtkobVhptSUcsrmgIjS9B8DiOo9x+sPo2+/oA/NxaJogw/fh921Ln9uRqrbs656fV85gmW8WNpgco6iwUhfvHDT1n8HgP3rV55EoIUMXmaZlzHo5QQ+O+s4nhIEw4xIG8TGggGTBOFJBq660FMJPec6YjDUa2nITKBTdFZTkovncBAA+aYmbgPQ1uaPrPfjGdQG2t+6slUIKiopvMEw1iBSL+SuIAKshSHiG5hxopRiKTPme1I0eEqCmREZi9BYMLPhNEdO6a6eLpJkBhPBMtg6Qkhj7aFMxAvoSFv4R3r/xCENJ/GXL57DCIAAY4U3RG+Pg5T2rSm8Sij5xVpPnd9Tjpg5rcJ4oYQAoD7jAgAiYxEZA22srTYYTndnj15wECw44RCVFCKjJAQRalwHf+gdvHXh5o5rCAAeW1V4eX1OXRJqcxDAAcvotsL2KEKvtBgIKR6sDZ3S6bcE5WOEekMYeXn6s32HsnL+bT8IO/J5d+lceb0Q4nopko5GQfTCKQNDV/MIDIgjXWwaWuykGs+Rgjwl4EiBUFuE2hxiYAeBf6Ik/bS3ov7z5Td9o0S71+VXuUJ9ri7j5IxlWE6+YmMRGwvLXAFQIUI/AwMA+gnUDYteCBxii24SfJDA3dbSIQjuI8YAIPoV2cE4VqUKyfLLzw8r0wlq9q4t/Lmj5FeIaMmUvWUvhtMGmDB6sYlcKZFk5YByrBEb+7wketTC/lSQ+ImBeWT+huDAGO3b19rCggixtTElla1EBDAnUasggkhD2KEvQekWIaTvBQOwlmGSPGvVQYUAlwlUZsagAB9komcBPA3w7wniaQk8G5F5xsbm+bpa2X+6Hxza8dG/asw11D0sBJ0ea8N4EYUwninx0sXm4cU+JIj2gvlRy/xwzhOP2FjsPaP9W90jr1UsFsVydIrlXXMYQcIv0Z61hf+bc503DEZ6XBTCSD6awGnvCSXfh3fAcCECgcDDkEtQIqCq4CQRpEj+TQRYBoy1CLVFbG1I4B4G+ghUsczzlBAZy/xCr7hlEKf7SjpSUEZJSEGIjUVZm14CdjGwQwh+SFh6tALniab2fz44HurrrC54R2DHazShvevzJxLLB7KOPGsg1JpGwBwa4Xir1jhtcBgmvoYdLI3dPEOpsDRNSJzWb/KQ4FKbK4lIikRIRIRQG7wAi584/Goyn6BcKeClzjLd3c8KQY+C8TMW9hcq4kfPujF4ZjxwUi19PNA1h/MTLPi4dHTXdfkLajLOv4FxgqfkEDyrmhZO/QIzhnwEA0M/q74n0ZZ0xWm4UJxGimHUh/OIR6jecNJ1dFxaaA9PughCRim4SgAM9IcxrLW/FkQPWcbPHMU/N9runLsx6B0NJqq1SUey2OMKoFgsCt/37Y+vyp/4slpnSWT1EmLMtqA6gOsAqiPiOjBqQahNvlOWmbNE5DLDJWIHIEcJMWRiZGpm0gRMmpIcT0WGg4tEoIkfqcTHdbgVi8SWHiJgJwQ/JEE/N6z+a377N54YvZKcz8uHGhvF0lP2MLDcIoXWbcUitXV1UWfKfB4GybvmMNJKPAzHUTyuBlSFMN04YN9VF7km47osG1wpKhlY48WxzHiCMkZwjogy1ogckcmA4IKFB2YPQniC2AXDs8weETJgeEzkEnM9gAaA6ph4FoGacLzoCYZ1lRChsf9Pgjo07F4QP+1C9BsblTyRHVReX3gqllZmMg3Zkc/LfHB4codGqhUKedE5AqN3joqK4ft8vDJDhzGKrZc2ZmGeZlDG8jFz/BNtJHhSIOsoEBGMtahog8jYEIw+Ag8yYZCAMnhsBXfqCMsQOGgNeoSgg8z2EMDPW6JDSuBQrNFbI1VPSHF/poKBahw1Mvg9mgcbvhsG2tqK1Dbil0FXF+UBID/cPlR9LR91oU4AdX9YQPWLPTH/mttCAOhqbZnvEt0gSbw71AbTqWA4BjHE6eIKTqySOAxupwhuMhqj+t5hkJKQQ8ZWGVCOAQy6UvZbtlu6Dw60Lbvju6VqdeCLOjVq5DyIx1flZ+c8uRpEV2ccWdtXifl4Lj4RoSHjINQWFa1hLZJ6nyqUHn4fTxEnDKG6IWCRXiN5VWMpQo2jMBjpnaVIX73kpuB+Thr6XoSFT/Oi5Pt2W3OzetkFp3xYClqfc9TpfeNkzdJQf8ZSqCIxORUAWwB6hRS0KOcqTxIhMgYVbWGZDSVB2BFTE2PiqGHEYTKOUo4Q6A/DloWbgo4Xlo5mEILheZ77W1suJqK2rOssLccakbZjcgPMMI4UksFImuxnhHyznpKmEuoPL7ix4+tPfPI981jbVxFwIYDXGEZTred4kpLgK0zJOYBsoiGT57anSn26UggG95UMX/CCCKAapAylJ1vzS6VQn1ZSvJ0ZKEXapMiQhrNUSYDUmHNlTzl8nhlKSTFrBhLv4EQLuMFzqLtSuXbhxuCWkb/ffX3+LM86r9RsXkeEP7dMTVklGxwloA0j1AaxMUwgw8PU9LTpEstss44SlVh3Hf+U5IjKgseubXlZjSc+AeDDGUeqvkpkUzsrRu0S7Sqhso5COY6/VQnthowrvw/CSyNtZ8Qxc+J1bZ2nZG8Yrl+4MWh/qnh55iz/znB0zPhUMX+yjunlgukCw3gtgPNcKedklITlRCCRsUOMKg9vJppIC6QgsmzLx00AIzHv4x/L12ZnyasItDrnqBN6KxF4nAxYtdx9VtYTpUg/rS2vm79xyzf2rVv5w5yn3txXjqwQqbCYLR8hRz++EGDrMq7sC6NPLmjf+vltxWZ1oGsO51MUt9zfbmiMQC6fRVG8OGZzgQC9VjO/Sgo6vdZ1wEAiEG2SLF/6MelQHQaAGtcRUhD6KtHXjsvg1uqsIAB4srXlfSTEJ7OOmj8QxYgNm/Hq8plZZxylUkf4tR6N65du3vL0nnUt35id8y47OBjqKj1hmdlTkpiB2Nhjqu1ggAVg6jOu6gujz81v3/qpkcmisTHS2IqI36zKZ02NXGgN/7kFvRbMS5kxr9ZzpCBCZJIYI6skiIDI2P+MY9O+YHPH9+m42fl1K98gJLVllLwwMhaV2GggYSjG7nqixqxLpVg/ERtcO3/jXf8GAF1rCp97SU3m+u4RnevMbGs9RwyE+hEiBDlXfX4wjI8pb8AABKAbsq7qK0f/Z97GrR+tbqbxIuGRiaVxC6868nLPw2qew1hq2b6OCa9WJBaA+DFjeOO8jVvvHRMJzxSe37s+3yShPq0EtQhBGAy1SYjQsQvEzDrrOoqZYa29vbdU/tQr//7eHgB4/Lr8B2bnvH8aCGPN6Wy7pFuFrCcFlWOzBISW2TmveGgwHKohTXnCKf1EShwenvpk6Macp/rC6G470HNZmqmbMmVbTdN2olNMVMZyoPihU0/0//HpkQIsBIE5VjQxNCb+gY+/84QTG7LrmfGxrKOyvZWQicjSeI0Wqf2flXUxGMWPWYO/O2fjlvur85+7Wi95RY10f64tO0kbF1XbUvXsnKcODFTWLb6xY9PutYW9WUfNK4/InDlSYCrTxACclDisxGZUzMG6MeepgUq8/dnw0Ltfc8uPDh1pieJIgQBJ7ex4m/WYNGDkztjTWnirQ/L2Gs85q7ccTlhikiZ3TI2nlDZWG7abn6vYz77mlqD84BVXOEu7u+3uM+tySpUedKWcXwrjIadb7VbpC6P7Fm7sePOeVfnT2BX7ZDKkiQHYes+RfWFcBPNr6zPum9N6VDn6HhwhKDb2AIj7GjLe3N5ypEfS38ysGzKeKmu9o2T025ZsDH6z7Rhbk1LCk0cjrKOxm1RtTn5k9V/U7G99z61Z5XyPiM7qLlW0Tfuzxtv1gogac66KjH0gsvy6czZs/cRrbgnKnM/L/lP2MAWBIRr8ap3rzC9HWlcXv9qtUo71c2zFBxgg4anTXSmyZkRcQEQQzD9i5qu1ZRbj7S/mlDJHb7kSLitF0T0n1HgKDD1svkj1VkLtSnlejZA/3nHdJedN1Pk/3VfKNo+hNcSRIhxOVWrP+pYL672X/KI2o64qRbENtbaU1PSMLhFnyzB1niOVoHJfGF3/9Z8+/boF7VseSPuGCU3P0Qp/u378uvy1jTk33zNqRwoi60hBg5H50KLNW54mgK01Z2SURLUCDQyRFOmSs2hzsGcgjO4cby4REVElNqYh657jee4n5m7Y+u6+SnhrfdJYwlUoTESqP4yNEOKMOtfd9tjqS5bTMQphXFrkSEwO+b7tbG6W+1vf81mXRKcUYkl30uYvxneyMEoQNWZdGWpzf2j0+fM2bL3B356MMVvhb9eczwvyt+vH1+VfV+s5m/oqscEomzwr66n+MLrpvJuC71WndjGwIB3GmkBJQRRpayTEM8ygbC63fiCKD7mSiEcNcSKC6C3Hps5z1+y8rvCmuRu2XtNXCa92pCBXSlHtZxAEWY6NYWB2nef+4LHrCpfMtBCmPTOuEATmkWsveeWZrz31J7UZ9cnIWCpHsR1/kiAzM0x9xpFCUE9/FF999oa73rhoY/BYddcXgqTFCR2B3bs+f2JWyLsASGMtjZh4aGo9V3WXw18uyja1ckdenokzdbqI8y0PG3ZJABH3Z6Q6RAQ+y7/zmdgYv9ZzBI+dkkuWLRnL7Cr68t7iZfULNnbcVorNxUTUnXOHm9Ep7WnTlr06T31715r8h8jfrrfNkBDEdMwOCNi9puWNDRn3J44U53eXQp1qsxjLc8A4UlJDxpGVWP9byepXz9uw5TZmEBeLInVkDICWo1MQgdmKr+cc56Xl2JjqNZOpJESRMf3axpeR7+sgAOD7Jv39XG2S8TQEZkECzOjt8Sr9VY1dmG36Yk853FHjKgmMMUWiEhtTn3HPNuX4BgBYvLnj+yVtL4yN2dOQ8dSwEEhoa22sja3PuF/dvW7lqhWpEI71IIgpBRB0dVHSrM2fzDoqNxDqaIJdb5nZzsq6Ugg8OxhFHzp7w5a3L2kPnthWbFZE4JFBDadB2641hc80Zr2LeivhYZ3rRDA5R4lSHH908ebv7OOOYWrjN6vyWRBeFlsLJOM0kZqj7iV+EAGgE5ueI/J9zRCraOKEiuopx6bGdT6+e13+DcygxZu27OwOB143qPV9yUQADAnBMNNgbExDxrl5z9qCv8LfrpE/upHF0xZAIZ0CxYRcqA0DPN7ia09JUeu5ohzpuyLWS89p7/gnTrsoR8O3oYkl113yjrqM86mecqiJaCT/r2dlXdVTjr6yZPO3v8nVLsViMh0l9HAaMc3R1QFNRCyTtsrnUq2laivtwo1b7h+MdNCQcccdFMhsyTKzJHnHM9e9N/d4Me8uu/m7z6/fd9df9leirzbmXIVqBTQRWWbRX4n0rJz36X2tK79AQWDaikUqFo+u305MGVAgGVNAwEtTk2vA0NUvZuZZWU8B+HU5jgtnb7jr0gU3BL+vzlMYHcoPTSxZ8555Wde9M9LWWmZRjUmsZVvjKtVbiR7L5LJXd4ycSlIdZcxica3nVAeCEyX0IwB67rD3pRNZSNlVA2Hc40oijJpFMWyKnLk9Mtq4xA+ix4t5t6MD9pz2LR/uq4SfqfMcWUVIlEwEUT2lSDdknGv2ta78J9/32fcnGdV2tAKozn9b3rbdgGmDEkR1nuvUZxzVkHVVfdZVGUfRYBh95WClf9m89q1B9VCD8YKW6piwB4sX51zJgSNEQ2Qsj7T7rpIcW1vWMV96ln9nJT9yKkmaYzbgVyczWg+vLmDgWWDEKMt0UOCCG4Lfx8asrnHHdcgjTJH6+O51+Tcs8YOos61Zcj4v57V3FHvL8ZVJsa0UzKzTgjJ1qBTphoz7gX3rW+7+/lUXueT79kiFMPWwDt+3bW2gBZu23t4XRh8AYVtvJf56fyXyK7H5oDH6z+a2b71i2c3ffZ47kjB7oiKlznRMWG0l95X6jPPy0Z3ryTQqJctaX9V0U8fjY6eSpKdzAK/SCQQaGsmeQqdnRif/qZDOLN0c/GN3OfxRfcYZd5R+YorAkuQdf9j83poDXXMYTQFvKzarRZu33lHR5i8BPF2fcUf4BajuciWu99x3LaiZ9b1fXHVR/ZGeVTYtKOX7sCkzeCeAO8dFSm0+E03Ml1RD+a41+VWNWe/S0Z3rzNCNOVcdKoXfWLwp+Oro0J8BIt+3e6+6yLOgxZE2SKYpJ6ybtQBzqgGjP3xnEzNAexz+SCU2O5SgwwZ8jzBFujHnzj10INxYCIK/rd7DtmKzWuR3/PDRq951fn2t9w+NOe8tPaXQMhhE5HSXQt2Q9d44h2bd9/Or3/b2C24Nni0WIfxpzJE7Iu89pF5pa2Ynxu+DnSgr9vjq/BtqM+o+bdhq5qHcr2W2Na4SYWz3hhmzdDGaSqOPNqxSw3vWtiwiwuM8QnuZ2dZ4jhgI44sWber44Xinbwzdw3WFq15S493aWx6/C59AOuMINRjqNyza3LGt+ncjCbn9rSt9JcWnDTNCbY0kSJtOgilHuiti/quF7Vt/3dYGmkoIRxRMHE2VWOJ0ffPwqvxpOU99ixmkrR3K/6bkGBvLsSZz6RI/GOjI52WBDr/xlFm0DHtuneeJvko8TPgRUaQtIPh5ABgqCTzcFCXz4godt+1e2/LXdZ7z+v4wHkMaWrbCsmAh8JU/rH7vy4MgrCTDy9PAET7m+luKe9YUHnCU/IeGjHNKXyXR5r5yHJ1Un216ZqD8USKs42Kz9LHdzggVcdR0dVcXbSs2qxpXbPWUPKkyekxYOpthMDKrF7UHD000hXDYrtOyFHLyiBwBaWMjsDgIAG0T3U714AYprgy1rqikxp/HQ0Wzst7cHhG1F4LAVAtxfd+3vg+7rdisFmzu+P5gWDq/os19jbmMAsNCMA2GsRbg1wEA2jrNMTvhY3oVmyUFgTm5POfvZ2W91/ZXDh8TZpn1rGT67N1Lbuy4bXLKN3XAhFfFZsRsIK5Wr3F/JpPpAdK+tAk0eFuxWS3ccNfuyNhivedIMJvxUFFvOdY5T/3trjWFFSlnNXTf1Rjj3Jvv/e3ZN9z1lv5y9Pmsq4QnpeMqqcBIOmHSsw1eFAFsS2dz7lpb+OCsbOZj3aNmc1qGqXUdNRDGT3nZ6MNJM8P46lp1wA8WL84xsCg2BjRUvcYsBYFB3Wd2lfqn8mzL/e2GO/JywVN806FS5YER8QRGmyJmsEpMUQ06AjtyJNHQuB4Gztm45ZOVUL8NQFdvGO11LX8khS94UQRQjX53rLlkWVbJL5UibXhEYsRathklpbbm+dDGbzvLv7cn6Oqa2GGlEfCsKHe2IDolMhbVOhwiYpm0QB+idKIXTX5KB2NnE1MQGEfQ+yNjBtMs2hhTVI6Nrc96c3tV1E4EHn3kru/7tjq+f/7mrd/92g13nXugYl5RbeCYzjTdGRdAdZc8X7ysPifVVhLkRcYMzWhLkitSEHF/bxhfvHjT3Tu5Y/K8azW1Z5jPrXWdw8bfMA/xQInaT+P4kKopmtu+dW9Zm2tqXCUJGM8Uib5KzGD6m93XvuclhSAw4x1YUQiSccw+YJO52NNHlzMugGSOsm+fK0VfqMu4Z5cjrQUNZ7bSJo6wUtHvfMVNdz/ARzCNiiGWpjWBIyPgw2iIzmkeoFDF94s3BV/tKVeChqyrxiRvEj9FguAZFZ2U2PUiTcCZGSSV40d0oNuMCqB67lbXmpaL6zPuB3tGnL9imVlJwUoIDIRhy8KbgvurM5ynum71UASy/Eo9akJ6NQpm8LOjo+Apr9vWabhYFFnhXDkQxr/NOFKMmoVKyQRGKSSJRABdk1YTHnH/xMxqQPXcAcFvcaQY6rFjBkshrKekHIzjDyy+8e57H7xiqTOdxa864D+sfm8NEzVFxoJ5+L6paoZAz4wbBU9miog46OqiM9q/1a3ZfEAQSJI4LHdLIOsKYQXTGUeiYS+OAKon1DGdDZBIaVwjCKbWVbK/HP3t4s3BPz94xVJn2R0PxdMsJyAA6EG40BF0ckLeHaYBZJlhCc8czS0PHTi3Mbh/IIzbG7KuYot4iPEFrCOlAInjUsY5swJIAh0CeHsYm4H6jOPVuEo2JhPHP9F0Y/C/udispr34IxywkHhVjeuAxkBGJm0sJPFzwKgzAqZrilJo2pRr+lR3OfzFSfVZty7jqPqsqxqyrvt8qbxTwtwNgJbPwMDu4yYA8n3LABZu6tjUG+pXlCPzFW35/oMD5ZVNmzo2dKTntRzdxen8CcyICI2FsBPTENMgxBj5wJLva47F20phdNlAFG0eDON/KIXxOyraPb/aqjrTPXIzf55wmkMg398P4IpRZJo5mt2Z+pFXRSaZpDgiCGZJRMbaCkN3T0JDTEO+iT9fePNdzwP4Vvp1uC86Dg2Kx608vVolnW9qYizuoqMZfFplQPevy5+uWewRgjJm9DmRSlCszbOWK/Omc07kdOKYkcekLF88h4/n3NAXtUlv6sVIDurcu/ZdL2VydwuimsMFkIwbK8d698LsosWpCaQXopX2j9MJz/TuIGLuyMv5m+75HTMHta6yh5FnCQ1hBaiffN9OdVDn/wjgaCLr5GhtUkLdzoCQQgwfHsFArecIJt6ehuEC/81e9N/hJqu+oGtty7U5Jdot4Mh0blE5jO+JsrwyQKCP5Bzf/xHA0QqhteXNOSHuiC0/BOAr89q3/GBkUPzfTQP+Px84GT7QcjoGAAAAAElFTkSuQmCC",
+  gemini: "data:image/png;base64,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",
+  azure: "data:image/png;base64,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",
+  mistral: "data:image/png;base64,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"
+};
+
+const LOGO_GEOM = {
+  gemini:  { w: 0.80, ratio: 1 },
+  claude:  { w: 0.80, ratio: 1 },
+  openai:  { w: 0.80, ratio: 1 },
+  azure:   { w: 0.70, ratio: 1 },
+  mistral: { w: 0.90, ratio: 903 / 1280 }
+};
+/* Which mark a model wears, matched on the family rather than the exact
+   name — a version bump should not silently drop the logo. */
+const MODEL_LOGO = [
+  [/^gpt|^o[134]\b/i, 'openai'], [/claude/i, 'claude'], [/gemini/i, 'gemini'],
+  [/azure/i, 'azure'], [/mistral|mixtral/i, 'mistral']
+];
+const logoOf = model => (MODEL_LOGO.find(([re]) => re.test(model)) || [])[1] || null;
+
+function logoHTML(logo, slot) {
+  const g = LOGO_GEOM[logo];
+  if (!g) return '';
+  const size = `width:${(slot * g.w).toFixed(2)}px;height:${(slot * g.w * g.ratio).toFixed(2)}px`;
+  return logo === 'openai'
+    ? `<svg viewBox="0 0 12.6261 12.8" style="${size};color:var(--logo-openai)"><use href="#ic-openai"/></svg>`
+    : `<img src="${LOGO_SRC[logo]}" alt="" style="${size}">`;
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -2936,114 +3063,118 @@ const mem = (name, role, remote) => ({ name, role, remote: !!remote });
    one carries the endpoint, the protocol and the server it came from.
    ════════════════════════════════════════════════════════════════════ */
 let AGENTS = [
-  { name: 'Check country rate values 2308', type: 'agent', state: 'running',
-    desc: 'Verifies country-level rate values against the reference table and flags anything outside tolerance.',
+  { name: 'Country Rate Checker', type: 'agent', state: 'running',
+    desc: 'Checks the rates we quote in each country against the approved price list and flags anything that has drifted.',
     model: 'GPT-4o mini', tools: 1, skills: 2, guards: 1, by: 'Priya Nair', tags: ['pricing'], updated: '18m ago', runs: 412,
-    parent: 'SCM_Spares_InventoryPolicyRecommendation_LOOPTEST_V6' },
+    parent: 'Spare Parts Stock Planner' },
 
-  { name: 'SCM_Spares_InventoryPolicyRecommendation_LOOPTEST_V6', type: 'agent', state: 'running',
-    desc: 'Recommends min-max inventory policy per spare part by simulating demand loops against service targets.',
-    model: 'Claude 3.5', tools: 2, skills: 3, guards: 0, by: 'Rahul Menon', tags: ['supply-chain'], updated: '2h ago', runs: 1284 },
+  { name: 'Spare Parts Stock Planner', type: 'agent', state: 'running',
+    desc: 'Works out how many of each spare part to keep on the shelf so orders get filled without tying up cash in stock.',
+    model: 'Claude 3.5 Sonnet', tools: 2, skills: 3, guards: 0, by: 'Rahul Menon', tags: ['supply-chain'], updated: '2h ago', runs: 1284 },
 
-  { name: 'agen failed', type: 'agent', state: 'error',
-    desc: 'Unable to function — the configured model endpoint returns 502 and no tool binding has been resolved.',
+  { name: 'Returns Note Reader', type: 'agent', state: 'error',
+    desc: 'Reads handwritten returns notes and pulls out the order number and reason. Not working — its model is unreachable.',
     model: '—', tools: 0, skills: 0, guards: 0, by: 'Marcus Lee', tags: [], updated: '3d ago', runs: 0,
-    problem: 'Model endpoint unreachable (502) since Mar 6. No tools bound.' },
+    problem: 'The model this agent uses has been returning errors since 6 March, and no tools have been connected to it yet.' },
 
-  { name: 'Read CSV File Agent 0209', type: 'agent', state: 'idle',
-    desc: 'Reads CSV files from a mounted path and returns typed rows with a schema summary.',
+  { name: 'Spreadsheet Reader', type: 'agent', state: 'idle',
+    desc: 'Opens a CSV or spreadsheet, works out what each column holds, and hands back clean rows anything else can use.',
     model: 'GPT-4o mini', tools: 1, skills: 1, guards: 0, by: 'Anna Park', tags: ['data'], updated: '1d ago', runs: 96 },
 
-  { name: 'Doc Class with all 0209', type: 'agent', state: 'running',
-    desc: 'Classifies documents into predefined categories and returns the confidence behind each call.',
+  { name: 'Document Sorter', type: 'agent', state: 'running',
+    desc: 'Sorts incoming documents into the right category — invoice, contract, claim — and says how sure it is about each one.',
     model: 'GPT-4o', tools: 1, skills: 2, guards: 1, by: 'Sarah Chen', tags: ['documents'], updated: '42m ago', runs: 2140 },
 
-  { name: 'Doc Extraction ADLS local files ADI 0209', type: 'agent', state: 'running',
-    desc: 'Extracts structured fields from documents in ADLS using Document Intelligence, then normalises them.',
+  { name: 'Invoice Field Extractor', type: 'agent', state: 'running',
+    desc: 'Pulls supplier, date, line items and totals out of scanned invoices and puts them into the same shape every time.',
     model: 'GPT-4o', tools: 2, skills: 3, guards: 1, by: 'Sarah Chen', tags: ['documents', 'azure'], updated: '1h ago', runs: 870 },
 
-  { name: 'Filter given data 0109', type: 'orchestrator', state: 'running',
-    desc: 'Screens and refines datasets by delegating each pass to a filter sub-agent and reconciling the results.',
+  { name: 'Data Clean-Up Crew', type: 'orchestrator', state: 'running',
+    desc: 'Cleans a messy dataset by handing it to a filter agent and a checker, then reconciling what the two send back.',
     model: 'GPT-4o', tools: 0, skills: 1, guards: 2, by: 'Anna Park', tags: ['data'], updated: '20m ago', runs: 318,
-    members: [mem('Filter given data', 'Row-level screening'), mem('Schema Guard', 'Type and range checks')] },
+    members: [mem('Row Filter', 'Drops rows that fail the rules'), mem('Column Checker', 'Catches wrong types and out-of-range values')] },
 
-  { name: 'Filter given data', type: 'agent', state: 'idle',
-    desc: 'Processes and refines data by applying the caller’s filter predicates row by row.',
+  { name: 'Row Filter', type: 'agent', state: 'idle',
+    desc: 'Goes through a dataset row by row and keeps only the ones that match the rules it was given.',
     model: 'GPT-4o mini', tools: 1, skills: 1, guards: 0, by: 'Anna Park', tags: ['data'], updated: '20m ago', runs: 318,
-    parent: 'Filter given data 0109' },
+    parent: 'Data Clean-Up Crew' },
 
-  { name: 'API and Doc extraction', type: 'orchestrator', state: 'review',
-    desc: 'Identifies and extracts content from both API responses and documents, routing each payload to the right specialist.',
-    model: 'Claude 3.5', tools: 1, skills: 2, guards: 1, by: 'Mike Torres', tags: ['documents', 'api'], updated: '4h ago', runs: 54,
-    members: [mem('Doc Extraction ADLS local files ADI 0109', 'Document parsing'), mem('API Reader', 'Response shaping'), mem('Market Research Agent', 'External enrichment', true)] },
+  { name: 'Claims Intake Desk', type: 'orchestrator', state: 'review',
+    desc: 'Takes whatever a claim arrives as — a PDF, an email, an API response — and sends each part to the agent that handles it.',
+    model: 'Claude 3.5 Sonnet', tools: 1, skills: 2, guards: 1, by: 'Mike Torres', tags: ['documents', 'api'], updated: '4h ago', runs: 54,
+    members: [mem('Invoice Field Extractor', 'Reads the attached documents'),
+              mem('API Response Reader', 'Tidies up data from other systems'),
+              mem('Market Research Assistant', 'Adds outside context', true)] },
 
-  { name: 'Doc Extraction ADLS local files ADI 0109', type: 'agent', state: 'running',
-    desc: 'Extracts document data from local ADLS files with Document Intelligence and returns page-anchored fields.',
-    model: 'GPT-4o', tools: 3, skills: 2, guards: 1, by: 'Sarah Chen', tags: ['documents', 'azure'], updated: '4h ago', runs: 612,
-    parent: 'API and Doc extraction' },
+  { name: 'API Response Reader', type: 'agent', state: 'running',
+    desc: 'Takes the raw reply from another system and turns it into fields with names a person would recognise.',
+    model: 'GPT-4o', tools: 3, skills: 2, guards: 1, by: 'Sarah Chen', tags: ['api'], updated: '4h ago', runs: 612,
+    parent: 'Claims Intake Desk' },
 
-  { name: 'Display data no input_copy', type: 'agent', state: 'draft',
-    desc: 'Presents a supplied dataset as a formatted table without asking for any input of its own.',
+  { name: 'Results Table Builder', type: 'agent', state: 'draft',
+    desc: 'Lays out whatever data it is handed as a readable table, with sensible headings and totals. Still a draft.',
     model: 'GPT-4o mini', tools: 0, skills: 1, guards: 0, by: 'Marcus Lee', tags: [], updated: '6d ago', runs: 0 },
 
-  { name: 'LogAnalyzerAgent', type: 'agent', state: 'running',
-    desc: 'Examines logs to detect anomalies, classify severity and summarise the likely root cause.',
-    model: 'Claude 3.5', tools: 2, skills: 3, guards: 2, by: 'Elena Vogt', tags: ['ops'], updated: '9m ago', runs: 4820 },
+  { name: 'Error Log Investigator', type: 'agent', state: 'running',
+    desc: 'Reads through error logs, spots what is unusual, works out how serious it is and explains the likely cause.',
+    model: 'Claude 3.5 Sonnet', tools: 2, skills: 3, guards: 2, by: 'Elena Vogt', tags: ['ops'], updated: '9m ago', runs: 4820 },
 
   /* ── Registered from outside ── */
-  { name: 'Fraud Signals Agent', type: 'remote', conn: 'a2a', state: 'running',
-    desc: 'Partner-hosted agent that scores transactions for fraud patterns and returns risk explanations.',
+  { name: 'Fraud Risk Scorer', type: 'remote', conn: 'a2a', state: 'running',
+    desc: 'Acme Bank\u2019s own agent. Give it a transaction and it tells you how risky it looks, and why.',
     endpoint: 'agents.acmebank.com/a2a', server: 'Acme Bank A2A', auth: 'API key (Bearer)',
     cards: ['Fraud Signals'], agentSkills: ['fraud.score', 'fraud.explain'],
     by: 'Acme Bank', tags: ['risk'], updated: '30m ago', runs: 9240 },
 
-  { name: 'Market Research Agent', type: 'remote', conn: 'a2a', state: 'idle',
-    desc: 'External A2A agent that synthesizes competitive intel and category trends on demand.',
+  { name: 'Market Research Assistant', type: 'remote', conn: 'a2a', state: 'idle',
+    desc: 'Nova AI\u2019s research agent. Ask it about a market or a competitor and it comes back with a written summary.',
     endpoint: 'a2a.nova-ai.io/research', server: 'Nova AI Research', auth: 'OAuth 2.0',
     cards: ['Market Research'], agentSkills: ['research.market'],
     by: 'Nova AI', tags: ['research'], updated: '2d ago', runs: 188 },
 
-  { name: 'Weather Intelligence', type: 'remote', conn: 'rest', state: 'running',
-    desc: 'Third-party REST weather API wrapped by a Cogentiq adapter and served as an A2A agent.',
+  { name: 'Weather Lookup', type: 'remote', conn: 'rest', state: 'running',
+    desc: 'A weather service we buy in. It was a plain API, so Cogentiq wrapped it up as an agent anything here can talk to.',
     endpoint: 'api.weatherco.com/v2', server: 'Cogentiq Managed A2A', auth: 'API key (Bearer)',
     cards: ['Weather Intelligence'], agentSkills: ['weather.forecast', 'weather.current'],
     by: 'WeatherCo', tags: ['enrichment'], updated: '4h ago', runs: 1520 },
 
-  { name: 'Legal Clause Lookup', type: 'remote', conn: 'rest', state: 'review',
-    desc: 'Non-A2A REST service for clause retrieval, made A2A-compliant through the managed adapter layer.',
+  { name: 'Contract Clause Finder', type: 'remote', conn: 'rest', state: 'review',
+    desc: 'Searches LawStack\u2019s clause library and returns the wording that matches. Waiting on approval before it can be used.',
     endpoint: 'api.lawstack.io/clauses', server: 'Cogentiq Managed A2A', auth: 'API key (Bearer)',
     cards: ['Legal Clause Lookup'], agentSkills: ['clause.lookup'],
     by: 'LawStack', tags: ['legal'], updated: '6d ago', runs: 0 },
 
-  { name: 'Logistics Tracker', type: 'remote', conn: 'rest', state: 'error',
-    desc: 'REST shipment-tracking endpoint exposed through the Cogentiq Managed A2A server with an adapter.',
+  { name: 'Delivery Tracker', type: 'remote', conn: 'rest', state: 'error',
+    desc: 'Looks up where a shipment has got to. Currently failing — the courier is rejecting our key.',
     endpoint: 'track.shipfast.com/api', server: 'Cogentiq Managed A2A', auth: 'API key (Bearer)',
     cards: ['Logistics Tracker'], agentSkills: ['shipment.track'],
     by: 'ShipFast', tags: ['supply-chain'], updated: '1d ago', runs: 76,
-    problem: 'Upstream returned 401 on the last 12 calls — the stored API key may have rotated.' }
+    problem: 'The last twelve calls were refused by ShipFast. The stored API key has most likely been rotated at their end.' }
 ];
 
 /* Agents published to the org marketplace — the other side of a
    workspace agent's "Publish" action. Not installed here until added. */
 const MARKET = [
   { name: 'Contract Risk Reviewer', type: 'agent', state: 'idle',
-    desc: 'Reads a contract and flags unusual liability, indemnity and termination clauses against policy.',
-    model: 'Claude 3.5', tools: 3, skills: 4, guards: 2, by: 'Legal Ops', tags: ['legal', 'documents'], updated: '3d ago', runs: 0, installs: 42 },
-  { name: 'Spend Anomaly Detector', type: 'agent', state: 'idle',
-    desc: 'Watches ledger postings for out-of-pattern spend and explains why each one was flagged.',
+    desc: 'Reads a contract and points out the terms that differ from what we normally accept, with the clause to look at.',
+    model: 'Claude 3.5 Sonnet', tools: 3, skills: 4, guards: 2, by: 'Legal Ops', tags: ['legal', 'documents'], updated: '3d ago', runs: 0, installs: 42 },
+  { name: 'Unusual Spend Spotter', type: 'agent', state: 'idle',
+    desc: 'Watches what the company spends and raises the payments that do not look like the usual pattern, with a reason.',
     model: 'GPT-4o', tools: 2, skills: 2, guards: 1, by: 'Finance Guild', tags: ['finance'], updated: '1w ago', runs: 0, installs: 118 },
-  { name: 'Supplier Risk War Room', type: 'orchestrator', state: 'idle',
-    desc: 'Coordinates disruption watch, route replanning and supplier comms into a single briefing.',
+  { name: 'Supplier Problem Room', type: 'orchestrator', state: 'idle',
+    desc: 'When a supplier is late or a route is blocked, it pulls together what happened, what to do, and a note to send them.',
     model: 'GPT-4o', tools: 1, skills: 3, guards: 2, by: 'Supply Chain CoE', tags: ['supply-chain', 'ops'], updated: '2w ago', runs: 0, installs: 67,
-    members: [mem('Disruption Watch', 'Signal detection'), mem('Route Planner', 'Logistics'), mem('Comms Drafter', 'Supplier outreach')] },
-  { name: 'Ticket Triage Agent', type: 'agent', state: 'idle',
-    desc: 'Classifies inbound support tickets, sets severity and routes each to the right queue.',
+    members: [mem('Disruption Watch', 'Notices when something has gone wrong'),
+              mem('Route Planner', 'Works out the way around it'),
+              mem('Supplier Note Writer', 'Drafts the message to send')] },
+  { name: 'Support Ticket Sorter', type: 'agent', state: 'idle',
+    desc: 'Reads a new support ticket, decides how urgent it is and sends it to the team that should be handling it.',
     model: 'GPT-4o mini', tools: 2, skills: 2, guards: 1, by: 'Support Guild', tags: ['ops'], updated: '4d ago', runs: 0, installs: 203 },
-  { name: 'Invoice Reconciler', type: 'agent', state: 'idle',
-    desc: 'Three-way matches invoices to purchase orders and receipts, escalating exceptions for review.',
+  { name: 'Invoice Matcher', type: 'agent', state: 'idle',
+    desc: 'Checks an invoice against the order and the delivery note, and escalates the ones that do not line up.',
     model: 'GPT-4o mini', tools: 3, skills: 2, guards: 1, by: 'Finance Guild', tags: ['finance', 'documents'], updated: '5d ago', runs: 0, installs: 91 },
-  { name: 'Patent Scout (A2A)', type: 'remote', conn: 'a2a', state: 'idle',
-    desc: 'Nova AI’s prior-art agent, published to the marketplace as a ready-to-register A2A client.',
+  { name: 'Prior Art Finder', type: 'remote', conn: 'a2a', state: 'idle',
+    desc: 'Nova AI\u2019s patent agent, ready to connect. Give it an idea and it finds the existing patents closest to it.',
     endpoint: 'a2a.nova-ai.io/patents', server: 'Nova AI Research', auth: 'OAuth 2.0',
     cards: ['Patent Scout'], agentSkills: ['patent.search'],
     by: 'Nova AI', tags: ['research'], updated: '1w ago', runs: 0, installs: 24 }
@@ -3058,15 +3189,31 @@ const badge = (t, text, glyph) => `<span class="cq-badge" data-tone="${t}">${gly
 
 /* Only the two kinds that are not the default wear a badge. Sixteen
    cards each saying "Agent" tells nobody anything. */
-const typeBadge = a => a.type === 'agent' ? '' : badge(TYPE[a.type].tone, TYPE[a.type].label, TYPE[a.type].ic);
+const typeBadge = a => a.type === 'agent' ? '' : badge(TYPE[a.type].tone, TYPE[a.type].label);
 
-/* The lead tag is what the agent runs on: a model for one built here,
-   the protocol for one that answers somewhere else. */
-const leadTag = a => a.type === 'remote'
-  ? `<span class="cq-tag cq-tag--model" title="${esc(a.endpoint)}">${a.conn === 'rest' ? 'REST · adapter' : 'A2A'}</span>`
-  /* An agent with no model yet says so. The em dash the data carries is
-     honest in a table cell and meaningless as a pill on its own. */
-  : `<span class="cq-tag cq-tag--model">${a.model === '—' ? 'No model' : esc(a.model)}</span>`;
+/* ── What the agent brings ──
+   The model it thinks with, and how much is wired to it. A model's name
+   is a string most people cannot place; its mark they can. The counts
+   sit beside it because "three tools" is the question somebody actually
+   has about an agent they are about to hand work to.
+
+   A remote agent has no model of its own — it is somebody else's — so it
+   says how Cogentiq reaches it instead. */
+function capsHTML(a) {
+  if (a.type === 'remote') {
+    return `<span class="ag-cap ag-cap--text" title="${esc(a.endpoint)}">${a.conn === 'rest' ? 'Hosted API' : 'A2A agent'}</span>` +
+      (a.agentSkills && a.agentSkills.length
+        ? `<span class="ag-cap" title="${a.agentSkills.length} skill${a.agentSkills.length > 1 ? 's' : ''}">${ic('ic-pp_skill', 14)}${a.agentSkills.length}</span>` : '');
+  }
+  const logo = logoOf(a.model);
+  const out = [logo
+    ? `<span class="ag-cap ag-cap--logo" title="${esc(a.model)}">${logoHTML(logo, 18)}</span>`
+    : `<span class="ag-cap ag-cap--text" title="${esc(a.model)}">${esc(a.model === '—' ? 'No model' : a.model)}</span>`];
+  if (a.tools)  out.push(`<span class="ag-cap" title="${a.tools} tool${a.tools > 1 ? 's' : ''}">${ic('i-wrench', 14)}${a.tools}</span>`);
+  if (a.skills) out.push(`<span class="ag-cap" title="${a.skills} skill${a.skills > 1 ? 's' : ''}">${ic('ic-pp_skill', 14)}${a.skills}</span>`);
+  if (a.guards) out.push(`<span class="ag-cap" title="${a.guards} guardrail${a.guards > 1 ? 's' : ''}">${ic('ic-pp_guardrails', 14)}${a.guards}</span>`);
+  return out.join('');
+}
 
 function cardHTML(a, i) {
   const s = STATE[a.state];
@@ -3081,10 +3228,7 @@ function cardHTML(a, i) {
     <span class="ag-card__name cq-body2-med" title="${esc(a.name)}">${esc(a.name)}</span>
     <span class="ag-card__desc" title="${esc(a.desc)}">${esc(a.desc)}</span>
     <span class="ag-card__foot">
-      <span class="ag-card__tags">
-        ${leadTag(a)}
-        ${(a.tags || []).slice(0, 1).map(t => `<span class="cq-tag" data-tone="${tone(t)}">${esc(t)}</span>`).join('')}
-      </span>
+      <span class="ag-card__tags">${capsHTML(a)}</span>
       <span class="ag-card__end">
         ${market
           ? `<span class="cq-tag">${a.installs} installs</span>`
@@ -3111,7 +3255,7 @@ function rowHTML(a, i) {
         <span class="ag-row__desc cq-caption-reg cq-truncate" title="${esc(a.desc)}">${esc(a.desc)}</span>
       </span>
     </div>
-    <div class="cq-cell">${badge(TYPE[a.type].tone, TYPE[a.type].label, TYPE[a.type].ic)}</div>
+    <div class="cq-cell">${badge(TYPE[a.type].tone, TYPE[a.type].label)}</div>
     <div class="cq-cell ag-cell--mono"><span title="${esc(mid)}">${esc(mid)}</span></div>
     <div class="cq-cell">
       <span class="cq-avatar">${initial(a.by)}</span>
@@ -3350,7 +3494,7 @@ function openPanel(i) {
   const market = state.src === 'marketplace';
   const s = STATE[a.state];
 
-  $('pBadges').innerHTML = badge(TYPE[a.type].tone, TYPE[a.type].label, TYPE[a.type].ic) +
+  $('pBadges').innerHTML = badge(TYPE[a.type].tone, TYPE[a.type].label) +
     (market ? `<span class="cq-tag">${a.installs} installs</span>`
             : `<span class="cq-status" data-tone="${s.tone}"><span class="cq-status--dot"></span>${s.label}</span>`);
   $('pIc').outerHTML = `<img class="ag-panel-mark" id="pIc" src="${markFor(a)}" alt="" width="40" height="40" />`;
@@ -3486,7 +3630,20 @@ const closeWiz = () => $('wizScrim').classList.remove('is-open');
 $('wizX').addEventListener('click', closeWiz);
 $('wizCancel').addEventListener('click', closeWiz);
 $('wizScrim').addEventListener('click', e => { if (e.target === $('wizScrim')) closeWiz(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('wizScrim').classList.contains('is-open')) closeWiz(); });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  /* The sheet sits over the wizard, so it goes first. */
+  if ($('cmpScrim').classList.contains('is-open')) return closeCmp();
+  if ($('wizScrim').classList.contains('is-open')) closeWiz();
+});
+
+/* The comparison sheet opens over the wizard and closes back to it, so
+   the choice it explains never leaves the screen. */
+const closeCmp = () => $('cmpScrim').classList.remove('is-open');
+$('cmpOpen').addEventListener('click', () => $('cmpScrim').classList.add('is-open'));
+$('cmpX').addEventListener('click', closeCmp);
+$('cmpDone').addEventListener('click', closeCmp);
+$('cmpScrim').addEventListener('click', e => { if (e.target === $('cmpScrim')) closeCmp(); });
 
 $('protoCards').addEventListener('click', e => {
   const b = e.target.closest('[data-proto]');
