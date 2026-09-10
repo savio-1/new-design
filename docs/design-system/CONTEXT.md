@@ -112,7 +112,9 @@ Everything here is stand-in and should not ship as-is:
 | `--ink-45` at 14px | Measures **2.6:1** — under AA. Affects every caption, role and disclaimer on the page. Moving those to `--ink-65` fixes it; it is a token-level decision, not a one-off. |
 | Mobile nav | Links hide below 1000px and nothing replaces them — no hamburger or drawer exists yet. |
 | Intro replay | Plays on every load. Session-gate it before real traffic, and consider click-to-skip. |
-| Figma | The plan was always to rebuild in Figma once the HTML settled. |
+| Figma | Built. Page **AlmaConnect — Homepage** in file `wPFGlGLF2kGdcC06My35za` (node `49:2`) — 1440x7279, all eleven sections, on 27 colour variables, 14 layout variables and 16 text styles. Page 1 (the AngelList reference) is untouched. |
+| Geist 350 in Figma | Figma exposes no variable weight axis for Geist, so 350 maps to the nearest named cut: **Light** at 32px and above, **Regular** at 24px and below. This is the one place the Figma file cannot match the CSS exactly. |
+| `shot-find.jpg` / `shot-watch.jpg` | Not AlmaConnect UI — they are another company's product screenshots (a vulnerability tool and a package uploader) that were sitting in `assets/img/floema/`. They are live on the prototype in the solution card and the benefits panel, and should be replaced with real product captures. Left out of the Figma build. |
 
 ---
 
