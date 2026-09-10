@@ -2222,8 +2222,11 @@ body.cq { margin: 0; }
       padding: 10px; border-bottom: 1px solid var(--ag-well-border);
       background: var(--ag-well);
     }
-    .ag-picker__bar .cq-search { flex: 1 1 auto; height: 34px; }
-    .ag-picker__n { flex: none; color: var(--text-teritiary); white-space: nowrap; }
+    /* Fixed rather than filling the bar — the count and the two actions
+       need to read as a group at the end, not drift with however long
+       the field happens to be. */
+    .ag-picker__bar .cq-search { flex: none; width: 200px; height: 34px; }
+    .ag-picker__n { flex: none; margin-left: auto; color: var(--text-teritiary); white-space: nowrap; }
     .ag-picker__act {
       flex: none; color: var(--text-coloured-blue);
       font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
@@ -2231,31 +2234,6 @@ body.cq { margin: 0; }
     }
     .ag-picker__act:hover { text-decoration: underline; }
     .ag-picker__act[aria-disabled="true"] { color: var(--text-disabled-tonal-2); pointer-events: none; text-decoration: none; }
-
-    /* What you have taken, above what is left to take. Without it the
-       answer scrolls away the moment the list outgrows its box. */
-    .ag-chips {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      padding: 10px; border-bottom: 1px solid var(--ag-well-border);
-      background: var(--ag-well-strong);
-    }
-    .ag-chips[hidden] { display: none; }
-    .ag-chip {
-      height: 24px; max-width: 100%;
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 0 4px 0 9px; border-radius: var(--radius-full);
-      background: var(--backgrounds-badge-blue);
-      border: 1px solid var(--strokes-colour-blue);
-      color: var(--text-coloured-blue);
-      font: 400 var(--fs-caption)/1 var(--font-geist); letter-spacing: -0.24px;
-    }
-    .ag-chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ag-chip__x {
-      flex: none; width: 16px; height: 16px; border-radius: 50%;
-      display: inline-flex; align-items: center; justify-content: center;
-      color: inherit; opacity: .7;
-    }
-    .ag-chip__x:hover { opacity: 1; background: color-mix(in srgb, currentColor 20%, transparent); }
 
     .ag-picker__list { max-height: 296px; overflow-y: auto; padding: 6px; }
     .ag-picker__empty { padding: 28px 12px; text-align: center; color: var(--text-teritiary); }
@@ -2999,7 +2977,6 @@ body.cq { margin: 0; }
               <button class="ag-picker__act" id="pickAll" type="button">Select all</button>
               <button class="ag-picker__act" id="pickNone" type="button">Clear</button>
             </div>
-            <div class="ag-chips" id="pickChips" hidden></div>
             <div class="ag-picker__list" id="pickList"></div>
           </div>
           <p class="ag-note cq-caption-reg" id="step3Note"></p>
@@ -3977,17 +3954,6 @@ function paintPicks() {
   $('pickAll').setAttribute('aria-disabled', String(!shown.length || shown.every(it => wiz.picks.has(it.id))));
   $('pickNone').setAttribute('aria-disabled', String(!wiz.picks.size));
 
-  /* Chips come from the full set, not the filtered one — hiding what you
-     already chose because it does not match the search would be a lie. */
-  const chosen = items.filter(it => wiz.picks.has(it.id));
-  $('pickChips').hidden = !chosen.length;
-  $('pickChips').innerHTML = chosen.map(it => `
-    <span class="ag-chip"><span>${esc(it.name)}</span>
-      <button class="ag-chip__x" data-drop="${esc(it.id)}" type="button" aria-label="Remove ${esc(it.name)}">
-        ${ic('i-x', 10)}
-      </button>
-    </span>`).join('');
-
   $('pickList').innerHTML = shown.length ? shown.map(it => `
     <button class="ag-pick ${wiz.picks.has(it.id) ? 'is-on' : ''}" data-pick="${esc(it.id)}" type="button">
       <span class="cq-checkbox ${wiz.picks.has(it.id) ? 'is-checked' : ''}" style="margin-top:2px">${ic('i-check', 12)}</span>
@@ -4014,13 +3980,6 @@ $('pickAll').addEventListener('click', () => {
   paintWiz();
 });
 $('pickNone').addEventListener('click', () => { wiz.picks.clear(); paintWiz(); });
-$('pickChips').addEventListener('click', e => {
-  const b = e.target.closest('[data-drop]');
-  if (!b) return;
-  wiz.picks.delete(b.dataset.drop);
-  paintWiz();
-});
-
 $('pickList').addEventListener('click', e => {
   const b = e.target.closest('[data-pick]');
   if (!b) return;
