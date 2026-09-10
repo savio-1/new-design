@@ -265,8 +265,10 @@
 
     /**
      * Render a frame.
-     * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera, media }
+     * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera, media, trackTransform, outlines }
      *   media: { scale, x, y, locked, bg:[r,g,b] }
+     *   trackTransform(layer): the transform to draw a layer with when it is pinned to a motion track (or null)
+     *   outlines: [{ x, y, w, h, color, cross }] boxes in video-plane units drawn over the footage while editing
      *   camera: { x, y, z, yaw, pitch, roll, focus, aperture } — absolute; defaults to the resting camera.
      */
     render(opts) {
@@ -332,18 +334,23 @@
       for (const layer of opts.layers) {
         if (layer.hidden) continue;
         if (t < layer.start || t >= layer.end) continue;
-        const tr = layer.transform;
+        // A layer pinned to a motion track is drawn where the footage carries it; with the video locked
+        // to the resting camera it must be seen from that same camera, or it would slide off its anchor.
+        const pinned = opts.trackTransform ? opts.trackTransform(layer) : null;
+        const tr = pinned || layer.transform;
+        const VPbase = pinned && media.locked ? planeVP : VP;
+        const viewBase = pinned && media.locked ? this.viewMatrix(this.defaultCamera()) : view;
         // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
         // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
-        const depthL = -M4.transformPoint(view, tr.x, tr.y, tr.z).z;
+        const depthL = -M4.transformPoint(viewBase, tr.x, tr.y, tr.z).z;
         const mag = Math.min(8, Math.max(1, this.camDist / Math.max(0.05, depthL)));
         const bucket = Math.min(8, Math.pow(1.5, Math.ceil(Math.log(mag) / Math.log(1.5) - 1e-6)));
         const lay = this._layoutFor(layer, Math.round(frameH * bucket));
         const dur = layer.end - layer.start;
         const lt = t - layer.start;
         const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
-        const VPL = M4.multiply(VP, layerM);
-        const viewL = M4.multiply(view, layerM);
+        const VPL = M4.multiply(VPbase, layerM);
+        const viewL = M4.multiply(viewBase, layerM);
         const fw = lay.fontWorld;
         const count = lay.groups.length;
         const quads = [];
@@ -420,7 +427,26 @@
         const outline = M4.multiply(m.mvp, M4.translation(m.cx, m.cy, 0));
         this._drawQuad(outline, m.hw * 2, m.hh * 2, this.whiteTex, 1, null, [0.35, 0.85, 1, 0.9], 'loop');
       }
+
+      // Tracker boxes: video-plane units, so they ride on the footage exactly like a pinned word.
+      this.lastOutlines = [];
+      for (const o of opts.outlines || []) {
+        const cx = o.x * this.aspect * media.scale, cy = o.y * media.scale;
+        const w = Math.max(0.002, o.w) * this.aspect * media.scale, h = Math.max(0.002, o.h) * media.scale;
+        const m = M4.multiply(planeMVP, M4.translation(cx, cy, 0));
+        const col = o.color || [1, 0.85, 0.2, 0.95];
+        this._drawQuad(m, w, h, this.whiteTex, 1, null, col, 'loop');
+        if (o.cross) {
+          const c = Math.min(w, h) * 0.35;
+          this._drawQuad(m, c, 0.0001, this.whiteTex, 1, null, col, 'loop');
+          this._drawQuad(m, 0.0001, c, this.whiteTex, 1, null, col, 'loop');
+        }
+        const sc = this._toScreen(planeMVP, cx, cy);
+        const sx = this._toScreen(planeMVP, cx + w / 2, cy), sy = this._toScreen(planeMVP, cx, cy + h / 2);
+        this.lastOutlines.push({ id: o.id, cx: sc.x, cy: sc.y, hw: Math.abs(sx.x - sc.x), hh: Math.abs(sy.y - sc.y), behind: sc.behind });
+      }
     }
+
 
     _toScreen(mvp, x, y) {
       const p = M4.transformPoint(mvp, x, y, 0);

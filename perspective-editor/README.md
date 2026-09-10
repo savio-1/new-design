@@ -39,8 +39,9 @@ The left panel is three steps.
 background colour. The video is a layer inside the 3D scene: *Video scale* zooms the footage up
 (150–200 % is typical) so it still fills the frame when the camera pulls back, and *Video X / Y*
 reframe it. Untick *Video zooms with the camera* to pin the footage as a fixed backdrop and move
-only the words. *Subject mask* lets words pass behind the person in the shot (see below). Without a
-video, choose the canvas shape and length here.
+only the words. *Subject mask* lets words pass behind the person in the shot, and *Motion tracking*
+pins words to something in the footage so they stay put while the real camera moves (both below).
+Without a video, choose the canvas shape and length here.
 
 **2 · Text.** *Add text* drops a word just in front of the camera. Templates build a whole
 sequence, including the camera move — *Camera Reveal* is the After-Effects-style pull-back. Text
@@ -69,8 +70,8 @@ embedded — re-import it).
 
 Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove word or key ·
 `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
-`K` add camera key · `M` adjust the subject mask · `L` cycle Preview / Split / 3D layout · `Ctrl+S`
-save · `Ctrl+E` export.
+`K` add camera key · `M` adjust the subject mask · `Esc` leave tracker placement · `L` cycle Preview /
+Split / 3D layout · `Ctrl+S` save · `Ctrl+E` export.
 
 ## How the 3D reveal works
 
@@ -118,6 +119,45 @@ The shape is pinned to the footage, not to the screen: it moves and scales with 
 back. It is a shape you place by hand, not an automatic cut-out. *Show the outline while editing*
 draws it while you work; it is never in the export.
 
+## Pinning text to the footage (motion tracking)
+
+Everything above moves a *virtual* camera over a static shot. Motion tracking is the other case: the
+footage itself was shot with a moving camera, and you want a caption that stays stuck to a screen, a
+sign, a product — and grows as the camera closes in — as if it had been in the room.
+
+1. In **1 · Media → Motion tracking**, press **New tracker**, then click the object on the preview.
+   A box appears; the wheel sizes it (`Shift`+wheel: height only). Box a part of the object with
+   edges or texture — a logo, the corner of a screen — not a flat wall.
+2. Press **Track motion**. The tracker follows that patch forwards and backwards from the frame you
+   placed it on, in about the running time of the clip, and stops if it loses the patch (the status
+   says where). The Tracker row in the timeline shows the covered range as a bar.
+3. Press **Add pinned text** for a caption that follows the tracker and appears word by word, or
+   select existing words and press **Pin selected words**. In the inspector every word has a
+   **Pinned to** menu; changing it never moves the word on screen — its position is simply stored as
+   an offset from the tracked point from then on.
+
+A pinned word keeps its own controls: drag it to sit where you like relative to the point, set its
+size, tilt or turn it, and it will hold that relationship as the point moves and scales. Depth stays
+at 0 so it sits on the surface; give it a little depth and the virtual camera adds parallax on top.
+
+If the track drifts, scrub to that moment, press **Place on canvas** (or click the tracker row) and
+drag the point back where it belongs. That writes a **correction key** — a diamond on the tracker
+row — and the fix is blended into the neighbouring frames so nothing jumps. The wheel corrects the
+size the same way. Corrections can also be typed in the inspector, and a track can be keyed entirely
+by hand when there is no video, or when the footage has nothing trackable: keys are interpolated
+just like camera keys.
+
+Tracking runs on a 640-pixel greyscale copy of the video using normalised cross-correlation against
+both the previous frame (so gradual changes of light and angle do not break the lock) and the
+original patch at several scales (so drift cannot build up, and so the size is recovered). It is
+translation and scale only — no rotation or perspective warp — which is what a floating caption
+needs. It is not a planar tracker: text will not bend onto a surface seen at a steep angle.
+
+**Word-by-word captions.** In the Animation section, **Words appear one by one** sets the layer to
+animate by words with a fade and a 0.4 s stagger — raise the stagger to pace a spoken line — and
+**Type it out** does the same by letters. Both leave the exit off so the caption stays until the
+layer ends.
+
 ## Animations
 
 Entrances double as exits (played in reverse), so every combination works.
@@ -159,6 +199,9 @@ Bouncy Pop, Elegant Quote.
 - `js/animations.js` — easing curves plus the entrance / exit / loop library. Each animation is a
   pure function of progress that returns translation, rotation, scale, opacity and blur.
 - `js/camera.js` — camera keyframes, interpolation, and the library of camera moves.
+- `js/tracker.js` — the point tracker: reads frames from real-time playback (`requestVideoFrameCallback`,
+  falling back to seeking), matches the boxed patch by normalised cross-correlation against the previous
+  frame and the reference at several scales, and returns per-frame position and size keys.
 - `js/layout-view.js` — the large top/side diagram of the scene with draggable words, camera and keyframes.
 - `js/presets.js` — style presets and template generators.
 - `js/exporter.js` — frame-accurate export: seeks the source video frame by frame, renders,

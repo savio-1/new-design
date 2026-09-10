@@ -147,6 +147,38 @@
           <p class="panel-hint">This is a shape you place by hand, not automatic cut-out. A soft rounded shape over a person reads convincingly as text passes behind them. If the subject moves, add mask keys at a few times and the shape will follow.</p>
         </div>
 
+        <div class="subhead">Motion tracking</div>
+        <p class="panel-hint">Pin words to something in the shot — a screen, a sign, a face — so they stay put while the real camera moves. Box a detailed part of the object at one frame, then track.</p>
+        <div id="trackList" class="track-list"></div>
+        <div class="two">
+          <button id="btnNewTrack" class="btn small">New tracker</button>
+          <button id="btnTrackText" class="btn small" title="Add a word pinned to the selected tracker">Add pinned text</button>
+        </div>
+        <div id="trackFields" class="hidden">
+          <div class="two">
+            <button id="btnTrackAdjust" class="btn small" title="Drag the box on the preview onto the object; wheel resizes it">Place on canvas</button>
+            <button id="btnTrackRun" class="btn small primary">Track motion</button>
+          </div>
+          <div class="ctl"><label>Name</label><input id="trackName" type="text" spellcheck="false"></div>
+          <div class="ctl">
+            <label title="Size of the patch that is followed, as a fraction of the video width">Box size</label>
+            <div class="range-wrap"><input id="trackBoxW" type="range" min="0.03" max="0.6" step="0.005" value="0.14"><input id="trackBoxWNum" type="number" min="3" max="60" step="1" value="14"></div>
+          </div>
+          <div class="ctl">
+            <label>Box height</label>
+            <div class="range-wrap"><input id="trackBoxH" type="range" min="0.03" max="0.6" step="0.005" value="0.12"><input id="trackBoxHNum" type="number" min="3" max="60" step="1" value="12"></div>
+          </div>
+          <div id="trackProgress" class="track-progress hidden">
+            <div class="track-bar"><div id="trackBarFill"></div></div>
+            <div class="two"><span id="trackStatus" class="muted small"></span><button id="btnTrackCancel" class="btn small">Cancel</button></div>
+          </div>
+          <div class="two">
+            <button id="btnTrackPin" class="btn small" title="Pin the selected words to this tracker without moving them">Pin selected words</button>
+            <button id="btnTrackDelete" class="btn small danger">Delete tracker</button>
+          </div>
+          <p class="panel-hint">The tracker follows the boxed patch forwards and backwards from the frame you placed it on and stops when it loses it. If it drifts, scrub to that time, drag the point back where it belongs (that writes a correction key) or re-place the box and track again. No video? Tracks can also be keyed by hand.</p>
+        </div>
+
         <p class="panel-hint">Tip: the further back the camera goes, the more the footage has to be scaled to keep filling the frame — roughly the camera distance divided by 2.4. The camera templates set this up for you.</p>
       </div>
 
@@ -287,6 +319,7 @@
           </div>
           <div class="tl-track" id="maskTrack"></div>
         </div>
+        <div id="tlTracks"></div>
         <div class="tl-body" id="tlBody">
           <div class="tl-empty" id="tlEmpty">No words yet. Go to <b>2 · Text</b> and click <b>Add text</b>, or pick a template.</div>
         </div>
@@ -322,6 +355,15 @@
           </div>
         </div>
         <div id="maskKeySections"></div>
+      </div>
+      <div class="inspector-body hidden" id="trackKeyBody">
+        <div class="inspector-head">
+          <span class="head-title">Tracker keyframe</span>
+          <div class="head-actions">
+            <button class="btn icon ghost danger" id="btnDeleteTrackKey" title="Delete keyframe (Del)"><svg viewBox="0 0 20 20"><path d="M5 6h10M8 6V4h4v2M6.5 6l.7 9h5.6l.7-9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          </div>
+        </div>
+        <div id="trackKeySections"></div>
       </div>
       <div class="inspector-body hidden" id="cameraKeyBody">
         <div class="inspector-head">
@@ -454,6 +496,7 @@
   <script src="js/text-render.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/camera.js"></script>
+  <script src="js/tracker.js"></script>
   <script src="js/presets.js"></script>
   <script src="js/exporter.js"></script>
   <script src="js/layout-view.js"></script>

@@ -23,6 +23,11 @@
     media: defaultMedia(),
     mask: defaultMask(),
     maskEdit: false,      // dragging on the preview moves the mask instead of the text
+    tracks: [],           // motion trackers: { id, name, color, ref: {t,x,y,w,h}, keys: [{id,t,x,y,s,manual}], lost: {fwd,back} }
+    selectedTrackId: null,    // tracker being edited in the Media panel
+    selectedTrackKeyId: null, // selected tracker keyframe (exclusive with the other selections)
+    trackEdit: false,     // dragging on the preview places / corrects the selected tracker
+    tracking: null,       // { controller } while a tracker is being analysed
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
     aspect: 9 / 16,
     duration: 10,
@@ -240,6 +245,124 @@
   const getKey = (id) => state.camera.keys.find((k) => k.id === id);
   const selectedKey = () => getKey(state.selectedKeyId);
 
+  /* ---- motion tracks -----------------------------------------------------
+   * A track is a point in the footage (video-plane units, like the mask) with a size factor `s`
+   * relative to the frame the tracker was placed on. A word pinned to a track keeps its own
+   * transform as OFFSETS from that point, scaled by s, so the word rides the footage and grows as the
+   * real camera closes in. */
+  const TRACK_FIELDS = ['x', 'y', 's'];
+  const TRACK_COLORS = [[1, 0.84, 0.2], [0.45, 0.9, 1], [1, 0.55, 0.65], [0.6, 1, 0.5], [0.85, 0.65, 1], [1, 0.7, 0.35]];
+  const getTrack = (id) => state.tracks.find((k) => k.id === id);
+  const selectedTrack = () => getTrack(state.selectedTrackId);
+  const trackOfKey = (id) => state.tracks.find((tr) => tr.keys.some((k) => k.id === id));
+  const getTrackKey = (id) => { const tr = trackOfKey(id); return tr ? tr.keys.find((k) => k.id === id) : null; };
+  const selectedTrackKey = () => getTrackKey(state.selectedTrackKeyId);
+  const trackColorCss = (tr) => `rgb(${tr.color.map((c) => Math.round(c * 255)).join(',')})`;
+
+  function trackAt(id, t) {
+    const tr = getTrack(id);
+    if (!tr) return null;
+    return Camera.evaluateOn(tr.keys, t, TRACK_FIELDS) || { x: tr.ref.x, y: tr.ref.y, s: 1 };
+  }
+  /* The tracked point in world units at time t, plus the factor a pinned word is scaled by there. */
+  function anchorAt(id, t) {
+    const pt = trackAt(id, t);
+    if (!pt) return null;
+    const m = state.media;
+    return { x: m.x + pt.x * renderer.aspect * m.scale, y: m.y + pt.y * m.scale, k: Math.max(0.05, (pt.s == null ? 1 : pt.s) * m.scale), s: pt.s == null ? 1 : pt.s };
+  }
+  function isPinned(l) { return !!(l.track && l.track.id && getTrack(l.track.id)); }
+  /* The transform a layer is actually drawn with at time t (its own transform unless it is pinned). */
+  function effectiveTransform(l, t) {
+    const tr = l.transform;
+    if (!isPinned(l)) return tr;
+    const a = anchorAt(l.track.id, t == null ? clock.time : t);
+    if (!a) return tr;
+    return { x: a.x + tr.x * a.k, y: a.y + tr.y * a.k, z: tr.z, rx: tr.rx, ry: tr.ry, rz: tr.rz, scale: tr.scale * a.k };
+  }
+  /* Pin a layer to a track (or unpin with null) without letting it move on screen at time t. */
+  function pinLayer(l, trackId, t) {
+    const abs = effectiveTransform(l, t);
+    l.track = { id: trackId && getTrack(trackId) ? trackId : null };
+    if (!l.track.id) {
+      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), scale: round(abs.scale, 4) });
+      return;
+    }
+    const a = anchorAt(trackId, t);
+    l.transform.x = round((abs.x - a.x) / a.k, 4);
+    l.transform.y = round((abs.y - a.y) / a.k, 4);
+    l.transform.scale = round(abs.scale / a.k, 4);
+  }
+  let nextTrack = 1;
+  function newTrack() {
+    const color = TRACK_COLORS[(state.tracks.length) % TRACK_COLORS.length];
+    const t = round(clock.time, 3);
+    const tr = {
+      id: `T${nextTrack++}_${Math.random().toString(36).slice(2, 6)}`,
+      name: `Tracker ${state.tracks.length + 1}`, color,
+      ref: { t, x: 0, y: 0, w: 0.14, h: 0.12 },
+      keys: [Camera.defaultKey(t, { x: 0, y: 0, s: 1, manual: true, easing: 'linear' })],
+      lost: null,
+      placed: false,      // until the first click on the preview, placing moves the reference frame itself
+    };
+    state.tracks.push(tr);
+    return tr;
+  }
+  const trackIsAuto = (tr) => tr.keys.filter((k) => !k.manual).length > 2;
+  /* The tracker key at the playhead, creating one from the interpolated position when there is none. */
+  function trackKeyAtPlayhead(tr) {
+    const t = round(clock.time, 3);
+    const tol = trackIsAuto(tr) ? Tracker.STEP * 0.51 : 0.05;
+    let key = tr.keys.find((k) => Math.abs(k.t - t) <= tol);
+    let created = false;
+    if (!key) {
+      const pt = trackAt(tr.id, t);
+      key = Camera.defaultKey(t, { x: pt.x, y: pt.y, s: pt.s == null ? 1 : pt.s, manual: true, easing: 'linear' });
+      created = true;
+      if (!tr.placed) {
+        // a tracker that has not been placed yet simply moves its reference frame to the playhead
+        tr.keys = [key];
+        tr.ref.t = t;
+      } else tr.keys = Camera.sorted(tr.keys.concat([key]));
+    }
+    return { key, created };
+  }
+  /* Nudge a track at time t by (dx, dy) in plane units and a factor ds. On an analysed track the
+   * correction is blended into the neighbouring frames so one fix does not leave a spike. */
+  function correctTrack(tr, key, dx, dy, ds) {
+    key.manual = true;
+    const auto = trackIsAuto(tr);
+    const manualTimes = tr.keys.filter((k) => k.manual && k !== key).map((k) => k.t);
+    const before = Math.max(-Infinity, ...manualTimes.filter((x) => x < key.t)), after = Math.min(Infinity, ...manualTimes.filter((x) => x > key.t));
+    const spanL = Math.min(1.2, key.t - before), spanR = Math.min(1.2, after - key.t);
+    for (const k of tr.keys) {
+      let w = 1;
+      if (k !== key) {
+        if (!auto || k.manual) continue;
+        const d = k.t - key.t;
+        w = d < 0 ? 1 - Math.abs(d) / Math.max(0.01, spanL) : 1 - d / Math.max(0.01, spanR);
+        if (w <= 0) continue;
+      }
+      k.x = round(clamp(k.x + dx * w, -1.5, 1.5), 4);
+      k.y = round(clamp(k.y + dy * w, -1.5, 1.5), 4);
+      if (ds && ds !== 1) k.s = round(clamp(k.s * Math.pow(ds, w), 0.1, 8), 4);
+    }
+  }
+  /* Boxes drawn over the footage while a tracker is being placed or looked at. */
+  function trackOutlines(t) {
+    if (state.exporting || !state.tracks.length) return [];
+    const out = [];
+    for (const tr of state.tracks) {
+      const sel = tr.id === state.selectedTrackId;
+      if (!sel && !state.trackEdit) continue;
+      const pt = trackAt(tr.id, t);
+      const sc = pt.s == null ? 1 : pt.s;
+      const alpha = sel ? 0.95 : 0.35;
+      out.push({ id: tr.id, x: pt.x, y: pt.y, w: tr.ref.w * sc, h: tr.ref.h * sc, color: tr.color.concat([alpha]), cross: true });
+    }
+    return out;
+  }
+
   /* Keys past the end of the timeline are pulled back to the end (keeping only the last of them) so a
    * camera move still completes instead of freezing on its first key. */
   function clampCameraKeys(T) {
@@ -330,11 +453,13 @@
       media: mediaForRender(),
       mask: maskForRender(time),
       showMask: !state.exporting && state.mask.enabled && state.mask.show,
+      trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, time) : null),
+      outlines: trackOutlines(time),
     });
   }
 
   function frame(now) {
-    if (!state.exporting) {
+    if (!state.exporting && !state.tracking) {   // while a tracker runs, the frame budget belongs to it
       clock.tick(now);
       if (clock.playing || needsRender) {
         needsRender = false;
@@ -397,7 +522,13 @@
   }
 
   function deleteSelected() {
-    if (state.selectedMaskKeyId) {
+    if (state.selectedTrackKeyId) {
+      const tr = trackOfKey(state.selectedTrackKeyId);
+      if (tr) tr.keys = tr.keys.filter((k) => k.id !== state.selectedTrackKeyId);
+      state.selectedTrackKeyId = null;
+      if (tr && !tr.keys.length) tr.keys = [Camera.defaultKey(tr.ref.t, { x: tr.ref.x, y: tr.ref.y, s: 1, manual: true, easing: 'linear' })];
+      syncTrackControls();
+    } else if (state.selectedMaskKeyId) {
       state.mask.keys = state.mask.keys.filter((k) => k.id !== state.selectedMaskKeyId);
       state.selectedMaskKeyId = null;
       if (!state.mask.keys.length) { state.mask.enabled = false; syncMaskControls(); toast('Last mask key removed — the subject mask is off'); }
@@ -445,6 +576,7 @@
   function select(id, opts = {}) {
     state.selectedKeyId = null;
     state.selectedMaskKeyId = null;
+    state.selectedTrackKeyId = null;
     if (opts.toggle && id) {
       if (isSelected(id)) state.selectedIds = state.selectedIds.filter((x) => x !== id);
       else state.selectedIds = state.selectedIds.concat([id]);
@@ -462,6 +594,7 @@
   function selectKey(id) {
     state.selectedIds = [];
     state.selectedMaskKeyId = null;
+    state.selectedTrackKeyId = null;
     state.selectedKeyId = id;
     refreshInspector();
     renderTimeline();
@@ -470,14 +603,34 @@
   function selectMaskKey(id) {
     state.selectedIds = [];
     state.selectedKeyId = null;
+    state.selectedTrackKeyId = null;
     state.selectedMaskKeyId = id;
     refreshInspector();
     renderTimeline();
     invalidate();
   }
+  function selectTrackKey(id) {
+    state.selectedIds = [];
+    state.selectedKeyId = null;
+    state.selectedMaskKeyId = null;
+    state.selectedTrackKeyId = id;
+    const tr = trackOfKey(id);
+    if (tr) state.selectedTrackId = tr.id;
+    syncTrackControls();
+    refreshInspector();
+    renderTimeline();
+    invalidate();
+  }
+  function selectTrack(id) {
+    state.selectedTrackId = id;
+    if (!id) state.trackEdit = false;
+    syncTrackControls();
+    invalidate();
+  }
   function selectAll() {
     state.selectedKeyId = null;
     state.selectedMaskKeyId = null;
+    state.selectedTrackKeyId = null;
     state.selectedIds = state.layers.map((l) => l.id);
     refreshInspector();
     renderTimeline();
@@ -485,7 +638,7 @@
   }
 
   function snapshot() {
-    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, mask: state.mask, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId, selectedMaskKeyId: state.selectedMaskKeyId }, stripper);
+    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, mask: state.mask, tracks: state.tracks, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId, selectedMaskKeyId: state.selectedMaskKeyId, selectedTrackId: state.selectedTrackId }, stripper);
   }
   function commit() {
     const snap = snapshot();
@@ -502,6 +655,10 @@
     state.camera = Object.assign(defaultCamera(), data.camera || {});
     state.media = Object.assign(defaultMedia(), data.media || {});
     state.mask = Object.assign(defaultMask(), data.mask || {});
+    state.tracks = data.tracks || [];
+    state.selectedTrackId = getTrack(data.selectedTrackId) ? data.selectedTrackId : null;
+    state.selectedTrackKeyId = null;
+    if (!state.selectedTrackId) state.trackEdit = false;
     state.selectedIds = (data.selectedIds || []).filter((id) => getLayer(id));
     state.selectedKeyId = getKey(data.selectedKeyId) ? data.selectedKeyId : null;
     state.selectedMaskKeyId = getMaskKey(data.selectedMaskKeyId) ? data.selectedMaskKeyId : null;
@@ -509,6 +666,7 @@
     syncCameraControls();
     syncMediaControls();
     syncMaskControls();
+    syncTrackControls();
     refreshAll();
   }
   function undo() {
@@ -596,10 +754,35 @@
     $('#maskTrack').innerHTML = html;
   }
 
+  function renderTrackRows() {
+    const host = $('#tlTracks');
+    const T = duration();
+    let html = '';
+    for (const tr of state.tracks) {
+      const keys = Camera.sorted(tr.keys);
+      const col = trackColorCss(tr);
+      let row = '';
+      if (keys.length > 1) {
+        const a = (keys[0].t / T) * 100, b = (keys[keys.length - 1].t / T) * 100;
+        row += `<div class="tl-span" style="left:${a}%; width:${Math.max(0.2, b - a)}%; background:${col}"></div>`;
+      }
+      for (const k of keys) {
+        if (!k.manual && trackIsAuto(tr)) continue;   // analysed frames are the bar; only hand-set keys are diamonds
+        const isRef = Math.abs(k.t - tr.ref.t) < 1e-3;
+        row += `<div class="tl-key${k.id === state.selectedTrackKeyId ? ' selected' : ''}${isRef ? ' ref' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · ${isRef ? 'reference frame' : 'correction'} · size ${Math.round((k.s || 1) * 100)}%"></div>`;
+      }
+      html += `<div class="tl-trk${tr.id === state.selectedTrackId ? ' selected' : ''}" data-id="${tr.id}">
+        <div class="tl-name" title="${escapeHtml(tr.name)} — click to edit, double-click the track to add a correction key"><i class="sw" style="background:${col}"></i><span class="nm">${escapeHtml(tr.name)}</span></div>
+        <div class="tl-track">${row}</div></div>`;
+    }
+    host.innerHTML = html;
+  }
+
   function renderTimeline() {
     renderRuler();
     renderCameraTrack();
     renderMaskTrack();
+    renderTrackRows();
     const rows = state.layers.slice().reverse();
     els.tlEmpty.classList.toggle('hidden', rows.length > 0);
     $('#layerCount').textContent = rows.length ? `(${rows.length})` : '';
@@ -755,6 +938,58 @@
     maskTrack.addEventListener('pointerup', endMaskDrag);
     maskTrack.addEventListener('pointercancel', endMaskDrag);
 
+    // Tracker rows
+    const tlTracks = $('#tlTracks');
+    tlTracks.addEventListener('pointerdown', (e) => {
+      const rowEl = e.target.closest('.tl-trk');
+      if (!rowEl) return;
+      if (e.target.closest('.tl-name')) { selectTrack(rowEl.dataset.id); showTab('media'); return; }
+      const key = e.target.closest('.tl-key');
+      if (key) {
+        selectTrackKey(key.dataset.id);
+        const k = getTrackKey(key.dataset.id);
+        drag = { mode: 'trackKey', id: k.id, x0: e.clientX, t0: k.t, moved: false };
+        tlTracks.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      } else {
+        selectTrack(rowEl.dataset.id);
+        clock.time = timeFromEvent(e);
+        drag = { mode: 'scrub' };
+        tlTracks.setPointerCapture(e.pointerId);
+      }
+    });
+    tlTracks.addEventListener('dblclick', (e) => {
+      const rowEl = e.target.closest('.tl-trk');
+      if (!rowEl || e.target.closest('.tl-key') || e.target.closest('.tl-name')) return;
+      const tr = getTrack(rowEl.dataset.id);
+      if (!tr) return;
+      clock.time = round(timeFromEvent(e), 2);
+      const { key } = trackKeyAtPlayhead(tr);
+      key.manual = true;
+      commit();
+      selectTrackKey(key.id);
+      toast('Correction key added — drag the point on the preview to where it belongs');
+    });
+    tlTracks.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
+      if (drag.mode !== 'trackKey') return;
+      const k = getTrackKey(drag.id);
+      if (!k) return;
+      const dt = (e.clientX - drag.x0) / pxPerSec();
+      if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
+      k.t = round(clamp(snap(drag.t0 + dt, snapTargets(new Set())), 0, duration()), 3);
+      renderTrackRows();
+      refreshTrackKeyValues();
+      invalidate();
+    });
+    const endTrackDrag = () => {
+      if (drag && drag.mode === 'trackKey' && drag.moved) { const tr = trackOfKey(drag.id); if (tr) tr.keys = Camera.sorted(tr.keys); commit(); }
+      drag = null;
+    };
+    tlTracks.addEventListener('pointerup', endTrackDrag);
+    tlTracks.addEventListener('pointercancel', endTrackDrag);
+
     // Layer rows
     els.tlBody.addEventListener('click', (e) => {
       const eye = e.target.closest('.tl-eye');
@@ -877,6 +1112,9 @@
           { label: 'Face the camera', action: (l) => { l.transform.rx = 0; l.transform.ry = 0; l.transform.rz = 0; } },
           { label: 'Centre on screen', action: (l) => { l.transform.x = 0; l.transform.y = 0; } },
         ] },
+        { type: 'sub', label: 'Motion tracking' },
+        { type: 'select', path: 'track.id', label: 'Pinned to', hint: 'Follow a tracked point in the footage: the word stays on that object while the real camera moves, and grows as the camera closes in. Create trackers in step 1 · Media.',
+          options: () => [{ value: '', label: state.tracks.length ? 'Nothing — fixed in the scene' : 'No trackers yet (step 1 · Media)' }].concat(state.tracks.map((tr) => ({ value: tr.id, label: tr.name }))) },
         { type: 'sub', label: 'Subject mask' },
         { type: 'toggle', path: 'behindSubject', label: 'Behind subject', hint: 'Erase this word wherever the subject mask covers it, so it reads as passing behind the person. Turn the mask on in step 1.' },
       ],
@@ -912,11 +1150,15 @@
       collapsed: true,
       fields: [
         { type: 'segment', path: 'split', label: 'Animate by', options: [{ value: 'whole', label: 'Block' }, { value: 'word', label: 'Words' }, { value: 'char', label: 'Letters' }] },
+        { type: 'buttons', buttons: [
+          { label: 'Words appear one by one', action: (l) => { l.split = 'word'; l.anim.in = { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
+          { label: 'Type it out', action: (l) => { l.split = 'char'; l.anim.in = { type: 'typewriter', duration: 0.05, easing: 'linear', stagger: 0.06 }; l.anim.out = { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }; } },
+        ] },
         { type: 'sub', label: 'In' },
         { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
         { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
         { type: 'select', path: 'anim.in.easing', label: 'Easing', options: easingOptions },
-        { type: 'range', path: 'anim.in.stagger', label: 'Stagger', min: 0, max: 0.6, step: 0.01, scale: 1, unit: 's', hint: 'Delay between words/letters' },
+        { type: 'range', path: 'anim.in.stagger', label: 'Stagger', min: 0, max: 2, step: 0.01, scale: 1, unit: 's', hint: 'Delay between words/letters. Around 0.3–0.6 s per word paces a spoken line.' },
         { type: 'sub', label: 'Out' },
         { type: 'select', path: 'anim.out.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'out') },
         { type: 'range', path: 'anim.out.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
@@ -968,6 +1210,18 @@
     },
   ];
 
+  const TRACK_KEY_SCHEMA = [
+    {
+      title: 'Tracker keyframe',
+      fields: [
+        { type: 'number', path: 't', label: 'Time (s)', step: 0.05, min: 0, onChange: (k) => { k.t = clamp(k.t, 0, duration()); } },
+        { type: 'range', path: 'x', label: 'Point X', min: -1.2, max: 1.2, step: 0.002, scale: 100, unit: '' },
+        { type: 'range', path: 'y', label: 'Point Y', min: -1.2, max: 1.2, step: 0.002, scale: 100, unit: '' },
+        { type: 'range', path: 's', label: 'Size', min: 0.2, max: 4, step: 0.005, scale: 100, unit: '%', hint: 'How big the tracked object is here compared with the frame the tracker was placed on' },
+      ],
+    },
+  ];
+
   const MASK_KEY_SCHEMA = [
     {
       title: 'Mask keyframe',
@@ -1013,6 +1267,7 @@
       const oldPrimary = getPath(primary, field.path);
       for (const l of targets) {
         if (field.perLayer && l !== primary) continue;
+        if (field.path === 'track.id') { pinLayer(l, value || null, clock.time); l._layout = null; continue; }
         let v = value;
         if (field.delta && l !== primary && typeof value === 'number' && typeof oldPrimary === 'number') {
           v = (getPath(l, field.path) || 0) + (value - oldPrimary);
@@ -1089,6 +1344,37 @@
       commit();
       refreshMaskKeyValues();
       renderMaskTrack();
+      invalidate();
+    },
+  };
+
+  const trackKeyCtx = {
+    controls: [],
+    get: () => selectedTrackKey(),
+    apply(field, key, value, isFinal) {
+      const tr = trackOfKey(key.id);
+      if (!tr) return;
+      if (field.path === 'x' || field.path === 'y' || field.path === 's') {
+        // slider edits are corrections too, so they blend into the analysed frames around them
+        const dx = field.path === 'x' ? value - key.x : 0, dy = field.path === 'y' ? value - key.y : 0, ds = field.path === 's' ? value / Math.max(0.01, key.s) : 1;
+        correctTrack(tr, key, dx, dy, ds);
+      } else {
+        setPath(key, field.path, value);
+        if (field.onChange) field.onChange(key);
+        if (field.path === 't') tr.keys = Camera.sorted(tr.keys);
+      }
+      renderTrackRows();
+      syncTrackControls();
+      invalidate();
+      if (isFinal) { commit(); refreshTrackKeyValues(); }
+    },
+    buttonAction(action) {
+      const k = selectedTrackKey();
+      if (!k) return;
+      action(k);
+      commit();
+      refreshTrackKeyValues();
+      renderTrackRows();
       invalidate();
     },
   };
@@ -1273,14 +1559,22 @@
     const l = selected();
     const k = selectedKey();
     const mk = selectedMaskKey();
-    els.inspectorEmpty.classList.toggle('hidden', !!(l || k || mk));
+    const tk = selectedTrackKey();
+    els.inspectorEmpty.classList.toggle('hidden', !!(l || k || mk || tk));
     els.inspectorBody.classList.toggle('hidden', !l);
     els.cameraKeyBody.classList.toggle('hidden', !k);
     $('#maskKeyBody').classList.toggle('hidden', !mk);
+    $('#trackKeyBody').classList.toggle('hidden', !tk);
     if (l) refreshInspectorValues();
     if (k) refreshKeyValues();
     if (mk) refreshMaskKeyValues();
+    if (tk) refreshTrackKeyValues();
     updateLayoutHint();
+  }
+  function refreshTrackKeyValues() {
+    const k = selectedTrackKey();
+    if (!k) return;
+    for (const c of trackKeyCtx.controls) c.update(k);
   }
   function refreshMaskKeyValues() {
     const k = selectedMaskKey();
@@ -1333,10 +1627,44 @@
       const depth = state.media.locked ? renderer.camDist : planeDepth(cam);
       return renderer.worldPerPixelAtDepth(depth);
     };
+    /* Buffer pixel -> video-plane units, by inverting the plane's screen position at the centre. Exact for
+     * the resting camera and close enough under a dolly, which is all a tracker placement needs. */
+    const planeFromBuffer = (p) => {
+      const wpp = planePixels();
+      const cam = cameraAt(clock.time);
+      const useCam = state.media.locked ? renderer.defaultCamera() : cam;
+      // where the plane origin lands on screen
+      const proj = M4.perspective((state.fov * Math.PI) / 180, renderer.aspect, 0.02, 100);
+      const mvp = M4.multiply(M4.multiply(proj, renderer.viewMatrix(useCam)), M4.translation(state.media.x, state.media.y, 0));
+      const o = renderer._toScreen(mvp, 0, 0);
+      const m = state.media;
+      return { x: ((p.x - o.x) * wpp) / (renderer.aspect * m.scale), y: (-(p.y - o.y) * wpp) / m.scale };
+    };
 
     c.addEventListener('pointerdown', (e) => {
-      if (state.exporting) return;
+      if (state.exporting || state.tracking) return;
       const p = toBuffer(e);
+      const trk = state.trackEdit ? selectedTrack() : null;
+      if (trk) {
+        clock.pause();
+        const { key, created } = trackKeyAtPlayhead(trk);
+        drag = { mode: 'track', tr: trk, key, created, x0: p.x, y0: p.y, wpp: planePixels(), moved: false, fresh: !trk.placed };
+        // Placing a brand-new tracker: the box jumps to where you click.
+        if (drag.fresh) {
+          const pl = planeFromBuffer(p);
+          const dx = pl.x - key.x, dy = pl.y - key.y;
+          correctTrack(trk, key, dx, dy, 1);
+          trk.ref.x = key.x; trk.ref.y = key.y; trk.ref.t = key.t;
+          trk.placed = true;
+          drag.moved = true;
+          syncTrackControls();
+          invalidate();
+        }
+        drag.tx = key.x; drag.ty = key.y;   // where the point was when the drag began
+        c.setPointerCapture(e.pointerId);
+        c.classList.add('grabbing');
+        return;
+      }
       if (state.maskEdit && state.mask.enabled) {
         const k = maskKeyAtPlayhead();
         if (state.selectedMaskKeyId !== k.id) selectMaskKey(k.id);
@@ -1352,7 +1680,12 @@
         const cam = cameraAt(clock.time);
         drag = {
           mode: e.altKey ? 'rotate' : 'move', x0: p.x, y0: p.y, moved: false,
-          items: selectedLayers().map((l) => ({ l, t0: JSON.parse(JSON.stringify(l.transform)), wpp: renderer.worldPerPixel(l, cam) })),
+          items: selectedLayers().map((l) => {
+            const a = isPinned(l) ? anchorAt(l.track.id, clock.time) : null;
+            const eff = effectiveTransform(l, clock.time);
+            const wpp = renderer.worldPerPixelAtDepth(renderer.viewDepth(state.media.locked && a ? renderer.defaultCamera() : cam, eff.x, eff.y, eff.z));
+            return { l, t0: JSON.parse(JSON.stringify(l.transform)), wpp: wpp / (a ? a.k : 1) };
+          }),
         };
         c.setPointerCapture(e.pointerId);
         c.classList.add('grabbing');
@@ -1364,7 +1697,19 @@
       if (state.exporting) return;
       const p = toBuffer(e);
       if (!drag) {
-        c.classList.toggle('hover', !state.maskEdit && !!renderer.hitTest(p.x, p.y));
+        c.classList.toggle('hover', !state.maskEdit && !state.trackEdit && !!renderer.hitTest(p.x, p.y));
+        return;
+      }
+      if (drag.mode === 'track') {
+        const dxu = ((p.x - drag.x0) * drag.wpp) / (renderer.aspect * state.media.scale);
+        const dyu = -((p.y - drag.y0) * drag.wpp) / state.media.scale;
+        if (Math.abs(p.x - drag.x0) + Math.abs(p.y - drag.y0) > 1.5) drag.moved = true;
+        const nx = drag.tx + dxu, ny = drag.ty + dyu;
+        correctTrack(drag.tr, drag.key, nx - drag.key.x, ny - drag.key.y, 1);
+        if (drag.fresh) { drag.tr.ref.x = drag.key.x; drag.tr.ref.y = drag.key.y; }
+        syncTrackControls();
+        refreshTrackKeyValues();
+        invalidate();
         return;
       }
       if (drag.mode === 'mask') {
@@ -1394,7 +1739,11 @@
       if (layoutVisible()) layoutView.draw();
     });
     const end = () => {
-      if (drag && drag.moved) commit();
+      if (drag && drag.mode === 'track' && !drag.moved && drag.created) {
+        // a click without a drag should not leave a stray correction key behind
+        drag.tr.keys = drag.tr.keys.filter((k) => k !== drag.key);
+      }
+      if (drag && drag.moved) { commit(); if (drag.mode === 'track') renderTrackRows(); }
       drag = null;
       c.classList.remove('grabbing');
     };
@@ -1409,6 +1758,26 @@
 
     let wheelTimer = 0;
     c.addEventListener('wheel', (e) => {
+      const trk = state.trackEdit ? selectedTrack() : null;
+      if (trk && !state.exporting && !state.tracking) {
+        e.preventDefault();
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        if (!trackIsAuto(trk)) {
+          // before analysis the wheel sizes the box that will be followed
+          trk.ref.w = round(clamp(trk.ref.w * factor, 0.03, 0.6), 4);
+          if (!e.shiftKey) trk.ref.h = round(clamp(trk.ref.h * factor, 0.03, 0.6), 4);
+        } else {
+          // afterwards it corrects how big the pinned words are here
+          const { key } = trackKeyAtPlayhead(trk);
+          correctTrack(trk, key, 0, 0, factor);
+        }
+        syncTrackControls();
+        refreshTrackKeyValues();
+        invalidate();
+        clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(() => { commit(); renderTrackRows(); }, 400);
+        return;
+      }
       if (state.maskEdit && state.mask.enabled && !state.exporting) {
         e.preventDefault();
         const factor = Math.exp(-e.deltaY * 0.0015);
@@ -1439,11 +1808,12 @@
 
   /* ------------------------------------------------------------------ 3D layout view */
   function layoutVisible() { return state.view !== 'preview'; }
-  function layerFootprint(l) {
+  function layerFootprint(l, tr) {
     const lay = l._layout;
+    const e = tr || l.transform;
     const w = lay ? lay.blockW : (l.text || 'text').length * l.style.size * 1.1;
     const h = lay ? lay.blockH : l.style.size * 2.2;
-    return { w: w * (l.transform.scale || 1), h: h * (l.transform.scale || 1) };
+    return { w: w * (e.scale || 1), h: h * (e.scale || 1) };
   }
   function cameraPath() {
     const keys = Camera.sorted(state.camera.keys);
@@ -1466,10 +1836,10 @@
       return {
         time: t, cam, camDist: d, fov: state.fov, aspect: frameAspect(), hasVideo: state.video.ready,
         video: { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: state.media.locked },
-        layers: state.layers.map((l) => Object.assign({
-          id: l.id, text: l.text, x: l.transform.x, y: l.transform.y, z: l.transform.z,
+        layers: state.layers.map((l) => { const e = effectiveTransform(l, t); return Object.assign({
+          id: l.id, text: l.text, x: e.x, y: e.y, z: e.z, pinned: isPinned(l),
           active: t >= l.start && t < l.end, hidden: l.hidden, selected: isSelected(l.id), primary: state.selectedIds[0] === l.id,
-        }, layerFootprint(l))),
+        }, layerFootprint(l, e)); }),
         keys: state.camera.keys.map((k) => ({ id: k.id, t: k.t, x: k.x, y: k.y, z: d - k.dolly, selected: k.id === state.selectedKeyId })),
         path: cameraPath(),
       };
@@ -1478,14 +1848,19 @@
     onSelectKey(id) { selectKey(id); },
     onDeselect() { select(null); },
     onLayerDragStart(ids) {
-      dragStartPositions = Object.fromEntries(ids.map((id) => { const l = getLayer(id); return [id, { x: l.transform.x, y: l.transform.y, z: l.transform.z }]; }));
+      dragStartPositions = Object.fromEntries(ids.map((id) => {
+        const l = getLayer(id);
+        const a = isPinned(l) ? anchorAt(l.track.id, clock.time) : null;
+        return [id, { x: l.transform.x, y: l.transform.y, z: l.transform.z, k: a ? a.k : 1 }];
+      }));
     },
     onLayerDragMove(ids, delta) {
       for (const id of ids) {
         const l = getLayer(id), o = dragStartPositions && dragStartPositions[id];
         if (!l || !o) continue;
-        l.transform.x = round(clamp(o.x + delta.dx, -4, 4), 3);
-        l.transform.y = round(clamp(o.y + delta.dy, -2.5, 2.5), 3);
+        // a pinned word's x/y are offsets from its anchor, so a world-space drag is divided by the anchor scale
+        l.transform.x = round(clamp(o.x + delta.dx / o.k, -4, 4), 3);
+        l.transform.y = round(clamp(o.y + delta.dy / o.k, -2.5, 2.5), 3);
         l.transform.z = round(clamp(o.z + delta.dz, -3, 10), 3);
       }
       refreshInspectorValues();
@@ -1522,7 +1897,7 @@
   function updateLayoutHint() {
     const l = selected();
     const k = selectedKey();
-    if (l) els.layoutHint.textContent = `${(l.text || '').split('\n')[0]} · depth ${l.transform.z.toFixed(2)} · x ${l.transform.x.toFixed(2)} · y ${l.transform.y.toFixed(2)}`;
+    if (l) { const e = effectiveTransform(l, clock.time); els.layoutHint.textContent = `${(l.text || '').split('\n')[0]} · depth ${e.z.toFixed(2)} · x ${e.x.toFixed(2)} · y ${e.y.toFixed(2)}${isPinned(l) ? ' · pinned to ' + (getTrack(l.track.id).name) : ''}`; }
     else if (k) els.layoutHint.textContent = `Camera key at ${k.t.toFixed(2)}s · ${(renderer.camDist - k.dolly).toFixed(2)} from video`;
     else els.layoutHint.textContent = layoutView.mode === 'top' ? 'Top view — drag words left/right and nearer/further. Drag the camera to keyframe it at the playhead.' : 'Side view — drag words up/down and nearer/further.';
   }
@@ -1789,6 +2164,161 @@
   $('#btnMaskKey2').addEventListener('click', addMaskKey);
   $('#btnDeleteMaskKey').addEventListener('click', deleteSelected);
 
+  /* ---- motion tracking panel -------------------------------------------- */
+  function trackStatusText(tr) {
+    const auto = trackIsAuto(tr);
+    if (!auto) return tr.keys.length > 1 ? `${tr.keys.length} hand keys` : 'not tracked yet';
+    const ks = Camera.sorted(tr.keys);
+    const fixes = tr.keys.filter((k) => k.manual).length - 1;
+    return `${fmtTime(ks[0].t)}–${fmtTime(ks[ks.length - 1].t)}${fixes > 0 ? ` · ${fixes} fix${fixes > 1 ? 'es' : ''}` : ''}${tr.lost && (tr.lost.fwd || tr.lost.back) ? ' · lost ' + (tr.lost.fwd && tr.lost.back ? 'both ends' : tr.lost.fwd ? 'at the end' : 'at the start') : ''}`;
+  }
+  function syncTrackControls() {
+    const tr = selectedTrack();
+    const list = $('#trackList');
+    list.innerHTML = state.tracks.map((x) => `<div class="track-item${x.id === state.selectedTrackId ? ' on' : ''}" data-id="${x.id}"><i class="sw" style="background:${trackColorCss(x)}"></i><span class="tn">${escapeHtml(x.name)}</span><span class="ts">${escapeHtml(trackStatusText(x))}</span></div>`).join('');
+    $('#trackFields').classList.toggle('hidden', !tr);
+    $('#btnTrackText').disabled = !tr;
+    if (tr) {
+      const nameEl = $('#trackName');
+      if (document.activeElement !== nameEl) nameEl.value = tr.name;
+      $('#trackBoxW').value = tr.ref.w; $('#trackBoxWNum').value = Math.round(tr.ref.w * 100);
+      $('#trackBoxH').value = tr.ref.h; $('#trackBoxHNum').value = Math.round(tr.ref.h * 100);
+      $('#btnTrackRun').textContent = trackIsAuto(tr) ? 'Track again' : 'Track motion';
+      $('#btnTrackRun').disabled = !state.video.ready || !!state.tracking;
+      $('#btnTrackRun').title = state.video.ready ? 'Follow the boxed patch through the clip' : 'Tracking needs a video — without one, key the point by hand';
+    }
+    $('#btnTrackAdjust').classList.toggle('on', !!state.trackEdit);
+    els.canvas.classList.toggle('track-edit', !!state.trackEdit);
+    $('#trackProgress').classList.toggle('hidden', !state.tracking);
+    renderTrackRows();
+  }
+  $('#trackList').addEventListener('click', (e) => {
+    const item = e.target.closest('.track-item');
+    if (!item) return;
+    selectTrack(item.dataset.id);
+  });
+  $('#btnNewTrack').addEventListener('click', () => {
+    if (state.tracking) return;
+    const tr = newTrack();
+    state.selectedTrackId = tr.id;
+    state.trackEdit = true;
+    clock.pause();
+    syncTrackControls();
+    commit();
+    invalidate();
+    toast('Click the object to follow on the preview, wheel to size the box, then press Track motion');
+  });
+  $('#btnTrackAdjust').addEventListener('click', () => {
+    if (!selectedTrack()) return;
+    state.trackEdit = !state.trackEdit;
+    if (state.trackEdit) clock.pause();
+    syncTrackControls();
+    toast(state.trackEdit ? 'Drag on the preview to place the point; wheel sizes the box (or the text, once tracked)' : 'Back to editing text');
+  });
+  $('#trackName').addEventListener('input', (e) => { const tr = selectedTrack(); if (tr) { tr.name = e.target.value; renderTrackRows(); } });
+  $('#trackName').addEventListener('change', () => { commit(); syncTrackControls(); refreshInspectorValues(); });
+  const bindTrackBox = (id, field) => {
+    const range = $(`#${id}`), num = $(`#${id}Num`);
+    const write = (v, final) => { const tr = selectedTrack(); if (!tr) return; tr.ref[field] = round(clamp(v, 0.03, 0.6), 4); syncTrackControls(); invalidate(); if (final) commit(); };
+    range.addEventListener('input', (e) => write(Number(e.target.value), false));
+    range.addEventListener('change', (e) => write(Number(e.target.value), true));
+    num.addEventListener('change', (e) => write((Number(e.target.value) || 0) / 100, true));
+  };
+  bindTrackBox('trackBoxW', 'w');
+  bindTrackBox('trackBoxH', 'h');
+  $('#btnTrackDelete').addEventListener('click', () => {
+    const tr = selectedTrack();
+    if (!tr || state.tracking) return;
+    for (const l of state.layers) if (l.track && l.track.id === tr.id) pinLayer(l, null, clock.time);
+    state.tracks = state.tracks.filter((x) => x !== tr);
+    state.selectedTrackId = null; state.selectedTrackKeyId = null; state.trackEdit = false;
+    syncTrackControls();
+    commit();
+    refreshAll();
+  });
+  $('#btnTrackPin').addEventListener('click', () => {
+    const tr = selectedTrack();
+    const targets = selectedLayers();
+    if (!tr) return;
+    if (!targets.length) { toast('Select the words to pin first (click them in the preview or timeline)', true); return; }
+    for (const l of targets) { pinLayer(l, tr.id, clock.time); l._layout = null; }
+    commit();
+    refreshAll();
+    toast(`${targets.length} word${targets.length > 1 ? 's' : ''} pinned to ${tr.name}`);
+  });
+  $('#btnTrackText').addEventListener('click', () => {
+    const tr = selectedTrack();
+    if (!tr) { toast('Create or pick a tracker first', true); return; }
+    let t = clock.time;
+    let dur = Math.min(5, duration() - t);
+    if (dur < 0.5) { t = Math.max(0, duration() - 5); dur = duration() - t; }
+    const l = addLayer({
+      text: 'Pinned text', name: 'Pinned text', start: t, end: t + dur,
+      style: { font: 'Instrument Serif', weight: 400, italic: true, size: 0.07, shadow: { blur: 0.05, x: 0, y: 0.02, color: '#000000', opacity: 0.6 } },
+      transform: { x: 0, y: 0, z: 0.02, rx: 0, ry: 0, rz: 0, scale: 1 },
+      split: 'word',
+      anim: { in: { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4 }, out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
+      track: { id: tr.id },
+    });
+    // sit just above the tracked point rather than on top of it
+    const a = anchorAt(tr.id, t);
+    l.transform.y = round((tr.ref.h * 0.5 * state.media.scale * (a ? a.s : 1) + 0.06) / (a ? a.k : 1), 3);
+    state.trackEdit = false;
+    syncTrackControls();
+    commit();
+    refreshAll();
+    focusTextInput();
+    toast('Pinned — the words appear one by one and follow the tracker');
+  });
+
+  async function runTracking(tr) {
+    if (!state.video.ready) { toast('Tracking needs a video', true); return; }
+    if (state.tracking) return;
+    clock.pause();
+    const wasTime = clock.time;
+    const controller = new AbortController();
+    state.tracking = { controller, id: tr.id };
+    state.trackEdit = false;
+    syncTrackControls();
+    const status = $('#trackStatus'), bar = $('#trackBarFill');
+    bar.style.width = '0%';
+    status.textContent = 'Reading the reference frame…';
+    const preview = [];   // keys as they arrive, so the bar grows live
+    try {
+      const res = await Tracker.track({
+        video: els.video, width: state.video.width, height: state.video.height,
+        seek: seekVideo, ref: tr.ref, from: 0, to: Math.min(duration(), state.video.duration),
+        signal: controller.signal,
+        onProgress: (frac, key, dir) => {
+          bar.style.width = `${Math.round(frac * 100)}%`;
+          status.textContent = `${dir > 0 ? 'Forwards' : 'Backwards'} · ${fmtTime(key.t)} · match ${Math.round(key.ncc * 100)}%`;
+          preview.push(key);
+        },
+      });
+      // a fresh analysis supersedes earlier corrections; only the reference frame stays a hand key
+      tr.keys = Camera.sorted(res.keys.map((k) => Camera.defaultKey(k.t, { x: k.x, y: k.y, s: k.s, manual: Math.abs(k.t - tr.ref.t) < 1e-4, easing: 'linear' })));
+      tr.lost = { fwd: res.lostForward, back: res.lostBackward };
+      tr.placed = true;
+      const ks = tr.keys;
+      const msg = `${tr.name}: tracked ${fmtTime(ks[0].t)}–${fmtTime(ks[ks.length - 1].t)}` + ((res.lostForward || res.lostBackward) ? ' — lost the patch where the bar ends; add a correction key there or re-place the box' : '');
+      toast(msg);
+      tr._stats = res.stats; tr._mode = res.mode;
+    } catch (e) {
+      if (e.name === 'AbortError') toast('Tracking cancelled');
+      else toast(`Tracking failed: ${e.message}`, true);
+    } finally {
+      state.tracking = null;
+      await seekVideo(wasTime);
+      clock.time = wasTime;
+      syncTrackControls();
+      commit();
+      refreshAll();
+    }
+  }
+  $('#btnTrackRun').addEventListener('click', () => { const tr = selectedTrack(); if (tr) runTracking(tr); });
+  $('#btnTrackCancel').addEventListener('click', () => { if (state.tracking) state.tracking.controller.abort(); });
+  $('#btnDeleteTrackKey').addEventListener('click', deleteSelected);
+
   function syncMediaControls() {
     $('#bgColor').value = state.media.bg;
     $('#bgHex').value = state.media.bg;
@@ -1973,6 +2503,7 @@
       camera: state.camera,
       media: state.media,
       mask: state.mask,
+      tracks: state.tracks,
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
@@ -1991,6 +2522,8 @@
       state.media = Object.assign(defaultMedia(), data.media || {});
       state.mask = Object.assign(defaultMask(), data.mask || {});
       state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
+      state.tracks = (data.tracks || []).map((tr, i) => Object.assign({ name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], ref: { t: 0, x: 0, y: 0, w: 0.14, h: 0.12 }, lost: null, placed: true }, tr, { keys: (tr.keys || []).map((k) => Camera.defaultKey(k.t || 0, k)) }));
+      state.selectedTrackId = null; state.selectedTrackKeyId = null; state.trackEdit = false;
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
       if (data.aspect) state.aspect = data.aspect;
       if (data.duration) state.duration = data.duration;
@@ -2001,6 +2534,7 @@
       syncCameraControls();
       syncMediaControls();
       syncMaskControls();
+      syncTrackControls();
       fitPreview();
       refreshAll();
       toast(`Opened project${data.videoName ? ` — re-import "${data.videoName}" to see the video` : ''}`);
@@ -2189,6 +2723,7 @@
         videoReady: state.video.ready && els.video.readyState >= 2,
         layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
         mask: maskForRender(t), showMask: false,
+        trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, t) : null),
       });
     };
 
@@ -2272,8 +2807,8 @@
     const targets = selectedLayers();
     switch (e.key) {
       case ' ': e.preventDefault(); clock.toggle(); break;
-      case 'Escape': select(null); break;
-      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId || state.selectedMaskKeyId) { e.preventDefault(); deleteSelected(); } break;
+      case 'Escape': if (state.trackEdit) { state.trackEdit = false; syncTrackControls(); } else select(null); break;
+      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId || state.selectedMaskKeyId || state.selectedTrackKeyId) { e.preventDefault(); deleteSelected(); } break;
       case 'Home': clock.pause(); clock.time = 0; break;
       case 'End': clock.pause(); clock.time = duration(); break;
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
@@ -2325,6 +2860,7 @@
     buildSections(LAYER_SCHEMA, els.sections, layerCtx);
     buildSections(KEY_SCHEMA, els.keySections, keyCtx);
     buildSections(MASK_KEY_SCHEMA, $('#maskKeySections'), maskCtx);
+    buildSections(TRACK_KEY_SCHEMA, $('#trackKeySections'), trackKeyCtx);
     new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
@@ -2342,6 +2878,7 @@
     syncCameraControls();
     syncMediaControls();
     syncMaskControls();
+    syncTrackControls();
     refreshAll();
     updatePlayButton();
     setView('split');
@@ -2350,5 +2887,5 @@
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo };
 })();
