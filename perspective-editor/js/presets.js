@@ -27,7 +27,7 @@
       end: 3,
       hidden: false,
       behindSubject: false,   // erased where the subject mask covers it
-      track: { id: null },    // motion track this word is pinned to; transform.x/y/scale are then offsets from the tracked point
+      track: { id: null, rotate: true },   // motion track this word is pinned to; x/y/scale/roll are then offsets from the tracked point
       split: 'whole',
       style: {
         font: 'Inter', weight: 900, italic: false,

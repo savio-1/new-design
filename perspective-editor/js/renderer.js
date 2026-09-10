@@ -129,6 +129,8 @@
       gl.bindBuffer(gl.ARRAY_BUFFER, this.loopBuf);
       gl.bufferData(gl.ARRAY_BUFFER, loop, gl.STATIC_DRAW);
 
+      this.polyBuf = gl.createBuffer();   // rewritten every frame for tracker outlines
+
       this.videoTex = this._createTexture();
       this.whiteTex = this._createTexture();
       gl.bindTexture(gl.TEXTURE_2D, this.whiteTex);
@@ -432,23 +434,69 @@
         this._drawQuad(outline, m.hw * 2, m.hh * 2, this.whiteTex, 1, null, [0.35, 0.85, 1, 0.9], 'loop');
       }
 
-      // Tracker boxes: video-plane units, so they ride on the footage exactly like a pinned word.
+      // Tracker outlines: plotted in video-plane units, so they ride on the footage exactly like a
+      // pinned word. Any shape — a box's four corners, a hand-drawn polygon, a point's cross.
       this.lastOutlines = [];
       for (const o of opts.outlines || []) {
-        const cx = o.x * this.aspect * media.scale, cy = o.y * media.scale;
-        const w = Math.max(0.002, o.w) * this.aspect * media.scale, h = Math.max(0.002, o.h) * media.scale;
-        const m = M4.multiply(planeMVP, M4.translation(cx, cy, 0));
         const col = o.color || [1, 0.85, 0.2, 0.95];
-        this._drawQuad(m, w, h, this.whiteTex, 1, null, col, 'loop');
-        if (o.cross) {
-          const c = Math.min(w, h) * 0.35;
-          this._drawQuad(m, c, 0.0001, this.whiteTex, 1, null, col, 'loop');
-          this._drawQuad(m, 0.0001, c, this.whiteTex, 1, null, col, 'loop');
-        }
-        const sc = this._toScreen(planeMVP, cx, cy);
-        const sx = this._toScreen(planeMVP, cx + w / 2, cy), sy = this._toScreen(planeMVP, cx, cy + h / 2);
-        this.lastOutlines.push({ id: o.id, cx: sc.x, cy: sc.y, hw: Math.abs(sx.x - sc.x), hh: Math.abs(sy.y - sc.y), behind: sc.behind });
+        const toPlane = (p) => ({ x: p.x * this.aspect * media.scale, y: p.y * media.scale });
+        if (o.pts && o.pts.length >= 2) this._drawPath(planeMVP, o.pts.map(toPlane), col, o.closed !== false);
+        for (const seg of o.marks || []) this._drawPath(planeMVP, seg.map(toPlane), col, false);
+        const screen = (o.handles || []).map((p) => {
+          const q = toPlane(p);
+          const s2 = this._toScreen(planeMVP, q.x, q.y);
+          return { x: s2.x, y: s2.y, behind: s2.behind };
+        });
+        const c = toPlane(o.anchor || { x: 0, y: 0 });
+        const sc = this._toScreen(planeMVP, c.x, c.y);
+        this.lastOutlines.push({ id: o.id, cx: sc.x, cy: sc.y, behind: sc.behind, handles: screen });
       }
+    }
+
+    /* Draw a polyline (or closed polygon) of plane-space points in one colour. */
+    _drawPath(mvp, pts, color, closed) {
+      const gl = this.gl, L = this.loc;
+      const n = pts.length;
+      if (n < 2) return;
+      const data = new Float32Array(n * 4);
+      for (let i = 0; i < n; i++) {
+        data[i * 4] = pts[i].x; data[i * 4 + 1] = pts[i].y;
+        data[i * 4 + 2] = 0; data[i * 4 + 3] = 0;
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.polyBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(L.aPos);
+      gl.vertexAttribPointer(L.aPos, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(L.aUV);
+      gl.vertexAttribPointer(L.aUV, 2, gl.FLOAT, false, 16, 8);
+      gl.uniformMatrix4fv(L.uMVP, false, mvp);
+      gl.uniform2f(L.uSize, 1, 1);
+      gl.uniform1f(L.uOpacity, 1);
+      gl.uniform2f(L.uBlur, 0, 0);
+      gl.uniform4fv(L.uTint, color);
+      gl.uniform1f(L.uMaskCut, 0);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.whiteTex);
+      gl.uniform1i(L.uTex, 0);
+      gl.drawArrays(closed ? gl.LINE_LOOP : gl.LINE_STRIP, 0, n);
+    }
+
+    /* Where a screen pixel lands on the video plane, in the plane's own units (x across the video
+     * half-width, y across the half-height, y up). Exact: the camera ray is intersected with z = 0. */
+    planePointAtScreen(px, py, cam, media) {
+      const c = cam || this.defaultCamera();
+      const m = Object.assign({ x: 0, y: 0, scale: 1 }, media || {});
+      const ndcX = (px / this.canvas.width) * 2 - 1, ndcY = 1 - (py / this.canvas.height) * 2;
+      const tanH = Math.tan((this.fovDeg * D2R) / 2);
+      const R = M4.multiply(M4.multiply(M4.rotationY((c.yaw || 0) * D2R), M4.rotationX((c.pitch || 0) * D2R)), M4.rotationZ((c.roll || 0) * D2R));
+      const d = M4.transformPoint(R, ndcX * tanH * this.aspect, ndcY * tanH, -1);
+      if (d.z > -1e-6) return null;                       // looking away from the plane
+      const k = -c.z / d.z;
+      if (!(k > 0)) return null;
+      return {
+        x: (c.x + d.x * k - m.x) / (this.aspect * Math.max(0.001, m.scale)),
+        y: (c.y + d.y * k - m.y) / Math.max(0.001, m.scale),
+      };
     }
 
 

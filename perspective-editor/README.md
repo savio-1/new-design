@@ -70,8 +70,9 @@ embedded — re-import it).
 
 Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove word or key ·
 `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
-`K` add camera key · `M` adjust the subject mask · `Esc` leave tracker placement · `L` cycle Preview /
-Split / 3D layout · `Ctrl+S` save · `Ctrl+E` export.
+`K` add camera key · `M` adjust the subject mask · `Enter` close a tracker shape · `Backspace` take
+back its last point · `Esc` leave tracker marking · `L` cycle Preview / Split / 3D layout · `Ctrl+S`
+save · `Ctrl+E` export.
 
 ## How the 3D reveal works
 
@@ -123,35 +124,70 @@ draws it while you work; it is never in the export.
 
 Everything above moves a *virtual* camera over a static shot. Motion tracking is the other case: the
 footage itself was shot with a moving camera, and you want a caption that stays stuck to a screen, a
-sign, a product — and grows as the camera closes in — as if it had been in the room.
+sign, a product — growing and turning with it — as if it had been in the room.
 
-1. In **1 · Media → Motion tracking**, press **New tracker**, then click the object on the preview.
-   A box appears; the wheel sizes it (`Shift`+wheel: height only). Box a part of the object with
-   edges or texture — a logo, the corner of a screen — not a flat wall.
-2. Press **Track motion**. The tracker follows that patch forwards and backwards from the frame you
-   placed it on, in about the running time of the clip, and stops if it loses the patch (the status
-   says where). The Tracker row in the timeline shows the covered range as a bar.
-3. Press **Add pinned text** for a caption that follows the tracker and appears word by word, or
-   select existing words and press **Pin selected words**. In the inspector every word has a
-   **Pinned to** menu; changing it never moves the word on screen — its position is simply stored as
-   an offset from the tracked point from then on.
+**1 · Mark the object** in *1 · Media → Motion tracking*. Pick how to mark it, press **New tracker**,
+then work on the preview:
 
-A pinned word keeps its own controls: drag it to sit where you like relative to the point, set its
-size, tilt or turn it, and it will hold that relationship as the point moves and scales. Depth stays
-at 0 so it sits on the surface; give it a little depth and the virtual camera adds parallax on top.
+| Mark with | How | What it gives you |
+| --- | --- | --- |
+| **Box** | Drag out a rectangle over a detailed part of the object. Wheel resizes, drag a corner to reshape. | Position, size and rotation |
+| **Shape** | Click points around the object; click the first point again (or double-click, or `Enter`) to close it. `Backspace` takes back a point; drag a point to adjust it. | Position, size and rotation — the most accurate, because you decide exactly what belongs to the object |
+| **Point** | Click one small detail. | Position only |
 
-If the track drifts, scrub to that moment, press **Place on canvas** (or click the tracker row) and
-drag the point back where it belongs. That writes a **correction key** — a diamond on the tracker
-row — and the fix is blended into the neighbouring frames so nothing jumps. The wheel corrects the
-size the same way. Corrections can also be typed in the inspector, and a track can be keyed entirely
-by hand when there is no video, or when the footage has nothing trackable: keys are interpolated
-just like camera keys.
+Mark something with edges or texture — a logo, a screen corner, a pattern. A flat wall or a plain
+gradient is refused with a message, because there is nothing in it to follow.
 
-Tracking runs on a 640-pixel greyscale copy of the video using normalised cross-correlation against
-both the previous frame (so gradual changes of light and angle do not break the lock) and the
-original patch at several scales (so drift cannot build up, and so the size is recovered). It is
-translation and scale only — no rotation or perspective warp — which is what a floating caption
-needs. It is not a planar tracker: text will not bend onto a surface seen at a steep angle.
+**2 · Press Track motion.** The tracker follows the object forwards and backwards from the frame you
+marked it on, and stops where it loses it (the status line says where). The Tracker row in the
+timeline shows the covered range as a bar.
+
+**3 · Press Add pinned text** for a caption that follows the tracker and appears word by word, or
+select existing words and press **Pin selected words**. In the inspector every word has a **Pinned
+to** menu; changing it never moves the word — its position, size and angle are simply stored relative
+to the tracked object from then on. **Follow rotation** (on by default) turns the word with the
+object as well; turn it off for a caption that should stay upright.
+
+A pinned word keeps all its own controls: drag it to sit where you like beside the object, set its
+size, tilt or turn it, and it holds that relationship as the object moves, grows and turns. Depth
+stays near 0 so it sits on the surface; give it some depth and the virtual camera adds parallax on
+top of the tracked motion.
+
+### If it drifts
+
+Scrub to the moment it goes wrong, press **Mark on canvas** (or click the tracker's row) and drag the
+mark back where it belongs. That writes a **correction key** — a diamond on the tracker row — and the
+fix is blended into the neighbouring frames so nothing jumps. The wheel corrects size the same way,
+and position, size and rotation can all be typed into the inspector. A track can also be keyed
+entirely by hand, which is what you get with no video loaded at all: keys interpolate exactly like
+camera keys.
+
+### How the tracking works
+
+Frames are read by playing the clip and taking every frame the browser hands over. Reading and
+analysing a frame is slower than a frame period on many machines, so the clip is played **at half
+speed, dropping to a quarter or an eighth if it notices a frame went by unseen** — the status line
+shows the rate. Getting every frame matters more than finishing quickly: a tracker that skips frames
+is exactly one that wanders off. *Step every frame* seeks each frame instead, which is slower again
+and needs no luck at all.
+
+Inside your region, up to 48 corners are detected (Shi-Tomasi) and each is followed frame to frame by
+pyramidal Lucas-Kanade optical flow. Every feature is then checked against the patch it had on the
+reference frame, warped by the current size and angle, and any that no longer match — occluded,
+blurred, slipped onto neighbouring texture — are dropped, so drift cannot build up. What survives is
+fitted with one similarity transform (position, uniform scale, rotation) with outlier rejection, and
+*that* is the object's motion: no single feature can pull the text off. When too many features are
+lost, fresh ones are detected where the object now is; when confidence stays low the track stops
+rather than wandering.
+
+Measured on a test clip that pushes in 1.5×, rolls ±10°, pans across the frame and wobbles like a
+handheld shot: **Box and Shape hold the object to about 2 px in a 960-wide frame** (0.2 %), with size
+within 0.2 % and rotation within 0.7°. **Point mode holds position to about 20 px** on the same clip
+— a few pixels of neighbourhood cannot measure scale or rotation, so it reports neither; use Box or
+Shape when the shot zooms.
+
+It is translation, scale and rotation — not a planar tracker. A caption floats beside or on a surface
+convincingly, but text will not bend onto a table seen at a steep angle.
 
 **Word-by-word captions.** In the Animation section, **Words appear one by one** sets the layer to
 animate by words with a fade, and **Type it out** does the same by letters; both leave the exit off so
@@ -205,9 +241,10 @@ Bouncy Pop, Elegant Quote.
 - `js/animations.js` — easing curves plus the entrance / exit / loop library. Each animation is a
   pure function of progress that returns translation, rotation, scale, opacity and blur.
 - `js/camera.js` — camera keyframes, interpolation, and the library of camera moves.
-- `js/tracker.js` — the point tracker: reads frames from real-time playback (`requestVideoFrameCallback`,
-  falling back to seeking), matches the boxed patch by normalised cross-correlation against the previous
-  frame and the reference at several scales, and returns per-frame position and size keys.
+- `js/tracker.js` — the object tracker: reads frames by playing the clip at an adaptive rate
+  (`requestVideoFrameCallback`, falling back to seeking), detects Shi-Tomasi corners in the marked
+  region, follows them with pyramidal Lucas-Kanade optical flow, validates each against its reference
+  patch, and fits one similarity transform per frame to give position, size and rotation keys.
 - `js/layout-view.js` — the large top/side diagram of the scene with draggable words, camera and keyframes.
 - `js/presets.js` — style presets and template generators.
 - `js/exporter.js` — frame-accurate export: seeks the source video frame by frame, renders,

@@ -246,64 +246,88 @@
   const selectedKey = () => getKey(state.selectedKeyId);
 
   /* ---- motion tracks -----------------------------------------------------
-   * A track is a point in the footage (video-plane units, like the mask) with a size factor `s`
-   * relative to the frame the tracker was placed on. A word pinned to a track keeps its own
-   * transform as OFFSETS from that point, scaled by s, so the word rides the footage and grows as the
+   * A track follows something in the footage: a marked region (a box, a hand-drawn shape, or a single
+   * point) is analysed frame by frame, giving a position in video-plane units, a size `s` relative to
+   * the reference frame, and a rotation `r`. A word pinned to a track keeps its own transform as
+   * OFFSETS from that point — rotated and scaled with it — so it rides the footage and grows as the
    * real camera closes in. */
-  const TRACK_FIELDS = ['x', 'y', 's'];
+  const TRACK_FIELDS = ['x', 'y', 's', 'r'];
   const TRACK_COLORS = [[1, 0.84, 0.2], [0.45, 0.9, 1], [1, 0.55, 0.65], [0.6, 1, 0.5], [0.85, 0.65, 1], [1, 0.7, 0.35]];
+  const TRACK_MODES = { box: 'Box', poly: 'Shape', point: 'Point' };
   const getTrack = (id) => state.tracks.find((k) => k.id === id);
   const selectedTrack = () => getTrack(state.selectedTrackId);
   const trackOfKey = (id) => state.tracks.find((tr) => tr.keys.some((k) => k.id === id));
   const getTrackKey = (id) => { const tr = trackOfKey(id); return tr ? tr.keys.find((k) => k.id === id) : null; };
   const selectedTrackKey = () => getTrackKey(state.selectedTrackKeyId);
   const trackColorCss = (tr) => `rgb(${tr.color.map((c) => Math.round(c * 255)).join(',')})`;
+  /* A polygon tracker is ready to analyse once it is closed; the others once they have been placed. */
+  const trackReady = (tr) => (tr.mode === 'poly' ? !!(tr.closed && tr.ref.points && tr.ref.points.length >= 3) : !!tr.placed);
 
   function trackAt(id, t) {
     const tr = getTrack(id);
     if (!tr) return null;
-    return Camera.evaluateOn(tr.keys, t, TRACK_FIELDS) || { x: tr.ref.x, y: tr.ref.y, s: 1 };
+    const v = Camera.evaluateOn(tr.keys, t, TRACK_FIELDS) || { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0 };
+    if (v.s == null) v.s = 1;
+    if (v.r == null) v.r = 0;
+    return v;
   }
-  /* The tracked point in world units at time t, plus the factor a pinned word is scaled by there. */
+  /* The tracked point in world units at time t, with the factor and angle a pinned word inherits. */
   function anchorAt(id, t) {
     const pt = trackAt(id, t);
     if (!pt) return null;
     const m = state.media;
-    return { x: m.x + pt.x * renderer.aspect * m.scale, y: m.y + pt.y * m.scale, k: Math.max(0.05, (pt.s == null ? 1 : pt.s) * m.scale), s: pt.s == null ? 1 : pt.s };
+    return {
+      x: m.x + pt.x * renderer.aspect * m.scale, y: m.y + pt.y * m.scale,
+      k: Math.max(0.05, pt.s * m.scale), s: pt.s, deg: pt.r,
+    };
   }
   function isPinned(l) { return !!(l.track && l.track.id && getTrack(l.track.id)); }
+  const followsRotation = (l) => !!(l.track && l.track.rotate);
   /* The transform a layer is actually drawn with at time t (its own transform unless it is pinned). */
   function effectiveTransform(l, t) {
     const tr = l.transform;
     if (!isPinned(l)) return tr;
     const a = anchorAt(l.track.id, t == null ? clock.time : t);
     if (!a) return tr;
-    return { x: a.x + tr.x * a.k, y: a.y + tr.y * a.k, z: tr.z, rx: tr.rx, ry: tr.ry, rz: tr.rz, scale: tr.scale * a.k };
+    const deg = followsRotation(l) ? a.deg : 0;
+    const rad = (deg * Math.PI) / 180, c = Math.cos(rad), sn = Math.sin(rad);
+    return {
+      x: a.x + (c * tr.x - sn * tr.y) * a.k,
+      y: a.y + (sn * tr.x + c * tr.y) * a.k,
+      z: tr.z, rx: tr.rx, ry: tr.ry, rz: tr.rz + deg, scale: tr.scale * a.k,
+    };
   }
   /* Pin a layer to a track (or unpin with null) without letting it move on screen at time t. */
   function pinLayer(l, trackId, t) {
     const abs = effectiveTransform(l, t);
-    l.track = { id: trackId && getTrack(trackId) ? trackId : null };
+    const rotate = l.track ? l.track.rotate : true;
+    l.track = { id: trackId && getTrack(trackId) ? trackId : null, rotate: rotate == null ? true : rotate };
     if (!l.track.id) {
-      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), scale: round(abs.scale, 4) });
+      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), rz: round(abs.rz, 3), scale: round(abs.scale, 4) });
       return;
     }
     const a = anchorAt(trackId, t);
-    l.transform.x = round((abs.x - a.x) / a.k, 4);
-    l.transform.y = round((abs.y - a.y) / a.k, 4);
+    const deg = followsRotation(l) ? a.deg : 0;
+    const rad = (-deg * Math.PI) / 180, c = Math.cos(rad), sn = Math.sin(rad);
+    const dx = (abs.x - a.x) / a.k, dy = (abs.y - a.y) / a.k;
+    l.transform.x = round(c * dx - sn * dy, 4);
+    l.transform.y = round(sn * dx + c * dy, 4);
+    l.transform.rz = round(abs.rz - deg, 3);
     l.transform.scale = round(abs.scale / a.k, 4);
   }
   let nextTrack = 1;
-  function newTrack() {
+  function newTrack(mode) {
     const color = TRACK_COLORS[(state.tracks.length) % TRACK_COLORS.length];
     const t = round(clock.time, 3);
     const tr = {
       id: `T${nextTrack++}_${Math.random().toString(36).slice(2, 6)}`,
       name: `Tracker ${state.tracks.length + 1}`, color,
-      ref: { t, x: 0, y: 0, w: 0.14, h: 0.12 },
-      keys: [Camera.defaultKey(t, { x: 0, y: 0, s: 1, manual: true, easing: 'linear' })],
+      mode: mode || 'box',       // box | poly | point
+      ref: { t, x: 0, y: 0, w: 0.14, h: 0.12, points: [] },
+      closed: false,             // polygon finished
+      keys: [Camera.defaultKey(t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })],
       lost: null,
-      placed: false,      // until the first click on the preview, placing moves the reference frame itself
+      placed: false,             // until placed on the preview, placing moves the reference frame itself
     };
     state.tracks.push(tr);
     return tr;
@@ -317,7 +341,7 @@
     let created = false;
     if (!key) {
       const pt = trackAt(tr.id, t);
-      key = Camera.defaultKey(t, { x: pt.x, y: pt.y, s: pt.s == null ? 1 : pt.s, manual: true, easing: 'linear' });
+      key = Camera.defaultKey(t, { x: pt.x, y: pt.y, s: pt.s, r: pt.r, manual: true, easing: 'linear' });
       created = true;
       if (!tr.placed) {
         // a tracker that has not been placed yet simply moves its reference frame to the playhead
@@ -327,9 +351,9 @@
     }
     return { key, created };
   }
-  /* Nudge a track at time t by (dx, dy) in plane units and a factor ds. On an analysed track the
-   * correction is blended into the neighbouring frames so one fix does not leave a spike. */
-  function correctTrack(tr, key, dx, dy, ds) {
+  /* Nudge a track at time t by (dx, dy) in plane units, a size factor ds and a rotation dr. On an
+   * analysed track the correction is blended into the neighbouring frames so one fix leaves no spike. */
+  function correctTrack(tr, key, dx, dy, ds, dr) {
     key.manual = true;
     const auto = trackIsAuto(tr);
     const manualTimes = tr.keys.filter((k) => k.manual && k !== key).map((k) => k.t);
@@ -345,20 +369,64 @@
       }
       k.x = round(clamp(k.x + dx * w, -1.5, 1.5), 4);
       k.y = round(clamp(k.y + dy * w, -1.5, 1.5), 4);
-      if (ds && ds !== 1) k.s = round(clamp(k.s * Math.pow(ds, w), 0.1, 8), 4);
+      if (ds && ds !== 1) k.s = round(clamp((k.s == null ? 1 : k.s) * Math.pow(ds, w), 0.1, 8), 4);
+      if (dr) k.r = round((k.r || 0) + dr * w, 3);
     }
   }
-  /* Boxes drawn over the footage while a tracker is being placed or looked at. */
+
+  /* ---- the marked shape, carried by the track ---------------------------
+   * Plane x is in half-width units and y in half-height units, so a rotation has to be applied in a
+   * common unit: x is converted to half-height units, rotated, and converted back. */
+  function trackShapeAt(tr, t) {
+    const pt = trackAt(tr.id, t) || { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0 };
+    const A = Math.max(0.01, renderer.aspect);
+    const rad = (pt.r * Math.PI) / 180, c = Math.cos(rad) * pt.s, sn = Math.sin(rad) * pt.s;
+    const map = (p) => {
+      const dx = (p.x - tr.ref.x) * A, dy = p.y - tr.ref.y;
+      return { x: pt.x + (c * dx - sn * dy) / A, y: pt.y + (sn * dx + c * dy) };
+    };
+    const anchor = { x: pt.x, y: pt.y };
+    if (tr.mode === 'poly') {
+      const pts = (tr.ref.points || []).map(map);
+      return { anchor, pts, closed: !!tr.closed, handles: pts, marks: cross(anchor, 0.02 * pt.s, A) };
+    }
+    if (tr.mode === 'point') {
+      const r = 0.035 * pt.s;
+      return { anchor, pts: circle(anchor, r, A), closed: true, handles: [anchor], marks: cross(anchor, r * 1.7, A) };
+    }
+    const hw = tr.ref.w / 2, hh = tr.ref.h / 2;
+    const corners = [
+      { x: tr.ref.x - hw, y: tr.ref.y - hh }, { x: tr.ref.x + hw, y: tr.ref.y - hh },
+      { x: tr.ref.x + hw, y: tr.ref.y + hh }, { x: tr.ref.x - hw, y: tr.ref.y + hh },
+    ].map(map);
+    return { anchor, pts: corners, closed: true, handles: corners, marks: cross(anchor, Math.min(hw, hh) * 0.7 * pt.s, A) };
+  }
+  const cross = (c, r, A) => [
+    [{ x: c.x - r / A, y: c.y }, { x: c.x + r / A, y: c.y }],
+    [{ x: c.x, y: c.y - r }, { x: c.x, y: c.y + r }],
+  ];
+  function circle(c, r, A) {
+    const pts = [];
+    for (let i = 0; i < 20; i++) {
+      const a = (i / 20) * Math.PI * 2;
+      pts.push({ x: c.x + (Math.cos(a) * r) / A, y: c.y + Math.sin(a) * r });
+    }
+    return pts;
+  }
+  /* Outlines drawn over the footage while a tracker is being placed or looked at. */
   function trackOutlines(t) {
     if (state.exporting || !state.tracks.length) return [];
     const out = [];
     for (const tr of state.tracks) {
       const sel = tr.id === state.selectedTrackId;
       if (!sel && !state.trackEdit) continue;
-      const pt = trackAt(tr.id, t);
-      const sc = pt.s == null ? 1 : pt.s;
-      const alpha = sel ? 0.95 : 0.35;
-      out.push({ id: tr.id, x: pt.x, y: pt.y, w: tr.ref.w * sc, h: tr.ref.h * sc, color: tr.color.concat([alpha]), cross: true });
+      const sh = trackShapeAt(tr, t);
+      const alpha = sel ? 0.95 : 0.3;
+      out.push({
+        id: tr.id, pts: sh.pts, closed: sh.closed, marks: sh.marks,
+        handles: sel && state.trackEdit ? sh.handles : [], anchor: sh.anchor,
+        color: tr.color.concat([alpha]),
+      });
     }
     return out;
   }
@@ -1115,6 +1183,7 @@
         { type: 'sub', label: 'Motion tracking' },
         { type: 'select', path: 'track.id', label: 'Pinned to', hint: 'Follow a tracked point in the footage: the word stays on that object while the real camera moves, and grows as the camera closes in. Create trackers in step 1 · Media.',
           options: () => [{ value: '', label: state.tracks.length ? 'Nothing — fixed in the scene' : 'No trackers yet (step 1 · Media)' }].concat(state.tracks.map((tr) => ({ value: tr.id, label: tr.name }))) },
+        { type: 'toggle', path: 'track.rotate', label: 'Follow rotation', hint: 'Turn the word with the tracked object as well as moving and scaling with it' },
         { type: 'sub', label: 'Subject mask' },
         { type: 'toggle', path: 'behindSubject', label: 'Behind subject', hint: 'Erase this word wherever the subject mask covers it, so it reads as passing behind the person. Turn the mask on in step 1.' },
       ],
@@ -1220,6 +1289,7 @@
         { type: 'range', path: 'x', label: 'Point X', min: -1.2, max: 1.2, step: 0.002, scale: 100, unit: '' },
         { type: 'range', path: 'y', label: 'Point Y', min: -1.2, max: 1.2, step: 0.002, scale: 100, unit: '' },
         { type: 'range', path: 's', label: 'Size', min: 0.2, max: 4, step: 0.005, scale: 100, unit: '%', hint: 'How big the tracked object is here compared with the frame the tracker was placed on' },
+        { type: 'range', path: 'r', label: 'Rotation', min: -180, max: 180, step: 0.5, scale: 1, unit: '°', hint: 'How far the object has turned since the reference frame' },
       ],
     },
   ];
@@ -1270,6 +1340,21 @@
       for (const l of targets) {
         if (field.perLayer && l !== primary) continue;
         if (field.path === 'track.id') { pinLayer(l, value || null, clock.time); l._layout = null; continue; }
+        if (field.path === 'track.rotate') {
+          // keep the word where it is on screen: re-derive its offsets under the new setting
+          const abs = effectiveTransform(l, clock.time);
+          l.track = Object.assign({ id: null }, l.track, { rotate: !!value });
+          if (isPinned(l)) {
+            const a = anchorAt(l.track.id, clock.time);
+            const deg = value ? a.deg : 0;
+            const rad = (-deg * Math.PI) / 180, cc = Math.cos(rad), ss = Math.sin(rad);
+            const dx = (abs.x - a.x) / a.k, dy = (abs.y - a.y) / a.k;
+            l.transform.x = round(cc * dx - ss * dy, 4);
+            l.transform.y = round(ss * dx + cc * dy, 4);
+            l.transform.rz = round(abs.rz - deg, 3);
+          }
+          continue;
+        }
         let v = value;
         if (field.delta && l !== primary && typeof value === 'number' && typeof oldPrimary === 'number') {
           v = (getPath(l, field.path) || 0) + (value - oldPrimary);
@@ -1629,18 +1714,31 @@
       const depth = state.media.locked ? renderer.camDist : planeDepth(cam);
       return renderer.worldPerPixelAtDepth(depth);
     };
-    /* Buffer pixel -> video-plane units, by inverting the plane's screen position at the centre. Exact for
-     * the resting camera and close enough under a dolly, which is all a tracker placement needs. */
+    /* Buffer pixel -> video-plane units. The camera ray is intersected with the video plane, so this
+     * is exact under any dolly, pan or tilt — a tracker point has to land where the user clicked. */
     const planeFromBuffer = (p) => {
-      const wpp = planePixels();
-      const cam = cameraAt(clock.time);
-      const useCam = state.media.locked ? renderer.defaultCamera() : cam;
-      // where the plane origin lands on screen
-      const proj = M4.perspective((state.fov * Math.PI) / 180, renderer.aspect, 0.02, 100);
-      const mvp = M4.multiply(M4.multiply(proj, renderer.viewMatrix(useCam)), M4.translation(state.media.x, state.media.y, 0));
-      const o = renderer._toScreen(mvp, 0, 0);
-      const m = state.media;
-      return { x: ((p.x - o.x) * wpp) / (renderer.aspect * m.scale), y: (-(p.y - o.y) * wpp) / m.scale };
+      const cam = state.media.locked ? renderer.defaultCamera() : cameraAt(clock.time);
+      return renderer.planePointAtScreen(p.x, p.y, cam, state.media);
+    };
+    /* Plane units at time t -> the tracker's reference-frame units (undo its position, size, angle). */
+    const refFromPlane = (tr, t, pl) => {
+      const pt = trackAt(tr.id, t);
+      const A = Math.max(0.01, renderer.aspect), sc = Math.max(0.05, pt.s);
+      const rad = (pt.r * Math.PI) / 180, c = Math.cos(rad) / sc, sn = Math.sin(rad) / sc;
+      const dx = (pl.x - pt.x) * A, dy = pl.y - pt.y;
+      return { x: tr.ref.x + (c * dx + sn * dy) / A, y: tr.ref.y + (-sn * dx + c * dy) };
+    };
+    /* Index of the shape handle under a buffer pixel, or -1. */
+    const handleAt = (trk, p) => {
+      const o = (renderer.lastOutlines || []).find((x) => x.id === trk.id);
+      if (!o) return -1;
+      let best = -1, bd = 14 * (els.canvas.width / Math.max(1, els.canvas.clientWidth));
+      o.handles.forEach((h, i) => {
+        if (h.behind) return;
+        const d = Math.hypot(h.x - p.x, h.y - p.y);
+        if (d < bd) { bd = d; best = i; }
+      });
+      return best;
     };
 
     c.addEventListener('pointerdown', (e) => {
@@ -1649,13 +1747,46 @@
       const trk = state.trackEdit ? selectedTrack() : null;
       if (trk) {
         clock.pause();
+        const pl = planeFromBuffer(p);
+        if (!pl) return;
+
+        // Drawing a shape: every click adds a corner; clicking the first one again closes it.
+        if (trk.mode === 'poly' && !trk.closed) {
+          const pts = trk.ref.points;
+          if (pts.length >= 3 && handleAt(trk, p) === 0) { finishShape(trk); return; }
+          if (!pts.length) { trk.ref.t = round(clock.time, 3); trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })]; }
+          pts.push({ x: round(pl.x, 4), y: round(pl.y, 4) });
+          recentreShape(trk);
+          trk.placed = true;
+          syncTrackControls();
+          invalidate();
+          return;
+        }
+
+        // Dragging a handle reshapes the marked region itself.
+        const hi = handleAt(trk, p);
+        if (hi >= 0 && trackReady(trk)) {
+          drag = { mode: 'trackHandle', tr: trk, idx: hi, moved: false };
+          c.setPointerCapture(e.pointerId);
+          c.classList.add('grabbing');
+          return;
+        }
+
+        // A box that has not been placed is drawn by dragging out a rectangle.
+        if (trk.mode === 'box' && !trk.placed) {
+          drag = { mode: 'trackBox', tr: trk, p0: pl, moved: false };
+          trk.ref.t = round(clock.time, 3);
+          trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })];
+          c.setPointerCapture(e.pointerId);
+          c.classList.add('grabbing');
+          return;
+        }
+
         const { key, created } = trackKeyAtPlayhead(trk);
         drag = { mode: 'track', tr: trk, key, created, x0: p.x, y0: p.y, wpp: planePixels(), moved: false, fresh: !trk.placed };
-        // Placing a brand-new tracker: the box jumps to where you click.
+        // Placing a point (or centring an existing box) puts the mark where you clicked.
         if (drag.fresh) {
-          const pl = planeFromBuffer(p);
-          const dx = pl.x - key.x, dy = pl.y - key.y;
-          correctTrack(trk, key, dx, dy, 1);
+          correctTrack(trk, key, pl.x - key.x, pl.y - key.y, 1, 0);
           trk.ref.x = key.x; trk.ref.y = key.y; trk.ref.t = key.t;
           trk.placed = true;
           drag.moved = true;
@@ -1702,12 +1833,54 @@
         c.classList.toggle('hover', !state.maskEdit && !state.trackEdit && !!renderer.hitTest(p.x, p.y));
         return;
       }
+      if (drag.mode === 'trackBox') {
+        const pl = planeFromBuffer(p);
+        if (!pl) return;
+        const tr = drag.tr, a = drag.p0;
+        tr.ref.w = round(clamp(Math.abs(pl.x - a.x), 0.02, 1.6), 4);
+        tr.ref.h = round(clamp(Math.abs(pl.y - a.y), 0.02, 1.6), 4);
+        tr.ref.x = round((pl.x + a.x) / 2, 4);
+        tr.ref.y = round((pl.y + a.y) / 2, 4);
+        tr.keys[0].x = tr.ref.x; tr.keys[0].y = tr.ref.y;
+        if (Math.abs(pl.x - a.x) > 0.02 || Math.abs(pl.y - a.y) > 0.02) drag.moved = true;
+        syncTrackControls();
+        invalidate();
+        return;
+      }
+      if (drag.mode === 'trackHandle') {
+        const pl = planeFromBuffer(p);
+        if (!pl) return;
+        const tr = drag.tr;
+        const rp = refFromPlane(tr, clock.time, pl);
+        drag.moved = true;
+        if (tr.mode === 'poly') {
+          tr.ref.points[drag.idx] = { x: round(rp.x, 4), y: round(rp.y, 4) };
+          recentreShape(tr);
+        } else if (tr.mode === 'point') {
+          const key = trackKeyAtPlayhead(tr).key;
+          correctTrack(tr, key, pl.x - key.x, pl.y - key.y, 1, 0);
+        } else {
+          // the opposite corner stays put while this one moves
+          const hw = tr.ref.w / 2, hh = tr.ref.h / 2;
+          const fixed = { x: tr.ref.x + (drag.idx === 1 || drag.idx === 2 ? -hw : hw), y: tr.ref.y + (drag.idx >= 2 ? -hh : hh) };
+          tr.ref.w = round(clamp(Math.abs(rp.x - fixed.x), 0.02, 1.6), 4);
+          tr.ref.h = round(clamp(Math.abs(rp.y - fixed.y), 0.02, 1.6), 4);
+          const cx = (rp.x + fixed.x) / 2, cy = (rp.y + fixed.y) / 2;
+          const key = trackKeyAtPlayhead(tr).key;
+          correctTrack(tr, key, cx - tr.ref.x - (key.x - tr.ref.x), cy - tr.ref.y - (key.y - tr.ref.y), 1, 0);
+          tr.ref.x = round(cx, 4); tr.ref.y = round(cy, 4);
+        }
+        syncTrackControls();
+        refreshTrackKeyValues();
+        invalidate();
+        return;
+      }
       if (drag.mode === 'track') {
         const dxu = ((p.x - drag.x0) * drag.wpp) / (renderer.aspect * state.media.scale);
         const dyu = -((p.y - drag.y0) * drag.wpp) / state.media.scale;
         if (Math.abs(p.x - drag.x0) + Math.abs(p.y - drag.y0) > 1.5) drag.moved = true;
         const nx = drag.tx + dxu, ny = drag.ty + dyu;
-        correctTrack(drag.tr, drag.key, nx - drag.key.x, ny - drag.key.y, 1);
+        correctTrack(drag.tr, drag.key, nx - drag.key.x, ny - drag.key.y, 1, 0);
         if (drag.fresh) { drag.tr.ref.x = drag.key.x; drag.tr.ref.y = drag.key.y; }
         syncTrackControls();
         refreshTrackKeyValues();
@@ -1745,7 +1918,13 @@
         // a click without a drag should not leave a stray correction key behind
         drag.tr.keys = drag.tr.keys.filter((k) => k !== drag.key);
       }
-      if (drag && drag.moved) { commit(); if (drag.mode === 'track') renderTrackRows(); }
+      if (drag && drag.mode === 'trackBox') {
+        const tr = drag.tr;
+        if (!drag.moved) { tr.ref.x = round(drag.p0.x, 4); tr.ref.y = round(drag.p0.y, 4); tr.keys[0].x = tr.ref.x; tr.keys[0].y = tr.ref.y; }
+        tr.placed = true;
+        syncTrackControls();
+      }
+      if (drag && drag.moved) { commit(); if (drag.mode === 'track' || drag.mode === 'trackHandle' || drag.mode === 'trackBox') renderTrackRows(); }
       drag = null;
       c.classList.remove('grabbing');
     };
@@ -1754,6 +1933,8 @@
 
     c.addEventListener('dblclick', (e) => {
       const p = toBuffer(e);
+      const trk = state.trackEdit ? selectedTrack() : null;
+      if (trk && trk.mode === 'poly' && !trk.closed) { finishShape(trk); return; }
       const id = renderer.hitTest(p.x, p.y);
       if (id) { select(id); focusTextInput(); }
     });
@@ -1764,14 +1945,14 @@
       if (trk && !state.exporting && !state.tracking) {
         e.preventDefault();
         const factor = Math.exp(-e.deltaY * 0.0015);
-        if (!trackIsAuto(trk)) {
-          // before analysis the wheel sizes the box that will be followed
-          trk.ref.w = round(clamp(trk.ref.w * factor, 0.03, 0.6), 4);
-          if (!e.shiftKey) trk.ref.h = round(clamp(trk.ref.h * factor, 0.03, 0.6), 4);
+        if (!trackIsAuto(trk) && trk.mode !== 'poly') {
+          // before analysis the wheel sizes the region that will be followed
+          if (!e.shiftKey) trk.ref.w = round(clamp(trk.ref.w * factor, 0.02, 1.6), 4);
+          trk.ref.h = round(clamp(trk.ref.h * factor, 0.02, 1.6), 4);
         } else {
           // afterwards it corrects how big the pinned words are here
           const { key } = trackKeyAtPlayhead(trk);
-          correctTrack(trk, key, 0, 0, factor);
+          correctTrack(trk, key, 0, 0, factor, 0);
         }
         syncTrackControls();
         refreshTrackKeyValues();
@@ -2167,13 +2348,44 @@
   $('#btnDeleteMaskKey').addEventListener('click', deleteSelected);
 
   /* ---- motion tracking panel -------------------------------------------- */
+  /* Recompute a shape's anchor from its points. Only while it is still being drawn or has never been
+   * analysed: moving the anchor of a tracked shape would shift everything pinned to it. */
+  function recentreShape(tr) {
+    const pts = tr.ref.points || [];
+    if (!pts.length) return;
+    let cx = 0, cy = 0;
+    for (const p of pts) { cx += p.x; cy += p.y; }
+    tr.ref.x = round(cx / pts.length, 4);
+    tr.ref.y = round(cy / pts.length, 4);
+    const k = tr.keys.find((x) => Math.abs(x.t - tr.ref.t) < 1e-3) || tr.keys[0];
+    if (k) { k.x = tr.ref.x; k.y = tr.ref.y; }
+  }
+  function finishShape(tr) {
+    if (!tr.ref.points || tr.ref.points.length < 3) { toast('Click at least three points around the object', true); return; }
+    tr.closed = true;
+    if (!trackIsAuto(tr)) recentreShape(tr);
+    syncTrackControls();
+    commit();
+    invalidate();
+    toast(state.video.ready ? 'Shape closed — press Track motion' : 'Shape closed');
+  }
+
   function trackStatusText(tr) {
     const auto = trackIsAuto(tr);
-    if (!auto) return tr.keys.length > 1 ? `${tr.keys.length} hand keys` : 'not tracked yet';
+    if (!auto) {
+      if (tr.mode === 'poly' && !tr.closed) return `${(tr.ref.points || []).length} points — drawing`;
+      if (!tr.placed) return 'not marked yet';
+      return tr.keys.length > 1 ? `${tr.keys.length} hand keys` : 'not tracked yet';
+    }
     const ks = Camera.sorted(tr.keys);
     const fixes = tr.keys.filter((k) => k.manual).length - 1;
     return `${fmtTime(ks[0].t)}–${fmtTime(ks[ks.length - 1].t)}${fixes > 0 ? ` · ${fixes} fix${fixes > 1 ? 'es' : ''}` : ''}${tr.lost && (tr.lost.fwd || tr.lost.back) ? ' · lost ' + (tr.lost.fwd && tr.lost.back ? 'both ends' : tr.lost.fwd ? 'at the end' : 'at the start') : ''}`;
   }
+  const TRACK_HELP = {
+    box: 'Drag out a rectangle over a detailed part of the object (a logo, a screen corner). Wheel resizes it, drag a corner to reshape.',
+    poly: 'Click points around the object; click the first point again (or double-click) to close the shape. Drag a point to adjust it.',
+    point: 'Click the detail to follow. Everything textured near the point is used, so aim at a corner or a marking.',
+  };
   function syncTrackControls() {
     const tr = selectedTrack();
     const list = $('#trackList');
@@ -2185,9 +2397,15 @@
       if (document.activeElement !== nameEl) nameEl.value = tr.name;
       $('#trackBoxW').value = tr.ref.w; $('#trackBoxWNum').value = Math.round(tr.ref.w * 100);
       $('#trackBoxH').value = tr.ref.h; $('#trackBoxHNum').value = Math.round(tr.ref.h * 100);
+      $('#trackBoxFields').classList.toggle('hidden', tr.mode === 'poly');
+      $('#btnTrackFinish').classList.toggle('hidden', !(tr.mode === 'poly' && !tr.closed));
+      $('#trackHelp').textContent = `${TRACK_MODES[tr.mode] || 'Box'} · ${TRACK_HELP[tr.mode] || TRACK_HELP.box}`;
       $('#btnTrackRun').textContent = trackIsAuto(tr) ? 'Track again' : 'Track motion';
-      $('#btnTrackRun').disabled = !state.video.ready || !!state.tracking;
-      $('#btnTrackRun').title = state.video.ready ? 'Follow the boxed patch through the clip' : 'Tracking needs a video — without one, key the point by hand';
+      const ready = trackReady(tr);
+      $('#btnTrackRun').disabled = !state.video.ready || !!state.tracking || !ready;
+      $('#btnTrackRun').title = !state.video.ready ? 'Tracking needs a video — without one, key the point by hand'
+        : !ready ? 'Mark the object on the preview first' : 'Follow the marked object through the clip';
+      $$('#trackModeNew button').forEach((b) => b.classList.toggle('on', b.dataset.mode === tr.mode));
     }
     $('#btnTrackAdjust').classList.toggle('on', !!state.trackEdit);
     els.canvas.classList.toggle('track-edit', !!state.trackEdit);
@@ -2199,23 +2417,44 @@
     if (!item) return;
     selectTrack(item.dataset.id);
   });
+  let newTrackMode = 'box';
+  $('#trackModeNew').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-mode]');
+    if (!b) return;
+    newTrackMode = b.dataset.mode;
+    const tr = selectedTrack();
+    // Switching mode on a tracker that has not been analysed re-marks it in the new way.
+    if (tr && !trackIsAuto(tr)) {
+      tr.mode = newTrackMode;
+      tr.placed = false; tr.closed = false; tr.ref.points = [];
+      state.trackEdit = true;
+      clock.pause();
+      commit();
+    }
+    syncTrackControls();
+    invalidate();
+    $$('#trackModeNew button').forEach((x) => x.classList.toggle('on', x.dataset.mode === newTrackMode));
+  });
+  $('#btnTrackFinish').addEventListener('click', () => { const tr = selectedTrack(); if (tr) finishShape(tr); });
   $('#btnNewTrack').addEventListener('click', () => {
     if (state.tracking) return;
-    const tr = newTrack();
+    const tr = newTrack(newTrackMode);
     state.selectedTrackId = tr.id;
     state.trackEdit = true;
     clock.pause();
     syncTrackControls();
     commit();
     invalidate();
-    toast('Click the object to follow on the preview, wheel to size the box, then press Track motion');
+    toast(TRACK_HELP[tr.mode]);
   });
   $('#btnTrackAdjust').addEventListener('click', () => {
-    if (!selectedTrack()) return;
+    const tr = selectedTrack();
+    if (!tr) return;
     state.trackEdit = !state.trackEdit;
     if (state.trackEdit) clock.pause();
     syncTrackControls();
-    toast(state.trackEdit ? 'Drag on the preview to place the point; wheel sizes the box (or the text, once tracked)' : 'Back to editing text');
+    invalidate();
+    toast(state.trackEdit ? TRACK_HELP[tr.mode] : 'Back to editing text');
   });
   $('#trackName').addEventListener('input', (e) => { const tr = selectedTrack(); if (tr) { tr.name = e.target.value; renderTrackRows(); } });
   $('#trackName').addEventListener('change', () => { commit(); syncTrackControls(); refreshInspectorValues(); });
@@ -2262,9 +2501,11 @@
       anim: { in: { type: 'fade', duration: 0.25, easing: 'easeOut', stagger: 0.4, fit: true, hold: 0.6 }, out: { type: 'none', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
       track: { id: tr.id },
     });
-    // sit just above the tracked point rather than on top of it
+    // sit just above the marked region rather than on top of it
     const a = anchorAt(tr.id, t);
-    l.transform.y = round((tr.ref.h * 0.5 * state.media.scale * (a ? a.s : 1) + 0.06) / (a ? a.k : 1), 3);
+    const sh = trackShapeAt(tr, t);
+    const top = sh.pts.length ? Math.max(...sh.pts.map((q) => q.y)) - sh.anchor.y : 0.06;
+    l.transform.y = round(((top * state.media.scale) + 0.06) / (a ? a.k : 1), 3);
     state.trackEdit = false;
     syncTrackControls();
     commit();
@@ -2289,20 +2530,26 @@
     try {
       const res = await Tracker.track({
         video: els.video, width: state.video.width, height: state.video.height,
-        seek: seekVideo, ref: tr.ref, from: 0, to: Math.min(duration(), state.video.duration),
+        seek: seekVideo,
+        region: { type: tr.mode, t: tr.ref.t, x: tr.ref.x, y: tr.ref.y, w: tr.ref.w, h: tr.ref.h, points: tr.ref.points },
+        from: 0, to: Math.min(duration(), state.video.duration),
         signal: controller.signal,
+        forceSeek: $('#trackStepEvery').checked,
         onProgress: (frac, key, dir) => {
           bar.style.width = `${Math.round(frac * 100)}%`;
-          status.textContent = `${dir > 0 ? 'Forwards' : 'Backwards'} · ${fmtTime(key.t)} · match ${Math.round(key.ncc * 100)}%`;
+          const rate = key.rate && key.rate !== 1 ? ` · ${key.rate}× speed` : '';
+          status.textContent = key.reading ? `Reading frames · ${fmtTime(key.t)}${rate}`
+            : `${dir > 0 ? 'Forwards' : 'Backwards'} · ${fmtTime(key.t)} · ${key.features || 0} features · ${Math.round((key.ncc || 0) * 100)}%${rate}`;
           preview.push(key);
         },
       });
       // a fresh analysis supersedes earlier corrections; only the reference frame stays a hand key
-      tr.keys = Camera.sorted(res.keys.map((k) => Camera.defaultKey(k.t, { x: k.x, y: k.y, s: k.s, manual: Math.abs(k.t - tr.ref.t) < 1e-4, easing: 'linear' })));
+      tr.keys = Camera.sorted(res.keys.map((k) => Camera.defaultKey(k.t, { x: k.x, y: k.y, s: k.s, r: k.r || 0, manual: Math.abs(k.t - tr.ref.t) < 1e-4, easing: 'linear' })));
       tr.lost = { fwd: res.lostForward, back: res.lostBackward };
       tr.placed = true;
       const ks = tr.keys;
-      const msg = `${tr.name}: tracked ${fmtTime(ks[0].t)}–${fmtTime(ks[ks.length - 1].t)}` + ((res.lostForward || res.lostBackward) ? ' — lost the patch where the bar ends; add a correction key there or re-place the box' : '');
+      const msg = `${tr.name}: tracked ${fmtTime(ks[0].t)}–${fmtTime(ks[ks.length - 1].t)} from ${res.stats.features} features`
+        + ((res.lostForward || res.lostBackward) ? ' — lost the object where the bar ends; add a correction key there or re-mark it' : '');
       toast(msg);
       tr._stats = res.stats; tr._mode = res.mode;
     } catch (e) {
@@ -2524,7 +2771,11 @@
       state.media = Object.assign(defaultMedia(), data.media || {});
       state.mask = Object.assign(defaultMask(), data.mask || {});
       state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
-      state.tracks = (data.tracks || []).map((tr, i) => Object.assign({ name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], ref: { t: 0, x: 0, y: 0, w: 0.14, h: 0.12 }, lost: null, placed: true }, tr, { keys: (tr.keys || []).map((k) => Camera.defaultKey(k.t || 0, k)) }));
+      state.tracks = (data.tracks || []).map((tr, i) => Object.assign(
+        { name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], mode: 'box', closed: true, lost: null, placed: true },
+        tr,
+        { ref: Object.assign({ t: 0, x: 0, y: 0, w: 0.14, h: 0.12, points: [] }, tr.ref), keys: (tr.keys || []).map((k) => Camera.defaultKey(k.t || 0, k)) },
+      ));
       state.selectedTrackId = null; state.selectedTrackKeyId = null; state.trackEdit = false;
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
       if (data.aspect) state.aspect = data.aspect;
@@ -2809,8 +3060,26 @@
     const targets = selectedLayers();
     switch (e.key) {
       case ' ': e.preventDefault(); clock.toggle(); break;
-      case 'Escape': if (state.trackEdit) { state.trackEdit = false; syncTrackControls(); } else select(null); break;
-      case 'Delete': case 'Backspace': if (targets.length || state.selectedKeyId || state.selectedMaskKeyId || state.selectedTrackKeyId) { e.preventDefault(); deleteSelected(); } break;
+      case 'Escape': if (state.trackEdit) { state.trackEdit = false; syncTrackControls(); invalidate(); } else select(null); break;
+      case 'Enter': {
+        const tr = state.trackEdit ? selectedTrack() : null;
+        if (tr && tr.mode === 'poly' && !tr.closed) { e.preventDefault(); finishShape(tr); }
+        break;
+      }
+      case 'Delete': case 'Backspace': {
+        // While drawing a shape, Backspace takes back the last point.
+        const tr = state.trackEdit ? selectedTrack() : null;
+        if (tr && tr.mode === 'poly' && !tr.closed && (tr.ref.points || []).length) {
+          e.preventDefault();
+          tr.ref.points.pop();
+          if (!trackIsAuto(tr)) recentreShape(tr);
+          syncTrackControls();
+          invalidate();
+          break;
+        }
+        if (targets.length || state.selectedKeyId || state.selectedMaskKeyId || state.selectedTrackKeyId) { e.preventDefault(); deleteSelected(); }
+        break;
+      }
       case 'Home': clock.pause(); clock.time = 0; break;
       case 'End': clock.pause(); clock.time = duration(); break;
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
@@ -2889,5 +3158,5 @@
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll };
 })();
