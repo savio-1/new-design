@@ -54,6 +54,16 @@
       css: { fontFamily: "'Helvetica Neue'", fontWeight: 800, color: WHITE, letterSpacing: '-.02em', textShadow: '0 2px 6px rgba(0,0,0,.55)' },
     },
     {
+      id: 'vogue', name: 'Vogue Italic',
+      style: { font: 'Very Vogue Display', weight: 400, italic: true, color: WHITE, letterSpacing: 0, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.06, x: 0, y: 0.02, color: '#000000', opacity: 0.55 }, box: { enabled: false } },
+      css: { fontFamily: "'Very Vogue Display'", fontStyle: 'italic', color: WHITE, fontSize: '1.25em', textShadow: '0 2px 6px rgba(0,0,0,.55)' },
+    },
+    {
+      id: 'garamond', name: 'Garamond',
+      style: { font: 'EB Garamond', weight: 500, italic: false, color: '#F6EFE3', letterSpacing: 0.01, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.08, x: 0, y: 0.03, color: '#000000', opacity: 0.5 }, box: { enabled: false } },
+      css: { fontFamily: "'EB Garamond'", fontWeight: 500, color: '#F6EFE3', fontSize: '1.15em' },
+    },
+    {
       id: 'francy', name: 'Francy',
       style: { font: 'Francy', weight: 400, italic: false, color: '#FFF3E0', letterSpacing: 0.01, stroke: { width: 0 }, extrude: { depth: 0 }, shadow: { blur: 0.08, x: 0, y: 0.04, color: '#000000', opacity: 0.5 }, box: { enabled: false } },
       css: { fontFamily: 'Francy', color: '#FFF3E0', fontSize: '1.2em' },

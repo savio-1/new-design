@@ -30,7 +30,9 @@
   'use strict';
 
   const ANALYSIS_W = 480;     // width of the greyscale copy everything is measured on
-  const PYR = 3;              // pyramid levels for the optical flow
+  const PYR = 4;              // pyramid levels for the optical flow (the top level sees big motion as small)
+  const FB_TOL = 1.5;         // forward-backward check: a feature must return to within this many pixels
+  const REACQ_NCC = 0.62;     // how well the whole region must match to be re-acquired after being lost
   const HALF = 5;             // LK window half-size (11x11)
   const PATCH = 7;            // validation patch half-size (15x15)
   const MAX_FEAT = 48;
@@ -151,9 +153,11 @@
   /* Pyramidal Lucas-Kanade: follow the point (px, py) from `prev` to `cur`, starting from a guess.
    * Translation only per level; the pyramid is what lets it handle motion of many pixels. */
   function flow(prev, cur, px, py, guessX, guessY) {
+    return flowLevels(prev, cur, px, py, guessX, guessY, Math.min(prev.length, cur.length) - 1, 0);
+  }
+  function flowLevels(prev, cur, px, py, guessX, guessY, top, bottom) {
     let gx = guessX, gy = guessY;
-    const top = Math.min(prev.length, cur.length) - 1;
-    for (let l = top; l >= 0; l--) {
+    for (let l = top; l >= bottom; l--) {
       const P = prev[l], C = cur[l];
       const f = 1 / (1 << l);
       const tx = px * f, ty = py * f;
@@ -195,6 +199,32 @@
       gx = cx / f; gy = cy / f;
     }
     return { x: gx, y: gy };
+  }
+
+  /* Dominant motion of the whole frame between prev and cur (the camera move), from LK on a grid of
+   * points at the coarsest level; the median makes it immune to the moving object itself. Used as the
+   * starting guess for every feature, so a sudden camera jerk does not throw the object's features
+   * outside their search windows. */
+  function globalMotion(prev, cur) {
+    const top = Math.min(prev.length, cur.length) - 1;
+    const P = prev[top];
+    const f = 1 << top;
+    const dxs = [], dys = [];
+    for (let j = 1; j <= 3; j++) {
+      for (let i = 1; i <= 4; i++) {
+        const x = (P.W * i) / 5, y = (P.H * j) / 4;
+        const px = x * f, py = y * f;
+        const r = flowLevels(prev, cur, px, py, px, py, top, top);   // single coarse level, cheap
+        const dx = r.x - px, dy = r.y - py;
+        if (Math.abs(dx) < P.W * f * 0.3 && Math.abs(dy) < P.H * f * 0.3) { dxs.push(dx); dys.push(dy); }
+      }
+    }
+    if (dxs.length < 5) return null;
+    dxs.sort((a, b) => a - b); dys.sort((a, b) => a - b);
+    const mx = dxs[dxs.length >> 1], my = dys[dys.length >> 1];
+    let agree = 0;
+    for (let i = 0; i < dxs.length; i++) if (Math.abs(dxs[i] - mx) < 3 * f && Math.abs(dys[i] - my) < 3 * f) agree++;
+    return agree >= dxs.length * 0.5 ? { x: mx, y: my } : null;
   }
 
   /* ---------------------------------------------------------------- similarity fit */
@@ -302,18 +332,76 @@
   function makeTracker(refPyr, model, region, W, H) {
     const transOnly = region.transOnly;
     // Each direction gets its own copy of the feature state.
-    const feats = model.map((f) => ({ mx: f.mx, my: f.my, x: f.mx, y: f.my, ref: f.ref, active: true, ncc: 1 }));
+    const feats = model.map((f) => ({ mx: f.mx, my: f.my, x: f.mx, y: f.my, ref: f.ref, active: true, ncc: 1, original: true }));
     const scratch = new Float32Array((2 * PATCH + 1) * (2 * PATCH + 1));
     const initial = feats.length;
     let prev = refPyr;
     let sim = { a: 1, b: 0, tx: 0, ty: 0, s: 1, deg: 0 };
     let vel = { x: 0, y: 0, ds: 0 };
-    let bad = 0, lost = false, lastT = null;
+    let bad = 0, lost = false, lastT = null, lostAt = null;
+    // A coarse picture of the whole region on the reference frame, for finding it again after a loss.
+    const thumb = regionThumb(refPyr, region);
+
+    /* Look for the region anywhere in the frame; on a hit, rebuild the model there. */
+    function reacquire(pyr, t) {
+      if (!thumb) return false;
+      const rad0 = (sim.deg * Math.PI) / 180;
+      const hit = findThumb(thumb, pyr, sim.s * Math.cos(rad0), sim.s * Math.sin(rad0));
+      if (!hit || hit.ncc < REACQ_NCC) return false;
+      // The size and angle the search preferred, position from the match.
+      const ns = sim.s * hit.scale, ndeg = sim.deg + hit.ddeg;
+      const rad = (ndeg * Math.PI) / 180;
+      const na = ns * Math.cos(rad), nb = ns * Math.sin(rad);
+      const c = applySim({ a: na, b: nb, tx: 0, ty: 0 }, thumb.cx, thumb.cy);
+      sim = { a: na, b: nb, tx: hit.x - c.x, ty: hit.y - c.y, s: ns, deg: ndeg };
+      vel = { x: 0, y: 0, ds: 0 };
+      // First try to wake the ORIGINAL features: each is looked for near where the new transform puts
+      // it. Those carry true reference positions, so the very next fit corrects any error in the
+      // guessed size and angle — features seeded from the guess could only perpetuate it.
+      let awake = 0;
+      for (const f of feats) {
+        f.active = false;
+        if (!f.original) continue;
+        const g = applySim(sim, f.mx, f.my);
+        let best = -2, bx = g.x, by = g.y;
+        for (let j = -6; j <= 6; j += 2) for (let i = -6; i <= 6; i += 2) {
+          if (!warpedPatch(pyr[0].d, W, H, g.x + i, g.y + j, PATCH, na, nb, scratch)) continue;
+          const v = dot(f.ref, scratch);
+          if (v > best) { best = v; bx = g.x + i; by = g.y + j; }
+        }
+        if (best > 0.6) { f.active = true; f.x = bx; f.y = by; f.ncc = best; awake++; }
+      }
+      let added = awake;
+      if (awake < Math.max(MIN_FEAT, initial * 0.3)) {
+        const inv = invert(sim);
+        const box = warpBBox(region.bbox, sim);
+        const cur = feats.filter((f) => f.active).map((f) => ({ x: f.x, y: f.y }));
+        const fresh = detect(pyr[0], W, H, (x, y) => { const p = applySim(inv, x, y); return region.inside(p.x, p.y); }, box, MAX_FEAT - awake, cur, 6);
+        for (const cnd of fresh) {
+          const patch = new Float32Array(scratch.length);
+          if (!warpedPatch(pyr[0].d, W, H, cnd.x, cnd.y, PATCH, na, nb, patch)) continue;
+          const p = applySim(inv, cnd.x, cnd.y);
+          feats.push({ mx: p.x, my: p.y, x: cnd.x, y: cnd.y, ref: patch, active: true, ncc: 1 });
+          added++;
+        }
+      }
+      if (added < MIN_FEAT) return false;
+      lost = false; bad = 0; prev = pyr; lastT = t;
+      return true;
+    }
 
     return {
       get lost() { return lost; },
+      get lostAt() { return lostAt; },
       step(pyr, t) {
-        if (lost) return null;
+        if (lost) {
+          // Keep looking: an object that was hidden or left the frame often comes back.
+          if (reacquire(pyr, t)) {
+            const anchor = applySim(sim, region.anchor.x, region.anchor.y);
+            return { t, x: (2 * anchor.x) / W - 1, y: 1 - (2 * anchor.y) / H, s: sim.s, r: sim.deg, ncc: REACQ_NCC, features: feats.filter((f) => f.active).length, reacquired: true };
+          }
+          return null;
+        }
         const gap = lastT == null ? 1 : Math.min(4, Math.max(1, Math.abs(t - lastT) / STEP));
         // Predict this frame's transform by continuing the last frame's motion.
         const pred = {
@@ -321,13 +409,18 @@
           tx: sim.tx + vel.x * gap, ty: sim.ty + vel.y * gap,
           s: sim.s + vel.ds * gap, deg: sim.deg,
         };
-        const predScale = Math.max(0.1, pred.s / Math.max(0.001, sim.s));
+        // The camera's own move this frame, so a jerk does not throw the features out of range.
+        const gm = globalMotion(prev, pyr);
 
-        // 1. Optical flow for every live feature, guessed from the predicted transform.
+        // 1. Optical flow for every live feature. Start from where the whole frame moved when that is
+        //    known, otherwise from the object's own predicted motion; then check the flow BACKWARDS —
+        //    a feature that does not land back on itself was matched to something else and is dropped.
         for (const f of feats) {
           if (!f.active) continue;
-          const g = applySim(pred, f.mx, f.my);
+          const g = gm ? { x: f.x + gm.x, y: f.y + gm.y } : applySim(pred, f.mx, f.my);
           const p = flow(prev, pyr, f.x, f.y, g.x, g.y);
+          const back = flow(pyr, prev, p.x, p.y, f.x, f.y);
+          if (Math.hypot(back.x - f.x, back.y - f.y) > FB_TOL * gap) { f.active = false; continue; }
           f.x = p.x; f.y = p.y;
           f.outlier = false;
         }
@@ -366,11 +459,12 @@
         const need = Math.max(3, Math.min(initial, Math.round(initial * 0.4)));
         const conf = fit ? Math.min(1, fit.inliers / need) * (nccSum / Math.max(1, live)) : 0;
         if (!fit || fit.inliers < 1 || conf < CONF_LOST) {
-          if (++bad >= LOST_FRAMES) { lost = true; return null; }
+          if (++bad >= LOST_FRAMES) { lost = true; lostAt = t; return null; }
           prev = pyr; lastT = t;
           return null;
         }
         bad = 0;
+        const shaky = conf < CONF_LOST + 0.15 || fit.inliers < 4;   // partly hidden: keep following, write nothing
 
         // Keep the fit sane: scale and angle move smoothly, never jump.
         const m = fit.m;
@@ -413,6 +507,7 @@
           }
         }
 
+        if (shaky) return null;
         const anchor = applySim(sim, region.anchor.x, region.anchor.y);
         return {
           t,
@@ -439,6 +534,145 @@
       x0: Math.min(...cs.map((c) => c.x)), x1: Math.max(...cs.map((c) => c.x)),
       y0: Math.min(...cs.map((c) => c.y)), y1: Math.max(...cs.map((c) => c.y)),
     };
+  }
+
+  /* ---------------------------------------------------------------- re-acquisition */
+
+  /* The marked region at 1/4 resolution, normalised, with its centre in level-0 pixels. */
+  function regionThumb(pyr, region) {
+    const lvl = Math.min(2, pyr.length - 1);
+    const L = pyr[lvl], f = 1 / (1 << lvl);
+    const bb = region.bbox;
+    const w = Math.round((bb.x1 - bb.x0) * f), h = Math.round((bb.y1 - bb.y0) * f);
+    if (w < 4 || h < 4) return null;
+    const hw = Math.min(14, w >> 1), hh = Math.min(14, h >> 1);   // cap the search cost
+    const sp = Math.max(1, Math.max(w / (2 * hw), h / (2 * hh)));
+    const cx = ((bb.x0 + bb.x1) / 2) * f, cy = ((bb.y0 + bb.y1) / 2) * f;
+    const n = (2 * hw + 1) * (2 * hh + 1);
+    const out = new Float32Array(n);
+    let k = 0, mean = 0;
+    for (let j = -hh; j <= hh; j++) for (let i = -hw; i <= hw; i++) { const v = samp(L.d, L.W, L.H, cx + i * sp, cy + j * sp); out[k++] = v; mean += v; }
+    mean /= n;
+    let ss = 0;
+    for (let i = 0; i < n; i++) { out[i] -= mean; ss += out[i] * out[i]; }
+    if (ss < 1e-6) return null;
+    const inv = 1 / Math.sqrt(ss);
+    for (let i = 0; i < n; i++) out[i] *= inv;
+    return { data: out, hw, hh, sp, lvl, cx: (bb.x0 + bb.x1) / 2, cy: (bb.y0 + bb.y1) / 2 };
+  }
+  /* Exhaustive NCC search for the thumbnail over the whole frame at its level, sampled at the object's
+   * last known size and angle (a, b = s·cos, s·sin) and at a few sizes around it, since the object
+   * may have grown or shrunk while it was hidden. */
+  function findThumb(th, pyr, a, b) {
+    const lvl = Math.min(th.lvl, pyr.length - 1);
+    const L = pyr[lvl], f = 1 << lvl;
+    const n = th.data.length;
+    const buf = new Float32Array(n);
+    let best = -2, bx = 0, by = 0, bs = 1, bd = 0;
+    for (const sc of [0.85, 1, 1.18]) for (const dd of [-10, 0, 10]) {
+      const rr = (dd * Math.PI) / 180, ca = Math.cos(rr), sa = Math.sin(rr);
+      const a2 = a * ca - b * sa, b2 = a * sa + b * ca;         // rotate the last known angle by dd
+      const wa = a2 * sc * th.sp, wb = b2 * sc * th.sp;
+      const reach = Math.ceil(Math.max(th.hw, th.hh) * Math.hypot(wa, wb));
+      for (let y = reach; y < L.H - reach; y += 2) {
+        for (let x = reach; x < L.W - reach; x += 2) {
+          let k = 0, mean = 0;
+          for (let j = -th.hh; j <= th.hh; j++) for (let i = -th.hw; i <= th.hw; i++) { const v = samp(L.d, L.W, L.H, x + wa * i - wb * j, y + wb * i + wa * j); buf[k++] = v; mean += v; }
+          mean /= n;
+          let d = 0, ss = 0;
+          for (let i = 0; i < n; i++) { const v = buf[i] - mean; d += th.data[i] * v; ss += v * v; }
+          const v = ss > 1e-6 ? d / Math.sqrt(ss) : -1;
+          if (v > best) { best = v; bx = x; by = y; bs = sc; bd = dd; }
+        }
+      }
+    }
+    return { ncc: best, x: bx * f, y: by * f, scale: bs, ddeg: bd };
+  }
+
+  /* ---------------------------------------------------------------- object proposals */
+
+  /* Things in a frame worth tracking: cells of strong corners are grouped into connected regions and
+   * returned as boxes (video-plane units), best first. Not object recognition — texture is what a
+   * tracker can hold on to, and this finds where the texture is. */
+  function suggest(grey, W, H, max) {
+    const CELL = Math.max(6, Math.round(W / 48));
+    const cols = Math.ceil(W / CELL), rows = Math.ceil(H / CELL);
+    const count = new Uint16Array(cols * rows);
+    const pts = detect({ d: grey }, W, H, () => true, { x0: 2, x1: W - 3, y0: 2, y1: H - 3 }, 900, [], Math.max(3, CELL / 3));
+    if (pts.length < 8) return [];
+    for (const p of pts) count[Math.floor(p.y / CELL) * cols + Math.floor(p.x / CELL)]++;
+    // A cell counts when it has corners AND at least one neighbour does: that joins the parts of an
+    // object without bridging across quiet gaps to the next thing.
+    const on = new Uint8Array(cols * rows);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const k = r * cols + c;
+      if (count[k] < 1) continue;
+      let nb = 0;
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+        if (!i && !j) continue;
+        const rr = r + j, cc = c + i;
+        if (rr >= 0 && rr < rows && cc >= 0 && cc < cols && count[rr * cols + cc] >= 1) nb++;
+      }
+      on[k] = count[k] >= 2 || nb >= 2 ? 1 : 0;
+    }
+    const seen = new Uint8Array(on.length);
+    const boxes = [];
+    const maxArea = cols * rows * 0.3;
+    for (let start = 0; start < on.length; start++) {
+      if (!on[start] || seen[start]) continue;
+      const stack = [start];
+      seen[start] = 1;
+      let x0 = cols, x1 = -1, y0 = rows, y1 = -1, feats = 0, cells = 0;
+      while (stack.length) {
+        const k = stack.pop();
+        const r = Math.floor(k / cols), c = k % cols;
+        x0 = Math.min(x0, c); x1 = Math.max(x1, c); y0 = Math.min(y0, r); y1 = Math.max(y1, r);
+        feats += count[k]; cells++;
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const rr = r + dr, cc = c + dc;
+          if (rr < 0 || rr >= rows || cc < 0 || cc >= cols) continue;
+          const kk = rr * cols + cc;
+          if (on[kk] && !seen[kk]) { seen[kk] = 1; stack.push(kk); }
+        }
+      }
+      const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+      if (feats < 8 || cells < 4) continue;
+      if (cw * ch > maxArea) continue;                 // a region that big is scenery, not an object
+      if (cw < 2 || ch < 2) continue;                  // a lone edge is not trackable in both directions
+      boxes.push({ feats, fill: cells / (cw * ch), cells,
+        x0: Math.max(0, x0 * CELL), y0: Math.max(0, y0 * CELL), x1: Math.min(W, (x1 + 1) * CELL), y1: Math.min(H, (y1 + 1) * CELL) });
+    }
+    // compact, well-filled regions with many features first
+    boxes.sort((a, b) => b.feats * b.fill - a.feats * a.fill);
+    // drop proposals mostly inside a better one
+    const kept = [];
+    for (const b of boxes) {
+      const inside = kept.some((k) => {
+        const ix = Math.max(0, Math.min(b.x1, k.x1) - Math.max(b.x0, k.x0)), iy = Math.max(0, Math.min(b.y1, k.y1) - Math.max(b.y0, k.y0));
+        return (ix * iy) / ((b.x1 - b.x0) * (b.y1 - b.y0)) > 0.6;
+      });
+      if (!inside) kept.push(b);
+      if (kept.length >= (max || 6)) break;
+    }
+    // a little margin so the box reads as "around" the object
+    return kept.map((b) => {
+      const mx = CELL * 0.5, my = CELL * 0.5;
+      const bx0 = Math.max(0, b.x0 - mx), bx1 = Math.min(W, b.x1 + mx), by0 = Math.max(0, b.y0 - my), by1 = Math.min(H, b.y1 + my);
+      return { x: ((bx0 + bx1) / 2 / W) * 2 - 1, y: 1 - ((by0 + by1) / 2 / H) * 2, w: ((bx1 - bx0) / W) * 2, h: ((by1 - by0) / H) * 2, features: b.feats };
+    });
+  }
+
+  /* Object proposals for the frame the video is currently showing. */
+  function suggestObjects(video, width, height, max) {
+    const W = ANALYSIS_W, H = Math.max(32, Math.round((ANALYSIS_W * height) / Math.max(1, width)));
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, W, H);
+    const px = ctx.getImageData(0, 0, W, H).data;
+    const g = new Uint8Array(W * H);
+    for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = (px[j] * 77 + px[j + 1] * 150 + px[j + 2] * 29) >> 8;
+    return suggest(g, W, H, max);
   }
 
   /* ---------------------------------------------------------------- driver */
@@ -561,14 +795,13 @@
           checkAbort();
           await seek(t);
           run(st, pyramid(grey(), W, H), t, dir);
-          if (st.lost) break;
         }
       }
     }
 
     keys.sort((a, b) => a.t - b.t);
     smooth(keys);
-    return { keys, lostForward: fwd.lost, lostBackward: back.lost, mode: canPlay ? 'play' : 'seek', stats };
+    return { keys, lostForward: fwd.lost, lostBackward: back.lost, lostAtForward: fwd.lostAt, lostAtBackward: back.lostAt, mode: canPlay ? 'play' : 'seek', stats };
   }
 
   /* Play from `from` to `to`, calling onFrame(mediaTime) for every distinct frame.
@@ -652,5 +885,5 @@
     }
   }
 
-  global.Tracker = { track, STEP, ANALYSIS_W };
+  global.Tracker = { track, suggestObjects, STEP, ANALYSIS_W };
 })(window);

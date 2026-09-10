@@ -48,7 +48,9 @@
     return null;
   }
 
-  async function decodeAudio(file, start, end) {
+  /* Decode the source audio and cut out the exported range. `segments` (source-time {in, out} in
+   * timeline order) describes a clip-edited timeline: the pieces are joined back to back. */
+  async function decodeAudio(file, start, end, segments) {
     if (!file) return null;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
@@ -59,12 +61,19 @@
       const audio = await ctx.decodeAudioData(buf);
       const sr = audio.sampleRate;
       const channels = Math.min(2, audio.numberOfChannels);
-      const s0 = Math.max(0, Math.floor(start * sr));
-      const s1 = Math.min(audio.length, Math.floor(end * sr));
-      if (s1 <= s0) return null;
+      const pieces = (segments && segments.length ? segments : [{ in: start, out: end }])
+        .map((sg) => [Math.max(0, Math.floor(sg.in * sr)), Math.min(audio.length, Math.floor(sg.out * sr))])
+        .filter(([a, b]) => b > a);
+      const frames = pieces.reduce((n, [a, b]) => n + (b - a), 0);
+      if (!frames) return null;
       const planes = [];
-      for (let c = 0; c < channels; c++) planes.push(audio.getChannelData(c).slice(s0, s1));
-      return { sampleRate: sr, channels, planes, frames: s1 - s0 };
+      for (let c = 0; c < channels; c++) {
+        const src = audio.getChannelData(c), out = new Float32Array(frames);
+        let off = 0;
+        for (const [a, b] of pieces) { out.set(src.subarray(a, b), off); off += b - a; }
+        planes.push(out);
+      }
+      return { sampleRate: sr, channels, planes, frames };
     } catch (e) {
       console.warn('Audio decode failed; exporting without audio.', e);
       return null;
@@ -99,7 +108,7 @@
     let audio = null, ac = null;
     if (opts.includeAudio && opts.audioFile) {
       report({ stage: 'Decoding audio…' });
-      audio = await decodeAudio(opts.audioFile, start, end);
+      audio = await decodeAudio(opts.audioFile, start, end, opts.audioSegments);
       if (audio) ac = await pickAudioCodec(audio.sampleRate, audio.channels);
       if (audio && !ac) { console.warn('No audio encoder available; exporting silent video.'); audio = null; }
     }

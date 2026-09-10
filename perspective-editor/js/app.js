@@ -28,7 +28,10 @@
     selectedTrackKeyId: null, // selected tracker keyframe (exclusive with the other selections)
     trackEdit: false,     // dragging on the preview places / corrects the selected tracker
     tracking: null,       // { controller } while a tracker is being analysed
-    video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false },
+    suggestions: [],      // object proposals shown on the preview after "Find objects" 
+    video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] },
+    clips: [],            // pieces of the source video laid end to end: { id, in, out } in source seconds
+    selectedClipId: null,
     aspect: 9 / 16,
     duration: 10,
     fov: 45,
@@ -82,7 +85,69 @@
     return state.video.ready ? state.video.width / state.video.height : state.aspect;
   }
   function duration() {
-    return state.video.ready ? state.video.duration : state.duration;
+    if (!state.video.ready) return state.duration;
+    return state.clips.length ? state.clips.reduce((a, c) => a + (c.out - c.in), 0) : state.video.duration;
+  }
+
+  /* ---- clips ---------------------------------------------------------------
+   * The timeline is the clips laid end to end. Text and camera keys live in TIMELINE time; anything
+   * bound to the footage (tracks, the subject mask) lives in SOURCE time and is mapped through here. */
+  const clipLen = (c) => c.out - c.in;
+  function clipStart(i) { let a = 0; for (let k = 0; k < i; k++) a += clipLen(state.clips[k]); return a; }
+  /* Which clip a timeline time falls in, and the source time there. */
+  function locate(t) {
+    const cs = state.clips;
+    if (!cs.length) return { clip: null, index: -1, src: t, start: 0 };
+    let acc = 0;
+    for (let i = 0; i < cs.length; i++) {
+      const len = clipLen(cs[i]);
+      if (t < acc + len - 1e-6 || i === cs.length - 1) {
+        return { clip: cs[i], index: i, start: acc, src: clamp(cs[i].in + (t - acc), cs[i].in, cs[i].out - 1e-4) };
+      }
+      acc += len;
+    }
+    return { clip: cs[cs.length - 1], index: cs.length - 1, start: acc, src: cs[cs.length - 1].out - 1e-4 };
+  }
+  const srcTime = (t) => (state.clips.length ? locate(t).src : t);
+  /* Every timeline time at which a source time is shown (a piece can be used more than once). */
+  function timelineTimesOf(src) {
+    if (!state.clips.length) return [src];
+    const out = [];
+    let acc = 0;
+    for (const c of state.clips) {
+      if (src >= c.in - 1e-6 && src <= c.out + 1e-6) out.push(acc + (src - c.in));
+      acc += clipLen(c);
+    }
+    return out;
+  }
+  function splitClipAt(t) {
+    const loc = locate(t);
+    if (!loc.clip) return false;
+    const c = loc.clip;
+    if (loc.src - c.in < 0.1 || c.out - loc.src < 0.1) { toast('Move the playhead a little further from the cut'); return false; }
+    const right = { id: `C${Math.random().toString(36).slice(2, 7)}`, in: round(loc.src, 4), out: c.out };
+    c.out = round(loc.src, 4);
+    state.clips.splice(loc.index + 1, 0, right);
+    state.selectedClipId = right.id;
+    return true;
+  }
+  function deleteClip(id) {
+    if (state.clips.length <= 1) { toast('That is the only piece of video — trim it instead', true); return false; }
+    const i = state.clips.findIndex((c) => c.id === id);
+    if (i < 0) return false;
+    const t = clock.time;
+    state.clips.splice(i, 1);
+    state.selectedClipId = null;
+    afterClipsChanged(Math.min(t, duration() - 0.01));
+    return true;
+  }
+  /* Keep everything on the timeline inside the new length, and re-seat the playhead. */
+  function afterClipsChanged(t) {
+    const T = duration();
+    for (const l of state.layers) { l.end = Math.min(l.end, T); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
+    clampCameraKeys(T);
+    clock.time = clamp(t == null ? clock.time : t, 0, T);
+    els.video.loop = false;
   }
   function fmtTime(t) {
     t = Math.max(0, t || 0);
@@ -154,17 +219,26 @@
 
   /* ------------------------------------------------------------------ clock */
   const clock = {
-    _t: 0, _playing: false, _last: 0,
-    get time() { return state.video.ready ? els.video.currentTime : this._t; },
+    _t: 0, _playing: false, _last: 0, _clip: 0,
+    get time() {
+      if (!state.video.ready) return this._t;
+      if (!state.clips.length) return els.video.currentTime;
+      const i = clamp(this._clip, 0, state.clips.length - 1), c = state.clips[i];
+      return clipStart(i) + clamp(els.video.currentTime - c.in, 0, clipLen(c));
+    },
     set time(v) {
       v = clamp(v, 0, duration());
-      if (state.video.ready) els.video.currentTime = v; else this._t = v;
+      if (state.video.ready) {
+        const loc = locate(v);
+        if (loc.clip) this._clip = loc.index;
+        els.video.currentTime = loc.src;
+      } else this._t = v;
       invalidate();
     },
     get playing() { return state.video.ready ? !(els.video.paused || els.video.ended) : this._playing; },
     play() {
       if (state.video.ready) {
-        if (els.video.ended || els.video.currentTime >= duration() - 0.01) els.video.currentTime = 0;
+        if (els.video.ended || this.time >= duration() - 0.01) this.time = 0;
         els.video.play().catch((e) => toast('Playback blocked: ' + e.message, true));
       } else {
         if (this._t >= duration() - 0.001) this._t = 0;
@@ -179,7 +253,18 @@
     },
     toggle() { this.playing ? this.pause() : this.play(); },
     tick(now) {
-      if (state.video.ready || !this._playing) return;
+      if (state.video.ready) {
+        // Jump across clip boundaries while playing; the <video> itself only knows the source.
+        if (!state.clips.length || els.video.paused) return;
+        const i = clamp(this._clip, 0, state.clips.length - 1), c = state.clips[i];
+        if (els.video.currentTime >= c.out - 0.02 || els.video.ended) {
+          if (i + 1 < state.clips.length) { this._clip = i + 1; els.video.currentTime = state.clips[i + 1].in; }
+          else if (state.loop) { this._clip = 0; els.video.currentTime = state.clips[0].in; if (els.video.ended) els.video.play().catch(() => {}); }
+          else { els.video.pause(); els.video.currentTime = c.out - 1e-3; updatePlayButton(); }
+        }
+        return;
+      }
+      if (!this._playing) return;
       this._t += (now - this._last) / 1000;
       this._last = now;
       if (this._t >= duration()) {
@@ -227,12 +312,12 @@
   }
   function maskForRender(t) {
     if (!state.mask.enabled) return null;
-    const shape = maskShapeAt(t) || MASK_DEFAULT;
+    const shape = maskShapeAt(srcTime(t)) || MASK_DEFAULT;
     return Object.assign({ enabled: true, roundness: state.mask.roundness, feather: state.mask.feather }, shape);
   }
   /* The mask key at the playhead, creating one from the current shape when there is none. */
   function maskKeyAtPlayhead() {
-    const t = round(clock.time, 2);
+    const t = round(srcTime(clock.time), 2);
     let key = state.mask.keys.find((k) => Math.abs(k.t - t) <= 0.05);
     if (!key) {
       const shape = maskShapeAt(t) || MASK_DEFAULT;
@@ -266,10 +351,30 @@
   function trackAt(id, t) {
     const tr = getTrack(id);
     if (!tr) return null;
-    const v = Camera.evaluateOn(tr.keys, t, TRACK_FIELDS) || { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0 };
+    const v = trackAtSource(tr, srcTime(t));
     if (v.s == null) v.s = 1;
     if (v.r == null) v.r = 0;
     return v;
+  }
+  /* The raw track at a SOURCE time, with the tracker's stabilisation applied: a Gaussian window over
+   * the neighbouring frames takes the measurement jitter off without lagging behind real motion. */
+  function trackAtSource(tr, st) {
+    const raw = Camera.evaluateOn(tr.keys, st, TRACK_FIELDS) || { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0 };
+    const amount = tr.smooth == null ? 0.3 : tr.smooth;
+    if (amount <= 0.01 || !trackIsAuto(tr)) return raw;
+    const sigma = amount * 6;                          // frames; 100 % ≈ ±6 frames
+    const N = Math.min(12, Math.ceil(sigma * 2));
+    const out = { x: 0, y: 0, s: 0, r: 0 };
+    let wsum = 0;
+    for (let k = -N; k <= N; k++) {
+      const w = Math.exp(-(k * k) / (2 * sigma * sigma));
+      const v = Camera.evaluateOn(tr.keys, st + k * Tracker.STEP, TRACK_FIELDS);
+      if (!v) continue;
+      out.x += w * v.x; out.y += w * v.y; out.s += w * (v.s == null ? 1 : v.s); out.r += w * (v.r || 0);
+      wsum += w;
+    }
+    if (!wsum) return raw;
+    return { x: out.x / wsum, y: out.y / wsum, s: out.s / wsum, r: out.r / wsum };
   }
   /* The tracked point in world units at time t, with the factor and angle a pinned word inherits. */
   function anchorAt(id, t) {
@@ -318,7 +423,7 @@
   let nextTrack = 1;
   function newTrack(mode) {
     const color = TRACK_COLORS[(state.tracks.length) % TRACK_COLORS.length];
-    const t = round(clock.time, 3);
+    const t = round(srcTime(clock.time), 3);
     const tr = {
       id: `T${nextTrack++}_${Math.random().toString(36).slice(2, 6)}`,
       name: `Tracker ${state.tracks.length + 1}`, color,
@@ -328,6 +433,7 @@
       keys: [Camera.defaultKey(t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })],
       lost: null,
       placed: false,             // until placed on the preview, placing moves the reference frame itself
+      smooth: 0.3,               // stabilisation of the analysed track (0 = raw)
     };
     state.tracks.push(tr);
     return tr;
@@ -335,12 +441,14 @@
   const trackIsAuto = (tr) => tr.keys.filter((k) => !k.manual).length > 2;
   /* The tracker key at the playhead, creating one from the interpolated position when there is none. */
   function trackKeyAtPlayhead(tr) {
-    const t = round(clock.time, 3);
+    const t = round(srcTime(clock.time), 3);
     const tol = trackIsAuto(tr) ? Tracker.STEP * 0.51 : 0.05;
     let key = tr.keys.find((k) => Math.abs(k.t - t) <= tol);
     let created = false;
     if (!key) {
-      const pt = trackAt(tr.id, t);
+      const pt = Camera.evaluateOn(tr.keys, t, TRACK_FIELDS) || { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0 };
+      if (pt.s == null) pt.s = 1;
+      if (pt.r == null) pt.r = 0;
       key = Camera.defaultKey(t, { x: pt.x, y: pt.y, s: pt.s, r: pt.r, manual: true, easing: 'linear' });
       created = true;
       if (!tr.placed) {
@@ -415,8 +523,14 @@
   }
   /* Outlines drawn over the footage while a tracker is being placed or looked at. */
   function trackOutlines(t) {
-    if (state.exporting || !state.tracks.length) return [];
+    if (state.exporting) return [];
     const out = [];
+    for (const sg of state.suggestions || []) {
+      const hw = sg.w / 2, hh = sg.h / 2;
+      out.push({ id: 'suggestion', closed: true, color: [1, 1, 1, 0.8], anchor: { x: sg.x, y: sg.y }, handles: [],
+        pts: [{ x: sg.x - hw, y: sg.y - hh }, { x: sg.x + hw, y: sg.y - hh }, { x: sg.x + hw, y: sg.y + hh }, { x: sg.x - hw, y: sg.y + hh }] });
+    }
+    if (!state.tracks.length) return out;
     for (const tr of state.tracks) {
       const sel = tr.id === state.selectedTrackId;
       if (!sel && !state.trackEdit) continue;
@@ -590,6 +704,12 @@
   }
 
   function deleteSelected() {
+    if (state.selectedClipId && !state.selectedIds.length && !state.selectedKeyId && !state.selectedMaskKeyId && !state.selectedTrackKeyId) {
+      if (!deleteClip(state.selectedClipId)) return;
+      commit();
+      refreshAll();
+      return;
+    }
     if (state.selectedTrackKeyId) {
       const tr = trackOfKey(state.selectedTrackKeyId);
       if (tr) tr.keys = tr.keys.filter((k) => k.id !== state.selectedTrackKeyId);
@@ -645,6 +765,7 @@
     state.selectedKeyId = null;
     state.selectedMaskKeyId = null;
     state.selectedTrackKeyId = null;
+    if (id) state.selectedClipId = null;
     if (opts.toggle && id) {
       if (isSelected(id)) state.selectedIds = state.selectedIds.filter((x) => x !== id);
       else state.selectedIds = state.selectedIds.concat([id]);
@@ -663,6 +784,7 @@
     state.selectedIds = [];
     state.selectedMaskKeyId = null;
     state.selectedTrackKeyId = null;
+    state.selectedClipId = null;
     state.selectedKeyId = id;
     refreshInspector();
     renderTimeline();
@@ -672,6 +794,7 @@
     state.selectedIds = [];
     state.selectedKeyId = null;
     state.selectedTrackKeyId = null;
+    state.selectedClipId = null;
     state.selectedMaskKeyId = id;
     refreshInspector();
     renderTimeline();
@@ -681,6 +804,7 @@
     state.selectedIds = [];
     state.selectedKeyId = null;
     state.selectedMaskKeyId = null;
+    state.selectedClipId = null;
     state.selectedTrackKeyId = id;
     const tr = trackOfKey(id);
     if (tr) state.selectedTrackId = tr.id;
@@ -706,7 +830,7 @@
   }
 
   function snapshot() {
-    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, mask: state.mask, tracks: state.tracks, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId, selectedMaskKeyId: state.selectedMaskKeyId, selectedTrackId: state.selectedTrackId }, stripper);
+    return JSON.stringify({ layers: state.layers, camera: state.camera, media: state.media, mask: state.mask, tracks: state.tracks, clips: state.clips, selectedIds: state.selectedIds, selectedKeyId: state.selectedKeyId, selectedMaskKeyId: state.selectedMaskKeyId, selectedTrackId: state.selectedTrackId }, stripper);
   }
   function commit() {
     const snap = snapshot();
@@ -724,6 +848,7 @@
     state.media = Object.assign(defaultMedia(), data.media || {});
     state.mask = Object.assign(defaultMask(), data.mask || {});
     state.tracks = data.tracks || [];
+    if (state.video.ready && data.clips && data.clips.length) { state.clips = data.clips; afterClipsChanged(); }
     state.selectedTrackId = getTrack(data.selectedTrackId) ? data.selectedTrackId : null;
     state.selectedTrackKeyId = null;
     if (!state.selectedTrackId) state.trackEdit = false;
@@ -806,38 +931,71 @@
     els.camTrack.innerHTML = html;
   }
 
+  /* A span [a, b] in SOURCE time drawn on the timeline: one bar per clip that shows part of it. */
+  function sourceSpanBars(a, b, cls, style) {
+    const T = duration();
+    if (!state.clips.length) return `<div class="${cls}" style="left:${(a / T) * 100}%; width:${Math.max(0.2, ((b - a) / T) * 100)}%; ${style}"></div>`;
+    let html = '', acc = 0;
+    for (const c of state.clips) {
+      const lo = Math.max(a, c.in), hi = Math.min(b, c.out);
+      if (hi > lo) html += `<div class="${cls}" style="left:${((acc + lo - c.in) / T) * 100}%; width:${Math.max(0.2, ((hi - lo) / T) * 100)}%; ${style}"></div>`;
+      acc += clipLen(c);
+    }
+    return html;
+  }
+  /* A key at SOURCE time drawn wherever that moment appears on the timeline. */
+  function sourceKeyDiamonds(k, cls, title) {
+    const T = duration();
+    return timelineTimesOf(k.t).map((tt) => `<div class="tl-key ${cls}" data-id="${k.id}" style="left:${(tt / T) * 100}%" title="${title}"></div>`).join('');
+  }
+
   function renderMaskTrack() {
     $('#tlMask').classList.toggle('hidden', !state.mask.enabled);
     if (!state.mask.enabled) return;
-    const T = duration();
     const keys = Camera.sorted(state.mask.keys);
     let html = '';
-    if (keys.length > 1) {
-      const a = (keys[0].t / T) * 100, b = (keys[keys.length - 1].t / T) * 100;
-      html += `<div class="tl-key-line" style="left:${a}%; width:${b - a}%"></div>`;
-    }
-    for (const k of keys) {
-      html += `<div class="tl-key${k.id === state.selectedMaskKeyId ? ' selected' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · ${Math.round(k.w * 100)}×${Math.round(k.h * 100)}"></div>`;
-    }
+    if (keys.length > 1) html += sourceSpanBars(keys[0].t, keys[keys.length - 1].t, 'tl-key-line', '');
+    for (const k of keys) html += sourceKeyDiamonds(k, k.id === state.selectedMaskKeyId ? 'selected' : '', `${fmtTime(k.t)} · ${Math.round(k.w * 100)}×${Math.round(k.h * 100)}`);
     $('#maskTrack').innerHTML = html;
+  }
+
+  function renderVideoTrack() {
+    const host = $('#videoTrack');
+    if (!host) return;
+    if (!state.video.ready || !state.clips.length) { host.innerHTML = ''; return; }
+    const T = duration();
+    const trackW = host.clientWidth || 600;
+    let html = '', acc = 0;
+    const name = state.video.file ? state.video.file.name.replace(/\.[^.]+$/, '') : 'Video';
+    state.clips.forEach((c, i) => {
+      const len = clipLen(c);
+      const left = (acc / T) * 100, width = (len / T) * 100;
+      const pxW = (len / T) * trackW;
+      // thumbnails whose source time falls inside this piece, spaced by time
+      const thumbH = 34, thumbW = Math.round((thumbH * state.video.width) / Math.max(1, state.video.height));
+      const thumbs = state.video.thumbs.filter((th) => th.t >= c.in && th.t <= c.out)
+        .map((th) => `<img src="${th.url}" style="left:${Math.round(((th.t - c.in) / len) * pxW - thumbW / 2)}px" alt="">`).join('');
+      html += `<div class="tl-clip${c.id === state.selectedClipId ? ' selected' : ''}" data-id="${c.id}" style="left:${left}%; width:${width}%" title="${escapeHtml(name)} · ${fmtTime(c.in)} – ${fmtTime(c.out)} (${fmtTime(len)})">
+        <div class="thumbs">${thumbs}</div>
+        <span class="lbl">${state.clips.length > 1 ? `${i + 1} · ` : ''}${fmtTime(c.in)}–${fmtTime(c.out)}</span>
+        <div class="h l"></div><div class="h r"></div></div>`;
+      acc += len;
+    });
+    host.innerHTML = html;
   }
 
   function renderTrackRows() {
     const host = $('#tlTracks');
-    const T = duration();
     let html = '';
     for (const tr of state.tracks) {
       const keys = Camera.sorted(tr.keys);
       const col = trackColorCss(tr);
       let row = '';
-      if (keys.length > 1) {
-        const a = (keys[0].t / T) * 100, b = (keys[keys.length - 1].t / T) * 100;
-        row += `<div class="tl-span" style="left:${a}%; width:${Math.max(0.2, b - a)}%; background:${col}"></div>`;
-      }
+      if (keys.length > 1) row += sourceSpanBars(keys[0].t, keys[keys.length - 1].t, 'tl-span', `background:${col}`);
       for (const k of keys) {
         if (!k.manual && trackIsAuto(tr)) continue;   // analysed frames are the bar; only hand-set keys are diamonds
         const isRef = Math.abs(k.t - tr.ref.t) < 1e-3;
-        row += `<div class="tl-key${k.id === state.selectedTrackKeyId ? ' selected' : ''}${isRef ? ' ref' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · ${isRef ? 'reference frame' : 'correction'} · size ${Math.round((k.s || 1) * 100)}%"></div>`;
+        row += sourceKeyDiamonds(k, `${k.id === state.selectedTrackKeyId ? 'selected' : ''}${isRef ? ' ref' : ''}`, `${fmtTime(k.t)} · ${isRef ? 'reference frame' : 'correction'} · size ${Math.round((k.s || 1) * 100)}%`);
       }
       html += `<div class="tl-trk${tr.id === state.selectedTrackId ? ' selected' : ''}" data-id="${tr.id}">
         <div class="tl-name" title="${escapeHtml(tr.name)} — click to edit, double-click the track to add a correction key"><i class="sw" style="background:${col}"></i><span class="nm">${escapeHtml(tr.name)}</span></div>
@@ -848,6 +1006,7 @@
 
   function renderTimeline() {
     renderRuler();
+    renderVideoTrack();
     renderCameraTrack();
     renderMaskTrack();
     renderTrackRows();
@@ -918,6 +1077,55 @@
     });
     els.ruler.addEventListener('pointermove', (e) => { if (drag && drag.mode === 'scrub') { clock.time = timeFromEvent(e); updateTimeUI(); } });
     els.ruler.addEventListener('pointerup', () => { drag = null; });
+
+    // Video clips: click selects, edges trim, double-click splits
+    const videoTrack = $('#videoTrack');
+    videoTrack.addEventListener('pointerdown', (e) => {
+      const clipEl = e.target.closest('.tl-clip');
+      if (!clipEl) { clock.time = timeFromEvent(e); drag = { mode: 'scrub' }; videoTrack.setPointerCapture(e.pointerId); return; }
+      const c = state.clips.find((x) => x.id === clipEl.dataset.id);
+      if (!c) return;
+      if (state.selectedClipId !== c.id) { state.selectedClipId = c.id; select(null); renderVideoTrack(); }
+      if (e.target.classList.contains('h')) {
+        drag = { mode: e.target.classList.contains('l') ? 'clipL' : 'clipR', id: c.id, x0: e.clientX, in0: c.in, out0: c.out, moved: false };
+        videoTrack.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      } else {
+        clock.time = timeFromEvent(e);
+        drag = { mode: 'scrub' };
+        videoTrack.setPointerCapture(e.pointerId);
+      }
+    });
+    videoTrack.addEventListener('dblclick', (e) => {
+      if (!e.target.closest('.tl-clip') || e.target.classList.contains('h')) return;
+      clock.time = timeFromEvent(e);
+      if (splitClipAt(clock.time)) { commit(); renderTimeline(); toast('Split — drag the ends of a piece to trim it, Delete removes it'); }
+    });
+    videoTrack.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
+      if (drag.mode !== 'clipL' && drag.mode !== 'clipR') return;
+      const c = state.clips.find((x) => x.id === drag.id);
+      if (!c) return;
+      const dt = (e.clientX - drag.x0) / pxPerSec();
+      if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
+      const D = state.video.duration;
+      if (drag.mode === 'clipL') c.in = round(clamp(drag.in0 + dt, 0, c.out - 0.1), 3);
+      else c.out = round(clamp(drag.out0 + dt, c.in + 0.1, D), 3);
+      renderVideoTrack(); renderRuler(); renderCameraTrack(); renderMaskTrack(); renderTrackRows();
+      for (const l of state.layers) updateBar(l);
+      updateTimeUI();
+    });
+    const endClipDrag = () => {
+      if (drag && (drag.mode === 'clipL' || drag.mode === 'clipR')) {
+        if (drag.moved) { afterClipsChanged(clock.time); commit(); renderTimeline(); }
+        drag = null;
+        return;
+      }
+      if (drag && drag.mode === 'scrub') drag = null;
+    };
+    videoTrack.addEventListener('pointerup', endClipDrag);
+    videoTrack.addEventListener('pointercancel', endClipDrag);
 
     // Camera track
     els.camTrack.addEventListener('pointerdown', (e) => {
@@ -1011,7 +1219,7 @@
     tlTracks.addEventListener('pointerdown', (e) => {
       const rowEl = e.target.closest('.tl-trk');
       if (!rowEl) return;
-      if (e.target.closest('.tl-name')) { selectTrack(rowEl.dataset.id); showTab('media'); return; }
+      if (e.target.closest('.tl-name')) { selectTrack(rowEl.dataset.id); showTab('track'); return; }
       const key = e.target.closest('.tl-key');
       if (key) {
         selectTrackKey(key.dataset.id);
@@ -1744,6 +1952,13 @@
     c.addEventListener('pointerdown', (e) => {
       if (state.exporting || state.tracking) return;
       const p = toBuffer(e);
+      if (state.suggestions && state.suggestions.length) {
+        const pl = planeFromBuffer(p);
+        const hit = pl && state.suggestions.find((sg) => Math.abs(pl.x - sg.x) <= sg.w / 2 && Math.abs(pl.y - sg.y) <= sg.h / 2);
+        if (hit) { adoptSuggestion(hit); return; }
+        state.suggestions = [];
+        invalidate();
+      }
       const trk = state.trackEdit ? selectedTrack() : null;
       if (trk) {
         clock.pause();
@@ -1754,7 +1969,7 @@
         if (trk.mode === 'poly' && !trk.closed) {
           const pts = trk.ref.points;
           if (pts.length >= 3 && handleAt(trk, p) === 0) { finishShape(trk); return; }
-          if (!pts.length) { trk.ref.t = round(clock.time, 3); trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })]; }
+          if (!pts.length) { trk.ref.t = round(srcTime(clock.time), 3); trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })]; }
           pts.push({ x: round(pl.x, 4), y: round(pl.y, 4) });
           recentreShape(trk);
           trk.placed = true;
@@ -1775,7 +1990,7 @@
         // A box that has not been placed is drawn by dragging out a rectangle.
         if (trk.mode === 'box' && !trk.placed) {
           drag = { mode: 'trackBox', tr: trk, p0: pl, moved: false };
-          trk.ref.t = round(clock.time, 3);
+          trk.ref.t = round(srcTime(clock.time), 3);
           trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })];
           c.setPointerCapture(e.pointerId);
           c.classList.add('grabbing');
@@ -2275,7 +2490,7 @@
     $('#maskRoundNum').value = Math.round(state.mask.roundness * 100);
     $('#maskFeather').value = state.mask.feather;
     $('#maskFeatherNum').value = Math.round(state.mask.feather * 100);
-    const shape = maskShapeAt(clock.time) || MASK_DEFAULT;
+    const shape = maskShapeAt(srcTime(clock.time)) || MASK_DEFAULT;
     for (const [f, id] of [['x', 'maskX'], ['y', 'maskY'], ['w', 'maskW'], ['h', 'maskH']]) {
       $(`#${id}`).value = shape[f];
       const num = $(`#${id}Num`);
@@ -2320,7 +2535,7 @@
   $('#maskEnabled').addEventListener('change', (e) => {
     state.mask.enabled = e.target.checked;
     if (state.mask.enabled && !state.mask.keys.length) {
-      state.mask.keys = [Camera.defaultKey(round(clock.time, 2), Object.assign({}, MASK_DEFAULT))];
+      state.mask.keys = [Camera.defaultKey(round(srcTime(clock.time), 2), Object.assign({}, MASK_DEFAULT))];
       toast('Subject mask on — place it over the person, then mark words “Behind subject”');
     }
     if (!state.mask.enabled) state.maskEdit = false;
@@ -2406,6 +2621,9 @@
       $('#btnTrackRun').title = !state.video.ready ? 'Tracking needs a video — without one, key the point by hand'
         : !ready ? 'Mark the object on the preview first' : 'Follow the marked object through the clip';
       $$('#trackModeNew button').forEach((b) => b.classList.toggle('on', b.dataset.mode === tr.mode));
+      const sm = tr.smooth == null ? 0.3 : tr.smooth;
+      $('#trackSmooth').value = sm;
+      if (document.activeElement !== $('#trackSmoothNum')) $('#trackSmoothNum').value = Math.round(sm * 100);
     }
     $('#btnTrackAdjust').classList.toggle('on', !!state.trackEdit);
     els.canvas.classList.toggle('track-edit', !!state.trackEdit);
@@ -2436,6 +2654,38 @@
     $$('#trackModeNew button').forEach((x) => x.classList.toggle('on', x.dataset.mode === newTrackMode));
   });
   $('#btnTrackFinish').addEventListener('click', () => { const tr = selectedTrack(); if (tr) finishShape(tr); });
+  $('#trackSmooth').addEventListener('input', (e) => { const tr = selectedTrack(); if (!tr) return; tr.smooth = Number(e.target.value); $('#trackSmoothNum').value = Math.round(tr.smooth * 100); invalidate(); });
+  $('#trackSmooth').addEventListener('change', () => commit());
+  $('#trackSmoothNum').addEventListener('change', (e) => { const tr = selectedTrack(); if (!tr) return; tr.smooth = clamp((Number(e.target.value) || 0) / 100, 0, 1); syncTrackControls(); commit(); invalidate(); });
+
+  /* "Find objects": texture clusters in the current frame, offered as boxes to click. */
+  $('#btnTrackSuggest').addEventListener('click', () => {
+    if (!state.video.ready) { toast('Load a video first — object detection looks at the footage', true); return; }
+    if (state.tracking) return;
+    clock.pause();
+    let boxes = [];
+    try { boxes = Tracker.suggestObjects(els.video, state.video.width, state.video.height, 6); } catch (e) { toast(e.message, true); return; }
+    state.suggestions = boxes;
+    state.trackEdit = false;
+    syncTrackControls();
+    invalidate();
+    toast(boxes.length ? `${boxes.length} thing${boxes.length > 1 ? 's' : ''} worth tracking in this frame — click one on the preview to make a tracker` : 'Nothing clearly trackable in this frame — try another moment, or mark the object by hand', !boxes.length);
+  });
+  /* Turn a clicked proposal into a box tracker on this frame. */
+  function adoptSuggestion(sg) {
+    const tr = newTrack('box');
+    tr.ref = { t: round(srcTime(clock.time), 3), x: round(sg.x, 4), y: round(sg.y, 4), w: round(sg.w, 4), h: round(sg.h, 4), points: [] };
+    tr.keys = [Camera.defaultKey(tr.ref.t, { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0, manual: true, easing: 'linear' })];
+    tr.placed = true;
+    state.suggestions = [];
+    state.selectedTrackId = tr.id;
+    state.trackEdit = false;
+    syncTrackControls();
+    commit();
+    invalidate();
+    showTab('track');
+    toast(`${tr.name} marked on the object — press Track motion`);
+  }
   $('#btnNewTrack').addEventListener('click', () => {
     if (state.tracking) return;
     const tr = newTrack(newTrackMode);
@@ -2682,7 +2932,10 @@
     if (state.video.url) URL.revokeObjectURL(state.video.url);
     els.video.removeAttribute('src');
     els.video.load();
-    state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false };
+    state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] };
+    state.clips = []; state.selectedClipId = null;
+    $('#tlVideo').classList.add('hidden');
+    $('#btnSplit').classList.add('hidden');
     clock._t = Math.min(clock._t, state.duration);
     syncMediaControls();
     fitPreview();
@@ -2697,6 +2950,11 @@
     state.video.height = v.videoHeight;
     state.video.duration = v.duration && isFinite(v.duration) ? v.duration : 10;
     state.video.ready = true;
+    state.video.thumbs = [];
+    state.clips = [{ id: `C${Math.random().toString(36).slice(2, 7)}`, in: 0, out: round(state.video.duration, 4) }];
+    state.selectedClipId = null;
+    clock._clip = 0;
+    v.loop = false;
     for (const l of state.layers) {
       l.end = Math.min(l.end, state.video.duration);
       l.start = Math.min(l.start, Math.max(0, l.end - 0.1));
@@ -2704,6 +2962,8 @@
     }
     clampCameraKeys(state.video.duration);
     $('#expAudioWrap').classList.remove('hidden');
+    $('#tlVideo').classList.remove('hidden');
+    $('#btnSplit').classList.remove('hidden');
     v.currentTime = 0;
     syncMediaControls();
     fitPreview();
@@ -2712,7 +2972,35 @@
     commit();
     if (layoutVisible()) { layoutView.fitted = false; layoutView.draw(); }
     toast(`${state.video.file.name} · ${v.videoWidth}×${v.videoHeight} · ${fmtTime(v.duration)}`);
+    makeThumbnails();
   });
+
+  /* A strip of small frames for the clip bars. Seeks through the clip once, then puts the playhead back. */
+  async function makeThumbnails() {
+    if (!state.video.ready || state.tracking || state.exporting) return;
+    const v = els.video, D = state.video.duration;
+    const n = Math.min(24, Math.max(6, Math.round(D / 1.5)));
+    const c = document.createElement('canvas');
+    const h = 72, w = Math.max(16, Math.round((h * state.video.width) / Math.max(1, state.video.height)));
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    const was = clock.time, wasPlaying = clock.playing;
+    if (wasPlaying) clock.pause();
+    const thumbs = [];
+    const file = state.video.file;
+    for (let i = 0; i < n; i++) {
+      if (state.video.file !== file || state.tracking || state.exporting) return;   // the video changed under us
+      const t = (D * (i + 0.5)) / n;
+      await seekVideo(t);
+      try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
+    }
+    if (state.video.file !== file) return;
+    state.video.thumbs = thumbs;
+    await seekVideo(srcTime(was));
+    clock.time = was;
+    renderVideoTrack();
+    if (wasPlaying) clock.play();
+  }
   els.video.addEventListener('loadeddata', invalidate);
   els.video.addEventListener('seeked', invalidate);
   els.video.addEventListener('play', updatePlayButton);
@@ -2753,6 +3041,7 @@
       media: state.media,
       mask: state.mask,
       tracks: state.tracks,
+      clips: state.clips,
       layers: state.layers,
     };
     const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
@@ -2772,11 +3061,17 @@
       state.mask = Object.assign(defaultMask(), data.mask || {});
       state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
       state.tracks = (data.tracks || []).map((tr, i) => Object.assign(
-        { name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], mode: 'box', closed: true, lost: null, placed: true },
+        { name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], mode: 'box', closed: true, lost: null, placed: true, smooth: 0.3 },
         tr,
         { ref: Object.assign({ t: 0, x: 0, y: 0, w: 0.14, h: 0.12, points: [] }, tr.ref), keys: (tr.keys || []).map((k) => Camera.defaultKey(k.t || 0, k)) },
       ));
       state.selectedTrackId = null; state.selectedTrackKeyId = null; state.trackEdit = false;
+      if (state.video.ready && Array.isArray(data.clips) && data.clips.length) {
+        const D = state.video.duration;
+        state.clips = data.clips.map((c) => ({ id: c.id || `C${Math.random().toString(36).slice(2, 7)}`, in: clamp(c.in || 0, 0, D), out: clamp(c.out || D, 0, D) })).filter((c) => c.out - c.in >= 0.05);
+        if (!state.clips.length) state.clips = [{ id: `C${Math.random().toString(36).slice(2, 7)}`, in: 0, out: D }];
+        afterClipsChanged(0);
+      }
       if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
       if (data.aspect) state.aspect = data.aspect;
       if (data.duration) state.duration = data.duration;
@@ -2808,9 +3103,16 @@
   /* ------------------------------------------------------------------ transport & tabs */
   $('#btnAddText').addEventListener('click', addBlankText);
   els.btnPlay.addEventListener('click', () => clock.toggle());
+  const splitHere = () => {
+    if (!state.video.ready) { toast('Load a video to split it', true); return; }
+    clock.pause();
+    if (splitClipAt(clock.time)) { commit(); renderTimeline(); toast(`Split at ${fmtTime(clock.time)} — drag the ends of a piece to trim it, Delete removes it`); }
+  };
+  $('#btnSplit').addEventListener('click', splitHere);
+  $('#btnSplit2').addEventListener('click', splitHere);
   $('#btnStepBack').addEventListener('click', () => { clock.pause(); clock.time = clock.time - 1 / 30; });
   $('#btnStepFwd').addEventListener('click', () => { clock.pause(); clock.time = clock.time + 1 / 30; });
-  $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; els.video.loop = state.loop; e.currentTarget.classList.toggle('active', state.loop); });
+  $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; els.video.loop = state.loop && !state.clips.length; e.currentTarget.classList.toggle('active', state.loop); });
   $('#btnMute').addEventListener('click', (e) => { state.muted = !state.muted; els.video.muted = state.muted; e.currentTarget.classList.toggle('active', state.muted); e.currentTarget.title = state.muted ? 'Unmute' : 'Mute'; });
   $('#aspectSelect').addEventListener('change', (e) => {
     const [w, h] = e.target.value.split(':').map(Number);
@@ -2832,7 +3134,7 @@
 
   function showTab(name) {
     $$('.tab', $('#leftTabs')).forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
-    for (const n of ['media', 'text', 'camera']) $(`#tab-${n}`).classList.toggle('hidden', n !== name);
+    for (const n of ['media', 'text', 'camera', 'track', 'mask']) $(`#tab-${n}`).classList.toggle('hidden', n !== name);
   }
   $('#leftTabs').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab); });
 
@@ -2970,7 +3272,7 @@
     renderer.fovDeg = state.fov;
     const media = mediaForRender();
     const renderFrame = async (t, realtime) => {
-      if (state.video.ready && !realtime) await seekVideo(t);
+      if (state.video.ready && !realtime) await seekVideo(srcTime(t));
       renderer.render({
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
@@ -2985,7 +3287,17 @@
       let result;
       const common = { canvas: els.canvas, width: cfg.w, height: cfg.h, fps: cfg.fps, start: cfg.start, end: cfg.end, quality: cfg.quality, renderFrame, onProgress, signal: abort.signal };
       if (Exporter.hasWebCodecs()) {
-        result = await Exporter.exportWebCodecs(Object.assign(common, { audioFile: state.video.file, includeAudio: cfg.audio, fileHandle }));
+        // the audio for a clip-edited timeline is the pieces of source audio the range covers, joined
+        const segs = [];
+        if (state.clips.length) {
+          let acc = 0;
+          for (const c of state.clips) {
+            const lo = Math.max(cfg.start, acc), hi = Math.min(cfg.end, acc + clipLen(c));
+            if (hi > lo) segs.push({ in: c.in + (lo - acc), out: c.in + (hi - acc) });
+            acc += clipLen(c);
+          }
+        }
+        result = await Exporter.exportWebCodecs(Object.assign(common, { audioFile: state.video.file, includeAudio: cfg.audio, fileHandle, audioSegments: segs }));
       } else if (Exporter.hasMediaRecorder()) {
         if (state.video.ready) els.video.muted = true;
         result = await Exporter.exportMediaRecorder(Object.assign(common, { video: state.video.ready ? els.video : null }));
@@ -3060,7 +3372,11 @@
     const targets = selectedLayers();
     switch (e.key) {
       case ' ': e.preventDefault(); clock.toggle(); break;
-      case 'Escape': if (state.trackEdit) { state.trackEdit = false; syncTrackControls(); invalidate(); } else select(null); break;
+      case 'Escape':
+        if (state.suggestions.length) { state.suggestions = []; invalidate(); }
+        else if (state.trackEdit) { state.trackEdit = false; syncTrackControls(); invalidate(); }
+        else select(null);
+        break;
       case 'Enter': {
         const tr = state.trackEdit ? selectedTrack() : null;
         if (tr && tr.mode === 'poly' && !tr.closed) { e.preventDefault(); finishShape(tr); }
@@ -3077,7 +3393,7 @@
           invalidate();
           break;
         }
-        if (targets.length || state.selectedKeyId || state.selectedMaskKeyId || state.selectedTrackKeyId) { e.preventDefault(); deleteSelected(); }
+        if (targets.length || state.selectedKeyId || state.selectedMaskKeyId || state.selectedTrackKeyId || state.selectedClipId) { e.preventDefault(); deleteSelected(); }
         break;
       }
       case 'Home': clock.pause(); clock.time = 0; break;
@@ -3085,6 +3401,7 @@
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
+      case 's': case 'S': if (!mod) splitHere(); break;
       case 'k': case 'K': addKeyHere(); break;
       case 'm': case 'M': if (state.mask.enabled) { state.maskEdit = !state.maskEdit; syncMaskControls(); } break;
       case 'l': case 'L': setView(state.view === 'preview' ? 'split' : state.view === 'split' ? 'layout' : 'preview'); break;
