@@ -18,8 +18,13 @@
       <span class="brand-sub">3D text for video</span>
     </div>
     <div class="topbar-actions">
-      <button id="btnLoad" class="btn ghost" title="Open a saved project (.json)">Open</button>
-      <button id="btnSave" class="btn ghost" title="Save project as .json">Save</button>
+      <button id="btnHome" class="btn ghost" title="Save and go to your projects"><svg viewBox="0 0 20 20"><path d="M3 9.5L10 4l7 5.5V16a1 1 0 01-1 1h-4v-5H8v5H4a1 1 0 01-1-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Projects</button>
+      <input id="projectName" class="project-name" type="text" spellcheck="false" title="Project name" placeholder="Untitled project">
+      <span id="saveStatus" class="save-status"></span>
+      <div class="divider"></div>
+      <button id="btnSave" class="btn ghost" title="Save now (Ctrl+S) — projects also save themselves after every change">Save</button>
+      <button id="btnLoad" class="btn ghost" title="Open a project file (.json) as a new project">Open file</button>
+      <button id="btnSaveFile" class="btn ghost" title="Save a copy of this project as a .json file">Save as file</button>
       <input id="projectInput" type="file" accept=".json,application/json" hidden>
       <div class="divider"></div>
       <button id="btnUndo" class="btn icon ghost" title="Undo (Ctrl+Z)"><svg viewBox="0 0 20 20"><path d="M8 5L4 9l4 4M4 9h7a4 4 0 010 8h-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -30,6 +35,34 @@
       </button>
     </div>
   </header>
+
+  <!-- Home: every project in this browser -->
+  <div class="home hidden" id="home">
+    <div class="home-inner">
+      <div class="home-head">
+        <div class="brand">
+          <span class="brand-mark">P</span>
+          <div><div class="brand-name">Perspective</div><div class="brand-sub">3D text for video</div></div>
+        </div>
+        <div class="home-actions">
+          <button id="btnHomeBack" class="btn ghost hidden">Back to the editor</button>
+          <button id="btnHomeOpenFile" class="btn ghost" title="Open a project file (.json)">Open a file…</button>
+          <button id="btnNewDemo" class="btn" title="A new project with the camera-reveal demo in it">New from demo</button>
+          <button id="btnNewProject" class="btn primary">
+            <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            New project
+          </button>
+        </div>
+      </div>
+      <div class="home-banner hidden" id="homeBanner">Perspective was updated. Everything you were working on was saved as you went — your projects are all here.</div>
+      <p class="home-lead">Projects save themselves after every change and keep their video, images and sound in this browser. Open one to continue, or start a new one.</p>
+      <p class="home-store muted small" id="homeStore"></p>
+      <div class="home-empty" id="homeEmpty">
+        <strong>No projects yet.</strong> Start a new project, try the demo, or open a project file.
+      </div>
+      <div class="home-list" id="homeList"></div>
+    </div>
+  </div>
 
   <main class="workspace">
     <!-- Left: three steps -->
@@ -62,8 +95,10 @@
               <button id="btnReplace" class="btn small">Replace</button>
               <button id="btnRemoveVideo" class="btn small">Remove</button>
             </div>
+            <button id="btnAppendVideo" class="btn small wide-btn" title="Put another video on the footage track, after the last piece">+ Add a video after this one</button>
           </div>
           <input id="fileInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v,.avi" hidden>
+          <input id="appendVideoInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v,.avi" hidden>
         </div>
 
         <div class="ctl">
@@ -81,10 +116,10 @@
               <option value="4:5">4:5 portrait</option>
             </select>
           </div>
-          <div class="ctl">
-            <label>Length (s)</label>
-            <input id="durationInput" type="number" min="1" max="600" step="any" value="10">
-          </div>
+        </div>
+        <div class="ctl">
+          <label title="How much of the timeline is open. Playback and export stop where the content ends; the rest is room to move things around.">Timeline (s)</label>
+          <input id="durationInput" type="number" min="10" max="3600" step="any" value="120">
         </div>
 
         <div class="subhead">More layers</div>
@@ -306,6 +341,11 @@
           <div class="segment" id="layoutMode">
             <button data-mode="top" class="on" title="Top view: left/right and depth">Top</button>
             <button data-mode="side" title="Side view: up/down and depth">Side</button>
+            <button data-mode="iso" title="Isometric view: all three axes at once">Iso</button>
+          </div>
+          <div class="segment hidden" id="isoPlane" title="What a plain drag moves in the isometric view (hold Ctrl for the other, Shift for one axis)">
+            <button data-plane="floor" class="on" title="Drags move left/right and nearer/further">Floor</button>
+            <button data-plane="height" title="Drags move up/down">Height</button>
           </div>
           <button id="btnLayoutFit" class="btn small ghost">Fit</button>
           <button id="btnSnap" class="btn small ghost" title="Snap dragged words, camera and keys to the grid (G)">Snap</button>
@@ -315,12 +355,12 @@
             <option value="0.25">0.25</option>
             <option value="0.5">0.5</option>
           </select>
-          <span class="muted small layout-legend"><i class="dot cam"></i>camera <i class="dot word"></i>words <i class="dot video"></i>video · drag to move · Shift = one axis · wheel to zoom</span>
         </div>
       </div>
       <div class="views" id="views">
         <div class="view preview-wrap" id="previewWrap">
           <canvas id="preview"></canvas>
+          <canvas id="previewGuides" class="preview-guides hidden"></canvas>
           <div class="drop-hint" id="dropHint">
             <div class="drop-card">
               <svg viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 18l10 6-10 6z" fill="currentColor"/></svg>
@@ -353,13 +393,15 @@
 
       <div class="timeline" id="timeline">
         <div class="tl-head">
-          <div class="tl-names-head">Layers <span id="layerCount" class="muted"></span></div>
+          <div class="tl-names-head"><span>Layers <span id="layerCount" class="muted"></span></span>
+            <span class="tl-zoom"><button id="tlZoomOut" title="Zoom out (Ctrl + wheel over the timeline)">−</button><button id="tlZoomIn" title="Zoom in (Ctrl + wheel over the timeline)">+</button><button id="tlZoomFit" title="Show the whole timeline">⤢</button></span></div>
           <div class="tl-ruler" id="ruler"></div>
         </div>
         <div class="tl-video hidden" id="tlVideo">
           <div class="tl-name" title="The footage. Trim a clip by dragging its ends; press Split (or S) to cut at the playhead; select a piece and press Delete to remove it.">
             <svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3 8h14M3 12h14M7 5v10M13 5v10" stroke="currentColor" stroke-width="1" opacity=".6"/></svg>
             <span class="nm">Video</span>
+            <button class="tl-eye" id="btnAppendVideo2" title="Add another video after the last piece">+</button>
             <button class="tl-eye" id="btnSplit2" title="Split at playhead (S)">✂</button>
           </div>
           <div class="tl-track" id="videoTrack"></div>
@@ -385,6 +427,7 @@
           <div class="tl-empty" id="tlEmpty">No words yet. Go to <b>2 · Text</b> and click <b>Add text</b>, or pick a template.</div>
         </div>
         <div class="playhead" id="playhead"><div class="ph-knob"></div></div>
+        <div class="tl-hscroll hidden" id="tlScroll"><div></div></div>
       </div>
     </section>
 
@@ -562,6 +605,7 @@
   <script src="js/presets.js"></script>
   <script src="js/exporter.js"></script>
   <script src="js/layout-view.js"></script>
+  <script src="js/projects.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

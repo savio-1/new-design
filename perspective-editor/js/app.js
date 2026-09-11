@@ -35,7 +35,7 @@
     clips: [],            // pieces of the source video laid end to end: { id, in, out } in source seconds
     selectedClipId: null,
     aspect: 9 / 16,
-    duration: 10,
+    duration: 120,        // the open timeline's length in seconds — content may run past it
     fov: 45,
     loop: true,
     muted: false,
@@ -72,6 +72,8 @@
     multiTitle: $('#multiTitle'),
     camTrack: $('#camTrack'),
     toast: $('#toast'),
+    timeline: $('#timeline'),
+    guides: $('#previewGuides'),
   };
 
   let renderer;
@@ -86,78 +88,139 @@
   function frameAspect() {
     return state.video.ready ? state.video.width / state.video.height : state.aspect;
   }
-  /* Length of the main video on the timeline (its pieces laid end to end); 0 without a video. */
+  /* Where the footage track ends: the end of its last piece; 0 without any. */
   function mainLen() {
-    if (!state.video.ready) return 0;
-    return state.clips.length ? state.clips.reduce((a, c) => a + (c.out - c.in), 0) : state.video.duration;
+    let T = 0;
+    for (const c of state.clips) T = Math.max(T, clipEnd(c));
+    return T;
   }
-  /* The timeline is as long as the main video (or the plain-background length), or the last media
-   * layer, whichever ends later — so a second clip placed after the first extends the timeline. */
-  function duration() {
-    let T = state.video.ready ? mainLen() : state.duration;
-    for (const l of state.layers) if (l.type === 'media' && l.end > T) T = l.end;
-    return Math.max(0.5, T);
+  /* Where the content ends: the last piece of footage, the last layer or the last camera key. */
+  function contentEnd() {
+    let T = mainLen();
+    for (const l of state.layers) if (l.end > T) T = l.end;
+    for (const k of state.camera.keys) if (k.t > T) T = k.t;
+    return T;
   }
+  /* Playback loops, and export defaults, at the end of the content (at least a second in). */
+  function playEnd() { return Math.max(1, Math.min(duration(), round(contentEnd(), 3))); }
+  /* The timeline is open: at least `state.duration` long (two minutes to begin with) so there is room
+   * to move pieces around, and longer whenever the content runs past that. */
+  function duration() { return Math.max(state.duration || 120, Math.ceil(contentEnd() + 1e-6)); }
   const limitFor = (l) => (l && l.type === 'media' ? 3600 : duration());
+  const hasFootage = () => state.video.ready || state.clips.length > 0;
 
   /* ---- clips ---------------------------------------------------------------
-   * The timeline is the clips laid end to end. Text and camera keys live in TIMELINE time; anything
-   * bound to the footage (tracks, the subject mask) lives in SOURCE time and is mapped through here. */
+   * The footage track holds pieces of video: { id, asset, in, out, start } — `in`/`out` in the source's
+   * own seconds, `start` where the piece sits on the timeline. `asset` is null for the main video and an
+   * asset id for another video added to the track. Pieces never overlap and may leave gaps. Text and
+   * camera keys live in TIMELINE time; anything bound to the main footage (tracks, the subject mask)
+   * lives in its SOURCE time and is mapped through here. */
   const clipLen = (c) => c.out - c.in;
-  function clipStart(i) { let a = 0; for (let k = 0; k < i; k++) a += clipLen(state.clips[k]); return a; }
-  /* Which clip a timeline time falls in, and the source time there. */
-  function locate(t) {
-    const cs = state.clips;
-    if (!cs.length) return { clip: null, index: -1, src: t, start: 0 };
+  const clipEnd = (c) => c.start + clipLen(c);
+  const newClipId = () => `C${Math.random().toString(36).slice(2, 7)}`;
+  const clipSource = (c) => (c.asset ? assets.get(c.asset) || null : null);
+  const clipEl = (c) => (c.asset ? (clipSource(c) ? clipSource(c).el : null) : els.video);
+  const clipReady = (c) => (c.asset ? !!(clipSource(c) && clipSource(c).ready) : state.video.ready);
+  const clipSrcDuration = (c) => (c.asset ? (clipSource(c) ? clipSource(c).duration : c.out) : state.video.duration);
+  const clipName = (c) => (c.asset ? ((clipSource(c) && clipSource(c).name) || 'Video') : (state.video.file ? state.video.file.name.replace(/\.[^.]+$/, '') : 'Video'));
+  function sortClips() { state.clips.sort((a, b) => a.start - b.start); }
+  /* Saved pieces may lack a start (older projects laid them end to end) — give them one, and check them
+   * against the real length of their source. */
+  function normalizeClips(list, D, asset) {
     let acc = 0;
-    for (let i = 0; i < cs.length; i++) {
-      const len = clipLen(cs[i]);
-      if (t < acc + len - 1e-6 || i === cs.length - 1) {
-        return { clip: cs[i], index: i, start: acc, src: clamp(cs[i].in + (t - acc), cs[i].in, cs[i].out - 1e-4) };
-      }
-      acc += len;
+    const out = [];
+    for (const c of list) {
+      const len = D == null ? (c.out || 0) - (c.in || 0) : Math.min(D, c.out == null ? D : c.out) - clamp(c.in || 0, 0, D);
+      const start = c.start == null ? acc : Math.max(0, c.start);
+      const inn = D == null ? c.in || 0 : clamp(c.in || 0, 0, D);
+      const piece = { id: c.id || newClipId(), asset: asset === undefined ? c.asset || null : asset, in: round(inn, 4), out: round(inn + len, 4), start: round(start, 4) };
+      if (piece.out - piece.in >= 0.05) out.push(piece);
+      acc = start + Math.max(0, len);
     }
-    return { clip: cs[cs.length - 1], index: cs.length - 1, start: acc, src: cs[cs.length - 1].out - 1e-4 };
+    return out;
   }
-  const srcTime = (t) => (state.clips.length ? locate(t).src : t);
-  /* Every timeline time at which a source time is shown (a piece can be used more than once). */
+  /* After a move, shift the moved piece to the nearest free spot so pieces never overlap. */
+  function settleClip(c) {
+    for (let guard = 0; guard < 8; guard++) {
+      const hit = state.clips.find((o) => o !== c && o.start < clipEnd(c) - 1e-6 && clipEnd(o) > c.start + 1e-6);
+      if (!hit) break;
+      const mid = c.start + clipLen(c) / 2, omid = hit.start + clipLen(hit) / 2;
+      if (mid < omid && hit.start - clipLen(c) >= 0) c.start = round(hit.start - clipLen(c), 4);
+      else c.start = round(clipEnd(hit), 4);
+    }
+    sortClips();
+  }
+  /* Push later pieces right so nothing overlaps (when a piece grows or a new one is placed). */
+  function packClips() {
+    sortClips();
+    for (let i = 1; i < state.clips.length; i++) {
+      const p = state.clips[i - 1], c = state.clips[i];
+      if (c.start < clipEnd(p) - 1e-6) c.start = round(clipEnd(p), 4);
+    }
+  }
+  /* Which piece is under timeline time t (null in a gap), and the source time there. */
+  function locate(t) {
+    for (let i = 0; i < state.clips.length; i++) {
+      const c = state.clips[i];
+      if (t >= c.start - 1e-6 && t < clipEnd(c) - 1e-6) return { clip: c, index: i, start: c.start, src: clamp(c.in + (t - c.start), c.in, c.out - 1e-4) };
+    }
+    return { clip: null, index: -1, start: 0, src: null };
+  }
+  /* Source time of the MAIN video at timeline time t; null in a gap or over another video. Without any
+   * footage the timeline is its own source time. */
+  function srcTime(t) {
+    if (!state.clips.length) return t;
+    const loc = locate(t);
+    return loc.clip && !loc.clip.asset ? loc.src : null;
+  }
+  /* Source time to edit footage-bound things at: the playhead's, or the nearest moment of footage. */
+  function srcAtPlayhead() {
+    const s = srcTime(clock.time);
+    if (s != null) return s;
+    let best = 0, bd = Infinity;
+    for (const c of state.clips) {
+      if (c.asset) continue;
+      const before = clock.time < c.start;
+      const d = before ? c.start - clock.time : clock.time - clipEnd(c);
+      if (d < bd) { bd = d; best = before ? c.in : c.out - 1e-4; }
+    }
+    return best;
+  }
+  /* Every timeline time at which a main-video source time is shown (a piece can be used more than once). */
   function timelineTimesOf(src) {
     if (!state.clips.length) return [src];
     const out = [];
-    let acc = 0;
-    for (const c of state.clips) {
-      if (src >= c.in - 1e-6 && src <= c.out + 1e-6) out.push(acc + (src - c.in));
-      acc += clipLen(c);
-    }
+    for (const c of state.clips) if (!c.asset && src >= c.in - 1e-6 && src <= c.out + 1e-6) out.push(c.start + (src - c.in));
     return out;
   }
   function splitClipAt(t) {
     const loc = locate(t);
-    if (!loc.clip) return false;
+    if (!loc.clip) { toast('Move the playhead onto a piece of video to split it'); return false; }
     const c = loc.clip;
     if (loc.src - c.in < 0.1 || c.out - loc.src < 0.1) { toast('Move the playhead a little further from the cut'); return false; }
-    const right = { id: `C${Math.random().toString(36).slice(2, 7)}`, in: round(loc.src, 4), out: c.out };
+    const right = { id: newClipId(), asset: c.asset || null, in: round(loc.src, 4), out: c.out, start: round(c.start + (loc.src - c.in), 4) };
     c.out = round(loc.src, 4);
     state.clips.splice(loc.index + 1, 0, right);
     state.selectedClipId = right.id;
     return true;
   }
   function deleteClip(id) {
-    if (state.clips.length <= 1) { toast('That is the only piece of video — trim it instead', true); return false; }
     const i = state.clips.findIndex((c) => c.id === id);
     if (i < 0) return false;
+    const c = state.clips[i];
+    if (!c.asset && state.clips.filter((o) => !o.asset).length <= 1) { toast('That is the only piece of the video — trim it, or use Remove in the Media tab', true); return false; }
     const t = clock.time;
     state.clips.splice(i, 1);
+    if (c.asset && !state.clips.some((o) => o.asset === c.asset)) releaseAsset(c.asset);
     state.selectedClipId = null;
-    afterClipsChanged(Math.min(t, duration() - 0.01));
+    afterClipsChanged(t);
+    toast('Piece removed — it leaves a gap; drag the other pieces to close it');
     return true;
   }
-  /* Keep everything on the timeline inside the new length, and re-seat the playhead. */
+  /* Re-seat the playhead and the media after the footage track changed. */
   function afterClipsChanged(t) {
-    const T = duration();
-    for (const l of state.layers) { if (isMedia(l)) continue; l.end = Math.min(l.end, T); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
-    clampCameraKeys(T);
-    clock.time = clamp(t == null ? clock.time : t, 0, T);
+    sortClips();
+    clock.time = clamp(t == null ? clock.time : t, 0, duration());
   }
   function fmtTime(t) {
     t = Math.max(0, t || 0);
@@ -241,7 +304,7 @@
     },
     get playing() { return this._playing; },
     play() {
-      if (this._t >= duration() - 0.001) this._t = 0;
+      if (this._t >= playEnd() - 0.001) this._t = 0;
       this._playing = true;
       this._last = performance.now();
       syncMedia(this._t, true, true);
@@ -257,9 +320,9 @@
       if (!this._playing) return;
       this._t += (now - this._last) / 1000;
       this._last = now;
-      if (this._t >= duration()) {
+      if (this._t >= playEnd()) {
         if (state.loop) this._t = 0;
-        else { this._t = duration(); this.pause(); return; }
+        else { this._t = playEnd(); this.pause(); return; }
       }
       syncMedia(this._t, true, false);
     },
@@ -282,9 +345,21 @@
   }
   function syncMedia(t, playing, force) {
     if (state.tracking || state.exporting || state.thumbing) return;
+    const loc = locate(t);
     if (state.video.ready) {
-      const active = t < mainLen() - 1e-4;
-      driveEl(els.video, active ? srcTime(t) : null, playing && active, force, state.muted);
+      const onMain = !!(loc.clip && !loc.clip.asset);
+      driveEl(els.video, onMain ? loc.src : null, playing && onMain, force, state.muted);
+    }
+    // other videos on the footage track: the one under the playhead runs, the rest wait
+    const seen = new Set();
+    for (const c of state.clips) {
+      if (!c.asset || seen.has(c.asset)) continue;
+      seen.add(c.asset);
+      const a = assets.get(c.asset);
+      if (!a || !a.ready) continue;
+      const on = !!(loc.clip && loc.clip.asset === c.asset);
+      a.el.volume = 1;
+      driveEl(a.el, on ? loc.src : null, playing && on, force, state.muted);
     }
     for (const l of state.layers) {
       if (l.type !== 'media' || l.kind === 'image') continue;
@@ -448,12 +523,14 @@
   }
   function maskForRender(t) {
     if (!state.mask.enabled) return null;
-    const shape = maskShapeAt(srcTime(t)) || MASK_DEFAULT;
+    const st = srcTime(t);
+    if (st == null) return null;   // no footage under the playhead: nothing to mask
+    const shape = maskShapeAt(st) || MASK_DEFAULT;
     return Object.assign({ enabled: true, roundness: state.mask.roundness, feather: state.mask.feather }, shape);
   }
   /* The mask key at the playhead, creating one from the current shape when there is none. */
   function maskKeyAtPlayhead() {
-    const t = round(srcTime(clock.time), 2);
+    const t = round(srcAtPlayhead(), 2);
     let key = state.mask.keys.find((k) => Math.abs(k.t - t) <= 0.05);
     if (!key) {
       const shape = maskShapeAt(t) || MASK_DEFAULT;
@@ -487,7 +564,9 @@
   function trackAt(id, t) {
     const tr = getTrack(id);
     if (!tr) return null;
-    const v = trackAtSource(tr, srcTime(t));
+    const st = srcTime(t);
+    if (st == null) return null;
+    const v = trackAtSource(tr, st);
     if (v.s == null) v.s = 1;
     if (v.r == null) v.r = 0;
     return v;
@@ -560,7 +639,7 @@
   let nextTrack = 1;
   function newTrack(mode) {
     const color = TRACK_COLORS[(state.tracks.length) % TRACK_COLORS.length];
-    const t = round(srcTime(clock.time), 3);
+    const t = round(srcAtPlayhead(), 3);
     const tr = {
       id: `T${nextTrack++}_${Math.random().toString(36).slice(2, 6)}`,
       name: `Tracker ${state.tracks.length + 1}`, color,
@@ -578,7 +657,7 @@
   const trackIsAuto = (tr) => tr.keys.filter((k) => !k.manual).length > 2;
   /* The tracker key at the playhead, creating one from the interpolated position when there is none. */
   function trackKeyAtPlayhead(tr) {
-    const t = round(srcTime(clock.time), 3);
+    const t = round(srcAtPlayhead(), 3);
     const tol = trackIsAuto(tr) ? Tracker.STEP * 0.51 : 0.05;
     let key = tr.keys.find((k) => Math.abs(k.t - t) <= tol);
     let created = false;
@@ -752,7 +831,67 @@
     els.canvas.style.height = `${Math.round(h)}px`;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     renderer.resize(Math.round(w * dpr), Math.round(h * dpr));
+    els.guides.style.width = els.canvas.style.width; els.guides.style.height = els.canvas.style.height;
+    els.guides.width = Math.round(w * dpr); els.guides.height = Math.round(h * dpr);
     invalidate();
+  }
+
+  /* Alignment guides over the preview while words are dragged: the frame's centre lines, lines through
+   * the moving words, and a green line whenever they line up with another word's centre or edge. */
+  let previewGuide = null;   // { ids, axis } during a move drag
+  const GUIDE_C = 'rgba(242,140,40,0.8)', ALIGN_C = 'rgba(120,230,160,0.95)', CENTRE_C = 'rgba(255,255,255,0.25)';
+  function layerScreenBox(id) {
+    const entry = renderer.lastQuads.find((q) => q.layerId === id);
+    if (!entry) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const q of entry.quads) for (const p of q) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
+    if (!isFinite(x0)) return null;
+    return { x0, y0, x1, y1, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+  }
+  function clearPreviewGuides() {
+    const g = els.guides;
+    g.getContext('2d').clearRect(0, 0, g.width, g.height);
+    g.classList.add('hidden');
+  }
+  function drawPreviewGuides() {
+    const g = els.guides, c = g.getContext('2d');
+    const W = g.width, H = g.height;
+    if (!W || !H) return;
+    const k = W / Math.max(1, els.canvas.width);   // renderer buffer px -> overlay px
+    c.clearRect(0, 0, W, H);
+    g.classList.remove('hidden');
+    const ids = previewGuide.ids;
+    let box = null;
+    for (const id of ids) {
+      const b = layerScreenBox(id);
+      if (!b) continue;
+      box = box ? { x0: Math.min(box.x0, b.x0), y0: Math.min(box.y0, b.y0), x1: Math.max(box.x1, b.x1), y1: Math.max(box.y1, b.y1) } : b;
+    }
+    if (!box) return;
+    const mine = { x: [(box.x0 + box.x1) / 2 * k, box.x0 * k, box.x1 * k], y: [(box.y0 + box.y1) / 2 * k, box.y0 * k, box.y1 * k] };
+    const cx = mine.x[0], cy = mine.y[0];
+    const dpr = W / Math.max(1, g.clientWidth || W);
+    const tol = 4 * dpr;
+    const line = (x0, y0, x1, y1, colour, width, dash) => { c.strokeStyle = colour; c.lineWidth = width; c.setLineDash(dash || []); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.setLineDash([]); };
+    const label = (text, x, y, colour) => { c.fillStyle = colour; c.font = `${11 * dpr}px Inter, sans-serif`; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText(text, x, y); };
+    const axis = previewGuide.axis;
+    // the frame's centre lines light up when the words are centred
+    const onX = Math.abs(cx - W / 2) <= tol, onY = Math.abs(cy - H / 2) <= tol;
+    line(W / 2, 0, W / 2, H, onX ? ALIGN_C : CENTRE_C, (onX ? 1.5 : 1) * dpr, onX ? null : [3 * dpr, 5 * dpr]);
+    line(0, H / 2, W, H / 2, onY ? ALIGN_C : CENTRE_C, (onY ? 1.5 : 1) * dpr, onY ? null : [3 * dpr, 5 * dpr]);
+    if (onX) label('centred', W / 2 + 5 * dpr, 6 * dpr, ALIGN_C);
+    if (onY) label('centred', 6 * dpr, H / 2 + 5 * dpr, ALIGN_C);
+    // lines through the moving words; with Shift only the path they are held to
+    if (axis !== 'x') line(cx, 0, cx, H, GUIDE_C, (axis === 'y' ? 1.8 : 1) * dpr, [5 * dpr, 4 * dpr]);
+    if (axis !== 'y') line(0, cy, W, cy, GUIDE_C, (axis === 'x' ? 1.8 : 1) * dpr, [5 * dpr, 4 * dpr]);
+    // alignment with other words: centres and edges
+    for (const entry of renderer.lastQuads) {
+      if (ids.includes(entry.layerId)) continue;
+      const o = layerScreenBox(entry.layerId);
+      if (!o) continue;
+      for (const ox of [o.cx, o.x0, o.x1].map((v) => v * k)) if (mine.x.some((mx) => Math.abs(mx - ox) <= tol)) line(ox, 0, ox, H, ALIGN_C, 1.3 * dpr);
+      for (const oy of [o.cy, o.y0, o.y1].map((v) => v * k)) if (mine.y.some((my) => Math.abs(my - oy) <= tol)) line(0, oy, W, oy, ALIGN_C, 1.3 * dpr);
+    }
   }
 
   function mediaForRender() {
@@ -761,9 +900,7 @@
 
   function draw(time) {
     renderer.fovDeg = state.fov;
-    renderer.render({
-      video: state.video.ready ? els.video : null,
-      videoReady: state.video.ready && els.video.readyState >= 2,
+    renderer.render(Object.assign(videoForRender(time), {
       layers: state.layers,
       time,
       frameHeightPx: els.canvas.height,
@@ -775,8 +912,15 @@
       trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, time) : null),
       outlines: trackOutlines(time),
       mediaFor: (l) => assets.get(l.id) || null,
-      videoVisible: time < mainLen() - 1e-4,
-    });
+    }));
+  }
+  /* The footage under the playhead: the main video or another piece on the footage track. */
+  function videoForRender(time) {
+    const loc = locate(time);
+    const c = loc.clip;
+    if (!c || !clipReady(c)) return { video: null, videoReady: false, videoVisible: false, videoAspect: null };
+    const el = clipEl(c), src = clipSource(c);
+    return { video: el, videoReady: !!(el && el.readyState >= 2), videoVisible: true, videoAspect: src && src.width && src.height ? src.width / src.height : null };
   }
 
   function frame(now) {
@@ -784,7 +928,7 @@
       clock.tick(now);
       if (clock.playing || needsRender) {
         needsRender = false;
-        if (state.view !== 'layout') draw(clock.time);
+        if (state.view !== 'layout') { draw(clock.time); if (previewGuide) drawPreviewGuides(); }
         updateTimeUI();
         if (layoutVisible()) layoutView.draw();
       }
@@ -794,10 +938,13 @@
 
   function updateTimeUI() {
     const t = clock.time, T = duration();
-    els.timeLabel.innerHTML = `${fmtTime(t)} <span class="muted">/ ${fmtTime(T)}</span>`;
-    const trackW = els.ruler.clientWidth;
+    els.timeLabel.innerHTML = `${fmtTime(t)} <span class="muted">/ ${fmtTime(playEnd())}</span>`;
+    const trackW = tlWidth();
     const namesW = 150;
-    els.playhead.style.left = `${namesW + (t / Math.max(0.001, T)) * trackW}px`;
+    if (clock.playing) followPlayhead(t);
+    const x = (t / Math.max(0.001, T)) * trackW - tl.scroll;
+    els.playhead.style.left = `${namesW + x}px`;
+    els.playhead.classList.toggle('hidden', x < -1 || x > tlVisible() + 1);
     const cam = cameraAt(t);
     const zoom = (renderer.camDist * state.media.scale) / planeDepth(cam);
     els.camReadout.textContent = `Camera ${cam.z.toFixed(2)} from video · footage ${Math.round(zoom * 100)}%`;
@@ -983,6 +1130,7 @@
     state.redo = [];
     state.lastCommitted = snap;
     updateUndoButtons();
+    scheduleAutosave();
   }
   function restore(snap) {
     const data = JSON.parse(snap);
@@ -991,7 +1139,7 @@
     state.media = Object.assign(defaultMedia(), data.media || {});
     state.mask = Object.assign(defaultMask(), data.mask || {});
     state.tracks = data.tracks || [];
-    if (state.video.ready && data.clips && data.clips.length) { state.clips = data.clips; afterClipsChanged(); }
+    if (data.clips && data.clips.length) { state.clips = data.clips.filter((c) => (c.asset ? assets.has(c.asset) : state.video.ready)); afterClipsChanged(); }
     state.selectedTrackId = getTrack(data.selectedTrackId) ? data.selectedTrackId : null;
     state.selectedTrackKeyId = null;
     if (!state.selectedTrackId) state.trackEdit = false;
@@ -1004,6 +1152,7 @@
     syncMaskControls();
     syncTrackControls();
     refreshAll();
+    scheduleAutosave();
   }
   function undo() {
     if (!state.undo.length) return;
@@ -1033,8 +1182,66 @@
   const EYE_ON = '<svg viewBox="0 0 20 20"><path d="M2 10s3-5 8-5 8 5 8 5-3 5-8 5-8-5-8-5z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.5" fill="currentColor"/></svg>';
   const EYE_OFF = '<svg viewBox="0 0 20 20"><path d="M3 3l14 14M2 10s3-5 8-5c1.2 0 2.3.3 3.3.7M18 10s-3 5-8 5c-1.2 0-2.3-.3-3.3-.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
+  /* Timeline zoom. Every track draws into a `.tl-inner` strip that is `tlWidth()` px wide and shifted
+   * left by the scroll, so the whole open timeline can be seen at once or zoomed into. */
+  const tl = { zoom: null, scroll: 0 };   // zoom: px per second, null = fit the whole timeline in view
+  const tlVisible = () => els.ruler.clientWidth || 600;
+  function tlWidth() { const vis = tlVisible(); return tl.zoom ? Math.max(vis, tl.zoom * duration()) : vis; }
+  function tlInner(host) {
+    let inner = host.firstElementChild;
+    if (!inner || !inner.classList.contains('tl-inner')) { inner = document.createElement('div'); inner.className = 'tl-inner'; host.textContent = ''; host.appendChild(inner); }
+    return inner;
+  }
+  function applyTimelineZoom() {
+    const W = tlWidth(), vis = tlVisible();
+    tl.scroll = clamp(tl.scroll, 0, Math.max(0, W - vis));
+    els.timeline.style.setProperty('--tl-w', `${W}px`);
+    els.timeline.style.setProperty('--tl-off', `${-tl.scroll}px`);
+    const sc = $('#tlScroll');
+    if (sc) {
+      sc.firstElementChild.style.width = `${W}px`;
+      sc.classList.toggle('hidden', W <= vis + 1);
+      if (Math.abs(sc.scrollLeft - tl.scroll) > 1) sc.scrollLeft = tl.scroll;
+    }
+  }
+  /* z = px per second (null fits everything); anchorPx keeps the moment under that x where it is. */
+  function setTimelineZoom(z, anchorPx) {
+    const vis = tlVisible(), fitZoom = vis / duration();
+    const before = tl.zoom || fitZoom;
+    const tAtAnchor = anchorPx != null ? (tl.scroll + anchorPx) / before : null;
+    tl.zoom = z != null && z > fitZoom * 1.001 ? Math.min(z, 400) : null;
+    const after = tl.zoom || fitZoom;
+    if (tAtAnchor != null) tl.scroll = tAtAnchor * after - anchorPx;
+    applyTimelineZoom();
+    renderTimeline();
+  }
+  /* Keep the playhead in view while it moves. */
+  function followPlayhead(t) {
+    if (!tl.zoom) return;
+    const W = tlWidth(), vis = tlVisible();
+    const x = (t / duration()) * W;
+    if (x < tl.scroll || x > tl.scroll + vis - 2) { tl.scroll = clamp(x - vis * 0.15, 0, W - vis); applyTimelineZoom(); }
+  }
+  els.timeline.addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const rect = els.ruler.getBoundingClientRect();
+      const anchor = clamp(e.clientX - rect.left, 0, rect.width);
+      setTimelineZoom((tl.zoom || tlVisible() / duration()) * Math.exp(-e.deltaY * 0.002), anchor);
+    } else if (tl.zoom && (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY))) {
+      e.preventDefault();
+      tl.scroll += e.deltaX || e.deltaY;
+      applyTimelineZoom();
+      updateTimeUI();
+    }
+  }, { passive: false });
+  $('#tlZoomIn').addEventListener('click', () => setTimelineZoom((tl.zoom || tlVisible() / duration()) * 1.6, tlVisible() / 2));
+  $('#tlZoomOut').addEventListener('click', () => setTimelineZoom((tl.zoom || tlVisible() / duration()) / 1.6, tlVisible() / 2));
+  $('#tlZoomFit').addEventListener('click', () => setTimelineZoom(null));
+  $('#tlScroll').addEventListener('scroll', (e) => { const sc = e.target.scrollLeft; if (Math.abs(sc - tl.scroll) > 1) { tl.scroll = sc; applyTimelineZoom(); updateTimeUI(); } });
+
   function renderRuler() {
-    const W = els.ruler.clientWidth, T = duration();
+    const W = tlWidth(), T = duration();
     if (W <= 0) return;
     const steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120];
     const step = steps.find((s) => (W / T) * s >= 64) || 300;
@@ -1045,7 +1252,9 @@
       const mid = t + step / 2;
       if (mid < T && (W / T) * step >= 110) html += `<div class="tl-tick minor" style="left:${(mid / T) * W}px"></div>`;
     }
-    els.ruler.innerHTML = html;
+    // past the end of the content the timeline is open room
+    html += `<div class="tl-after" style="left:${(playEnd() / T) * 100}%"><span>end</span></div>`;
+    tlInner(els.ruler).innerHTML = html;
   }
 
   function barStyle(l) {
@@ -1071,18 +1280,18 @@
     for (const k of keys) {
       html += `<div class="tl-key${k.id === state.selectedKeyId ? ' selected' : ''}" data-id="${k.id}" style="left:${(k.t / T) * 100}%" title="${fmtTime(k.t)} · dolly ${round(k.dolly)} · yaw ${round(k.yaw, 1)}°"></div>`;
     }
-    els.camTrack.innerHTML = html;
+    tlInner(els.camTrack).innerHTML = html;
   }
 
   /* A span [a, b] in SOURCE time drawn on the timeline: one bar per clip that shows part of it. */
   function sourceSpanBars(a, b, cls, style) {
     const T = duration();
     if (!state.clips.length) return `<div class="${cls}" style="left:${(a / T) * 100}%; width:${Math.max(0.2, ((b - a) / T) * 100)}%; ${style}"></div>`;
-    let html = '', acc = 0;
+    let html = '';
     for (const c of state.clips) {
+      if (c.asset) continue;
       const lo = Math.max(a, c.in), hi = Math.min(b, c.out);
-      if (hi > lo) html += `<div class="${cls}" style="left:${((acc + lo - c.in) / T) * 100}%; width:${Math.max(0.2, ((hi - lo) / T) * 100)}%; ${style}"></div>`;
-      acc += clipLen(c);
+      if (hi > lo) html += `<div class="${cls}" style="left:${((c.start + lo - c.in) / T) * 100}%; width:${Math.max(0.2, ((hi - lo) / T) * 100)}%; ${style}"></div>`;
     }
     return html;
   }
@@ -1099,32 +1308,36 @@
     let html = '';
     if (keys.length > 1) html += sourceSpanBars(keys[0].t, keys[keys.length - 1].t, 'tl-key-line', '');
     for (const k of keys) html += sourceKeyDiamonds(k, k.id === state.selectedMaskKeyId ? 'selected' : '', `${fmtTime(k.t)} · ${Math.round(k.w * 100)}×${Math.round(k.h * 100)}`);
-    $('#maskTrack').innerHTML = html;
+    tlInner($('#maskTrack')).innerHTML = html;
   }
 
   function renderVideoTrack() {
     const host = $('#videoTrack');
     if (!host) return;
-    if (!state.video.ready || !state.clips.length) { host.innerHTML = ''; return; }
+    $('#tlVideo').classList.toggle('hidden', !hasFootage());
+    $('#btnSplit').classList.toggle('hidden', !hasFootage());
+    if (!state.clips.length) { tlInner(host).innerHTML = ''; return; }
     const T = duration();
-    const trackW = host.clientWidth || 600;
-    let html = '', acc = 0;
-    const name = state.video.file ? state.video.file.name.replace(/\.[^.]+$/, '') : 'Video';
+    const trackW = tlWidth();
+    let html = '';
     state.clips.forEach((c, i) => {
       const len = clipLen(c);
-      const left = (acc / T) * 100, width = (len / T) * 100;
+      const left = (c.start / T) * 100, width = (len / T) * 100;
       const pxW = (len / T) * trackW;
+      const src = clipSource(c), ready = clipReady(c);
       // thumbnails whose source time falls inside this piece, spaced by time
-      const thumbH = 34, thumbW = Math.round((thumbH * state.video.width) / Math.max(1, state.video.height));
-      const thumbs = state.video.thumbs.filter((th) => th.t >= c.in && th.t <= c.out)
+      const vw = c.asset ? (src ? src.width : 16) : state.video.width, vh = c.asset ? (src ? src.height : 9) : state.video.height;
+      const thumbH = 34, thumbW = Math.round((thumbH * vw) / Math.max(1, vh));
+      const list = c.asset ? ((src && src.thumbs) || []) : (state.video.thumbs || []);
+      const thumbs = list.filter((th) => th.t >= c.in && th.t <= c.out)
         .map((th) => `<img src="${th.url}" style="left:${Math.round(((th.t - c.in) / len) * pxW - thumbW / 2)}px" alt="">`).join('');
-      html += `<div class="tl-clip${c.id === state.selectedClipId ? ' selected' : ''}" data-id="${c.id}" style="left:${left}%; width:${width}%" title="${escapeHtml(name)} · ${fmtTime(c.in)} – ${fmtTime(c.out)} (${fmtTime(len)})">
+      const name = clipName(c);
+      html += `<div class="tl-clip${c.id === state.selectedClipId ? ' selected' : ''}${c.asset ? ' other' : ''}${ready ? '' : ' missing'}" data-id="${c.id}" style="left:${left}%; width:${width}%" title="${escapeHtml(name)} · ${fmtTime(c.in)} – ${fmtTime(c.out)} (${fmtTime(len)}) at ${fmtTime(c.start)} — drag to move, drag the ends to trim">
         <div class="thumbs">${thumbs}</div>
-        <span class="lbl">${state.clips.length > 1 ? `${i + 1} · ` : ''}${fmtTime(c.in)}–${fmtTime(c.out)}</span>
+        <span class="lbl">${state.clips.length > 1 ? `${i + 1} · ` : ''}${c.asset ? escapeHtml(name) + ' · ' : ''}${ready ? `${fmtTime(c.in)}–${fmtTime(c.out)}` : 'file not loaded'}</span>
         <div class="h l"></div><div class="h r"></div></div>`;
-      acc += len;
     });
-    host.innerHTML = html;
+    tlInner(host).innerHTML = html;
   }
 
   function renderTrackRows() {
@@ -1142,12 +1355,13 @@
       }
       html += `<div class="tl-trk${tr.id === state.selectedTrackId ? ' selected' : ''}" data-id="${tr.id}">
         <div class="tl-name" title="${escapeHtml(tr.name)} — click to edit, double-click the track to add a correction key"><i class="sw" style="background:${col}"></i><span class="nm">${escapeHtml(tr.name)}</span></div>
-        <div class="tl-track">${row}</div></div>`;
+        <div class="tl-track"><div class="tl-inner">${row}</div></div></div>`;
     }
     host.innerHTML = html;
   }
 
   function renderTimeline() {
+    applyTimelineZoom();
     renderRuler();
     renderVideoTrack();
     renderCameraTrack();
@@ -1175,7 +1389,7 @@
           ${media ? `<span class="kind">${kindIcon}</span>` : ''}
           <span class="nm">${escapeHtml(l.name || l.text || 'Text')}</span>
         </div>
-        <div class="tl-track">
+        <div class="tl-track"><div class="tl-inner">
           <div class="tl-bar${poster ? ' has-poster' : ''}${media && !asset ? ' missing' : ''}" style="${barStyle(l)}">
             ${poster}
             <div class="anim-in" style="width:${inW}%"></div>
@@ -1183,7 +1397,7 @@
             <span>${label}</span>
             <div class="h l"></div><div class="h r"></div>
           </div>
-        </div>`;
+        </div></div>`;
       els.tlBody.appendChild(row);
     }
     updateTimeUI();
@@ -1202,14 +1416,15 @@
   // Timeline pointer interactions
   (function timelineInteractions() {
     let drag = null;
-    const pxPerSec = () => els.ruler.clientWidth / duration();
+    const pxPerSec = () => tlWidth() / duration();
     const timeFromEvent = (e) => {
-      const rect = els.ruler.getBoundingClientRect();
-      return clamp(((e.clientX - rect.left) / rect.width) * duration(), 0, duration());
+      const rect = tlInner(els.ruler).getBoundingClientRect();
+      return clamp(((e.clientX - rect.left) / Math.max(1, rect.width)) * duration(), 0, duration());
     };
-    const snapTargets = (excludeIds) => {
-      const targets = [clock.time, 0, duration()];
+    const snapTargets = (excludeIds, excludeClipId) => {
+      const targets = [clock.time, 0, playEnd()];
       state.layers.forEach((o) => { if (!excludeIds.has(o.id)) targets.push(o.start, o.end); });
+      state.clips.forEach((c) => { if (c.id !== excludeClipId) targets.push(c.start, clipEnd(c)); });
       return targets;
     };
     const snap = (v, targets) => {
@@ -1228,51 +1443,70 @@
     els.ruler.addEventListener('pointermove', (e) => { if (drag && drag.mode === 'scrub') { clock.time = timeFromEvent(e); updateTimeUI(); } });
     els.ruler.addEventListener('pointerup', () => { drag = null; });
 
-    // Video clips: click selects, edges trim, double-click splits
+    // Video pieces: click selects, dragging the body moves, the edges trim, double-click splits
     const videoTrack = $('#videoTrack');
     videoTrack.addEventListener('pointerdown', (e) => {
-      const clipEl = e.target.closest('.tl-clip');
-      if (!clipEl) { clock.time = timeFromEvent(e); drag = { mode: 'scrub' }; videoTrack.setPointerCapture(e.pointerId); return; }
-      const c = state.clips.find((x) => x.id === clipEl.dataset.id);
+      const clipNode = e.target.closest('.tl-clip');
+      if (!clipNode) { clock.time = timeFromEvent(e); drag = { mode: 'scrub' }; videoTrack.setPointerCapture(e.pointerId); return; }
+      const c = state.clips.find((x) => x.id === clipNode.dataset.id);
       if (!c) return;
       if (state.selectedClipId !== c.id) { state.selectedClipId = c.id; select(null); renderVideoTrack(); }
-      if (e.target.classList.contains('h')) {
-        drag = { mode: e.target.classList.contains('l') ? 'clipL' : 'clipR', id: c.id, x0: e.clientX, in0: c.in, out0: c.out, moved: false };
-        videoTrack.setPointerCapture(e.pointerId);
-        e.preventDefault();
-      } else {
-        clock.time = timeFromEvent(e);
-        drag = { mode: 'scrub' };
-        videoTrack.setPointerCapture(e.pointerId);
-      }
+      if (e.target.classList.contains('h')) drag = { mode: e.target.classList.contains('l') ? 'clipL' : 'clipR', id: c.id, x0: e.clientX, in0: c.in, out0: c.out, start0: c.start, moved: false };
+      else drag = { mode: 'clipMove', id: c.id, x0: e.clientX, start0: c.start, moved: false };
+      videoTrack.setPointerCapture(e.pointerId);
+      e.preventDefault();
     });
     videoTrack.addEventListener('dblclick', (e) => {
       if (!e.target.closest('.tl-clip') || e.target.classList.contains('h')) return;
       clock.time = timeFromEvent(e);
-      if (splitClipAt(clock.time)) { commit(); renderTimeline(); toast('Split — drag the ends of a piece to trim it, Delete removes it'); }
+      if (splitClipAt(clock.time)) { commit(); renderTimeline(); toast('Split — drag a piece to move it, drag its ends to trim, Delete removes it'); }
     });
     videoTrack.addEventListener('pointermove', (e) => {
       if (!drag) return;
       if (drag.mode === 'scrub') { clock.time = timeFromEvent(e); return; }
-      if (drag.mode !== 'clipL' && drag.mode !== 'clipR') return;
+      if (drag.mode !== 'clipL' && drag.mode !== 'clipR' && drag.mode !== 'clipMove') return;
       const c = state.clips.find((x) => x.id === drag.id);
       if (!c) return;
       const dt = (e.clientX - drag.x0) / pxPerSec();
       if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
-      const D = state.video.duration;
-      if (drag.mode === 'clipL') c.in = round(clamp(drag.in0 + dt, 0, c.out - 0.1), 3);
-      else c.out = round(clamp(drag.out0 + dt, c.in + 0.1, D), 3);
+      const D = clipSrcDuration(c);
+      const i = state.clips.indexOf(c);
+      const prev = state.clips[i - 1], next = state.clips[i + 1];
+      if (drag.mode === 'clipMove') {
+        const targets = snapTargets(new Set(), c.id);
+        const len = clipLen(c);
+        let s = Math.max(0, drag.start0 + dt);
+        const a = snap(s, targets), b = snap(s + len, targets);
+        if (a !== s) s = a; else if (b !== s + len) s = b - len;
+        c.start = round(Math.max(0, s), 3);
+      } else if (drag.mode === 'clipL') {
+        // the tail stays put: trimming the head moves the start with it
+        const minIn = Math.max(0, drag.in0 - drag.start0 + (prev ? clipEnd(prev) : 0));
+        c.in = round(clamp(drag.in0 + dt, minIn, c.out - 0.1), 3);
+        c.start = round(drag.start0 + (c.in - drag.in0), 3);
+      } else {
+        const maxOut = Math.min(D, next ? c.in + (next.start - c.start) : D);
+        c.out = round(clamp(drag.out0 + dt, c.in + 0.1, maxOut), 3);
+      }
       renderVideoTrack(); renderRuler(); renderCameraTrack(); renderMaskTrack(); renderTrackRows();
       for (const l of state.layers) updateBar(l);
       updateTimeUI();
     });
-    const endClipDrag = () => {
-      if (drag && (drag.mode === 'clipL' || drag.mode === 'clipR')) {
-        if (drag.moved) { afterClipsChanged(clock.time); commit(); renderTimeline(); }
+    const endClipDrag = (e) => {
+      if (!drag) return;
+      if (drag.mode === 'clipMove') {
+        const c = state.clips.find((x) => x.id === drag.id);
+        if (drag.moved && c) { settleClip(c); afterClipsChanged(clock.time); commit(); renderTimeline(); syncMedia(clock.time, clock.playing, true); }
+        else if (e && e.type === 'pointerup') clock.time = timeFromEvent(e);   // a plain click puts the playhead there
         drag = null;
         return;
       }
-      if (drag && drag.mode === 'scrub') drag = null;
+      if (drag.mode === 'clipL' || drag.mode === 'clipR') {
+        if (drag.moved) { afterClipsChanged(clock.time); commit(); renderTimeline(); syncMedia(clock.time, clock.playing, true); }
+        drag = null;
+        return;
+      }
+      if (drag.mode === 'scrub') drag = null;
     };
     videoTrack.addEventListener('pointerup', endClipDrag);
     videoTrack.addEventListener('pointercancel', endClipDrag);
@@ -2265,7 +2499,7 @@
         if (trk.mode === 'poly' && !trk.closed) {
           const pts = trk.ref.points;
           if (pts.length >= 3 && handleAt(trk, p) === 0) { finishShape(trk); return; }
-          if (!pts.length) { trk.ref.t = round(srcTime(clock.time), 3); trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })]; }
+          if (!pts.length) { trk.ref.t = round(srcAtPlayhead(), 3); trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })]; }
           pts.push({ x: round(pl.x, 4), y: round(pl.y, 4) });
           recentreShape(trk);
           trk.placed = true;
@@ -2286,7 +2520,7 @@
         // A box that has not been placed is drawn by dragging out a rectangle.
         if (trk.mode === 'box' && !trk.placed) {
           drag = { mode: 'trackBox', tr: trk, p0: pl, moved: false };
-          trk.ref.t = round(srcTime(clock.time), 3);
+          trk.ref.t = round(srcAtPlayhead(), 3);
           trk.keys = [Camera.defaultKey(trk.ref.t, { x: 0, y: 0, s: 1, r: 0, manual: true, easing: 'linear' })];
           c.setPointerCapture(e.pointerId);
           c.classList.add('grabbing');
@@ -2428,11 +2662,13 @@
           it.l.transform.rx = clamp(round(it.t0.rx - dy * 0.25, 1), -90, 90);
         }
       }
+      if (drag.mode === 'move') previewGuide = { ids: drag.items.map((it) => it.l.id), axis: drag.axis };
       refreshInspectorValues();
       invalidate();
       if (layoutVisible()) layoutView.draw();
     });
     const end = () => {
+      if (previewGuide) { previewGuide = null; clearPreviewGuides(); }
       if (drag && drag.mode === 'track' && !drag.moved && drag.created) {
         // a click without a drag should not leave a stray correction key behind
         drag.tr.keys = drag.tr.keys.filter((k) => k !== drag.key);
@@ -2550,8 +2786,9 @@
       const cam = cameraAt(t);
       const d = renderer.camDist;
       return {
-        time: t, cam, camDist: d, fov: state.fov, aspect: frameAspect(), hasVideo: state.video.ready,
+        time: t, cam, camDist: d, fov: state.fov, aspect: frameAspect(), hasVideo: hasFootage(),
         video: { scale: state.media.scale, x: state.media.x, y: state.media.y, z: planeZ(), locked: state.media.locked },
+        hasFootage: hasFootage(),
         layers: state.layers.filter((l) => !(isMedia(l) && l.kind === 'audio')).map((l) => { const e = effectiveTransform(l, t); return Object.assign({
           id: l.id, text: l.text, x: e.x, y: e.y, z: e.z, pinned: isPinned(l),
           active: t >= l.start && t < l.end, hidden: l.hidden, selected: isSelected(l.id), primary: state.selectedIds[0] === l.id,
@@ -2615,7 +2852,9 @@
     const k = selectedKey();
     if (l) { const e = effectiveTransform(l, clock.time); els.layoutHint.textContent = `${(l.text || '').split('\n')[0]} · depth ${e.z.toFixed(2)} · x ${e.x.toFixed(2)} · y ${e.y.toFixed(2)}${isPinned(l) ? ' · pinned to ' + (getTrack(l.track.id).name) : ''}`; }
     else if (k) els.layoutHint.textContent = `Camera key at ${k.t.toFixed(2)}s · ${(renderer.camDist - k.dolly).toFixed(2)} from video`;
-    else els.layoutHint.textContent = layoutView.mode === 'top' ? 'Top view — drag words left/right and nearer/further. Drag the camera to keyframe it at the playhead.' : 'Side view — drag words up/down and nearer/further.';
+    else els.layoutHint.textContent = layoutView.mode === 'top' ? 'Top view — drag words left/right and nearer/further; drag the camera to keyframe it at the playhead. Shift = one axis · wheel to zoom · guide lines show alignment.'
+      : layoutView.mode === 'side' ? 'Side view — drag words up/down and nearer/further. Shift = one axis · wheel to zoom · guide lines show alignment.'
+      : `Isometric view — drags move ${layoutView.isoPlane === 'height' ? 'up/down' : 'across the floor (left/right and nearer/further)'}; hold Ctrl for the other, Shift for one axis. Wheel to zoom.`;
   }
 
   function setView(view) {
@@ -2636,6 +2875,14 @@
     if (!b) return;
     $$('#layoutMode button').forEach((x) => x.classList.toggle('on', x === b));
     layoutView.setMode(b.dataset.mode);
+    $('#isoPlane').classList.toggle('hidden', b.dataset.mode !== 'iso');
+    updateLayoutHint();
+  });
+  $('#isoPlane').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    $$('#isoPlane button').forEach((x) => x.classList.toggle('on', x === b));
+    layoutView.isoPlane = b.dataset.plane;
     updateLayoutHint();
   });
   $('#btnLayoutFit').addEventListener('click', () => { layoutView.fit(); layoutView.draw(); });
@@ -2782,7 +3029,7 @@
   $('#camFarFade').addEventListener('input', (e) => { state.camera.farFade = Number(e.target.value); $('#camFarFadeNum').value = state.camera.farFade >= FADE_OFF ? 'off' : round(state.camera.farFade, 1); invalidate(); if (layoutVisible()) layoutView.draw(); });
   $('#camFarFade').addEventListener('change', commit);
   $('#camFarFadeNum').addEventListener('change', (e) => { const v = Number(e.target.value); state.camera.farFade = isFinite(v) && v > 0 ? clamp(v, 1, FADE_OFF) : FADE_OFF; syncCameraControls(); commit(); invalidate(); });
-  $('#fovSelect').addEventListener('change', (e) => { state.fov = Number(e.target.value); invalidate(); if (layoutVisible()) layoutView.draw(); });
+  $('#fovSelect').addEventListener('change', (e) => { state.fov = Number(e.target.value); invalidate(); if (layoutVisible()) layoutView.draw(); scheduleAutosave(); });
   $('#btnClearCamera').addEventListener('click', () => {
     if (!state.camera.keys.length) return;
     state.camera.keys = [];
@@ -2811,7 +3058,7 @@
     $('#maskRoundNum').value = Math.round(state.mask.roundness * 100);
     $('#maskFeather').value = state.mask.feather;
     $('#maskFeatherNum').value = Math.round(state.mask.feather * 100);
-    const shape = maskShapeAt(srcTime(clock.time)) || MASK_DEFAULT;
+    const shape = maskShapeAt(srcAtPlayhead()) || MASK_DEFAULT;
     for (const [f, id] of [['x', 'maskX'], ['y', 'maskY'], ['w', 'maskW'], ['h', 'maskH']]) {
       $(`#${id}`).value = shape[f];
       const num = $(`#${id}Num`);
@@ -2856,7 +3103,7 @@
   $('#maskEnabled').addEventListener('change', (e) => {
     state.mask.enabled = e.target.checked;
     if (state.mask.enabled && !state.mask.keys.length) {
-      state.mask.keys = [Camera.defaultKey(round(srcTime(clock.time), 2), Object.assign({}, MASK_DEFAULT))];
+      state.mask.keys = [Camera.defaultKey(round(srcAtPlayhead(), 2), Object.assign({}, MASK_DEFAULT))];
       toast('Subject mask on — place it over the person, then mark words “Behind subject”');
     }
     if (!state.mask.enabled) state.maskEdit = false;
@@ -2995,7 +3242,7 @@
   /* Turn a clicked proposal into a box tracker on this frame. */
   function adoptSuggestion(sg) {
     const tr = newTrack('box');
-    tr.ref = { t: round(srcTime(clock.time), 3), x: round(sg.x, 4), y: round(sg.y, 4), w: round(sg.w, 4), h: round(sg.h, 4), points: [] };
+    tr.ref = { t: round(srcAtPlayhead(), 3), x: round(sg.x, 4), y: round(sg.y, 4), w: round(sg.w, 4), h: round(sg.h, 4), points: [] };
     tr.keys = [Camera.defaultKey(tr.ref.t, { x: tr.ref.x, y: tr.ref.y, s: 1, r: 0, manual: true, easing: 'linear' })];
     tr.placed = true;
     state.suggestions = [];
@@ -3202,11 +3449,7 @@
     const text = $('#tplText').value;
     let start = clamp(Number($('#tplStart').value) || 0, 0, Math.max(0, duration() - 0.5));
     let dur = Math.max(0.5, Number($('#tplDuration').value) || 3);
-    if (!state.video.ready && start + dur > state.duration) {
-      state.duration = round(start + dur, 2);
-      $('#durationInput').value = state.duration;
-    }
-    dur = Math.min(dur, duration() - start);
+    dur = Math.min(dur, 3600 - start);
     const built = activeTemplate.build(text, start, dur, frameAspect(), { camDist: renderer.camDist, hasVideo: state.video.ready });
     const layers = Array.isArray(built) ? built : built.layers;
     const cameraKeys = Array.isArray(built) ? [] : (built.cameraKeys || []);
@@ -3258,10 +3501,8 @@
     els.video.removeAttribute('src');
     els.video.load();
     state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] };
-    state.clips = []; state.selectedClipId = null;
-    $('#tlVideo').classList.add('hidden');
-    $('#btnSplit').classList.add('hidden');
-    clock._t = Math.min(clock._t, state.duration);
+    state.clips = state.clips.filter((c) => c.asset); state.selectedClipId = null;
+    clock._t = Math.min(clock._t, duration());
     syncMediaControls();
     fitPreview();
     refreshAll();
@@ -3276,18 +3517,19 @@
     state.video.duration = v.duration && isFinite(v.duration) ? v.duration : 10;
     state.video.ready = true;
     state.video.thumbs = [];
-    state.clips = [{ id: `C${Math.random().toString(36).slice(2, 7)}`, in: 0, out: round(state.video.duration, 4) }];
+    const D = round(state.video.duration, 4);
+    const others = state.clips.filter((c) => c.asset);
+    if (pendingMainClips) {
+      // a project being opened (or a video re-imported): its pieces of this video, checked against the real length
+      const restored = normalizeClips(pendingMainClips.filter((c) => !c.asset), D, null);
+      pendingMainClips = null;
+      state.clips = others.concat(restored.length ? restored : [{ id: newClipId(), asset: null, in: 0, out: D, start: 0 }]);
+    } else state.clips = others.concat([{ id: newClipId(), asset: null, in: 0, out: D, start: 0 }]);
+    packClips();
     state.selectedClipId = null;
     v.loop = false;
-    for (const l of state.layers) {
-      l.end = Math.min(l.end, state.video.duration);
-      l.start = Math.min(l.start, Math.max(0, l.end - 0.1));
-      l._layout = null;
-    }
-    clampCameraKeys(state.video.duration);
+    for (const l of state.layers) l._layout = null;
     $('#expAudioWrap').classList.remove('hidden');
-    $('#tlVideo').classList.remove('hidden');
-    $('#btnSplit').classList.remove('hidden');
     v.currentTime = 0;
     syncMediaControls();
     fitPreview();
@@ -3299,29 +3541,39 @@
     makeThumbnails();
   });
 
-  /* A strip of small frames for the clip bars. Seeks through the clip once, then puts the playhead back. */
-  async function makeThumbnails() {
-    if (!state.video.ready || state.tracking || state.exporting) return;
-    const v = els.video, D = state.video.duration;
+  /* A strip of small frames for the clip bars. Seeks through the source once, then puts the playhead
+   * back. `target` is state.video (the main footage) or another video on the footage track; jobs queue
+   * so two sources are never seeked at once. */
+  let thumbChain = Promise.resolve();
+  function makeThumbnails(target) {
+    thumbChain = thumbChain.then(() => makeThumbnailsNow(target || state.video)).catch(() => {});
+    return thumbChain;
+  }
+  async function makeThumbnailsNow(target) {
+    const isMain = target === state.video;
+    if (isMain ? !state.video.ready : !target.ready) return;
+    if (state.tracking || state.exporting) return;
+    const v = isMain ? els.video : target.el, D = target.duration;
     const n = Math.min(24, Math.max(6, Math.round(D / 1.5)));
     const c = document.createElement('canvas');
-    const h = 72, w = Math.max(16, Math.round((h * state.video.width) / Math.max(1, state.video.height)));
+    const h = 72, w = Math.max(16, Math.round((h * target.width) / Math.max(1, target.height)));
     c.width = w; c.height = h;
     const ctx = c.getContext('2d');
     const was = clock.time, wasPlaying = clock.playing;
     if (wasPlaying) clock.pause();
     state.thumbing = true;
     const thumbs = [];
-    const file = state.video.file;
+    const file = target.file;
+    const stillHere = () => (isMain ? state.video.file === file : assets.get(target.id) === target);
     for (let i = 0; i < n; i++) {
-      if (state.video.file !== file || state.tracking || state.exporting) { state.thumbing = false; return; }   // the video changed under us
+      if (!stillHere() || state.tracking || state.exporting) { state.thumbing = false; return; }   // the video changed under us
       const t = (D * (i + 0.5)) / n;
-      await seekVideo(t);
+      await seekEl(v, t);
       try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
     }
     state.thumbing = false;
-    if (state.video.file !== file) return;
-    state.video.thumbs = thumbs;
+    if (!stillHere()) return;
+    target.thumbs = thumbs;
     clock.time = was;
     renderVideoTrack();
     if (wasPlaying) clock.play();
@@ -3344,6 +3596,31 @@
   $('#btnReplace').addEventListener('click', pickVideo);
   $('#btnRemoveVideo').addEventListener('click', removeVideo);
   $('#fileInput').addEventListener('change', (e) => { loadVideoFile(e.target.files[0]); e.target.value = ''; });
+  /* Another video on the footage track, placed after the last piece. */
+  async function appendVideoFile(file) {
+    if (!file) return;
+    if (!hasFootage()) { loadVideoFile(file); return; }
+    const id = `A${Math.random().toString(36).slice(2, 7)}`;
+    toast(`Loading ${file.name}…`);
+    try {
+      const a = await loadAsset(id, file, 'video');
+      a.name = file.name.replace(/\.[^.]+$/, '');
+      a.thumbs = [];
+      const c = { id: newClipId(), asset: id, in: 0, out: round(a.duration, 4), start: round(mainLen(), 4) };
+      state.clips.push(c);
+      sortClips();
+      state.selectedClipId = c.id;
+      select(null);
+      commit();
+      refreshAll();
+      syncMedia(clock.time, clock.playing, true);
+      toast(`${file.name} added after the footage — drag it along the track to move it`);
+      makeThumbnails(a);
+    } catch (e) { toast(e.message, true); }
+  }
+  $('#btnAppendVideo').addEventListener('click', () => $('#appendVideoInput').click());
+  $('#btnAppendVideo2').addEventListener('click', () => $('#appendVideoInput').click());
+  $('#appendVideoInput').addEventListener('change', (e) => { appendVideoFile(e.target.files[0]); e.target.value = ''; });
   $('#btnAddVideoLayer').addEventListener('click', () => $('#videoLayerInput').click());
   $('#btnAddImageLayer').addEventListener('click', () => $('#imageLayerInput').click());
   $('#btnAddAudioLayer').addEventListener('click', () => $('#audioLayerInput').click());
@@ -3362,10 +3639,19 @@
     else loadVideoFile(file);
   });
 
-  /* ------------------------------------------------------------------ project save / load */
-  function saveProject() {
-    const data = {
-      app: 'perspective-editor', version: 3,
+  /* ------------------------------------------------------------------ projects
+   * Work lives in projects kept in this browser (IndexedDB) together with their media files. A project
+   * exists from the moment you start one and is saved by itself a moment after every change, so
+   * closing the tab, reloading, or an update of Perspective never loses anything. The home screen
+   * lists them; a project can also be saved to / opened from a .json file. */
+  const APP_BUILD = '2026-09-11.1';
+  const project = { id: null, name: '', created: 0, loading: false, dirty: false, timer: 0, saving: null, savedFiles: new Set(), lastSaved: 0 };
+  let pendingMainClips = null;   // pieces of the main video waiting for it to load (a project being opened)
+
+  function projectData() {
+    return {
+      app: 'perspective-editor', version: 4,
+      name: project.name,
       aspect: state.aspect, duration: state.duration, fov: state.fov,
       videoName: state.video.file ? state.video.file.name : null,
       camera: state.camera,
@@ -3374,62 +3660,363 @@
       tracks: state.tracks,
       clips: state.clips,
       layers: state.layers,
+      assets: assetManifest(),
     };
-    const blob = new Blob([JSON.stringify(data, stripper, 2)], { type: 'application/json' });
-    saveFile(blob, 'perspective-project.json');
-    if (!downloadsCap) toast('Project saved (video is not embedded — re-import it when opening)');
   }
-  async function loadProjectFile(file) {
-    try {
-      const data = JSON.parse(await file.text());
-      if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
-      state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
-      state.camera = Object.assign(defaultCamera(), data.camera || {});
-      if (data.camera && data.camera.sharpNear == null) { state.camera.sharpNear = 0.9; state.camera.sharpFar = 3.6; }
-      if (state.camera.farFade >= 8 && state.camera.farFade < FADE_OFF) state.camera.farFade = FADE_OFF; // 8 used to mean "off"
-      state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
-      state.media = Object.assign(defaultMedia(), data.media || {});
-      state.mask = Object.assign(defaultMask(), data.mask || {});
-      state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
-      state.tracks = (data.tracks || []).map((tr, i) => Object.assign(
-        { name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], mode: 'box', closed: true, lost: null, placed: true, smooth: 0.3 },
-        tr,
-        { ref: Object.assign({ t: 0, x: 0, y: 0, w: 0.14, h: 0.12, points: [] }, tr.ref), keys: (tr.keys || []).map((k) => Camera.defaultKey(k.t || 0, k)) },
-      ));
-      state.selectedTrackId = null; state.selectedTrackKeyId = null; state.trackEdit = false;
-      if (state.video.ready && Array.isArray(data.clips) && data.clips.length) {
-        const D = state.video.duration;
-        state.clips = data.clips.map((c) => ({ id: c.id || `C${Math.random().toString(36).slice(2, 7)}`, in: clamp(c.in || 0, 0, D), out: clamp(c.out || D, 0, D) })).filter((c) => c.out - c.in >= 0.05);
-        if (!state.clips.length) state.clips = [{ id: `C${Math.random().toString(36).slice(2, 7)}`, in: 0, out: D }];
-        afterClipsChanged(0);
-      }
-      if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
-      if (data.aspect) state.aspect = data.aspect;
-      if (data.duration) state.duration = data.duration;
-      if (data.fov) state.fov = data.fov;
-      state.selectedIds = []; state.selectedKeyId = null; state.selectedMaskKeyId = null;
-      state.undo = []; state.redo = []; state.lastCommitted = null;
-      commit();
-      syncCameraControls();
-      syncMediaControls();
-      syncMaskControls();
-      syncTrackControls();
-      fitPreview();
-      refreshAll();
-      toast(`Opened project${data.videoName ? ` — re-import "${data.videoName}" to see the video` : ''}`);
-    } catch (e) {
-      toast(`Could not open project: ${e.message}`, true);
+  /* Media files the project uses: the main video, media layers, and other videos on the footage track. */
+  function assetManifest() {
+    const list = [];
+    if (state.video.file) list.push({ id: 'main', kind: 'video', name: state.video.file.name, type: state.video.file.type || '' });
+    for (const l of state.layers) {
+      const a = isMedia(l) ? assets.get(l.id) : null;
+      if (a && a.file) list.push({ id: l.id, kind: a.kind, name: a.file.name, type: a.file.type || '' });
     }
+    const seen = new Set();
+    for (const c of state.clips) {
+      if (!c.asset || seen.has(c.asset)) continue;
+      seen.add(c.asset);
+      const a = assets.get(c.asset);
+      if (a && a.file) list.push({ id: c.asset, kind: 'video', name: a.file.name, type: a.file.type || '', clip: true });
+    }
+    return list;
   }
+  function fileForAsset(id) {
+    if (id === 'main') return state.video.file;
+    const a = assets.get(id);
+    return a ? a.file : null;
+  }
+  function captureThumb() {
+    try {
+      const src = els.canvas;
+      if (!src.width || !src.height) return null;
+      const w = 320, h = Math.max(1, Math.round((w * src.height) / src.width));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(src, 0, 0, w, h);
+      return c.toDataURL('image/jpeg', 0.7);
+    } catch (e) { return null; }
+  }
+  function setSaveStatus(text, cls) {
+    const el = $('#saveStatus');
+    el.textContent = text;
+    el.className = `save-status ${cls || ''}`;
+  }
+  const timeAgo = (ms) => {
+    const s = Math.max(0, (Date.now() - ms) / 1000);
+    if (s < 45) return 'just now';
+    if (s < 3600) return `${Math.max(1, Math.round(s / 60))} min ago`;
+    if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+    if (s < 86400 * 7) return `${Math.round(s / 86400)} d ago`;
+    return new Date(ms).toLocaleDateString();
+  };
+  const safeName = (s) => (s || '').replace(/[^\w\- ]+/g, '').trim() || 'perspective-project';
+
+  /* Save the open project now: its state, a thumbnail, and any media file not stored yet. */
+  function saveNow(reason) {
+    if (!project.id || project.loading) return Promise.resolve();
+    if (project.saving) { project.dirty = true; return project.saving; }
+    project.dirty = false;
+    clearTimeout(project.timer);
+    setSaveStatus('Saving…', 'saving');
+    const id = project.id;
+    project.saving = (async () => {
+      try {
+        const data = JSON.stringify(projectData(), stripper);
+        const manifest = assetManifest();
+        const rec = {
+          id, name: project.name || 'Untitled project', created: project.created || Date.now(), updated: Date.now(), build: APP_BUILD,
+          data, thumb: captureThumb(),
+          summary: { length: playEnd(), layers: state.layers.filter((l) => !isMedia(l)).length, media: manifest.length, hasVideo: !!state.video.file, aspect: frameAspect() },
+        };
+        await Projects.put(rec);
+        // media files: store the ones not stored yet, drop the ones no longer used
+        const inUse = new Set();
+        for (const m of manifest) {
+          const key = `${id}/${m.id}`;
+          inUse.add(key);
+          if (project.savedFiles.has(key)) continue;
+          const file = fileForAsset(m.id);
+          if (!file) continue;
+          await Projects.putFile({ key, project: id, asset: m.id, name: file.name, type: file.type || '', kind: m.kind, blob: file });
+          project.savedFiles.add(key);
+        }
+        for (const key of Array.from(project.savedFiles)) if (!inUse.has(key)) { await Projects.deleteFile(key); project.savedFiles.delete(key); }
+        project.lastSaved = Date.now();
+        if (project.id === id) setSaveStatus(`Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 'saved');
+      } catch (e) {
+        console.error(e);
+        setSaveStatus('Could not save', 'error');
+        toast(`Could not save the project: ${e.message}`, true);
+      } finally {
+        project.saving = null;
+        if (project.dirty) scheduleAutosave();
+      }
+    })();
+    return project.saving;
+  }
+  function scheduleAutosave() {
+    if (!project.id || project.loading) return;
+    project.dirty = true;
+    setSaveStatus('Unsaved changes', 'dirty');
+    clearTimeout(project.timer);
+    project.timer = setTimeout(() => saveNow('auto'), 1200);
+  }
+
+  /* Empty the editor: no footage, layers, tracks or keys; the default camera; the open two-minute timeline. */
+  function resetState() {
+    clock.pause();
+    if (state.video.url) URL.revokeObjectURL(state.video.url);
+    els.video.removeAttribute('src'); els.video.load();
+    for (const a of assets.values()) { if (a.el && a.el.pause) a.el.pause(); renderer.dropMediaTexture(a.id); if (a.url) URL.revokeObjectURL(a.url); }
+    assets.clear();
+    state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] };
+    state.layers = []; state.clips = []; state.tracks = []; state.suggestions = [];
+    state.camera = defaultCamera(); state.media = defaultMedia(); state.mask = defaultMask();
+    state.selectedIds = []; state.selectedKeyId = null; state.selectedMaskKeyId = null; state.selectedTrackId = null; state.selectedTrackKeyId = null; state.selectedClipId = null;
+    state.maskEdit = false; state.trackEdit = false;
+    state.aspect = 9 / 16; state.duration = 120; state.fov = 45;
+    state.undo = []; state.redo = []; state.lastCommitted = snapshot();
+    pendingMainClips = null;
+    clock._t = 0;
+    tl.zoom = null; tl.scroll = 0;
+    updateUndoButtons();
+    syncCameraControls(); syncMediaControls(); syncMaskControls(); syncTrackControls();
+    $('#expAudioWrap').classList.add('hidden');
+    fitPreview();
+    refreshAll();
+  }
+
+  /* Put a saved project's data into the editor. The main video's pieces wait for it to load. */
+  function applyProjectData(data) {
+    if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
+    state.layers = data.layers.map((l) => { const m = Presets.deepMerge(Presets.defaultLayer(), l); m.id = m.id || uid(); return m; });
+    state.camera = Object.assign(defaultCamera(), data.camera || {});
+    if (data.camera && data.camera.sharpNear == null) { state.camera.sharpNear = 0.9; state.camera.sharpFar = 3.6; }
+    if (state.camera.farFade >= 8 && state.camera.farFade < FADE_OFF) state.camera.farFade = FADE_OFF; // 8 used to mean "off"
+    state.camera.keys = (state.camera.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
+    state.media = Object.assign(defaultMedia(), data.media || {});
+    state.mask = Object.assign(defaultMask(), data.mask || {});
+    state.mask.keys = (state.mask.keys || []).map((k) => Camera.defaultKey(k.t || 0, k));
+    state.tracks = (data.tracks || []).map((tr, i) => Object.assign(
+      { name: `Tracker ${i + 1}`, color: TRACK_COLORS[i % TRACK_COLORS.length], mode: 'box', closed: true, lost: null, placed: true, smooth: 0.3 },
+      tr,
+      { ref: Object.assign({ t: 0, x: 0, y: 0, w: 0.14, h: 0.12, points: [] }, tr.ref), keys: (tr.keys || []).map((k) => Camera.defaultKey(k.t || 0, k)) },
+    ));
+    state.selectedTrackId = null; state.selectedTrackKeyId = null; state.trackEdit = false;
+    const clips = Array.isArray(data.clips) ? data.clips : [];
+    pendingMainClips = clips.some((c) => !c.asset) ? clips : null;
+    // pieces of other videos whose files are already loaded stay; the main video's pieces return with it
+    state.clips = normalizeClips(clips.filter((c) => c.asset && assets.has(c.asset)), null).map((c) => { const a = assets.get(c.asset); c.out = Math.min(c.out, a.duration || c.out); return c; });
+    if (state.video.ready && pendingMainClips) {
+      state.clips = state.clips.concat(normalizeClips(pendingMainClips.filter((c) => !c.asset), round(state.video.duration, 4), null));
+      pendingMainClips = null;
+      packClips();
+    }
+    if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
+    if (data.aspect) state.aspect = data.aspect;
+    state.duration = Math.max(120, Number(data.duration) || 0);   // older projects were exactly as long as their content
+    if (data.fov) state.fov = data.fov;
+    state.selectedIds = []; state.selectedKeyId = null; state.selectedMaskKeyId = null; state.selectedClipId = null;
+    state.undo = []; state.redo = []; state.lastCommitted = null;
+    commit();
+    syncCameraControls();
+    syncMediaControls();
+    syncMaskControls();
+    syncTrackControls();
+    fitPreview();
+    refreshAll();
+  }
+
   function aspectToLabel(a) {
     const map = { '16:9': 16 / 9, '9:16': 9 / 16, '1:1': 1, '4:5': 0.8 };
     let best = '16:9', bd = Infinity;
     for (const [k, v] of Object.entries(map)) { const d = Math.abs(v - a); if (d < bd) { bd = d; best = k; } }
     return best;
   }
-  $('#btnSave').addEventListener('click', saveProject);
+  function exportProjectFile() {
+    const blob = new Blob([JSON.stringify(projectData(), stripper, 2)], { type: 'application/json' });
+    saveFile(blob, `${safeName(project.name)}.json`);
+    if (!downloadsCap) toast('Project file saved — media is not embedded; it stays in this browser\'s project store');
+  }
+  function untitledName(list) {
+    const used = new Set(list.map((p) => p.name));
+    for (let n = 1; ; n++) { const nm = n === 1 ? 'Untitled project' : `Untitled project ${n}`; if (!used.has(nm)) return nm; }
+  }
+  function beginProject(id, name, created) {
+    project.loading = true;
+    resetState();
+    project.id = id; project.name = name; project.created = created || Date.now();
+    project.savedFiles = new Set();
+    $('#projectName').value = project.name;
+  }
+  async function newProject(opts = {}) {
+    const list = await Projects.list();
+    beginProject(Projects.newId(), opts.name || untitledName(list));
+    if (opts.demo) {
+      const demo = Presets.TEMPLATES.find((t) => t.id === 'reveal');
+      const built = demo.build(demo.sample, 0.2, 6, frameAspect(), { camDist: renderer.camDist, hasVideo: false });
+      for (const l of built.layers) addLayer(l, { select: false });
+      state.camera.keys = built.cameraKeys || [];
+      if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
+      if (built.mediaSettings) Object.assign(state.media, built.mediaSettings);
+      state.media.bg = '#141419';
+      state.selectedIds = [];
+      state.lastCommitted = snapshot();
+      syncCameraControls(); syncMediaControls();
+    }
+    project.loading = false;
+    hideHome();
+    showTab('media');
+    refreshAll();
+    clock.time = 0;
+    if (opts.demo) clock.play();
+    await saveNow('new');
+    toast(opts.demo ? 'New project from the demo — it saves itself as you work' : 'New project — import a video or add text; it saves itself as you work');
+  }
+  async function openProject(id) {
+    const rec = await Projects.get(id);
+    if (!rec) { toast('That project is no longer here', true); renderHome(); return; }
+    let data;
+    try { data = JSON.parse(rec.data); } catch (e) { toast('This project cannot be read', true); return; }
+    beginProject(rec.id, rec.name || 'Untitled project', rec.created);
+    hideHome();
+    try {
+      const files = await Projects.filesOf(id);
+      for (const f of files) project.savedFiles.add(f.key);
+      const byAsset = new Map(files.map((f) => [f.asset || f.key.slice(id.length + 1), f]));
+      const asFile = (f, fallback) => (f.blob instanceof File ? f.blob : new File([f.blob], f.name || fallback || 'media', { type: f.type || '' }));
+      // media layers and other videos on the footage track load first, so their pieces are kept
+      for (const m of data.assets || []) {
+        if (m.id === 'main') continue;
+        const f = byAsset.get(m.id);
+        if (!f || !f.blob) continue;
+        try {
+          const a = await loadAsset(m.id, asFile(f, m.name), m.kind || 'video');
+          a.name = (f.name || m.name || 'Video').replace(/\.[^.]+$/, '');
+          a.thumbs = [];
+        } catch (e) { /* the layer shows "file not loaded" and can be relinked */ }
+      }
+      applyProjectData(data);
+      for (const l of state.layers) { const a = isMedia(l) ? assets.get(l.id) : null; if (a) l.media = Object.assign({}, l.media, { width: a.width, height: a.height, duration: a.duration }); }
+      const main = byAsset.get('main');
+      if (main && main.blob) loadVideoFile(asFile(main, data.videoName));
+      else if (data.videoName) toast(`Re-import "${data.videoName}" to see the video — its pieces are kept`);
+      for (const c of state.clips) { const a = clipSource(c); if (a && a.ready && !(a.thumbs && a.thumbs.length)) makeThumbnails(a); }
+    } catch (e) {
+      console.error(e);
+      toast(`Could not open the project completely: ${e.message}`, true);
+    } finally {
+      project.loading = false;
+    }
+    setSaveStatus(`Saved ${timeAgo(rec.updated || Date.now())}`, 'saved');
+    refreshAll();
+  }
+  /* A .json project file becomes a new project (its media is re-imported by hand). */
+  async function loadProjectFile(file) {
+    try {
+      const data = JSON.parse(await file.text());
+      if (!Array.isArray(data.layers)) throw new Error('Not a Perspective project');
+      const list = await Projects.list();
+      beginProject(Projects.newId(), data.name || file.name.replace(/\.json$/i, '') || untitledName(list));
+      try { applyProjectData(data); } finally { project.loading = false; }
+      hideHome();
+      refreshAll();
+      await saveNow('import');
+      toast(`Opened ${project.name}${data.videoName ? ' — re-import the video; its pieces are kept' : ''}`);
+    } catch (e) {
+      project.loading = false;
+      toast(`Could not open project: ${e.message}`, true);
+    }
+  }
+  async function renameProject(id, name) {
+    name = (name || '').trim();
+    if (!name) return;
+    if (id === project.id) { project.name = name; $('#projectName').value = name; await saveNow('rename'); return; }
+    const rec = await Projects.get(id);
+    if (rec) { rec.name = name; await Projects.put(rec); }
+  }
+  async function deleteProject(id) {
+    await Projects.remove(id);
+    if (id === project.id) { project.id = null; project.name = ''; project.dirty = false; clearTimeout(project.timer); }
+    renderHome();
+  }
+  async function duplicateProject(id) {
+    if (id === project.id) await saveNow('dup');
+    const rec = await Projects.get(id);
+    if (!rec) return;
+    const copy = Object.assign({}, rec, { id: Projects.newId(), name: `${rec.name} copy`, created: Date.now(), updated: Date.now() });
+    await Projects.put(copy);
+    await Projects.copyFiles(id, copy.id);
+    renderHome();
+  }
+  async function exportStoredProject(id) {
+    if (id === project.id) { exportProjectFile(); return; }
+    const rec = await Projects.get(id);
+    if (rec) saveFile(new Blob([rec.data], { type: 'application/json' }), `${safeName(rec.name)}.json`);
+  }
+
+  /* ---- home screen ---- */
+  const home = $('#home');
+  function hideHome() {
+    home.classList.add('hidden');
+    document.body.classList.remove('at-home');
+    requestAnimationFrame(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } });
+  }
+  async function goHome() {
+    clock.pause();
+    if (project.id) await saveNow('home');
+    await renderHome();
+    home.classList.remove('hidden');
+    document.body.classList.add('at-home');
+  }
+  async function renderHome() {
+    const list = await Projects.list();
+    const host = $('#homeList');
+    $('#homeEmpty').classList.toggle('hidden', list.length > 0);
+    $('#homeStore').textContent = Projects.usingMemory() ? 'This browser window cannot keep projects between visits (storage is unavailable) — save a project file to keep one.' : '';
+    $('#btnHomeBack').classList.toggle('hidden', !project.id);
+    host.innerHTML = list.map((p) => {
+      const s = p.summary || {};
+      const meta = [s.length ? fmtTime(s.length).slice(0, 5) : null, s.layers ? `${s.layers} word${s.layers > 1 ? 's' : ''}` : null, s.hasVideo ? 'video' : null].filter(Boolean).join(' · ');
+      const cur = p.id === project.id;
+      return `<div class="proj${cur ? ' current' : ''}" data-id="${p.id}">
+        <button class="proj-thumb${s.aspect > 1 ? ' wide' : ''}" data-open="${p.id}" title="Open">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<span class="proj-blank">P</span>'}</button>
+        <div class="proj-body">
+          <div class="proj-name" title="${escapeHtml(p.name || '')}">${escapeHtml(p.name || 'Untitled project')}${cur ? ' <em>· open</em>' : ''}</div>
+          <div class="proj-meta muted">${escapeHtml(meta || 'empty')} · ${timeAgo(p.updated || p.created || Date.now())}</div>
+        </div>
+        <div class="proj-actions">
+          <button class="btn small primary" data-open="${p.id}">Open</button>
+          <button class="btn small ghost" data-rename="${p.id}" title="Rename">Rename</button>
+          <button class="btn small ghost" data-dup="${p.id}" title="Make a copy">Duplicate</button>
+          <button class="btn small ghost" data-export="${p.id}" title="Save a copy as a .json file">File</button>
+          <button class="btn small ghost danger" data-del="${p.id}" title="Delete">Delete</button>
+        </div></div>`;
+    }).join('');
+  }
+  $('#homeList').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.open) openProject(b.dataset.open);
+    else if (b.dataset.rename) { const rec = await Projects.get(b.dataset.rename); const nm = prompt('Project name', rec ? rec.name : ''); if (nm != null) { await renameProject(b.dataset.rename, nm); renderHome(); } }
+    else if (b.dataset.dup) duplicateProject(b.dataset.dup);
+    else if (b.dataset.export) exportStoredProject(b.dataset.export);
+    else if (b.dataset.del) { const rec = await Projects.get(b.dataset.del); if (rec && confirm(`Delete "${rec.name}"? This cannot be undone.`)) deleteProject(b.dataset.del); }
+  });
+  $('#btnNewProject').addEventListener('click', () => newProject());
+  $('#btnNewDemo').addEventListener('click', () => newProject({ demo: true }));
+  $('#btnHomeOpenFile').addEventListener('click', () => $('#projectInput').click());
+  $('#btnHomeBack').addEventListener('click', () => { if (project.id) hideHome(); });
+  $('#btnHome').addEventListener('click', goHome);
+  $('#btnSave').addEventListener('click', async () => { await saveNow('manual'); toast('Project saved'); });
+  $('#btnSaveFile').addEventListener('click', exportProjectFile);
   $('#btnLoad').addEventListener('click', () => $('#projectInput').click());
   $('#projectInput').addEventListener('change', (e) => { if (e.target.files[0]) loadProjectFile(e.target.files[0]); e.target.value = ''; });
+  $('#projectName').addEventListener('change', (e) => renameProject(project.id, e.target.value || project.name));
+  $('#projectName').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
+  // whatever happens to the tab, the last change is written out
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && project.dirty) saveNow('hidden'); });
+  window.addEventListener('pagehide', () => { if (project.dirty) saveNow('pagehide'); });
 
   /* ------------------------------------------------------------------ transport & tabs */
   $('#btnAddText').addEventListener('click', addBlankText);
@@ -3458,7 +4045,7 @@
       toast(`Split ${made.length} layer${made.length > 1 ? 's' : ''} at ${fmtTime(t)}`);
       return;
     }
-    if (!state.video.ready) { toast('Select a layer, or load a video, to split at the playhead', true); return; }
+    if (!hasFootage()) { toast('Select a layer, or load a video, to split at the playhead', true); return; }
     if (splitClipAt(t)) { commit(); renderTimeline(); toast(`Split at ${fmtTime(t)} — drag the ends of a piece to trim it, Delete removes it`); }
   };
   $('#btnSplit').addEventListener('click', splitHere);
@@ -3472,14 +4059,14 @@
     state.aspect = w / h;
     fitPreview();
     if (layoutVisible()) layoutView.draw();
+    scheduleAutosave();
   });
   $('#durationInput').addEventListener('change', (e) => {
-    state.duration = clamp(Number(e.target.value) || 10, 1, 600);
+    state.duration = clamp(Number(e.target.value) || 120, 10, 3600);
     e.target.value = state.duration;
-    for (const l of state.layers) { l.end = Math.min(l.end, state.duration); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
-    clampCameraKeys(state.duration);
-    if (clock.time > state.duration) clock.time = 0;
-    commit();
+    if (clock.time > duration()) clock.time = 0;
+    tl.zoom = null;
+    scheduleAutosave();
     refreshAll();
   });
   $('#btnUndo').addEventListener('click', undo);
@@ -3525,7 +4112,7 @@
     }
     sel.value = '1080';
     $('#expStart').value = 0;
-    $('#expEnd').value = round(duration(), 2);
+    $('#expEnd').value = round(playEnd(), 2);
     $('#expEnd').max = round(duration(), 2);
     $('#expAudioWrap').classList.toggle('hidden', !state.video.ready);
     const canStream = typeof window.showSaveFilePicker === 'function' && Exporter.hasWebCodecs();
@@ -3565,7 +4152,7 @@
       quality: $('#expQuality').value,
       start: clamp(Number($('#expStart').value) || 0, 0, duration()),
       end: clamp(Number($('#expEnd').value) || duration(), 0, duration()),
-      audio: state.video.ready && $('#expAudio').checked,
+      audio: hasFootage() && $('#expAudio').checked,
       stream: $('#expStream').checked && !$('#expStreamWrap').classList.contains('hidden'),
     };
     if (cfg.end - cfg.start < 0.1) { toast('Export range is too short', true); return; }
@@ -3627,7 +4214,8 @@
     const renderFrame = async (t, realtime) => {
       if (!realtime) {
         const seeks = [];
-        if (state.video.ready && t < mainLen()) seeks.push(seekVideo(srcTime(t)));
+        const loc = locate(t);
+        if (loc.clip && clipReady(loc.clip)) seeks.push(seekEl(clipEl(loc.clip), loc.src));
         for (const l of state.layers) {
           if (!isMedia(l) || l.kind !== 'video' || l.hidden) continue;
           const a = assets.get(l.id), st = mediaSrcTime(l, t);
@@ -3635,15 +4223,12 @@
         }
         await Promise.all(seeks);
       }
-      renderer.render({
-        video: state.video.ready ? els.video : null,
-        videoReady: state.video.ready && els.video.readyState >= 2,
-        videoVisible: t < mainLen() - 1e-4,
+      renderer.render(Object.assign(videoForRender(t), {
         layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
         mask: maskForRender(t), showMask: false,
         trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, t) : null),
         mediaFor: (l) => assets.get(l.id) || null,
-      });
+      }));
     };
 
     const t0 = performance.now();
@@ -3653,17 +4238,20 @@
       if (Exporter.hasWebCodecs()) {
         // the audio for a clip-edited timeline is the pieces of source audio the range covers, joined
         const segs = [];
-        if (state.clips.length) {
-          let acc = 0;
-          for (const c of state.clips) {
-            const lo = Math.max(cfg.start, acc), hi = Math.min(cfg.end, acc + clipLen(c));
-            if (hi > lo) segs.push({ in: c.in + (lo - acc), out: c.in + (hi - acc), at: lo - cfg.start });
-            acc += clipLen(c);
-          }
+        const byFile = new Map();
+        for (const c of state.clips) {
+          const file = c.asset ? (clipSource(c) && clipSource(c).file) : state.video.file;
+          if (!file) continue;
+          const lo = Math.max(cfg.start, c.start), hi = Math.min(cfg.end, clipEnd(c));
+          if (hi <= lo) continue;
+          const piece = { in: c.in + (lo - c.start), out: c.in + (hi - c.start), at: lo - cfg.start };
+          if (!c.asset) segs.push(piece);
+          if (!byFile.has(file)) byFile.set(file, []);
+          byFile.get(file).push(piece);
         }
         // ...and every media layer with sound, placed where it sits on the timeline
         const sources = [];
-        if (state.video.file && segs.length) sources.push({ file: state.video.file, gain: 1, pieces: segs.map((sg, i) => ({ in: sg.in, out: sg.out, at: sg.at })) });
+        for (const [file, pieces] of byFile) sources.push({ file, gain: 1, pieces });
         for (const l of state.layers) {
           if (!isMedia(l) || l.kind === 'image' || l.hidden || l.muted) continue;
           const a = assets.get(l.id);
@@ -3733,10 +4321,11 @@
   }
   let nudgeTimer = 0;
   window.addEventListener('keydown', (e) => {
+    if (!home.classList.contains('hidden')) return;   // the home screen has no editor shortcuts
     const mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveProject(); return; }
+    if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow('manual').then(() => toast('Project saved')); return; }
     if (mod && e.key.toLowerCase() === 'e') { e.preventDefault(); openExportDialog(); return; }
     if (isTyping()) {
       if (e.key === 'Escape') document.activeElement.blur();
@@ -3772,7 +4361,7 @@
         break;
       }
       case 'Home': clock.pause(); clock.time = 0; break;
-      case 'End': clock.pause(); clock.time = duration(); break;
+      case 'End': clock.pause(); clock.time = playEnd(); break;
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
@@ -3829,14 +4418,6 @@
     new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
-    // Demo content so the first impression shows the camera-reveal effect on the plain background.
-    const demo = Presets.TEMPLATES.find((t) => t.id === 'reveal');
-    const built = demo.build(demo.sample, 0.2, 6, frameAspect(), { camDist: renderer.camDist, hasVideo: false });
-    for (const l of built.layers) addLayer(l, { select: false });
-    state.camera.keys = built.cameraKeys || [];
-    if (built.cameraSettings) Object.assign(state.camera, built.cameraSettings);
-    if (built.mediaSettings) Object.assign(state.media, built.mediaSettings);
-    state.media.bg = '#141419';
     state.selectedIds = [];
     state.lastCommitted = snapshot();
     updateUndoButtons();
@@ -3848,9 +4429,18 @@
     updatePlayButton();
     setView('split');
     requestAnimationFrame(frame);
-    clock.play();
+    startAtHome();
+  }
+  /* Launch on the home screen with every project. After an update of Perspective, say so — everything
+   * was saved as it was worked on, and the projects are all there. */
+  async function startAtHome() {
+    let lastBuild = null;
+    try { lastBuild = localStorage.getItem('perspective.build'); localStorage.setItem('perspective.build', APP_BUILD); } catch (e) { /* storage may be blocked */ }
+    const list = await Projects.list();
+    $('#homeBanner').classList.toggle('hidden', !(lastBuild && lastBuild !== APP_BUILD && list.length));
+    await goHome();
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll, assets, addMediaFile, mainLen, duration, syncMedia, splitLayerAt };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll, assets, addMediaFile, mainLen, duration, playEnd, contentEnd, locate, syncMedia, splitLayerAt, appendVideoFile, settleClip, project, saveNow, newProject, openProject, goHome, renderHome, resetState, tl, setTimelineZoom, loadVideoFile, commit };
 })();

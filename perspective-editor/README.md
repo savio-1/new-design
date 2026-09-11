@@ -31,6 +31,21 @@ Opening `index.html` directly from disk also works in Chrome.
 Video decoding depends on the browser: MP4/H.264, WebM/VP9, and MOV/H.264 play in Chrome.
 HEVC MOV files from iPhones need to be transcoded to H.264 first.
 
+## Projects
+
+Perspective opens on a **home screen** that lists every project kept in this browser. A project
+exists from the moment you press **New project** (or *New from demo*, or open a `.json` file) and
+**saves itself** about a second after every change — words, camera, tracks, masks, the footage edit,
+and the media files themselves (video, extra videos, images, sound) go into the browser's own storage
+(IndexedDB), so a project reopens complete, with its video, without relinking. The top bar shows the
+project's name (click to rename) and when it was last saved; **Save** writes it out at once
+(`Ctrl+S`), **Projects** saves and returns to the home screen, where each card can be opened,
+renamed, duplicated, deleted or saved as a `.json` file. The tab being closed or hidden also flushes
+the last change. When a new version of Perspective arrives, the home screen says so — everything was
+saved as it was worked on. **Open file** / **Save as file** exchange a project as `.json` (media is
+not embedded in the file; re-import the video and its pieces fall back into place; media layers
+offer **Relink file…**).
+
 ## Using the editor
 
 The left rail has five tools; each opens its own page, and the inspector on the right edits whatever is
@@ -38,14 +53,15 @@ selected (a word, a camera keyframe, a mask or tracker keyframe).
 
 | Tool | What lives there |
 | --- | --- |
-| **Media** | Import a video or work on a plain colour; canvas shape and length; how the footage sits in the 3D scene (scale, position, **depth**, opacity, whether it zooms with the camera); **more layers** — extra videos, images and sound. |
+| **Media** | Import a video or work on a plain colour; add more videos to the footage track; canvas shape and the open timeline's length; how the footage sits in the 3D scene (scale, position, **depth**, opacity, whether it zooms with the camera); **more layers** — extra videos, images and sound. |
 | **Text** | Add words, templates (which build a whole sequence with its camera move), text styles. |
 | **Camera** | Camera moves, depth of field, far fade, lens. |
 | **Track** | Motion tracking: mark an object (or let the editor find objects), track it, pin words to it. |
 | **Mask** | The subject mask that lets words pass behind the person in the shot. |
 
 **Media.** Import a video (or drop one on the preview), or skip it and work on a plain
-background colour. The video is a layer inside the 3D scene: *Video scale* zooms the footage up
+background colour. **+ Add a video after this one** puts a second (third…) video on the same footage
+track, after the last piece; a video with a different shape is fitted inside the frame. The video is a layer inside the 3D scene: *Video scale* zooms the footage up
 (150–200 % is typical) so it still fills the frame when the camera pulls back, *Video X / Y*
 reframe it, and **Video depth** moves the footage itself back or forward. Pushed behind the sharp
 band it goes soft like anything else out of focus; brought forward it grows and can sit in front of
@@ -63,7 +79,8 @@ mixes every audible layer together, placed where it sits on the timeline. Files 
 a saved project: a reopened project lists each media layer with **Relink file…** in the inspector. Untick *Video zooms with the camera* to pin the footage as a fixed backdrop and move
 only the words. *Subject mask* lets words pass behind the person in the shot, and *Motion tracking*
 pins words to something in the footage so they stay put while the real camera moves (both below).
-Without a video, choose the canvas shape and length here.
+Without a video, choose the canvas shape here. **Timeline (s)** is how much of the timeline is open —
+two minutes to begin with; it grows by itself if the content runs past it.
 
 **Text.** *Add text* drops a word just in front of the camera. Templates build a whole
 sequence, including the camera move — *Camera Reveal* is the After-Effects-style pull-back. Text
@@ -86,31 +103,50 @@ works in the preview too. The inspector's number fields take exact values, and t
 selection by 0.01 (0.1 with Shift). In the 3D layout the red line is the video, the blue dot is the
 camera with its field of view and focus line, the dashed line is the camera path with its keyframes
 as diamonds, and every word is a pill you can drag left/right and nearer/further (top view) or
-up/down (side view). Dragging the camera writes a keyframe at the playhead; dragging a diamond edits
-that keyframe. Scroll to zoom, drag empty space to pan, double-click empty space to fit everything.
+up/down (side view). The **Iso** view shows all three axes at once on an isometric floor grid, with
+the video plane as a rectangle, the camera's frustum as a pyramid and a drop line under every word so
+its height reads clearly; a plain drag there moves across the floor (left/right and nearer/further),
+**Height** mode (or holding Ctrl) moves up/down, and Shift locks to whichever axis you set off along.
+Dragging the camera writes a keyframe at the playhead; dragging a diamond edits that keyframe. Scroll
+to zoom, drag empty space to pan, double-click empty space to fit everything.
+
+**Guide lines.** While anything is dragged — in any layout view or on the preview — the scene's centre
+lines appear (x = 0, the video plane's depth, y = 0), straight lines run through the moving thing
+along each axis with a readout of its position, and a green line lights up the moment it lines up
+with another word, the camera or a keyframe (centres and edges on the preview). With Shift held only
+the locked axis is drawn. Together with **Snap** and the grid this makes exact placement quick.
 
 **The inspector** (right) edits the selected word or camera keyframe. Shift-click words in the
 preview, layout, or timeline to select several and change them together.
 
-**Timeline**: the **Video** row shows the footage as a filmstrip; media layers sit below it with a
-poster frame, and `S` splits whichever layer is selected (or the footage when nothing is). Press **Split** (the scissors, or
-`S`) to cut it at the playhead, drag the ends of a piece to trim it, click a piece and press `Delete`
-to remove it — the remaining pieces close up, and the timeline shortens to match. Words and camera
-keys keep their timeline positions; anything bound to the footage (tracks, the subject mask) stays
-with its frames, so a tracked caption still sits on its object after a cut. Export follows the edit,
-audio included. Below that, drag word bars to move them in time, drag their edges to trim, click the
-eye to hide. The Camera row shows keyframes as diamonds — drag to retime, double-click to add.
+**Timeline**: the timeline is **open** — two minutes long to begin with (set it in Media → *Timeline*),
+so there is room to move things around; playback and export run to the end of the content, marked
+*end* on the ruler, and the rest is free space. Zoom it with the `−` `+` `⤢` buttons in the Layers
+header or Ctrl + wheel over it; when zoomed, a scrollbar appears below and the view follows the
+playhead. The **Video** row shows the footage as pieces you can **drag along the track** (they snap
+to each other, the playhead and word edges, and never overlap — a dropped piece settles into the
+nearest free spot), trim by their ends (trimming the head keeps the tail where it is) and **split**
+at the playhead (the scissors, or `S`); click a piece and press `Delete` to remove it, leaving a gap
+you can close by dragging. The **+** on the row (or *Add a video after this one* in Media) puts
+another video on the same track. Where there is no piece the footage is simply not drawn — words and
+camera keys keep their timeline positions, anything bound to the footage (tracks, the subject mask)
+stays with its frames, so a tracked caption still sits on its object after a cut or a move. Export
+follows the edit, audio from every piece included. Media layers sit below with a poster frame, and
+`S` splits whichever layer is selected (or the footage when nothing is). Drag word bars to move them
+in time, drag their edges to trim, click the eye to hide. The Camera row shows keyframes as diamonds
+— drag to retime, double-click to add.
 
 **Export**: Original / 720p / 1080p / 1440p / 4K, frame rate, quality, range, audio. For 4K or long
-clips tick *Stream straight to a file*. **Save / Open** stores the project as JSON (the video is not
-embedded — re-import it).
+clips tick *Stream straight to a file*. Projects save themselves (see *Projects* above); **Save as
+file / Open file** exchange one as `.json`.
 
 Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove word or key ·
 `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
 `K` add camera key · `S` split the selected layer (or the video) at the playhead · `G` snap on/off ·
-`Shift`+drag one axis · `Alt`+drag bypass snap · `M` adjust the subject mask · `Enter` close
-a tracker shape · `Backspace` take back its last point · `Esc` leave tracker marking / dismiss object
-proposals · `L` cycle Preview / Split / 3D layout · `Ctrl+S` save · `Ctrl+E` export.
+`Shift`+drag one axis · `Alt`+drag bypass snap · `Ctrl`+drag in the Iso view move in height · `M`
+adjust the subject mask · `Enter` close a tracker shape · `Backspace` take back its last point · `Esc`
+leave tracker marking / dismiss object proposals · `L` cycle Preview / Split / 3D layout · `Ctrl` +
+wheel over the timeline zoom it · `Ctrl+S` save now · `Ctrl+E` export.
 
 ## How the 3D reveal works
 
@@ -301,14 +337,18 @@ Bouncy Pop, Elegant Quote.
   (`requestVideoFrameCallback`, falling back to seeking), detects Shi-Tomasi corners in the marked
   region, follows them with pyramidal Lucas-Kanade optical flow, validates each against its reference
   patch, and fits one similarity transform per frame to give position, size and rotation keys.
-- `js/layout-view.js` — the large top/side diagram of the scene with draggable words, camera and keyframes.
+- `js/layout-view.js` — the large top / side / isometric diagram of the scene with draggable words,
+  camera and keyframes, and the guide lines drawn while something moves.
+- `js/projects.js` — the project store: projects and their media files in IndexedDB (memory when
+  storage is unavailable).
 - `js/presets.js` — style presets and template generators.
 - `js/exporter.js` — frame-accurate export: seeks every video frame by frame, renders,
   encodes with WebCodecs (H.264, falling back to VP9 / AV1) and muxes with
   [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (`vendor/`, MIT). Audio is decoded with
   Web Audio, mixed across the main video's pieces and every audible layer, and encoded as AAC (or Opus). Without WebCodecs it records the canvas in real time with
   MediaRecorder.
-- `js/app.js` — state, undo/redo, timeline, inspector, canvas interaction, dialogs.
+- `js/app.js` — state, undo/redo, projects and auto-save, the open timeline and footage track,
+  inspector, canvas interaction, dialogs.
 
 Fonts are loaded from Google Fonts, plus local faces bundled with the editor (Helvetica Neue,
 Francy, EB Garamond, Very Vogue Text and Display — the last four supplied by the project owner);

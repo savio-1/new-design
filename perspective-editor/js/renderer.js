@@ -292,6 +292,7 @@
      * Render a frame.
      * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera, media, trackTransform, outlines }
      *   media: { scale, x, y, locked, bg:[r,g,b] }
+     *   videoAspect: width / height of the footage being shown when it differs from the frame (letterboxed)
      *   trackTransform(layer): the transform to draw a layer with when it is pinned to a motion track (or null)
      *   outlines: [{ x, y, w, h, color, cross }] boxes in video-plane units drawn over the footage while editing
      *   camera: { x, y, z, yaw, pitch, roll, focus, aperture } — absolute; defaults to the resting camera.
@@ -337,7 +338,10 @@
       // each other by depth (the footage itself can now sit at any depth).
       const items = [];
       if (opts.video && opts.videoReady && this._uploadVideo(opts.video) && opts.videoVisible !== false) {
-        const pw = 2 * this.aspect * media.scale, ph = 2 * media.scale;
+        let pw = 2 * this.aspect * media.scale, ph = 2 * media.scale;
+        // another video on the footage track may have a different shape: it is fitted inside the frame
+        const va = opts.videoAspect;
+        if (va && Math.abs(va - this.aspect) > 1e-3) { if (va > this.aspect) ph = pw / va; else pw = ph * va; }
         const pd = -M4.transformPoint(media.locked ? this.viewMatrix(this.defaultCamera()) : view, media.x, media.y, planeZ).z;
         if (pd > 0.05) {
           const blur = planeBlur(pd, pw, ph), op = media.opacity == null ? 1 : media.opacity;
