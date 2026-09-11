@@ -61,6 +61,8 @@
     ruler: $('#ruler'),
     playhead: $('#playhead'),
     timeLabel: $('#timeLabel'),
+    timeCur: $('#timeCur'),
+    timeTotal: $('#timeTotal'),
     camReadout: $('#camReadout'),
     btnPlay: $('#btnPlay'),
     inspectorEmpty: $('#inspectorEmpty'),
@@ -330,17 +332,45 @@
 
   /* Runtime media: the elements behind the main video and every media layer (never saved). */
   const assets = new Map();   // layer id -> { kind, el, url, file, ready, width, height, duration, poster }
+  /* Follow an element's own frames. The preview is redrawn when the video presents a frame, rather
+   * than only on the display's beat, so the picture advances at the clip's cadence instead of being
+   * resampled at whatever moment the frame loop happens to run — which is what makes motion judder.
+   * The counter also lets the renderer upload each decoded frame exactly once. Without
+   * requestVideoFrameCallback (Firefox) nothing is counted and the renderer uploads as it always did. */
+  function watchVideoFrames(el) {
+    if (!el || el.__vfWatch || typeof el.requestVideoFrameCallback !== 'function') return;
+    el.__vfWatch = true;
+    el.__frameId = 0;
+    const step = () => {
+      el.__frameId++;
+      invalidate();
+      el.requestVideoFrameCallback(step);
+    };
+    el.requestVideoFrameCallback(step);
+  }
+  const DRIFT_HOLD = 0.04;   // s — closer than this to the clock, leave the element alone
+  const DRIFT_SEEK = 0.5;    // s — further than this it is in the wrong place, not merely drifting
   function driveEl(el, desired, shouldPlay, force, muted) {
     el.muted = !!muted;
-    if (desired == null) { if (!el.paused) el.pause(); return; }
+    const atRate = (r) => { if (Math.abs(el.playbackRate - r) > 0.001) el.playbackRate = r; };
+    if (desired == null) { if (!el.paused) el.pause(); atRate(1); return; }
     if (el.seeking && !force) return;
-    const drift = Math.abs(el.currentTime - desired);
+    const drift = el.currentTime - desired;   // positive: the element is ahead of the clock
     if (shouldPlay) {
-      if (drift > 0.12 || force) el.currentTime = desired;
+      if (force || Math.abs(drift) > DRIFT_SEEK) {
+        el.currentTime = desired;
+        atRate(1);
+      } else if (Math.abs(drift) > DRIFT_HOLD) {
+        // Ease back into step by running fractionally slow or fast. Seeking a playing video flushes
+        // the decoder and stalls the picture for a moment, which reads as a stutter every few seconds.
+        el.preservesPitch = true;
+        atRate(clamp(1 - drift * 0.6, 0.94, 1.06));
+      } else atRate(1);
       if (el.paused) el.play().catch(() => {});
     } else {
       if (!el.paused) el.pause();
-      if (drift > 0.02 || force) el.currentTime = desired;
+      atRate(1);
+      if (Math.abs(drift) > 0.02 || force) el.currentTime = desired;
     }
   }
   function syncMedia(t, playing, force) {
@@ -396,6 +426,7 @@
       el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.loop = false; el.muted = true;
       if (kind === 'video') el.playsInline = true;
       el.addEventListener('loadedmetadata', () => {
+        watchVideoFrames(el);
         asset.width = el.videoWidth || 0; asset.height = el.videoHeight || 0;
         asset.duration = el.duration && isFinite(el.duration) ? el.duration : 10;
         asset.ready = true;
@@ -920,7 +951,11 @@
     const c = loc.clip;
     if (!c || !clipReady(c)) return { video: null, videoReady: false, videoVisible: false, videoAspect: null };
     const el = clipEl(c), src = clipSource(c);
-    return { video: el, videoReady: !!(el && el.readyState >= 2), videoVisible: true, videoAspect: src && src.width && src.height ? src.width / src.height : null };
+    // The frame counter is only trusted while the clip is actually running. Scrubbing and export seek
+    // the element and draw immediately, before it has announced the new frame, so there the picture is
+    // re-read every time rather than risking a repeat of the one before.
+    const live = !!(el && !el.paused && !state.exporting);
+    return { video: el, videoReady: !!(el && el.readyState >= 2), videoVisible: true, videoFrameId: live ? el.__frameId : null, videoAspect: src && src.width && src.height ? src.width / src.height : null };
   }
 
   function frame(now) {
@@ -936,18 +971,26 @@
     requestAnimationFrame(frame);
   }
 
+  /* Written every frame while the clip plays, so each field is only touched when it really changed —
+   * a stray innerHTML or style write costs a layout and shows up as uneven motion. */
+  const shown = { cur: '', total: '', x: null, hidden: null, cam: '' };
   function updateTimeUI() {
     const t = clock.time, T = duration();
-    els.timeLabel.innerHTML = `${fmtTime(t)} <span class="muted">/ ${fmtTime(playEnd())}</span>`;
+    const cur = fmtTime(t), total = fmtTime(playEnd());
+    if (cur !== shown.cur) { els.timeCur.textContent = cur; shown.cur = cur; }
+    if (total !== shown.total) { els.timeTotal.textContent = total; shown.total = total; }
     const trackW = tlWidth();
     const namesW = 150;
     if (clock.playing) followPlayhead(t);
     const x = (t / Math.max(0.001, T)) * trackW - tl.scroll;
-    els.playhead.style.left = `${namesW + x}px`;
-    els.playhead.classList.toggle('hidden', x < -1 || x > tlVisible() + 1);
+    const left = Math.round(namesW + x);
+    if (left !== shown.x) { els.playhead.style.left = `${left}px`; shown.x = left; }
+    const hide = x < -1 || x > tlVisible() + 1;
+    if (hide !== shown.hidden) { els.playhead.classList.toggle('hidden', hide); shown.hidden = hide; }
     const cam = cameraAt(t);
     const zoom = (renderer.camDist * state.media.scale) / planeDepth(cam);
-    els.camReadout.textContent = `Camera ${cam.z.toFixed(2)} from video · footage ${Math.round(zoom * 100)}%`;
+    const readout = `Camera ${cam.z.toFixed(2)} from video · footage ${Math.round(zoom * 100)}%`;
+    if (readout !== shown.cam) { els.camReadout.textContent = readout; shown.cam = readout; }
   }
 
   /* ------------------------------------------------------------------ layers, selection & undo */
@@ -1185,7 +1228,11 @@
   /* Timeline zoom. Every track draws into a `.tl-inner` strip that is `tlWidth()` px wide and shifted
    * left by the scroll, so the whole open timeline can be seen at once or zoomed into. */
   const tl = { zoom: null, scroll: 0 };   // zoom: px per second, null = fit the whole timeline in view
-  const tlVisible = () => els.ruler.clientWidth || 600;
+  /* Width of the track area. Measuring forces layout, so it is measured when the timeline is built or
+   * resized rather than on every frame of playback. */
+  let rulerW = 0;
+  function measureTimeline() { rulerW = els.ruler.clientWidth || rulerW || 600; return rulerW; }
+  const tlVisible = () => rulerW || measureTimeline();
   function tlWidth() { const vis = tlVisible(); return tl.zoom ? Math.max(vis, tl.zoom * duration()) : vis; }
   function tlInner(host) {
     let inner = host.firstElementChild;
@@ -1206,7 +1253,7 @@
   }
   /* z = px per second (null fits everything); anchorPx keeps the moment under that x where it is. */
   function setTimelineZoom(z, anchorPx) {
-    const vis = tlVisible(), fitZoom = vis / duration();
+    const vis = measureTimeline(), fitZoom = vis / duration();
     const before = tl.zoom || fitZoom;
     const tAtAnchor = anchorPx != null ? (tl.scroll + anchorPx) / before : null;
     tl.zoom = z != null && z > fitZoom * 1.001 ? Math.min(z, 400) : null;
@@ -1361,6 +1408,7 @@
   }
 
   function renderTimeline() {
+    measureTimeline();
     applyTimelineZoom();
     renderRuler();
     renderVideoTrack();
@@ -3572,6 +3620,9 @@
     try {
       for (let i = 0; i < n; i++) {
         if (!stillHere() || state.tracking || state.exporting) return;   // the video changed under us
+        // Two decoders on one file compete for the machine. While the clip is playing, take the
+        // frames slowly so the strip builds in the background without stuttering what is on screen.
+        if (clock.playing) await new Promise((r) => setTimeout(r, 350));
         const t = (D * (i + 0.5)) / n;
         await seekEl(v, t);
         try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
@@ -3598,6 +3649,7 @@
       v.load();
     });
   }
+  watchVideoFrames(els.video);
   els.video.addEventListener('loadeddata', invalidate);
   els.video.addEventListener('seeked', invalidate);
 
@@ -4439,7 +4491,8 @@
     buildSections(MASK_KEY_SCHEMA, $('#maskKeySections'), maskCtx);
     buildSections(TRACK_KEY_SCHEMA, $('#trackKeySections'), trackKeyCtx);
     buildSections(MEDIA_SCHEMA, $('#mediaSections'), Object.assign(Object.create(layerCtx), { controls: layerCtx.mediaControls }));
-    new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
+    new ResizeObserver(() => { measureTimeline(); fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
+    new ResizeObserver(() => { measureTimeline(); updateTimeUI(); }).observe(els.timeline);
     fitPreview();
 
     state.selectedIds = [];

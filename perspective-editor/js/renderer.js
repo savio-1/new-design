@@ -134,6 +134,7 @@
 
       this.videoTex = this._createTexture();
       this.videoTexOf = null;      // the element the held frame came from (null = nothing decoded yet)
+      this.videoTexId = null;      // which of that element's frames is in the texture
       this.whiteTex = this._createTexture();
       gl.bindTexture(gl.TEXTURE_2D, this.whiteTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
@@ -258,17 +259,19 @@
     }
 
     /* Texture for a media layer's element (video frames re-uploaded every frame, images once). */
-    _mediaTexture(id, el, isVideo) {
+    _mediaTexture(id, el, isVideo, frameId) {
       const gl = this.gl;
       let entry = this.mediaTex.get(id);
-      if (!entry) { entry = { tex: this._createTexture(), el: null, uploaded: false }; this.mediaTex.set(id, entry); }
+      if (!entry) { entry = { tex: this._createTexture(), el: null, uploaded: false, frameId: null }; this.mediaTex.set(id, entry); }
       gl.bindTexture(gl.TEXTURE_2D, entry.tex);
-      if (isVideo || entry.el !== el || !entry.uploaded) {
+      // as for the footage: a video layer only needs uploading when it has presented a new frame
+      const stale = isVideo && (frameId == null || entry.frameId !== frameId);
+      if (stale || entry.el !== el || !entry.uploaded) {
         try {
           gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
           gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-          entry.el = el; entry.uploaded = true;
+          entry.el = el; entry.uploaded = true; entry.frameId = frameId;
         } catch (e) { return null; }
       }
       return entry.tex;
@@ -278,25 +281,30 @@
       if (e) { this.gl.deleteTexture(e.tex); this.mediaTex.delete(id); }
     }
 
-    _uploadVideo(video) {
+    _uploadVideo(video, frameId) {
       const gl = this.gl;
+      // One decoded frame is uploaded once. A 30 fps clip on a 60 Hz screen is drawn twice, and a
+      // paused one every time anything in the scene is touched — re-sending those pixels is pure cost.
+      if (this.videoTexOf === video && frameId != null && this.videoTexId === frameId) return true;
       gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
       try {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
         this.videoTexOf = video;
+        this.videoTexId = frameId;
         return true;
       } catch (e) {
         return false;
       }
     }
     /* Forget the held frame: the footage behind an element changed, so its last frame is not ours. */
-    dropVideoTexture() { this.videoTexOf = null; }
+    dropVideoTexture() { this.videoTexOf = null; this.videoTexId = null; }
 
     /**
      * Render a frame.
      * opts = { video, videoReady, layers, time, frameHeightPx, selectedIds, camera, media, trackTransform, outlines }
      *   media: { scale, x, y, locked, bg:[r,g,b] }
      *   videoAspect: width / height of the footage being shown when it differs from the frame (letterboxed)
+     *   videoFrameId: counter of frames that element has presented, so one frame uploads once
      *   trackTransform(layer): the transform to draw a layer with when it is pinned to a motion track (or null)
      *   outlines: [{ x, y, w, h, color, cross }] boxes in video-plane units drawn over the footage while editing
      *   camera: { x, y, z, yaw, pitch, roll, focus, aperture } — absolute; defaults to the resting camera.
@@ -345,7 +353,7 @@
       // frames leaves the bare background behind — which reads as flicker — so the last decoded frame
       // is held and drawn instead, until a new one arrives or the footage changes.
       const vEl = opts.video;
-      const fresh = !!(vEl && opts.videoReady && this._uploadVideo(vEl));
+      const fresh = !!(vEl && opts.videoReady && this._uploadVideo(vEl, opts.videoFrameId));
       if (vEl && opts.videoVisible !== false && (fresh || this.videoTexOf === vEl)) {
         let pw = 2 * this.aspect * media.scale, ph = 2 * media.scale;
         // another video on the footage track may have a different shape: it is fitted inside the frame
@@ -408,7 +416,8 @@
           if (layer.kind === 'audio') continue;
           const asset = opts.mediaFor ? opts.mediaFor(layer) : null;
           if (!asset || !asset.ready || !asset.el) continue;
-          const tex = this._mediaTexture(layer.id, asset.el, asset.kind === 'video');
+          const liveEl = asset.el && !asset.el.paused;   // as above: only trusted while it is running
+          const tex = this._mediaTexture(layer.id, asset.el, asset.kind === 'video', liveEl ? asset.el.__frameId : null);
           if (!tex) continue;
           const aw = asset.width || 16, ah = asset.height || 9;
           const qw = Math.max(0.02, layer.fitWidth || 1), qh = qw * (ah / aw);
