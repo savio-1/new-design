@@ -333,6 +333,9 @@ body.cq { margin: 0; }
   font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
 }
 .cq-field__label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Belongs to one field, and sits inside it — a hint under a two-column
+   row reads as if it explained both. */
+.cq-field__hint { color: var(--text-teritiary); margin: 2px 0 0; }
 
 .cq-control {
   width: 100%;
@@ -2212,6 +2215,73 @@ body.cq { margin: 0; }
     .ag-combo__foot:hover { text-decoration: underline; }
     .ag-combo__empty { padding: 18px 12px; text-align: center; color: var(--text-teritiary); }
 
+    /* ══════════════════════════════════════════════════════════════
+       TAG PICKER
+       Same in-flow expansion as the combobox above, for the same
+       reason — the modal body scrolls, so a floating layer gets cut.
+       Pick from what the workspace already uses, or coin a new one;
+       free text alone spawns a synonym for every typo.
+       ══════════════════════════════════════════════════════════════ */
+    .ag-tags { position: relative; }
+    .ag-tags__field {
+      width: 100%; min-height: 44px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; border-radius: var(--radius-md);
+      background: var(--backgrounds-type-default-bg-1);
+      border: 1px solid var(--strokes-type-default);
+      text-align: left;
+      transition: border-color .15s ease;
+    }
+    .ag-tags__field:hover { border-color: var(--strokes-icon-default); }
+    .ag-tags__field[aria-expanded="true"] { border-color: var(--strokes-type-focus); }
+    .ag-tags__chips { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .ag-tags__ph { color: var(--text-teritiary); }
+    .ag-tags__chev { flex: none; color: var(--text-teritiary); transition: transform .2s cubic-bezier(.4,0,.2,1); }
+    .ag-tags__field[aria-expanded="true"] .ag-tags__chev { transform: rotate(180deg); }
+    /* A chip inside the field, unlike the read-only .cq-tag on a card,
+       is a control — it carries its own remove affordance. */
+    .ag-chip {
+      height: 22px; display: inline-flex; align-items: center; gap: 5px;
+      padding: 0 4px 0 8px; border-radius: var(--radius-sm);
+      background: var(--backgrounds-page-bg-3);
+      border: 1px solid var(--strokes-line-1);
+      color: var(--text-secondary);
+      font: 400 11px/1 var(--font-geist-mono); letter-spacing: -0.11px;
+      white-space: nowrap;
+    }
+    .ag-chip__x {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px; border-radius: 4px;
+      color: var(--text-teritiary);
+      transition: color .15s ease, background .15s ease;
+    }
+    .ag-chip__x:hover { color: var(--text-primary); background: var(--ag-well-hover); }
+    .ag-tags__pop {
+      margin-top: 6px;
+      display: none; flex-direction: column;
+      padding: 8px;
+      background: var(--ag-well-strong);
+      border: 1px solid var(--ag-well-border);
+      border-radius: var(--radius-lg);
+    }
+    .ag-tags__pop.is-open { display: flex; }
+    .ag-tags__pop .cq-search { width: 100%; }
+    .ag-tags__list { max-height: 196px; overflow-y: auto; margin-top: 8px; }
+    .ag-tags__opt {
+      width: 100%; display: flex; align-items: center; gap: 8px;
+      padding: 7px 8px; border-radius: var(--radius-sm);
+      color: var(--text-secondary); text-align: left;
+      transition: background .15s ease, color .15s ease;
+    }
+    .ag-tags__opt:hover { background: var(--ag-well-hover); color: var(--text-primary); }
+    .ag-tags__opt .cq-ic { flex: none; color: transparent; }
+    .ag-tags__opt.is-on { color: var(--text-primary); }
+    .ag-tags__opt.is-on .cq-ic { color: var(--text-coloured-blue); }
+    .ag-tags__opt--new { color: var(--text-coloured-blue); }
+    .ag-tags__opt--new .cq-ic { color: var(--text-coloured-blue); }
+    .ag-tags__opt--new b { font-weight: 400; font-family: var(--font-geist-mono); }
+    .ag-tags__empty { padding: 14px 8px; text-align: center; color: var(--text-teritiary); }
+
     .ag-opt {
       width: 100%;
       display: flex; align-items: center; gap: 10px;
@@ -3169,13 +3239,25 @@ body.cq { margin: 0; }
               </span>
               <span class="cq-control cq-control--textarea"><textarea id="mfExamples" placeholder="triage claim CLM-88, water damage, $14k"></textarea></span>
             </label>
-            <label class="cq-field">
+            <div class="cq-field">
               <span class="cq-field__label-row">
                 <span class="cq-field__label cq-caption-med">Tags</span>
-                <span class="cq-caption-reg cq-text-tertiary">Comma-separated</span>
+                <span class="cq-caption-reg cq-text-tertiary">Optional</span>
               </span>
-              <span class="cq-control"><input id="mfTags" placeholder="insurance, triage" /></span>
-            </label>
+              <div class="ag-tags">
+                <button class="ag-tags__field" id="mfTagsBtn" type="button" aria-expanded="false">
+                  <span class="ag-tags__chips" id="mfTagChips"></span>
+                  <svg class="cq-ic ag-tags__chev" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+                </button>
+                <div class="ag-tags__pop" id="mfTagsPop">
+                  <label class="cq-search">
+                    <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-search"/></svg>
+                    <input id="mfTagSearch" placeholder="Search, or type a new tag" />
+                  </label>
+                  <div class="ag-tags__list" id="mfTagList"></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="ag-group__head" style="margin-top:6px"><span class="ag-label cq-caption-med">HOW TO CALL IT</span></div>
@@ -3196,16 +3278,14 @@ body.cq { margin: 0; }
             <label class="cq-field">
               <span class="cq-field__label cq-caption-med">Message field</span>
               <span class="cq-control"><input id="mfMessage" class="ag-mono" value="$.query" /></span>
+              <span class="cq-field__hint cq-caption-reg">JSON path where the user's message goes in the request.</span>
             </label>
             <label class="cq-field">
               <span class="cq-field__label cq-caption-med">Response field</span>
               <span class="cq-control"><input id="mfResponse" class="ag-mono" value="$.answer" /></span>
+              <span class="cq-field__hint cq-caption-reg">JSON path where the reply comes back in the response.</span>
             </label>
           </div>
-          <p class="ag-note ag-hint-under cq-caption-reg">
-            The request field that carries what the user said, and the response
-            field that holds the reply back — each written as a JSON path.
-          </p>
           <div class="ag-grid2">
             <label class="cq-field">
               <span class="cq-field__label-row">
@@ -3213,16 +3293,14 @@ body.cq { margin: 0; }
                 <span class="cq-caption-reg cq-text-tertiary">Optional</span>
               </span>
               <span class="cq-control"><input id="mfContext" class="ag-mono" placeholder="$.session_id" /></span>
+              <span class="cq-field__hint cq-caption-reg">Sent on every call and read back, so a multi-turn chat stays linked.</span>
             </label>
             <label class="cq-field">
               <span class="cq-field__label cq-caption-med">Success status codes</span>
               <span class="cq-control"><input id="mfSuccess" value="200" /></span>
+              <span class="cq-field__hint cq-caption-reg">Anything else counts as a failed call.</span>
             </label>
           </div>
-          <p class="ag-note ag-hint-under cq-caption-reg">
-            Named once here, Cogentiq sends this field on every call and reads it
-            back from the reply, so a multi-turn conversation stays linked.
-          </p>
 
           <div class="ag-group__head" style="margin-top:6px">
             <span class="ag-label cq-caption-med">OPENAPI SPEC</span>
@@ -4045,7 +4123,7 @@ function toast(msg) {
    three real questions: which server and how it speaks, which of the
    things it publishes to take, and what to call the result.
    ════════════════════════════════════════════════════════════════════ */
-const wiz = { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false };
+const wiz = { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false, tags: [], tagsOpen: false };
 /* Human label for each auth type, shared by the review and the panel so
    neither has to keep its own copy of the mapping. */
 const AUTH_LABEL = {
@@ -4056,14 +4134,16 @@ const slugify = s => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 const curServer = () => SERVERS.find(s => s.id === wiz.srvId);
 
 function openWiz() {
-  Object.assign(wiz, { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false });
+  Object.assign(wiz, { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false, tags: [], tagsOpen: false });
   [
     'regName', 'regUrl', 'restUrl', 'wizName', 'wizDesc', 'srvSearch', 'pickSearch',
     'dirName', 'dirUrl', 'dirWorkspace', 'dirBearer', 'dirApiKey', 'dirApiKeyHeader',
     'dirClientId', 'dirClientSecret', 'dirTokenUrl', 'dirUsername', 'dirPassword',
     'dirCert', 'dirKey', 'mfSkillName', 'mfSkillId', 'mfSkillDesc', 'mfExamples',
-    'mfTags', 'mfPath', 'mfSpec'
+    'mfTagSearch', 'mfPath', 'mfSpec'
   ].forEach(id => { $(id).value = ''; });
+  setTagsOpen(false);
+  paintTagChips();
   setSrvOpen(false);
   $('restSpec').value = '/openapi.json';
   $('restAuth').innerHTML = AUTHS.map(a => `<option>${esc(a)}</option>`).join('');
@@ -4301,6 +4381,7 @@ function paintReview() {
     rows.push(kv('Message field', `<span class="ag-mono">${esc($('mfMessage').value || '—')}</span>`));
     rows.push(kv('Response field', `<span class="ag-mono">${esc($('mfResponse').value || '—')}</span>`));
     rows.push(kv('Skill', esc($('mfSkillName').value.trim() || '—')));
+    if (wiz.tags.length) rows.push(kv('Tags', wiz.tags.map(t => `<span class="cq-tag">${esc(t)}</span>`).join(' ')));
   } else if (a2a) {
     const picked = s ? s.cards.filter(c => wiz.picks.has(c.name)) : [];
     rows.push(kv('Protocol', 'A2A, called directly'));
@@ -4342,6 +4423,86 @@ $('mfSkillName').addEventListener('input', () => {
   paintWiz();
 });
 $('mfSkillId').addEventListener('input', () => { wiz.skillIdTouched = true; paintWiz(); });
+
+/* ── Tags ──
+   The vocabulary is whatever the workspace already uses, read live so a
+   tag coined here shows up for the next agent registered. Selection is
+   the default path and typing only creates when nothing matches, which
+   is what keeps "supply-chain" from growing a "supply chain" twin. */
+const tagVocab = () => [...new Set(AGENTS.flatMap(a => a.tags || []))].sort();
+
+function setTagsOpen(on) {
+  wiz.tagsOpen = on;
+  $('mfTagsPop').classList.toggle('is-open', on);
+  $('mfTagsBtn').setAttribute('aria-expanded', String(on));
+  if (on) setTimeout(() => $('mfTagSearch').focus(), 40);
+  else $('mfTagSearch').value = '';
+  paintTagList();
+}
+
+function paintTagChips() {
+  $('mfTagChips').innerHTML = wiz.tags.length
+    ? wiz.tags.map(t => `<span class="ag-chip">${esc(t)}<span class="ag-chip__x" data-untag="${esc(t)}"><svg class="cq-ic" width="10" height="10" viewBox="0 0 16 16"><use href="#i-x"/></svg></span></span>`).join('')
+    : '<span class="ag-tags__ph cq-body2-reg">Choose tags</span>';
+}
+
+function paintTagList() {
+  const q = $('mfTagSearch').value.trim();
+  const hits = tagVocab().filter(t => matches(t, q));
+  const slug = slugify(q);
+  /* Only offer to create what does not already exist — under the slug it
+     would actually be saved as, not the raw keystrokes. */
+  const canCreate = !!q && !tagVocab().includes(slug) && !wiz.tags.includes(slug);
+  const rows = hits.map(t => `
+    <button class="ag-tags__opt cq-body2-reg${wiz.tags.includes(t) ? ' is-on' : ''}" type="button" data-tag="${esc(t)}">
+      <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>${esc(t)}
+    </button>`).join('');
+  const create = canCreate ? `
+    <button class="ag-tags__opt ag-tags__opt--new cq-body2-reg" type="button" data-tag="${esc(slug)}">
+      <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-plus"/></svg>Create <b>${esc(slug)}</b>
+    </button>` : '';
+  /* Create goes last, under any real matches: typing "sup" should land on
+     the existing "supply-chain" when Enter is pressed, not coin a synonym
+     for it. With nothing matching it is the only row, so Enter still
+     creates in one keystroke. */
+  $('mfTagList').innerHTML = (rows + create)
+    || '<p class="ag-tags__empty cq-caption-reg">No tags yet — type one to create it.</p>';
+}
+
+$('mfTagsBtn').addEventListener('click', () => setTagsOpen(!wiz.tagsOpen));
+$('mfTagSearch').addEventListener('input', paintTagList);
+/* Enter takes the first row, so a new tag is one keystroke from typed. */
+$('mfTagSearch').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  $('mfTagList').querySelector('[data-tag]')?.click();
+});
+$('mfTagList').addEventListener('click', e => {
+  const b = e.target.closest('[data-tag]');
+  if (!b) return;
+  const t = b.dataset.tag;
+  wiz.tags = wiz.tags.includes(t) ? wiz.tags.filter(x => x !== t) : [...wiz.tags, t];
+  $('mfTagSearch').value = '';
+  paintTagChips(); paintTagList();
+  $('mfTagSearch').focus();
+});
+$('mfTagChips').addEventListener('click', e => {
+  const x = e.target.closest('[data-untag]');
+  if (!x) return;
+  /* The chip sits inside the button that toggles the popover. */
+  e.stopPropagation();
+  wiz.tags = wiz.tags.filter(t => t !== x.dataset.untag);
+  paintTagChips(); paintTagList();
+});
+document.addEventListener('click', e => {
+  if (!wiz.tagsOpen) return;
+  /* Selecting a tag re-renders the list, so by the time this runs the
+     clicked node is detached and has no ancestors to walk. The event's
+     own path was captured at dispatch, and still knows where it came
+     from — without this, picking one tag closes the popover. */
+  if (e.composedPath().some(n => n.classList && n.classList.contains('ag-tags'))) return;
+  setTagsOpen(false);
+});
 
 /* A worked example, scoped to the one field it sits beside: it fills the
    spec, not the rest of the form, because that is the only thing its
@@ -4522,7 +4683,7 @@ function createRemote() {
     type: 'remote',
     /* Registered, not live — it enters governance review first. */
     state: 'review',
-    by: 'You', tags: [], updated: 'just now', runs: 0
+    by: 'You', tags: [...wiz.tags], updated: 'just now', runs: 0
   }, extra), ...AGENTS];
 
   closeWiz();
