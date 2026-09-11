@@ -2010,7 +2010,7 @@ body.cq { margin: 0; }
        questions: which server, which of its agent cards, and what to
        call the result.
        ══════════════════════════════════════════════════════════════ */
-    .ag-modal { width: 680px; height: min(620px, calc(100vh - 48px)); }
+    .ag-modal { width: 760px; height: min(660px, calc(100vh - 48px)); }
     /* A single-line field is 44px here. .cq-control's 12px padding puts
        it at 46 with its border, so the height is stated and the padding
        trimmed to match rather than left to add up. */
@@ -2080,7 +2080,7 @@ body.cq { margin: 0; }
        agent cards wear — this is a form control, and a card that looks
        as rich as the content it sits above competes with it.
        ══════════════════════════════════════════════════════════════ */
-    .ag-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ag-choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .ag-choice {
       display: flex; flex-direction: column; gap: 6px;
       padding: 14px; border-radius: 10px;
@@ -2112,9 +2112,9 @@ body.cq { margin: 0; }
        One table, two columns, five questions somebody actually asks
        before choosing. It sits above the wizard rather than replacing
        it, so the choice is still on screen behind it. */
-    .ag-compare { width: 620px; max-height: min(560px, calc(100vh - 48px)); }
+    .ag-compare { width: 800px; max-height: min(560px, calc(100vh - 48px)); }
     .ag-compare__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 0 8px; }
-    .ag-cmp { display: grid; grid-template-columns: 132px 1fr 1fr; align-items: stretch; }
+    .ag-cmp { display: grid; grid-template-columns: 120px repeat(3, 1fr); align-items: stretch; }
     .ag-cmp > * { padding: 12px 14px; border-bottom: 1px solid var(--strokes-line-3); }
     .ag-cmp__head {
       position: sticky; top: 0; z-index: 1;
@@ -2125,8 +2125,9 @@ body.cq { margin: 0; }
     .ag-cmp__q { color: var(--text-teritiary); }
     .ag-cmp__v { color: var(--text-secondary); }
     .ag-cmp__v b { color: var(--text-primary); font-weight: 500; }
-    .ag-cmp > *:nth-child(3n+2) { border-left: 1px solid var(--strokes-line-3); }
-    .ag-cmp > *:nth-child(3n+3) { border-left: 1px solid var(--strokes-line-3); }
+    /* Every column but the first (the question) gets a rule on its
+       leading edge, whatever the row length turns out to be. */
+    .ag-cmp > *:not(:nth-child(4n+1)) { border-left: 1px solid var(--strokes-line-3); }
 
     /* ══════════════════════════════════════════════════════════════
        PICKING FROM A LIST THAT WILL GROW
@@ -2237,6 +2238,9 @@ body.cq { margin: 0; }
 
     .ag-picker__list { max-height: 296px; overflow-y: auto; padding: 6px; }
     .ag-picker__empty { padding: 28px 12px; text-align: center; color: var(--text-teritiary); }
+
+    [data-auth-only] { display: block; }
+    [data-auth-only][hidden] { display: none !important; }
 
     .ag-dashed {
       padding: 24px 16px; border-radius: var(--radius-md);
@@ -2864,6 +2868,16 @@ body.cq { margin: 0; }
                 into an agent for you, and hosts that agent itself.
               </span>
             </button>
+            <button class="ag-choice" data-proto="direct">
+              <span class="ag-choice__top">
+                <span class="ag-choice__name cq-body2-med">Connect it directly</span>
+                <svg class="cq-ic ag-choice__tick" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
+              </span>
+              <span class="ag-choice__note cq-caption-reg">
+                You already know its address, its credentials and how it
+                shapes a reply. Skip discovery — map the fields yourself.
+              </span>
+            </button>
           </div>
         </div>
 
@@ -2958,11 +2972,138 @@ body.cq { margin: 0; }
             </label>
           </div>
         </div>
+
+        <!-- ── Connect it directly ──
+             Nothing to discover and nothing for Cogentiq to build: the
+             connection is whatever the person types, called exactly as
+             typed. Everything a raw integration needs — an address, a
+             credential, and a place to say how the reply is shaped —
+             and nothing an automated adapter would have inferred wrong. -->
+        <div class="ag-group" data-only="direct">
+          <div class="ag-group__head">
+            <span class="ag-label cq-caption-med">CONNECTION DETAILS</span>
+          </div>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Connection name</span>
+              <span class="cq-control"><input id="dirName" placeholder="e.g. Acme Claims Agent" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Base URL</span>
+              <span class="cq-control"><input id="dirUrl" class="ag-mono" placeholder="https://agents.acme.internal:8443" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label-row">
+                <span class="cq-field__label cq-caption-med">Workspace ID</span>
+                <span class="cq-caption-reg cq-text-tertiary">Optional</span>
+              </span>
+              <span class="cq-control"><input id="dirWorkspace" class="ag-mono" placeholder="ws_abc123" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Timeout (seconds)</span>
+              <span class="cq-control"><input id="dirTimeout" type="number" min="1" step="1" value="60" /></span>
+            </label>
+          </div>
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Who can use this connection</span>
+            <span class="cq-control">
+              <select id="dirAccess">
+                <option value="private">Private — only this workspace</option>
+                <option value="shared">Shared — other workspaces can reuse it</option>
+              </select>
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+            </span>
+          </label>
+
+          <div class="ag-group__head" style="margin-top:6px">
+            <span class="ag-label cq-caption-med">AUTHENTICATION</span>
+          </div>
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Auth type</span>
+            <span class="cq-control">
+              <select id="dirAuthType">
+                <option value="bearer">Bearer token</option>
+                <option value="apikey">API key</option>
+                <option value="oauth">OAuth 2.0 (client credentials)</option>
+                <option value="basic">Basic auth</option>
+                <option value="mtls">mTLS (client certificate)</option>
+                <option value="none">None</option>
+              </select>
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+            </span>
+          </label>
+
+          <!-- Each auth type asks for exactly its own credential and
+               nothing else — a bearer token has no business asking for a
+               username, and a client cert has no business asking for a
+               password. -->
+          <div data-auth-only="bearer">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Bearer token</span>
+              <span class="cq-control"><input id="dirBearer" class="ag-mono" type="password" placeholder="eyJhbGciOiJSUzI1NiIs..." /></span>
+            </label>
+          </div>
+          <div data-auth-only="apikey" hidden>
+            <div class="ag-grid2">
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">API key</span>
+                <span class="cq-control"><input id="dirApiKey" class="ag-mono" type="password" placeholder="sk_live_..." /></span>
+              </label>
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Header name</span>
+                <span class="cq-control"><input id="dirApiKeyHeader" class="ag-mono" placeholder="X-API-Key" /></span>
+              </label>
+            </div>
+          </div>
+          <div data-auth-only="oauth" hidden>
+            <div class="ag-grid2">
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Client ID</span>
+                <span class="cq-control"><input id="dirClientId" class="ag-mono" /></span>
+              </label>
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Client secret</span>
+                <span class="cq-control"><input id="dirClientSecret" class="ag-mono" type="password" /></span>
+              </label>
+            </div>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Token URL</span>
+              <span class="cq-control"><input id="dirTokenUrl" class="ag-mono" placeholder="https://.../oauth/token" /></span>
+            </label>
+          </div>
+          <div data-auth-only="basic" hidden>
+            <div class="ag-grid2">
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Username</span>
+                <span class="cq-control"><input id="dirUsername" /></span>
+              </label>
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Password</span>
+                <span class="cq-control"><input id="dirPassword" type="password" /></span>
+              </label>
+            </div>
+          </div>
+          <div data-auth-only="mtls" hidden>
+            <div class="ag-grid2">
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Client certificate (PEM)</span>
+                <span class="cq-control cq-control--textarea"><textarea id="dirCert" class="ag-mono" placeholder="-----BEGIN CERTIFICATE-----"></textarea></span>
+              </label>
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Client key (PEM)</span>
+                <span class="cq-control cq-control--textarea"><textarea id="dirKey" class="ag-mono" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></span>
+              </label>
+            </div>
+          </div>
+          <p class="ag-note cq-caption-reg" data-auth-only="none" hidden>
+            No credentials needed — Cogentiq calls the endpoint without an auth header.
+          </p>
+        </div>
       </div>
 
       <!-- ── Step 3 · what to take from it, and a last look ─────── -->
       <div class="ag-pane" data-pane="3" hidden>
-        <div class="ag-group">
+        <div class="ag-group" id="pickerGroup">
           <span class="ag-label cq-caption-med" id="step3Label">SELECT AGENT CARDS</span>
           <!-- Fixed height, searchable, and what has been taken is pinned
                above what is left — a server publishing forty cards reads
@@ -2981,6 +3122,108 @@ body.cq { margin: 0; }
           </div>
           <p class="ag-note cq-caption-reg" id="step3Note"></p>
         </div>
+
+        <!-- ── The manifest ──
+             There is nothing to pick from a direct connection — there is
+             one skill, and it is whatever the person describes. What
+             replaces the picker is the same conversation a manifest file
+             has: what the skill is, then exactly how a call to it is
+             built and read back. -->
+        <div class="ag-group" id="manifestGroup" hidden>
+          <div class="ag-group__head"><span class="ag-label cq-caption-med">WHAT IT DOES</span></div>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Skill name</span>
+              <span class="cq-control"><input id="mfSkillName" placeholder="e.g. Triage a claim" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Skill ID</span>
+              <span class="cq-control"><input id="mfSkillId" class="ag-mono" placeholder="triage" /></span>
+            </label>
+          </div>
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Description</span>
+            <span class="cq-control cq-control--textarea"><textarea id="mfSkillDesc" placeholder="What this skill does, in one sentence."></textarea></span>
+          </label>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label-row">
+                <span class="cq-field__label cq-caption-med">Example phrases</span>
+                <span class="cq-caption-reg cq-text-tertiary">One per line</span>
+              </span>
+              <span class="cq-control cq-control--textarea"><textarea id="mfExamples" placeholder="triage claim CLM-88, water damage, $14k"></textarea></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label-row">
+                <span class="cq-field__label cq-caption-med">Tags</span>
+                <span class="cq-caption-reg cq-text-tertiary">Comma-separated</span>
+              </span>
+              <span class="cq-control"><input id="mfTags" placeholder="insurance, triage" /></span>
+            </label>
+          </div>
+
+          <div class="ag-group__head" style="margin-top:6px"><span class="ag-label cq-caption-med">HOW TO CALL IT</span></div>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Method</span>
+              <span class="cq-control">
+                <select id="mfMethod"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option></select>
+                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+              </span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Path</span>
+              <span class="cq-control"><input id="mfPath" class="ag-mono" placeholder="/v1/chat" /></span>
+            </label>
+          </div>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Message field</span>
+              <span class="cq-control"><input id="mfMessage" class="ag-mono" value="$.query" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Response field</span>
+              <span class="cq-control"><input id="mfResponse" class="ag-mono" value="$.answer" /></span>
+            </label>
+          </div>
+          <p class="ag-note ag-hint-under cq-caption-reg">
+            The request field that carries what the user said, and the response
+            field that holds the reply back — each written as a JSON path.
+          </p>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label-row">
+                <span class="cq-field__label cq-caption-med">Session / context field</span>
+                <span class="cq-caption-reg cq-text-tertiary">Optional</span>
+              </span>
+              <span class="cq-control"><input id="mfContext" class="ag-mono" placeholder="$.session_id" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Success status codes</span>
+              <span class="cq-control"><input id="mfSuccess" value="200" /></span>
+            </label>
+          </div>
+          <p class="ag-note ag-hint-under cq-caption-reg">
+            Named once here, Cogentiq sends this field on every call and reads it
+            back from the reply, so a multi-turn conversation stays linked.
+          </p>
+
+          <div class="ag-group__head" style="margin-top:6px">
+            <span class="ag-label cq-caption-med">OPENAPI SPEC</span>
+            <span class="cq-caption-reg cq-text-tertiary" style="margin-left:auto">Optional</span>
+          </div>
+          <label class="cq-field">
+            <span class="cq-field__label-row">
+              <span class="cq-field__label cq-caption-med">Paste the spec</span>
+              <button class="ag-picker__act" id="mfLoadExample" type="button">Load example</button>
+            </span>
+            <span class="cq-control cq-control--textarea">
+              <textarea id="mfSpec" class="ag-mono" style="height:110px" placeholder='{ "openapi": "3.0.3", "info": { "title": "…" }, "paths": { … } }'></textarea>
+            </span>
+          </label>
+          <p class="ag-note cq-caption-reg" id="mfSpecStatus"></p>
+        </div>
+
         <div class="ag-group">
           <span class="ag-label cq-caption-med">REVIEW</span>
           <div id="wizReview"></div>
@@ -3010,7 +3253,7 @@ body.cq { margin: 0; }
 <div class="cq-scrim" id="cmpScrim" role="dialog" aria-modal="true" aria-labelledby="cmpTitle">
   <div class="cq-modal ag-compare">
     <div class="cq-modal__head">
-      <span class="cq-body1-med" id="cmpTitle">Already an agent, or a plain API?</span>
+      <span class="cq-body1-med" id="cmpTitle">Which connection method?</span>
       <button class="cq-icon-btn" id="cmpX" aria-label="Close" title="Close">
         <svg class="cq-ic" width="20" height="20" viewBox="0 0 16 16"><use href="#i-x"/></svg>
       </button>
@@ -3020,23 +3263,28 @@ body.cq { margin: 0; }
         <span class="ag-cmp__head cq-caption-med"></span>
         <span class="ag-cmp__head cq-body2-med">Already an agent</span>
         <span class="ag-cmp__head cq-body2-med">A plain API</span>
+        <span class="ag-cmp__head cq-body2-med">Connect directly</span>
 
         <span class="ag-cmp__q cq-caption-med">Pick this when</span>
         <span class="ag-cmp__v cq-caption-reg">A team or vendor tells you their agent is <b>A2A</b> and gives you a server address.</span>
         <span class="ag-cmp__v cq-caption-reg">All you have is an <b>API</b> — a URL, some endpoints and a key.</span>
+        <span class="ag-cmp__v cq-caption-reg">You know exactly how the request and reply are shaped, and want that shape kept precisely.</span>
 
         <span class="ag-cmp__q cq-caption-med">What you need</span>
         <span class="ag-cmp__v cq-caption-reg">The server address, and credentials for the agents you want to use.</span>
         <span class="ag-cmp__v cq-caption-reg">The base URL, its API documentation, and a key.</span>
+        <span class="ag-cmp__v cq-caption-reg">The base URL, credentials, and the field names your API uses for the message and the reply.</span>
 
         <span class="ag-cmp__q cq-caption-med">Who does the work</span>
         <span class="ag-cmp__v cq-caption-reg">Nobody — the agent already exists. Cogentiq just connects to it.</span>
         <span class="ag-cmp__v cq-caption-reg">Cogentiq builds the agent around your API and hosts it.</span>
+        <span class="ag-cmp__v cq-caption-reg">You map the fields once; Cogentiq calls it exactly as you described.</span>
       </div>
       <p class="ag-note cq-caption-reg" style="padding:14px 16px 4px">
         Not sure? Choose <b style="color:var(--text-primary);font-weight:500">a plain API</b>. It
         works for anything with a URL, and you can always register it properly later if the
-        team publishes a real agent.
+        team publishes a real agent. Reach for <b style="color:var(--text-primary);font-weight:500">Connect it directly</b>
+        only when the auto-built adapter gets a field wrong and you need to fix the mapping by hand.
       </p>
     </div>
     <div class="cq-modal__foot">
@@ -3356,7 +3604,8 @@ const typeBadge = a => a.type === 'agent' ? '' : badge(TYPE[a.type].tone, TYPE[a
    says how Cogentiq reaches it instead. */
 function capsHTML(a) {
   if (a.type === 'remote') {
-    return `<span class="ag-cap ag-cap--text" title="${esc(a.endpoint)}">${a.conn === 'rest' ? 'Hosted API' : 'A2A agent'}</span>` +
+    const connLabel = a.conn === 'rest' ? 'Hosted API' : a.conn === 'direct' ? 'Direct connect' : 'A2A agent';
+    return `<span class="ag-cap ag-cap--text" title="${esc(a.endpoint)}">${connLabel}</span>` +
       (a.agentSkills && a.agentSkills.length
         ? `<span class="ag-cap" title="${a.agentSkills.length} skill${a.agentSkills.length > 1 ? 's' : ''}">${ic('ic-pp_skill', 14)}${a.agentSkills.length}</span>` : '');
   }
@@ -3671,15 +3920,26 @@ function openPanel(i) {
   }
 
   if (a.type === 'remote') {
+    const direct = a.conn === 'direct';
+    const protocolLabel = a.conn === 'rest' ? 'REST via managed adapter'
+      : direct ? 'Direct connection, manifest defined by you'
+      : 'A2A, called directly';
+    const note = a.conn === 'rest'
+      ? `<p class="ag-note cq-caption-reg" style="margin-top:8px">This service is not A2A-native. Cogentiq wraps it in a managed adapter and publishes it on the Cogentiq Managed A2A server.</p>`
+      : direct
+      ? `<p class="ag-note cq-caption-reg" style="margin-top:8px">No discovery and no auto-built adapter — Cogentiq calls this endpoint exactly as mapped below.</p>`
+      : '';
     out.push(section('CONNECTION',
       kv('Endpoint', `<span class="ag-mono">${esc(a.endpoint)}</span>`) +
-      kv('A2A server', esc(a.server)) +
-      kv('Protocol', a.conn === 'rest' ? 'REST via managed adapter' : 'A2A, called directly') +
+      kv(direct ? 'Connection' : 'A2A server', esc(a.server)) +
+      kv('Protocol', protocolLabel) +
       kv('Auth', esc(a.auth)) +
-      kv('Agent cards', (a.cards || []).map(esc).join(', ') || '—') +
-      (a.conn === 'rest'
-        ? `<p class="ag-note cq-caption-reg" style="margin-top:8px">This service is not A2A-native. Cogentiq wraps it in a managed adapter and publishes it on the Cogentiq Managed A2A server.</p>`
-        : '')));
+      kv(direct ? 'Skill' : 'Agent cards', (a.cards || []).map(esc).join(', ') || '—') +
+      (direct ? kv('Request', `<span class="ag-mono">${esc(a.reqMethod || 'POST')} ${esc(a.reqPath || '—')}</span>`) : '') +
+      (direct ? kv('Message field', `<span class="ag-mono">${esc(a.msgField || '—')}</span>`) : '') +
+      (direct ? kv('Response field', `<span class="ag-mono">${esc(a.respField || '—')}</span>`) : '') +
+      (direct && a.ctxField ? kv('Session field', `<span class="ag-mono">${esc(a.ctxField)}</span>`) : '') +
+      note));
     out.push(section('SKILLS PUBLISHED',
       `<div class="ag-skills">${(a.agentSkills || []).map(k => `<span class="cq-tag" data-tone="cyan">${esc(k)}</span>`).join('') || '<span class="cq-caption-reg cq-text-tertiary">None declared</span>'}</div>`));
   } else {
@@ -3769,15 +4029,38 @@ function toast(msg) {
    three real questions: which server and how it speaks, which of the
    things it publishes to take, and what to call the result.
    ════════════════════════════════════════════════════════════════════ */
-const wiz = { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {} };
+const wiz = { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false };
+/* Human label for each auth type, shared by the review and the panel so
+   neither has to keep its own copy of the mapping. */
+const AUTH_LABEL = {
+  bearer: 'Bearer token', apikey: 'API key', oauth: 'OAuth 2.0',
+  basic: 'Basic auth', mtls: 'mTLS (client certificate)', none: 'None'
+};
+const slugify = s => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'skill';
 const curServer = () => SERVERS.find(s => s.id === wiz.srvId);
 
 function openWiz() {
-  Object.assign(wiz, { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {} });
-  ['regName', 'regUrl', 'restUrl', 'wizName', 'wizDesc', 'srvSearch', 'pickSearch'].forEach(id => { $(id).value = ''; });
+  Object.assign(wiz, { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false });
+  [
+    'regName', 'regUrl', 'restUrl', 'wizName', 'wizDesc', 'srvSearch', 'pickSearch',
+    'dirName', 'dirUrl', 'dirWorkspace', 'dirBearer', 'dirApiKey', 'dirApiKeyHeader',
+    'dirClientId', 'dirClientSecret', 'dirTokenUrl', 'dirUsername', 'dirPassword',
+    'dirCert', 'dirKey', 'mfSkillName', 'mfSkillId', 'mfSkillDesc', 'mfExamples',
+    'mfTags', 'mfPath', 'mfSpec'
+  ].forEach(id => { $(id).value = ''; });
   setSrvOpen(false);
   $('restSpec').value = '/openapi.json';
   $('restAuth').innerHTML = AUTHS.map(a => `<option>${esc(a)}</option>`).join('');
+  $('dirTimeout').value = '60';
+  $('dirAccess').value = 'private';
+  $('dirAuthType').value = 'bearer';
+  $('mfMethod').value = 'POST';
+  $('mfMessage').value = '$.query';
+  $('mfContext').value = '';
+  $('mfResponse').value = '$.answer';
+  $('mfSuccess').value = '200';
+  $('mfSpecStatus').textContent = '';
+  paintDirAuth();
   $('wizScrim').classList.add('is-open');
   paintWiz();
   setTimeout(() => $('wizNext').focus(), 60);
@@ -3990,9 +4273,19 @@ $('pickList').addEventListener('click', e => {
 
 function paintReview() {
   const a2a = wiz.proto === 'a2a';
+  const direct = wiz.proto === 'direct';
   const s = curServer();
   const rows = [];
-  if (a2a) {
+  if (direct) {
+    rows.push(kv('Protocol', 'Direct connection'));
+    rows.push(kv('Connection name', esc($('dirName').value.trim() || $('wizName').value.trim())));
+    rows.push(kv('Base URL', `<span class="ag-mono">${esc($('dirUrl').value || '—')}</span>`));
+    rows.push(kv('Auth', AUTH_LABEL[wiz.directAuth]));
+    rows.push(kv('Request', `<span class="ag-mono">${esc($('mfMethod').value)} ${esc($('mfPath').value || '—')}</span>`));
+    rows.push(kv('Message field', `<span class="ag-mono">${esc($('mfMessage').value || '—')}</span>`));
+    rows.push(kv('Response field', `<span class="ag-mono">${esc($('mfResponse').value || '—')}</span>`));
+    rows.push(kv('Skill', esc($('mfSkillName').value.trim() || '—')));
+  } else if (a2a) {
     const picked = s ? s.cards.filter(c => wiz.picks.has(c.name)) : [];
     rows.push(kv('Protocol', 'A2A, called directly'));
     rows.push(kv('A2A server', esc(s ? s.name : '—')));
@@ -4014,18 +4307,100 @@ function paintReview() {
 /* Whether the step in front of you is answered. The Continue button
    reads this rather than each step deciding for itself, so a new step
    has one place to declare what "done" means. */
+/* ── Direct connect: the auth-type conditional fields ──
+   One credential set at a time — a bearer token has no business asking
+   for a username, and a client cert has no business asking for a
+   password. */
+function paintDirAuth() {
+  wiz.directAuth = $('dirAuthType').value;
+  document.querySelectorAll('[data-auth-only]').forEach(el => {
+    el.hidden = el.dataset.authOnly !== wiz.directAuth;
+  });
+}
+$('dirAuthType').addEventListener('change', () => { paintDirAuth(); paintWiz(); });
+
+/* The skill id tracks the skill name until someone types their own —
+   the same rule a URL slug follows anywhere else. */
+$('mfSkillName').addEventListener('input', () => {
+  if (!wiz.skillIdTouched) $('mfSkillId').value = slugify($('mfSkillName').value);
+  paintWiz();
+});
+$('mfSkillId').addEventListener('input', () => { wiz.skillIdTouched = true; paintWiz(); });
+
+/* A worked example, scoped to the one field it sits beside: it fills the
+   spec, not the rest of the form, because that is the only thing its
+   label promises. */
+const EXAMPLE_SPEC = {
+  openapi: '3.0.3',
+  info: { title: 'Claims API', version: '1.0.0' },
+  paths: {
+    '/v1/chat': {
+      post: {
+        operationId: 'chat',
+        requestBody: { content: { 'application/json': { schema: {
+          type: 'object',
+          properties: { query: { type: 'string' }, session_id: { type: 'string' } },
+          required: ['query']
+        } } } },
+        responses: { 200: { content: { 'application/json': { schema: {
+          type: 'object',
+          properties: { answer: { type: 'string' }, session_id: { type: 'string' } }
+        } } } } }
+      }
+    }
+  }
+};
+$('mfLoadExample').addEventListener('click', () => {
+  $('mfSpec').value = JSON.stringify(EXAMPLE_SPEC, null, 2);
+  paintSpecStatus();
+});
+
+/* Real, if shallow, feedback: the spec only has to parse to be useful
+   here — Cogentiq is not compiling a client from it in this mock. */
+function paintSpecStatus() {
+  const raw = $('mfSpec').value.trim();
+  const el = $('mfSpecStatus');
+  if (!raw) { el.textContent = ''; el.style.color = ''; return; }
+  try {
+    const spec = JSON.parse(raw);
+    const opCount = Object.values(spec.paths || {})
+      .flatMap(methods => Object.keys(methods)).length;
+    el.textContent = `✓ Valid JSON — ${opCount} operation${opCount === 1 ? '' : 's'} found.`;
+    el.style.color = 'var(--text-coloured-green)';
+  } catch (e) {
+    el.textContent = '✕ Not valid JSON — check for a missing comma or bracket.';
+    el.style.color = 'var(--text-coloured-red)';
+  }
+}
+$('mfSpec').addEventListener('input', paintSpecStatus);
+
 function stepOK() {
   if (wiz.step === 1) return !!$('wizName').value.trim();
-  if (wiz.step === 2) return wiz.proto === 'a2a'
-    ? !!curServer()
-    : !!$('restUrl').value.trim();
+  if (wiz.step === 2) {
+    if (wiz.proto === 'a2a') return !!curServer();
+    if (wiz.proto === 'direct') return !!$('dirUrl').value.trim();
+    return !!$('restUrl').value.trim();
+  }
+  if (wiz.proto === 'direct') {
+    return !!$('mfSkillName').value.trim() && !!$('mfPath').value.trim()
+      && !!$('mfMessage').value.trim() && !!$('mfResponse').value.trim();
+  }
   return wiz.picks.size > 0;
 }
 function stepHint() {
   if (wiz.step === 1) return stepOK() ? '' : 'Give the agent a name.';
-  if (wiz.step === 2) return wiz.proto === 'a2a'
-    ? (curServer() ? '' : 'Choose a server, or register a new one.')
-    : (stepOK() ? '' : 'Give the service its base URL.');
+  if (wiz.step === 2) {
+    if (wiz.proto === 'a2a') return curServer() ? '' : 'Choose a server, or register a new one.';
+    if (wiz.proto === 'direct') return stepOK() ? '' : 'Give the connection its base URL.';
+    return stepOK() ? '' : 'Give the service its base URL.';
+  }
+  if (wiz.proto === 'direct') {
+    if (!$('mfSkillName').value.trim()) return 'Say what this skill does.';
+    if (!$('mfPath').value.trim()) return 'Give the request a path.';
+    if (!$('mfMessage').value.trim() || !$('mfResponse').value.trim())
+      return 'Say which field carries the message and which holds the reply.';
+    return '';
+  }
   return wiz.picks.size ? '' : (wiz.proto === 'a2a' ? 'Select at least one agent card.' : 'Select at least one operation.');
 }
 
@@ -4043,8 +4418,14 @@ function paintWiz() {
 
   document.querySelectorAll('[data-proto]').forEach(b => b.classList.toggle('is-on', b.dataset.proto === wiz.proto));
 
+  $('pickerGroup').hidden = wiz.proto === 'direct';
+  $('manifestGroup').hidden = wiz.proto !== 'direct';
+
   if (wiz.step === 2) { paintServers(); paintFound(); }
-  if (wiz.step === 3) { paintPicks(); paintReview(); }
+  if (wiz.step === 3) {
+    if (wiz.proto === 'direct') paintSpecStatus(); else paintPicks();
+    paintReview();
+  }
 
   /* A step is a fresh screen, so it starts at its own top — otherwise
      step 3 opens scrolled to wherever step 2 was left. */
@@ -4055,7 +4436,9 @@ function paintWiz() {
   $('wizHint').textContent = stepHint();
 }
 
-['restUrl', 'wizName'].forEach(id => $(id).addEventListener('input', paintWiz));
+[
+  'restUrl', 'wizName', 'dirUrl', 'dirName', 'mfPath', 'mfMessage', 'mfResponse'
+].forEach(id => $(id).addEventListener('input', paintWiz));
 $('wizSteps').addEventListener('click', e => {
   const b = e.target.closest('[data-step]');
   /* Only backwards: a later step has nothing to show until the one
@@ -4073,31 +4456,58 @@ $('wizNext').addEventListener('click', () => {
 
 function createRemote() {
   const name = $('wizName').value.trim();
-  const a2a = wiz.proto === 'a2a';
-  const s = curServer();
-  const picked = a2a && s ? s.cards.filter(c => wiz.picks.has(c.name)) : [];
+  const desc = $('wizDesc').value.trim();
+  let extra;
 
-  AGENTS = [{
+  if (wiz.proto === 'a2a') {
+    const s = curServer();
+    const picked = s ? s.cards.filter(c => wiz.picks.has(c.name)) : [];
+    extra = {
+      conn: 'a2a',
+      /* Several cards composed into one thing is an orchestrator by any
+         other name: it routes between them. */
+      desc: desc || `A2A client over ${s ? s.name : 'the server'}, composed of ${picked.length} agent card${picked.length > 1 ? 's' : ''}.`,
+      endpoint: s ? s.url : '',
+      server: s ? s.name : '',
+      auth: [...new Set(picked.map(c => c.auth))].join(', '),
+      cards: picked.map(c => c.name),
+      agentSkills: picked.flatMap(c => c.skills),
+      members: picked.length > 1 ? picked.map(c => mem(c.name, c.skills.join(', ') || 'A2A skill', true)) : undefined
+    };
+  } else if (wiz.proto === 'direct') {
+    const method = $('mfMethod').value, path = $('mfPath').value.trim();
+    const skillName = $('mfSkillName').value.trim();
+    extra = {
+      conn: 'direct',
+      desc: desc || `Direct connection to ${$('dirUrl').value.trim()}, calling ${method} ${path}.`,
+      endpoint: $('dirUrl').value.trim().replace(/^https?:\/\//, ''),
+      server: $('dirName').value.trim() || `${name} connection`,
+      auth: AUTH_LABEL[wiz.directAuth],
+      cards: [skillName],
+      agentSkills: [$('mfSkillId').value.trim() || slugify(skillName)],
+      reqMethod: method, reqPath: path,
+      msgField: $('mfMessage').value.trim(), respField: $('mfResponse').value.trim(),
+      ctxField: $('mfContext').value.trim()
+    };
+  } else {
+    extra = {
+      conn: 'rest',
+      desc: desc || `REST service at ${$('restUrl').value.trim()}, wrapped by the Cogentiq managed adapter and served as A2A.`,
+      endpoint: $('restUrl').value.trim().replace(/^https?:\/\//, ''),
+      server: 'Cogentiq Managed A2A',
+      auth: $('restAuth').value,
+      cards: [name],
+      agentSkills: REST_OPS.filter(o => wiz.picks.has(o.op)).map(o => o.skill)
+    };
+  }
+
+  AGENTS = [Object.assign({
     name,
-    /* Several cards composed into one thing is an orchestrator by any
-       other name: it routes between them. */
     type: 'remote',
-    conn: a2a ? 'a2a' : 'rest',
     /* Registered, not live — it enters governance review first. */
     state: 'review',
-    desc: $('wizDesc').value.trim() || (a2a
-      ? `A2A client over ${s ? s.name : 'the server'}, composed of ${picked.length} agent card${picked.length > 1 ? 's' : ''}.`
-      : `REST service at ${$('restUrl').value.trim()}, wrapped by the Cogentiq managed adapter and served as A2A.`),
-    endpoint: a2a ? (s ? s.url : '') : $('restUrl').value.trim().replace(/^https?:\/\//, ''),
-    server: a2a ? (s ? s.name : '') : 'Cogentiq Managed A2A',
-    auth: a2a ? [...new Set(picked.map(c => c.auth))].join(', ') : $('restAuth').value,
-    cards: a2a ? picked.map(c => c.name) : [name],
-    agentSkills: a2a ? picked.flatMap(c => c.skills) : REST_OPS.filter(o => wiz.picks.has(o.op)).map(o => o.skill),
-    members: (a2a && picked.length > 1)
-      ? picked.map(c => mem(c.name, c.skills.join(', ') || 'A2A skill', true))
-      : undefined,
     by: 'You', tags: [], updated: 'just now', runs: 0
-  }, ...AGENTS];
+  }, extra), ...AGENTS];
 
   closeWiz();
   state.src = 'workspace'; state.type = 'remote'; state.q = ''; state.st = 'any';
