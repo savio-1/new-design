@@ -11255,6 +11255,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     state.video.height = v.videoHeight;
     state.video.duration = v.duration && isFinite(v.duration) ? v.duration : 10;
     state.video.ready = true;
+    state.aspect = v.videoWidth / v.videoHeight;   // keep the canvas shape in step with the footage
     state.video.thumbs = [];
     const D = round(state.video.duration, 4);
     const others = state.clips.filter((c) => c.asset);
@@ -11393,6 +11394,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       name: project.name,
       aspect: state.aspect, duration: state.duration, fov: state.fov,
       videoName: state.video.file ? state.video.file.name : null,
+      videoWidth: state.video.ready ? state.video.width : null,
+      videoHeight: state.video.ready ? state.video.height : null,
       camera: state.camera,
       media: state.media,
       mask: state.mask,
@@ -11552,7 +11555,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       packClips();
     }
     if ((data.version || 1) < 3 && !data.media) state.media.locked = true; // older projects were built with a fixed backdrop
-    if (data.aspect) state.aspect = data.aspect;
+    if (data.videoWidth && data.videoHeight) state.aspect = data.videoWidth / data.videoHeight;
+    else if (data.aspect) state.aspect = data.aspect;
     state.duration = Math.max(120, Number(data.duration) || 0);   // older projects were exactly as long as their content
     if (data.fov) state.fov = data.fov;
     state.selectedIds = []; state.selectedKeyId = null; state.selectedMaskKeyId = null; state.selectedClipId = null;
