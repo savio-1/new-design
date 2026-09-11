@@ -133,6 +133,7 @@
       this.polyBuf = gl.createBuffer();   // rewritten every frame for tracker outlines
 
       this.videoTex = this._createTexture();
+      this.videoTexOf = null;      // the element the held frame came from (null = nothing decoded yet)
       this.whiteTex = this._createTexture();
       gl.bindTexture(gl.TEXTURE_2D, this.whiteTex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
@@ -282,11 +283,14 @@
       gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
       try {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+        this.videoTexOf = video;
         return true;
       } catch (e) {
         return false;
       }
     }
+    /* Forget the held frame: the footage behind an element changed, so its last frame is not ours. */
+    dropVideoTexture() { this.videoTexOf = null; }
 
     /**
      * Render a frame.
@@ -337,7 +341,12 @@
       // Everything is queued and then drawn far-to-near, so the footage, media layers and words cover
       // each other by depth (the footage itself can now sit at any depth).
       const items = [];
-      if (opts.video && opts.videoReady && this._uploadVideo(opts.video) && opts.videoVisible !== false) {
+      // A <video> is briefly undecodable while it seeks or rebuffers. Dropping the plane on those
+      // frames leaves the bare background behind — which reads as flicker — so the last decoded frame
+      // is held and drawn instead, until a new one arrives or the footage changes.
+      const vEl = opts.video;
+      const fresh = !!(vEl && opts.videoReady && this._uploadVideo(vEl));
+      if (vEl && opts.videoVisible !== false && (fresh || this.videoTexOf === vEl)) {
         let pw = 2 * this.aspect * media.scale, ph = 2 * media.scale;
         // another video on the footage track may have a different shape: it is fitted inside the frame
         const va = opts.videoAspect;

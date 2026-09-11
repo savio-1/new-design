@@ -344,7 +344,7 @@
     }
   }
   function syncMedia(t, playing, force) {
-    if (state.tracking || state.exporting || state.thumbing) return;
+    if (state.tracking || state.exporting) return;
     const loc = locate(t);
     if (state.video.ready) {
       const onMain = !!(loc.clip && !loc.clip.asset);
@@ -3485,6 +3485,7 @@
   function loadVideoFile(file) {
     if (!file) return;
     if (state.video.url) URL.revokeObjectURL(state.video.url);
+    renderer.dropVideoTexture();
     const url = URL.createObjectURL(file);
     state.video = { file, url, width: 0, height: 0, duration: 0, ready: false };
     clock.pause();
@@ -3500,6 +3501,7 @@
     if (state.video.url) URL.revokeObjectURL(state.video.url);
     els.video.removeAttribute('src');
     els.video.load();
+    renderer.dropVideoTexture();
     state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] };
     state.clips = state.clips.filter((c) => c.asset); state.selectedClipId = null;
     clock._t = Math.min(clock._t, duration());
@@ -3553,31 +3555,48 @@
   async function makeThumbnailsNow(target) {
     const isMain = target === state.video;
     if (isMain ? !state.video.ready : !target.ready) return;
-    if (state.tracking || state.exporting) return;
-    const v = isMain ? els.video : target.el, D = target.duration;
+    if (state.tracking || state.exporting || !target.url) return;
+    const D = target.duration;
     const n = Math.min(24, Math.max(6, Math.round(D / 1.5)));
     const c = document.createElement('canvas');
     const h = 72, w = Math.max(16, Math.round((h * target.width) / Math.max(1, target.height)));
     c.width = w; c.height = h;
     const ctx = c.getContext('2d');
-    const was = clock.time, wasPlaying = clock.playing;
-    if (wasPlaying) clock.pause();
-    state.thumbing = true;
     const thumbs = [];
     const file = target.file;
     const stillHere = () => (isMain ? state.video.file === file : assets.get(target.id) === target);
-    for (let i = 0; i < n; i++) {
-      if (!stillHere() || state.tracking || state.exporting) { state.thumbing = false; return; }   // the video changed under us
-      const t = (D * (i + 0.5)) / n;
-      await seekEl(v, t);
-      try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
+    // Read the frames from a second, offscreen element: seeking the one the preview is showing would
+    // jump the picture all over the clip and blank it between seeks.
+    const v = await offscreenVideo(target.url);
+    if (!v) return;
+    try {
+      for (let i = 0; i < n; i++) {
+        if (!stillHere() || state.tracking || state.exporting) return;   // the video changed under us
+        const t = (D * (i + 0.5)) / n;
+        await seekEl(v, t);
+        try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
+      }
+    } finally {
+      v.removeAttribute('src');
+      v.load();
     }
-    state.thumbing = false;
     if (!stillHere()) return;
     target.thumbs = thumbs;
-    clock.time = was;
     renderVideoTrack();
-    if (wasPlaying) clock.play();
+  }
+  /* A detached <video> on the same file, ready to be seeked. Resolves null if it cannot be opened. */
+  function offscreenVideo(url) {
+    return new Promise((resolve) => {
+      const v = document.createElement('video');
+      v.preload = 'auto'; v.muted = true; v.playsInline = true; v.crossOrigin = 'anonymous';
+      let done = false;
+      const finish = (ok) => { if (done) return; done = true; clearTimeout(timer); resolve(ok ? v : null); };
+      const timer = setTimeout(() => finish(false), 15000);
+      v.addEventListener('loadeddata', () => finish(true), { once: true });
+      v.addEventListener('error', () => finish(false), { once: true });
+      v.src = url;
+      v.load();
+    });
   }
   els.video.addEventListener('loadeddata', invalidate);
   els.video.addEventListener('seeked', invalidate);
@@ -3770,6 +3789,7 @@
     clock.pause();
     if (state.video.url) URL.revokeObjectURL(state.video.url);
     els.video.removeAttribute('src'); els.video.load();
+    renderer.dropVideoTexture();
     for (const a of assets.values()) { if (a.el && a.el.pause) a.el.pause(); renderer.dropMediaTexture(a.id); if (a.url) URL.revokeObjectURL(a.url); }
     assets.clear();
     state.video = { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] };
