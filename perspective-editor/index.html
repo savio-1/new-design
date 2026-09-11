@@ -87,6 +87,18 @@
           </div>
         </div>
 
+        <div class="subhead">More layers</div>
+        <p class="panel-hint small">Extra videos, images and sound sit on the timeline as their own layers: place them one after another to cut between clips, or stack them in the 3D scene at different depths. Each has its own position, depth, size, timing and blur.</p>
+        <div class="two">
+          <button id="btnAddVideoLayer" class="btn small">Add video</button>
+          <button id="btnAddImageLayer" class="btn small">Add image</button>
+        </div>
+        <button id="btnAddAudioLayer" class="btn small wide-btn">Add sound</button>
+        <input id="videoLayerInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v" hidden>
+        <input id="imageLayerInput" type="file" accept="image/*" hidden>
+        <input id="audioLayerInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
+        <input id="relinkInput" type="file" hidden>
+
         <div class="subhead">Video in the 3D scene</div>
         <label class="toggle block-toggle">
           <input id="mediaIn3D" type="checkbox" checked>
@@ -103,6 +115,14 @@
         <div class="ctl">
           <label>Video Y</label>
           <div class="range-wrap"><input id="mediaY" type="range" min="-1.5" max="1.5" step="0.01" value="0"><input id="mediaYNum" type="number" min="-150" max="150" step="1" value="0"></div>
+        </div>
+        <div class="ctl">
+          <label title="Move the footage itself back or forward in the 3D scene. Pushed back behind the sharp band it goes soft like anything else out of focus; brought forward it grows and can sit in front of words.">Video depth</label>
+          <div class="range-wrap"><input id="mediaZ" type="range" min="-6" max="1.5" step="0.01" value="0"><input id="mediaZNum" type="number" min="-6" max="1.5" step="0.05" value="0"></div>
+        </div>
+        <div class="ctl">
+          <label>Video opacity</label>
+          <div class="range-wrap"><input id="mediaOpacity" type="range" min="0" max="1" step="0.01" value="1"><input id="mediaOpacityNum" type="number" min="0" max="100" step="1" value="100"></div>
         </div>
         <p class="panel-hint">Tip: the further back the camera goes, the more the footage has to be scaled to keep filling the frame — roughly the camera distance divided by 2.4. The camera templates set this up for you.</p>
       </div>
@@ -288,7 +308,14 @@
             <button data-mode="side" title="Side view: up/down and depth">Side</button>
           </div>
           <button id="btnLayoutFit" class="btn small ghost">Fit</button>
-          <span class="muted small layout-legend"><i class="dot cam"></i>camera <i class="dot word"></i>words <i class="dot video"></i>video · drag to move · wheel to zoom</span>
+          <button id="btnSnap" class="btn small ghost" title="Snap dragged words, camera and keys to the grid (G)">Snap</button>
+          <select id="snapStep" class="snap-step" title="Grid step in scene units">
+            <option value="0.05">0.05</option>
+            <option value="0.1" selected>0.1</option>
+            <option value="0.25">0.25</option>
+            <option value="0.5">0.5</option>
+          </select>
+          <span class="muted small layout-legend"><i class="dot cam"></i>camera <i class="dot word"></i>words <i class="dot video"></i>video · drag to move · Shift = one axis · wheel to zoom</span>
         </div>
       </div>
       <div class="views" id="views">
@@ -301,7 +328,7 @@
               <button class="btn primary" id="btnImport2">Choose a video</button>
             </div>
           </div>
-          <div class="canvas-tip" id="canvasTip">Drag words to move · Alt+drag to rotate · Wheel to resize · Double-click to edit</div>
+          <div class="canvas-tip" id="canvasTip">Drag words to move · Shift = one axis · Alt+drag to rotate · Wheel to resize · Double-click to edit</div>
         </div>
         <div class="view layout-wrap hidden" id="layoutWrap">
           <canvas id="layoutCanvas"></canvas>
@@ -380,6 +407,7 @@
           </div>
         </div>
         <div id="inspectorSections"></div>
+        <div id="mediaSections" class="hidden"></div>
       </div>
       <div class="inspector-body hidden" id="maskKeyBody">
         <div class="inspector-head">

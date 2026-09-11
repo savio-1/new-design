@@ -74,6 +74,7 @@
       if (global.TextRender) TextRender.setMaxTexture(Math.min(this.maxTex, 8192));
       this.maxRB = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
       this.texCache = new Map(); // canvas -> { tex }
+      this.mediaTex = new Map(); // layer id -> { tex, el } for video / image layers
       this.TEX_LIMIT = 900;
       this.lastQuads = [];
       this.bgColor = [0.07, 0.07, 0.08];
@@ -255,6 +256,27 @@
       else gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
+    /* Texture for a media layer's element (video frames re-uploaded every frame, images once). */
+    _mediaTexture(id, el, isVideo) {
+      const gl = this.gl;
+      let entry = this.mediaTex.get(id);
+      if (!entry) { entry = { tex: this._createTexture(), el: null, uploaded: false }; this.mediaTex.set(id, entry); }
+      gl.bindTexture(gl.TEXTURE_2D, entry.tex);
+      if (isVideo || entry.el !== el || !entry.uploaded) {
+        try {
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+          entry.el = el; entry.uploaded = true;
+        } catch (e) { return null; }
+      }
+      return entry.tex;
+    }
+    dropMediaTexture(id) {
+      const e = this.mediaTex.get(id);
+      if (e) { this.gl.deleteTexture(e.tex); this.mediaTex.delete(id); }
+    }
+
     _uploadVideo(video) {
       const gl = this.gl;
       gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
@@ -285,7 +307,7 @@
       const proj = this._proj();
       const defaultCam = this.defaultCamera();
       const cam = Object.assign(defaultCam, opts.camera || {});
-      const media = Object.assign({ scale: 1, x: 0, y: 0, locked: false, bg: null }, opts.media || {});
+      const media = Object.assign({ scale: 1, x: 0, y: 0, z: 0, locked: false, bg: null }, opts.media || {});
       if (media.bg) { gl.clearColor(media.bg[0], media.bg[1], media.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT); }
 
       const view = this.viewMatrix(cam);
@@ -295,9 +317,32 @@
       // part of the 3D scene (so a dolly zooms it, like a scaled footage layer in After Effects); when
       // locked it is drawn from the resting camera and only the text moves.
       const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
-      const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
-      if (opts.video && opts.videoReady && this._uploadVideo(opts.video)) {
-        this._drawQuad(planeMVP, 2 * this.aspect * media.scale, 2 * media.scale, this.videoTex, 1, null, null);
+      const planeZ = media.locked ? 0 : (media.z || 0);
+      const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, planeZ));
+      // The footage sits at its own depth and goes soft outside the sharp band like any other layer.
+      const sharpNear0 = cam.sharpNear == null ? 0.9 : cam.sharpNear;
+      const sharpFar0 = cam.sharpFar == null ? 3.2 : cam.sharpFar;
+      const planeBlur = (depth, w, h) => {
+        const ap = cam.aperture || 0;
+        if (!(ap > 0) || media.locked) return null;
+        let amount = 0;
+        if (depth < sharpNear0) amount = Math.min(1, (sharpNear0 - depth) / Math.max(0.15, sharpNear0 * 0.85));
+        else if (sharpFar0 > 0 && depth > sharpFar0) amount = Math.min(1, (depth - sharpFar0) / Math.max(0.4, sharpFar0 * 0.9));
+        if (amount <= 0) return null;
+        const soft = amount * amount * (3 - 2 * amount);
+        const blurWorld = ap * 0.045 * soft;          // gentler than text: a whole picture blurs a lot faster to the eye
+        return [blurWorld / w, blurWorld / h];
+      };
+      // Everything is queued and then drawn far-to-near, so the footage, media layers and words cover
+      // each other by depth (the footage itself can now sit at any depth).
+      const items = [];
+      if (opts.video && opts.videoReady && this._uploadVideo(opts.video) && opts.videoVisible !== false) {
+        const pw = 2 * this.aspect * media.scale, ph = 2 * media.scale;
+        const pd = -M4.transformPoint(media.locked ? this.viewMatrix(this.defaultCamera()) : view, media.x, media.y, planeZ).z;
+        if (pd > 0.05) {
+          const blur = planeBlur(pd, pw, ph), op = media.opacity == null ? 1 : media.opacity;
+          items.push({ depth: media.locked ? 1e9 : pd, draw: () => this._drawQuad(planeMVP, pw, ph, this.videoTex, op, blur, null) });
+        }
       }
 
       // Subject mask. It is pinned to the video plane (coordinates are fractions of the video's own
@@ -343,6 +388,58 @@
         const tr = pinned || layer.transform;
         const VPbase = pinned && media.locked ? planeVP : VP;
         const viewBase = pinned && media.locked ? this.viewMatrix(this.defaultCamera()) : view;
+
+        // ---- video / image layers: one textured quad in the scene, with the same entrance / exit
+        //      animation, depth of field, fade and subject-mask treatment as a word.
+        if (layer.type === 'media') {
+          if (layer.kind === 'audio') continue;
+          const asset = opts.mediaFor ? opts.mediaFor(layer) : null;
+          if (!asset || !asset.ready || !asset.el) continue;
+          const tex = this._mediaTexture(layer.id, asset.el, asset.kind === 'video');
+          if (!tex) continue;
+          const aw = asset.width || 16, ah = asset.height || 9;
+          const qw = Math.max(0.02, layer.fitWidth || 1), qh = qw * (ah / aw);
+          const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
+          const VPL = M4.multiply(VPbase, layerM);
+          const viewL = M4.multiply(viewBase, layerM);
+          const dur = layer.end - layer.start, lt = t - layer.start;
+          const st = Anim.evaluate(layer, lt, dur, { index: 0, count: 1, text: layer.name || '' });
+          const opacity = st.opacity * (layer.opacity == null ? 1 : layer.opacity);
+          if (opacity <= 0.001) continue;
+          const fw = qh * 0.35;                       // "font size" stand-in for the animation offsets
+          let gm = M4.translation(st.tx * fw, st.ty * fw, st.tz * fw);
+          if (st.rz) gm = M4.multiply(gm, M4.rotationZ(st.rz * D2R));
+          if (st.ry) gm = M4.multiply(gm, M4.rotationY(st.ry * D2R));
+          if (st.rx) gm = M4.multiply(gm, M4.rotationX(st.rx * D2R));
+          if (st.sx !== 1 || st.sy !== 1) gm = M4.multiply(gm, M4.scaling(Math.max(0.0001, st.sx), Math.max(0.0001, st.sy), 1));
+          const mvp = M4.multiply(VPL, gm);
+          const hw = qw * 0.5, hh = qh * 0.5;
+          const corners = [this._toScreen(mvp, -hw, -hh), this._toScreen(mvp, hw, -hh), this._toScreen(mvp, hw, hh), this._toScreen(mvp, -hw, hh)];
+          if (corners.some((p) => p.behind)) continue;
+          const depth = -M4.transformPoint(viewL, st.tx * fw, st.ty * fw, st.tz * fw).z;
+          let fadeMul = 1;
+          if (fade) {
+            if (fade.near > 0) fadeMul *= Math.min(1, Math.max(0, (depth - fade.near * 0.4) / (fade.near * 0.6)));
+            if (fade.farEnd > fade.farStart) fadeMul *= 1 - Math.min(1, Math.max(0, (depth - fade.farStart) / (fade.farEnd - fade.farStart)));
+          }
+          if (fadeMul <= 0.002) continue;
+          let blurWorld = st.blur * fw;
+          if (aperture > 0) {
+            let amount = 0;
+            if (depth < sharpNear) amount = Math.min(1, (sharpNear - depth) / Math.max(0.15, sharpNear * 0.85));
+            else if (sharpFar > 0 && depth > sharpFar) amount = Math.min(1, (depth - sharpFar) / Math.max(0.4, sharpFar * 0.9));
+            if (amount > 0) { const soft = amount * amount * (3 - 2 * amount); blurWorld += aperture * 0.045 * soft * Math.max(1, st.sx); }
+          }
+          const blurUV = blurWorld > 0.0005 ? [blurWorld / (qw * Math.max(0.05, st.sx)), blurWorld / (qh * Math.max(0.05, st.sy))] : null;
+          const mOp = Math.min(1, opacity * fadeMul), mMask = layer.behindSubject ? this.lastMask : null;
+          items.push({ depth, draw: () => this._drawQuad(mvp, qw, qh, tex, mOp, blurUV, null, null, mMask) });
+          this.lastQuads.push({ layerId: layer.id, quads: [corners] });
+          if (selected.has(layer.id)) {
+            const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
+            items.push({ depth: -1e9, draw: () => this._drawQuad(VPL, qw * 1.02, qh * 1.02, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop') });
+          }
+          continue;
+        }
         // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
         // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
         // The magnification is the camera closing in AND the layer's own scale (a pinned word grows with
@@ -414,7 +511,9 @@
           }
 
           const tex = this._textureFor(g.canvas);
-          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null, null, layer.behindSubject ? this.lastMask : null);
+          const tOp = Math.min(1, opacity * fadeMul), tMask = layer.behindSubject ? this.lastMask : null;
+          const gw = g.w, gh = g.h;
+          items.push({ depth, draw: () => this._drawQuad(mvp, gw, gh, tex, tOp, blurUV, null, null, tMask) });
           quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });
@@ -423,9 +522,13 @@
           const pad = fw * 0.25;
           const bw = lay.blockW + pad * 2, bh = lay.blockH + pad * 2;
           const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
-          this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop');
+          items.push({ depth: -1e9, draw: () => this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop') });
         }
       }
+
+      // Far to near. Ties (a word sitting exactly on the footage) keep their layer order.
+      items.sort((a, b) => b.depth - a.depth);
+      for (const it of items) it.draw();
 
       // Mask outline, so the shape can be placed while editing.
       if (this.lastMask && opts.showMask) {
@@ -485,13 +588,14 @@
      * half-width, y across the half-height, y up). Exact: the camera ray is intersected with z = 0. */
     planePointAtScreen(px, py, cam, media) {
       const c = cam || this.defaultCamera();
-      const m = Object.assign({ x: 0, y: 0, scale: 1 }, media || {});
+      const m = Object.assign({ x: 0, y: 0, z: 0, scale: 1 }, media || {});
+      const pz = m.locked ? 0 : (m.z || 0);
       const ndcX = (px / this.canvas.width) * 2 - 1, ndcY = 1 - (py / this.canvas.height) * 2;
       const tanH = Math.tan((this.fovDeg * D2R) / 2);
       const R = M4.multiply(M4.multiply(M4.rotationY((c.yaw || 0) * D2R), M4.rotationX((c.pitch || 0) * D2R)), M4.rotationZ((c.roll || 0) * D2R));
       const d = M4.transformPoint(R, ndcX * tanH * this.aspect, ndcY * tanH, -1);
       if (d.z > -1e-6) return null;                       // looking away from the plane
-      const k = -c.z / d.z;
+      const k = (pz - c.z) / d.z;
       if (!(k > 0)) return null;
       return {
         x: (c.x + d.x * k - m.x) / (this.aspect * Math.max(0.001, m.scale)),

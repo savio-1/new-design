@@ -82,6 +82,54 @@
     }
   }
 
+  /* Mix several audio sources into one buffer for the export range.
+   * sources: [{ file, gain, pieces: [{ in, out, at }] }] — `in`/`out` in the file's own seconds, `at` where
+   * the piece starts in the export (seconds from the export's first frame). */
+  async function mixAudio(sources, length) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !sources || !sources.length) return null;
+    const sr = 48000;
+    const frames = Math.max(1, Math.round(length * sr));
+    const planes = [new Float32Array(frames), new Float32Array(frames)];
+    let any = false;
+    for (const src of sources) {
+      if (!src.file || !src.pieces || !src.pieces.length) continue;
+      let ctx;
+      try {
+        ctx = new AC({ sampleRate: sr });
+        const audio = await ctx.decodeAudioData(await src.file.arrayBuffer());
+        const rate = audio.sampleRate / sr;
+        const chans = Math.min(2, audio.numberOfChannels);
+        const gain = src.gain == null ? 1 : src.gain;
+        const data = [audio.getChannelData(0), audio.getChannelData(chans > 1 ? 1 : 0)];
+        for (const pc of src.pieces) {
+          const n = Math.max(0, Math.round((pc.out - pc.in) * sr));
+          const at = Math.round(pc.at * sr);
+          for (let c = 0; c < 2; c++) {
+            const d = data[c], out = planes[c];
+            for (let i = 0; i < n; i++) {
+              const o = at + i;
+              if (o < 0 || o >= frames) continue;
+              const sp = (pc.in * sr + i) * rate;         // source sample position (linear resample)
+              const i0 = Math.floor(sp), f = sp - i0;
+              if (i0 + 1 >= d.length) break;
+              out[o] += (d[i0] * (1 - f) + d[i0 + 1] * f) * gain;
+            }
+          }
+          any = true;
+        }
+      } catch (e) {
+        console.warn('Audio decode failed for one source; it is left out.', e);
+      } finally {
+        if (ctx && ctx.close) ctx.close().catch(() => {});
+      }
+    }
+    if (!any) return null;
+    // soft limit so several stacked sources cannot clip
+    for (const out of planes) for (let i = 0; i < frames; i++) { const v = out[i]; if (v > 1 || v < -1) out[i] = Math.tanh(v); }
+    return { sampleRate: sr, channels: 2, planes, frames };
+  }
+
   function estimateBitrate(width, height, fps, quality) {
     const bpp = { standard: 0.07, high: 0.12, max: 0.2 }[quality] || 0.12;
     return Math.min(90e6, Math.max(2e6, Math.round(width * height * fps * bpp)));
@@ -106,7 +154,12 @@
     if (!vc) throw new Error(`No supported video encoder for ${width}×${height}. Try a lower resolution.`);
 
     let audio = null, ac = null;
-    if (opts.includeAudio && opts.audioFile) {
+    if (opts.includeAudio && opts.audioSources && opts.audioSources.length) {
+      report({ stage: 'Mixing audio…' });
+      audio = await mixAudio(opts.audioSources, duration);
+      if (audio) ac = await pickAudioCodec(audio.sampleRate, audio.channels);
+      if (audio && !ac) { console.warn('No audio encoder available; exporting silent video.'); audio = null; }
+    } else if (opts.includeAudio && opts.audioFile) {
       report({ stage: 'Decoding audio…' });
       audio = await decodeAudio(opts.audioFile, start, end, opts.audioSegments);
       if (audio) ac = await pickAudioCodec(audio.sampleRate, audio.channels);

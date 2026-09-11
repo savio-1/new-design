@@ -38,7 +38,7 @@ selected (a word, a camera keyframe, a mask or tracker keyframe).
 
 | Tool | What lives there |
 | --- | --- |
-| **Media** | Import a video or work on a plain colour; canvas shape and length; how the footage sits in the 3D scene (scale, position, whether it zooms with the camera). |
+| **Media** | Import a video or work on a plain colour; canvas shape and length; how the footage sits in the 3D scene (scale, position, **depth**, opacity, whether it zooms with the camera); **more layers** — extra videos, images and sound. |
 | **Text** | Add words, templates (which build a whole sequence with its camera move), text styles. |
 | **Camera** | Camera moves, depth of field, far fade, lens. |
 | **Track** | Motion tracking: mark an object (or let the editor find objects), track it, pin words to it. |
@@ -46,8 +46,21 @@ selected (a word, a camera keyframe, a mask or tracker keyframe).
 
 **Media.** Import a video (or drop one on the preview), or skip it and work on a plain
 background colour. The video is a layer inside the 3D scene: *Video scale* zooms the footage up
-(150–200 % is typical) so it still fills the frame when the camera pulls back, and *Video X / Y*
-reframe it. Untick *Video zooms with the camera* to pin the footage as a fixed backdrop and move
+(150–200 % is typical) so it still fills the frame when the camera pulls back, *Video X / Y*
+reframe it, and **Video depth** moves the footage itself back or forward. Pushed behind the sharp
+band it goes soft like anything else out of focus; brought forward it grows and can sit in front of
+words — everything is drawn far-to-near, so words and other media placed behind it are covered by it.
+
+**More layers.** *Add video*, *Add image* and *Add sound* put extra media on the timeline as layers of
+their own (dropping a second file onto the preview does the same). A video or image layer is a picture
+in the 3D scene: it has a position and **depth**, a size, rotation, opacity, entrance and exit
+animations, and it blurs when it leaves the sharp band exactly like a word; it can be pinned to a
+tracker or sent behind the subject mask. On the timeline each is a bar you drag, trim (trimming the
+head keeps the same frame at the cut) and **split** at the playhead (`S`), so several clips can be
+laid one after another — the timeline grows to fit, and the main video simply stops showing when its
+pieces end. Sound layers play in step with everything else, with their own volume and mute. Export
+mixes every audible layer together, placed where it sits on the timeline. Files are not embedded in
+a saved project: a reopened project lists each media layer with **Relink file…** in the inspector. Untick *Video zooms with the camera* to pin the footage as a fixed backdrop and move
 only the words. *Subject mask* lets words pass behind the person in the shot, and *Motion tracking*
 pins words to something in the footage so they stay put while the real camera moves (both below).
 Without a video, choose the canvas shape and length here.
@@ -58,10 +71,19 @@ styles apply a look to the selected words.
 
 **Camera.** Pick a camera move, set depth of field (blur amount and what to focus on), fade
 for far words, and the lens. *Add keyframe here* and *Fit video at this key* write keyframes at the
-playhead.
+playhead. Each keyframe has an **Ease in** that shapes the move arriving at it — presets from linear
+to a hold-then-jump, or **Custom curve…**, which opens a speed-curve editor: drag the two handles of a
+cubic Bezier (time across, progress up), or pick Gentle / Slow start / Slow finish / Snappy / Overshoot /
+Anticipate. Different keys can have different curves, so one move can creep, rush and settle in turn.
 
 **The stage** has three views: *Preview* (the final picture), *3D layout* (a big top-down or side
-diagram of the scene), or *Split*. In the 3D layout the red line is the video, the blue dot is the
+diagram of the scene), or *Split*. Placing things precisely: **Snap** (or `G`) quantises every drag in
+the 3D layout — words, media, the camera and its keyframes — to a grid whose step you choose (0.05 to
+0.5 scene units), drawn faintly behind the scene; hold **Alt** during a drag to bypass it. Holding
+**Shift** while dragging an already-selected item locks the move to one axis — whichever you set off
+along first — so a word can be pushed straight back or slid straight across without wandering; this
+works in the preview too. The inspector's number fields take exact values, and the arrow keys nudge a
+selection by 0.01 (0.1 with Shift). In the 3D layout the red line is the video, the blue dot is the
 camera with its field of view and focus line, the dashed line is the camera path with its keyframes
 as diamonds, and every word is a pill you can drag left/right and nearer/further (top view) or
 up/down (side view). Dragging the camera writes a keyframe at the playhead; dragging a diamond edits
@@ -70,7 +92,8 @@ that keyframe. Scroll to zoom, drag empty space to pan, double-click empty space
 **The inspector** (right) edits the selected word or camera keyframe. Shift-click words in the
 preview, layout, or timeline to select several and change them together.
 
-**Timeline**: the **Video** row shows the footage as a filmstrip. Press **Split** (the scissors, or
+**Timeline**: the **Video** row shows the footage as a filmstrip; media layers sit below it with a
+poster frame, and `S` splits whichever layer is selected (or the footage when nothing is). Press **Split** (the scissors, or
 `S`) to cut it at the playhead, drag the ends of a piece to trim it, click a piece and press `Delete`
 to remove it — the remaining pieces close up, and the timeline shortens to match. Words and camera
 keys keep their timeline positions; anything bound to the footage (tracks, the subject mask) stays
@@ -84,7 +107,8 @@ embedded — re-import it).
 
 Keyboard: `Space` play/pause · `,` `.` step frames · `Home` / `End` · `Delete` remove word or key ·
 `Ctrl+Z` / `Ctrl+Shift+Z` undo/redo · `Ctrl+A` select all · `Ctrl+D` duplicate · `T` add text ·
-`K` add camera key · `S` split the video at the playhead · `M` adjust the subject mask · `Enter` close
+`K` add camera key · `S` split the selected layer (or the video) at the playhead · `G` snap on/off ·
+`Shift`+drag one axis · `Alt`+drag bypass snap · `M` adjust the subject mask · `Enter` close
 a tracker shape · `Backspace` take back its last point · `Esc` leave tracker marking / dismiss object
 proposals · `L` cycle Preview / Split / 3D layout · `Ctrl+S` save · `Ctrl+E` export.
 
@@ -258,9 +282,10 @@ Bouncy Pop, Elegant Quote.
 
 ## How it works
 
-- `js/renderer.js` — WebGL compositor. The video is a plane at z = 0 filling a perspective camera's
-  view; each text group is a textured quad with its own model matrix, so rotation and depth produce
-  true perspective. Text is rasterised for the magnification it will actually be seen at — camera
+- `js/renderer.js` — WebGL compositor. The video is a plane at its own depth (z = 0 by default)
+  filling a perspective camera's view; each text group and each video / image layer is a textured quad
+  with its own model matrix, so rotation and depth produce true perspective. Everything is queued and
+  drawn far-to-near so layers cover each other correctly by depth. Text is rasterised for the magnification it will actually be seen at — camera
   distance times the layer's own scale, in steps up to 12× — so words close to the lens or pinned to a
   growing object stay crisp. A fragment-shader disk blur drives the focus effect, and a rounded-box SDF —
   projected from the video plane so it tracks the footage — erases the words marked as being behind
@@ -270,17 +295,18 @@ Bouncy Pop, Elegant Quote.
   the export resolution so 4K output stays sharp.
 - `js/animations.js` — easing curves plus the entrance / exit / loop library. Each animation is a
   pure function of progress that returns translation, rotation, scale, opacity and blur.
-- `js/camera.js` — camera keyframes, interpolation, and the library of camera moves.
+- `js/camera.js` — camera keyframes, interpolation (preset easings and per-key cubic-Bezier speed
+  curves), and the library of camera moves.
 - `js/tracker.js` — the object tracker: reads frames by playing the clip at an adaptive rate
   (`requestVideoFrameCallback`, falling back to seeking), detects Shi-Tomasi corners in the marked
   region, follows them with pyramidal Lucas-Kanade optical flow, validates each against its reference
   patch, and fits one similarity transform per frame to give position, size and rotation keys.
 - `js/layout-view.js` — the large top/side diagram of the scene with draggable words, camera and keyframes.
 - `js/presets.js` — style presets and template generators.
-- `js/exporter.js` — frame-accurate export: seeks the source video frame by frame, renders,
+- `js/exporter.js` — frame-accurate export: seeks every video frame by frame, renders,
   encodes with WebCodecs (H.264, falling back to VP9 / AV1) and muxes with
   [mp4-muxer](https://github.com/Vanilagy/mp4-muxer) (`vendor/`, MIT). Audio is decoded with
-  Web Audio and encoded as AAC (or Opus). Without WebCodecs it records the canvas in real time with
+  Web Audio, mixed across the main video's pieces and every audible layer, and encoded as AAC (or Opus). Without WebCodecs it records the canvas in real time with
   MediaRecorder.
 - `js/app.js` — state, undo/redo, timeline, inspector, canvas interaction, dialogs.
 

@@ -607,6 +607,27 @@ svg { width: 18px; height: 18px; display: block; }
 .tab-body .subhead::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .btn.wide-btn { width: 100%; justify-content: center; margin-top: 8px; }
 
+/* ---- Snap + speed curve ---- */
+.snap-step { height: 26px; background: var(--panel-2); border: 1px solid var(--border-2); border-radius: 6px; color: var(--text); font-size: 12px; padding: 0 6px; }
+.btn.small.ghost.on { background: var(--accent); border-color: var(--accent); color: #1a0d00; font-weight: 700; }
+.curve-wrap { display: flex; flex-direction: column; gap: 6px; }
+.curve-canvas { width: 100%; height: 130px; background: #121216; border: 1px solid var(--border-2); border-radius: 8px; cursor: crosshair; display: block; }
+.curve-presets { display: flex; flex-wrap: wrap; gap: 4px; }
+.curve-presets button { height: 22px; padding: 0 8px; font-size: 11px; border-radius: 5px; border: 1px solid var(--border-2); background: var(--panel-2); color: var(--muted); cursor: pointer; }
+.curve-presets button:hover { color: var(--text); border-color: var(--accent); }
+.curve-readout { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--muted); }
+
+/* ---- Media layers on the timeline ---- */
+.tl-row.media-row .tl-bar { background: linear-gradient(180deg, #2f4a5c, #24394a); border-color: #4a6b82; }
+.tl-row.media-row.kind-audio .tl-bar { background: linear-gradient(180deg, #3d4f2f, #2c3a22); border-color: #5f7a4a; }
+.tl-row.media-row.kind-image .tl-bar { background: linear-gradient(180deg, #4b3d5c, #382d46); border-color: #6f5a85; }
+.tl-row.media-row.selected .tl-bar { background: linear-gradient(180deg, #ff9d3d, #e07a1e); border-color: #ffb56b; color: #1a0d00; }
+.tl-row.media-row .tl-bar .poster { position: absolute; left: 0; top: 0; bottom: 0; width: 44px; object-fit: cover; opacity: .8; pointer-events: none; }
+.tl-row.media-row .tl-bar.has-poster { padding-left: 52px; }
+.tl-row.media-row .tl-bar.missing { border-style: dashed; opacity: .7; }
+.tl-name .kind { font-size: 11px; opacity: .8; flex: none; }
+#mediaSections { overflow-y: auto; flex: 1; min-height: 0; padding-bottom: 20px; }
+
 </style>
 </head>
 <body>
@@ -686,6 +707,18 @@ svg { width: 18px; height: 18px; display: block; }
           </div>
         </div>
 
+        <div class="subhead">More layers</div>
+        <p class="panel-hint small">Extra videos, images and sound sit on the timeline as their own layers: place them one after another to cut between clips, or stack them in the 3D scene at different depths. Each has its own position, depth, size, timing and blur.</p>
+        <div class="two">
+          <button id="btnAddVideoLayer" class="btn small">Add video</button>
+          <button id="btnAddImageLayer" class="btn small">Add image</button>
+        </div>
+        <button id="btnAddAudioLayer" class="btn small wide-btn">Add sound</button>
+        <input id="videoLayerInput" type="file" accept="video/*,.mov,.mkv,.webm,.mp4,.m4v" hidden>
+        <input id="imageLayerInput" type="file" accept="image/*" hidden>
+        <input id="audioLayerInput" type="file" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac" hidden>
+        <input id="relinkInput" type="file" hidden>
+
         <div class="subhead">Video in the 3D scene</div>
         <label class="toggle block-toggle">
           <input id="mediaIn3D" type="checkbox" checked>
@@ -702,6 +735,14 @@ svg { width: 18px; height: 18px; display: block; }
         <div class="ctl">
           <label>Video Y</label>
           <div class="range-wrap"><input id="mediaY" type="range" min="-1.5" max="1.5" step="0.01" value="0"><input id="mediaYNum" type="number" min="-150" max="150" step="1" value="0"></div>
+        </div>
+        <div class="ctl">
+          <label title="Move the footage itself back or forward in the 3D scene. Pushed back behind the sharp band it goes soft like anything else out of focus; brought forward it grows and can sit in front of words.">Video depth</label>
+          <div class="range-wrap"><input id="mediaZ" type="range" min="-6" max="1.5" step="0.01" value="0"><input id="mediaZNum" type="number" min="-6" max="1.5" step="0.05" value="0"></div>
+        </div>
+        <div class="ctl">
+          <label>Video opacity</label>
+          <div class="range-wrap"><input id="mediaOpacity" type="range" min="0" max="1" step="0.01" value="1"><input id="mediaOpacityNum" type="number" min="0" max="100" step="1" value="100"></div>
         </div>
         <p class="panel-hint">Tip: the further back the camera goes, the more the footage has to be scaled to keep filling the frame — roughly the camera distance divided by 2.4. The camera templates set this up for you.</p>
       </div>
@@ -887,7 +928,14 @@ svg { width: 18px; height: 18px; display: block; }
             <button data-mode="side" title="Side view: up/down and depth">Side</button>
           </div>
           <button id="btnLayoutFit" class="btn small ghost">Fit</button>
-          <span class="muted small layout-legend"><i class="dot cam"></i>camera <i class="dot word"></i>words <i class="dot video"></i>video · drag to move · wheel to zoom</span>
+          <button id="btnSnap" class="btn small ghost" title="Snap dragged words, camera and keys to the grid (G)">Snap</button>
+          <select id="snapStep" class="snap-step" title="Grid step in scene units">
+            <option value="0.05">0.05</option>
+            <option value="0.1" selected>0.1</option>
+            <option value="0.25">0.25</option>
+            <option value="0.5">0.5</option>
+          </select>
+          <span class="muted small layout-legend"><i class="dot cam"></i>camera <i class="dot word"></i>words <i class="dot video"></i>video · drag to move · Shift = one axis · wheel to zoom</span>
         </div>
       </div>
       <div class="views" id="views">
@@ -900,7 +948,7 @@ svg { width: 18px; height: 18px; display: block; }
               <button class="btn primary" id="btnImport2">Choose a video</button>
             </div>
           </div>
-          <div class="canvas-tip" id="canvasTip">Drag words to move · Alt+drag to rotate · Wheel to resize · Double-click to edit</div>
+          <div class="canvas-tip" id="canvasTip">Drag words to move · Shift = one axis · Alt+drag to rotate · Wheel to resize · Double-click to edit</div>
         </div>
         <div class="view layout-wrap hidden" id="layoutWrap">
           <canvas id="layoutCanvas"></canvas>
@@ -979,6 +1027,7 @@ svg { width: 18px; height: 18px; display: block; }
           </div>
         </div>
         <div id="inspectorSections"></div>
+        <div id="mediaSections" class="hidden"></div>
       </div>
       <div class="inspector-body hidden" id="maskKeyBody">
         <div class="inspector-head">
@@ -3881,6 +3930,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       if (global.TextRender) TextRender.setMaxTexture(Math.min(this.maxTex, 8192));
       this.maxRB = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
       this.texCache = new Map(); // canvas -> { tex }
+      this.mediaTex = new Map(); // layer id -> { tex, el } for video / image layers
       this.TEX_LIMIT = 900;
       this.lastQuads = [];
       this.bgColor = [0.07, 0.07, 0.08];
@@ -4062,6 +4112,27 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       else gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
+    /* Texture for a media layer's element (video frames re-uploaded every frame, images once). */
+    _mediaTexture(id, el, isVideo) {
+      const gl = this.gl;
+      let entry = this.mediaTex.get(id);
+      if (!entry) { entry = { tex: this._createTexture(), el: null, uploaded: false }; this.mediaTex.set(id, entry); }
+      gl.bindTexture(gl.TEXTURE_2D, entry.tex);
+      if (isVideo || entry.el !== el || !entry.uploaded) {
+        try {
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, el);
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+          entry.el = el; entry.uploaded = true;
+        } catch (e) { return null; }
+      }
+      return entry.tex;
+    }
+    dropMediaTexture(id) {
+      const e = this.mediaTex.get(id);
+      if (e) { this.gl.deleteTexture(e.tex); this.mediaTex.delete(id); }
+    }
+
     _uploadVideo(video) {
       const gl = this.gl;
       gl.bindTexture(gl.TEXTURE_2D, this.videoTex);
@@ -4092,7 +4163,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const proj = this._proj();
       const defaultCam = this.defaultCamera();
       const cam = Object.assign(defaultCam, opts.camera || {});
-      const media = Object.assign({ scale: 1, x: 0, y: 0, locked: false, bg: null }, opts.media || {});
+      const media = Object.assign({ scale: 1, x: 0, y: 0, z: 0, locked: false, bg: null }, opts.media || {});
       if (media.bg) { gl.clearColor(media.bg[0], media.bg[1], media.bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT); }
 
       const view = this.viewMatrix(cam);
@@ -4102,9 +4173,32 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       // part of the 3D scene (so a dolly zooms it, like a scaled footage layer in After Effects); when
       // locked it is drawn from the resting camera and only the text moves.
       const planeVP = media.locked ? M4.multiply(proj, this.viewMatrix(this.defaultCamera())) : VP;
-      const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, 0));
-      if (opts.video && opts.videoReady && this._uploadVideo(opts.video)) {
-        this._drawQuad(planeMVP, 2 * this.aspect * media.scale, 2 * media.scale, this.videoTex, 1, null, null);
+      const planeZ = media.locked ? 0 : (media.z || 0);
+      const planeMVP = M4.multiply(planeVP, M4.translation(media.x, media.y, planeZ));
+      // The footage sits at its own depth and goes soft outside the sharp band like any other layer.
+      const sharpNear0 = cam.sharpNear == null ? 0.9 : cam.sharpNear;
+      const sharpFar0 = cam.sharpFar == null ? 3.2 : cam.sharpFar;
+      const planeBlur = (depth, w, h) => {
+        const ap = cam.aperture || 0;
+        if (!(ap > 0) || media.locked) return null;
+        let amount = 0;
+        if (depth < sharpNear0) amount = Math.min(1, (sharpNear0 - depth) / Math.max(0.15, sharpNear0 * 0.85));
+        else if (sharpFar0 > 0 && depth > sharpFar0) amount = Math.min(1, (depth - sharpFar0) / Math.max(0.4, sharpFar0 * 0.9));
+        if (amount <= 0) return null;
+        const soft = amount * amount * (3 - 2 * amount);
+        const blurWorld = ap * 0.045 * soft;          // gentler than text: a whole picture blurs a lot faster to the eye
+        return [blurWorld / w, blurWorld / h];
+      };
+      // Everything is queued and then drawn far-to-near, so the footage, media layers and words cover
+      // each other by depth (the footage itself can now sit at any depth).
+      const items = [];
+      if (opts.video && opts.videoReady && this._uploadVideo(opts.video) && opts.videoVisible !== false) {
+        const pw = 2 * this.aspect * media.scale, ph = 2 * media.scale;
+        const pd = -M4.transformPoint(media.locked ? this.viewMatrix(this.defaultCamera()) : view, media.x, media.y, planeZ).z;
+        if (pd > 0.05) {
+          const blur = planeBlur(pd, pw, ph), op = media.opacity == null ? 1 : media.opacity;
+          items.push({ depth: media.locked ? 1e9 : pd, draw: () => this._drawQuad(planeMVP, pw, ph, this.videoTex, op, blur, null) });
+        }
       }
 
       // Subject mask. It is pinned to the video plane (coordinates are fractions of the video's own
@@ -4150,6 +4244,58 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         const tr = pinned || layer.transform;
         const VPbase = pinned && media.locked ? planeVP : VP;
         const viewBase = pinned && media.locked ? this.viewMatrix(this.defaultCamera()) : view;
+
+        // ---- video / image layers: one textured quad in the scene, with the same entrance / exit
+        //      animation, depth of field, fade and subject-mask treatment as a word.
+        if (layer.type === 'media') {
+          if (layer.kind === 'audio') continue;
+          const asset = opts.mediaFor ? opts.mediaFor(layer) : null;
+          if (!asset || !asset.ready || !asset.el) continue;
+          const tex = this._mediaTexture(layer.id, asset.el, asset.kind === 'video');
+          if (!tex) continue;
+          const aw = asset.width || 16, ah = asset.height || 9;
+          const qw = Math.max(0.02, layer.fitWidth || 1), qh = qw * (ah / aw);
+          const layerM = M4.compose(tr.x, tr.y, tr.z, tr.rx, tr.ry, tr.rz, tr.scale, tr.scale, tr.scale);
+          const VPL = M4.multiply(VPbase, layerM);
+          const viewL = M4.multiply(viewBase, layerM);
+          const dur = layer.end - layer.start, lt = t - layer.start;
+          const st = Anim.evaluate(layer, lt, dur, { index: 0, count: 1, text: layer.name || '' });
+          const opacity = st.opacity * (layer.opacity == null ? 1 : layer.opacity);
+          if (opacity <= 0.001) continue;
+          const fw = qh * 0.35;                       // "font size" stand-in for the animation offsets
+          let gm = M4.translation(st.tx * fw, st.ty * fw, st.tz * fw);
+          if (st.rz) gm = M4.multiply(gm, M4.rotationZ(st.rz * D2R));
+          if (st.ry) gm = M4.multiply(gm, M4.rotationY(st.ry * D2R));
+          if (st.rx) gm = M4.multiply(gm, M4.rotationX(st.rx * D2R));
+          if (st.sx !== 1 || st.sy !== 1) gm = M4.multiply(gm, M4.scaling(Math.max(0.0001, st.sx), Math.max(0.0001, st.sy), 1));
+          const mvp = M4.multiply(VPL, gm);
+          const hw = qw * 0.5, hh = qh * 0.5;
+          const corners = [this._toScreen(mvp, -hw, -hh), this._toScreen(mvp, hw, -hh), this._toScreen(mvp, hw, hh), this._toScreen(mvp, -hw, hh)];
+          if (corners.some((p) => p.behind)) continue;
+          const depth = -M4.transformPoint(viewL, st.tx * fw, st.ty * fw, st.tz * fw).z;
+          let fadeMul = 1;
+          if (fade) {
+            if (fade.near > 0) fadeMul *= Math.min(1, Math.max(0, (depth - fade.near * 0.4) / (fade.near * 0.6)));
+            if (fade.farEnd > fade.farStart) fadeMul *= 1 - Math.min(1, Math.max(0, (depth - fade.farStart) / (fade.farEnd - fade.farStart)));
+          }
+          if (fadeMul <= 0.002) continue;
+          let blurWorld = st.blur * fw;
+          if (aperture > 0) {
+            let amount = 0;
+            if (depth < sharpNear) amount = Math.min(1, (sharpNear - depth) / Math.max(0.15, sharpNear * 0.85));
+            else if (sharpFar > 0 && depth > sharpFar) amount = Math.min(1, (depth - sharpFar) / Math.max(0.4, sharpFar * 0.9));
+            if (amount > 0) { const soft = amount * amount * (3 - 2 * amount); blurWorld += aperture * 0.045 * soft * Math.max(1, st.sx); }
+          }
+          const blurUV = blurWorld > 0.0005 ? [blurWorld / (qw * Math.max(0.05, st.sx)), blurWorld / (qh * Math.max(0.05, st.sy))] : null;
+          const mOp = Math.min(1, opacity * fadeMul), mMask = layer.behindSubject ? this.lastMask : null;
+          items.push({ depth, draw: () => this._drawQuad(mvp, qw, qh, tex, mOp, blurUV, null, null, mMask) });
+          this.lastQuads.push({ layerId: layer.id, quads: [corners] });
+          if (selected.has(layer.id)) {
+            const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
+            items.push({ depth: -1e9, draw: () => this._drawQuad(VPL, qw * 1.02, qh * 1.02, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop') });
+          }
+          continue;
+        }
         // Rasterise text at a resolution that matches how much the camera magnifies it, so words close
         // to the lens stay crisp. Bucketed so a slow dolly re-rasterises only a few times.
         // The magnification is the camera closing in AND the layer's own scale (a pinned word grows with
@@ -4221,7 +4367,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           }
 
           const tex = this._textureFor(g.canvas);
-          this._drawQuad(mvp, g.w, g.h, tex, Math.min(1, opacity * fadeMul), blurUV, null, null, layer.behindSubject ? this.lastMask : null);
+          const tOp = Math.min(1, opacity * fadeMul), tMask = layer.behindSubject ? this.lastMask : null;
+          const gw = g.w, gh = g.h;
+          items.push({ depth, draw: () => this._drawQuad(mvp, gw, gh, tex, tOp, blurUV, null, null, tMask) });
           quads.push(corners);
         }
         this.lastQuads.push({ layerId: layer.id, quads });
@@ -4230,9 +4378,13 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           const pad = fw * 0.25;
           const bw = lay.blockW + pad * 2, bh = lay.blockH + pad * 2;
           const primary = opts.selectedIds && opts.selectedIds[0] === layer.id;
-          this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop');
+          items.push({ depth: -1e9, draw: () => this._drawQuad(VPL, bw, bh, this.whiteTex, 1, null, primary ? [1, 0.55, 0.1, 0.95] : [1, 0.75, 0.45, 0.7], 'loop') });
         }
       }
+
+      // Far to near. Ties (a word sitting exactly on the footage) keep their layer order.
+      items.sort((a, b) => b.depth - a.depth);
+      for (const it of items) it.draw();
 
       // Mask outline, so the shape can be placed while editing.
       if (this.lastMask && opts.showMask) {
@@ -4292,13 +4444,14 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
      * half-width, y across the half-height, y up). Exact: the camera ray is intersected with z = 0. */
     planePointAtScreen(px, py, cam, media) {
       const c = cam || this.defaultCamera();
-      const m = Object.assign({ x: 0, y: 0, scale: 1 }, media || {});
+      const m = Object.assign({ x: 0, y: 0, z: 0, scale: 1 }, media || {});
+      const pz = m.locked ? 0 : (m.z || 0);
       const ndcX = (px / this.canvas.width) * 2 - 1, ndcY = 1 - (py / this.canvas.height) * 2;
       const tanH = Math.tan((this.fovDeg * D2R) / 2);
       const R = M4.multiply(M4.multiply(M4.rotationY((c.yaw || 0) * D2R), M4.rotationX((c.pitch || 0) * D2R)), M4.rotationZ((c.roll || 0) * D2R));
       const d = M4.transformPoint(R, ndcX * tanH * this.aspect, ndcY * tanH, -1);
       if (d.z > -1e-6) return null;                       // looking away from the plane
-      const k = -c.z / d.z;
+      const k = (pz - c.z) / d.z;
       if (!(k > 0)) return null;
       return {
         x: (c.x + d.x * k - m.x) / (this.aspect * Math.max(0.001, m.scale)),
@@ -4365,8 +4518,54 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     easeIn: (t) => t * t,
     easeOut: (t) => 1 - (1 - t) * (1 - t),
     smooth: (t) => t * t * (3 - 2 * t),
+    strongInOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    slowIn: (t) => t * t * t,
+    slowOut: (t) => 1 - Math.pow(1 - t, 3),
+    hold: (t) => (t >= 1 ? 1 : 0),
+    custom: (t) => t,   // replaced per key by its own curve, see easeFor()
   };
-  const EASING_LABELS = { linear: 'Linear', easeInOut: 'Ease in-out', easeIn: 'Ease in', easeOut: 'Ease out', smooth: 'Smooth' };
+  const EASING_LABELS = {
+    linear: 'Linear', easeInOut: 'Ease in-out', easeIn: 'Ease in', easeOut: 'Ease out', smooth: 'Smooth',
+    strongInOut: 'Strong in-out', slowIn: 'Slow start', slowOut: 'Slow finish', hold: 'Hold then jump', custom: 'Custom curve…',
+  };
+
+  /* Cubic Bezier easing through (0,0) (x1,y1) (x2,y2) (1,1) — the same curve CSS uses. x is time,
+   * y is progress; the x->t inversion is by Newton steps with a bisection fallback. */
+  function cubicBezier(x1, y1, x2, y2) {
+    const A = (a1, a2) => 1 - 3 * a2 + 3 * a1, B = (a1, a2) => 3 * a2 - 6 * a1, C = (a1) => 3 * a1;
+    const calc = (t, a1, a2) => ((A(a1, a2) * t + B(a1, a2)) * t + C(a1)) * t;
+    const slope = (t, a1, a2) => 3 * A(a1, a2) * t * t + 2 * B(a1, a2) * t + C(a1);
+    return (x) => {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      let t = x;
+      for (let i = 0; i < 8; i++) {
+        const dx = calc(t, x1, x2) - x;
+        const sl = slope(t, x1, x2);
+        if (Math.abs(dx) < 1e-6) break;
+        if (Math.abs(sl) < 1e-6) break;
+        t -= dx / sl;
+      }
+      if (t < 0 || t > 1 || Math.abs(calc(t, x1, x2) - x) > 1e-4) {
+        let lo = 0, hi = 1;
+        for (let i = 0; i < 30; i++) { t = (lo + hi) / 2; if (calc(t, x1, x2) < x) lo = t; else hi = t; }
+      }
+      return calc(t, y1, y2);
+    };
+  }
+  const DEFAULT_CURVE = [0.4, 0, 0.2, 1];
+  const curveCache = new Map();
+  /* The easing function a key arrives with. */
+  function easeFor(key) {
+    if (key && key.easing === 'custom') {
+      const c = Array.isArray(key.curve) && key.curve.length === 4 ? key.curve : DEFAULT_CURVE;
+      const k = c.join(',');
+      let f = curveCache.get(k);
+      if (!f) { f = cubicBezier(clamp01(c[0]), c[1], clamp01(c[2]), c[3]); curveCache.set(k, f); }
+      return f;
+    }
+    return EASINGS[key && key.easing] || EASINGS.easeInOut;
+  }
 
   let counter = 1;
   const uid = () => `K${counter++}_${Math.random().toString(36).slice(2, 6)}`;
@@ -4392,7 +4591,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const a = ks[i], b = ks[i + 1];
       if (t >= a.t && t <= b.t) {
         const span = Math.max(0.0001, b.t - a.t);
-        const p = (EASINGS[b.easing] || EASINGS.easeInOut)(clamp01((t - a.t) / span));
+        const p = easeFor(b)(clamp01((t - a.t) / span));
         for (const f of FIELDS) out[f] = a[f] + (b[f] - a[f]) * p;
         out.focus = a.focus == null || b.focus == null ? (b.focus == null ? a.focus : b.focus) : a.focus + (b.focus - a.focus) * p;
         return out;
@@ -4536,7 +4735,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const A = ks[i], B = ks[i + 1];
       if (t >= A.t && t <= B.t) {
         const span = Math.max(0.0001, B.t - A.t);
-        const p = (EASINGS[B.easing] || EASINGS.easeInOut)(clamp01((t - A.t) / span));
+        const p = easeFor(B)(clamp01((t - A.t) / span));
         for (const f of fields) out[f] = A[f] + (B[f] - A[f]) * p;
         return out;
       }
@@ -4545,7 +4744,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     return out;
   }
 
-  global.Camera = { EASINGS, EASING_LABELS, FIELDS, defaultKey, evaluate, evaluateOn, replaceRange, sorted, MOVES };
+  global.Camera = { EASINGS, EASING_LABELS, FIELDS, DEFAULT_CURVE, cubicBezier, easeFor, defaultKey, evaluate, evaluateOn, replaceRange, sorted, MOVES };
 })(window);
 
 </script>
@@ -6361,6 +6560,54 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     }
   }
 
+  /* Mix several audio sources into one buffer for the export range.
+   * sources: [{ file, gain, pieces: [{ in, out, at }] }] — `in`/`out` in the file's own seconds, `at` where
+   * the piece starts in the export (seconds from the export's first frame). */
+  async function mixAudio(sources, length) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC || !sources || !sources.length) return null;
+    const sr = 48000;
+    const frames = Math.max(1, Math.round(length * sr));
+    const planes = [new Float32Array(frames), new Float32Array(frames)];
+    let any = false;
+    for (const src of sources) {
+      if (!src.file || !src.pieces || !src.pieces.length) continue;
+      let ctx;
+      try {
+        ctx = new AC({ sampleRate: sr });
+        const audio = await ctx.decodeAudioData(await src.file.arrayBuffer());
+        const rate = audio.sampleRate / sr;
+        const chans = Math.min(2, audio.numberOfChannels);
+        const gain = src.gain == null ? 1 : src.gain;
+        const data = [audio.getChannelData(0), audio.getChannelData(chans > 1 ? 1 : 0)];
+        for (const pc of src.pieces) {
+          const n = Math.max(0, Math.round((pc.out - pc.in) * sr));
+          const at = Math.round(pc.at * sr);
+          for (let c = 0; c < 2; c++) {
+            const d = data[c], out = planes[c];
+            for (let i = 0; i < n; i++) {
+              const o = at + i;
+              if (o < 0 || o >= frames) continue;
+              const sp = (pc.in * sr + i) * rate;         // source sample position (linear resample)
+              const i0 = Math.floor(sp), f = sp - i0;
+              if (i0 + 1 >= d.length) break;
+              out[o] += (d[i0] * (1 - f) + d[i0 + 1] * f) * gain;
+            }
+          }
+          any = true;
+        }
+      } catch (e) {
+        console.warn('Audio decode failed for one source; it is left out.', e);
+      } finally {
+        if (ctx && ctx.close) ctx.close().catch(() => {});
+      }
+    }
+    if (!any) return null;
+    // soft limit so several stacked sources cannot clip
+    for (const out of planes) for (let i = 0; i < frames; i++) { const v = out[i]; if (v > 1 || v < -1) out[i] = Math.tanh(v); }
+    return { sampleRate: sr, channels: 2, planes, frames };
+  }
+
   function estimateBitrate(width, height, fps, quality) {
     const bpp = { standard: 0.07, high: 0.12, max: 0.2 }[quality] || 0.12;
     return Math.min(90e6, Math.max(2e6, Math.round(width * height * fps * bpp)));
@@ -6385,7 +6632,12 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     if (!vc) throw new Error(`No supported video encoder for ${width}×${height}. Try a lower resolution.`);
 
     let audio = null, ac = null;
-    if (opts.includeAudio && opts.audioFile) {
+    if (opts.includeAudio && opts.audioSources && opts.audioSources.length) {
+      report({ stage: 'Mixing audio…' });
+      audio = await mixAudio(opts.audioSources, duration);
+      if (audio) ac = await pickAudioCodec(audio.sampleRate, audio.channels);
+      if (audio && !ac) { console.warn('No audio encoder available; exporting silent video.'); audio = null; }
+    } else if (opts.includeAudio && opts.audioFile) {
       report({ stage: 'Decoding audio…' });
       audio = await decodeAudio(opts.audioFile, start, end, opts.audioSegments);
       if (audio) ac = await pickAudioCodec(audio.sampleRate, audio.channels);
@@ -6576,6 +6828,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       this.hover = null;
       this.drag = null;
       this.fitted = false;
+      this.snap = false;        // quantise dragged positions to the grid (the app applies it; drawn here)
+      this.gridStep = 0.1;      // world units
       this._bind();
     }
 
@@ -6612,7 +6866,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const s = this.hooks.scene();
       const pts = [];
       const S = s.video.scale;
-      pts.push(this._axes(s.video.x - s.aspect * S, s.video.y - S, 0), this._axes(s.video.x + s.aspect * S, s.video.y + S, 0));
+      pts.push(this._axes(s.video.x - s.aspect * S, s.video.y - S, s.video.z || 0), this._axes(s.video.x + s.aspect * S, s.video.y + S, s.video.z || 0));
       pts.push(this._axes(s.cam.x, s.cam.y, s.cam.z));
       for (const p of s.path) pts.push(this._axes(p.x, p.y, p.z));
       for (const l of s.layers) if (!l.hidden) pts.push(this._axes(l.x, l.y, l.z));
@@ -6647,6 +6901,15 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const hMin = Math.min(tl.h, br.h), hMax = Math.max(tl.h, br.h), vMin = Math.min(tl.v, br.v), vMax = Math.max(tl.v, br.v);
       c.font = `${11 * dpr}px Inter, sans-serif`;
       c.textBaseline = 'middle';
+      // the snap grid, when it is on and fine enough to see
+      if (this.snap && this.gridStep * this.zoom >= 7) {
+        c.strokeStyle = '#161619';
+        c.lineWidth = 1;
+        const g = this.gridStep;
+        for (let v = Math.ceil(vMin / g) * g; v <= vMax; v += g) { const { py } = this._toPx(0, v); c.beginPath(); c.moveTo(0, py); c.lineTo(W, py); c.stroke(); }
+        for (let h = Math.ceil(hMin / g) * g; h <= hMax; h += g) { const { px } = this._toPx(h, 0); c.beginPath(); c.moveTo(px, 0); c.lineTo(px, H); c.stroke(); }
+      }
+      c.lineWidth = 1;
       for (let v = Math.ceil(vMin / step) * step; v <= vMax; v += step) {
         const { py } = this._toPx(0, v);
         const major = Math.abs(v - Math.round(v)) < 1e-6;
@@ -6670,8 +6933,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
       // video plane
       const S = s.video.scale;
-      const a = top ? this.worldPt(s.video.x - s.aspect * S, 0, 0) : this.worldPt(0, s.video.y - S, 0);
-      const b = top ? this.worldPt(s.video.x + s.aspect * S, 0, 0) : this.worldPt(0, s.video.y + S, 0);
+      const vz = s.video.z || 0;
+      const a = top ? this.worldPt(s.video.x - s.aspect * S, 0, vz) : this.worldPt(0, s.video.y - S, vz);
+      const b = top ? this.worldPt(s.video.x + s.aspect * S, 0, vz) : this.worldPt(0, s.video.y + S, vz);
       c.lineCap = 'round';
       c.strokeStyle = s.hasVideo ? '#ff6b6b' : '#8a8a96';
       c.lineWidth = 6 * dpr;
@@ -6862,18 +7126,20 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           return;
         }
         if (h.kind === 'camera') {
-          this.drag = { kind: 'camera', moved: false };
+          this.drag = { kind: 'camera', moved: false, start0: w };
         } else if (h.kind === 'key') {
           this.hooks.onSelectKey(h.id);
-          this.drag = { kind: 'key', id: h.id, moved: false };
+          this.drag = { kind: 'key', id: h.id, moved: false, start0: w };
         } else {
           const s = this.hooks.scene();
           const layer = s.layers.find((l) => l.id === h.id);
-          const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+          // Ctrl/Cmd-click adds to the selection; Shift does too, unless the word is already selected —
+          // then Shift-drag means "move along one axis".
+          const additive = e.ctrlKey || e.metaKey || (e.shiftKey && !layer.selected);
           if (!layer.selected || additive) this.hooks.onSelectLayer(h.id, additive);
           const ids = this.hooks.scene().layers.filter((l) => l.selected).map((l) => l.id);
           this.hooks.onLayerDragStart(ids);
-          this.drag = { kind: 'layer', ids, start: w, moved: false };
+          this.drag = { kind: 'layer', ids, start: w, moved: false, start0: w };
         }
         e.preventDefault();
       });
@@ -6897,17 +7163,26 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           return;
         }
         cv.style.cursor = 'grabbing';
+        // Shift locks the drag to one axis: whichever the pointer clearly moved along first.
+        const mods = { shift: e.shiftKey, snap: this.snap, step: this.gridStep };
+        if (d.kind !== 'pan' && d.start0 == null) d.start0 = w;
+        let wh = w.h, wv = w.v;
+        if (e.shiftKey && d.start0) {
+          const dh0 = w.h - d.start0.h, dv0 = w.v - d.start0.v;
+          if (!d.axis && Math.hypot(dh0, dv0) * this.zoom > 6) d.axis = Math.abs(dh0) >= Math.abs(dv0) ? 'h' : 'v';
+          if (d.axis === 'h') wv = d.start0.v; else if (d.axis === 'v') wh = d.start0.h;
+        } else d.axis = null;
         if (d.kind === 'camera') {
           const s = this.hooks.scene();
-          this.hooks.onCameraDragMove(this._worldFromAxes(w.h, w.v, s.cam));
+          this.hooks.onCameraDragMove(this._worldFromAxes(wh, wv, s.cam), mods);
         } else if (d.kind === 'key') {
           const s = this.hooks.scene();
           const k = s.keys.find((x) => x.id === d.id);
-          if (k) this.hooks.onKeyDragMove(d.id, this._worldFromAxes(w.h, w.v, k));
+          if (k) this.hooks.onKeyDragMove(d.id, this._worldFromAxes(wh, wv, k), mods);
         } else if (d.kind === 'layer') {
-          const dh = w.h - d.start.h, dv = w.v - d.start.v;
+          const dh = wh - d.start.h, dv = wv - d.start.v;
           const delta = this.mode === 'top' ? { dx: dh, dy: 0, dz: dv } : { dx: 0, dy: dv, dz: dh };
-          this.hooks.onLayerDragMove(d.ids, delta);
+          this.hooks.onLayerDragMove(d.ids, delta, mods);
         }
         this.draw();
       });
@@ -6973,7 +7248,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   /* ------------------------------------------------------------------ state */
   const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: FADE_OFF, keys: [] });
   const FADE_OFF = 12;   // the top of the Fade far words range means "never fade"
-  const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
+  const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, z: 0, opacity: 1, locked: false });
   const defaultMask = () => ({ enabled: false, roundness: 0.55, feather: 0.08, show: true, keys: [] });
   const MASK_FIELDS = ['x', 'y', 'w', 'h'];
   const state = {
@@ -6990,7 +7265,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     selectedTrackKeyId: null, // selected tracker keyframe (exclusive with the other selections)
     trackEdit: false,     // dragging on the preview places / corrects the selected tracker
     tracking: null,       // { controller } while a tracker is being analysed
-    suggestions: [],      // object proposals shown on the preview after "Find objects" 
+    suggestions: [],      // object proposals shown on the preview after "Find objects"
+    snap: false,          // quantise drags in the 3D views to the grid
+    snapStep: 0.1,
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] },
     clips: [],            // pieces of the source video laid end to end: { id, in, out } in source seconds
     selectedClipId: null,
@@ -7046,10 +7323,19 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function frameAspect() {
     return state.video.ready ? state.video.width / state.video.height : state.aspect;
   }
-  function duration() {
-    if (!state.video.ready) return state.duration;
+  /* Length of the main video on the timeline (its pieces laid end to end); 0 without a video. */
+  function mainLen() {
+    if (!state.video.ready) return 0;
     return state.clips.length ? state.clips.reduce((a, c) => a + (c.out - c.in), 0) : state.video.duration;
   }
+  /* The timeline is as long as the main video (or the plain-background length), or the last media
+   * layer, whichever ends later — so a second clip placed after the first extends the timeline. */
+  function duration() {
+    let T = state.video.ready ? mainLen() : state.duration;
+    for (const l of state.layers) if (l.type === 'media' && l.end > T) T = l.end;
+    return Math.max(0.5, T);
+  }
+  const limitFor = (l) => (l && l.type === 'media' ? 3600 : duration());
 
   /* ---- clips ---------------------------------------------------------------
    * The timeline is the clips laid end to end. Text and camera keys live in TIMELINE time; anything
@@ -7106,10 +7392,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   /* Keep everything on the timeline inside the new length, and re-seat the playhead. */
   function afterClipsChanged(t) {
     const T = duration();
-    for (const l of state.layers) { l.end = Math.min(l.end, T); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
+    for (const l of state.layers) { if (isMedia(l)) continue; l.end = Math.min(l.end, T); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
     clampCameraKeys(T);
     clock.time = clamp(t == null ? clock.time : t, 0, T);
-    els.video.loop = false;
   }
   function fmtTime(t) {
     t = Math.max(0, t || 0);
@@ -7180,61 +7465,186 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
 
   /* ------------------------------------------------------------------ clock */
+  /* One clock drives everything. The <video> and <audio> elements follow it — seeking when it seeks,
+   * playing when it plays, and nudged back whenever they drift more than a few frames — so any number
+   * of videos, images and sounds stay in step, and the timeline can run past the main video. */
   const clock = {
-    _t: 0, _playing: false, _last: 0, _clip: 0,
-    get time() {
-      if (!state.video.ready) return this._t;
-      if (!state.clips.length) return els.video.currentTime;
-      const i = clamp(this._clip, 0, state.clips.length - 1), c = state.clips[i];
-      return clipStart(i) + clamp(els.video.currentTime - c.in, 0, clipLen(c));
-    },
+    _t: 0, _playing: false, _last: 0,
+    get time() { return this._t; },
     set time(v) {
-      v = clamp(v, 0, duration());
-      if (state.video.ready) {
-        const loc = locate(v);
-        if (loc.clip) this._clip = loc.index;
-        els.video.currentTime = loc.src;
-      } else this._t = v;
+      this._t = clamp(v, 0, duration());
+      syncMedia(this._t, this._playing, true);
       invalidate();
     },
-    get playing() { return state.video.ready ? !(els.video.paused || els.video.ended) : this._playing; },
+    get playing() { return this._playing; },
     play() {
-      if (state.video.ready) {
-        if (els.video.ended || this.time >= duration() - 0.01) this.time = 0;
-        els.video.play().catch((e) => toast('Playback blocked: ' + e.message, true));
-      } else {
-        if (this._t >= duration() - 0.001) this._t = 0;
-        this._playing = true;
-        this._last = performance.now();
-      }
+      if (this._t >= duration() - 0.001) this._t = 0;
+      this._playing = true;
+      this._last = performance.now();
+      syncMedia(this._t, true, true);
       updatePlayButton();
     },
     pause() {
-      if (state.video.ready) els.video.pause(); else this._playing = false;
+      this._playing = false;
+      syncMedia(this._t, false, false);
       updatePlayButton();
     },
     toggle() { this.playing ? this.pause() : this.play(); },
     tick(now) {
-      if (state.video.ready) {
-        // Jump across clip boundaries while playing; the <video> itself only knows the source.
-        if (!state.clips.length || els.video.paused) return;
-        const i = clamp(this._clip, 0, state.clips.length - 1), c = state.clips[i];
-        if (els.video.currentTime >= c.out - 0.02 || els.video.ended) {
-          if (i + 1 < state.clips.length) { this._clip = i + 1; els.video.currentTime = state.clips[i + 1].in; }
-          else if (state.loop) { this._clip = 0; els.video.currentTime = state.clips[0].in; if (els.video.ended) els.video.play().catch(() => {}); }
-          else { els.video.pause(); els.video.currentTime = c.out - 1e-3; updatePlayButton(); }
-        }
-        return;
-      }
       if (!this._playing) return;
       this._t += (now - this._last) / 1000;
       this._last = now;
       if (this._t >= duration()) {
-        if (state.loop) this._t = this._t % duration();
-        else { this._t = duration(); this.pause(); }
+        if (state.loop) this._t = 0;
+        else { this._t = duration(); this.pause(); return; }
       }
+      syncMedia(this._t, true, false);
     },
   };
+
+  /* Runtime media: the elements behind the main video and every media layer (never saved). */
+  const assets = new Map();   // layer id -> { kind, el, url, file, ready, width, height, duration, poster }
+  function driveEl(el, desired, shouldPlay, force, muted) {
+    el.muted = !!muted;
+    if (desired == null) { if (!el.paused) el.pause(); return; }
+    if (el.seeking && !force) return;
+    const drift = Math.abs(el.currentTime - desired);
+    if (shouldPlay) {
+      if (drift > 0.12 || force) el.currentTime = desired;
+      if (el.paused) el.play().catch(() => {});
+    } else {
+      if (!el.paused) el.pause();
+      if (drift > 0.02 || force) el.currentTime = desired;
+    }
+  }
+  function syncMedia(t, playing, force) {
+    if (state.tracking || state.exporting || state.thumbing) return;
+    if (state.video.ready) {
+      const active = t < mainLen() - 1e-4;
+      driveEl(els.video, active ? srcTime(t) : null, playing && active, force, state.muted);
+    }
+    for (const l of state.layers) {
+      if (l.type !== 'media' || l.kind === 'image') continue;
+      const a = assets.get(l.id);
+      if (!a || !a.ready) continue;
+      const active = !l.hidden && t >= l.start && t < l.end;
+      const desired = active ? clamp((l.srcIn || 0) + (t - l.start), 0, Math.max(0, a.duration - 0.02)) : null;
+      a.el.volume = clamp(l.volume == null ? 1 : l.volume, 0, 1);
+      driveEl(a.el, desired, playing && active, force, state.muted || l.muted);
+    }
+  }
+  /* Source time a media layer shows at timeline time t (null when it is not on). */
+  function mediaSrcTime(l, t) {
+    const a = assets.get(l.id);
+    if (!a || t < l.start || t >= l.end) return null;
+    return clamp((l.srcIn || 0) + (t - l.start), 0, Math.max(0, a.duration - 0.02));
+  }
+  const isMedia = (l) => !!(l && l.type === 'media');
+
+  /* Load a file into an element for layer `id`. Resolves the asset once its size / length is known. */
+  function loadAsset(id, file, kind) {
+    const url = URL.createObjectURL(file);
+    const el = kind === 'image' ? new Image() : document.createElement(kind);
+    const asset = { id, kind, el, url, file, ready: false, width: 0, height: 0, duration: 0, poster: null };
+    assets.set(id, asset);
+    return new Promise((resolve, reject) => {
+      const fail = () => { assets.delete(id); URL.revokeObjectURL(url); reject(new Error(`This browser cannot open ${file.name}`)); };
+      if (kind === 'image') {
+        el.onload = () => { asset.width = el.naturalWidth; asset.height = el.naturalHeight; asset.ready = true; asset.poster = url; resolve(asset); };
+        el.onerror = fail;
+        el.src = url;
+        return;
+      }
+      el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.loop = false; el.muted = true;
+      if (kind === 'video') el.playsInline = true;
+      el.addEventListener('loadedmetadata', () => {
+        asset.width = el.videoWidth || 0; asset.height = el.videoHeight || 0;
+        asset.duration = el.duration && isFinite(el.duration) ? el.duration : 10;
+        asset.ready = true;
+        resolve(asset);
+        if (kind === 'video') posterFor(asset);
+      }, { once: true });
+      el.addEventListener('error', fail, { once: true });
+      el.src = url;
+      el.load();
+    });
+  }
+  /* One small frame from the start of a video layer, for its bar on the timeline. */
+  function posterFor(asset) {
+    const el = asset.el;
+    const grab = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 88; c.height = 50;
+        c.getContext('2d').drawImage(el, 0, 0, 88, 50);
+        asset.poster = c.toDataURL('image/jpeg', 0.6);
+        renderTimeline();
+      } catch (e) { /* not drawable yet */ }
+    };
+    if (el.readyState >= 2) grab(); else el.addEventListener('loadeddata', grab, { once: true });
+  }
+  /* Add a media file as a new layer at the playhead. */
+  async function addMediaFile(file, kindHint) {
+    if (!file) return;
+    const type = file.type || '';
+    const kind = kindHint || (type.startsWith('image/') ? 'image' : type.startsWith('audio/') ? 'audio' : 'video');
+    const t = round(clock.time, 3);
+    const name = file.name.replace(/\.[^.]+$/, '');
+    const l = addLayer({
+      type: 'media', kind, name, text: name, start: t, end: t + 5, srcIn: 0, muted: false, volume: 1, opacity: 1,
+      fitWidth: kind === 'audio' ? 0 : 1.2, media: { fileName: file.name },
+      transform: { x: 0, y: 0, z: kind === 'audio' ? 0 : 0.4, rx: 0, ry: 0, rz: 0, scale: 1 },
+      split: 'whole',
+      anim: { in: { type: 'fade', duration: 0.3, easing: 'easeOut', stagger: 0, fit: false, hold: 0 }, out: { type: 'fade', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
+    }, { noClamp: true });
+    toast(`Loading ${file.name}…`);
+    try {
+      const a = await loadAsset(l.id, file, kind);
+      if (kind !== 'image') l.end = round(l.start + a.duration, 3);
+      l.media = { fileName: file.name, width: a.width, height: a.height, duration: a.duration };
+      commit();
+      syncMedia(clock.time, clock.playing, true);
+      refreshAll();
+      toast(`${file.name} added as a ${kind} layer${kind !== 'audio' ? ' — drag it in the 3D layout to place it in depth' : ''}`);
+    } catch (e) {
+      state.layers = state.layers.filter((x) => x !== l);
+      state.selectedIds = [];
+      refreshAll();
+      toast(e.message, true);
+    }
+  }
+  /* Re-attach a file to a media layer whose file is not loaded (after opening a saved project). */
+  async function relinkMedia(l, file) {
+    if (!isMedia(l) || !file) return;
+    try {
+      const a = await loadAsset(l.id, file, l.kind);
+      l.media = Object.assign({}, l.media, { fileName: file.name, width: a.width, height: a.height, duration: a.duration });
+      renderer.dropMediaTexture(l.id);
+      commit();
+      syncMedia(clock.time, clock.playing, true);
+      refreshAll();
+      toast(`${file.name} linked to ${l.name}`);
+    } catch (e) { toast(e.message, true); }
+  }
+  /* A copy of a layer's element, so a duplicate or a split piece can show a different moment. */
+  function cloneAsset(fromId, toId) {
+    const a = assets.get(fromId);
+    if (!a) return;
+    if (a.kind === 'image') { assets.set(toId, Object.assign({}, a, { id: toId })); return; }
+    const el = document.createElement(a.kind);
+    el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.loop = false; el.muted = true;
+    if (a.kind === 'video') el.playsInline = true;
+    el.src = a.url;
+    el.load();
+    assets.set(toId, Object.assign({}, a, { id: toId, el }));
+  }
+  function releaseAsset(id) {
+    const a = assets.get(id);
+    if (a && a.el && a.el.pause) a.el.pause();
+    renderer.dropMediaTexture(id);
+    // the asset object itself is kept so undo can bring the layer back with its file
+  }
+
   function updatePlayButton() {
     els.btnPlay.classList.toggle('playing', clock.playing);
   }
@@ -7243,8 +7653,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function layerDepth(cam, l) {
     return renderer.viewDepth(cam, l.transform.x, l.transform.y, l.transform.z);
   }
+  const planeZ = () => (state.media.locked ? 0 : (state.media.z || 0));
   function planeDepth(cam) {
-    return Math.max(0.1, renderer.viewDepth(cam, state.media.x, state.media.y, 0));
+    return Math.max(0.1, renderer.viewDepth(cam, state.media.x, state.media.y, planeZ()));
   }
 
   /* Absolute camera for the renderer at time t: keyframe offsets + focus + fade. */
@@ -7361,7 +7772,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     return {
       x: a.x + (c * tr.x - sn * tr.y) * a.k,
       y: a.y + (sn * tr.x + c * tr.y) * a.k,
-      z: tr.z, rx: tr.rx, ry: tr.ry, rz: tr.rz + deg, scale: tr.scale * a.k,
+      z: tr.z + planeZ(), rx: tr.rx, ry: tr.ry, rz: tr.rz + deg, scale: tr.scale * a.k,
     };
   }
   /* Pin a layer to a track (or unpin with null) without letting it move on screen at time t. */
@@ -7370,7 +7781,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const rotate = l.track ? l.track.rotate : true;
     l.track = { id: trackId && getTrack(trackId) ? trackId : null, rotate: rotate == null ? true : rotate };
     if (!l.track.id) {
-      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), rz: round(abs.rz, 3), scale: round(abs.scale, 4) });
+      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), z: round(abs.z, 4), rz: round(abs.rz, 3), scale: round(abs.scale, 4) });
       return;
     }
     const a = anchorAt(trackId, t);
@@ -7379,6 +7790,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const dx = (abs.x - a.x) / a.k, dy = (abs.y - a.y) / a.k;
     l.transform.x = round(c * dx - sn * dy, 4);
     l.transform.y = round(sn * dx + c * dy, 4);
+    l.transform.z = round(abs.z - planeZ(), 4);
     l.transform.rz = round(abs.rz - deg, 3);
     l.transform.scale = round(abs.scale / a.k, 4);
   }
@@ -7537,7 +7949,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     return key;
   }
   /* Dolly that makes the scaled video fill the frame exactly. */
-  const fitDolly = () => round(renderer.camDist * (1 - state.media.scale), 3);
+  const fitDolly = () => round(renderer.camDist * (1 - state.media.scale) - planeZ(), 3);
 
   function applyCameraMove(move) {
     const sel = selectedLayers();
@@ -7581,7 +7993,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
 
   function mediaForRender() {
-    return { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: !!state.media.locked, bg: hexToRgb01(state.media.bg) };
+    return { scale: state.media.scale, x: state.media.x, y: state.media.y, z: state.media.z || 0, opacity: state.media.opacity == null ? 1 : state.media.opacity, locked: !!state.media.locked, bg: hexToRgb01(state.media.bg) };
   }
 
   function draw(time) {
@@ -7599,6 +8011,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       showMask: !state.exporting && state.mask.enabled && state.mask.show,
       trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, time) : null),
       outlines: trackOutlines(time),
+      mediaFor: (l) => assets.get(l.id) || null,
+      videoVisible: time < mainLen() - 1e-4,
     });
   }
 
@@ -7637,8 +8051,10 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   function addLayer(partial, opts = {}) {
     const l = Presets.deepMerge(Presets.defaultLayer(), partial || {});
     l.id = uid();
-    l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
-    l.end = clamp(l.end, l.start + 0.1, duration());
+    if (!opts.noClamp) {
+      l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
+      l.end = clamp(l.end, l.start + 0.1, duration());
+    }
     state.layers.push(l);
     if (opts.select !== false) { state.selectedIds = [l.id]; state.selectedKeyId = null; }
     return l;
@@ -7687,6 +8103,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       state.selectedKeyId = null;
     } else if (state.selectedIds.length) {
       const ids = new Set(state.selectedIds);
+      for (const l of state.layers) if (ids.has(l.id) && isMedia(l)) releaseAsset(l.id);
       state.layers = state.layers.filter((l) => !ids.has(l.id));
       state.selectedIds = [];
     } else return;
@@ -7705,6 +8122,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       copy.transform.y -= 0.12;
       const i = state.layers.indexOf(l);
       state.layers.splice(i + 1, 0, copy);
+      if (isMedia(l)) cloneAsset(l.id, copy.id);
       ids.push(copy.id);
     }
     state.selectedIds = ids;
@@ -7980,19 +8398,26 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     for (const l of rows) {
       const row = document.createElement('div');
       const sel = isSelected(l.id);
-      row.className = `tl-row${sel ? ' selected' : ''}${sel && l.id !== primary ? ' secondary' : ''}${l.hidden ? ' hidden-layer' : ''}`;
+      const media = isMedia(l);
+      const asset = media ? assets.get(l.id) : null;
+      row.className = `tl-row${sel ? ' selected' : ''}${sel && l.id !== primary ? ' secondary' : ''}${l.hidden ? ' hidden-layer' : ''}${media ? ` media-row kind-${l.kind}` : ''}`;
       row.dataset.id = l.id;
       const { inW, outW } = animShade(l);
+      const kindIcon = media ? (l.kind === 'audio' ? '♪' : l.kind === 'image' ? '▣' : '▶') : '';
+      const poster = asset && asset.poster ? `<img class="poster" src="${asset.poster}" alt="">` : '';
+      const label = media ? `${escapeHtml(l.name || 'Media')}${asset ? '' : ' · file not loaded — Relink in the inspector'}` : escapeHtml((l.text || '').replace(/\n/g, ' '));
       row.innerHTML = `
         <div class="tl-name">
           <button class="tl-eye" title="Show / hide">${l.hidden ? EYE_OFF : EYE_ON}</button>
+          ${media ? `<span class="kind">${kindIcon}</span>` : ''}
           <span class="nm">${escapeHtml(l.name || l.text || 'Text')}</span>
         </div>
         <div class="tl-track">
-          <div class="tl-bar" style="${barStyle(l)}">
+          <div class="tl-bar${poster ? ' has-poster' : ''}${media && !asset ? ' missing' : ''}" style="${barStyle(l)}">
+            ${poster}
             <div class="anim-in" style="width:${inW}%"></div>
             <div class="anim-out" style="width:${outW}%"></div>
-            <span>${escapeHtml((l.text || '').replace(/\n/g, ' '))}</span>
+            <span>${label}</span>
             <div class="h l"></div><div class="h r"></div>
           </div>
         </div>`;
@@ -8272,18 +8697,18 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       if (drag.mode === 'key') return;
       const dt = (e.clientX - drag.x0) / pxPerSec();
       if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
-      const T = duration();
       const targets = snapTargets(new Set(drag.ids));
       if (drag.mode === 'move') {
         const o = drag.orig[drag.id];
         const len = o.end - o.start;
+        const T = limitFor(getLayer(drag.id));
         let s = clamp(o.start + dt, 0, T - len);
         const snappedStart = snap(s, targets), snappedEnd = snap(s + len, targets);
         if (snappedStart !== s) s = snappedStart; else if (snappedEnd !== s + len) s = snappedEnd - len;
         let delta = s - o.start;
         for (const id of drag.ids) {
           const oo = drag.orig[id];
-          delta = clamp(delta, -oo.start, T - oo.end);
+          delta = clamp(delta, -oo.start, limitFor(getLayer(id)) - oo.end);
         }
         for (const id of drag.ids) {
           const l = getLayer(id), oo = drag.orig[id];
@@ -8292,8 +8717,11 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         }
       } else {
         const l = getLayer(drag.id), o = drag.orig[drag.id];
-        if (drag.mode === 'trimL') l.start = clamp(snap(o.start + dt, targets), 0, l.end - 0.1);
-        else l.end = clamp(snap(o.end + dt, targets), l.start + 0.1, T);
+        if (drag.mode === 'trimL') {
+          const ns = clamp(snap(o.start + dt, targets), 0, l.end - 0.1);
+          if (isMedia(l) && l.kind !== 'image') l.srcIn = round(Math.max(0, (l.srcIn || 0) + (ns - l.start)), 3);   // trimming the head keeps the same frame at the cut
+          l.start = ns;
+        } else l.end = clamp(snap(o.end + dt, targets), l.start + 0.1, limitFor(l));
         updateBar(l);
       }
       refreshInspectorValues();
@@ -8301,7 +8729,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     });
 
     const endDrag = () => {
-      if (drag && (drag.mode === 'move' || drag.mode === 'trimL' || drag.mode === 'trimR') && drag.moved) { commit(); renderTimeline(); }
+      if (drag && (drag.mode === 'move' || drag.mode === 'trimL' || drag.mode === 'trimR') && drag.moved) { commit(); renderTimeline(); syncMedia(clock.time, clock.playing, true); }
       drag = null;
     };
     els.tlBody.addEventListener('pointerup', endDrag);
@@ -8426,12 +8854,61 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     },
   ];
 
+  const POSITION_FIELDS = LAYER_SCHEMA.find((sec) => sec.title === 'Position in 3D').fields;
+  const MEDIA_SCHEMA = [
+    {
+      title: 'Media',
+      fields: [
+        { type: 'buttons', buttons: [{ label: 'Relink file…', action: (l) => { pendingRelink = l; $('#relinkInput').click(); } }] },
+        { type: 'range', path: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.01, scale: 100, unit: '%', showIf: (l) => l.kind !== 'audio' },
+        { type: 'range', path: 'fitWidth', label: 'Width', min: 0.1, max: 8, step: 0.01, scale: 100, unit: '', hint: 'Width in scene units. The frame is about 2 × its aspect ratio wide at the resting camera, so 1.0 is roughly half the frame for 16:9 footage.', showIf: (l) => l.kind !== 'audio' },
+        { type: 'range', path: 'srcIn', label: 'Trim start', min: 0, max: 600, step: 0.01, scale: 1, unit: 's', hint: 'Where in the file this layer begins', showIf: (l) => l.kind !== 'image' },
+        { type: 'toggle', path: 'muted', label: 'Mute', showIf: (l) => l.kind !== 'image' },
+        { type: 'range', path: 'volume', label: 'Volume', min: 0, max: 1.5, step: 0.01, scale: 100, unit: '%', showIf: (l) => l.kind !== 'image' },
+      ],
+    },
+    // a sound has no place in the scene: its position controls are hidden
+    { title: 'Position in 3D', fields: POSITION_FIELDS.map((f) => (['range', 'select', 'toggle'].includes(f.type) ? Object.assign({}, f, { showIf: (l) => l.kind !== 'audio' }) : f)) },
+    {
+      title: 'Animation',
+      collapsed: true,
+      fields: [
+        { type: 'sub', label: 'In' },
+        { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
+        { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
+        { type: 'select', path: 'anim.in.easing', label: 'Easing', options: easingOptions },
+        { type: 'sub', label: 'Out' },
+        { type: 'select', path: 'anim.out.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'out') },
+        { type: 'range', path: 'anim.out.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
+        { type: 'select', path: 'anim.out.easing', label: 'Easing', options: easingOptions },
+        { type: 'sub', label: 'While visible' },
+        { type: 'select', path: 'anim.loop.type', label: 'Motion', options: () => Object.entries(Anim.Loops).map(([value, d]) => ({ value, label: d.label })) },
+        { type: 'range', path: 'anim.loop.speed', label: 'Speed', min: 0.1, max: 4, step: 0.1, scale: 1, unit: '×' },
+      ],
+    },
+    {
+      title: 'Timing',
+      fields: [
+        { type: 'two', fields: [
+          { type: 'number', path: 'start', label: 'Start (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.start = clamp(l.start, 0, l.end - 0.1); } },
+          { type: 'number', path: 'end', label: 'End (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.end = clamp(l.end, l.start + 0.1, limitFor(l)); } },
+        ] },
+        { type: 'buttons', buttons: [
+          { label: 'Start at playhead', action: (l) => { const len = l.end - l.start; l.start = clamp(clock.time, 0, limitFor(l) - 0.1); l.end = l.start + len; } },
+          { label: 'Split at playhead', action: (l) => splitLayerAt(l, clock.time) },
+        ] },
+      ],
+    },
+  ];
+  let pendingRelink = null;
+
   const KEY_SCHEMA = [
     {
       title: 'Keyframe',
       fields: [
         { type: 'number', path: 't', label: 'Time (s)', step: 0.05, min: 0, onChange: (k) => { k.t = clamp(k.t, 0, duration()); } },
-        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })), hint: 'How the camera arrives at this key' },
+        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })), hint: 'How the camera arrives at this key from the previous one', onChange: (k) => { if (k.easing === 'custom' && !(Array.isArray(k.curve) && k.curve.length === 4)) k.curve = Camera.DEFAULT_CURVE.slice(); } },
+        { type: 'curve', path: 'curve', label: 'Speed curve', hint: 'Drag the two handles: a flat start means the camera sets off slowly, a flat end means it eases to a stop; steep means fast. Applies to the move INTO this key.', showIf: (k) => k.easing === 'custom' },
       ],
     },
     {
@@ -8503,6 +8980,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
    * `delta` shift each layer by the same amount the primary moved; `perLayer` fields touch only the primary. */
   const layerCtx = {
     controls: [],
+    mediaControls: [],
     get: () => selected(),
     apply(field, primary, value, isFinal) {
       const targets = selectedLayers();
@@ -8532,10 +9010,12 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         setPath(l, field.path, v);
         if (field.onChange) field.onChange(l);
         if (field.path === 'start' || field.path === 'end') {
-          l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
-          l.end = clamp(l.end, l.start + 0.1, duration());
+          const lim = limitFor(l);
+          l.start = clamp(l.start, 0, Math.max(0, lim - 0.1));
+          l.end = clamp(l.end, l.start + 0.1, lim);
           updateBar(l);
         }
+        if (isMedia(l) && (field.path === 'srcIn' || field.path === 'muted' || field.path === 'volume' || field.path === 'hidden')) syncMedia(clock.time, clock.playing, true);
         l._layout = null;
         if (field.path === 'text') {
           const row = $(`.tl-row[data-id="${l.id}"] .tl-bar span`, els.tlBody);
@@ -8786,6 +9266,91 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         if (none) none.checked = isNone;
         if (!isNone) { c.value = v.length === 7 ? v : '#ffffff'; hex.value = c.value; } else { hex.value = 'none'; }
       };
+    } else if (f.type === 'curve') {
+      // A cubic-Bezier speed curve editor: x is time between the two keys, y is how far the camera has got.
+      const box = document.createElement('div');
+      box.className = 'curve-wrap';
+      const cv = document.createElement('canvas');
+      cv.className = 'curve-canvas';
+      const presets = document.createElement('div');
+      presets.className = 'curve-presets';
+      const readout = document.createElement('div');
+      readout.className = 'curve-readout';
+      const PRESETS = [['Gentle', [0.4, 0, 0.2, 1]], ['Slow start', [0.7, 0, 0.9, 0.6]], ['Slow finish', [0.1, 0.4, 0.3, 1]], ['Snappy', [0.6, 0, 0.1, 1]], ['Overshoot', [0.3, 1.3, 0.6, 1]], ['Anticipate', [0.5, -0.3, 0.6, 1]], ['Linear', [0.33, 0.33, 0.67, 0.67]]];
+      for (const [name, c] of PRESETS) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = name;
+        b.addEventListener('click', () => { const k = target(); if (k) ctx.apply(f, k, c.slice(), true); });
+        presets.appendChild(b);
+      }
+      box.appendChild(cv); box.appendChild(presets); box.appendChild(readout);
+      wrap.appendChild(box);
+      const PAD = 14;
+      let handle = null;
+      const geom = () => {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const w = cv.clientWidth || 240, h = cv.clientHeight || 130;
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+        return { dpr, w: cv.width, h: cv.height, pad: PAD * dpr };
+      };
+      const toPx = (g, x, y) => ({ px: g.pad + x * (g.w - 2 * g.pad), py: g.h - g.pad - y * (g.h - 2 * g.pad) });
+      const fromPx = (g, px, py) => ({ x: clamp((px - g.pad) / (g.w - 2 * g.pad), 0, 1), y: (g.h - g.pad - py) / (g.h - 2 * g.pad) });
+      const curveOf = (k) => (Array.isArray(k.curve) && k.curve.length === 4 ? k.curve : Camera.DEFAULT_CURVE);
+      const drawCurve = (k) => {
+        const g = geom(), c2 = cv.getContext('2d');
+        const cur = curveOf(k);
+        c2.clearRect(0, 0, g.w, g.h);
+        c2.strokeStyle = '#26262e'; c2.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const a = toPx(g, i / 4, 0), b = toPx(g, i / 4, 1);
+          c2.beginPath(); c2.moveTo(a.px, a.py); c2.lineTo(b.px, b.py); c2.stroke();
+          const a2 = toPx(g, 0, i / 4), b2 = toPx(g, 1, i / 4);
+          c2.beginPath(); c2.moveTo(a2.px, a2.py); c2.lineTo(b2.px, b2.py); c2.stroke();
+        }
+        // linear reference
+        const o = toPx(g, 0, 0), e = toPx(g, 1, 1);
+        c2.strokeStyle = '#3a3a44'; c2.setLineDash([4 * g.dpr, 4 * g.dpr]);
+        c2.beginPath(); c2.moveTo(o.px, o.py); c2.lineTo(e.px, e.py); c2.stroke(); c2.setLineDash([]);
+        // the curve
+        const fn = Camera.cubicBezier(clamp(cur[0], 0, 1), cur[1], clamp(cur[2], 0, 1), cur[3]);
+        c2.strokeStyle = '#f28c28'; c2.lineWidth = 2 * g.dpr;
+        c2.beginPath();
+        for (let i = 0; i <= 60; i++) { const x = i / 60, q = toPx(g, x, fn(x)); if (i) c2.lineTo(q.px, q.py); else c2.moveTo(q.px, q.py); }
+        c2.stroke();
+        // handles
+        const h1 = toPx(g, cur[0], cur[1]), h2 = toPx(g, cur[2], cur[3]);
+        c2.strokeStyle = '#7ad7ff'; c2.lineWidth = 1.2 * g.dpr;
+        c2.beginPath(); c2.moveTo(o.px, o.py); c2.lineTo(h1.px, h1.py); c2.moveTo(e.px, e.py); c2.lineTo(h2.px, h2.py); c2.stroke();
+        for (const hh of [h1, h2]) { c2.fillStyle = '#7ad7ff'; c2.beginPath(); c2.arc(hh.px, hh.py, 5 * g.dpr, 0, Math.PI * 2); c2.fill(); }
+        c2.fillStyle = '#6f6f7a'; c2.font = `${10 * g.dpr}px Inter, sans-serif`; c2.textAlign = 'left';
+        c2.fillText('time →', g.pad, g.h - 3 * g.dpr);
+        c2.save(); c2.translate(9 * g.dpr, g.h - g.pad); c2.rotate(-Math.PI / 2); c2.fillText('progress →', 0, 0); c2.restore();
+        readout.textContent = `cubic-bezier(${cur.map((v) => round(v, 2)).join(', ')})`;
+      };
+      const pick = (e) => {
+        const k = target(); if (!k) return null;
+        const g = geom(), r = cv.getBoundingClientRect();
+        const px = ((e.clientX - r.left) / r.width) * g.w, py = ((e.clientY - r.top) / r.height) * g.h;
+        const cur = curveOf(k);
+        const d1 = Math.hypot(px - toPx(g, cur[0], cur[1]).px, py - toPx(g, cur[0], cur[1]).py);
+        const d2 = Math.hypot(px - toPx(g, cur[2], cur[3]).px, py - toPx(g, cur[2], cur[3]).py);
+        return { g, px, py, which: d1 <= d2 ? 0 : 1 };
+      };
+      cv.addEventListener('pointerdown', (e) => { const h = pick(e); if (!h) return; handle = h.which; cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+      cv.addEventListener('pointermove', (e) => {
+        if (handle == null) return;
+        const k = target(); if (!k) return;
+        const g = geom(), r = cv.getBoundingClientRect();
+        const q = fromPx(g, ((e.clientX - r.left) / r.width) * g.w, ((e.clientY - r.top) / r.height) * g.h);
+        const cur = curveOf(k).slice();
+        cur[handle * 2] = round(q.x, 3); cur[handle * 2 + 1] = round(clamp(q.y, -0.6, 1.6), 3);
+        ctx.apply(f, k, cur, false);
+        drawCurve(k);
+      });
+      const done = () => { if (handle == null) return; handle = null; const k = target(); if (k) ctx.apply(f, k, curveOf(k).slice(), true); };
+      cv.addEventListener('pointerup', done);
+      cv.addEventListener('pointercancel', done);
+      update = (k) => { const show = !f.showIf || f.showIf(k); wrap.classList.toggle('hidden', !show); if (show) drawCurve(k); };
     } else if (f.type === 'toggle') {
       const lbl = document.createElement('label');
       lbl.className = 'toggle';
@@ -8808,6 +9373,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       wrap.appendChild(seg);
       update = (l) => { const v = getPath(l, f.path); $$('button', seg).forEach((b) => b.classList.toggle('on', b.dataset.value === String(v))); };
     }
+    const baseUpdate = update;
+    if (f.showIf && f.type !== 'curve') update = (k) => { const show = f.showIf(k); wrap.classList.toggle('hidden', !show); if (show) baseUpdate(k); };
     ctx.controls.push({ update, field: f, el: wrap });
     return wrap;
   }
@@ -8846,7 +9413,11 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     els.multiTitle.classList.toggle('hidden', n <= 1);
     if (n > 1) els.multiTitle.textContent = `${n} words selected`;
     if (document.activeElement !== els.layerName) els.layerName.value = l.name || '';
-    for (const c of layerCtx.controls) {
+    const media = isMedia(l);
+    els.sections.classList.toggle('hidden', media);
+    $('#mediaSections').classList.toggle('hidden', !media);
+    if (n > 1) els.multiTitle.textContent = `${n} layers selected`;
+    for (const c of media ? layerCtx.mediaControls : layerCtx.controls) {
       c.update(l);
       if (c.field.perLayer) c.el.style.opacity = n > 1 ? 0.55 : 1;
     }
@@ -8985,7 +9556,9 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       }
       const id = renderer.hitTest(p.x, p.y);
       if (id) {
-        if (e.shiftKey || e.ctrlKey || e.metaKey) { select(id, { toggle: true }); return; }
+        // Ctrl/Cmd-click adds to the selection; Shift does too unless the layer is already selected,
+        // in which case Shift-drag moves along one axis.
+        if (e.ctrlKey || e.metaKey || (e.shiftKey && !isSelected(id))) { select(id, { toggle: true }); return; }
         if (!isSelected(id)) select(id);
         const cam = cameraAt(clock.time);
         drag = {
@@ -9075,12 +9648,18 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         invalidate();
         return;
       }
-      const dx = p.x - drag.x0, dy = p.y - drag.y0;
+      let dx = p.x - drag.x0, dy = p.y - drag.y0;
       if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+      // Shift locks the move to whichever axis the pointer clearly set off along
+      if (e.shiftKey) {
+        if (!drag.axis && Math.hypot(dx, dy) > 6) drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+        if (drag.axis === 'x') dy = 0; else if (drag.axis === 'y') dx = 0;
+      } else drag.axis = null;
+      const mods = { alt: e.altKey };
       for (const it of drag.items) {
         if (drag.mode === 'move') {
-          it.l.transform.x = round(it.t0.x + dx * it.wpp, 3);
-          it.l.transform.y = round(it.t0.y - dy * it.wpp, 3);
+          it.l.transform.x = round(snapV(it.t0.x + dx * it.wpp, mods), 3);
+          it.l.transform.y = round(snapV(it.t0.y - dy * it.wpp, mods), 3);
         } else {
           it.l.transform.ry = clamp(round(it.t0.ry + dx * 0.25, 1), -90, 90);
           it.l.transform.rx = clamp(round(it.t0.rx - dy * 0.25, 1), -90, 90);
@@ -9156,6 +9735,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       e.preventDefault();
       const factor = Math.exp(-e.deltaY * 0.0015);
       for (const l of targets) {
+        if (isMedia(l)) { l.fitWidth = clamp(round((l.fitWidth || 1) * factor, 4), 0.1, 8); continue; }
         l.style.size = clamp(round(l.style.size * factor, 4), 0.02, 0.6);
         l._layout = null;
       }
@@ -9168,9 +9748,22 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
 
   /* ------------------------------------------------------------------ 3D layout view */
   function layoutVisible() { return state.view !== 'preview'; }
+  /* Grid snapping for positions in scene units; Alt held while dragging overrides it. */
+  const snapV = (v, mods) => (state.snap && !(mods && mods.alt) ? Math.round(v / state.snapStep) * state.snapStep : v);
+  function setSnap(on) {
+    state.snap = !!on;
+    layoutView.snap = state.snap;
+    $('#btnSnap').classList.toggle('on', state.snap);
+    if (layoutVisible()) layoutView.draw();
+  }
   function layerFootprint(l, tr) {
-    const lay = l._layout;
     const e = tr || l.transform;
+    if (isMedia(l)) {
+      const a = assets.get(l.id);
+      const w = l.fitWidth || 1, h = w * (a && a.width ? a.height / a.width : 9 / 16);
+      return { w: w * (e.scale || 1), h: h * (e.scale || 1) };
+    }
+    const lay = l._layout;
     const w = lay ? lay.blockW : (l.text || 'text').length * l.style.size * 1.1;
     const h = lay ? lay.blockH : l.style.size * 2.2;
     return { w: w * (e.scale || 1), h: h * (e.scale || 1) };
@@ -9195,8 +9788,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       const d = renderer.camDist;
       return {
         time: t, cam, camDist: d, fov: state.fov, aspect: frameAspect(), hasVideo: state.video.ready,
-        video: { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: state.media.locked },
-        layers: state.layers.map((l) => { const e = effectiveTransform(l, t); return Object.assign({
+        video: { scale: state.media.scale, x: state.media.x, y: state.media.y, z: planeZ(), locked: state.media.locked },
+        layers: state.layers.filter((l) => !(isMedia(l) && l.kind === 'audio')).map((l) => { const e = effectiveTransform(l, t); return Object.assign({
           id: l.id, text: l.text, x: e.x, y: e.y, z: e.z, pinned: isPinned(l),
           active: t >= l.start && t < l.end, hidden: l.hidden, selected: isSelected(l.id), primary: state.selectedIds[0] === l.id,
         }, layerFootprint(l, e)); }),
@@ -9214,39 +9807,39 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
         return [id, { x: l.transform.x, y: l.transform.y, z: l.transform.z, k: a ? a.k : 1 }];
       }));
     },
-    onLayerDragMove(ids, delta) {
+    onLayerDragMove(ids, delta, mods) {
       for (const id of ids) {
         const l = getLayer(id), o = dragStartPositions && dragStartPositions[id];
         if (!l || !o) continue;
         // a pinned word's x/y are offsets from its anchor, so a world-space drag is divided by the anchor scale
-        l.transform.x = round(clamp(o.x + delta.dx / o.k, -4, 4), 3);
-        l.transform.y = round(clamp(o.y + delta.dy / o.k, -2.5, 2.5), 3);
-        l.transform.z = round(clamp(o.z + delta.dz, -3, 10), 3);
+        l.transform.x = round(clamp(snapV(o.x + delta.dx / o.k, mods), -4, 4), 3);
+        l.transform.y = round(clamp(snapV(o.y + delta.dy / o.k, mods), -2.5, 2.5), 3);
+        l.transform.z = round(clamp(snapV(o.z + delta.dz, mods), -3, 10), 3);
       }
       refreshInspectorValues();
       invalidate();
       updateLayoutHint();
     },
     onLayerDragEnd(moved) { dragStartPositions = null; if (moved) commit(); },
-    onCameraDragMove(p) {
+    onCameraDragMove(p, mods) {
       clock.pause();
       const key = keyAtPlayhead();
       if (state.selectedKeyId !== key.id) selectKey(key.id);
-      key.x = round(clamp(p.x, -3, 3), 3);
-      key.y = round(clamp(p.y, -2, 2), 3);
-      key.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
+      key.x = round(clamp(snapV(p.x, mods), -3, 3), 3);
+      key.y = round(clamp(snapV(p.y, mods), -2, 2), 3);
+      key.dolly = round(renderer.camDist - clamp(snapV(p.z, mods), -2, 14), 3);
       refreshKeyValues();
       renderCameraTrack();
       invalidate();
       updateLayoutHint();
     },
     onCameraDragEnd() { commit(); },
-    onKeyDragMove(id, p) {
+    onKeyDragMove(id, p, mods) {
       const k = getKey(id);
       if (!k) return;
-      k.x = round(clamp(p.x, -3, 3), 3);
-      k.y = round(clamp(p.y, -2, 2), 3);
-      k.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
+      k.x = round(clamp(snapV(p.x, mods), -3, 3), 3);
+      k.y = round(clamp(snapV(p.y, mods), -2, 2), 3);
+      k.dolly = round(renderer.camDist - clamp(snapV(p.z, mods), -2, 14), 3);
       refreshKeyValues();
       invalidate();
     },
@@ -9283,6 +9876,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     updateLayoutHint();
   });
   $('#btnLayoutFit').addEventListener('click', () => { layoutView.fit(); layoutView.draw(); });
+  $('#btnSnap').addEventListener('click', () => { setSnap(!state.snap); toast(state.snap ? `Snap on — positions land on a ${state.snapStep} grid (hold Alt to bypass)` : 'Snap off'); });
+  $('#snapStep').addEventListener('change', (e) => { state.snapStep = Number(e.target.value) || 0.1; layoutView.gridStep = state.snapStep; if (layoutVisible()) layoutView.draw(); });
   $('#btnOpenLayout').addEventListener('click', () => setView(state.view === 'preview' ? 'split' : state.view));
 
   /* ------------------------------------------------------------------ templates, styles, moves */
@@ -9348,6 +9943,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
 
   function applyStylePreset(preset) {
+    if (selectedLayers().every(isMedia)) { toast('Text styles apply to words — select some text', true); return; }
     let targets = selectedLayers();
     if (!targets.length) {
       const l = addBlankText();
@@ -9787,6 +10383,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     $('#mediaScaleNum').value = Math.round(state.media.scale * 100);
     $('#mediaX').value = state.media.x; $('#mediaXNum').value = Math.round(state.media.x * 100);
     $('#mediaY').value = state.media.y; $('#mediaYNum').value = Math.round(state.media.y * 100);
+    $('#mediaZ').value = state.media.z || 0; $('#mediaZNum').value = round(state.media.z || 0, 2);
+    $('#mediaOpacity').value = state.media.opacity == null ? 1 : state.media.opacity; $('#mediaOpacityNum').value = Math.round((state.media.opacity == null ? 1 : state.media.opacity) * 100);
     $('#mediaIn3D').checked = !state.media.locked;
     $('#aspectSelect').value = aspectToLabel(state.aspect);
     $('#durationInput').value = state.duration;
@@ -9811,6 +10409,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   bindMediaRange('#mediaScale', '#mediaScaleNum', 'scale', 100);
   bindMediaRange('#mediaX', '#mediaXNum', 'x', 100);
   bindMediaRange('#mediaY', '#mediaYNum', 'y', 100);
+  bindMediaRange('#mediaZ', '#mediaZNum', 'z', 1);
+  bindMediaRange('#mediaOpacity', '#mediaOpacityNum', 'opacity', 100);
   $('#mediaIn3D').addEventListener('change', (e) => { state.media.locked = !e.target.checked; commit(); invalidate(); });
   $('#bgColor').addEventListener('input', (e) => { state.media.bg = e.target.value; $('#bgHex').value = e.target.value; invalidate(); });
   $('#bgColor').addEventListener('change', commit);
@@ -9848,7 +10448,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const layers = Array.isArray(built) ? built : built.layers;
     const cameraKeys = Array.isArray(built) ? [] : (built.cameraKeys || []);
     if (!layers.length) { toast('Please enter some text first', true); return; }
-    if ($('#tplReplace').checked) { state.layers = []; state.camera.keys = []; }
+    if ($('#tplReplace').checked) { state.layers = state.layers.filter(isMedia); state.camera.keys = []; }
     const ids = [];
     for (const l of layers) ids.push(addLayer(l, { select: false }).id);
     if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
@@ -9884,7 +10484,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     clock.pause();
     const v = els.video;
     v.muted = state.muted;
-    v.loop = state.loop;
+    v.loop = false;
     v.src = url;
     v.load();
     toast(`Loading ${file.name}…`);
@@ -9915,7 +10515,6 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     state.video.thumbs = [];
     state.clips = [{ id: `C${Math.random().toString(36).slice(2, 7)}`, in: 0, out: round(state.video.duration, 4) }];
     state.selectedClipId = null;
-    clock._clip = 0;
     v.loop = false;
     for (const l of state.layers) {
       l.end = Math.min(l.end, state.video.duration);
@@ -9948,26 +10547,25 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const ctx = c.getContext('2d');
     const was = clock.time, wasPlaying = clock.playing;
     if (wasPlaying) clock.pause();
+    state.thumbing = true;
     const thumbs = [];
     const file = state.video.file;
     for (let i = 0; i < n; i++) {
-      if (state.video.file !== file || state.tracking || state.exporting) return;   // the video changed under us
+      if (state.video.file !== file || state.tracking || state.exporting) { state.thumbing = false; return; }   // the video changed under us
       const t = (D * (i + 0.5)) / n;
       await seekVideo(t);
       try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
     }
+    state.thumbing = false;
     if (state.video.file !== file) return;
     state.video.thumbs = thumbs;
-    await seekVideo(srcTime(was));
     clock.time = was;
     renderVideoTrack();
     if (wasPlaying) clock.play();
   }
   els.video.addEventListener('loadeddata', invalidate);
   els.video.addEventListener('seeked', invalidate);
-  els.video.addEventListener('play', updatePlayButton);
-  els.video.addEventListener('pause', updatePlayButton);
-  els.video.addEventListener('ended', updatePlayButton);
+
   els.video.addEventListener('error', () => {
     if (!state.video.url) return;
     const err = els.video.error;
@@ -9983,6 +10581,13 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   $('#btnReplace').addEventListener('click', pickVideo);
   $('#btnRemoveVideo').addEventListener('click', removeVideo);
   $('#fileInput').addEventListener('change', (e) => { loadVideoFile(e.target.files[0]); e.target.value = ''; });
+  $('#btnAddVideoLayer').addEventListener('click', () => $('#videoLayerInput').click());
+  $('#btnAddImageLayer').addEventListener('click', () => $('#imageLayerInput').click());
+  $('#btnAddAudioLayer').addEventListener('click', () => $('#audioLayerInput').click());
+  $('#videoLayerInput').addEventListener('change', (e) => { addMediaFile(e.target.files[0], 'video'); e.target.value = ''; });
+  $('#imageLayerInput').addEventListener('change', (e) => { addMediaFile(e.target.files[0], 'image'); e.target.value = ''; });
+  $('#audioLayerInput').addEventListener('change', (e) => { addMediaFile(e.target.files[0], 'audio'); e.target.value = ''; });
+  $('#relinkInput').addEventListener('change', (e) => { const l = pendingRelink; pendingRelink = null; if (l && e.target.files[0]) relinkMedia(l, e.target.files[0]); e.target.value = ''; });
 
   ['dragenter', 'dragover'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.add('active'); }));
   ['dragleave', 'drop'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.remove('active'); }));
@@ -9990,6 +10595,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (!file) return;
     if (file.name.toLowerCase().endsWith('.json')) loadProjectFile(file);
+    else if ((file.type || '').startsWith('image/') || (file.type || '').startsWith('audio/') || state.video.ready) addMediaFile(file);
     else loadVideoFile(file);
   });
 
@@ -10065,17 +10671,39 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   /* ------------------------------------------------------------------ transport & tabs */
   $('#btnAddText').addEventListener('click', addBlankText);
   els.btnPlay.addEventListener('click', () => clock.toggle());
+  /* Cut a layer in two at time t; the second piece continues where the first stopped. */
+  function splitLayerAt(l, t) {
+    if (!(t > l.start + 0.1 && t < l.end - 0.1)) return null;
+    const copy = JSON.parse(JSON.stringify(l, stripper));
+    copy.id = uid();
+    copy.start = round(t, 3);
+    if (isMedia(l) && l.kind !== 'image') copy.srcIn = round((l.srcIn || 0) + (t - l.start), 3);
+    l.end = round(t, 3);
+    state.layers.splice(state.layers.indexOf(l) + 1, 0, copy);
+    if (isMedia(l)) cloneAsset(l.id, copy.id);
+    return copy;
+  }
   const splitHere = () => {
-    if (!state.video.ready) { toast('Load a video to split it', true); return; }
     clock.pause();
-    if (splitClipAt(clock.time)) { commit(); renderTimeline(); toast(`Split at ${fmtTime(clock.time)} — drag the ends of a piece to trim it, Delete removes it`); }
+    const t = clock.time;
+    const targets = selectedLayers();
+    if (targets.length) {
+      const made = targets.map((l) => splitLayerAt(l, t)).filter(Boolean);
+      if (!made.length) { toast('Move the playhead inside the selected layer to split it', true); return; }
+      state.selectedIds = made.map((c) => c.id);
+      commit(); refreshAll(); syncMedia(t, false, true);
+      toast(`Split ${made.length} layer${made.length > 1 ? 's' : ''} at ${fmtTime(t)}`);
+      return;
+    }
+    if (!state.video.ready) { toast('Select a layer, or load a video, to split at the playhead', true); return; }
+    if (splitClipAt(t)) { commit(); renderTimeline(); toast(`Split at ${fmtTime(t)} — drag the ends of a piece to trim it, Delete removes it`); }
   };
   $('#btnSplit').addEventListener('click', splitHere);
   $('#btnSplit2').addEventListener('click', splitHere);
   $('#btnStepBack').addEventListener('click', () => { clock.pause(); clock.time = clock.time - 1 / 30; });
   $('#btnStepFwd').addEventListener('click', () => { clock.pause(); clock.time = clock.time + 1 / 30; });
-  $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; els.video.loop = state.loop && !state.clips.length; e.currentTarget.classList.toggle('active', state.loop); });
-  $('#btnMute').addEventListener('click', (e) => { state.muted = !state.muted; els.video.muted = state.muted; e.currentTarget.classList.toggle('active', state.muted); e.currentTarget.title = state.muted ? 'Unmute' : 'Mute'; });
+  $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; e.currentTarget.classList.toggle('active', state.loop); });
+  $('#btnMute').addEventListener('click', (e) => { state.muted = !state.muted; syncMedia(clock.time, clock.playing, false); e.currentTarget.classList.toggle('active', state.muted); e.currentTarget.title = state.muted ? 'Unmute' : 'Mute'; });
   $('#aspectSelect').addEventListener('change', (e) => {
     const [w, h] = e.target.value.split(':').map(Number);
     state.aspect = w / h;
@@ -10194,8 +10822,8 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     runExport(cfg, fileHandle);
   });
 
-  function seekVideo(t) {
-    const v = els.video;
+  function seekVideo(t) { return seekEl(els.video, t); }
+  function seekEl(v, t) {
     return new Promise((resolve) => {
       if (Math.abs(v.currentTime - t) < 0.0005 && v.readyState >= 2) return resolve();
       let done = false;
@@ -10234,13 +10862,24 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     renderer.fovDeg = state.fov;
     const media = mediaForRender();
     const renderFrame = async (t, realtime) => {
-      if (state.video.ready && !realtime) await seekVideo(srcTime(t));
+      if (!realtime) {
+        const seeks = [];
+        if (state.video.ready && t < mainLen()) seeks.push(seekVideo(srcTime(t)));
+        for (const l of state.layers) {
+          if (!isMedia(l) || l.kind !== 'video' || l.hidden) continue;
+          const a = assets.get(l.id), st = mediaSrcTime(l, t);
+          if (a && a.ready && st != null) seeks.push(seekEl(a.el, st));
+        }
+        await Promise.all(seeks);
+      }
       renderer.render({
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
+        videoVisible: t < mainLen() - 1e-4,
         layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
         mask: maskForRender(t), showMask: false,
         trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, t) : null),
+        mediaFor: (l) => assets.get(l.id) || null,
       });
     };
 
@@ -10255,11 +10894,22 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
           let acc = 0;
           for (const c of state.clips) {
             const lo = Math.max(cfg.start, acc), hi = Math.min(cfg.end, acc + clipLen(c));
-            if (hi > lo) segs.push({ in: c.in + (lo - acc), out: c.in + (hi - acc) });
+            if (hi > lo) segs.push({ in: c.in + (lo - acc), out: c.in + (hi - acc), at: lo - cfg.start });
             acc += clipLen(c);
           }
         }
-        result = await Exporter.exportWebCodecs(Object.assign(common, { audioFile: state.video.file, includeAudio: cfg.audio, fileHandle, audioSegments: segs }));
+        // ...and every media layer with sound, placed where it sits on the timeline
+        const sources = [];
+        if (state.video.file && segs.length) sources.push({ file: state.video.file, gain: 1, pieces: segs.map((sg, i) => ({ in: sg.in, out: sg.out, at: sg.at })) });
+        for (const l of state.layers) {
+          if (!isMedia(l) || l.kind === 'image' || l.hidden || l.muted) continue;
+          const a = assets.get(l.id);
+          if (!a || !a.file) continue;
+          const lo = Math.max(cfg.start, l.start), hi = Math.min(cfg.end, l.end);
+          if (hi <= lo) continue;
+          sources.push({ file: a.file, gain: l.volume == null ? 1 : l.volume, pieces: [{ in: (l.srcIn || 0) + (lo - l.start), out: (l.srcIn || 0) + (hi - l.start), at: lo - cfg.start }] });
+        }
+        result = await Exporter.exportWebCodecs(Object.assign(common, { audioFile: state.video.file, includeAudio: cfg.audio, fileHandle, audioSegments: segs, audioSources: sources }));
       } else if (Exporter.hasMediaRecorder()) {
         if (state.video.ready) els.video.muted = true;
         result = await Exporter.exportMediaRecorder(Object.assign(common, { video: state.video.ready ? els.video : null }));
@@ -10363,6 +11013,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
+      case 'g': case 'G': if (!mod) { setSnap(!state.snap); toast(state.snap ? `Snap on (${state.snapStep} grid)` : 'Snap off'); } break;
       case 's': case 'S': if (!mod) splitHere(); break;
       case 'k': case 'K': addKeyHere(); break;
       case 'm': case 'M': if (state.mask.enabled) { state.maskEdit = !state.maskEdit; syncMaskControls(); } break;
@@ -10411,6 +11062,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
     buildSections(KEY_SCHEMA, els.keySections, keyCtx);
     buildSections(MASK_KEY_SCHEMA, $('#maskKeySections'), maskCtx);
     buildSections(TRACK_KEY_SCHEMA, $('#trackKeySections'), trackKeyCtx);
+    buildSections(MEDIA_SCHEMA, $('#mediaSections'), Object.assign(Object.create(layerCtx), { controls: layerCtx.mediaControls }));
     new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
@@ -10437,7 +11089,7 @@ if (typeof module === "object" && typeof module.exports === "object") Object.ass
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll, assets, addMediaFile, mainLen, duration, syncMedia, splitLayerAt };
 })();
 
 </script>

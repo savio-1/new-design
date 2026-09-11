@@ -28,6 +28,8 @@
       this.hover = null;
       this.drag = null;
       this.fitted = false;
+      this.snap = false;        // quantise dragged positions to the grid (the app applies it; drawn here)
+      this.gridStep = 0.1;      // world units
       this._bind();
     }
 
@@ -64,7 +66,7 @@
       const s = this.hooks.scene();
       const pts = [];
       const S = s.video.scale;
-      pts.push(this._axes(s.video.x - s.aspect * S, s.video.y - S, 0), this._axes(s.video.x + s.aspect * S, s.video.y + S, 0));
+      pts.push(this._axes(s.video.x - s.aspect * S, s.video.y - S, s.video.z || 0), this._axes(s.video.x + s.aspect * S, s.video.y + S, s.video.z || 0));
       pts.push(this._axes(s.cam.x, s.cam.y, s.cam.z));
       for (const p of s.path) pts.push(this._axes(p.x, p.y, p.z));
       for (const l of s.layers) if (!l.hidden) pts.push(this._axes(l.x, l.y, l.z));
@@ -99,6 +101,15 @@
       const hMin = Math.min(tl.h, br.h), hMax = Math.max(tl.h, br.h), vMin = Math.min(tl.v, br.v), vMax = Math.max(tl.v, br.v);
       c.font = `${11 * dpr}px Inter, sans-serif`;
       c.textBaseline = 'middle';
+      // the snap grid, when it is on and fine enough to see
+      if (this.snap && this.gridStep * this.zoom >= 7) {
+        c.strokeStyle = '#161619';
+        c.lineWidth = 1;
+        const g = this.gridStep;
+        for (let v = Math.ceil(vMin / g) * g; v <= vMax; v += g) { const { py } = this._toPx(0, v); c.beginPath(); c.moveTo(0, py); c.lineTo(W, py); c.stroke(); }
+        for (let h = Math.ceil(hMin / g) * g; h <= hMax; h += g) { const { px } = this._toPx(h, 0); c.beginPath(); c.moveTo(px, 0); c.lineTo(px, H); c.stroke(); }
+      }
+      c.lineWidth = 1;
       for (let v = Math.ceil(vMin / step) * step; v <= vMax; v += step) {
         const { py } = this._toPx(0, v);
         const major = Math.abs(v - Math.round(v)) < 1e-6;
@@ -122,8 +133,9 @@
 
       // video plane
       const S = s.video.scale;
-      const a = top ? this.worldPt(s.video.x - s.aspect * S, 0, 0) : this.worldPt(0, s.video.y - S, 0);
-      const b = top ? this.worldPt(s.video.x + s.aspect * S, 0, 0) : this.worldPt(0, s.video.y + S, 0);
+      const vz = s.video.z || 0;
+      const a = top ? this.worldPt(s.video.x - s.aspect * S, 0, vz) : this.worldPt(0, s.video.y - S, vz);
+      const b = top ? this.worldPt(s.video.x + s.aspect * S, 0, vz) : this.worldPt(0, s.video.y + S, vz);
       c.lineCap = 'round';
       c.strokeStyle = s.hasVideo ? '#ff6b6b' : '#8a8a96';
       c.lineWidth = 6 * dpr;
@@ -314,18 +326,20 @@
           return;
         }
         if (h.kind === 'camera') {
-          this.drag = { kind: 'camera', moved: false };
+          this.drag = { kind: 'camera', moved: false, start0: w };
         } else if (h.kind === 'key') {
           this.hooks.onSelectKey(h.id);
-          this.drag = { kind: 'key', id: h.id, moved: false };
+          this.drag = { kind: 'key', id: h.id, moved: false, start0: w };
         } else {
           const s = this.hooks.scene();
           const layer = s.layers.find((l) => l.id === h.id);
-          const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+          // Ctrl/Cmd-click adds to the selection; Shift does too, unless the word is already selected —
+          // then Shift-drag means "move along one axis".
+          const additive = e.ctrlKey || e.metaKey || (e.shiftKey && !layer.selected);
           if (!layer.selected || additive) this.hooks.onSelectLayer(h.id, additive);
           const ids = this.hooks.scene().layers.filter((l) => l.selected).map((l) => l.id);
           this.hooks.onLayerDragStart(ids);
-          this.drag = { kind: 'layer', ids, start: w, moved: false };
+          this.drag = { kind: 'layer', ids, start: w, moved: false, start0: w };
         }
         e.preventDefault();
       });
@@ -349,17 +363,26 @@
           return;
         }
         cv.style.cursor = 'grabbing';
+        // Shift locks the drag to one axis: whichever the pointer clearly moved along first.
+        const mods = { shift: e.shiftKey, snap: this.snap, step: this.gridStep };
+        if (d.kind !== 'pan' && d.start0 == null) d.start0 = w;
+        let wh = w.h, wv = w.v;
+        if (e.shiftKey && d.start0) {
+          const dh0 = w.h - d.start0.h, dv0 = w.v - d.start0.v;
+          if (!d.axis && Math.hypot(dh0, dv0) * this.zoom > 6) d.axis = Math.abs(dh0) >= Math.abs(dv0) ? 'h' : 'v';
+          if (d.axis === 'h') wv = d.start0.v; else if (d.axis === 'v') wh = d.start0.h;
+        } else d.axis = null;
         if (d.kind === 'camera') {
           const s = this.hooks.scene();
-          this.hooks.onCameraDragMove(this._worldFromAxes(w.h, w.v, s.cam));
+          this.hooks.onCameraDragMove(this._worldFromAxes(wh, wv, s.cam), mods);
         } else if (d.kind === 'key') {
           const s = this.hooks.scene();
           const k = s.keys.find((x) => x.id === d.id);
-          if (k) this.hooks.onKeyDragMove(d.id, this._worldFromAxes(w.h, w.v, k));
+          if (k) this.hooks.onKeyDragMove(d.id, this._worldFromAxes(wh, wv, k), mods);
         } else if (d.kind === 'layer') {
-          const dh = w.h - d.start.h, dv = w.v - d.start.v;
+          const dh = wh - d.start.h, dv = wv - d.start.v;
           const delta = this.mode === 'top' ? { dx: dh, dy: 0, dz: dv } : { dx: 0, dy: dv, dz: dh };
-          this.hooks.onLayerDragMove(d.ids, delta);
+          this.hooks.onLayerDragMove(d.ids, delta, mods);
         }
         this.draw();
       });

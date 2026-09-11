@@ -11,7 +11,7 @@
   /* ------------------------------------------------------------------ state */
   const defaultCamera = () => ({ aperture: 0.55, sharpNear: 0.9, sharpFar: 3.6, farFade: FADE_OFF, keys: [] });
   const FADE_OFF = 12;   // the top of the Fade far words range means "never fade"
-  const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, locked: false });
+  const defaultMedia = () => ({ bg: '#0f0f12', scale: 1, x: 0, y: 0, z: 0, opacity: 1, locked: false });
   const defaultMask = () => ({ enabled: false, roundness: 0.55, feather: 0.08, show: true, keys: [] });
   const MASK_FIELDS = ['x', 'y', 'w', 'h'];
   const state = {
@@ -28,7 +28,9 @@
     selectedTrackKeyId: null, // selected tracker keyframe (exclusive with the other selections)
     trackEdit: false,     // dragging on the preview places / corrects the selected tracker
     tracking: null,       // { controller } while a tracker is being analysed
-    suggestions: [],      // object proposals shown on the preview after "Find objects" 
+    suggestions: [],      // object proposals shown on the preview after "Find objects"
+    snap: false,          // quantise drags in the 3D views to the grid
+    snapStep: 0.1,
     video: { file: null, url: null, width: 0, height: 0, duration: 0, ready: false, thumbs: [] },
     clips: [],            // pieces of the source video laid end to end: { id, in, out } in source seconds
     selectedClipId: null,
@@ -84,10 +86,19 @@
   function frameAspect() {
     return state.video.ready ? state.video.width / state.video.height : state.aspect;
   }
-  function duration() {
-    if (!state.video.ready) return state.duration;
+  /* Length of the main video on the timeline (its pieces laid end to end); 0 without a video. */
+  function mainLen() {
+    if (!state.video.ready) return 0;
     return state.clips.length ? state.clips.reduce((a, c) => a + (c.out - c.in), 0) : state.video.duration;
   }
+  /* The timeline is as long as the main video (or the plain-background length), or the last media
+   * layer, whichever ends later — so a second clip placed after the first extends the timeline. */
+  function duration() {
+    let T = state.video.ready ? mainLen() : state.duration;
+    for (const l of state.layers) if (l.type === 'media' && l.end > T) T = l.end;
+    return Math.max(0.5, T);
+  }
+  const limitFor = (l) => (l && l.type === 'media' ? 3600 : duration());
 
   /* ---- clips ---------------------------------------------------------------
    * The timeline is the clips laid end to end. Text and camera keys live in TIMELINE time; anything
@@ -144,10 +155,9 @@
   /* Keep everything on the timeline inside the new length, and re-seat the playhead. */
   function afterClipsChanged(t) {
     const T = duration();
-    for (const l of state.layers) { l.end = Math.min(l.end, T); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
+    for (const l of state.layers) { if (isMedia(l)) continue; l.end = Math.min(l.end, T); l.start = Math.min(l.start, Math.max(0, l.end - 0.1)); }
     clampCameraKeys(T);
     clock.time = clamp(t == null ? clock.time : t, 0, T);
-    els.video.loop = false;
   }
   function fmtTime(t) {
     t = Math.max(0, t || 0);
@@ -218,61 +228,186 @@
   }
 
   /* ------------------------------------------------------------------ clock */
+  /* One clock drives everything. The <video> and <audio> elements follow it — seeking when it seeks,
+   * playing when it plays, and nudged back whenever they drift more than a few frames — so any number
+   * of videos, images and sounds stay in step, and the timeline can run past the main video. */
   const clock = {
-    _t: 0, _playing: false, _last: 0, _clip: 0,
-    get time() {
-      if (!state.video.ready) return this._t;
-      if (!state.clips.length) return els.video.currentTime;
-      const i = clamp(this._clip, 0, state.clips.length - 1), c = state.clips[i];
-      return clipStart(i) + clamp(els.video.currentTime - c.in, 0, clipLen(c));
-    },
+    _t: 0, _playing: false, _last: 0,
+    get time() { return this._t; },
     set time(v) {
-      v = clamp(v, 0, duration());
-      if (state.video.ready) {
-        const loc = locate(v);
-        if (loc.clip) this._clip = loc.index;
-        els.video.currentTime = loc.src;
-      } else this._t = v;
+      this._t = clamp(v, 0, duration());
+      syncMedia(this._t, this._playing, true);
       invalidate();
     },
-    get playing() { return state.video.ready ? !(els.video.paused || els.video.ended) : this._playing; },
+    get playing() { return this._playing; },
     play() {
-      if (state.video.ready) {
-        if (els.video.ended || this.time >= duration() - 0.01) this.time = 0;
-        els.video.play().catch((e) => toast('Playback blocked: ' + e.message, true));
-      } else {
-        if (this._t >= duration() - 0.001) this._t = 0;
-        this._playing = true;
-        this._last = performance.now();
-      }
+      if (this._t >= duration() - 0.001) this._t = 0;
+      this._playing = true;
+      this._last = performance.now();
+      syncMedia(this._t, true, true);
       updatePlayButton();
     },
     pause() {
-      if (state.video.ready) els.video.pause(); else this._playing = false;
+      this._playing = false;
+      syncMedia(this._t, false, false);
       updatePlayButton();
     },
     toggle() { this.playing ? this.pause() : this.play(); },
     tick(now) {
-      if (state.video.ready) {
-        // Jump across clip boundaries while playing; the <video> itself only knows the source.
-        if (!state.clips.length || els.video.paused) return;
-        const i = clamp(this._clip, 0, state.clips.length - 1), c = state.clips[i];
-        if (els.video.currentTime >= c.out - 0.02 || els.video.ended) {
-          if (i + 1 < state.clips.length) { this._clip = i + 1; els.video.currentTime = state.clips[i + 1].in; }
-          else if (state.loop) { this._clip = 0; els.video.currentTime = state.clips[0].in; if (els.video.ended) els.video.play().catch(() => {}); }
-          else { els.video.pause(); els.video.currentTime = c.out - 1e-3; updatePlayButton(); }
-        }
-        return;
-      }
       if (!this._playing) return;
       this._t += (now - this._last) / 1000;
       this._last = now;
       if (this._t >= duration()) {
-        if (state.loop) this._t = this._t % duration();
-        else { this._t = duration(); this.pause(); }
+        if (state.loop) this._t = 0;
+        else { this._t = duration(); this.pause(); return; }
       }
+      syncMedia(this._t, true, false);
     },
   };
+
+  /* Runtime media: the elements behind the main video and every media layer (never saved). */
+  const assets = new Map();   // layer id -> { kind, el, url, file, ready, width, height, duration, poster }
+  function driveEl(el, desired, shouldPlay, force, muted) {
+    el.muted = !!muted;
+    if (desired == null) { if (!el.paused) el.pause(); return; }
+    if (el.seeking && !force) return;
+    const drift = Math.abs(el.currentTime - desired);
+    if (shouldPlay) {
+      if (drift > 0.12 || force) el.currentTime = desired;
+      if (el.paused) el.play().catch(() => {});
+    } else {
+      if (!el.paused) el.pause();
+      if (drift > 0.02 || force) el.currentTime = desired;
+    }
+  }
+  function syncMedia(t, playing, force) {
+    if (state.tracking || state.exporting || state.thumbing) return;
+    if (state.video.ready) {
+      const active = t < mainLen() - 1e-4;
+      driveEl(els.video, active ? srcTime(t) : null, playing && active, force, state.muted);
+    }
+    for (const l of state.layers) {
+      if (l.type !== 'media' || l.kind === 'image') continue;
+      const a = assets.get(l.id);
+      if (!a || !a.ready) continue;
+      const active = !l.hidden && t >= l.start && t < l.end;
+      const desired = active ? clamp((l.srcIn || 0) + (t - l.start), 0, Math.max(0, a.duration - 0.02)) : null;
+      a.el.volume = clamp(l.volume == null ? 1 : l.volume, 0, 1);
+      driveEl(a.el, desired, playing && active, force, state.muted || l.muted);
+    }
+  }
+  /* Source time a media layer shows at timeline time t (null when it is not on). */
+  function mediaSrcTime(l, t) {
+    const a = assets.get(l.id);
+    if (!a || t < l.start || t >= l.end) return null;
+    return clamp((l.srcIn || 0) + (t - l.start), 0, Math.max(0, a.duration - 0.02));
+  }
+  const isMedia = (l) => !!(l && l.type === 'media');
+
+  /* Load a file into an element for layer `id`. Resolves the asset once its size / length is known. */
+  function loadAsset(id, file, kind) {
+    const url = URL.createObjectURL(file);
+    const el = kind === 'image' ? new Image() : document.createElement(kind);
+    const asset = { id, kind, el, url, file, ready: false, width: 0, height: 0, duration: 0, poster: null };
+    assets.set(id, asset);
+    return new Promise((resolve, reject) => {
+      const fail = () => { assets.delete(id); URL.revokeObjectURL(url); reject(new Error(`This browser cannot open ${file.name}`)); };
+      if (kind === 'image') {
+        el.onload = () => { asset.width = el.naturalWidth; asset.height = el.naturalHeight; asset.ready = true; asset.poster = url; resolve(asset); };
+        el.onerror = fail;
+        el.src = url;
+        return;
+      }
+      el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.loop = false; el.muted = true;
+      if (kind === 'video') el.playsInline = true;
+      el.addEventListener('loadedmetadata', () => {
+        asset.width = el.videoWidth || 0; asset.height = el.videoHeight || 0;
+        asset.duration = el.duration && isFinite(el.duration) ? el.duration : 10;
+        asset.ready = true;
+        resolve(asset);
+        if (kind === 'video') posterFor(asset);
+      }, { once: true });
+      el.addEventListener('error', fail, { once: true });
+      el.src = url;
+      el.load();
+    });
+  }
+  /* One small frame from the start of a video layer, for its bar on the timeline. */
+  function posterFor(asset) {
+    const el = asset.el;
+    const grab = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 88; c.height = 50;
+        c.getContext('2d').drawImage(el, 0, 0, 88, 50);
+        asset.poster = c.toDataURL('image/jpeg', 0.6);
+        renderTimeline();
+      } catch (e) { /* not drawable yet */ }
+    };
+    if (el.readyState >= 2) grab(); else el.addEventListener('loadeddata', grab, { once: true });
+  }
+  /* Add a media file as a new layer at the playhead. */
+  async function addMediaFile(file, kindHint) {
+    if (!file) return;
+    const type = file.type || '';
+    const kind = kindHint || (type.startsWith('image/') ? 'image' : type.startsWith('audio/') ? 'audio' : 'video');
+    const t = round(clock.time, 3);
+    const name = file.name.replace(/\.[^.]+$/, '');
+    const l = addLayer({
+      type: 'media', kind, name, text: name, start: t, end: t + 5, srcIn: 0, muted: false, volume: 1, opacity: 1,
+      fitWidth: kind === 'audio' ? 0 : 1.2, media: { fileName: file.name },
+      transform: { x: 0, y: 0, z: kind === 'audio' ? 0 : 0.4, rx: 0, ry: 0, rz: 0, scale: 1 },
+      split: 'whole',
+      anim: { in: { type: 'fade', duration: 0.3, easing: 'easeOut', stagger: 0, fit: false, hold: 0 }, out: { type: 'fade', duration: 0.3, easing: 'easeIn', stagger: 0 }, loop: { type: 'none', speed: 1 } },
+    }, { noClamp: true });
+    toast(`Loading ${file.name}…`);
+    try {
+      const a = await loadAsset(l.id, file, kind);
+      if (kind !== 'image') l.end = round(l.start + a.duration, 3);
+      l.media = { fileName: file.name, width: a.width, height: a.height, duration: a.duration };
+      commit();
+      syncMedia(clock.time, clock.playing, true);
+      refreshAll();
+      toast(`${file.name} added as a ${kind} layer${kind !== 'audio' ? ' — drag it in the 3D layout to place it in depth' : ''}`);
+    } catch (e) {
+      state.layers = state.layers.filter((x) => x !== l);
+      state.selectedIds = [];
+      refreshAll();
+      toast(e.message, true);
+    }
+  }
+  /* Re-attach a file to a media layer whose file is not loaded (after opening a saved project). */
+  async function relinkMedia(l, file) {
+    if (!isMedia(l) || !file) return;
+    try {
+      const a = await loadAsset(l.id, file, l.kind);
+      l.media = Object.assign({}, l.media, { fileName: file.name, width: a.width, height: a.height, duration: a.duration });
+      renderer.dropMediaTexture(l.id);
+      commit();
+      syncMedia(clock.time, clock.playing, true);
+      refreshAll();
+      toast(`${file.name} linked to ${l.name}`);
+    } catch (e) { toast(e.message, true); }
+  }
+  /* A copy of a layer's element, so a duplicate or a split piece can show a different moment. */
+  function cloneAsset(fromId, toId) {
+    const a = assets.get(fromId);
+    if (!a) return;
+    if (a.kind === 'image') { assets.set(toId, Object.assign({}, a, { id: toId })); return; }
+    const el = document.createElement(a.kind);
+    el.preload = 'auto'; el.crossOrigin = 'anonymous'; el.loop = false; el.muted = true;
+    if (a.kind === 'video') el.playsInline = true;
+    el.src = a.url;
+    el.load();
+    assets.set(toId, Object.assign({}, a, { id: toId, el }));
+  }
+  function releaseAsset(id) {
+    const a = assets.get(id);
+    if (a && a.el && a.el.pause) a.el.pause();
+    renderer.dropMediaTexture(id);
+    // the asset object itself is kept so undo can bring the layer back with its file
+  }
+
   function updatePlayButton() {
     els.btnPlay.classList.toggle('playing', clock.playing);
   }
@@ -281,8 +416,9 @@
   function layerDepth(cam, l) {
     return renderer.viewDepth(cam, l.transform.x, l.transform.y, l.transform.z);
   }
+  const planeZ = () => (state.media.locked ? 0 : (state.media.z || 0));
   function planeDepth(cam) {
-    return Math.max(0.1, renderer.viewDepth(cam, state.media.x, state.media.y, 0));
+    return Math.max(0.1, renderer.viewDepth(cam, state.media.x, state.media.y, planeZ()));
   }
 
   /* Absolute camera for the renderer at time t: keyframe offsets + focus + fade. */
@@ -399,7 +535,7 @@
     return {
       x: a.x + (c * tr.x - sn * tr.y) * a.k,
       y: a.y + (sn * tr.x + c * tr.y) * a.k,
-      z: tr.z, rx: tr.rx, ry: tr.ry, rz: tr.rz + deg, scale: tr.scale * a.k,
+      z: tr.z + planeZ(), rx: tr.rx, ry: tr.ry, rz: tr.rz + deg, scale: tr.scale * a.k,
     };
   }
   /* Pin a layer to a track (or unpin with null) without letting it move on screen at time t. */
@@ -408,7 +544,7 @@
     const rotate = l.track ? l.track.rotate : true;
     l.track = { id: trackId && getTrack(trackId) ? trackId : null, rotate: rotate == null ? true : rotate };
     if (!l.track.id) {
-      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), rz: round(abs.rz, 3), scale: round(abs.scale, 4) });
+      Object.assign(l.transform, { x: round(abs.x, 4), y: round(abs.y, 4), z: round(abs.z, 4), rz: round(abs.rz, 3), scale: round(abs.scale, 4) });
       return;
     }
     const a = anchorAt(trackId, t);
@@ -417,6 +553,7 @@
     const dx = (abs.x - a.x) / a.k, dy = (abs.y - a.y) / a.k;
     l.transform.x = round(c * dx - sn * dy, 4);
     l.transform.y = round(sn * dx + c * dy, 4);
+    l.transform.z = round(abs.z - planeZ(), 4);
     l.transform.rz = round(abs.rz - deg, 3);
     l.transform.scale = round(abs.scale / a.k, 4);
   }
@@ -575,7 +712,7 @@
     return key;
   }
   /* Dolly that makes the scaled video fill the frame exactly. */
-  const fitDolly = () => round(renderer.camDist * (1 - state.media.scale), 3);
+  const fitDolly = () => round(renderer.camDist * (1 - state.media.scale) - planeZ(), 3);
 
   function applyCameraMove(move) {
     const sel = selectedLayers();
@@ -619,7 +756,7 @@
   }
 
   function mediaForRender() {
-    return { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: !!state.media.locked, bg: hexToRgb01(state.media.bg) };
+    return { scale: state.media.scale, x: state.media.x, y: state.media.y, z: state.media.z || 0, opacity: state.media.opacity == null ? 1 : state.media.opacity, locked: !!state.media.locked, bg: hexToRgb01(state.media.bg) };
   }
 
   function draw(time) {
@@ -637,6 +774,8 @@
       showMask: !state.exporting && state.mask.enabled && state.mask.show,
       trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, time) : null),
       outlines: trackOutlines(time),
+      mediaFor: (l) => assets.get(l.id) || null,
+      videoVisible: time < mainLen() - 1e-4,
     });
   }
 
@@ -675,8 +814,10 @@
   function addLayer(partial, opts = {}) {
     const l = Presets.deepMerge(Presets.defaultLayer(), partial || {});
     l.id = uid();
-    l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
-    l.end = clamp(l.end, l.start + 0.1, duration());
+    if (!opts.noClamp) {
+      l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
+      l.end = clamp(l.end, l.start + 0.1, duration());
+    }
     state.layers.push(l);
     if (opts.select !== false) { state.selectedIds = [l.id]; state.selectedKeyId = null; }
     return l;
@@ -725,6 +866,7 @@
       state.selectedKeyId = null;
     } else if (state.selectedIds.length) {
       const ids = new Set(state.selectedIds);
+      for (const l of state.layers) if (ids.has(l.id) && isMedia(l)) releaseAsset(l.id);
       state.layers = state.layers.filter((l) => !ids.has(l.id));
       state.selectedIds = [];
     } else return;
@@ -743,6 +885,7 @@
       copy.transform.y -= 0.12;
       const i = state.layers.indexOf(l);
       state.layers.splice(i + 1, 0, copy);
+      if (isMedia(l)) cloneAsset(l.id, copy.id);
       ids.push(copy.id);
     }
     state.selectedIds = ids;
@@ -1018,19 +1161,26 @@
     for (const l of rows) {
       const row = document.createElement('div');
       const sel = isSelected(l.id);
-      row.className = `tl-row${sel ? ' selected' : ''}${sel && l.id !== primary ? ' secondary' : ''}${l.hidden ? ' hidden-layer' : ''}`;
+      const media = isMedia(l);
+      const asset = media ? assets.get(l.id) : null;
+      row.className = `tl-row${sel ? ' selected' : ''}${sel && l.id !== primary ? ' secondary' : ''}${l.hidden ? ' hidden-layer' : ''}${media ? ` media-row kind-${l.kind}` : ''}`;
       row.dataset.id = l.id;
       const { inW, outW } = animShade(l);
+      const kindIcon = media ? (l.kind === 'audio' ? '♪' : l.kind === 'image' ? '▣' : '▶') : '';
+      const poster = asset && asset.poster ? `<img class="poster" src="${asset.poster}" alt="">` : '';
+      const label = media ? `${escapeHtml(l.name || 'Media')}${asset ? '' : ' · file not loaded — Relink in the inspector'}` : escapeHtml((l.text || '').replace(/\n/g, ' '));
       row.innerHTML = `
         <div class="tl-name">
           <button class="tl-eye" title="Show / hide">${l.hidden ? EYE_OFF : EYE_ON}</button>
+          ${media ? `<span class="kind">${kindIcon}</span>` : ''}
           <span class="nm">${escapeHtml(l.name || l.text || 'Text')}</span>
         </div>
         <div class="tl-track">
-          <div class="tl-bar" style="${barStyle(l)}">
+          <div class="tl-bar${poster ? ' has-poster' : ''}${media && !asset ? ' missing' : ''}" style="${barStyle(l)}">
+            ${poster}
             <div class="anim-in" style="width:${inW}%"></div>
             <div class="anim-out" style="width:${outW}%"></div>
-            <span>${escapeHtml((l.text || '').replace(/\n/g, ' '))}</span>
+            <span>${label}</span>
             <div class="h l"></div><div class="h r"></div>
           </div>
         </div>`;
@@ -1310,18 +1460,18 @@
       if (drag.mode === 'key') return;
       const dt = (e.clientX - drag.x0) / pxPerSec();
       if (Math.abs(e.clientX - drag.x0) > 2) drag.moved = true;
-      const T = duration();
       const targets = snapTargets(new Set(drag.ids));
       if (drag.mode === 'move') {
         const o = drag.orig[drag.id];
         const len = o.end - o.start;
+        const T = limitFor(getLayer(drag.id));
         let s = clamp(o.start + dt, 0, T - len);
         const snappedStart = snap(s, targets), snappedEnd = snap(s + len, targets);
         if (snappedStart !== s) s = snappedStart; else if (snappedEnd !== s + len) s = snappedEnd - len;
         let delta = s - o.start;
         for (const id of drag.ids) {
           const oo = drag.orig[id];
-          delta = clamp(delta, -oo.start, T - oo.end);
+          delta = clamp(delta, -oo.start, limitFor(getLayer(id)) - oo.end);
         }
         for (const id of drag.ids) {
           const l = getLayer(id), oo = drag.orig[id];
@@ -1330,8 +1480,11 @@
         }
       } else {
         const l = getLayer(drag.id), o = drag.orig[drag.id];
-        if (drag.mode === 'trimL') l.start = clamp(snap(o.start + dt, targets), 0, l.end - 0.1);
-        else l.end = clamp(snap(o.end + dt, targets), l.start + 0.1, T);
+        if (drag.mode === 'trimL') {
+          const ns = clamp(snap(o.start + dt, targets), 0, l.end - 0.1);
+          if (isMedia(l) && l.kind !== 'image') l.srcIn = round(Math.max(0, (l.srcIn || 0) + (ns - l.start)), 3);   // trimming the head keeps the same frame at the cut
+          l.start = ns;
+        } else l.end = clamp(snap(o.end + dt, targets), l.start + 0.1, limitFor(l));
         updateBar(l);
       }
       refreshInspectorValues();
@@ -1339,7 +1492,7 @@
     });
 
     const endDrag = () => {
-      if (drag && (drag.mode === 'move' || drag.mode === 'trimL' || drag.mode === 'trimR') && drag.moved) { commit(); renderTimeline(); }
+      if (drag && (drag.mode === 'move' || drag.mode === 'trimL' || drag.mode === 'trimR') && drag.moved) { commit(); renderTimeline(); syncMedia(clock.time, clock.playing, true); }
       drag = null;
     };
     els.tlBody.addEventListener('pointerup', endDrag);
@@ -1464,12 +1617,61 @@
     },
   ];
 
+  const POSITION_FIELDS = LAYER_SCHEMA.find((sec) => sec.title === 'Position in 3D').fields;
+  const MEDIA_SCHEMA = [
+    {
+      title: 'Media',
+      fields: [
+        { type: 'buttons', buttons: [{ label: 'Relink file…', action: (l) => { pendingRelink = l; $('#relinkInput').click(); } }] },
+        { type: 'range', path: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.01, scale: 100, unit: '%', showIf: (l) => l.kind !== 'audio' },
+        { type: 'range', path: 'fitWidth', label: 'Width', min: 0.1, max: 8, step: 0.01, scale: 100, unit: '', hint: 'Width in scene units. The frame is about 2 × its aspect ratio wide at the resting camera, so 1.0 is roughly half the frame for 16:9 footage.', showIf: (l) => l.kind !== 'audio' },
+        { type: 'range', path: 'srcIn', label: 'Trim start', min: 0, max: 600, step: 0.01, scale: 1, unit: 's', hint: 'Where in the file this layer begins', showIf: (l) => l.kind !== 'image' },
+        { type: 'toggle', path: 'muted', label: 'Mute', showIf: (l) => l.kind !== 'image' },
+        { type: 'range', path: 'volume', label: 'Volume', min: 0, max: 1.5, step: 0.01, scale: 100, unit: '%', showIf: (l) => l.kind !== 'image' },
+      ],
+    },
+    // a sound has no place in the scene: its position controls are hidden
+    { title: 'Position in 3D', fields: POSITION_FIELDS.map((f) => (['range', 'select', 'toggle'].includes(f.type) ? Object.assign({}, f, { showIf: (l) => l.kind !== 'audio' }) : f)) },
+    {
+      title: 'Animation',
+      collapsed: true,
+      fields: [
+        { type: 'sub', label: 'In' },
+        { type: 'select', path: 'anim.in.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'in') },
+        { type: 'range', path: 'anim.in.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
+        { type: 'select', path: 'anim.in.easing', label: 'Easing', options: easingOptions },
+        { type: 'sub', label: 'Out' },
+        { type: 'select', path: 'anim.out.type', label: 'Type', grouped: true, options: animOptions, onChange: (l) => onAnimTypeChange(l, 'out') },
+        { type: 'range', path: 'anim.out.duration', label: 'Duration', min: 0.05, max: 3, step: 0.05, scale: 1, unit: 's' },
+        { type: 'select', path: 'anim.out.easing', label: 'Easing', options: easingOptions },
+        { type: 'sub', label: 'While visible' },
+        { type: 'select', path: 'anim.loop.type', label: 'Motion', options: () => Object.entries(Anim.Loops).map(([value, d]) => ({ value, label: d.label })) },
+        { type: 'range', path: 'anim.loop.speed', label: 'Speed', min: 0.1, max: 4, step: 0.1, scale: 1, unit: '×' },
+      ],
+    },
+    {
+      title: 'Timing',
+      fields: [
+        { type: 'two', fields: [
+          { type: 'number', path: 'start', label: 'Start (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.start = clamp(l.start, 0, l.end - 0.1); } },
+          { type: 'number', path: 'end', label: 'End (s)', step: 0.05, min: 0, delta: true, onChange: (l) => { l.end = clamp(l.end, l.start + 0.1, limitFor(l)); } },
+        ] },
+        { type: 'buttons', buttons: [
+          { label: 'Start at playhead', action: (l) => { const len = l.end - l.start; l.start = clamp(clock.time, 0, limitFor(l) - 0.1); l.end = l.start + len; } },
+          { label: 'Split at playhead', action: (l) => splitLayerAt(l, clock.time) },
+        ] },
+      ],
+    },
+  ];
+  let pendingRelink = null;
+
   const KEY_SCHEMA = [
     {
       title: 'Keyframe',
       fields: [
         { type: 'number', path: 't', label: 'Time (s)', step: 0.05, min: 0, onChange: (k) => { k.t = clamp(k.t, 0, duration()); } },
-        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })), hint: 'How the camera arrives at this key' },
+        { type: 'select', path: 'easing', label: 'Ease in', options: () => Object.entries(Camera.EASING_LABELS).map(([value, label]) => ({ value, label })), hint: 'How the camera arrives at this key from the previous one', onChange: (k) => { if (k.easing === 'custom' && !(Array.isArray(k.curve) && k.curve.length === 4)) k.curve = Camera.DEFAULT_CURVE.slice(); } },
+        { type: 'curve', path: 'curve', label: 'Speed curve', hint: 'Drag the two handles: a flat start means the camera sets off slowly, a flat end means it eases to a stop; steep means fast. Applies to the move INTO this key.', showIf: (k) => k.easing === 'custom' },
       ],
     },
     {
@@ -1541,6 +1743,7 @@
    * `delta` shift each layer by the same amount the primary moved; `perLayer` fields touch only the primary. */
   const layerCtx = {
     controls: [],
+    mediaControls: [],
     get: () => selected(),
     apply(field, primary, value, isFinal) {
       const targets = selectedLayers();
@@ -1570,10 +1773,12 @@
         setPath(l, field.path, v);
         if (field.onChange) field.onChange(l);
         if (field.path === 'start' || field.path === 'end') {
-          l.start = clamp(l.start, 0, Math.max(0, duration() - 0.1));
-          l.end = clamp(l.end, l.start + 0.1, duration());
+          const lim = limitFor(l);
+          l.start = clamp(l.start, 0, Math.max(0, lim - 0.1));
+          l.end = clamp(l.end, l.start + 0.1, lim);
           updateBar(l);
         }
+        if (isMedia(l) && (field.path === 'srcIn' || field.path === 'muted' || field.path === 'volume' || field.path === 'hidden')) syncMedia(clock.time, clock.playing, true);
         l._layout = null;
         if (field.path === 'text') {
           const row = $(`.tl-row[data-id="${l.id}"] .tl-bar span`, els.tlBody);
@@ -1824,6 +2029,91 @@
         if (none) none.checked = isNone;
         if (!isNone) { c.value = v.length === 7 ? v : '#ffffff'; hex.value = c.value; } else { hex.value = 'none'; }
       };
+    } else if (f.type === 'curve') {
+      // A cubic-Bezier speed curve editor: x is time between the two keys, y is how far the camera has got.
+      const box = document.createElement('div');
+      box.className = 'curve-wrap';
+      const cv = document.createElement('canvas');
+      cv.className = 'curve-canvas';
+      const presets = document.createElement('div');
+      presets.className = 'curve-presets';
+      const readout = document.createElement('div');
+      readout.className = 'curve-readout';
+      const PRESETS = [['Gentle', [0.4, 0, 0.2, 1]], ['Slow start', [0.7, 0, 0.9, 0.6]], ['Slow finish', [0.1, 0.4, 0.3, 1]], ['Snappy', [0.6, 0, 0.1, 1]], ['Overshoot', [0.3, 1.3, 0.6, 1]], ['Anticipate', [0.5, -0.3, 0.6, 1]], ['Linear', [0.33, 0.33, 0.67, 0.67]]];
+      for (const [name, c] of PRESETS) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.textContent = name;
+        b.addEventListener('click', () => { const k = target(); if (k) ctx.apply(f, k, c.slice(), true); });
+        presets.appendChild(b);
+      }
+      box.appendChild(cv); box.appendChild(presets); box.appendChild(readout);
+      wrap.appendChild(box);
+      const PAD = 14;
+      let handle = null;
+      const geom = () => {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const w = cv.clientWidth || 240, h = cv.clientHeight || 130;
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+        return { dpr, w: cv.width, h: cv.height, pad: PAD * dpr };
+      };
+      const toPx = (g, x, y) => ({ px: g.pad + x * (g.w - 2 * g.pad), py: g.h - g.pad - y * (g.h - 2 * g.pad) });
+      const fromPx = (g, px, py) => ({ x: clamp((px - g.pad) / (g.w - 2 * g.pad), 0, 1), y: (g.h - g.pad - py) / (g.h - 2 * g.pad) });
+      const curveOf = (k) => (Array.isArray(k.curve) && k.curve.length === 4 ? k.curve : Camera.DEFAULT_CURVE);
+      const drawCurve = (k) => {
+        const g = geom(), c2 = cv.getContext('2d');
+        const cur = curveOf(k);
+        c2.clearRect(0, 0, g.w, g.h);
+        c2.strokeStyle = '#26262e'; c2.lineWidth = 1;
+        for (let i = 0; i <= 4; i++) {
+          const a = toPx(g, i / 4, 0), b = toPx(g, i / 4, 1);
+          c2.beginPath(); c2.moveTo(a.px, a.py); c2.lineTo(b.px, b.py); c2.stroke();
+          const a2 = toPx(g, 0, i / 4), b2 = toPx(g, 1, i / 4);
+          c2.beginPath(); c2.moveTo(a2.px, a2.py); c2.lineTo(b2.px, b2.py); c2.stroke();
+        }
+        // linear reference
+        const o = toPx(g, 0, 0), e = toPx(g, 1, 1);
+        c2.strokeStyle = '#3a3a44'; c2.setLineDash([4 * g.dpr, 4 * g.dpr]);
+        c2.beginPath(); c2.moveTo(o.px, o.py); c2.lineTo(e.px, e.py); c2.stroke(); c2.setLineDash([]);
+        // the curve
+        const fn = Camera.cubicBezier(clamp(cur[0], 0, 1), cur[1], clamp(cur[2], 0, 1), cur[3]);
+        c2.strokeStyle = '#f28c28'; c2.lineWidth = 2 * g.dpr;
+        c2.beginPath();
+        for (let i = 0; i <= 60; i++) { const x = i / 60, q = toPx(g, x, fn(x)); if (i) c2.lineTo(q.px, q.py); else c2.moveTo(q.px, q.py); }
+        c2.stroke();
+        // handles
+        const h1 = toPx(g, cur[0], cur[1]), h2 = toPx(g, cur[2], cur[3]);
+        c2.strokeStyle = '#7ad7ff'; c2.lineWidth = 1.2 * g.dpr;
+        c2.beginPath(); c2.moveTo(o.px, o.py); c2.lineTo(h1.px, h1.py); c2.moveTo(e.px, e.py); c2.lineTo(h2.px, h2.py); c2.stroke();
+        for (const hh of [h1, h2]) { c2.fillStyle = '#7ad7ff'; c2.beginPath(); c2.arc(hh.px, hh.py, 5 * g.dpr, 0, Math.PI * 2); c2.fill(); }
+        c2.fillStyle = '#6f6f7a'; c2.font = `${10 * g.dpr}px Inter, sans-serif`; c2.textAlign = 'left';
+        c2.fillText('time →', g.pad, g.h - 3 * g.dpr);
+        c2.save(); c2.translate(9 * g.dpr, g.h - g.pad); c2.rotate(-Math.PI / 2); c2.fillText('progress →', 0, 0); c2.restore();
+        readout.textContent = `cubic-bezier(${cur.map((v) => round(v, 2)).join(', ')})`;
+      };
+      const pick = (e) => {
+        const k = target(); if (!k) return null;
+        const g = geom(), r = cv.getBoundingClientRect();
+        const px = ((e.clientX - r.left) / r.width) * g.w, py = ((e.clientY - r.top) / r.height) * g.h;
+        const cur = curveOf(k);
+        const d1 = Math.hypot(px - toPx(g, cur[0], cur[1]).px, py - toPx(g, cur[0], cur[1]).py);
+        const d2 = Math.hypot(px - toPx(g, cur[2], cur[3]).px, py - toPx(g, cur[2], cur[3]).py);
+        return { g, px, py, which: d1 <= d2 ? 0 : 1 };
+      };
+      cv.addEventListener('pointerdown', (e) => { const h = pick(e); if (!h) return; handle = h.which; cv.setPointerCapture(e.pointerId); e.preventDefault(); });
+      cv.addEventListener('pointermove', (e) => {
+        if (handle == null) return;
+        const k = target(); if (!k) return;
+        const g = geom(), r = cv.getBoundingClientRect();
+        const q = fromPx(g, ((e.clientX - r.left) / r.width) * g.w, ((e.clientY - r.top) / r.height) * g.h);
+        const cur = curveOf(k).slice();
+        cur[handle * 2] = round(q.x, 3); cur[handle * 2 + 1] = round(clamp(q.y, -0.6, 1.6), 3);
+        ctx.apply(f, k, cur, false);
+        drawCurve(k);
+      });
+      const done = () => { if (handle == null) return; handle = null; const k = target(); if (k) ctx.apply(f, k, curveOf(k).slice(), true); };
+      cv.addEventListener('pointerup', done);
+      cv.addEventListener('pointercancel', done);
+      update = (k) => { const show = !f.showIf || f.showIf(k); wrap.classList.toggle('hidden', !show); if (show) drawCurve(k); };
     } else if (f.type === 'toggle') {
       const lbl = document.createElement('label');
       lbl.className = 'toggle';
@@ -1846,6 +2136,8 @@
       wrap.appendChild(seg);
       update = (l) => { const v = getPath(l, f.path); $$('button', seg).forEach((b) => b.classList.toggle('on', b.dataset.value === String(v))); };
     }
+    const baseUpdate = update;
+    if (f.showIf && f.type !== 'curve') update = (k) => { const show = f.showIf(k); wrap.classList.toggle('hidden', !show); if (show) baseUpdate(k); };
     ctx.controls.push({ update, field: f, el: wrap });
     return wrap;
   }
@@ -1884,7 +2176,11 @@
     els.multiTitle.classList.toggle('hidden', n <= 1);
     if (n > 1) els.multiTitle.textContent = `${n} words selected`;
     if (document.activeElement !== els.layerName) els.layerName.value = l.name || '';
-    for (const c of layerCtx.controls) {
+    const media = isMedia(l);
+    els.sections.classList.toggle('hidden', media);
+    $('#mediaSections').classList.toggle('hidden', !media);
+    if (n > 1) els.multiTitle.textContent = `${n} layers selected`;
+    for (const c of media ? layerCtx.mediaControls : layerCtx.controls) {
       c.update(l);
       if (c.field.perLayer) c.el.style.opacity = n > 1 ? 0.55 : 1;
     }
@@ -2023,7 +2319,9 @@
       }
       const id = renderer.hitTest(p.x, p.y);
       if (id) {
-        if (e.shiftKey || e.ctrlKey || e.metaKey) { select(id, { toggle: true }); return; }
+        // Ctrl/Cmd-click adds to the selection; Shift does too unless the layer is already selected,
+        // in which case Shift-drag moves along one axis.
+        if (e.ctrlKey || e.metaKey || (e.shiftKey && !isSelected(id))) { select(id, { toggle: true }); return; }
         if (!isSelected(id)) select(id);
         const cam = cameraAt(clock.time);
         drag = {
@@ -2113,12 +2411,18 @@
         invalidate();
         return;
       }
-      const dx = p.x - drag.x0, dy = p.y - drag.y0;
+      let dx = p.x - drag.x0, dy = p.y - drag.y0;
       if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+      // Shift locks the move to whichever axis the pointer clearly set off along
+      if (e.shiftKey) {
+        if (!drag.axis && Math.hypot(dx, dy) > 6) drag.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+        if (drag.axis === 'x') dy = 0; else if (drag.axis === 'y') dx = 0;
+      } else drag.axis = null;
+      const mods = { alt: e.altKey };
       for (const it of drag.items) {
         if (drag.mode === 'move') {
-          it.l.transform.x = round(it.t0.x + dx * it.wpp, 3);
-          it.l.transform.y = round(it.t0.y - dy * it.wpp, 3);
+          it.l.transform.x = round(snapV(it.t0.x + dx * it.wpp, mods), 3);
+          it.l.transform.y = round(snapV(it.t0.y - dy * it.wpp, mods), 3);
         } else {
           it.l.transform.ry = clamp(round(it.t0.ry + dx * 0.25, 1), -90, 90);
           it.l.transform.rx = clamp(round(it.t0.rx - dy * 0.25, 1), -90, 90);
@@ -2194,6 +2498,7 @@
       e.preventDefault();
       const factor = Math.exp(-e.deltaY * 0.0015);
       for (const l of targets) {
+        if (isMedia(l)) { l.fitWidth = clamp(round((l.fitWidth || 1) * factor, 4), 0.1, 8); continue; }
         l.style.size = clamp(round(l.style.size * factor, 4), 0.02, 0.6);
         l._layout = null;
       }
@@ -2206,9 +2511,22 @@
 
   /* ------------------------------------------------------------------ 3D layout view */
   function layoutVisible() { return state.view !== 'preview'; }
+  /* Grid snapping for positions in scene units; Alt held while dragging overrides it. */
+  const snapV = (v, mods) => (state.snap && !(mods && mods.alt) ? Math.round(v / state.snapStep) * state.snapStep : v);
+  function setSnap(on) {
+    state.snap = !!on;
+    layoutView.snap = state.snap;
+    $('#btnSnap').classList.toggle('on', state.snap);
+    if (layoutVisible()) layoutView.draw();
+  }
   function layerFootprint(l, tr) {
-    const lay = l._layout;
     const e = tr || l.transform;
+    if (isMedia(l)) {
+      const a = assets.get(l.id);
+      const w = l.fitWidth || 1, h = w * (a && a.width ? a.height / a.width : 9 / 16);
+      return { w: w * (e.scale || 1), h: h * (e.scale || 1) };
+    }
+    const lay = l._layout;
     const w = lay ? lay.blockW : (l.text || 'text').length * l.style.size * 1.1;
     const h = lay ? lay.blockH : l.style.size * 2.2;
     return { w: w * (e.scale || 1), h: h * (e.scale || 1) };
@@ -2233,8 +2551,8 @@
       const d = renderer.camDist;
       return {
         time: t, cam, camDist: d, fov: state.fov, aspect: frameAspect(), hasVideo: state.video.ready,
-        video: { scale: state.media.scale, x: state.media.x, y: state.media.y, locked: state.media.locked },
-        layers: state.layers.map((l) => { const e = effectiveTransform(l, t); return Object.assign({
+        video: { scale: state.media.scale, x: state.media.x, y: state.media.y, z: planeZ(), locked: state.media.locked },
+        layers: state.layers.filter((l) => !(isMedia(l) && l.kind === 'audio')).map((l) => { const e = effectiveTransform(l, t); return Object.assign({
           id: l.id, text: l.text, x: e.x, y: e.y, z: e.z, pinned: isPinned(l),
           active: t >= l.start && t < l.end, hidden: l.hidden, selected: isSelected(l.id), primary: state.selectedIds[0] === l.id,
         }, layerFootprint(l, e)); }),
@@ -2252,39 +2570,39 @@
         return [id, { x: l.transform.x, y: l.transform.y, z: l.transform.z, k: a ? a.k : 1 }];
       }));
     },
-    onLayerDragMove(ids, delta) {
+    onLayerDragMove(ids, delta, mods) {
       for (const id of ids) {
         const l = getLayer(id), o = dragStartPositions && dragStartPositions[id];
         if (!l || !o) continue;
         // a pinned word's x/y are offsets from its anchor, so a world-space drag is divided by the anchor scale
-        l.transform.x = round(clamp(o.x + delta.dx / o.k, -4, 4), 3);
-        l.transform.y = round(clamp(o.y + delta.dy / o.k, -2.5, 2.5), 3);
-        l.transform.z = round(clamp(o.z + delta.dz, -3, 10), 3);
+        l.transform.x = round(clamp(snapV(o.x + delta.dx / o.k, mods), -4, 4), 3);
+        l.transform.y = round(clamp(snapV(o.y + delta.dy / o.k, mods), -2.5, 2.5), 3);
+        l.transform.z = round(clamp(snapV(o.z + delta.dz, mods), -3, 10), 3);
       }
       refreshInspectorValues();
       invalidate();
       updateLayoutHint();
     },
     onLayerDragEnd(moved) { dragStartPositions = null; if (moved) commit(); },
-    onCameraDragMove(p) {
+    onCameraDragMove(p, mods) {
       clock.pause();
       const key = keyAtPlayhead();
       if (state.selectedKeyId !== key.id) selectKey(key.id);
-      key.x = round(clamp(p.x, -3, 3), 3);
-      key.y = round(clamp(p.y, -2, 2), 3);
-      key.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
+      key.x = round(clamp(snapV(p.x, mods), -3, 3), 3);
+      key.y = round(clamp(snapV(p.y, mods), -2, 2), 3);
+      key.dolly = round(renderer.camDist - clamp(snapV(p.z, mods), -2, 14), 3);
       refreshKeyValues();
       renderCameraTrack();
       invalidate();
       updateLayoutHint();
     },
     onCameraDragEnd() { commit(); },
-    onKeyDragMove(id, p) {
+    onKeyDragMove(id, p, mods) {
       const k = getKey(id);
       if (!k) return;
-      k.x = round(clamp(p.x, -3, 3), 3);
-      k.y = round(clamp(p.y, -2, 2), 3);
-      k.dolly = round(renderer.camDist - clamp(p.z, -2, 14), 3);
+      k.x = round(clamp(snapV(p.x, mods), -3, 3), 3);
+      k.y = round(clamp(snapV(p.y, mods), -2, 2), 3);
+      k.dolly = round(renderer.camDist - clamp(snapV(p.z, mods), -2, 14), 3);
       refreshKeyValues();
       invalidate();
     },
@@ -2321,6 +2639,8 @@
     updateLayoutHint();
   });
   $('#btnLayoutFit').addEventListener('click', () => { layoutView.fit(); layoutView.draw(); });
+  $('#btnSnap').addEventListener('click', () => { setSnap(!state.snap); toast(state.snap ? `Snap on — positions land on a ${state.snapStep} grid (hold Alt to bypass)` : 'Snap off'); });
+  $('#snapStep').addEventListener('change', (e) => { state.snapStep = Number(e.target.value) || 0.1; layoutView.gridStep = state.snapStep; if (layoutVisible()) layoutView.draw(); });
   $('#btnOpenLayout').addEventListener('click', () => setView(state.view === 'preview' ? 'split' : state.view));
 
   /* ------------------------------------------------------------------ templates, styles, moves */
@@ -2386,6 +2706,7 @@
   }
 
   function applyStylePreset(preset) {
+    if (selectedLayers().every(isMedia)) { toast('Text styles apply to words — select some text', true); return; }
     let targets = selectedLayers();
     if (!targets.length) {
       const l = addBlankText();
@@ -2825,6 +3146,8 @@
     $('#mediaScaleNum').value = Math.round(state.media.scale * 100);
     $('#mediaX').value = state.media.x; $('#mediaXNum').value = Math.round(state.media.x * 100);
     $('#mediaY').value = state.media.y; $('#mediaYNum').value = Math.round(state.media.y * 100);
+    $('#mediaZ').value = state.media.z || 0; $('#mediaZNum').value = round(state.media.z || 0, 2);
+    $('#mediaOpacity').value = state.media.opacity == null ? 1 : state.media.opacity; $('#mediaOpacityNum').value = Math.round((state.media.opacity == null ? 1 : state.media.opacity) * 100);
     $('#mediaIn3D').checked = !state.media.locked;
     $('#aspectSelect').value = aspectToLabel(state.aspect);
     $('#durationInput').value = state.duration;
@@ -2849,6 +3172,8 @@
   bindMediaRange('#mediaScale', '#mediaScaleNum', 'scale', 100);
   bindMediaRange('#mediaX', '#mediaXNum', 'x', 100);
   bindMediaRange('#mediaY', '#mediaYNum', 'y', 100);
+  bindMediaRange('#mediaZ', '#mediaZNum', 'z', 1);
+  bindMediaRange('#mediaOpacity', '#mediaOpacityNum', 'opacity', 100);
   $('#mediaIn3D').addEventListener('change', (e) => { state.media.locked = !e.target.checked; commit(); invalidate(); });
   $('#bgColor').addEventListener('input', (e) => { state.media.bg = e.target.value; $('#bgHex').value = e.target.value; invalidate(); });
   $('#bgColor').addEventListener('change', commit);
@@ -2886,7 +3211,7 @@
     const layers = Array.isArray(built) ? built : built.layers;
     const cameraKeys = Array.isArray(built) ? [] : (built.cameraKeys || []);
     if (!layers.length) { toast('Please enter some text first', true); return; }
-    if ($('#tplReplace').checked) { state.layers = []; state.camera.keys = []; }
+    if ($('#tplReplace').checked) { state.layers = state.layers.filter(isMedia); state.camera.keys = []; }
     const ids = [];
     for (const l of layers) ids.push(addLayer(l, { select: false }).id);
     if (cameraKeys.length) state.camera.keys = Camera.replaceRange(state.camera.keys, start, start + dur, cameraKeys);
@@ -2922,7 +3247,7 @@
     clock.pause();
     const v = els.video;
     v.muted = state.muted;
-    v.loop = state.loop;
+    v.loop = false;
     v.src = url;
     v.load();
     toast(`Loading ${file.name}…`);
@@ -2953,7 +3278,6 @@
     state.video.thumbs = [];
     state.clips = [{ id: `C${Math.random().toString(36).slice(2, 7)}`, in: 0, out: round(state.video.duration, 4) }];
     state.selectedClipId = null;
-    clock._clip = 0;
     v.loop = false;
     for (const l of state.layers) {
       l.end = Math.min(l.end, state.video.duration);
@@ -2986,26 +3310,25 @@
     const ctx = c.getContext('2d');
     const was = clock.time, wasPlaying = clock.playing;
     if (wasPlaying) clock.pause();
+    state.thumbing = true;
     const thumbs = [];
     const file = state.video.file;
     for (let i = 0; i < n; i++) {
-      if (state.video.file !== file || state.tracking || state.exporting) return;   // the video changed under us
+      if (state.video.file !== file || state.tracking || state.exporting) { state.thumbing = false; return; }   // the video changed under us
       const t = (D * (i + 0.5)) / n;
       await seekVideo(t);
       try { ctx.drawImage(v, 0, 0, w, h); thumbs.push({ t, url: c.toDataURL('image/jpeg', 0.6) }); } catch (e) { break; }
     }
+    state.thumbing = false;
     if (state.video.file !== file) return;
     state.video.thumbs = thumbs;
-    await seekVideo(srcTime(was));
     clock.time = was;
     renderVideoTrack();
     if (wasPlaying) clock.play();
   }
   els.video.addEventListener('loadeddata', invalidate);
   els.video.addEventListener('seeked', invalidate);
-  els.video.addEventListener('play', updatePlayButton);
-  els.video.addEventListener('pause', updatePlayButton);
-  els.video.addEventListener('ended', updatePlayButton);
+
   els.video.addEventListener('error', () => {
     if (!state.video.url) return;
     const err = els.video.error;
@@ -3021,6 +3344,13 @@
   $('#btnReplace').addEventListener('click', pickVideo);
   $('#btnRemoveVideo').addEventListener('click', removeVideo);
   $('#fileInput').addEventListener('change', (e) => { loadVideoFile(e.target.files[0]); e.target.value = ''; });
+  $('#btnAddVideoLayer').addEventListener('click', () => $('#videoLayerInput').click());
+  $('#btnAddImageLayer').addEventListener('click', () => $('#imageLayerInput').click());
+  $('#btnAddAudioLayer').addEventListener('click', () => $('#audioLayerInput').click());
+  $('#videoLayerInput').addEventListener('change', (e) => { addMediaFile(e.target.files[0], 'video'); e.target.value = ''; });
+  $('#imageLayerInput').addEventListener('change', (e) => { addMediaFile(e.target.files[0], 'image'); e.target.value = ''; });
+  $('#audioLayerInput').addEventListener('change', (e) => { addMediaFile(e.target.files[0], 'audio'); e.target.value = ''; });
+  $('#relinkInput').addEventListener('change', (e) => { const l = pendingRelink; pendingRelink = null; if (l && e.target.files[0]) relinkMedia(l, e.target.files[0]); e.target.value = ''; });
 
   ['dragenter', 'dragover'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.add('active'); }));
   ['dragleave', 'drop'].forEach((ev) => els.wrap.addEventListener(ev, (e) => { e.preventDefault(); els.dropHint.classList.remove('active'); }));
@@ -3028,6 +3358,7 @@
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (!file) return;
     if (file.name.toLowerCase().endsWith('.json')) loadProjectFile(file);
+    else if ((file.type || '').startsWith('image/') || (file.type || '').startsWith('audio/') || state.video.ready) addMediaFile(file);
     else loadVideoFile(file);
   });
 
@@ -3103,17 +3434,39 @@
   /* ------------------------------------------------------------------ transport & tabs */
   $('#btnAddText').addEventListener('click', addBlankText);
   els.btnPlay.addEventListener('click', () => clock.toggle());
+  /* Cut a layer in two at time t; the second piece continues where the first stopped. */
+  function splitLayerAt(l, t) {
+    if (!(t > l.start + 0.1 && t < l.end - 0.1)) return null;
+    const copy = JSON.parse(JSON.stringify(l, stripper));
+    copy.id = uid();
+    copy.start = round(t, 3);
+    if (isMedia(l) && l.kind !== 'image') copy.srcIn = round((l.srcIn || 0) + (t - l.start), 3);
+    l.end = round(t, 3);
+    state.layers.splice(state.layers.indexOf(l) + 1, 0, copy);
+    if (isMedia(l)) cloneAsset(l.id, copy.id);
+    return copy;
+  }
   const splitHere = () => {
-    if (!state.video.ready) { toast('Load a video to split it', true); return; }
     clock.pause();
-    if (splitClipAt(clock.time)) { commit(); renderTimeline(); toast(`Split at ${fmtTime(clock.time)} — drag the ends of a piece to trim it, Delete removes it`); }
+    const t = clock.time;
+    const targets = selectedLayers();
+    if (targets.length) {
+      const made = targets.map((l) => splitLayerAt(l, t)).filter(Boolean);
+      if (!made.length) { toast('Move the playhead inside the selected layer to split it', true); return; }
+      state.selectedIds = made.map((c) => c.id);
+      commit(); refreshAll(); syncMedia(t, false, true);
+      toast(`Split ${made.length} layer${made.length > 1 ? 's' : ''} at ${fmtTime(t)}`);
+      return;
+    }
+    if (!state.video.ready) { toast('Select a layer, or load a video, to split at the playhead', true); return; }
+    if (splitClipAt(t)) { commit(); renderTimeline(); toast(`Split at ${fmtTime(t)} — drag the ends of a piece to trim it, Delete removes it`); }
   };
   $('#btnSplit').addEventListener('click', splitHere);
   $('#btnSplit2').addEventListener('click', splitHere);
   $('#btnStepBack').addEventListener('click', () => { clock.pause(); clock.time = clock.time - 1 / 30; });
   $('#btnStepFwd').addEventListener('click', () => { clock.pause(); clock.time = clock.time + 1 / 30; });
-  $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; els.video.loop = state.loop && !state.clips.length; e.currentTarget.classList.toggle('active', state.loop); });
-  $('#btnMute').addEventListener('click', (e) => { state.muted = !state.muted; els.video.muted = state.muted; e.currentTarget.classList.toggle('active', state.muted); e.currentTarget.title = state.muted ? 'Unmute' : 'Mute'; });
+  $('#btnLoop').addEventListener('click', (e) => { state.loop = !state.loop; e.currentTarget.classList.toggle('active', state.loop); });
+  $('#btnMute').addEventListener('click', (e) => { state.muted = !state.muted; syncMedia(clock.time, clock.playing, false); e.currentTarget.classList.toggle('active', state.muted); e.currentTarget.title = state.muted ? 'Unmute' : 'Mute'; });
   $('#aspectSelect').addEventListener('change', (e) => {
     const [w, h] = e.target.value.split(':').map(Number);
     state.aspect = w / h;
@@ -3232,8 +3585,8 @@
     runExport(cfg, fileHandle);
   });
 
-  function seekVideo(t) {
-    const v = els.video;
+  function seekVideo(t) { return seekEl(els.video, t); }
+  function seekEl(v, t) {
     return new Promise((resolve) => {
       if (Math.abs(v.currentTime - t) < 0.0005 && v.readyState >= 2) return resolve();
       let done = false;
@@ -3272,13 +3625,24 @@
     renderer.fovDeg = state.fov;
     const media = mediaForRender();
     const renderFrame = async (t, realtime) => {
-      if (state.video.ready && !realtime) await seekVideo(srcTime(t));
+      if (!realtime) {
+        const seeks = [];
+        if (state.video.ready && t < mainLen()) seeks.push(seekVideo(srcTime(t)));
+        for (const l of state.layers) {
+          if (!isMedia(l) || l.kind !== 'video' || l.hidden) continue;
+          const a = assets.get(l.id), st = mediaSrcTime(l, t);
+          if (a && a.ready && st != null) seeks.push(seekEl(a.el, st));
+        }
+        await Promise.all(seeks);
+      }
       renderer.render({
         video: state.video.ready ? els.video : null,
         videoReady: state.video.ready && els.video.readyState >= 2,
+        videoVisible: t < mainLen() - 1e-4,
         layers: state.layers, time: t, frameHeightPx: cfg.h, selectedIds: [], camera: cameraAt(t), media,
         mask: maskForRender(t), showMask: false,
         trackTransform: (l) => (isPinned(l) ? effectiveTransform(l, t) : null),
+        mediaFor: (l) => assets.get(l.id) || null,
       });
     };
 
@@ -3293,11 +3657,22 @@
           let acc = 0;
           for (const c of state.clips) {
             const lo = Math.max(cfg.start, acc), hi = Math.min(cfg.end, acc + clipLen(c));
-            if (hi > lo) segs.push({ in: c.in + (lo - acc), out: c.in + (hi - acc) });
+            if (hi > lo) segs.push({ in: c.in + (lo - acc), out: c.in + (hi - acc), at: lo - cfg.start });
             acc += clipLen(c);
           }
         }
-        result = await Exporter.exportWebCodecs(Object.assign(common, { audioFile: state.video.file, includeAudio: cfg.audio, fileHandle, audioSegments: segs }));
+        // ...and every media layer with sound, placed where it sits on the timeline
+        const sources = [];
+        if (state.video.file && segs.length) sources.push({ file: state.video.file, gain: 1, pieces: segs.map((sg, i) => ({ in: sg.in, out: sg.out, at: sg.at })) });
+        for (const l of state.layers) {
+          if (!isMedia(l) || l.kind === 'image' || l.hidden || l.muted) continue;
+          const a = assets.get(l.id);
+          if (!a || !a.file) continue;
+          const lo = Math.max(cfg.start, l.start), hi = Math.min(cfg.end, l.end);
+          if (hi <= lo) continue;
+          sources.push({ file: a.file, gain: l.volume == null ? 1 : l.volume, pieces: [{ in: (l.srcIn || 0) + (lo - l.start), out: (l.srcIn || 0) + (hi - l.start), at: lo - cfg.start }] });
+        }
+        result = await Exporter.exportWebCodecs(Object.assign(common, { audioFile: state.video.file, includeAudio: cfg.audio, fileHandle, audioSegments: segs, audioSources: sources }));
       } else if (Exporter.hasMediaRecorder()) {
         if (state.video.ready) els.video.muted = true;
         result = await Exporter.exportMediaRecorder(Object.assign(common, { video: state.video.ready ? els.video : null }));
@@ -3401,6 +3776,7 @@
       case ',': clock.pause(); clock.time = clock.time - 1 / 30; break;
       case '.': clock.pause(); clock.time = clock.time + 1 / 30; break;
       case 't': case 'T': addBlankText(); break;
+      case 'g': case 'G': if (!mod) { setSnap(!state.snap); toast(state.snap ? `Snap on (${state.snapStep} grid)` : 'Snap off'); } break;
       case 's': case 'S': if (!mod) splitHere(); break;
       case 'k': case 'K': addKeyHere(); break;
       case 'm': case 'M': if (state.mask.enabled) { state.maskEdit = !state.maskEdit; syncMaskControls(); } break;
@@ -3449,6 +3825,7 @@
     buildSections(KEY_SCHEMA, els.keySections, keyCtx);
     buildSections(MASK_KEY_SCHEMA, $('#maskKeySections'), maskCtx);
     buildSections(TRACK_KEY_SCHEMA, $('#trackKeySections'), trackKeyCtx);
+    buildSections(MEDIA_SCHEMA, $('#mediaSections'), Object.assign(Object.create(layerCtx), { controls: layerCtx.mediaControls }));
     new ResizeObserver(() => { fitPreview(); renderTimeline(); if (layoutVisible()) { layoutView.resize(); layoutView.draw(); } }).observe(els.views);
     fitPreview();
 
@@ -3475,5 +3852,5 @@
   }
   init();
   // Debug / automation hook (read-only use).
-  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll };
+  window.__perspective = { state, renderer, cameraAt, clock, layoutView, maskForRender, trackAt, effectiveTransform, runTracking, pinLayer, newTrack, seekVideo, invalidate, trackShapeAt, finishShape, syncTrackControls, refreshAll, assets, addMediaFile, mainLen, duration, syncMedia, splitLayerAt };
 })();

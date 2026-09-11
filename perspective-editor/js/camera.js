@@ -17,8 +17,54 @@
     easeIn: (t) => t * t,
     easeOut: (t) => 1 - (1 - t) * (1 - t),
     smooth: (t) => t * t * (3 - 2 * t),
+    strongInOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    slowIn: (t) => t * t * t,
+    slowOut: (t) => 1 - Math.pow(1 - t, 3),
+    hold: (t) => (t >= 1 ? 1 : 0),
+    custom: (t) => t,   // replaced per key by its own curve, see easeFor()
   };
-  const EASING_LABELS = { linear: 'Linear', easeInOut: 'Ease in-out', easeIn: 'Ease in', easeOut: 'Ease out', smooth: 'Smooth' };
+  const EASING_LABELS = {
+    linear: 'Linear', easeInOut: 'Ease in-out', easeIn: 'Ease in', easeOut: 'Ease out', smooth: 'Smooth',
+    strongInOut: 'Strong in-out', slowIn: 'Slow start', slowOut: 'Slow finish', hold: 'Hold then jump', custom: 'Custom curve…',
+  };
+
+  /* Cubic Bezier easing through (0,0) (x1,y1) (x2,y2) (1,1) — the same curve CSS uses. x is time,
+   * y is progress; the x->t inversion is by Newton steps with a bisection fallback. */
+  function cubicBezier(x1, y1, x2, y2) {
+    const A = (a1, a2) => 1 - 3 * a2 + 3 * a1, B = (a1, a2) => 3 * a2 - 6 * a1, C = (a1) => 3 * a1;
+    const calc = (t, a1, a2) => ((A(a1, a2) * t + B(a1, a2)) * t + C(a1)) * t;
+    const slope = (t, a1, a2) => 3 * A(a1, a2) * t * t + 2 * B(a1, a2) * t + C(a1);
+    return (x) => {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      let t = x;
+      for (let i = 0; i < 8; i++) {
+        const dx = calc(t, x1, x2) - x;
+        const sl = slope(t, x1, x2);
+        if (Math.abs(dx) < 1e-6) break;
+        if (Math.abs(sl) < 1e-6) break;
+        t -= dx / sl;
+      }
+      if (t < 0 || t > 1 || Math.abs(calc(t, x1, x2) - x) > 1e-4) {
+        let lo = 0, hi = 1;
+        for (let i = 0; i < 30; i++) { t = (lo + hi) / 2; if (calc(t, x1, x2) < x) lo = t; else hi = t; }
+      }
+      return calc(t, y1, y2);
+    };
+  }
+  const DEFAULT_CURVE = [0.4, 0, 0.2, 1];
+  const curveCache = new Map();
+  /* The easing function a key arrives with. */
+  function easeFor(key) {
+    if (key && key.easing === 'custom') {
+      const c = Array.isArray(key.curve) && key.curve.length === 4 ? key.curve : DEFAULT_CURVE;
+      const k = c.join(',');
+      let f = curveCache.get(k);
+      if (!f) { f = cubicBezier(clamp01(c[0]), c[1], clamp01(c[2]), c[3]); curveCache.set(k, f); }
+      return f;
+    }
+    return EASINGS[key && key.easing] || EASINGS.easeInOut;
+  }
 
   let counter = 1;
   const uid = () => `K${counter++}_${Math.random().toString(36).slice(2, 6)}`;
@@ -44,7 +90,7 @@
       const a = ks[i], b = ks[i + 1];
       if (t >= a.t && t <= b.t) {
         const span = Math.max(0.0001, b.t - a.t);
-        const p = (EASINGS[b.easing] || EASINGS.easeInOut)(clamp01((t - a.t) / span));
+        const p = easeFor(b)(clamp01((t - a.t) / span));
         for (const f of FIELDS) out[f] = a[f] + (b[f] - a[f]) * p;
         out.focus = a.focus == null || b.focus == null ? (b.focus == null ? a.focus : b.focus) : a.focus + (b.focus - a.focus) * p;
         return out;
@@ -188,7 +234,7 @@
       const A = ks[i], B = ks[i + 1];
       if (t >= A.t && t <= B.t) {
         const span = Math.max(0.0001, B.t - A.t);
-        const p = (EASINGS[B.easing] || EASINGS.easeInOut)(clamp01((t - A.t) / span));
+        const p = easeFor(B)(clamp01((t - A.t) / span));
         for (const f of fields) out[f] = A[f] + (B[f] - A[f]) * p;
         return out;
       }
@@ -197,5 +243,5 @@
     return out;
   }
 
-  global.Camera = { EASINGS, EASING_LABELS, FIELDS, defaultKey, evaluate, evaluateOn, replaceRange, sorted, MOVES };
+  global.Camera = { EASINGS, EASING_LABELS, FIELDS, DEFAULT_CURVE, cubicBezier, easeFor, defaultKey, evaluate, evaluateOn, replaceRange, sorted, MOVES };
 })(window);
