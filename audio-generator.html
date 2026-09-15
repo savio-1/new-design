@@ -1027,9 +1027,16 @@
       typeof window.MediaRecorder === 'function');
   }
 
-  if (!canCapture()) {
+  var embedded = false;
+  try { embedded = window.self !== window.top; } catch (err) { embedded = true; }
+
+  if (embedded || !canCapture()) {
+    els.record.hidden = true;
     els.record.disabled = true;
-    els.record.textContent = 'Recording not available here';
+    els.download.hidden = true;
+    els.capture.querySelector('.hint').textContent = embedded
+      ? 'Embedded pages cannot capture audio or save files. Open audio-generator.html directly in your browser to record what you hear as a .webm file.'
+      : 'This browser cannot capture tab audio. Chrome or Edge on desktop can.';
   }
 
   function stopRecording() {
