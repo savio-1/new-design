@@ -2054,11 +2054,6 @@ body.cq { margin: 0; }
     .ag-pick__sub { color: var(--text-teritiary); }
     .ag-pick__tick { flex: none; color: transparent; }
     .ag-pick.is-on .ag-pick__tick { color: var(--text-coloured-blue); }
-    /* One card per agent, so the row wears a radio and fills it the way
-       every other radio on the step does. */
-    .ag-pick:hover .ag-radio__dot { border-color: var(--strokes-icon-default); }
-    .ag-pick.is-on .ag-radio__dot { border-color: var(--strokes-checkbox-focus); }
-    .ag-pick.is-on .ag-radio__dot::after { transform: scale(1); }
     .ag-pick__auth { flex: none; width: 152px; }
     .ag-pick__auth .cq-control { padding: 6px 8px; background: var(--backgrounds-type-default-bg-2); }
     .ag-pick__auth select { font-size: var(--fs-caption); }
@@ -2372,7 +2367,11 @@ body.cq { margin: 0; }
     .ag-sel__sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ag-sel__chev { flex: none; margin-right: 6px; color: var(--text-secondary); transition: transform .2s cubic-bezier(.4,0,.2,1); }
     .ag-sel.is-open .ag-sel__chev { transform: rotate(180deg); }
-    .ag-sel__new { flex: none; }
+    /* "None of these" is a question you only have once you have seen the
+       list, so the create action arrives with it. Closed, the field is a
+       field: a value and a chevron. */
+    .ag-sel__new { flex: none; display: none; }
+    .ag-sel.is-open .ag-sel__new { display: inline-flex; }
 
     .ag-sel__pop {
       margin-top: 6px;
@@ -2383,6 +2382,7 @@ body.cq { margin: 0; }
       border-radius: var(--radius-lg);
     }
     .ag-sel.is-open .ag-sel__pop { display: flex; }
+    .ag-sel__pop .cq-search { width: calc(100% - 4px); margin: 2px 2px 8px; }
     .ag-sel__list { max-height: 268px; overflow-y: auto; }
 
     .ag-opt {
@@ -2400,9 +2400,11 @@ body.cq { margin: 0; }
       color: var(--text-coloured-blue);
     }
     .ag-opt__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .ag-opt__name { color: var(--text-primary); }
-    .ag-opt__sub { color: var(--text-teritiary); }
+    .ag-opt__name { color: var(--text-primary); overflow-wrap: anywhere; }
+    .ag-opt__sub { color: var(--text-teritiary); overflow-wrap: anywhere; }
     .ag-opt__tick { flex: none; margin-top: 9px; color: transparent; }
+    /* The auth badge belongs to the row, not to the line it lands beside. */
+    .ag-opt > .cq-badge { flex: none; margin-top: 8px; }
     .ag-opt.is-on .ag-opt__tick { color: var(--text-coloured-blue); }
     .ag-sel__empty { padding: 18px 12px; text-align: center; color: var(--text-teritiary); }
 
@@ -2457,47 +2459,13 @@ body.cq { margin: 0; }
     }
     @keyframes ag-spin { to { transform: rotate(360deg); } }
 
-    .ag-opt {
-      width: 100%;
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 10px; border-radius: var(--radius-md);
-      text-align: left;
-      transition: background .14s ease;
-    }
-    .ag-opt:hover { background: var(--ag-well-hover); }
-    .ag-opt.is-on { background: var(--backgrounds-table-select); }
-    .ag-opt__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-    .ag-opt__name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ag-opt__sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ag-opt__tick { flex: none; color: transparent; }
-    .ag-opt.is-on .ag-opt__tick { color: var(--text-coloured-blue); }
-
-    /* ── The capability picker ── */
-    .ag-picker {
-      border: 1px solid var(--ag-well-border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-    .ag-picker__bar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px; border-bottom: 1px solid var(--ag-well-border);
-      background: var(--ag-well);
-    }
-    /* Fixed rather than filling the bar — the count and the two actions
-       need to read as a group at the end, not drift with however long
-       the field happens to be. */
-    .ag-picker__bar .cq-search { flex: none; width: 200px; height: 34px; }
-    .ag-picker__n { flex: none; margin-left: auto; color: var(--text-teritiary); white-space: nowrap; }
+    /* A quiet inline action beside a field's label. */
     .ag-picker__act {
       flex: none; color: var(--text-coloured-blue);
       font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
       white-space: nowrap;
     }
     .ag-picker__act:hover { text-decoration: underline; }
-    .ag-picker__act[aria-disabled="true"] { color: var(--text-disabled-tonal-2); pointer-events: none; text-decoration: none; }
-
-    .ag-picker__list { max-height: 296px; overflow-y: auto; padding: 6px; }
-    .ag-picker__empty { padding: 28px 12px; text-align: center; color: var(--text-teritiary); }
 
     [data-auth-only] { display: block; }
     [data-auth-only][hidden] { display: none !important; }
@@ -3304,115 +3272,6 @@ body.cq { margin: 0; }
 
       <!-- ── Step 3 · what to take from it, and a last look ─────── -->
       <div class="ag-pane" data-pane="3" hidden>
-        <div class="ag-group" id="pickerGroup">
-          <span class="ag-label cq-caption-med" id="step3Label">SELECT AN AGENT CARD<span class="ag-req">*</span></span>
-          <!-- Fixed height, searchable, and what has been taken is pinned
-               above what is left — a server publishing forty cards reads
-               the same as one publishing four. -->
-          <div class="ag-picker">
-            <div class="ag-picker__bar">
-              <label class="cq-search cq-search--sm">
-                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
-                <input id="pickSearch" class="cq-body2-reg" type="search" placeholder="Search" aria-label="Search capabilities" />
-              </label>
-              <span class="ag-picker__n cq-caption-reg" id="pickCount">None selected</span>
-            </div>
-            <div class="ag-picker__list" id="pickList"></div>
-          </div>
-          <p class="ag-note cq-caption-reg" id="step3Note"></p>
-
-          <!-- ── How to reach the card you chose ──
-               The server knows where the card is; it does not know that
-               you are allowed to call it. That credential belongs to the
-               card, so it is asked for once the card is chosen and not
-               before — there is nothing to authenticate against yet. -->
-          <div class="ag-sec" id="cardAuth" hidden>
-            <div class="ag-sec__head">
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-indigo)"><use href="#i-key"/></svg>
-              <span class="ag-sec__title cq-body2-med">Authentication type<span class="ag-req">*</span></span>
-            </div>
-            <p class="ag-sec__sub cq-caption-reg" id="cardAuthSub">How Cogentiq proves it may call this card.</p>
-            <div class="ag-radios" id="cardAuthRadios">
-              <button class="ag-radio" type="button" data-cauth="apikey">
-                <span class="ag-radio__dot"></span>
-                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">API key</span></span>
-              </button>
-              <button class="ag-radio" type="button" data-cauth="basic">
-                <span class="ag-radio__dot"></span>
-                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Basic Auth</span></span>
-              </button>
-              <button class="ag-radio is-on" type="button" data-cauth="bearer">
-                <span class="ag-radio__dot"></span>
-                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Bearer Token</span></span>
-              </button>
-              <button class="ag-radio" type="button" data-cauth="oauth">
-                <span class="ag-radio__dot"></span>
-                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">OAuth 2.0</span></span>
-              </button>
-              <button class="ag-radio" type="button" data-cauth="mtls">
-                <span class="ag-radio__dot"></span>
-                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">mTLS</span></span>
-              </button>
-              <button class="ag-radio" type="button" data-cauth="none">
-                <span class="ag-radio__dot"></span>
-                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">No Auth</span></span>
-              </button>
-            </div>
-
-            <div data-cauth-only="bearer">
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Bearer token<span class="ag-req">*</span></span>
-                <span class="cq-control"><input id="cardBearer" class="ag-mono" type="password" placeholder="Enter bearer token" /></span>
-              </label>
-            </div>
-            <div data-cauth-only="apikey" hidden>
-              <div class="ag-grid2">
-                <label class="cq-field">
-                  <span class="cq-field__label cq-caption-med">API key<span class="ag-req">*</span></span>
-                  <span class="cq-control"><input id="cardApiKey" class="ag-mono" type="password" placeholder="Enter API key" /></span>
-                </label>
-                <label class="cq-field">
-                  <span class="cq-field__label cq-caption-med">Header name</span>
-                  <span class="cq-control"><input id="cardApiKeyHeader" class="ag-mono" placeholder="X-API-Key" /></span>
-                </label>
-              </div>
-            </div>
-            <div data-cauth-only="basic" hidden>
-              <div class="ag-grid2">
-                <label class="cq-field">
-                  <span class="cq-field__label cq-caption-med">Username<span class="ag-req">*</span></span>
-                  <span class="cq-control"><input id="cardUsername" placeholder="Enter username" /></span>
-                </label>
-                <label class="cq-field">
-                  <span class="cq-field__label cq-caption-med">Password<span class="ag-req">*</span></span>
-                  <span class="cq-control"><input id="cardPassword" type="password" placeholder="Enter password" /></span>
-                </label>
-              </div>
-            </div>
-            <div data-cauth-only="oauth" hidden>
-              <div class="ag-grid2">
-                <label class="cq-field">
-                  <span class="cq-field__label cq-caption-med">Client ID<span class="ag-req">*</span></span>
-                  <span class="cq-control"><input id="cardClientId" class="ag-mono" placeholder="Enter client ID" /></span>
-                </label>
-                <label class="cq-field">
-                  <span class="cq-field__label cq-caption-med">Client secret<span class="ag-req">*</span></span>
-                  <span class="cq-control"><input id="cardClientSecret" class="ag-mono" type="password" placeholder="Enter client secret" /></span>
-                </label>
-              </div>
-            </div>
-            <div data-cauth-only="mtls" hidden>
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Client certificate (PEM)<span class="ag-req">*</span></span>
-                <span class="cq-control cq-control--textarea"><textarea id="cardCert" class="ag-mono" placeholder="-----BEGIN CERTIFICATE-----"></textarea></span>
-              </label>
-            </div>
-            <p class="ag-note cq-caption-reg" data-cauth-only="none" hidden>
-              Cogentiq calls this card without an auth header.
-            </p>
-          </div>
-        </div>
-
         <!-- ── The manifest ──
              There is nothing to pick from a direct connection — there is
              one skill, and it is whatever the person describes. What
@@ -3520,6 +3379,127 @@ body.cq { margin: 0; }
             </span>
           </label>
           <p class="ag-note cq-caption-reg" id="mfSpecStatus"></p>
+        </div>
+
+        <div class="ag-group" id="pickerGroup">
+          <span class="ag-label cq-caption-med" id="step3Label">AGENT CARD<span class="ag-req">*</span></span>
+          <!-- One card per agent, so this is a select rather than a list:
+               the step stays one field tall whether the source offers
+               four cards or forty, and the search lives where it is
+               needed rather than above a list that is usually short. -->
+          <div class="ag-sel" id="csSel">
+            <div class="ag-sel__field">
+              <button class="ag-sel__trigger" id="csField" type="button"
+                      aria-haspopup="listbox" aria-expanded="false" aria-controls="csPop">
+                <span class="ag-sel__val">
+                  <span class="ag-sel__txt">
+                    <span class="ag-sel__name cq-body2-med is-empty" id="csName">Select an agent card</span>
+                    <span class="ag-sel__sub cq-caption-reg" id="csSub" hidden></span>
+                  </span>
+                </span>
+                <svg class="cq-ic ag-sel__chev" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+              </button>
+            </div>
+            <div class="ag-sel__pop" id="csPop" role="listbox" aria-label="Agent cards">
+              <label class="cq-search cq-search--sm" id="csSearchWrap">
+                <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
+                <input id="csSearch" class="cq-body2-reg" type="search" placeholder="Search" aria-label="Search agent cards" />
+              </label>
+              <div class="ag-sel__list" id="csList"></div>
+            </div>
+          </div>
+          <p class="ag-note cq-caption-reg" id="step3Note"></p>
+
+          <!-- ── How to reach the card you chose ──
+               The server knows where the card is; it does not know that
+               you are allowed to call it. That credential belongs to the
+               card, so it is asked for once the card is chosen and not
+               before — there is nothing to authenticate against yet. -->
+          <div class="ag-sec" id="cardAuth" hidden>
+            <div class="ag-sec__head">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-indigo)"><use href="#i-key"/></svg>
+              <span class="ag-sec__title cq-body2-med">Authentication type<span class="ag-req">*</span></span>
+            </div>
+            <p class="ag-sec__sub cq-caption-reg" id="cardAuthSub">How Cogentiq proves it may call this card.</p>
+            <div class="ag-radios" id="cardAuthRadios">
+              <button class="ag-radio" type="button" data-cauth="apikey">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">API key</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="basic">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Basic Auth</span></span>
+              </button>
+              <button class="ag-radio is-on" type="button" data-cauth="bearer">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Bearer Token</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="oauth">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">OAuth 2.0</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="mtls">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">mTLS</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="none">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">No Auth</span></span>
+              </button>
+            </div>
+
+            <div data-cauth-only="bearer">
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Bearer token<span class="ag-req">*</span></span>
+                <span class="cq-control"><input id="cardBearer" class="ag-mono" type="password" placeholder="Enter bearer token" /></span>
+              </label>
+            </div>
+            <div data-cauth-only="apikey" hidden>
+              <div class="ag-grid2">
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">API key<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardApiKey" class="ag-mono" type="password" placeholder="Enter API key" /></span>
+                </label>
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Header name</span>
+                  <span class="cq-control"><input id="cardApiKeyHeader" class="ag-mono" placeholder="X-API-Key" /></span>
+                </label>
+              </div>
+            </div>
+            <div data-cauth-only="basic" hidden>
+              <div class="ag-grid2">
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Username<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardUsername" placeholder="Enter username" /></span>
+                </label>
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Password<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardPassword" type="password" placeholder="Enter password" /></span>
+                </label>
+              </div>
+            </div>
+            <div data-cauth-only="oauth" hidden>
+              <div class="ag-grid2">
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Client ID<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardClientId" class="ag-mono" placeholder="Enter client ID" /></span>
+                </label>
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Client secret<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardClientSecret" class="ag-mono" type="password" placeholder="Enter client secret" /></span>
+                </label>
+              </div>
+            </div>
+            <div data-cauth-only="mtls" hidden>
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Client certificate (PEM)<span class="ag-req">*</span></span>
+                <span class="cq-control cq-control--textarea"><textarea id="cardCert" class="ag-mono" placeholder="-----BEGIN CERTIFICATE-----"></textarea></span>
+              </label>
+            </div>
+            <p class="ag-note cq-caption-reg" data-cauth-only="none" hidden>
+              Cogentiq calls this card without an auth header.
+            </p>
+          </div>
         </div>
 
         <div class="ag-group">
@@ -4486,7 +4466,7 @@ const wiz = {
   step: 1, proto: 'a2a', srvId: null, pick: null, regOpen: false, found: null, regAuth: {},
   skillIdTouched: false, tags: [], tagsOpen: false,
   integId: null, integOpen: false, niAuth: 'bearer',
-  cardAuth: 'bearer', restFile: null, restOk: false
+  cardAuth: 'bearer', csOpen: false, restFile: null, restOk: false
 };
 /* Human label for each auth type, shared by the review and the panel so
    neither has to keep its own copy of the mapping. */
@@ -4516,10 +4496,10 @@ function openWiz() {
     step: 1, proto: 'a2a', srvId: null, pick: null, regOpen: false, found: null, regAuth: {},
     skillIdTouched: false, tags: [], tagsOpen: false,
     integId: null, integOpen: false, niAuth: 'bearer',
-    cardAuth: 'bearer', restFile: null, restOk: false
+    cardAuth: 'bearer', csOpen: false, restFile: null, restOk: false
   });
   [
-    'regName', 'regUrl', 'wizName', 'wizDesc', 'srvSearch', 'pickSearch',
+    'regName', 'regUrl', 'wizName', 'wizDesc', 'srvSearch', 'csSearch',
     'cardBearer', 'cardApiKey', 'cardApiKeyHeader', 'cardUsername', 'cardPassword',
     'cardClientId', 'cardClientSecret', 'cardCert',
     'mfSkillName', 'mfSkillId', 'mfSkillDesc', 'mfExamples',
@@ -4529,6 +4509,7 @@ function openWiz() {
   paintTagChips();
   setSrvOpen(false);
   setIntegOpen(false);
+  setCsOpen(false);
   $('cardApiKeyHeader').value = 'X-API-Key';
   $('mfMethod').value = 'POST';
   $('mfMessage').value = '$.query';
@@ -4789,51 +4770,87 @@ $('regSave').addEventListener('click', () => {
   toast(`${srv.name} registered — ${srv.cards.length} agent cards discovered.`);
 });
 
-/* ── The capability picker ──
-   One list whichever protocol was chosen: agent cards off a server, or
-   operations off an OpenAPI document. Both become skills, so both are
-   picked the same way — searched, counted, and shown back as chips so
-   the answer does not scroll away with the list. */
+/* ── The agent cards on offer ──
+   Every route ends at one card, but each finds its cards somewhere
+   else: a server publishes them, an OpenAPI document implies one per
+   operation, and a direct connection has exactly the one the manifest
+   above just described. */
 function pickItems() {
-  const s = curServer();
-  return wiz.proto === 'a2a'
-    ? (s ? s.cards.map(c => ({ id: c.name, name: c.name, sub: c.path, desc: c.desc, skills: c.skills, tail: c.auth })) : [])
-    : REST_OPS.map(o => ({ id: o.op, name: o.op, sub: '', desc: o.desc, skills: [o.skill], tail: '', mono: true }));
+  if (wiz.proto === 'a2a') {
+    const s = curServer();
+    return s ? s.cards.map(c => ({ id: c.name, name: c.name, sub: c.path, desc: c.desc, skills: c.skills, tail: c.auth })) : [];
+  }
+  if (wiz.proto === 'rest') {
+    if (!wiz.restOk) return [];
+    return REST_OPS.map(o => ({ id: o.op, name: o.op, sub: '', desc: o.desc, skills: [o.skill], tail: '', mono: true }));
+  }
+  const skill = $('mfSkillName').value.trim();
+  if (!skill) return [];
+  const method = $('mfMethod').value, path = $('mfPath').value.trim();
+  return [{
+    id: skill, name: skill,
+    sub: path ? `${method} ${path}` : '',
+    desc: $('mfSkillDesc').value.trim() || 'The skill this manifest describes.',
+    skills: [$('mfSkillId').value.trim() || slugify(skill)],
+    tail: ''
+  }];
+}
+
+const EMPTY_HINT = {
+  a2a: 'Choose a server on the previous step to see the agent cards it publishes.',
+  rest: 'Upload an API document on the previous step to see the operations it describes.',
+  direct: 'Name the skill above and it becomes this connection’s agent card.'
+};
+
+function setCsOpen(on) {
+  wiz.csOpen = on;
+  $('csSel').classList.toggle('is-open', on);
+  $('csField').setAttribute('aria-expanded', String(on));
+  if (on) { $('csSearch').value = ''; setTimeout(() => $('csSearch').focus(), 40); }
+  paintPicks();
 }
 
 function paintPicks() {
-  const a2a = wiz.proto === 'a2a';
   const items = pickItems();
-  const q = $('pickSearch').value || '';
+  /* Renaming the manifest's skill, swapping servers or dropping the API
+     document all change what is on offer; a selection that is no longer
+     one of them is not a selection. */
+  if (wiz.pick && !items.some(it => it.id === wiz.pick)) wiz.pick = null;
+  const q = $('csSearch').value || '';
   const shown = items.filter(it => matches(`${it.name} ${it.desc} ${it.skills.join(' ')}`, q));
   const chosen = items.find(it => it.id === wiz.pick);
 
-  $('step3Label').innerHTML = (a2a ? 'SELECT AN AGENT CARD' : 'SELECT AN OPERATION TO EXPOSE')
-    + '<span class="ag-req">*</span>';
-  $('step3Note').textContent = a2a
+  $('step3Note').textContent = wiz.proto === 'a2a'
     ? 'One card per agent. To combine several, register them separately and compose them in an orchestrator.'
-    : 'Cogentiq generates an Agent Card for the operation you take and serves it from the Cogentiq Managed A2A server. The service itself is untouched.';
+    : wiz.proto === 'rest'
+      ? 'Cogentiq generates an Agent Card for the operation you take and serves it from the Cogentiq Managed A2A server. The service itself is untouched.'
+      : 'A direct connection carries one card — the skill described above.';
 
-  $('pickCount').textContent = chosen ? chosen.name : 'None selected';
+  $('csName').textContent = chosen ? chosen.name : 'Select an agent card';
+  $('csName').classList.toggle('is-empty', !chosen);
+  $('csName').classList.toggle('ag-mono', !!(chosen && chosen.mono));
+  $('csSub').hidden = !(chosen && (chosen.sub || chosen.desc));
+  if (chosen) $('csSub').textContent = chosen.sub || chosen.desc;
 
-  /* A radio rather than a checkbox: one card per agent, so the control
-     has to say that before the person has picked a second one. */
-  $('pickList').innerHTML = shown.length ? shown.map(it => `
-    <button class="ag-pick ${wiz.pick === it.id ? 'is-on' : ''}" data-pick="${esc(it.id)}" type="button"
-            role="radio" aria-checked="${wiz.pick === it.id}">
-      <span class="ag-radio__dot" style="margin-top:3px"></span>
-      <span class="ag-pick__id">
-        <span class="ag-pick__name ${it.mono ? 'ag-mono' : 'cq-body2-med'}">${esc(it.name)}</span>
-        ${it.sub ? `<span class="ag-pick__sub ag-mono">${esc(it.sub)}</span>` : ''}
-        <span class="ag-pick__sub cq-caption-reg">${esc(it.desc)}</span>
+  /* The search only earns its row once there is more to search than fits
+     on screen — a direct connection offers exactly one card. */
+  $('csSearchWrap').hidden = items.length < 6;
+
+  $('csList').innerHTML = shown.length ? shown.map(it => `
+    <button class="ag-opt ${wiz.pick === it.id ? 'is-on' : ''}" data-pick="${esc(it.id)}" type="button"
+            role="option" aria-selected="${wiz.pick === it.id}">
+      <span class="ag-opt__ic">${ic('ic-pp_agent', 18)}</span>
+      <span class="ag-opt__id">
+        <span class="ag-opt__name ${it.mono ? 'ag-mono' : 'cq-body2-med'}">${esc(it.name)}</span>
+        ${it.sub ? `<span class="ag-opt__sub ag-mono">${esc(it.sub)}</span>` : ''}
+        <span class="ag-opt__sub cq-caption-reg">${esc(it.desc)}</span>
         <span class="ag-skills">${it.skills.map(k => `<span class="cq-tag" data-tone="cyan">${esc(k)}</span>`).join('')}</span>
       </span>
       ${it.tail ? badge('grey', it.tail, 'i-key') : ''}
+      <svg class="cq-ic ag-opt__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
     </button>`).join('')
-    : `<p class="ag-picker__empty cq-caption-reg">${items.length
-        ? `Nothing matches “${esc(q.trim())}”.`
-        : a2a ? 'Choose a server on the previous step to see the agent cards it publishes.'
-              : 'Upload an API document on the previous step to see the operations it describes.'}</p>`;
+    : `<p class="ag-sel__empty cq-caption-reg">${items.length
+        ? `Nothing matches “${esc(q.trim())}”.` : EMPTY_HINT[wiz.proto]}</p>`;
 
   paintCardAuth();
 }
@@ -4851,8 +4868,10 @@ function paintCardAuth() {
   });
 }
 
-$('pickSearch').addEventListener('input', paintPicks);
-$('pickList').addEventListener('click', e => {
+$('csField').addEventListener('click', e => { e.stopPropagation(); setCsOpen(!wiz.csOpen); });
+$('csPop').addEventListener('click', e => e.stopPropagation());
+$('csSearch').addEventListener('input', paintPicks);
+$('csList').addEventListener('click', e => {
   const b = e.target.closest('[data-pick]');
   if (!b) return;
   wiz.pick = b.dataset.pick;
@@ -4860,8 +4879,10 @@ $('pickList').addEventListener('click', e => {
      making someone read the badge and match it by hand. */
   const chosen = pickItems().find(it => it.id === wiz.pick);
   if (chosen && AUTH_KEY[chosen.tail]) wiz.cardAuth = AUTH_KEY[chosen.tail];
+  setCsOpen(false);
   paintWiz();
 });
+document.addEventListener('click', () => { if (wiz.csOpen) setCsOpen(false); });
 $('cardAuthRadios').addEventListener('click', e => {
   const b = e.target.closest('[data-cauth]');
   if (!b) return;
@@ -4939,11 +4960,12 @@ function paintReview() {
     rows.push(kv('Protocol', 'Direct connection'));
     rows.push(kv('Integration', esc(integ ? integ.name : '—')));
     rows.push(kv('Base URL', `<span class="ag-mono">${esc(integ ? integ.url : '—')}</span>`));
-    rows.push(kv('Auth', esc(integ ? integ.auth : '—')));
+    rows.push(kv('Integration auth', esc(integ ? integ.auth : '—')));
     rows.push(kv('Request', `<span class="ag-mono">${esc($('mfMethod').value)} ${esc($('mfPath').value || '—')}</span>`));
     rows.push(kv('Message field', `<span class="ag-mono">${esc($('mfMessage').value || '—')}</span>`));
     rows.push(kv('Response field', `<span class="ag-mono">${esc($('mfResponse').value || '—')}</span>`));
-    rows.push(kv('Skill', esc($('mfSkillName').value.trim() || '—')));
+    rows.push(kv('Agent card', esc(wiz.pick || '—')));
+    rows.push(kv('Card auth', AUTH_LABEL[wiz.cardAuth]));
     if (wiz.tags.length) rows.push(kv('Tags', wiz.tags.map(t => `<span class="cq-tag">${esc(t)}</span>`).join(' ')));
   } else if (a2a) {
     const card = s ? s.cards.find(c => c.name === wiz.pick) : null;
@@ -5123,10 +5145,9 @@ function stepOK() {
     if (wiz.proto === 'direct') return !!curInteg();
     return wiz.restOk;
   }
-  if (wiz.proto === 'direct') {
-    return !!$('mfSkillName').value.trim() && !!$('mfPath').value.trim()
-      && !!$('mfMessage').value.trim() && !!$('mfResponse').value.trim();
-  }
+  if (wiz.proto === 'direct'
+      && !($('mfSkillName').value.trim() && $('mfPath').value.trim()
+           && $('mfMessage').value.trim() && $('mfResponse').value.trim())) return false;
   return !!wiz.pick && cardAuthOK();
 }
 function stepHint() {
@@ -5142,9 +5163,8 @@ function stepHint() {
     if (!$('mfPath').value.trim()) return 'Give the request a path.';
     if (!$('mfMessage').value.trim() || !$('mfResponse').value.trim())
       return 'Say which field carries the message and which holds the reply.';
-    return '';
   }
-  if (!wiz.pick) return wiz.proto === 'a2a' ? 'Select an agent card.' : 'Select an operation.';
+  if (!wiz.pick) return 'Select an agent card.';
   return cardAuthOK() ? '' : 'Enter the credentials for this card.';
 }
 
@@ -5162,12 +5182,14 @@ function paintWiz() {
 
   document.querySelectorAll('[data-proto]').forEach(b => b.classList.toggle('is-on', b.dataset.proto === wiz.proto));
 
-  $('pickerGroup').hidden = wiz.proto === 'direct';
+  /* The card select is the last thing every route does. Only the
+     manifest above it is route-specific. */
   $('manifestGroup').hidden = wiz.proto !== 'direct';
 
   if (wiz.step === 2) { paintServers(); paintFound(); paintIntegs(); paintRestFile(); }
   if (wiz.step === 3) {
-    if (wiz.proto === 'direct') paintSpecStatus(); else paintPicks();
+    if (wiz.proto === 'direct') paintSpecStatus();
+    paintPicks();
     paintReview();
   }
 
@@ -5224,7 +5246,7 @@ function createRemote() {
       desc: desc || `Direct connection over ${integ.name}, calling ${method} ${path}.`,
       endpoint: integ.url.replace(/^https?:\/\//, ''),
       server: integ.name,
-      auth: integ.auth,
+      auth: AUTH_LABEL[wiz.cardAuth],
       cards: [skillName],
       agentSkills: [$('mfSkillId').value.trim() || slugify(skillName)],
       reqMethod: method, reqPath: path,
