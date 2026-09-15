@@ -1769,12 +1769,14 @@ body.cq { margin: 0; }
       --ag-well-strong: var(--backgrounds-page-bg-4);
       --ag-well-border: var(--strokes-card-default);
       --ag-well-hover:  var(--backgrounds-card-bg-4);
+      --ag-required:    #f24822;
     }
     :root[data-mode="light"] {
       --ag-well:        #f2f2f4;
       --ag-well-strong: #eaeaed;
       --ag-well-border: #dcdce0;
       --ag-well-hover:  #ffffff;
+      --ag-required:    #dc3412;
     }
 
     /* ── The bar. The segment leads it, as on Skills; the search and the
@@ -2052,6 +2054,11 @@ body.cq { margin: 0; }
     .ag-pick__sub { color: var(--text-teritiary); }
     .ag-pick__tick { flex: none; color: transparent; }
     .ag-pick.is-on .ag-pick__tick { color: var(--text-coloured-blue); }
+    /* One card per agent, so the row wears a radio and fills it the way
+       every other radio on the step does. */
+    .ag-pick:hover .ag-radio__dot { border-color: var(--strokes-icon-default); }
+    .ag-pick.is-on .ag-radio__dot { border-color: var(--strokes-checkbox-focus); }
+    .ag-pick.is-on .ag-radio__dot::after { transform: scale(1); }
     .ag-pick__auth { flex: none; width: 152px; }
     .ag-pick__auth .cq-control { padding: 6px 8px; background: var(--backgrounds-type-default-bg-2); }
     .ag-pick__auth select { font-size: var(--fs-caption); }
@@ -2178,13 +2185,15 @@ body.cq { margin: 0; }
       display: inline-flex; align-items: center; justify-content: center;
       border-radius: var(--radius-sm);
       background: var(--backgrounds-page-bg-3);
-      color: var(--text-teritiary);
+      color: var(--text-secondary);
     }
     .ag-combo__val { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
     .ag-combo__name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ag-combo__name.is-empty { color: var(--text-teritiary); }
+    /* A prompt to act on, not a disabled value: tertiary grey on this
+       well reads as "unavailable" rather than "choose one". */
+    .ag-combo__name.is-empty { color: var(--text-secondary); }
     .ag-combo__sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .ag-combo__chev { flex: none; color: var(--text-teritiary); transition: transform .2s cubic-bezier(.4,0,.2,1); }
+    .ag-combo__chev { flex: none; color: var(--text-secondary); transition: transform .2s cubic-bezier(.4,0,.2,1); }
     .ag-combo__field[aria-expanded="true"] .ag-combo__chev { transform: rotate(180deg); }
 
     /* In flow rather than floating. The modal body scrolls, so an
@@ -2282,6 +2291,172 @@ body.cq { margin: 0; }
     .ag-tags__opt--new b { font-weight: 400; font-family: var(--font-geist-mono); }
     .ag-tags__empty { padding: 14px 8px; text-align: center; color: var(--text-teritiary); }
 
+    /* ══════════════════════════════════════════════════════════════
+       FIGMA FORM LANGUAGE
+       The integration modals in the design file group related fields
+       into a titled card with a coloured mark, mark required fields
+       with a red star, and choose between mutually exclusive options
+       with radio rows rather than a select. These are those pieces.
+       ══════════════════════════════════════════════════════════════ */
+    .ag-req { color: var(--ag-required); }
+
+    .ag-sec {
+      display: flex; flex-direction: column; gap: 12px;
+      padding: 14px; border-radius: var(--radius-lg);
+      background: var(--ag-well);
+      border: 1px solid var(--ag-well-border);
+    }
+    .ag-sec__head { display: flex; align-items: center; gap: 8px; }
+    .ag-sec__head .cq-ic { flex: none; }
+    .ag-sec__title { color: var(--text-primary); }
+    /* Pulled up under the title it belongs to, not floating in the gap. */
+    .ag-sec__sub { color: var(--text-teritiary); margin: -8px 0 0; }
+
+    .ag-radios { display: flex; flex-wrap: wrap; gap: 12px 22px; }
+    .ag-radios--rich { gap: 12px 16px; }
+    .ag-radios--rich .ag-radio { flex: 1 1 220px; }
+    .ag-radio { display: inline-flex; align-items: flex-start; gap: 8px; text-align: left; }
+    .ag-radio__dot {
+      width: 16px; height: 16px; flex: none; margin-top: 2px;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-checkbox-default);
+      border: 1.5px solid var(--strokes-checkbox-default);
+      transition: border-color .15s ease;
+    }
+    .ag-radio__dot::after {
+      content: ""; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--backgrounds-checkbox-focus);
+      transform: scale(0); transition: transform .15s cubic-bezier(.4,0,.2,1);
+    }
+    .ag-radio:hover .ag-radio__dot { border-color: var(--strokes-icon-default); }
+    .ag-radio.is-on .ag-radio__dot { border-color: var(--strokes-checkbox-focus); }
+    .ag-radio.is-on .ag-radio__dot::after { transform: scale(1); }
+    .ag-radio__id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .ag-radio__name { color: var(--text-secondary); transition: color .15s ease; }
+    .ag-radio.is-on .ag-radio__name { color: var(--text-primary); }
+    .ag-radio__note { color: var(--text-teritiary); }
+
+    /* ══════════════════════════════════════════════════════════════
+       RICH SELECT
+       A row is an icon tile, a name, and one line saying what the
+       thing is — the name alone does not tell you whether this is the
+       integration you meant. The create action lives in the field
+       itself, because "none of these" is answered there.
+       ══════════════════════════════════════════════════════════════ */
+    .ag-sel { position: relative; }
+    /* The create action sits inside the field, so the field is the row
+       and the part that opens the list is a button within it — nesting
+       one button in another is not a thing the parser allows. */
+    .ag-sel__field {
+      width: 100%; min-height: 52px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px; border-radius: var(--radius-md);
+      background: var(--backgrounds-type-default-bg-1);
+      border: 1px solid var(--strokes-type-default);
+      transition: border-color .15s ease;
+    }
+    .ag-sel__field:hover { border-color: var(--strokes-icon-default); }
+    .ag-sel.is-open .ag-sel__field { border-color: var(--strokes-type-focus); }
+    .ag-sel__trigger {
+      flex: 1 1 auto; min-width: 0; align-self: stretch;
+      display: flex; align-items: center; gap: 10px;
+      padding-left: 5px; text-align: left;
+    }
+    .ag-sel__val { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+    .ag-sel__txt { min-width: 0; display: flex; flex-direction: column; }
+    /* The placeholder is a prompt, not a disabled value — tertiary grey
+       reads as "you cannot use this" at this size. */
+    .ag-sel__name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ag-sel__name.is-empty { color: var(--text-secondary); }
+    .ag-sel__sub { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ag-sel__chev { flex: none; margin-right: 6px; color: var(--text-secondary); transition: transform .2s cubic-bezier(.4,0,.2,1); }
+    .ag-sel.is-open .ag-sel__chev { transform: rotate(180deg); }
+    .ag-sel__new { flex: none; }
+
+    .ag-sel__pop {
+      margin-top: 6px;
+      display: none; flex-direction: column;
+      padding: 6px;
+      background: var(--ag-well-strong);
+      border: 1px solid var(--ag-well-border);
+      border-radius: var(--radius-lg);
+    }
+    .ag-sel.is-open .ag-sel__pop { display: flex; }
+    .ag-sel__list { max-height: 268px; overflow-y: auto; }
+
+    .ag-opt {
+      width: 100%; display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px; border-radius: var(--radius-md);
+      text-align: left;
+      transition: background .15s ease;
+    }
+    .ag-opt:hover { background: var(--ag-well-hover); }
+    .ag-opt.is-on { background: var(--backgrounds-table-select); }
+    .ag-opt__ic {
+      width: 36px; height: 36px; flex: none; border-radius: 10px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-badge-blue, var(--backgrounds-page-bg-3));
+      color: var(--text-coloured-blue);
+    }
+    .ag-opt__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .ag-opt__name { color: var(--text-primary); }
+    .ag-opt__sub { color: var(--text-teritiary); }
+    .ag-opt__tick { flex: none; margin-top: 9px; color: transparent; }
+    .ag-opt.is-on .ag-opt__tick { color: var(--text-coloured-blue); }
+    .ag-sel__empty { padding: 18px 12px; text-align: center; color: var(--text-teritiary); }
+
+    /* ══════════════════════════════════════════════════════════════
+       UPLOAD ZONE
+       A plain API is described by a document, so the step asks for the
+       document rather than re-asking for everything inside it.
+       ══════════════════════════════════════════════════════════════ */
+    .ag-drop {
+      width: 100%;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 26px 20px; border-radius: var(--radius-lg);
+      background: var(--ag-well);
+      border: 1px dashed var(--strokes-line-3, var(--ag-well-border));
+      text-align: center;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .ag-drop:hover, .ag-drop.is-over { border-color: var(--strokes-card-selected); background: var(--ag-well-hover); }
+    .ag-drop__ic {
+      width: 40px; height: 40px; border-radius: 12px; margin-bottom: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-page-bg-3);
+      color: var(--text-coloured-blue);
+    }
+    .ag-drop__t { color: var(--text-primary); }
+    .ag-drop__s { color: var(--text-teritiary); }
+    .ag-drop__link { color: var(--text-coloured-blue); }
+
+    /* The uploaded document, and what validating it found. */
+    .ag-file {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px; border-radius: var(--radius-lg);
+      background: var(--ag-well);
+      border: 1px solid var(--ag-well-border);
+    }
+    .ag-file__ic {
+      width: 32px; height: 32px; flex: none; border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-page-bg-3); color: var(--text-coloured-blue);
+    }
+    .ag-file__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+    .ag-file__name { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ag-file__sub { color: var(--text-teritiary); }
+    .ag-file__sub.is-ok { color: var(--text-coloured-green); }
+    .ag-file__sub.is-bad { color: var(--ag-required); }
+    /* A spinner only while the check is actually running. */
+    .ag-spin {
+      width: 14px; height: 14px; flex: none; border-radius: 50%;
+      border: 2px solid var(--strokes-line-1);
+      border-top-color: var(--text-coloured-blue);
+      animation: ag-spin .7s linear infinite;
+    }
+    @keyframes ag-spin { to { transform: rotate(360deg); } }
+
     .ag-opt {
       width: 100%;
       display: flex; align-items: center; gap: 10px;
@@ -2326,6 +2501,16 @@ body.cq { margin: 0; }
 
     [data-auth-only] { display: block; }
     [data-auth-only][hidden] { display: none !important; }
+    [data-cauth-only] { display: block; }
+    [data-cauth-only][hidden] { display: none !important; }
+    [data-niauth-only] { display: block; }
+    [data-niauth-only][hidden] { display: none !important; }
+
+    /* The wizard is a fixed-height three-step frame; this one is a single
+       form that should be as tall as it is. */
+    .ag-modal--auto { height: auto; max-height: min(720px, calc(100vh - 48px)); }
+    .ag-modal--auto .cq-modal__foot { justify-content: flex-end; }
+    .ag-modal__title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 
     .ag-dashed {
       padding: 24px 16px; border-radius: var(--radius-md);
@@ -3039,158 +3224,88 @@ body.cq { margin: 0; }
           </div>
         </div>
 
+        <!-- ── A plain API ──
+             Everything needed is already written down in the API's own
+             document — the address, the operations, the shapes. Asking
+             for the document is one question; re-asking for its contents
+             field by field is a dozen, and every one is a chance to
+             disagree with the file. -->
         <div class="ag-group" data-only="rest">
-          <div class="ag-grid2">
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Base URL</span>
-              <span class="cq-control"><input id="restUrl" class="ag-mono" placeholder="https://api.weatherco.com/v2" /></span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">OpenAPI document</span>
-              <span class="cq-control"><input id="restSpec" class="ag-mono" placeholder="/openapi.json" /></span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Auth mechanism</span>
-              <span class="cq-control">
-                <select id="restAuth"></select>
-                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-              </span>
-            </label>
+          <div class="ag-group__head">
+            <span class="ag-label cq-caption-med">API DOCUMENT<span class="ag-req">*</span></span>
+          </div>
+          <p class="cq-field__hint cq-caption-reg" style="margin:0 0 2px">
+            An <b style="font-weight:500;color:var(--text-secondary)">OpenAPI spec</b> describes
+            the endpoints your service already exposes; an
+            <b style="font-weight:500;color:var(--text-secondary)">agent manifest</b> describes
+            them as skills. Either one is enough — Cogentiq reads it, builds the
+            adapter, and hosts the agent for you.
+          </p>
+
+          <div id="restDropWrap">
+            <button class="ag-drop" id="restDrop" type="button">
+              <span class="ag-drop__ic"><svg class="cq-ic" width="20" height="20" viewBox="0 0 16 16"><use href="#i-doc"/></svg></span>
+              <span class="ag-drop__t cq-body2-med">Drop your spec here, or <span class="ag-drop__link">browse</span></span>
+              <span class="ag-drop__s cq-caption-reg">OpenAPI 3.x or an agent manifest · JSON or YAML</span>
+            </button>
+            <button class="ag-picker__act" id="restSample" type="button" style="margin-top:8px">Use a sample spec instead</button>
+          </div>
+
+          <div class="ag-file" id="restFile" hidden>
+            <span class="ag-file__ic"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-doc"/></svg></span>
+            <span class="ag-file__id">
+              <span class="ag-file__name cq-body2-med" id="restFileName">spec.json</span>
+              <span class="ag-file__sub cq-caption-reg" id="restFileSub">Checking…</span>
+            </span>
+            <span class="ag-spin" id="restSpin"></span>
+            <button class="cq-icon-btn cq-icon-btn--sm" id="restFileX" type="button" aria-label="Remove this document">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-x"/></svg>
+            </button>
           </div>
         </div>
 
         <!-- ── Connect it directly ──
-             Nothing to discover and nothing for Cogentiq to build: the
-             connection is whatever the person types, called exactly as
-             typed. Everything a raw integration needs — an address, a
-             credential, and a place to say how the reply is shaped —
-             and nothing an automated adapter would have inferred wrong. -->
+             An integration is a thing the workspace already owns — an
+             address and a credential, registered once and reused. So
+             this step picks one rather than re-typing it; creating a
+             new one is the same form, moved into its own modal so the
+             common path stays one field tall. -->
         <div class="ag-group" data-only="direct">
           <div class="ag-group__head">
-            <span class="ag-label cq-caption-med">CONNECTION DETAILS</span>
+            <span class="ag-label cq-caption-med">INTEGRATION<span class="ag-req">*</span></span>
           </div>
-          <div class="ag-grid2">
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Connection name</span>
-              <span class="cq-control"><input id="dirName" placeholder="e.g. Acme Claims Agent" /></span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Base URL</span>
-              <span class="cq-control"><input id="dirUrl" class="ag-mono" placeholder="https://agents.acme.internal:8443" /></span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label-row">
-                <span class="cq-field__label cq-caption-med">Workspace ID</span>
-                <span class="cq-caption-reg cq-text-tertiary">Optional</span>
-              </span>
-              <span class="cq-control"><input id="dirWorkspace" class="ag-mono" placeholder="ws_abc123" /></span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Timeout (seconds)</span>
-              <span class="cq-control"><input id="dirTimeout" type="number" min="1" step="1" value="60" /></span>
-            </label>
-          </div>
-          <label class="cq-field">
-            <span class="cq-field__label cq-caption-med">Who can use this connection</span>
-            <span class="cq-control">
-              <select id="dirAccess">
-                <option value="private">Private — only this workspace</option>
-                <option value="shared">Shared — other workspaces can reuse it</option>
-              </select>
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-            </span>
-          </label>
-
-          <div class="ag-group__head" style="margin-top:6px">
-            <span class="ag-label cq-caption-med">AUTHENTICATION</span>
-          </div>
-          <label class="cq-field">
-            <span class="cq-field__label cq-caption-med">Auth type</span>
-            <span class="cq-control">
-              <select id="dirAuthType">
-                <option value="bearer">Bearer token</option>
-                <option value="apikey">API key</option>
-                <option value="oauth">OAuth 2.0 (client credentials)</option>
-                <option value="basic">Basic auth</option>
-                <option value="mtls">mTLS (client certificate)</option>
-                <option value="none">None</option>
-              </select>
-              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-            </span>
-          </label>
-
-          <!-- Each auth type asks for exactly its own credential and
-               nothing else — a bearer token has no business asking for a
-               username, and a client cert has no business asking for a
-               password. -->
-          <div data-auth-only="bearer">
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Bearer token</span>
-              <span class="cq-control"><input id="dirBearer" class="ag-mono" type="password" placeholder="eyJhbGciOiJSUzI1NiIs..." /></span>
-            </label>
-          </div>
-          <div data-auth-only="apikey" hidden>
-            <div class="ag-grid2">
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">API key</span>
-                <span class="cq-control"><input id="dirApiKey" class="ag-mono" type="password" placeholder="sk_live_..." /></span>
-              </label>
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Header name</span>
-                <span class="cq-control"><input id="dirApiKeyHeader" class="ag-mono" placeholder="X-API-Key" /></span>
-              </label>
+          <div class="ag-sel" id="intSel">
+            <div class="ag-sel__field">
+              <button class="ag-sel__trigger" id="intField" type="button"
+                      aria-haspopup="listbox" aria-expanded="false" aria-controls="intPop">
+                <span class="ag-sel__val" id="intVal">
+                  <span class="ag-sel__txt">
+                    <span class="ag-sel__name cq-body2-med is-empty" id="intName">Select integration</span>
+                  </span>
+                </span>
+                <svg class="cq-ic ag-sel__chev" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+              </button>
+              <button class="cq-btn cq-btn--primary cq-btn--sm ag-sel__new" id="intNew" type="button">
+                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-plus"/></svg>
+                New integration
+              </button>
+            </div>
+            <div class="ag-sel__pop" id="intPop" role="listbox" aria-label="Integrations">
+              <div class="ag-sel__list" id="intList"></div>
             </div>
           </div>
-          <div data-auth-only="oauth" hidden>
-            <div class="ag-grid2">
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Client ID</span>
-                <span class="cq-control"><input id="dirClientId" class="ag-mono" /></span>
-              </label>
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Client secret</span>
-                <span class="cq-control"><input id="dirClientSecret" class="ag-mono" type="password" /></span>
-              </label>
-            </div>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Token URL</span>
-              <span class="cq-control"><input id="dirTokenUrl" class="ag-mono" placeholder="https://.../oauth/token" /></span>
-            </label>
-          </div>
-          <div data-auth-only="basic" hidden>
-            <div class="ag-grid2">
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Username</span>
-                <span class="cq-control"><input id="dirUsername" /></span>
-              </label>
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Password</span>
-                <span class="cq-control"><input id="dirPassword" type="password" /></span>
-              </label>
-            </div>
-          </div>
-          <div data-auth-only="mtls" hidden>
-            <div class="ag-grid2">
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Client certificate (PEM)</span>
-                <span class="cq-control cq-control--textarea"><textarea id="dirCert" class="ag-mono" placeholder="-----BEGIN CERTIFICATE-----"></textarea></span>
-              </label>
-              <label class="cq-field">
-                <span class="cq-field__label cq-caption-med">Client key (PEM)</span>
-                <span class="cq-control cq-control--textarea"><textarea id="dirKey" class="ag-mono" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></span>
-              </label>
-            </div>
-          </div>
-          <p class="ag-note cq-caption-reg" data-auth-only="none" hidden>
-            No credentials needed — Cogentiq calls the endpoint without an auth header.
+          <p class="cq-field__hint cq-caption-reg">
+            The address and credentials are stored with the integration, so every
+            agent that uses it stays in step when they change.
           </p>
         </div>
+
       </div>
 
       <!-- ── Step 3 · what to take from it, and a last look ─────── -->
       <div class="ag-pane" data-pane="3" hidden>
         <div class="ag-group" id="pickerGroup">
-          <span class="ag-label cq-caption-med" id="step3Label">SELECT AGENT CARDS</span>
+          <span class="ag-label cq-caption-med" id="step3Label">SELECT AN AGENT CARD<span class="ag-req">*</span></span>
           <!-- Fixed height, searchable, and what has been taken is pinned
                above what is left — a server publishing forty cards reads
                the same as one publishing four. -->
@@ -3200,13 +3315,102 @@ body.cq { margin: 0; }
                 <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>
                 <input id="pickSearch" class="cq-body2-reg" type="search" placeholder="Search" aria-label="Search capabilities" />
               </label>
-              <span class="ag-picker__n cq-caption-reg" id="pickCount">0 selected</span>
-              <button class="ag-picker__act" id="pickAll" type="button">Select all</button>
-              <button class="ag-picker__act" id="pickNone" type="button">Clear</button>
+              <span class="ag-picker__n cq-caption-reg" id="pickCount">None selected</span>
             </div>
             <div class="ag-picker__list" id="pickList"></div>
           </div>
           <p class="ag-note cq-caption-reg" id="step3Note"></p>
+
+          <!-- ── How to reach the card you chose ──
+               The server knows where the card is; it does not know that
+               you are allowed to call it. That credential belongs to the
+               card, so it is asked for once the card is chosen and not
+               before — there is nothing to authenticate against yet. -->
+          <div class="ag-sec" id="cardAuth" hidden>
+            <div class="ag-sec__head">
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-indigo)"><use href="#i-key"/></svg>
+              <span class="ag-sec__title cq-body2-med">Authentication type<span class="ag-req">*</span></span>
+            </div>
+            <p class="ag-sec__sub cq-caption-reg" id="cardAuthSub">How Cogentiq proves it may call this card.</p>
+            <div class="ag-radios" id="cardAuthRadios">
+              <button class="ag-radio" type="button" data-cauth="apikey">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">API key</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="basic">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Basic Auth</span></span>
+              </button>
+              <button class="ag-radio is-on" type="button" data-cauth="bearer">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Bearer Token</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="oauth">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">OAuth 2.0</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="mtls">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">mTLS</span></span>
+              </button>
+              <button class="ag-radio" type="button" data-cauth="none">
+                <span class="ag-radio__dot"></span>
+                <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">No Auth</span></span>
+              </button>
+            </div>
+
+            <div data-cauth-only="bearer">
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Bearer token<span class="ag-req">*</span></span>
+                <span class="cq-control"><input id="cardBearer" class="ag-mono" type="password" placeholder="Enter bearer token" /></span>
+              </label>
+            </div>
+            <div data-cauth-only="apikey" hidden>
+              <div class="ag-grid2">
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">API key<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardApiKey" class="ag-mono" type="password" placeholder="Enter API key" /></span>
+                </label>
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Header name</span>
+                  <span class="cq-control"><input id="cardApiKeyHeader" class="ag-mono" placeholder="X-API-Key" /></span>
+                </label>
+              </div>
+            </div>
+            <div data-cauth-only="basic" hidden>
+              <div class="ag-grid2">
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Username<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardUsername" placeholder="Enter username" /></span>
+                </label>
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Password<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardPassword" type="password" placeholder="Enter password" /></span>
+                </label>
+              </div>
+            </div>
+            <div data-cauth-only="oauth" hidden>
+              <div class="ag-grid2">
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Client ID<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardClientId" class="ag-mono" placeholder="Enter client ID" /></span>
+                </label>
+                <label class="cq-field">
+                  <span class="cq-field__label cq-caption-med">Client secret<span class="ag-req">*</span></span>
+                  <span class="cq-control"><input id="cardClientSecret" class="ag-mono" type="password" placeholder="Enter client secret" /></span>
+                </label>
+              </div>
+            </div>
+            <div data-cauth-only="mtls" hidden>
+              <label class="cq-field">
+                <span class="cq-field__label cq-caption-med">Client certificate (PEM)<span class="ag-req">*</span></span>
+                <span class="cq-control cq-control--textarea"><textarea id="cardCert" class="ag-mono" placeholder="-----BEGIN CERTIFICATE-----"></textarea></span>
+              </label>
+            </div>
+            <p class="ag-note cq-caption-reg" data-cauth-only="none" hidden>
+              Cogentiq calls this card without an auth header.
+            </p>
+          </div>
         </div>
 
         <!-- ── The manifest ──
@@ -3387,6 +3591,147 @@ body.cq { margin: 0; }
   </div>
 </div>
 
+<!-- ── New integration ──
+     The same questions the integration list already answers for every
+     row it holds: what to call it, where it is, and how to prove you
+     may call it. Sits over the wizard rather than replacing the step,
+     so the half-filled registration behind it survives. -->
+<div class="cq-scrim" id="intScrim" role="dialog" aria-modal="true" aria-labelledby="intTitle">
+  <div class="cq-modal ag-modal ag-modal--auto">
+    <div class="cq-modal__head">
+      <span class="ag-modal__title">
+        <svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16" style="color:var(--text-coloured-blue)"><use href="#i-link"/></svg>
+        <span class="cq-body1-med" id="intTitle">New integration</span>
+      </span>
+      <button class="cq-icon-btn" id="intX" aria-label="Close" title="Close">
+        <svg class="cq-ic" width="20" height="20" viewBox="0 0 16 16"><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <div class="ag-modal__body cq-scroll-y">
+      <div class="ag-grid2">
+        <label class="cq-field">
+          <span class="cq-field__label cq-caption-med">Name<span class="ag-req">*</span></span>
+          <span class="cq-control"><input id="niName" placeholder="e.g. Acme Claims Agent" /></span>
+        </label>
+        <label class="cq-field">
+          <span class="cq-field__label cq-caption-med">Timeout (seconds)</span>
+          <span class="cq-control"><input id="niTimeout" type="number" min="1" step="1" value="60" /></span>
+        </label>
+      </div>
+      <label class="cq-field">
+        <span class="cq-field__label cq-caption-med">Description</span>
+        <span class="cq-control"><input id="niDesc" placeholder="What this connection is for, in one line." /></span>
+      </label>
+      <label class="cq-field">
+        <span class="cq-field__label cq-caption-med">Base URL<span class="ag-req">*</span></span>
+        <span class="cq-control"><input id="niUrl" class="ag-mono" placeholder="https://agents.acme.internal:8443" /></span>
+        <span class="cq-field__hint cq-caption-reg">The address every call to this integration is sent to.</span>
+      </label>
+
+      <div class="ag-sec">
+        <div class="ag-sec__head">
+          <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-indigo)"><use href="#i-key"/></svg>
+          <span class="ag-sec__title cq-body2-med">Authentication type<span class="ag-req">*</span></span>
+        </div>
+        <div class="ag-radios" id="niAuthRadios">
+          <button class="ag-radio" type="button" data-niauth="apikey">
+            <span class="ag-radio__dot"></span>
+            <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">API key</span></span>
+          </button>
+          <button class="ag-radio" type="button" data-niauth="basic">
+            <span class="ag-radio__dot"></span>
+            <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Basic Auth</span></span>
+          </button>
+          <button class="ag-radio is-on" type="button" data-niauth="bearer">
+            <span class="ag-radio__dot"></span>
+            <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">Bearer Token</span></span>
+          </button>
+          <button class="ag-radio" type="button" data-niauth="oauth">
+            <span class="ag-radio__dot"></span>
+            <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">OAuth 2.0</span></span>
+          </button>
+          <button class="ag-radio" type="button" data-niauth="mtls">
+            <span class="ag-radio__dot"></span>
+            <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">mTLS</span></span>
+          </button>
+          <button class="ag-radio" type="button" data-niauth="none">
+            <span class="ag-radio__dot"></span>
+            <span class="ag-radio__id"><span class="ag-radio__name cq-body2-reg">No Auth</span></span>
+          </button>
+        </div>
+
+        <div data-niauth-only="bearer">
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Bearer token<span class="ag-req">*</span></span>
+            <span class="cq-control"><input id="niBearer" class="ag-mono" type="password" placeholder="Enter bearer token" /></span>
+          </label>
+        </div>
+        <div data-niauth-only="apikey" hidden>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">API key<span class="ag-req">*</span></span>
+              <span class="cq-control"><input id="niApiKey" class="ag-mono" type="password" placeholder="Enter API key" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Header name</span>
+              <span class="cq-control"><input id="niApiKeyHeader" class="ag-mono" placeholder="X-API-Key" /></span>
+            </label>
+          </div>
+        </div>
+        <div data-niauth-only="basic" hidden>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Username<span class="ag-req">*</span></span>
+              <span class="cq-control"><input id="niUsername" placeholder="Enter username" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Password<span class="ag-req">*</span></span>
+              <span class="cq-control"><input id="niPassword" type="password" placeholder="Enter password" /></span>
+            </label>
+          </div>
+        </div>
+        <div data-niauth-only="oauth" hidden>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Client ID<span class="ag-req">*</span></span>
+              <span class="cq-control"><input id="niClientId" class="ag-mono" placeholder="Enter client ID" /></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Client secret<span class="ag-req">*</span></span>
+              <span class="cq-control"><input id="niClientSecret" class="ag-mono" type="password" placeholder="Enter client secret" /></span>
+            </label>
+          </div>
+          <label class="cq-field" style="margin-top:12px">
+            <span class="cq-field__label cq-caption-med">Token URL<span class="ag-req">*</span></span>
+            <span class="cq-control"><input id="niTokenUrl" class="ag-mono" placeholder="https://.../oauth/token" /></span>
+          </label>
+        </div>
+        <div data-niauth-only="mtls" hidden>
+          <div class="ag-grid2">
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Client certificate (PEM)<span class="ag-req">*</span></span>
+              <span class="cq-control cq-control--textarea"><textarea id="niCert" class="ag-mono" placeholder="-----BEGIN CERTIFICATE-----"></textarea></span>
+            </label>
+            <label class="cq-field">
+              <span class="cq-field__label cq-caption-med">Client key (PEM)<span class="ag-req">*</span></span>
+              <span class="cq-control cq-control--textarea"><textarea id="niKey" class="ag-mono" placeholder="-----BEGIN PRIVATE KEY-----"></textarea></span>
+            </label>
+          </div>
+        </div>
+        <p class="ag-note cq-caption-reg" data-niauth-only="none" hidden>
+          Cogentiq calls this integration without an auth header.
+        </p>
+      </div>
+    </div>
+
+    <div class="cq-modal__foot">
+      <button class="cq-btn cq-btn--ghost" id="niCancel">Cancel</button>
+      <button class="cq-btn cq-btn--primary" id="niSave">Create integration</button>
+    </div>
+  </div>
+</div>
+
 <div class="ag-toast" id="toast" role="status" aria-live="polite">
   <svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
   <span class="cq-body2-reg" id="toastMsg"></span>
@@ -3550,6 +3895,20 @@ const REST_OPS = [
   { op: 'GET /current/{city}',    skill: 'weather.current',  desc: 'Current conditions and observations.' },
   { op: 'GET /alerts',            skill: 'weather.alerts',   desc: 'Active severe-weather alerts by region.' },
   { op: 'POST /historical/query', skill: 'weather.history',  desc: 'Historical series for a place and range.' }
+];
+
+/* Integrations the workspace already holds. An integration is an address
+   plus a credential, registered once and reused by every agent that
+   points at it — so connecting directly is picking one, not retyping it. */
+let INTEGRATIONS = [
+  { id: 'i1', name: 'Acme Claims Agent', url: 'https://agents.acme.internal:8443',
+    desc: 'Claims triage service on the internal network.', auth: 'Bearer token', timeout: 60 },
+  { id: 'i2', name: 'Northwind Pricing', url: 'https://pricing.northwind.io',
+    desc: 'Quote and price-break lookups for the distribution catalogue.', auth: 'API key', timeout: 30 },
+  { id: 'i3', name: 'Ledger Core', url: 'https://ledger.fin.internal/v2',
+    desc: 'Read-only access to posted journal entries and balances.', auth: 'mTLS (client certificate)', timeout: 45 },
+  { id: 'i4', name: 'Partner Sandbox', url: 'https://sandbox.partner.dev',
+    desc: 'Shared test endpoint for partner integrations before go-live.', auth: 'None', timeout: 60 }
 ];
 
 const mem = (name, role, remote) => ({ name, role, remote: !!remote });
@@ -4123,40 +4482,62 @@ function toast(msg) {
    three real questions: which server and how it speaks, which of the
    things it publishes to take, and what to call the result.
    ════════════════════════════════════════════════════════════════════ */
-const wiz = { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false, tags: [], tagsOpen: false };
+const wiz = {
+  step: 1, proto: 'a2a', srvId: null, pick: null, regOpen: false, found: null, regAuth: {},
+  skillIdTouched: false, tags: [], tagsOpen: false,
+  integId: null, integOpen: false, niAuth: 'bearer',
+  cardAuth: 'bearer', restFile: null, restOk: false
+};
 /* Human label for each auth type, shared by the review and the panel so
    neither has to keep its own copy of the mapping. */
 const AUTH_LABEL = {
   bearer: 'Bearer token', apikey: 'API key', oauth: 'OAuth 2.0',
   basic: 'Basic auth', mtls: 'mTLS (client certificate)', none: 'None'
 };
+/* The reverse, for reading a card's declared mechanism back into the
+   radio that asks for its credential — so the badge on the card and the
+   option selected under it never disagree. */
+const AUTH_KEY = {
+  'API key (Bearer)': 'apikey', 'API key': 'apikey', 'OAuth 2.0': 'oauth',
+  'mTLS': 'mtls', 'mTLS (client certificate)': 'mtls', 'Basic auth': 'basic', 'None': 'none'
+};
 const slugify = s => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'skill';
 const curServer = () => SERVERS.find(s => s.id === wiz.srvId);
+const curInteg = () => INTEGRATIONS.find(i => i.id === wiz.integId);
+
+/* What validating an uploaded API document reports back. A prototype
+   cannot parse a file it was handed, but the shape of the answer — the
+   spec version, the server it names, and how many operations came out
+   of it — is what the step is really showing. */
+const SPEC_RESULT = { version: 'OpenAPI 3.0.3', url: 'https://api.weatherco.com/v2' };
 
 function openWiz() {
-  Object.assign(wiz, { step: 1, proto: 'a2a', srvId: null, picks: new Set(), regOpen: false, found: null, regAuth: {}, directAuth: 'bearer', skillIdTouched: false, tags: [], tagsOpen: false });
+  Object.assign(wiz, {
+    step: 1, proto: 'a2a', srvId: null, pick: null, regOpen: false, found: null, regAuth: {},
+    skillIdTouched: false, tags: [], tagsOpen: false,
+    integId: null, integOpen: false, niAuth: 'bearer',
+    cardAuth: 'bearer', restFile: null, restOk: false
+  });
   [
-    'regName', 'regUrl', 'restUrl', 'wizName', 'wizDesc', 'srvSearch', 'pickSearch',
-    'dirName', 'dirUrl', 'dirWorkspace', 'dirBearer', 'dirApiKey', 'dirApiKeyHeader',
-    'dirClientId', 'dirClientSecret', 'dirTokenUrl', 'dirUsername', 'dirPassword',
-    'dirCert', 'dirKey', 'mfSkillName', 'mfSkillId', 'mfSkillDesc', 'mfExamples',
+    'regName', 'regUrl', 'wizName', 'wizDesc', 'srvSearch', 'pickSearch',
+    'cardBearer', 'cardApiKey', 'cardApiKeyHeader', 'cardUsername', 'cardPassword',
+    'cardClientId', 'cardClientSecret', 'cardCert',
+    'mfSkillName', 'mfSkillId', 'mfSkillDesc', 'mfExamples',
     'mfTagSearch', 'mfPath', 'mfSpec'
   ].forEach(id => { $(id).value = ''; });
   setTagsOpen(false);
   paintTagChips();
   setSrvOpen(false);
-  $('restSpec').value = '/openapi.json';
-  $('restAuth').innerHTML = AUTHS.map(a => `<option>${esc(a)}</option>`).join('');
-  $('dirTimeout').value = '60';
-  $('dirAccess').value = 'private';
-  $('dirAuthType').value = 'bearer';
+  setIntegOpen(false);
+  $('cardApiKeyHeader').value = 'X-API-Key';
   $('mfMethod').value = 'POST';
   $('mfMessage').value = '$.query';
   $('mfContext').value = '';
   $('mfResponse').value = '$.answer';
   $('mfSuccess').value = '200';
   $('mfSpecStatus').textContent = '';
-  paintDirAuth();
+  paintRestFile();
+  paintCardAuth();
   $('wizScrim').classList.add('is-open');
   paintWiz();
   setTimeout(() => $('wizNext').focus(), 60);
@@ -4168,6 +4549,7 @@ $('wizScrim').addEventListener('click', e => { if (e.target === $('wizScrim')) c
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   /* The sheet sits over the wizard, so it goes first. */
+  if ($('intScrim').classList.contains('is-open')) return closeInt();
   if ($('cmpScrim').classList.contains('is-open')) return closeCmp();
   if ($('wizScrim').classList.contains('is-open')) closeWiz();
 });
@@ -4184,7 +4566,7 @@ $('protoCards').addEventListener('click', e => {
   const b = e.target.closest('[data-proto]');
   if (!b) return;
   wiz.proto = b.dataset.proto;
-  wiz.picks = new Set();
+  wiz.pick = null;
   paintWiz();
 });
 
@@ -4229,10 +4611,10 @@ function paintServers() {
   $('srvList').innerHTML = shown.length ? shown.map(x => `
     <button class="ag-opt ${wiz.srvId === x.id ? 'is-on' : ''}" data-srv="${x.id}" role="option"
             aria-selected="${wiz.srvId === x.id}">
-      <span class="ag-combo__ic">${ic(x.managed ? 'ic-logoonly' : 'i-server', 15)}</span>
+      <span class="ag-opt__ic">${ic(x.managed ? 'ic-logoonly' : 'i-server', 18)}</span>
       <span class="ag-opt__id">
         <span class="ag-opt__name cq-body2-med">${esc(x.name)}</span>
-        <span class="ag-opt__sub ag-mono">${esc(x.url)} · ${x.cards.length} cards</span>
+        <span class="ag-opt__sub cq-caption-reg"><span class="ag-mono">${esc(x.url)}</span> · ${x.cards.length} agent card${x.cards.length === 1 ? '' : 's'}</span>
       </span>
       <svg class="cq-ic ag-opt__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
     </button>`).join('')
@@ -4247,11 +4629,112 @@ $('srvList').addEventListener('click', e => {
   wiz.srvId = b.dataset.srv;
   /* A different server publishes different cards, so a selection made
      against the old one cannot carry over. */
-  wiz.picks = new Set();
+  wiz.pick = null;
   setSrvOpen(false);
   paintWiz();
 });
 document.addEventListener('click', () => { if (srvOpen) setSrvOpen(false); });
+
+/* ── The integration select ──
+   Same shape as the server combobox — one field, a list underneath —
+   but the list is richer because an integration's name alone does not
+   say what it points at, and the create action lives in the field. */
+function setIntegOpen(on) {
+  wiz.integOpen = on;
+  $('intSel').classList.toggle('is-open', on);
+  $('intField').setAttribute('aria-expanded', String(on));
+  if (on) paintIntegs();
+}
+
+function paintIntegs() {
+  const cur = curInteg();
+  $('intName').textContent = cur ? cur.name : 'Select integration';
+  $('intName').classList.toggle('is-empty', !cur);
+
+  let sub = $('intVal').querySelector('.ag-sel__sub');
+  if (cur && !sub) {
+    sub = document.createElement('span');
+    sub.className = 'ag-sel__sub cq-caption-reg';
+    $('intVal').querySelector('.ag-sel__txt').appendChild(sub);
+  }
+  if (sub) sub.textContent = cur ? `${cur.url} · ${cur.auth}` : '';
+  if (sub && !cur) sub.remove();
+
+  $('intList').innerHTML = INTEGRATIONS.length ? INTEGRATIONS.map(x => `
+    <button class="ag-opt ${wiz.integId === x.id ? 'is-on' : ''}" data-integ="${esc(x.id)}" role="option"
+            aria-selected="${wiz.integId === x.id}" type="button">
+      <span class="ag-opt__ic">${ic('i-link', 18)}</span>
+      <span class="ag-opt__id">
+        <span class="ag-opt__name cq-body2-med">${esc(x.name)}</span>
+        <span class="ag-opt__sub cq-caption-reg">${esc(x.desc)}</span>
+      </span>
+      <svg class="cq-ic ag-opt__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
+    </button>`).join('')
+    : '<p class="ag-sel__empty cq-caption-reg">No integrations yet — create one to get started.</p>';
+}
+
+$('intField').addEventListener('click', e => { e.stopPropagation(); setIntegOpen(!wiz.integOpen); });
+$('intPop').addEventListener('click', e => e.stopPropagation());
+$('intList').addEventListener('click', e => {
+  const b = e.target.closest('[data-integ]');
+  if (!b) return;
+  wiz.integId = b.dataset.integ;
+  setIntegOpen(false);
+  paintWiz();
+});
+document.addEventListener('click', () => { if (wiz.integOpen) setIntegOpen(false); });
+
+/* ── Creating one ──
+   Over the wizard, not instead of it: the half-filled registration
+   behind this modal is still there when it closes. */
+const closeInt = () => $('intScrim').classList.remove('is-open');
+function openInt() {
+  wiz.niAuth = 'bearer';
+  ['niName', 'niDesc', 'niUrl', 'niBearer', 'niApiKey', 'niClientId', 'niClientSecret',
+   'niTokenUrl', 'niUsername', 'niPassword', 'niCert', 'niKey'].forEach(id => { $(id).value = ''; });
+  $('niTimeout').value = '60';
+  $('niApiKeyHeader').value = 'X-API-Key';
+  paintNiAuth();
+  $('intScrim').classList.add('is-open');
+  setTimeout(() => $('niName').focus(), 60);
+}
+function paintNiAuth() {
+  $('niAuthRadios').querySelectorAll('[data-niauth]').forEach(b =>
+    b.classList.toggle('is-on', b.dataset.niauth === wiz.niAuth));
+  document.querySelectorAll('[data-niauth-only]').forEach(el => {
+    el.hidden = el.dataset.niauthOnly !== wiz.niAuth;
+  });
+}
+$('intNew').addEventListener('click', e => { e.stopPropagation(); setIntegOpen(false); openInt(); });
+$('intX').addEventListener('click', closeInt);
+$('niCancel').addEventListener('click', closeInt);
+$('intScrim').addEventListener('click', e => { if (e.target === $('intScrim')) closeInt(); });
+$('niAuthRadios').addEventListener('click', e => {
+  const b = e.target.closest('[data-niauth]');
+  if (!b) return;
+  wiz.niAuth = b.dataset.niauth;
+  paintNiAuth();
+});
+$('niSave').addEventListener('click', () => {
+  const name = $('niName').value.trim();
+  const url = $('niUrl').value.trim();
+  if (!name) return toast('Give the integration a name.');
+  if (!url) return toast('Give the integration a base URL.');
+  const integ = {
+    id: 'i' + Date.now(),
+    name,
+    desc: $('niDesc').value.trim() || `Connection to ${url.replace(/^https?:\/\//, '')}.`,
+    url,
+    auth: AUTH_LABEL[wiz.niAuth],
+    timeout: +$('niTimeout').value || 60
+  };
+  INTEGRATIONS = [integ, ...INTEGRATIONS];
+  /* Created from the picker, so it is the answer to the picker. */
+  wiz.integId = integ.id;
+  closeInt();
+  paintWiz();
+  toast(`${name} created.`);
+});
 
 /* The discovered cards, before the server is saved. Auth is editable
    here and nowhere else — this is the one moment somebody has the
@@ -4323,19 +4806,22 @@ function paintPicks() {
   const items = pickItems();
   const q = $('pickSearch').value || '';
   const shown = items.filter(it => matches(`${it.name} ${it.desc} ${it.skills.join(' ')}`, q));
+  const chosen = items.find(it => it.id === wiz.pick);
 
-  $('step3Label').textContent = a2a ? 'SELECT AGENT CARDS' : 'SELECT OPERATIONS TO EXPOSE AS SKILLS';
+  $('step3Label').innerHTML = (a2a ? 'SELECT AN AGENT CARD' : 'SELECT AN OPERATION TO EXPOSE')
+    + '<span class="ag-req">*</span>';
   $('step3Note').textContent = a2a
-    ? 'Take one card for a single remote agent, or several to compose them into one agent that routes between their skills.'
-    : 'Cogentiq generates an Agent Card for the operations you take and serves it from the Cogentiq Managed A2A server. The service itself is untouched.';
+    ? 'One card per agent. To combine several, register them separately and compose them in an orchestrator.'
+    : 'Cogentiq generates an Agent Card for the operation you take and serves it from the Cogentiq Managed A2A server. The service itself is untouched.';
 
-  $('pickCount').textContent = `${wiz.picks.size} of ${items.length} selected`;
-  $('pickAll').setAttribute('aria-disabled', String(!shown.length || shown.every(it => wiz.picks.has(it.id))));
-  $('pickNone').setAttribute('aria-disabled', String(!wiz.picks.size));
+  $('pickCount').textContent = chosen ? chosen.name : 'None selected';
 
+  /* A radio rather than a checkbox: one card per agent, so the control
+     has to say that before the person has picked a second one. */
   $('pickList').innerHTML = shown.length ? shown.map(it => `
-    <button class="ag-pick ${wiz.picks.has(it.id) ? 'is-on' : ''}" data-pick="${esc(it.id)}" type="button">
-      <span class="cq-checkbox ${wiz.picks.has(it.id) ? 'is-checked' : ''}" style="margin-top:2px">${ic('i-check', 12)}</span>
+    <button class="ag-pick ${wiz.pick === it.id ? 'is-on' : ''}" data-pick="${esc(it.id)}" type="button"
+            role="radio" aria-checked="${wiz.pick === it.id}">
+      <span class="ag-radio__dot" style="margin-top:3px"></span>
       <span class="ag-pick__id">
         <span class="ag-pick__name ${it.mono ? 'ag-mono' : 'cq-body2-med'}">${esc(it.name)}</span>
         ${it.sub ? `<span class="ag-pick__sub ag-mono">${esc(it.sub)}</span>` : ''}
@@ -4346,26 +4832,102 @@ function paintPicks() {
     </button>`).join('')
     : `<p class="ag-picker__empty cq-caption-reg">${items.length
         ? `Nothing matches “${esc(q.trim())}”.`
-        : 'Choose a server on the previous step to see the agent cards it publishes.'}</p>`;
+        : a2a ? 'Choose a server on the previous step to see the agent cards it publishes.'
+              : 'Upload an API document on the previous step to see the operations it describes.'}</p>`;
+
+  paintCardAuth();
+}
+
+/* The credential belongs to the card, so it is asked for once a card is
+   chosen and not before — there is nothing to authenticate against yet. */
+function paintCardAuth() {
+  const chosen = pickItems().find(it => it.id === wiz.pick);
+  $('cardAuth').hidden = !chosen;
+  if (chosen) $('cardAuthSub').textContent = `How Cogentiq proves it may call ${chosen.name}.`;
+  $('cardAuthRadios').querySelectorAll('[data-cauth]').forEach(b =>
+    b.classList.toggle('is-on', b.dataset.cauth === wiz.cardAuth));
+  document.querySelectorAll('[data-cauth-only]').forEach(el => {
+    el.hidden = el.dataset.cauthOnly !== wiz.cardAuth;
+  });
 }
 
 $('pickSearch').addEventListener('input', paintPicks);
-/* Select all takes what is on screen, not the whole catalogue — after a
-   search that is what the words mean. */
-$('pickAll').addEventListener('click', () => {
-  const q = $('pickSearch').value || '';
-  pickItems().filter(it => matches(`${it.name} ${it.desc} ${it.skills.join(' ')}`, q))
-    .forEach(it => wiz.picks.add(it.id));
-  paintWiz();
-});
-$('pickNone').addEventListener('click', () => { wiz.picks.clear(); paintWiz(); });
 $('pickList').addEventListener('click', e => {
   const b = e.target.closest('[data-pick]');
   if (!b) return;
-  const id = b.dataset.pick;
-  wiz.picks.has(id) ? wiz.picks.delete(id) : wiz.picks.add(id);
+  wiz.pick = b.dataset.pick;
+  /* The card says which mechanism it wants, so start there rather than
+     making someone read the badge and match it by hand. */
+  const chosen = pickItems().find(it => it.id === wiz.pick);
+  if (chosen && AUTH_KEY[chosen.tail]) wiz.cardAuth = AUTH_KEY[chosen.tail];
   paintWiz();
 });
+$('cardAuthRadios').addEventListener('click', e => {
+  const b = e.target.closest('[data-cauth]');
+  if (!b) return;
+  wiz.cardAuth = b.dataset.cauth;
+  paintWiz();
+});
+['cardBearer', 'cardApiKey', 'cardUsername', 'cardPassword', 'cardClientId', 'cardClientSecret', 'cardCert']
+  .forEach(id => $(id).addEventListener('input', paintWiz));
+
+/* ── The API document ──
+   Everything a plain API needs is already in its own spec, so the step
+   takes the file and reads it rather than re-asking for its contents. */
+function paintRestFile() {
+  const f = wiz.restFile;
+  $('restDropWrap').hidden = !!f;
+  $('restFile').hidden = !f;
+  if (!f) return;
+  $('restFileName').textContent = f.name;
+  $('restSpin').hidden = f.state !== 'checking';
+  const sub = $('restFileSub');
+  sub.classList.toggle('is-ok', f.state === 'ok');
+  sub.classList.toggle('is-bad', f.state === 'bad');
+  sub.textContent =
+    f.state === 'checking' ? 'Validating…' :
+    f.state === 'ok' ? `Valid ${SPEC_RESULT.version} · ${REST_OPS.length} operations · ${SPEC_RESULT.url}`
+                     : 'Could not read this file — expected OpenAPI 3.x or an agent manifest.';
+}
+
+function takeSpec(name) {
+  wiz.restFile = { name, state: 'checking' };
+  wiz.restOk = false;
+  wiz.pick = null;
+  paintWiz();
+  /* Validation is work, and work that finishes instantly reads as work
+     that never happened — the spinner is the only reason to believe it. */
+  setTimeout(() => {
+    if (!wiz.restFile || wiz.restFile.name !== name) return;
+    wiz.restFile.state = 'ok';
+    wiz.restOk = true;
+    paintWiz();
+  }, 900);
+}
+
+const specInput = Object.assign(document.createElement('input'), {
+  type: 'file', accept: '.json,.yaml,.yml', hidden: true
+});
+document.body.appendChild(specInput);
+specInput.addEventListener('change', () => {
+  const f = specInput.files && specInput.files[0];
+  if (f) takeSpec(f.name);
+  specInput.value = '';
+});
+$('restDrop').addEventListener('click', () => specInput.click());
+$('restSample').addEventListener('click', () => takeSpec('weatherco-openapi.json'));
+$('restFileX').addEventListener('click', () => {
+  wiz.restFile = null; wiz.restOk = false; wiz.pick = null;
+  paintWiz();
+});
+['dragover', 'dragleave', 'drop'].forEach(type =>
+  $('restDrop').addEventListener(type, e => {
+    e.preventDefault();
+    $('restDrop').classList.toggle('is-over', type === 'dragover');
+    if (type !== 'drop') return;
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) takeSpec(f.name);
+  }));
 
 function paintReview() {
   const a2a = wiz.proto === 'a2a';
@@ -4373,30 +4935,33 @@ function paintReview() {
   const s = curServer();
   const rows = [];
   if (direct) {
+    const integ = curInteg();
     rows.push(kv('Protocol', 'Direct connection'));
-    rows.push(kv('Connection name', esc($('dirName').value.trim() || $('wizName').value.trim())));
-    rows.push(kv('Base URL', `<span class="ag-mono">${esc($('dirUrl').value || '—')}</span>`));
-    rows.push(kv('Auth', AUTH_LABEL[wiz.directAuth]));
+    rows.push(kv('Integration', esc(integ ? integ.name : '—')));
+    rows.push(kv('Base URL', `<span class="ag-mono">${esc(integ ? integ.url : '—')}</span>`));
+    rows.push(kv('Auth', esc(integ ? integ.auth : '—')));
     rows.push(kv('Request', `<span class="ag-mono">${esc($('mfMethod').value)} ${esc($('mfPath').value || '—')}</span>`));
     rows.push(kv('Message field', `<span class="ag-mono">${esc($('mfMessage').value || '—')}</span>`));
     rows.push(kv('Response field', `<span class="ag-mono">${esc($('mfResponse').value || '—')}</span>`));
     rows.push(kv('Skill', esc($('mfSkillName').value.trim() || '—')));
     if (wiz.tags.length) rows.push(kv('Tags', wiz.tags.map(t => `<span class="cq-tag">${esc(t)}</span>`).join(' ')));
   } else if (a2a) {
-    const picked = s ? s.cards.filter(c => wiz.picks.has(c.name)) : [];
+    const card = s ? s.cards.find(c => c.name === wiz.pick) : null;
     rows.push(kv('Protocol', 'A2A, called directly'));
     rows.push(kv('A2A server', esc(s ? s.name : '—')));
     rows.push(kv('Endpoint', `<span class="ag-mono">${esc(s ? s.url : '—')}</span>`));
-    rows.push(kv('Agent cards', [...wiz.picks].map(esc).join(', ') || '—'));
-    rows.push(kv('Skills', `<span class="ag-skills" style="justify-content:flex-end">${picked.flatMap(c => c.skills).map(k => `<span class="cq-tag" data-tone="cyan">${esc(k)}</span>`).join('')}</span>`));
-    rows.push(kv('Auth', [...new Set(picked.map(c => c.auth))].join(', ') || '—'));
+    rows.push(kv('Agent card', esc(card ? card.name : '—')));
+    rows.push(kv('Skills', `<span class="ag-skills" style="justify-content:flex-end">${(card ? card.skills : []).map(k => `<span class="cq-tag" data-tone="cyan">${esc(k)}</span>`).join('')}</span>`));
+    rows.push(kv('Auth', AUTH_LABEL[wiz.cardAuth]));
   } else {
+    const op = REST_OPS.find(o => o.op === wiz.pick);
     rows.push(kv('Protocol', 'REST via managed adapter'));
     rows.push(kv('Served from', 'Cogentiq Managed A2A'));
-    rows.push(kv('Base URL', `<span class="ag-mono">${esc($('restUrl').value || '—')}</span>`));
-    rows.push(kv('OpenAPI', `<span class="ag-mono">${esc($('restSpec').value || '—')}</span>`));
-    rows.push(kv('Skills', `<span class="ag-skills" style="justify-content:flex-end">${REST_OPS.filter(o => wiz.picks.has(o.op)).map(o => `<span class="cq-tag" data-tone="cyan">${esc(o.skill)}</span>`).join('')}</span>`));
-    rows.push(kv('Auth', esc($('restAuth').value)));
+    rows.push(kv('API document', esc(wiz.restFile ? wiz.restFile.name : '—')));
+    rows.push(kv('Base URL', `<span class="ag-mono">${esc(SPEC_RESULT.url)}</span>`));
+    rows.push(kv('Operation', `<span class="ag-mono">${esc(op ? op.op : '—')}</span>`));
+    rows.push(kv('Skills', `<span class="ag-skills" style="justify-content:flex-end">${op ? `<span class="cq-tag" data-tone="cyan">${esc(op.skill)}</span>` : ''}</span>`));
+    rows.push(kv('Auth', AUTH_LABEL[wiz.cardAuth]));
   }
   $('wizReview').innerHTML = rows.join('');
 }
@@ -4404,18 +4969,6 @@ function paintReview() {
 /* Whether the step in front of you is answered. The Continue button
    reads this rather than each step deciding for itself, so a new step
    has one place to declare what "done" means. */
-/* ── Direct connect: the auth-type conditional fields ──
-   One credential set at a time — a bearer token has no business asking
-   for a username, and a client cert has no business asking for a
-   password. */
-function paintDirAuth() {
-  wiz.directAuth = $('dirAuthType').value;
-  document.querySelectorAll('[data-auth-only]').forEach(el => {
-    el.hidden = el.dataset.authOnly !== wiz.directAuth;
-  });
-}
-$('dirAuthType').addEventListener('change', () => { paintDirAuth(); paintWiz(); });
-
 /* The skill id tracks the skill name until someone types their own —
    the same rule a URL slug follows anywhere else. */
 $('mfSkillName').addEventListener('input', () => {
@@ -4551,25 +5104,38 @@ function paintSpecStatus() {
 }
 $('mfSpec').addEventListener('input', paintSpecStatus);
 
+/* The credential the chosen auth mechanism actually needs. "None" needs
+   nothing, which is the whole point of offering it. */
+function cardAuthOK() {
+  const a = wiz.cardAuth;
+  if (a === 'none') return true;
+  if (a === 'bearer') return !!$('cardBearer').value.trim();
+  if (a === 'apikey') return !!$('cardApiKey').value.trim();
+  if (a === 'mtls') return !!$('cardCert').value.trim();
+  if (a === 'oauth') return !!$('cardClientId').value.trim() && !!$('cardClientSecret').value.trim();
+  return !!$('cardUsername').value.trim() && !!$('cardPassword').value.trim();
+}
+
 function stepOK() {
   if (wiz.step === 1) return !!$('wizName').value.trim();
   if (wiz.step === 2) {
     if (wiz.proto === 'a2a') return !!curServer();
-    if (wiz.proto === 'direct') return !!$('dirUrl').value.trim();
-    return !!$('restUrl').value.trim();
+    if (wiz.proto === 'direct') return !!curInteg();
+    return wiz.restOk;
   }
   if (wiz.proto === 'direct') {
     return !!$('mfSkillName').value.trim() && !!$('mfPath').value.trim()
       && !!$('mfMessage').value.trim() && !!$('mfResponse').value.trim();
   }
-  return wiz.picks.size > 0;
+  return !!wiz.pick && cardAuthOK();
 }
 function stepHint() {
   if (wiz.step === 1) return stepOK() ? '' : 'Give the agent a name.';
   if (wiz.step === 2) {
     if (wiz.proto === 'a2a') return curServer() ? '' : 'Choose a server, or register a new one.';
-    if (wiz.proto === 'direct') return stepOK() ? '' : 'Give the connection its base URL.';
-    return stepOK() ? '' : 'Give the service its base URL.';
+    if (wiz.proto === 'direct') return curInteg() ? '' : 'Choose an integration, or create a new one.';
+    if (!wiz.restFile) return 'Upload the API document that describes this service.';
+    return wiz.restOk ? '' : 'Wait for the document to finish validating.';
   }
   if (wiz.proto === 'direct') {
     if (!$('mfSkillName').value.trim()) return 'Say what this skill does.';
@@ -4578,7 +5144,8 @@ function stepHint() {
       return 'Say which field carries the message and which holds the reply.';
     return '';
   }
-  return wiz.picks.size ? '' : (wiz.proto === 'a2a' ? 'Select at least one agent card.' : 'Select at least one operation.');
+  if (!wiz.pick) return wiz.proto === 'a2a' ? 'Select an agent card.' : 'Select an operation.';
+  return cardAuthOK() ? '' : 'Enter the credentials for this card.';
 }
 
 function paintWiz() {
@@ -4598,7 +5165,7 @@ function paintWiz() {
   $('pickerGroup').hidden = wiz.proto === 'direct';
   $('manifestGroup').hidden = wiz.proto !== 'direct';
 
-  if (wiz.step === 2) { paintServers(); paintFound(); }
+  if (wiz.step === 2) { paintServers(); paintFound(); paintIntegs(); paintRestFile(); }
   if (wiz.step === 3) {
     if (wiz.proto === 'direct') paintSpecStatus(); else paintPicks();
     paintReview();
@@ -4614,7 +5181,7 @@ function paintWiz() {
 }
 
 [
-  'restUrl', 'wizName', 'dirUrl', 'dirName', 'mfPath', 'mfMessage', 'mfResponse'
+  'wizName', 'mfPath', 'mfMessage', 'mfResponse'
 ].forEach(id => $(id).addEventListener('input', paintWiz));
 $('wizSteps').addEventListener('click', e => {
   const b = e.target.closest('[data-step]');
@@ -4638,28 +5205,26 @@ function createRemote() {
 
   if (wiz.proto === 'a2a') {
     const s = curServer();
-    const picked = s ? s.cards.filter(c => wiz.picks.has(c.name)) : [];
+    const card = s ? s.cards.find(c => c.name === wiz.pick) : null;
     extra = {
       conn: 'a2a',
-      /* Several cards composed into one thing is an orchestrator by any
-         other name: it routes between them. */
-      desc: desc || `A2A client over ${s ? s.name : 'the server'}, composed of ${picked.length} agent card${picked.length > 1 ? 's' : ''}.`,
+      desc: desc || `A2A client over ${s ? s.name : 'the server'}, calling the ${card ? card.name : 'selected'} card.`,
       endpoint: s ? s.url : '',
       server: s ? s.name : '',
-      auth: [...new Set(picked.map(c => c.auth))].join(', '),
-      cards: picked.map(c => c.name),
-      agentSkills: picked.flatMap(c => c.skills),
-      members: picked.length > 1 ? picked.map(c => mem(c.name, c.skills.join(', ') || 'A2A skill', true)) : undefined
+      auth: AUTH_LABEL[wiz.cardAuth],
+      cards: card ? [card.name] : [],
+      agentSkills: card ? card.skills : []
     };
   } else if (wiz.proto === 'direct') {
+    const integ = curInteg();
     const method = $('mfMethod').value, path = $('mfPath').value.trim();
     const skillName = $('mfSkillName').value.trim();
     extra = {
       conn: 'direct',
-      desc: desc || `Direct connection to ${$('dirUrl').value.trim()}, calling ${method} ${path}.`,
-      endpoint: $('dirUrl').value.trim().replace(/^https?:\/\//, ''),
-      server: $('dirName').value.trim() || `${name} connection`,
-      auth: AUTH_LABEL[wiz.directAuth],
+      desc: desc || `Direct connection over ${integ.name}, calling ${method} ${path}.`,
+      endpoint: integ.url.replace(/^https?:\/\//, ''),
+      server: integ.name,
+      auth: integ.auth,
       cards: [skillName],
       agentSkills: [$('mfSkillId').value.trim() || slugify(skillName)],
       reqMethod: method, reqPath: path,
@@ -4667,14 +5232,15 @@ function createRemote() {
       ctxField: $('mfContext').value.trim()
     };
   } else {
+    const op = REST_OPS.find(o => o.op === wiz.pick);
     extra = {
       conn: 'rest',
-      desc: desc || `REST service at ${$('restUrl').value.trim()}, wrapped by the Cogentiq managed adapter and served as A2A.`,
-      endpoint: $('restUrl').value.trim().replace(/^https?:\/\//, ''),
+      desc: desc || `REST service at ${SPEC_RESULT.url}, wrapped by the Cogentiq managed adapter and served as A2A.`,
+      endpoint: SPEC_RESULT.url.replace(/^https?:\/\//, ''),
       server: 'Cogentiq Managed A2A',
-      auth: $('restAuth').value,
+      auth: AUTH_LABEL[wiz.cardAuth],
       cards: [name],
-      agentSkills: REST_OPS.filter(o => wiz.picks.has(o.op)).map(o => o.skill)
+      agentSkills: op ? [op.skill] : []
     };
   }
 
