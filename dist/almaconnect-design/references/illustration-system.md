@@ -213,6 +213,24 @@ clamped to two lines with `-webkit-line-clamp: 2` so long headlines ellipse. Tra
 runs tighter than the page default at **-0.035em** to keep the small text compact —
 this is a deliberate local exception to the ladder's -3%.
 
+**Data Mine — the gather.** A second hover pattern, from a reference the client
+supplied: eight circular avatars sit scattered over the ground, converge into a single
+column, the record rows materialise around them with skeleton bars, and one row lifts
+to reveal what was matched. Two things make it work:
+
+- **The avatars are siblings of the rows, not children.** They have to be visible while
+  the rows are still at `opacity: 0`, which is impossible if they are nested inside them.
+  Each avatar is absolutely positioned at the coordinate it will occupy inside its row
+  (`left: calc(6% + padding)`, `top: 14 + i x pitch + padding`) and animates *from* a
+  scatter offset *to* `translate(0, 0)`.
+- **Vary the easing, not the delay, to break lockstep.** A per-avatar `animation-delay`
+  would shift each one's whole loop out of phase with the rows. Three different
+  `cubic-bezier` curves across the set give the same natural stagger while every element
+  stays on one clock.
+
+Rows scale from `transform-origin: left center` so the lifted row grows rightward and
+the avatar stays put on its left edge.
+
 ### 4.4 The cast
 
 Portrait stock is small and the same faces recur across illustrations, so each
