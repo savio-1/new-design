@@ -454,6 +454,69 @@
     @keyframes task-in{from{opacity:0}to{opacity:1}}
     @keyframes task-out{from{opacity:1}to{opacity:0}}
   }
+
+  /* a finished turn: no second assistant mark, just a quiet 14px line */
+  .live.done .live-ico{visibility:hidden}
+  .live.done .task-cell{font:var(--body3);letter-spacing:-.56px}
+  .live.done .task-final{color:var(--text-tertiary)}
+
+  /* ---------- the question series ---------- */
+  .fu-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .fu-count{font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary);
+    font-variant-numeric:tabular-nums}
+  .fu-prog{display:flex;align-items:center;gap:5px;width:84px}
+  .fu-seg{flex:1;height:3px;padding:0;border-radius:2px;background:var(--line-1);
+    transition:background .2s ease,transform .2s ease}
+  .fu-seg.done{background:var(--text-blue)}
+  .fu-seg.now{background:var(--blue-500);transform:scaleY(1.7)}
+  .fu-seg:disabled{cursor:default}
+  .fu-seg:not(:disabled):hover{background:var(--line-2)}
+  .fu-seg.done:not(:disabled):hover{background:#79c6ff}
+
+  .fu-stage{display:grid}
+  .fu-step{grid-area:1/1;display:flex;flex-direction:column;gap:12px;min-width:0}
+  .step-in-fwd{animation:step-in-fwd 320ms var(--ease) both}
+  .step-in-back{animation:step-in-back 320ms var(--ease) both}
+  .step-out-fwd{animation:step-out-fwd 240ms var(--ease) both;pointer-events:none}
+  .step-out-back{animation:step-out-back 240ms var(--ease) both;pointer-events:none}
+  @keyframes step-in-fwd{from{opacity:0;translate:16px 0}to{opacity:1;translate:0 0}}
+  @keyframes step-in-back{from{opacity:0;translate:-16px 0}to{opacity:1;translate:0 0}}
+  @keyframes step-out-fwd{from{opacity:1;translate:0 0}to{opacity:0;translate:-16px 0}}
+  @keyframes step-out-back{from{opacity:1;translate:0 0}to{opacity:0;translate:16px 0}}
+
+  .fu-custom.filled{border-color:var(--blue-500);background:rgba(13,153,255,.08)}
+
+  .fu-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin-top:4px;padding-top:12px;border-top:1px solid var(--line-3)}
+  .fu-fwd{display:flex;align-items:center;gap:8px}
+  .fu-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:80px;
+    background:var(--bg-card-1);border:1px solid transparent;color:var(--text-button-tonal-2);
+    font:500 14px/20px var(--sans);letter-spacing:-.56px;
+    transition:background .15s ease,color .15s ease,opacity .15s ease}
+  .fu-btn:hover:not(:disabled){background:var(--bg-type-hover);color:var(--text-primary)}
+  .fu-btn:disabled{opacity:.35;cursor:default}
+  .fu-btn.ghost{background:transparent;border-color:var(--line-1)}
+  .fu-btn.ghost:hover:not(:disabled){background:var(--bg-card-1)}
+  .fu-btn.primary{background:var(--blue-500);color:#fff}
+  .fu-btn.primary:hover:not(:disabled){background:#38adff}
+  .fu-btn[hidden]{display:none}
+  .fu-card.sent{pointer-events:none}
+
+  /* ---------- the submitted message: question small, answer full ---------- */
+  .bubble-qa{align-self:flex-end;max-width:530px;background:var(--bg-disabled-tonal-1);
+    border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .qa{display:flex;flex-direction:column;gap:2px}
+  .qa+.qa{padding-top:10px;border-top:1px solid rgba(255,255,255,.14)}
+  .qa-q{font:400 12px/16px var(--sans);letter-spacing:-.24px;color:rgba(255,255,255,.58)}
+  .qa-a{font:400 16px/24px var(--sans);letter-spacing:-.64px;color:var(--text-primary)}
+
+  @media (prefers-reduced-motion:reduce){
+    @keyframes step-in-fwd{from{opacity:0}to{opacity:1}}
+    @keyframes step-in-back{from{opacity:0}to{opacity:1}}
+    @keyframes step-out-fwd{from{opacity:1}to{opacity:0}}
+    @keyframes step-out-back{from{opacity:1}to{opacity:0}}
+    .fu-seg.now{transform:none}
+  }
 </style>
 
 <div class="app">
@@ -516,13 +579,20 @@ const GRAPH_PREVIEW_CSS =
 const GRAPH_OVERLAY_CSS = '<style>#fullscr{display:none!important}</style>';
 
 /* ── icon helper ─────────────────────────────────────────── */
+let icoSeq = 0;
 function svg(name, size) {
   const ic = ICONS[name];
   if (!ic) return '';
+  /* every instance gets its own ids: two copies of one icon would otherwise
+     share a clipPath, and hiding the first would empty the rest */
+  const n = ++icoSeq;
+  const body = ic.body
+    .replace(/id="([^"]+)"/g, (m, id) => `id="${id}_${n}"`)
+    .replace(/url\(#([^)]+)\)/g, (m, id) => `url(#${id}_${n})`);
   /* the Figma exports carried fill="none" on their root <svg>, and these
      bodies inherit it; without it every stroked path fills default black */
   return `<svg viewBox="${ic.vb}" width="${size}" height="${size}" fill="none" `
-    + `aria-hidden="true">${ic.body}</svg>`;
+    + `aria-hidden="true">${body}</svg>`;
 }
 document.querySelectorAll('[data-icon]').forEach((el) => {
   el.innerHTML = svg(el.dataset.icon, Number(el.dataset.size) || 16);
@@ -937,7 +1007,7 @@ function startTurn() {
   liveTog = el('button', 'live-toggle', bar);
   liveTog.innerHTML = '<span class="lt-label">Hide steps</span>'
     + '<span class="chev">' + svg('chevr12', 12) + '</span>';
-  const wrap = el('div', 'trace tucked', thread);
+  const wrap = el('div', 'trace tucked folded', thread);   // closed until asked for
   traceWrap = wrap;
   traceInner = el('div', '', wrap);
   const sync = () => {
@@ -965,6 +1035,7 @@ function endTurn(turn) {
     if (c) c.innerHTML = svg('chevr12', 12);
   });
   turn.wrap.classList.add('folded');
+  turn.head.classList.add('done');            // the answer below carries the only icon
   liveTog.classList.add('closed');
   liveTog.querySelector('.lt-label').textContent = 'Show steps';
   liveTog.setAttribute('aria-expanded', 'false');
@@ -972,134 +1043,260 @@ function endTurn(turn) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   FOLLOW-UP — four options and a custom answer
+   FOLLOW-UP — a short series of questions the reader works
+   through, reviews, and submits as one message
    ══════════════════════════════════════════════════════════ */
-const FOLLOWUP = {
-  q: 'Before this goes to the adjuster, which risk should I take further?',
-  hint: 'Pick one, or type your own instruction.',
-  placeholder: 'Tell me what you need instead…',
-  options: [
-    { label: 'The repair estimate over the pre-authorised limit',
-      task: 'Re-reading clause 7.2 on pre-authorised repairs',
-      reply: 'The estimate is the stronger of the two risks. The workshop quoted 4,820 '
-        + 'against a pre-authorised limit of 3,500, and clause 7.2 lets the insurer decline '
-        + 'anything above that limit unless it was approved in writing before work started. '
-        + 'Nothing in the file shows that approval. The cleanest route is retrospective '
-        + 'authorisation with the damage photos attached, or splitting the invoice so the '
-        + 'covered portion settles and the 1,320 excess sits with the policyholder.' },
-    { label: 'The loss date falling outside the notification window',
-      task: 'Re-reading clause 4.1 on the notification window',
-      reply: 'Notification is the weaker risk but the harder one to cure. The loss is dated '
-        + '3 March and the claim was logged 14 April, which is day 42 against the 30-day '
-        + 'window in clause 4.1. That window is a condition precedent, so the insurer can '
-        + 'decline on it alone. Your best argument is the discharge record already in the '
-        + 'file, which shows the policyholder could not notify for most of that period. '
-        + 'Attach it before the adjuster picks the claim up.' },
-    { label: 'Both, with the exact policy clauses quoted',
-      task: 'Pulling clause 4.1 and clause 7.2 in full',
-      reply: 'Both, with the wording. Clause 7.2 caps pre-authorised repairs at 3,500 and the '
-        + 'estimate is 4,820, so the 1,320 excess needs written approval that is not in the '
-        + 'file. Clause 4.1 sets a 30-day notification window and the claim was logged on '
-        + 'day 42. The estimate is curable through retrospective authorisation. The late '
-        + 'notification needs the discharge record attached as good cause. Both clauses are '
-        + 'now quoted verbatim in the one-pager, each above its finding.' },
-    { label: 'Draft the rejection-risk note for the adjuster',
-      task: 'Drafting the note for the adjuster',
-      reply: 'Drafted. The note opens with the claim reference and the two findings, quotes '
-        + 'clause 7.2 and clause 4.1 in full, and closes by recommending retrospective '
-        + 'authorisation for the 1,320 excess and acceptance of the discharge record as good '
-        + 'cause for the delay. It runs three paragraphs and sits at the top of the '
-        + 'one-pager, so the adjuster reads it before the breakdown.' },
-  ],
-};
-const customReply = (text) =>
-  'On “' + text + '” — here is what the claim file supports. The repair estimate sits 1,320 '
-  + 'over the pre-authorised limit under clause 7.2, and the loss was notified on day 42 '
-  + 'against a 30-day window under clause 4.1. I have folded your question into the '
-  + 'one-pager as a fifth section and flagged the two clauses it touches. Say the word if '
-  + 'you want the wording tightened for the adjuster or for the policyholder.';
+const QUESTIONS = [
+  { q: 'Before this goes out, which risk should I take further?',
+    placeholder: 'Something else…',
+    options: [
+      { label: 'The repair estimate over the pre-authorised limit',
+        task: 'Re-reading clause 7.2 on pre-authorised repairs',
+        reply: 'The estimate is the stronger risk, so I led with it. The workshop quoted '
+          + '4,820 against a pre-authorised limit of 3,500, and clause 7.2 lets the insurer '
+          + 'decline the 1,320 excess unless it was approved in writing before work started. '
+          + 'Nothing in the file shows that approval, so retrospective authorisation is the '
+          + 'route I have recommended.' },
+      { label: 'The loss date falling outside the notification window',
+        task: 'Re-reading clause 4.1 on the notification window',
+        reply: 'I led with the notification gap. The loss is dated 3 March and the claim was '
+          + 'logged 14 April, day 42 against the 30-day window in clause 4.1. That window is '
+          + 'a condition precedent, so it can carry a decline on its own. The discharge '
+          + 'record already in the file is the argument against it, and I have attached it.' },
+      { label: 'Both, with the exact policy clauses quoted',
+        task: 'Pulling clause 4.1 and clause 7.2 in full',
+        reply: 'I took both. Clause 7.2 caps pre-authorised repairs at 3,500 against an '
+          + 'estimate of 4,820, and clause 4.1 sets a 30-day notification window against a '
+          + 'claim logged on day 42. The first is curable through retrospective '
+          + 'authorisation, the second needs the discharge record attached as good cause.' },
+      { label: 'Draft the rejection-risk note for the adjuster',
+        task: 'Drafting the rejection-risk note',
+        reply: 'I drafted the note. It opens with the claim reference and the two findings, '
+          + 'then recommends retrospective authorisation for the 1,320 excess and acceptance '
+          + 'of the discharge record as good cause for the delay.' },
+    ],
+    custom: (t) => 'On “' + t + '” — I worked that against the claim file and put the result '
+      + 'at the top of the one-pager, with the clauses it touches flagged beside it.' },
+
+  { q: 'Who is reading it?',
+    placeholder: 'Someone else…',
+    options: [
+      { label: 'The claims adjuster',
+        reply: 'It is written for the adjuster, so it opens with the decision they have to '
+          + 'make and keeps the policy references in their own language.' },
+      { label: 'The policyholder',
+        reply: 'It is written for the policyholder, so the clause language is translated into '
+          + 'plain terms and the action they need to take sits at the top.' },
+      { label: 'Your internal review file',
+        reply: 'It is filed for internal review, so every figure carries its source, clause '
+          + 'and timestamp for the audit trail.' },
+      { label: 'Legal, ahead of a dispute',
+        reply: 'It is pitched at Legal, so each assertion carries its clause reference and '
+          + 'the facts stay separated from the recommendation.' },
+    ],
+    custom: (t) => 'It is pitched for “' + t + '”, and the tone follows from that.' },
+
+  { q: 'How much of the policy wording should it carry?',
+    placeholder: 'Handle it differently…',
+    options: [
+      { label: 'Quote both clauses in full',
+        reply: 'Both clauses appear verbatim above their findings.' },
+      { label: 'One-line summary of each clause',
+        reply: 'Each clause is condensed to a single line above its finding.' },
+      { label: 'Findings only, no clause text',
+        reply: 'The clause text is left out; only the findings and their references remain.' },
+      { label: 'Add the calculation workings',
+        reply: 'The workings sit underneath: limit, estimate, excess, and the day count from '
+          + 'loss to notification.' },
+    ],
+    custom: (t) => 'On the wording I followed your note: “' + t + '”.' },
+];
 
 const SEND_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" '
   + 'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
   + '<path d="M8 13V3M8 3L3.5 7.5M8 3l4.5 4.5"/></svg>';
+const ARROW_SVG = (dir) => '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" '
+  + 'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+  + (dir === 'left' ? '<path d="M10 3L5 8l5 5"/>' : '<path d="M6 3l5 5-5 5"/>') + '</svg>';
 
-/** render the question, then wait for a pick or a typed answer */
+/** the question series: one at a time, reviewable, submitted as one message */
 async function askFollowUp(mine) {
-  const wrap = el('div', 'followup appear', thread);
-  el('div', '', wrap);                                   // aligns with the answer text
-  const card = el('div', 'fu-card', wrap);
-  const q = el('div', 'fu-q', card);
-  await streamWords(q, FOLLOWUP.q, mine);
-  if (stale(mine)) return null;
-  el('div', 'fu-hint appear', card).textContent = FOLLOWUP.hint;
+  const answers = new Array(QUESTIONS.length).fill(null);
+  const seen = new Set();
+  let idx = 0, locked = false, resolveAll = null;
 
-  const opts = el('div', 'fu-opts', card);
-  const buttons = [];
-  for (let i = 0; i < FOLLOWUP.options.length; i++) {
-    const o = FOLLOWUP.options[i];
-    const b = el('button', 'fu-opt rise', opts);
-    el('span', 'fu-key', b).textContent = String(i + 1);
-    el('span', '', b).textContent = o.label;
-    buttons.push(b);
-    follow();
-    await wait(90);
-    if (stale(mine)) return null;
+  const wrap = el('div', 'followup appear', thread);
+  el('div', '', wrap);                                    // aligns with the answer text
+  const card = el('div', 'fu-card', wrap);
+
+  const top = el('div', 'fu-top', card);
+  const count = el('span', 'fu-count', top);
+  const prog = el('div', 'fu-prog', top);
+  const segs = QUESTIONS.map((_, i) => {
+    const b = el('button', 'fu-seg', prog);
+    b.setAttribute('aria-label', 'Question ' + (i + 1));
+    b.addEventListener('click', () => { if (!locked && (answers[i] || i <= furthest())) go(i); });
+    return b;
+  });
+
+  const stage = el('div', 'fu-stage', card);
+
+  const foot = el('div', 'fu-foot', card);
+  const back = el('button', 'fu-btn ghost', foot);
+  back.innerHTML = ARROW_SVG('left') + '<span>Back</span>';
+  const fwd = el('div', 'fu-fwd', foot);
+  const next = el('button', 'fu-btn', fwd);
+  next.innerHTML = '<span>Next</span>' + ARROW_SVG('right');
+  const submit = el('button', 'fu-btn primary', fwd);
+  submit.innerHTML = '<span>Submit answers</span>' + SEND_SVG;
+
+  const furthest = () => {
+    let f = 0;
+    for (let i = 0; i < answers.length; i++) if (answers[i]) f = Math.min(i + 1, answers.length - 1);
+    return f;
+  };
+  const answeredAll = () => answers.every(Boolean);
+
+  function chrome() {
+    count.textContent = 'Question ' + (idx + 1) + ' of ' + QUESTIONS.length;
+    segs.forEach((s, i) => {
+      s.classList.toggle('done', !!answers[i]);
+      s.classList.toggle('now', i === idx);
+      s.disabled = locked || !(answers[i] || i <= furthest());
+    });
+    const last = idx === QUESTIONS.length - 1;
+    back.disabled = locked || idx === 0;
+    next.hidden = last;
+    next.disabled = locked || !answers[idx];
+    submit.hidden = !last;
+    submit.disabled = locked || !answeredAll();
   }
 
-  const row = el('div', 'fu-custom rise', card);
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.placeholder = FOLLOWUP.placeholder;
-  input.setAttribute('aria-label', 'Your own answer');
-  row.append(input);
-  const send = el('button', 'fu-send', row);
-  send.setAttribute('aria-label', 'Send answer');
-  send.innerHTML = SEND_SVG;
-  input.addEventListener('input', () => send.classList.toggle('on', !!input.value.trim()));
-  follow();
+  /** draw one question, sliding in from whichever side we came */
+  async function go(i, dir) {
+    const from = idx;
+    dir = dir || (i > from ? 'fwd' : 'back');
+    idx = i;
+    const old = stage.querySelector('.fu-step:not(.leaving)');
+    if (old) {
+      old.classList.add('leaving', dir === 'fwd' ? 'step-out-fwd' : 'step-out-back');
+      setTimeout(() => old.remove(), 260);
+    }
+    const Q = QUESTIONS[i];
+    const step = el('div', 'fu-step ' + (dir === 'fwd' ? 'step-in-fwd' : 'step-in-back'), stage);
+    const q = el('div', 'fu-q', step);
+    const fresh = !seen.has(i);
+    seen.add(i);
+    chrome();
+    if (fresh && !stale(mine)) { await streamWords(q, Q.q, mine); }
+    else { q.textContent = Q.q; }
+    if (stale(mine)) return;
 
-  return new Promise((resolve) => {
-    let locked = false;
-    const keys = (e) => {                      // 1–4 pick an option, unless typing
-      if (locked || e.target === input || e.metaKey || e.ctrlKey || e.altKey) return;
-      const i = '1234'.indexOf(e.key);
-      if (i < 0) return;
-      e.preventDefault();
-      pick(FOLLOWUP.options[i], buttons[i]);
+    const opts = el('div', 'fu-opts', step);
+    Q.options.forEach((o, n) => {
+      const b = el('button', 'fu-opt' + (fresh ? ' rise' : ''), opts);
+      b.dataset.label = o.label;
+      if (fresh) b.style.animationDelay = (n * 45) + 'ms';
+      el('span', 'fu-key', b).textContent = String(n + 1);
+      el('span', '', b).textContent = o.label;
+      if (answers[i] && !answers[i].custom && answers[i].label === o.label) b.classList.add('chosen');
+      b.addEventListener('click', () => choose(i, { ...o, custom: false }));
+    });
+
+    const row = el('div', 'fu-custom' + (fresh ? ' rise' : ''), step);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = 'fu-custom-' + i;
+    input.placeholder = Q.placeholder;
+    input.setAttribute('aria-label', 'Your own answer');
+    if (answers[i] && answers[i].custom) { input.value = answers[i].label; row.classList.add('filled'); }
+    row.append(input);
+    const send = el('button', 'fu-send', row);
+    send.setAttribute('aria-label', 'Use this answer');
+    send.innerHTML = SEND_SVG;
+    send.classList.toggle('on', !!input.value.trim());
+    input.addEventListener('input', () => send.classList.toggle('on', !!input.value.trim()));
+    const useCustom = () => {
+      const t = input.value.trim();
+      if (!t) return;
+      choose(i, { label: t, custom: true, task: 'Re-reading the claim against your note',
+                  reply: QUESTIONS[i].custom(t) });
     };
-    document.addEventListener('keydown', keys);
-    const pick = (choice, btn) => {
-      if (locked || stale(mine)) return;
-      locked = true;
-      document.removeEventListener('keydown', keys);
-      input.disabled = true;
-      buttons.forEach((b) => {
-        b.disabled = true;
-        if (b !== btn) b.classList.add('dim');
+    send.addEventListener('click', useCustom);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); useCustom(); } });
+    follow();
+  }
+
+  /** record an answer, then walk forward on its own */
+  function choose(i, answer) {
+    if (locked) return;
+    answers[i] = answer;
+    const step = stage.querySelector('.fu-step:not(.leaving)');
+    if (step) {
+      step.querySelectorAll('.fu-opt').forEach((b) => {
+        b.classList.toggle('chosen', !answer.custom && b.dataset.label === answer.label);
       });
-      if (btn) btn.classList.add('chosen');
-      setTimeout(() => {
-        wrap.classList.add('gone');
-        setTimeout(() => wrap.remove(), 320);
-        resolve(choice);
-      }, btn ? 420 : 120);
-    };
-    buttons.forEach((b, i) => b.addEventListener('click', () => pick(FOLLOWUP.options[i], b)));
-    const custom = () => {
-      const text = input.value.trim();
-      if (!text) return;
-      pick({ label: text, task: 'Re-reading the claim against your question',
-             reply: customReply(text), custom: true }, null);
-    };
-    send.addEventListener('click', custom);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') custom(); });
+      step.querySelector('.fu-custom')?.classList.toggle('filled', !!answer.custom);
+      if (answer.custom) step.querySelector('.fu-send')?.classList.add('on');
+    }
+    chrome();
+    if (i < QUESTIONS.length - 1) setTimeout(() => { if (!locked) go(i + 1, 'fwd'); }, 420);
+    else follow();
+  }
+
+  const keys = (e) => {
+    if (locked || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.tagName === 'INPUT') return;
+    const n = '1234'.indexOf(e.key);
+    if (n >= 0 && n < QUESTIONS[idx].options.length) {
+      e.preventDefault();
+      choose(idx, { ...QUESTIONS[idx].options[n], custom: false });
+      return;
+    }
+    if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); go(idx - 1, 'back'); }
+    if (e.key === 'ArrowRight' && answers[idx] && idx < QUESTIONS.length - 1) {
+      e.preventDefault(); go(idx + 1, 'fwd');
+    }
+  };
+  document.addEventListener('keydown', keys);
+
+  back.addEventListener('click', () => { if (idx > 0) go(idx - 1, 'back'); });
+  next.addEventListener('click', () => { if (answers[idx] && idx < QUESTIONS.length - 1) go(idx + 1, 'fwd'); });
+  submit.addEventListener('click', () => {
+    if (locked || !answeredAll()) return;
+    locked = true;
+    document.removeEventListener('keydown', keys);
+    card.classList.add('sent');
+    chrome();
+    setTimeout(() => {
+      wrap.classList.add('gone');
+      setTimeout(() => wrap.remove(), 320);
+      resolveAll(answers);
+    }, 260);
   });
+
+  await go(0, 'fwd');
+  if (stale(mine)) return null;
+  return new Promise((r) => { resolveAll = r; });
+}
+
+/** the submitted answers, as one message: each question small above its answer */
+function postAnswers(answers) {
+  const b = el('div', 'bubble bubble-qa rise', thread);
+  answers.forEach((a, i) => {
+    const pair = el('div', 'qa', b);
+    el('div', 'qa-q', pair).textContent = QUESTIONS[i].q;
+    el('div', 'qa-a', pair).textContent = a.label;
+  });
+  follow();
+  return b;
 }
 
 /* ══════════════════════════════════════════════════════════
    THE SECOND TURN — the assistant thinks again, then answers
    ══════════════════════════════════════════════════════════ */
-async function respond(choice, mine) {
+async function respond(answers, mine) {
+  const lead = answers[0];
   setComposer(true);
   const turn = startTurn();
   setTask('Thinking');
@@ -1108,7 +1305,7 @@ async function respond(choice, mine) {
   const s1 = section('docsearch');
   await streamWords(s1.title, 'Re-reading the policy wording', mine); if (stale(mine)) return;
   sectionWorking(s1);
-  for (const st of [choice.task, 'Matching the clauses to the claim record']) {
+  for (const st of [lead.task, 'Matching the clauses to the claim record']) {
     const l = statusLine(s1.content);
     await narrate(l, st, mine, 1300); if (stale(mine)) return;
     settle(l, 'file', 16);
@@ -1142,7 +1339,7 @@ async function respond(choice, mine) {
   const ai = el('div', 'answer-ico', ans);
   ai.innerHTML = svg('thinking', 16);
   const body = el('div', 'answer-body', ans);
-  await streamWords(body, choice.reply, mine);
+  await streamWords(body, answers.map((a) => a.reply).join(' '), mine);
   if (stale(mine)) return;
   follow();
 }
@@ -1309,18 +1506,16 @@ async function play() {
   /* 7 — the assistant asks, and waits for the user */
   setPhase(7, OF);
   await wait(500); if (stale(mine)) return;
-  const choice = await askFollowUp(mine);
-  if (!choice || stale(mine)) return;
+  const answers = await askFollowUp(mine);
+  if (!answers || stale(mine)) return;
 
-  const bubble = el('p', 'bubble rise', thread);
-  bubble.textContent = choice.label;
-  follow();
-  await wait(500); if (stale(mine)) return;
+  postAnswers(answers);
+  await wait(600); if (stale(mine)) return;
 
   /* 8 — one more turn, then it rests */
   setPhase(8, OF);
   elapsedT.textContent = 'Working…';
-  await respond(choice, mine);
+  await respond(answers, mine);
   if (stale(mine)) return;
   elapsedT.textContent = 'Finished in ' + Math.round((performance.now() - t0) / 1000) + ' sec';
   setComposer(false);
