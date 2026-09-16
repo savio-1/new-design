@@ -328,9 +328,12 @@
   .sec-fold>div{overflow:hidden;display:flex;flex-direction:column;gap:12px;min-width:0}
   .sec-fold.folded{grid-template-rows:0fr;opacity:0}
   .trace{display:grid;grid-template-rows:1fr;
-    transition:grid-template-rows .55s var(--ease),opacity .5s var(--ease)}
+    transition:grid-template-rows .55s var(--ease),opacity .5s var(--ease),
+      margin-top .55s var(--ease)}
   .trace>div{overflow:hidden;display:flex;flex-direction:column;gap:16px;min-width:0}
-  .trace.folded{grid-template-rows:0fr;opacity:0}
+  /* a zero-height item still takes a gap above and below it; drop one back
+     so the line above sits exactly 16px from whatever follows */
+  .trace.folded{grid-template-rows:0fr;opacity:0;margin-top:-16px}
   .reasoning-toggle{display:flex;align-items:center;gap:6px;align-self:flex-start;
     margin-left:36px;padding:4px 8px;border-radius:8px;
     background:var(--bg-page-3);border:1px solid var(--line-3);
@@ -458,7 +461,13 @@
   /* a finished turn: no second assistant mark, just a quiet 14px line */
   .live.done .live-ico{visibility:hidden}
   .live.done .task-cell{font:var(--body3);letter-spacing:-.56px}
-  .live.done .task-final{color:var(--text-tertiary)}
+  .live.done .live-toggle{display:none}       /* the line carries its own chevron */
+  .see-reason{display:inline-flex;align-items:center;gap:5px;padding:2px 6px;margin-left:-6px;
+    border-radius:6px;color:var(--text-tertiary);font:var(--body3);letter-spacing:-.56px;
+    transition:background .15s ease,color .15s ease}
+  .see-reason:hover{background:var(--bg-card-1);color:var(--text-primary)}
+  .see-reason .chev{display:inline-flex;transition:transform .3s var(--ease)}
+  .see-reason.open .chev{transform:rotate(90deg)}
 
   /* ---------- the question series ---------- */
   .fu-top{display:flex;align-items:center;justify-content:space-between;gap:16px}
@@ -473,7 +482,7 @@
   .fu-seg:not(:disabled):hover{background:var(--line-2)}
   .fu-seg.done:not(:disabled):hover{background:#79c6ff}
 
-  .fu-stage{display:grid}
+  .fu-stage{display:grid;transition:min-height .3s var(--ease)}
   .fu-step{grid-area:1/1;display:flex;flex-direction:column;gap:12px;min-width:0}
   .step-in-fwd{animation:step-in-fwd 320ms var(--ease) both}
   .step-in-back{animation:step-in-back 320ms var(--ease) both}
@@ -1019,13 +1028,11 @@ function startTurn() {
   };
   liveTog.addEventListener('click', () => { wrap.classList.toggle('folded'); sync(); });
   sync();
-  return { head, wrap, t0: performance.now() };
+  return { head, wrap };
 }
 
 /** close a turn: the line stops shimmering and the steps tuck away */
 function endTurn(turn) {
-  const secs = Math.max(1, Math.round((performance.now() - turn.t0) / 1000));
-  setTask('Thought for ' + secs + ' seconds', true);
   document.querySelectorAll('.grp-fold').forEach((f) => f.classList.remove('open'));
   document.querySelectorAll('.grp-head .sec-chev').forEach((c) => c.classList.add('closed'));
   document.querySelectorAll('.row-toggle').forEach((row) => {
@@ -1036,9 +1043,25 @@ function endTurn(turn) {
   });
   turn.wrap.classList.add('folded');
   turn.head.classList.add('done');            // the answer below carries the only icon
-  liveTog.classList.add('closed');
-  liveTog.querySelector('.lt-label').textContent = 'Show steps';
-  liveTog.setAttribute('aria-expanded', 'false');
+  liveTog.hidden = true;                      // and the line carries its own control
+
+  const prev = liveTitle.querySelector('.task-cell:not(.task-out)');
+  if (prev) {
+    prev.classList.remove('task-in');
+    prev.classList.add('task-out');
+    setTimeout(() => prev.remove(), 300);
+  }
+  const cell = el('span', 'task-cell task-in', liveTitle);
+  const open = el('button', 'see-reason', cell);
+  open.innerHTML = '<span>See reasoning</span><span class="chev">' + svg('chevr12', 12) + '</span>';
+  open.setAttribute('aria-expanded', 'false');
+  const wrap = turn.wrap;
+  open.addEventListener('click', () => {
+    const shown = !wrap.classList.toggle('folded');
+    open.classList.toggle('open', shown);
+    open.setAttribute('aria-expanded', String(shown));
+  });
+  liveTitle.dataset.t = '\u0000done';         // nothing further writes to this line
   follow();
 }
 
@@ -1173,10 +1196,16 @@ async function askFollowUp(mine) {
   }
 
   /** draw one question, sliding in from whichever side we came */
+  let release = null;
   async function go(i, dir) {
     const from = idx;
     dir = dir || (i > from ? 'fwd' : 'back');
     idx = i;
+    /* the outgoing step leaves before the incoming one has its options, so
+       hold the old height until the new step is built, then ease to it */
+    const held = stage.offsetHeight;
+    if (held) stage.style.minHeight = held + 'px';
+    clearTimeout(release);
     const old = stage.querySelector('.fu-step:not(.leaving)');
     if (old) {
       old.classList.add('leaving', dir === 'fwd' ? 'step-out-fwd' : 'step-out-back');
@@ -1224,6 +1253,9 @@ async function askFollowUp(mine) {
     };
     send.addEventListener('click', useCustom);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); useCustom(); } });
+
+    stage.style.minHeight = step.offsetHeight + 'px';
+    release = setTimeout(() => { stage.style.minHeight = ''; }, 360);
     follow();
   }
 
