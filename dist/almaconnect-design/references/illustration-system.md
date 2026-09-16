@@ -177,6 +177,58 @@ Two things that only showed up once they were built:
   filenames — and keep p3, p5 and p8 out of artwork entirely, since they sit beside
   real named testimonial authors.
 
+### 4.3 Hover-animated product cards
+
+The homepage product cards are static at rest and animate on card hover. The first
+one, News, is the pattern the other three follow.
+
+**The mechanic.** A rail of cards steps up one card-pitch at a time; a card is lit
+(full opacity, full scale, a soft drop shadow) while it sits in the middle slot, and
+set back otherwise. Both the rail and the lit state run the same cycle length, so
+they stay locked together without JavaScript.
+
+- **Close the loop with duplicates.** Six people listed twice = twelve elements. The
+  rail travels exactly six pitches, which lands on identical content, so the restart
+  is invisible. Do not try to loop six elements.
+- **One timing function does the hold.** `cubic-bezier(.86, 0, .07, 1)` between evenly
+  spaced keyframes spends most of each step parked and crosses quickly — the hold-glide
+  -hold feel, without authoring plateau keyframes.
+- **A negative `animation-delay` runs the animation *forward* from that offset.** Card
+  *j* must be lit at `t = (j - 2) x step`, which means `delay = -(cycle - ((j-2) mod n) x step)`,
+  not `-((j-2) mod n) x step`. Getting this backwards puts the lit card three steps
+  away from the middle, and it looks plausible enough in a screenshot to miss — check it
+  by sampling which card is centred and which is lit at the same instant.
+- **Rest state must equal frame zero**, or the animation jumps when the pointer arrives.
+  Here the third element is lit in the static rules, because the rail at `translateY(0)`
+  parks element three in the middle.
+- **Fade the ends with a mask**, not with a hard edge:
+  `mask-image: linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent)`.
+- Skip animating `filter` — twelve blurring elements is the one thing that costs frames.
+  Opacity plus scale plus the mask gives the depth on their own.
+
+**The person card.** White, radius 16. A 40px face at radius 11 on the left; name
+(Geist 14) and institution (Nunito Sans 12, `--ink-65`) stacked beside it and split
+across exactly the face's height. The news line sits below at Nunito Sans 12/1.42,
+clamped to two lines with `-webkit-line-clamp: 2` so long headlines ellipse. Tracking
+runs tighter than the page default at **-0.035em** to keep the small text compact —
+this is a deliberate local exception to the ladder's -3%.
+
+### 4.4 The cast
+
+Portrait stock is small and the same faces recur across illustrations, so each
+portrait carries **one name for the whole page**. Changing a name per illustration is
+what made the earlier cards read as copy-paste.
+
+| Portrait | Name | Portrait | Name |
+|---|---|---|---|
+| p1 | Dan Whitlock | p7 | Chris Doyle |
+| p2 | Rosa Keller | p9 | Elena Vargas |
+| p4 | Amara Boateng | p10 | Marcus Bell |
+| p6 | Andre Diaz | p11 | Jonas Ek |
+
+`p3`, `p5` and `p8` are reserved — they stand in for the named testimonial authors and
+must not appear in artwork.
+
 ### Generating a new one
 
 1. **Product moment first.** What does the person get? One sentence — that becomes the
