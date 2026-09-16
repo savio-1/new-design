@@ -2459,6 +2459,25 @@ body.cq { margin: 0; }
     }
     @keyframes ag-spin { to { transform: rotate(360deg); } }
 
+    /* ══════════════════════════════════════════════════════════════
+       AGENT PREVIEW
+       The last step shows the thing being made rather than more fields
+       to fill in, so it wears the shape it will have on the Agents
+       page — a mark, a name, what it can do.
+       ══════════════════════════════════════════════════════════════ */
+    .ag-prev {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 16px; border-radius: var(--radius-lg);
+      background: var(--ag-well);
+      border: 1px solid var(--ag-well-border);
+    }
+    .ag-prev__mark { width: 44px; height: 44px; flex: none; display: block; border-radius: 12px; }
+    .ag-prev__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    .ag-prev__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ag-prev__name { color: var(--text-primary); }
+    .ag-prev__desc { color: var(--text-secondary); }
+    .ag-prev__skills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+
     /* A quiet inline action beside a field's label. */
     .ag-picker__act {
       flex: none; color: var(--text-coloured-blue);
@@ -3044,7 +3063,7 @@ body.cq { margin: 0; }
       <div class="cq-seg cq-seg--steps" id="wizSteps" role="tablist" aria-label="Steps">
         <button data-step="1" class="is-active" role="tab" aria-selected="true">Details</button>
         <button data-step="2" role="tab" aria-selected="false">Connection</button>
-        <button data-step="3" role="tab" aria-selected="false">Capabilities</button>
+        <button data-step="3" role="tab" aria-selected="false">Review</button>
       </div>
     </div>
 
@@ -3414,77 +3433,13 @@ body.cq { margin: 0; }
           </div>
         </div>
 
-        <!-- ── The manifest ──
-             There is nothing to pick from a direct connection — there is
-             one skill, and it is whatever the person describes. What
-             replaces the picker is the same conversation a manifest file
-             has: what the skill is, then exactly how a call to it is
-             built and read back. -->
-        <div class="ag-group" id="manifestGroup" hidden>
-          <div class="ag-group__head"><span class="ag-label cq-caption-med">HOW TO CALL IT</span></div>
-          <p class="cq-field__hint cq-caption-reg" style="margin:-6px 0 2px">
-            The card above says what this agent does. This says how to reach it —
-            the part a direct connection maps by hand instead of discovering.
-          </p>
-          <div class="ag-grid2">
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Method</span>
-              <span class="cq-control">
-                <select id="mfMethod"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option></select>
-                <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
-              </span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Path</span>
-              <span class="cq-control"><input id="mfPath" class="ag-mono" placeholder="/v1/chat" /></span>
-            </label>
-          </div>
-          <div class="ag-grid2">
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Message field</span>
-              <span class="cq-control"><input id="mfMessage" class="ag-mono" value="$.query" /></span>
-              <span class="cq-field__hint cq-caption-reg">JSON path where the user's message goes in the request.</span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Response field</span>
-              <span class="cq-control"><input id="mfResponse" class="ag-mono" value="$.answer" /></span>
-              <span class="cq-field__hint cq-caption-reg">JSON path where the reply comes back in the response.</span>
-            </label>
-          </div>
-          <div class="ag-grid2">
-            <label class="cq-field">
-              <span class="cq-field__label-row">
-                <span class="cq-field__label cq-caption-med">Session / context field</span>
-                <span class="cq-caption-reg cq-text-tertiary">Optional</span>
-              </span>
-              <span class="cq-control"><input id="mfContext" class="ag-mono" placeholder="$.session_id" /></span>
-              <span class="cq-field__hint cq-caption-reg">Sent on every call and read back, so a multi-turn chat stays linked.</span>
-            </label>
-            <label class="cq-field">
-              <span class="cq-field__label cq-caption-med">Success status codes</span>
-              <span class="cq-control"><input id="mfSuccess" value="200" /></span>
-              <span class="cq-field__hint cq-caption-reg">Anything else counts as a failed call.</span>
-            </label>
-          </div>
-
-          <div class="ag-group__head" style="margin-top:6px">
-            <span class="ag-label cq-caption-med">OPENAPI SPEC</span>
-            <span class="cq-caption-reg cq-text-tertiary" style="margin-left:auto">Optional</span>
-          </div>
-          <label class="cq-field">
-            <span class="cq-field__label-row">
-              <span class="cq-field__label cq-caption-med">Paste the spec</span>
-              <button class="ag-picker__act" id="mfLoadExample" type="button">Load example</button>
-            </span>
-            <span class="cq-control cq-control--textarea">
-              <textarea id="mfSpec" class="ag-mono" style="height:110px" placeholder='{ "openapi": "3.0.3", "info": { "title": "…" }, "paths": { … } }'></textarea>
-            </span>
-          </label>
-          <p class="ag-note cq-caption-reg" id="mfSpecStatus"></p>
-        </div>
-
         <div class="ag-group">
-          <span class="ag-label cq-caption-med">REVIEW</span>
+          <span class="ag-label cq-caption-med">THE AGENT YOU ARE ADDING</span>
+          <!-- What the workspace will hold once this is registered, shown
+               the way it will look on the Agents page, with the connection
+               facts under it. Two of the three routes have nothing left to
+               ask by this point — this is the whole step. -->
+          <div class="ag-prev" id="agentPreview"></div>
           <div id="wizReview"></div>
         </div>
         <!-- Registration is not activation: a remote agent joins the
@@ -3684,6 +3639,44 @@ body.cq { margin: 0; }
           Cogentiq calls this integration without an auth header.
         </p>
       </div>
+
+      <!-- ── The request shape ──
+           This belongs to the integration, not to each agent built on
+           it: every call to this endpoint is shaped the same way. Asked
+           once here so registering an agent stays a matter of choosing
+           one. -->
+      <div class="ag-sec">
+        <div class="ag-sec__head">
+          <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" style="color:var(--text-coloured-cyan)"><use href="#i-code"/></svg>
+          <span class="ag-sec__title cq-body2-med">Request shape<span class="ag-req">*</span></span>
+        </div>
+        <p class="ag-sec__sub cq-caption-reg">How a call to this endpoint is built, and where the reply comes back.</p>
+        <div class="ag-grid2">
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Method</span>
+            <span class="cq-control">
+              <select id="niMethod"><option>POST</option><option>GET</option><option>PUT</option><option>PATCH</option></select>
+              <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_chevron"/></svg>
+            </span>
+          </label>
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Path<span class="ag-req">*</span></span>
+            <span class="cq-control"><input id="niPath" class="ag-mono" placeholder="/v1/chat" /></span>
+          </label>
+        </div>
+        <div class="ag-grid2">
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Message field<span class="ag-req">*</span></span>
+            <span class="cq-control"><input id="niMessage" class="ag-mono" value="$.query" /></span>
+            <span class="cq-field__hint cq-caption-reg">JSON path where the user's message goes in the request.</span>
+          </label>
+          <label class="cq-field">
+            <span class="cq-field__label cq-caption-med">Response field<span class="ag-req">*</span></span>
+            <span class="cq-control"><input id="niResponse" class="ag-mono" value="$.answer" /></span>
+            <span class="cq-field__hint cq-caption-reg">JSON path where the reply comes back in the response.</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <div class="cq-modal__foot">
@@ -3863,27 +3856,17 @@ const REST_OPS = [
    points at it — so connecting directly is picking one, not retyping it. */
 let INTEGRATIONS = [
   { id: 'i1', name: 'Acme Claims Agent', url: 'https://agents.acme.internal:8443',
-    desc: 'Claims triage service on the internal network.', auth: 'Bearer token', timeout: 60,
-    cards: [
-      { name: 'Triage a claim', desc: 'Assess a claim and assign a severity band.', skills: ['claims.triage'], auth: 'Bearer Token' },
-      { name: 'Estimate repair cost', desc: 'Price a repair from the damage description.', skills: ['claims.estimate'], auth: 'Bearer Token' }
-    ] },
+    desc: 'Assess a claim and assign a severity band.', auth: 'Bearer token', timeout: 60,
+    skills: ['claims.triage'], method: 'POST', path: '/v1/chat', msg: '$.query', resp: '$.answer' },
   { id: 'i2', name: 'Northwind Pricing', url: 'https://pricing.northwind.io',
-    desc: 'Quote and price-break lookups for the distribution catalogue.', auth: 'API key', timeout: 30,
-    cards: [
-      { name: 'Quote a basket', desc: 'Price a basket of SKUs for a named account.', skills: ['pricing.quote'], auth: 'API key' },
-      { name: 'Explain a price break', desc: 'Say which rule produced a given discount.', skills: ['pricing.explain'], auth: 'API key' }
-    ] },
+    desc: 'Price a basket of SKUs for a named account.', auth: 'API key', timeout: 30,
+    skills: ['pricing.quote'], method: 'POST', path: '/quote', msg: '$.input', resp: '$.result' },
   { id: 'i3', name: 'Ledger Core', url: 'https://ledger.fin.internal/v2',
-    desc: 'Read-only access to posted journal entries and balances.', auth: 'mTLS (client certificate)', timeout: 45,
-    cards: [
-      { name: 'Look up a balance', desc: 'Return the posted balance for an account and period.', skills: ['ledger.balance'], auth: 'mTLS' }
-    ] },
+    desc: 'Return the posted balance for an account and period.', auth: 'mTLS (client certificate)', timeout: 45,
+    skills: ['ledger.balance'], method: 'GET', path: '/balance', msg: '$.q', resp: '$.balance' },
   { id: 'i4', name: 'Partner Sandbox', url: 'https://sandbox.partner.dev',
-    desc: 'Shared test endpoint for partner integrations before go-live.', auth: 'None', timeout: 60,
-    cards: [
-      { name: 'Echo a message', desc: 'Returns whatever it is sent, for wiring checks.', skills: ['sandbox.echo'], auth: 'None' }
-    ] }
+    desc: 'Returns whatever it is sent, for wiring checks.', auth: 'None', timeout: 60,
+    skills: ['sandbox.echo'], method: 'POST', path: '/echo', msg: '$.text', resp: '$.text' }
 ];
 
 const mem = (name, role, remote) => ({ name, role, remote: !!remote });
@@ -4484,7 +4467,7 @@ const curInteg = () => INTEGRATIONS.find(i => i.id === wiz.integId);
    cannot parse a file it was handed, but the shape of the answer — the
    spec version, the server it names, and how many operations came out
    of it — is what the step is really showing. */
-const SPEC_RESULT = { version: 'OpenAPI 3.0.3', url: 'https://api.weatherco.com/v2' };
+const SPEC_RESULT = { version: 'OpenAPI 3.0.3', url: 'https://api.weatherco.com/v2', auth: 'API key (declared in the spec)' };
 
 function openWiz() {
   Object.assign(wiz, {
@@ -4497,7 +4480,7 @@ function openWiz() {
     'regName', 'regUrl', 'wizName', 'wizDesc', 'srvSearch', 'csSearch',
     'cardBearer', 'cardApiKey', 'cardApiKeyHeader', 'cardUsername', 'cardPassword',
     'cardClientId', 'cardClientSecret', 'cardCert',
-    'mfTagSearch', 'mfPath', 'mfSpec'
+    'mfTagSearch'
   ].forEach(id => { $(id).value = ''; });
   setTagsOpen(false);
   paintTagChips();
@@ -4505,12 +4488,6 @@ function openWiz() {
   setIntegOpen(false);
   setCsOpen(false);
   $('cardApiKeyHeader').value = 'X-API-Key';
-  $('mfMethod').value = 'POST';
-  $('mfMessage').value = '$.query';
-  $('mfContext').value = '';
-  $('mfResponse').value = '$.answer';
-  $('mfSuccess').value = '200';
-  $('mfSpecStatus').textContent = '';
   paintRestFile();
   paintCardAuth();
   $('wizScrim').classList.add('is-open');
@@ -4669,9 +4646,12 @@ const closeInt = () => $('intScrim').classList.remove('is-open');
 function openInt() {
   wiz.niAuth = 'bearer';
   ['niName', 'niDesc', 'niUrl', 'niBearer', 'niApiKey', 'niClientId', 'niClientSecret',
-   'niTokenUrl', 'niUsername', 'niPassword', 'niCert', 'niKey'].forEach(id => { $(id).value = ''; });
+   'niTokenUrl', 'niUsername', 'niPassword', 'niCert', 'niKey', 'niPath'].forEach(id => { $(id).value = ''; });
   $('niTimeout').value = '60';
   $('niApiKeyHeader').value = 'X-API-Key';
+  $('niMethod').value = 'POST';
+  $('niMessage').value = '$.query';
+  $('niResponse').value = '$.answer';
   paintNiAuth();
   $('intScrim').classList.add('is-open');
   setTimeout(() => $('niName').focus(), 60);
@@ -4696,15 +4676,24 @@ $('niAuthRadios').addEventListener('click', e => {
 $('niSave').addEventListener('click', () => {
   const name = $('niName').value.trim();
   const url = $('niUrl').value.trim();
+  const path = $('niPath').value.trim();
   if (!name) return toast('Give the integration a name.');
   if (!url) return toast('Give the integration a base URL.');
+  if (!path) return toast('Give the request a path.');
   const integ = {
     id: 'i' + Date.now(),
     name,
     desc: $('niDesc').value.trim() || `Connection to ${url.replace(/^https?:\/\//, '')}.`,
     url,
     auth: AUTH_LABEL[wiz.niAuth],
-    timeout: +$('niTimeout').value || 60
+    timeout: +$('niTimeout').value || 60,
+    /* An integration is one agent card, so it carries the skill that
+       card exposes and the shape of the call behind it. */
+    skills: [slugify(name)],
+    method: $('niMethod').value,
+    path,
+    msg: $('niMessage').value.trim() || '$.query',
+    resp: $('niResponse').value.trim() || '$.answer'
   };
   INTEGRATIONS = [integ, ...INTEGRATIONS];
   /* Created from the picker, so it is the answer to the picker. */
@@ -4768,27 +4757,15 @@ $('regSave').addEventListener('click', () => {
 });
 
 /* ── The agent cards on offer ──
-   Every route ends at one card; only where the cards come from differs.
-   A server publishes them, an integration publishes them, and an
-   OpenAPI document implies one per operation. */
+   Only the server route has a choice left to make here. An integration
+   is itself one agent card, and an API document describes one agent
+   whose skills are its operations — both are already decided by the
+   time this step opens. */
 function pickItems() {
-  if (wiz.proto === 'a2a') {
-    const s = curServer();
-    return s ? s.cards.map(c => ({ id: c.name, name: c.name, sub: c.path, desc: c.desc, skills: c.skills, tail: c.auth })) : [];
-  }
-  if (wiz.proto === 'direct') {
-    const i = curInteg();
-    return i ? (i.cards || []).map(c => ({ id: c.name, name: c.name, sub: '', desc: c.desc, skills: c.skills, tail: c.auth })) : [];
-  }
-  if (!wiz.restOk) return [];
-  return REST_OPS.map(o => ({ id: o.op, name: o.op, sub: '', desc: o.desc, skills: [o.skill], tail: '', mono: true }));
+  if (wiz.proto !== 'a2a') return [];
+  const s = curServer();
+  return s ? s.cards.map(c => ({ id: c.name, name: c.name, sub: c.path, desc: c.desc, skills: c.skills, tail: c.auth })) : [];
 }
-
-const EMPTY_HINT = {
-  a2a: 'Choose a server on the previous step to see the agent cards it publishes.',
-  rest: 'Upload an API document on the previous step to see the operations it describes.',
-  direct: 'Choose an integration on the previous step to see the agent cards it publishes.'
-};
 
 function setCsOpen(on) {
   wiz.csOpen = on;
@@ -4800,19 +4777,15 @@ function setCsOpen(on) {
 
 function paintPicks() {
   const items = pickItems();
-  /* Renaming the manifest's skill, swapping servers or dropping the API
-     document all change what is on offer; a selection that is no longer
-     one of them is not a selection. */
+  /* Switching servers changes what is on offer; a selection that is no
+     longer one of them is not a selection. */
   if (wiz.pick && !items.some(it => it.id === wiz.pick)) wiz.pick = null;
   const q = $('csSearch').value || '';
   const shown = items.filter(it => matches(`${it.name} ${it.desc} ${it.skills.join(' ')}`, q));
   const chosen = items.find(it => it.id === wiz.pick);
 
-  $('step3Note').textContent = wiz.proto === 'a2a'
-    ? 'One card per agent. To combine several, register them separately and compose them in an orchestrator.'
-    : wiz.proto === 'rest'
-      ? 'Cogentiq generates an Agent Card for the operation you take and serves it from the Cogentiq Managed A2A server. The service itself is untouched.'
-      : 'The cards this integration publishes. One card per agent — say below how a call to it is shaped.';
+  $('step3Note').textContent =
+    'One card per agent. To combine several, register them separately and compose them in an orchestrator.';
 
   $('csName').textContent = chosen ? chosen.name : 'Select an agent card';
   $('csName').classList.toggle('is-empty', !chosen);
@@ -4838,7 +4811,8 @@ function paintPicks() {
       <svg class="cq-ic ag-opt__tick" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-tick"/></svg>
     </button>`).join('')
     : `<p class="ag-sel__empty cq-caption-reg">${items.length
-        ? `Nothing matches “${esc(q.trim())}”.` : EMPTY_HINT[wiz.proto]}</p>`;
+        ? `Nothing matches “${esc(q.trim())}”.`
+        : 'Choose a server on the previous step to see the agent cards it publishes.'}</p>`;
 
   paintCardAuth();
 }
@@ -4938,41 +4912,93 @@ $('restFileX').addEventListener('click', () => {
     if (f) takeSpec(f.name);
   }));
 
-function paintReview() {
-  const a2a = wiz.proto === 'a2a';
-  const direct = wiz.proto === 'direct';
-  const s = curServer();
-  const rows = [];
-  if (direct) {
-    const integ = curInteg();
-    rows.push(kv('Protocol', 'Direct connection'));
-    rows.push(kv('Integration', esc(integ ? integ.name : '—')));
-    rows.push(kv('Base URL', `<span class="ag-mono">${esc(integ ? integ.url : '—')}</span>`));
-    rows.push(kv('Integration auth', esc(integ ? integ.auth : '—')));
-    rows.push(kv('Agent card', esc(wiz.pick || '—')));
-    rows.push(kv('Card auth', AUTH_LABEL[wiz.cardAuth]));
-    rows.push(kv('Request', `<span class="ag-mono">${esc($('mfMethod').value)} ${esc($('mfPath').value || '—')}</span>`));
-    rows.push(kv('Message field', `<span class="ag-mono">${esc($('mfMessage').value || '—')}</span>`));
-    rows.push(kv('Response field', `<span class="ag-mono">${esc($('mfResponse').value || '—')}</span>`));
-  } else if (a2a) {
+/* ── The agent this wizard would create, as it stands ──
+   The preview, the review rows and the registration itself all read
+   this one function, so what the last step shows and what the
+   workspace gets cannot drift apart. */
+function draft() {
+  const name = $('wizName').value.trim();
+  const desc = $('wizDesc').value.trim();
+  const base = {
+    name, type: 'remote',
+    /* Registered, not live — it enters governance review first. */
+    state: 'review',
+    by: 'You', tags: [...wiz.tags], updated: 'just now', runs: 0
+  };
+
+  if (wiz.proto === 'a2a') {
+    const s = curServer();
     const card = s ? s.cards.find(c => c.name === wiz.pick) : null;
-    rows.push(kv('Protocol', 'A2A, called directly'));
-    rows.push(kv('A2A server', esc(s ? s.name : '—')));
-    rows.push(kv('Endpoint', `<span class="ag-mono">${esc(s ? s.url : '—')}</span>`));
-    rows.push(kv('Agent card', esc(card ? card.name : '—')));
-    rows.push(kv('Skills', `<span class="ag-skills" style="justify-content:flex-end">${(card ? card.skills : []).map(k => `<span class="cq-tag" data-tone="cyan">${esc(k)}</span>`).join('')}</span>`));
-    rows.push(kv('Auth', AUTH_LABEL[wiz.cardAuth]));
-  } else {
-    const op = REST_OPS.find(o => o.op === wiz.pick);
-    rows.push(kv('Protocol', 'REST via managed adapter'));
-    rows.push(kv('Served from', 'Cogentiq Managed A2A'));
-    rows.push(kv('API document', esc(wiz.restFile ? wiz.restFile.name : '—')));
-    rows.push(kv('Base URL', `<span class="ag-mono">${esc(SPEC_RESULT.url)}</span>`));
-    rows.push(kv('Operation', `<span class="ag-mono">${esc(op ? op.op : '—')}</span>`));
-    rows.push(kv('Skills', `<span class="ag-skills" style="justify-content:flex-end">${op ? `<span class="cq-tag" data-tone="cyan">${esc(op.skill)}</span>` : ''}</span>`));
-    rows.push(kv('Auth', AUTH_LABEL[wiz.cardAuth]));
+    return Object.assign(base, {
+      conn: 'a2a',
+      desc: desc || (card ? card.desc : `A2A client over ${s ? s.name : 'the server'}.`),
+      endpoint: s ? s.url : '',
+      server: s ? s.name : '',
+      auth: AUTH_LABEL[wiz.cardAuth],
+      cards: card ? [card.name] : [],
+      agentSkills: card ? card.skills : []
+    });
   }
-  /* Tags describe the agent whichever way it was connected. */
+
+  if (wiz.proto === 'direct') {
+    const i = curInteg();
+    return Object.assign(base, i ? {
+      conn: 'direct',
+      desc: desc || i.desc,
+      endpoint: i.url.replace(/^https?:\/\//, ''),
+      server: i.name,
+      auth: i.auth,
+      cards: [i.name],
+      agentSkills: i.skills,
+      reqMethod: i.method, reqPath: i.path, msgField: i.msg, respField: i.resp
+    } : { conn: 'direct', desc, endpoint: '', server: '', auth: '—', cards: [], agentSkills: [] });
+  }
+
+  /* One agent for the whole document, with a skill per operation — the
+     spec is the definition, so there is nothing left to choose. */
+  return Object.assign(base, {
+    conn: 'rest',
+    desc: desc || `Wraps ${SPEC_RESULT.url} as an agent, with one skill for each of its ${REST_OPS.length} operations.`,
+    endpoint: SPEC_RESULT.url.replace(/^https?:\/\//, ''),
+    server: 'Cogentiq Managed A2A',
+    auth: SPEC_RESULT.auth,
+    cards: [name],
+    agentSkills: REST_OPS.map(o => o.skill)
+  });
+}
+
+function paintReview() {
+  const a = draft();
+  const skills = a.agentSkills || [];
+
+  $('agentPreview').innerHTML = `
+    <img class="ag-prev__mark" src="${markFor(a)}" alt="" />
+    <span class="ag-prev__id">
+      <span class="ag-prev__top">
+        <span class="ag-prev__name cq-body1-med">${esc(a.name || 'Untitled agent')}</span>
+        ${badge('grey', 'Remote')}
+        ${badge('orange', 'In review')}
+      </span>
+      <span class="ag-prev__desc cq-body2-reg">${esc(a.desc)}</span>
+      ${skills.length ? `<span class="ag-prev__skills">${skills.map(k =>
+        `<span class="cq-tag" data-tone="cyan">${esc(k)}</span>`).join('')}</span>` : ''}
+    </span>`;
+
+  const rows = [];
+  if (a.conn === 'a2a') {
+    rows.push(kv('Protocol', 'A2A, called directly'));
+    rows.push(kv('A2A server', esc(a.server || '—')));
+  } else if (a.conn === 'direct') {
+    rows.push(kv('Protocol', 'Direct connection'));
+    rows.push(kv('Integration', esc(a.server || '—')));
+  } else {
+    rows.push(kv('Protocol', 'REST via managed adapter'));
+    rows.push(kv('Served from', esc(a.server)));
+    rows.push(kv('API document', esc(wiz.restFile ? wiz.restFile.name : '—')));
+  }
+  rows.push(kv('Endpoint', `<span class="ag-mono">${esc(a.endpoint || '—')}</span>`));
+  if (a.reqPath) rows.push(kv('Request', `<span class="ag-mono">${esc(a.reqMethod)} ${esc(a.reqPath)}</span>`));
+  rows.push(kv('Auth', esc(a.auth)));
   if (wiz.tags.length) rows.push(kv('Tags', wiz.tags.map(t => `<span class="cq-tag">${esc(t)}</span>`).join(' ')));
   $('wizReview').innerHTML = rows.join('');
 }
@@ -5060,53 +5086,6 @@ document.addEventListener('click', e => {
   setTagsOpen(false);
 });
 
-/* A worked example, scoped to the one field it sits beside: it fills the
-   spec, not the rest of the form, because that is the only thing its
-   label promises. */
-const EXAMPLE_SPEC = {
-  openapi: '3.0.3',
-  info: { title: 'Claims API', version: '1.0.0' },
-  paths: {
-    '/v1/chat': {
-      post: {
-        operationId: 'chat',
-        requestBody: { content: { 'application/json': { schema: {
-          type: 'object',
-          properties: { query: { type: 'string' }, session_id: { type: 'string' } },
-          required: ['query']
-        } } } },
-        responses: { 200: { content: { 'application/json': { schema: {
-          type: 'object',
-          properties: { answer: { type: 'string' }, session_id: { type: 'string' } }
-        } } } } }
-      }
-    }
-  }
-};
-$('mfLoadExample').addEventListener('click', () => {
-  $('mfSpec').value = JSON.stringify(EXAMPLE_SPEC, null, 2);
-  paintSpecStatus();
-});
-
-/* Real, if shallow, feedback: the spec only has to parse to be useful
-   here — Cogentiq is not compiling a client from it in this mock. */
-function paintSpecStatus() {
-  const raw = $('mfSpec').value.trim();
-  const el = $('mfSpecStatus');
-  if (!raw) { el.textContent = ''; el.style.color = ''; return; }
-  try {
-    const spec = JSON.parse(raw);
-    const opCount = Object.values(spec.paths || {})
-      .flatMap(methods => Object.keys(methods)).length;
-    el.textContent = `✓ Valid JSON — ${opCount} operation${opCount === 1 ? '' : 's'} found.`;
-    el.style.color = 'var(--text-coloured-green)';
-  } catch (e) {
-    el.textContent = '✕ Not valid JSON — check for a missing comma or bracket.';
-    el.style.color = 'var(--text-coloured-red)';
-  }
-}
-$('mfSpec').addEventListener('input', paintSpecStatus);
-
 /* The credential the chosen auth mechanism actually needs. "None" needs
    nothing, which is the whole point of offering it. */
 function cardAuthOK() {
@@ -5126,9 +5105,8 @@ function stepOK() {
     if (wiz.proto === 'direct') return !!curInteg();
     return wiz.restOk;
   }
-  if (wiz.proto === 'direct'
-      && !($('mfPath').value.trim() && $('mfMessage').value.trim()
-           && $('mfResponse').value.trim())) return false;
+  /* Only the server route still has a question on the last step. */
+  if (wiz.proto !== 'a2a') return true;
   return !!wiz.pick && cardAuthOK();
 }
 function stepHint() {
@@ -5139,21 +5117,18 @@ function stepHint() {
     if (!wiz.restFile) return 'Upload the API document that describes this service.';
     return wiz.restOk ? '' : 'Wait for the document to finish validating.';
   }
-  /* In the order the step asks for them. */
+  if (wiz.proto !== 'a2a') return '';
   if (!wiz.pick) return 'Select an agent card.';
-  if (!cardAuthOK()) return 'Enter the credentials for this card.';
-  if (wiz.proto === 'direct') {
-    if (!$('mfPath').value.trim()) return 'Give the request a path.';
-    if (!$('mfMessage').value.trim() || !$('mfResponse').value.trim())
-      return 'Say which field carries the message and which holds the reply.';
-  }
-  return '';
+  return cardAuthOK() ? '' : 'Enter the credentials for this card.';
 }
 
 function paintWiz() {
   document.querySelectorAll('.ag-pane').forEach(p => { p.hidden = +p.dataset.pane !== wiz.step; });
   document.querySelectorAll('[data-only]').forEach(el => { el.hidden = el.dataset.only !== wiz.proto; });
   $('regForm').hidden = !(wiz.proto === 'a2a' && wiz.regOpen);
+  /* An integration is one agent card and a spec describes one agent, so
+     only the server route has a card left to choose. */
+  $('pickerGroup').hidden = wiz.proto !== 'a2a';
 
   $('wizSteps').querySelectorAll('[data-step]').forEach(b => {
     const on = +b.dataset.step === wiz.step;
@@ -5166,11 +5141,9 @@ function paintWiz() {
 
   /* The card select is the last thing every route does. Only the
      manifest above it is route-specific. */
-  $('manifestGroup').hidden = wiz.proto !== 'direct';
 
   if (wiz.step === 2) { paintServers(); paintFound(); paintIntegs(); paintRestFile(); }
   if (wiz.step === 3) {
-    if (wiz.proto === 'direct') paintSpecStatus();
     paintPicks();
     paintReview();
   }
@@ -5185,7 +5158,7 @@ function paintWiz() {
 }
 
 [
-  'wizName', 'mfPath', 'mfMessage', 'mfResponse'
+  'wizName'
 ].forEach(id => $(id).addEventListener('input', paintWiz));
 $('wizSteps').addEventListener('click', e => {
   const b = e.target.closest('[data-step]');
@@ -5203,58 +5176,8 @@ $('wizNext').addEventListener('click', () => {
 });
 
 function createRemote() {
-  const name = $('wizName').value.trim();
-  const desc = $('wizDesc').value.trim();
-  let extra;
-
-  if (wiz.proto === 'a2a') {
-    const s = curServer();
-    const card = s ? s.cards.find(c => c.name === wiz.pick) : null;
-    extra = {
-      conn: 'a2a',
-      desc: desc || `A2A client over ${s ? s.name : 'the server'}, calling the ${card ? card.name : 'selected'} card.`,
-      endpoint: s ? s.url : '',
-      server: s ? s.name : '',
-      auth: AUTH_LABEL[wiz.cardAuth],
-      cards: card ? [card.name] : [],
-      agentSkills: card ? card.skills : []
-    };
-  } else if (wiz.proto === 'direct') {
-    const integ = curInteg();
-    const card = (integ.cards || []).find(c => c.name === wiz.pick);
-    const method = $('mfMethod').value, path = $('mfPath').value.trim();
-    extra = {
-      conn: 'direct',
-      desc: desc || `Direct connection over ${integ.name}, calling ${method} ${path}.`,
-      endpoint: integ.url.replace(/^https?:\/\//, ''),
-      server: integ.name,
-      auth: AUTH_LABEL[wiz.cardAuth],
-      cards: card ? [card.name] : [],
-      agentSkills: card ? card.skills : [],
-      reqMethod: method, reqPath: path,
-      msgField: $('mfMessage').value.trim(), respField: $('mfResponse').value.trim(),
-      ctxField: $('mfContext').value.trim()
-    };
-  } else {
-    const op = REST_OPS.find(o => o.op === wiz.pick);
-    extra = {
-      conn: 'rest',
-      desc: desc || `REST service at ${SPEC_RESULT.url}, wrapped by the Cogentiq managed adapter and served as A2A.`,
-      endpoint: SPEC_RESULT.url.replace(/^https?:\/\//, ''),
-      server: 'Cogentiq Managed A2A',
-      auth: AUTH_LABEL[wiz.cardAuth],
-      cards: [name],
-      agentSkills: op ? [op.skill] : []
-    };
-  }
-
-  AGENTS = [Object.assign({
-    name,
-    type: 'remote',
-    /* Registered, not live — it enters governance review first. */
-    state: 'review',
-    by: 'You', tags: [...wiz.tags], updated: 'just now', runs: 0
-  }, extra), ...AGENTS];
+  const a = draft();
+  AGENTS = [a, ...AGENTS];
 
   closeWiz();
   state.src = 'workspace'; state.type = 'remote'; state.q = ''; state.st = 'any';
@@ -5267,7 +5190,7 @@ function createRemote() {
   cqSegSync($('srcTabs'));
   render();
   openPanel(0);
-  toast(`${name} registered — awaiting governance approval.`);
+  toast(`${a.name} registered — awaiting governance approval.`);
 }
 
 /* ════════════════════════════════════════════════════════════════════
