@@ -1142,16 +1142,21 @@ button, input, select, textarea, td, th {
   17%, 95.5%   { opacity: 0.4; scale: 0.93; box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
   99%, 100%    { opacity: 1; scale: 1; box-shadow: 0 14px 30px rgba(4, 48, 43, 0.14); }
 }
-.pcard:hover .nstack__rail { animation: newsRoll 24s cubic-bezier(0.5, 0, 0.2, 1) infinite; }
-.pcard:hover .ncard { animation: newsLit 24s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-.pcard:hover .ncard:nth-child(6n + 1) { animation-delay: -8s; }
-.pcard:hover .ncard:nth-child(6n + 2) { animation-delay: -4s; }
-.pcard:hover .ncard:nth-child(6n + 3) { animation-delay: 0s; }
-.pcard:hover .ncard:nth-child(6n + 4) { animation-delay: -20s; }
-.pcard:hover .ncard:nth-child(6n + 5) { animation-delay: -16s; }
-.pcard:hover .ncard:nth-child(6n + 6) { animation-delay: -12s; }
+/* The cycle is always attached but parked. Hovering resumes it and leaving
+   freezes it where it stands, instead of starting from scratch — and the
+   whole thing is offset 2.6s in, so the first glide lands 0.8s after the
+   pointer arrives rather than after a full 3.4s hold. */
+.nstack__rail { animation: newsRoll 24s cubic-bezier(0.5, 0, 0.2, 1) infinite both; animation-delay: -2.6s; animation-play-state: paused; }
+.ncard { animation: newsLit 24s cubic-bezier(0.4, 0, 0.2, 1) infinite both; animation-play-state: paused; }
+.ncard:nth-child(6n + 1) { animation-delay: -10.6s; }
+.ncard:nth-child(6n + 2) { animation-delay: -6.6s; }
+.ncard:nth-child(6n + 3) { animation-delay: -2.6s; }
+.ncard:nth-child(6n + 4) { animation-delay: -22.6s; }
+.ncard:nth-child(6n + 5) { animation-delay: -18.6s; }
+.ncard:nth-child(6n + 6) { animation-delay: -14.6s; }
+.pcard:hover .nstack__rail, .pcard:hover .ncard { animation-play-state: running; }
 @media (prefers-reduced-motion: reduce) {
-  .pcard:hover .nstack__rail, .pcard:hover .ncard { animation: none; }
+  .nstack__rail, .ncard, .pcard:hover .nstack__rail, .pcard:hover .ncard { animation: none; }
 }
 
 /* ---- 02 · Data Mine — people found on the open web, gathered into your
@@ -1164,7 +1169,7 @@ button, input, select, textarea, td, th {
   -webkit-mask-image: linear-gradient(180deg, #000 0, #000 72%, transparent 97%);
   mask-image: linear-gradient(180deg, #000 0, #000 72%, transparent 97%);
 }
-.dmrows { position: absolute; left: 6%; right: 6%; top: 14px; display: flex; flex-direction: column; gap: 9px; }
+.dmrows { position: absolute; left: 6%; right: 6%; top: 14px; z-index: 1; display: flex; flex-direction: column; gap: 9px; }
 .dmrow {
   display: flex; align-items: center; gap: 10px;
   height: 56px; padding: 10px;
@@ -1189,49 +1194,64 @@ button, input, select, textarea, td, th {
   letter-spacing: -0.035em; line-height: 1.2; color: var(--ink-65);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.dmfaces { position: absolute; inset: 0; }
-.dmface {
-  position: absolute; left: calc(6% + 10px); top: var(--y);
-  width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
+.dmfaces { position: absolute; inset: 0; z-index: 2; }
+.dmface { position: absolute; left: calc(6% + 10px); top: var(--y); width: 36px; height: 36px; }
+.dmface img {
+  width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;
   box-shadow: 0 0 0 3px #fff, 0 6px 14px rgba(4, 48, 43, 0.12);
 }
 /* at rest: assembled, with the third record open */
-.dmrow--lit { transform: scale(1.04); box-shadow: 0 16px 34px rgba(4, 48, 43, 0.18); }
+.dmrow--lit { position: relative; z-index: 3; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
 .dmrow--lit .dmrow__skel { opacity: 0; }
 .dmrow--lit .dmrow__real { opacity: 1; }
 
 @keyframes dmFly {
-  0%, 3%    { transform: translate(var(--sx), var(--sy)) scale(0.6); opacity: 0; }
-  8%, 22%   { transform: translate(var(--sx), var(--sy)) scale(1); opacity: 1; }
-  38%, 88%  { transform: translate(0, 0) scale(1); opacity: 1; }
-  95%, 100% { transform: translate(var(--sx), var(--sy)) scale(0.6); opacity: 0; }
+  0%        { transform: translate(var(--sx), var(--sy)) scale(0.6); opacity: 0; }
+  4%, 20%   { transform: translate(var(--sx), var(--sy)) scale(1); opacity: 1; }
+  36%, 93%  { transform: translate(0, 0) scale(1); opacity: 1; }
+  97%, 100% { transform: translate(0, 0) scale(0.92); opacity: 0; }
 }
+/* the drift while they are still scattered — on the image, not the wrapper,
+   so it does not fight the fly transform */
+@keyframes dmFloat {
+  0%, 4%    { translate: 0 0; }
+  9%        { translate: var(--fx) var(--fy); }
+  15%       { translate: calc(var(--fx) * -0.7) calc(var(--fy) * -0.9); }
+  20%, 100% { translate: 0 0; }
+}
+/* the unlit rows recede while one comes forward */
 @keyframes dmCard {
-  0%, 32%   { opacity: 0; transform: scale(0.96); }
-  42%, 88%  { opacity: 1; transform: scale(1); }
-  95%, 100% { opacity: 0; transform: scale(0.96); }
+  0%, 30%   { opacity: 0; transform: scale(0.96); }
+  40%, 48%  { opacity: 1; transform: scale(1); }
+  56%, 88%  { opacity: 0.6; transform: scale(0.985); }
+  93%       { opacity: 1; transform: scale(1); }
+  97%, 100% { opacity: 0; transform: scale(0.96); }
 }
 @keyframes dmLift {
-  0%, 32%   { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  42%, 50%  { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  57%, 85%  { opacity: 1; transform: scale(1.04); box-shadow: 0 16px 34px rgba(4, 48, 43, 0.18); }
-  90%       { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  95%, 100% { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  0%, 30%   { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  40%, 48%  { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  56%, 88%  { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
+  93%       { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  97%, 100% { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
 }
-@keyframes dmSkelOut { 0%, 50% { opacity: 1; } 57%, 85% { opacity: 0; } 91%, 100% { opacity: 1; } }
-@keyframes dmRealIn  { 0%, 50% { opacity: 0; } 57%, 85% { opacity: 1; } 91%, 100% { opacity: 0; } }
+@keyframes dmSkelOut { 0%, 48% { opacity: 1; } 56%, 88% { opacity: 0; } 94%, 100% { opacity: 1; } }
+@keyframes dmRealIn  { 0%, 48% { opacity: 0; } 56%, 88% { opacity: 1; } 94%, 100% { opacity: 0; } }
 
-.pcard:hover .dmface { animation: dmFly 11s cubic-bezier(0.5, 0, 0.15, 1) infinite; }
+/* Unlike the news rail, this one runs only while hovered, so every hover
+   replays the story from the top — scattered, drifting, gathered, opened.
+   At rest the static rules above hold the finished state. */
+.pcard:hover .dmface { animation: dmFly 9.5s cubic-bezier(0.4, 0, 0.15, 1) infinite; }
+.pcard:hover .dmface img { animation: dmFloat 9.5s cubic-bezier(0.45, 0, 0.55, 1) infinite; }
 /* three curves across the set so they do not arrive in lockstep */
-.pcard:hover .dmface:nth-child(3n + 2) { animation-timing-function: cubic-bezier(0.42, 0, 0.22, 1); }
-.pcard:hover .dmface:nth-child(3n + 3) { animation-timing-function: cubic-bezier(0.6, 0, 0.1, 1); }
-.pcard:hover .dmrow { animation: dmCard 11s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .dmrow--lit { animation: dmLift 11s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .dmrow--lit .dmrow__skel { animation: dmSkelOut 11s ease infinite; }
-.pcard:hover .dmrow--lit .dmrow__real { animation: dmRealIn 11s ease infinite; }
+.pcard:hover .dmface:nth-child(3n + 2) { animation-timing-function: cubic-bezier(0.34, 0, 0.2, 1); }
+.pcard:hover .dmface:nth-child(3n + 3) { animation-timing-function: cubic-bezier(0.5, 0, 0.12, 1); }
+.pcard:hover .dmrow { animation: dmCard 9.5s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+.pcard:hover .dmrow--lit { animation: dmLift 9.5s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+.pcard:hover .dmrow--lit .dmrow__skel { animation: dmSkelOut 9.5s ease infinite; }
+.pcard:hover .dmrow--lit .dmrow__real { animation: dmRealIn 9.5s ease infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .pcard:hover .dmface, .pcard:hover .dmrow,
-  .pcard:hover .dmrow__skel, .pcard:hover .dmrow__real { animation: none; }
+  .pcard:hover .dmface, .pcard:hover .dmface img, .pcard:hover .dmrow,
+  .pcard:hover .dmrow--lit .dmrow__skel, .pcard:hover .dmrow--lit .dmrow__real { animation: none; }
 }
 
 /* ---- 03 · Institutions — screen pair: two alumni inside one rim frame,
@@ -2635,14 +2655,14 @@ button, input, select, textarea, td, th {
                   </span>
                 </span>
                 <span class="dmfaces">
-                  <img class="dmface" src="@img:p9" alt="" style="--y: 24px; --sx: 32px; --sy: 22px;">
-                  <img class="dmface" src="@img:p2" alt="" style="--y: 89px; --sx: 177px; --sy: -55px;">
-                  <img class="dmface" src="@img:p7" alt="" style="--y: 154px; --sx: 100px; --sy: -42px;">
-                  <img class="dmface" src="@img:p11" alt="" style="--y: 219px; --sx: 212px; --sy: -71px;">
-                  <img class="dmface" src="@img:p4" alt="" style="--y: 284px; --sx: 10px; --sy: -98px;">
-                  <img class="dmface" src="@img:p1" alt="" style="--y: 349px; --sx: 132px; --sy: -117px;">
-                  <img class="dmface" src="@img:p6" alt="" style="--y: 414px; --sx: 218px; --sy: -126px;">
-                  <img class="dmface" src="@img:p10" alt="" style="--y: 479px; --sx: 50px; --sy: -157px;">
+                  <span class="dmface" style="--y: 24px; --sx: 32px; --sy: 22px; --fx: 6px; --fy: -5px;"><img src="@img:p9" alt=""></span>
+                  <span class="dmface" style="--y: 89px; --sx: 177px; --sy: -55px; --fx: -7px; --fy: 4px;"><img src="@img:p2" alt=""></span>
+                  <span class="dmface" style="--y: 154px; --sx: 100px; --sy: -42px; --fx: 5px; --fy: 6px;"><img src="@img:p7" alt=""></span>
+                  <span class="dmface" style="--y: 219px; --sx: 212px; --sy: -71px; --fx: -6px; --fy: -6px;"><img src="@img:p11" alt=""></span>
+                  <span class="dmface" style="--y: 284px; --sx: 10px; --sy: -98px; --fx: 8px; --fy: 4px;"><img src="@img:p4" alt=""></span>
+                  <span class="dmface" style="--y: 349px; --sx: 132px; --sy: -117px; --fx: -5px; --fy: 7px;"><img src="@img:p1" alt=""></span>
+                  <span class="dmface" style="--y: 414px; --sx: 218px; --sy: -126px; --fx: 6px; --fy: -7px;"><img src="@img:p6" alt=""></span>
+                  <span class="dmface" style="--y: 479px; --sx: 50px; --sy: -157px; --fx: -8px; --fy: 5px;"><img src="@img:p10" alt=""></span>
                 </span>
               </span>
 
