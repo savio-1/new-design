@@ -477,6 +477,7 @@
   .fu-seg{flex:1;height:3px;padding:0;border-radius:2px;background:var(--line-1);
     transition:background .2s ease,transform .2s ease}
   .fu-seg.done{background:var(--text-blue)}
+  .fu-seg.seen{background:var(--line-2)}
   .fu-seg.now{background:var(--blue-500);transform:scaleY(1.7)}
   .fu-seg:disabled{cursor:default}
   .fu-seg:not(:disabled):hover{background:var(--line-2)}
@@ -495,20 +496,24 @@
 
   .fu-custom.filled{border-color:var(--blue-500);background:rgba(13,153,255,.08)}
 
-  .fu-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  .fu-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;
     margin-top:4px;padding-top:12px;border-top:1px solid var(--line-3)}
-  .fu-fwd{display:flex;align-items:center;gap:8px}
-  .fu-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:80px;
+  .fu-nav,.fu-acts{display:flex;align-items:center;gap:8px}
+  /* Skip is the tonal-2 button; the chevrons stay quiet, Submit carries the accent */
+  .fu-btn{display:flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:80px;
     background:var(--bg-card-1);border:1px solid transparent;color:var(--text-button-tonal-2);
-    font:500 14px/20px var(--sans);letter-spacing:-.56px;
+    font:500 14px/20px var(--sans);letter-spacing:-.56px;white-space:nowrap;
     transition:background .15s ease,color .15s ease,opacity .15s ease}
   .fu-btn:hover:not(:disabled){background:var(--bg-type-hover);color:var(--text-primary)}
   .fu-btn:disabled{opacity:.35;cursor:default}
-  .fu-btn.ghost{background:transparent;border-color:var(--line-1)}
-  .fu-btn.ghost:hover:not(:disabled){background:var(--bg-card-1)}
   .fu-btn.primary{background:var(--blue-500);color:#fff}
   .fu-btn.primary:hover:not(:disabled){background:#38adff}
   .fu-btn[hidden]{display:none}
+  .fu-icon{display:grid;place-items:center;width:32px;height:32px;padding:0;border-radius:100px;
+    background:transparent;border:1px solid var(--line-1);color:var(--text-button-tonal-2);
+    transition:background .15s ease,color .15s ease,opacity .15s ease}
+  .fu-icon:hover:not(:disabled){background:var(--bg-card-1);color:var(--text-primary)}
+  .fu-icon:disabled{opacity:.3;cursor:default}
   .fu-card.sent{pointer-events:none}
 
   /* ---------- the submitted message: question small, answer full ---------- */
@@ -1146,7 +1151,7 @@ const ARROW_SVG = (dir) => '<svg width="14" height="14" viewBox="0 0 16 16" fill
 async function askFollowUp(mine) {
   const answers = new Array(QUESTIONS.length).fill(null);
   const seen = new Set();
-  let idx = 0, locked = false, resolveAll = null;
+  let idx = 0, maxSeen = 0, locked = false, resolveAll = null;
 
   const wrap = el('div', 'followup appear', thread);
   el('div', '', wrap);                                    // aligns with the answer text
@@ -1158,41 +1163,40 @@ async function askFollowUp(mine) {
   const segs = QUESTIONS.map((_, i) => {
     const b = el('button', 'fu-seg', prog);
     b.setAttribute('aria-label', 'Question ' + (i + 1));
-    b.addEventListener('click', () => { if (!locked && (answers[i] || i <= furthest())) go(i); });
+    b.addEventListener('click', () => { if (!locked && i <= maxSeen) go(i); });
     return b;
   });
 
   const stage = el('div', 'fu-stage', card);
 
   const foot = el('div', 'fu-foot', card);
-  const back = el('button', 'fu-btn ghost', foot);
-  back.innerHTML = ARROW_SVG('left') + '<span>Back</span>';
-  const fwd = el('div', 'fu-fwd', foot);
-  const next = el('button', 'fu-btn', fwd);
-  next.innerHTML = '<span>Next</span>' + ARROW_SVG('right');
-  const submit = el('button', 'fu-btn primary', fwd);
-  submit.innerHTML = '<span>Submit answers</span>' + SEND_SVG;
-
-  const furthest = () => {
-    let f = 0;
-    for (let i = 0; i < answers.length; i++) if (answers[i]) f = Math.min(i + 1, answers.length - 1);
-    return f;
-  };
-  const answeredAll = () => answers.every(Boolean);
+  const nav = el('div', 'fu-nav', foot);
+  const back = el('button', 'fu-icon', nav);
+  back.innerHTML = ARROW_SVG('left');
+  back.setAttribute('aria-label', 'Previous question');
+  const next = el('button', 'fu-icon', nav);
+  next.innerHTML = ARROW_SVG('right');
+  next.setAttribute('aria-label', 'Next question');
+  const acts = el('div', 'fu-acts', foot);
+  const skip = el('button', 'fu-btn', acts);
+  skip.textContent = 'Skip';
+  const submit = el('button', 'fu-btn primary', acts);
+  submit.innerHTML = '<span>Submit responses</span>' + SEND_SVG;
 
   function chrome() {
     count.textContent = 'Question ' + (idx + 1) + ' of ' + QUESTIONS.length;
     segs.forEach((s, i) => {
       s.classList.toggle('done', !!answers[i]);
+      s.classList.toggle('seen', !answers[i] && i <= maxSeen);
       s.classList.toggle('now', i === idx);
-      s.disabled = locked || !(answers[i] || i <= furthest());
+      s.disabled = locked || i > maxSeen;
     });
     const last = idx === QUESTIONS.length - 1;
     back.disabled = locked || idx === 0;
-    next.hidden = last;
-    next.disabled = locked || !answers[idx];
+    next.disabled = locked || last || !(answers[idx] || idx < maxSeen);
+    skip.disabled = locked;
     submit.hidden = !last;
-    submit.disabled = locked || !answeredAll();
+    submit.disabled = locked;
   }
 
   /** draw one question, sliding in from whichever side we came */
@@ -1201,6 +1205,7 @@ async function askFollowUp(mine) {
     const from = idx;
     dir = dir || (i > from ? 'fwd' : 'back');
     idx = i;
+    maxSeen = Math.max(maxSeen, i);
     /* the outgoing step leaves before the incoming one has its options, so
        hold the old height until the new step is built, then ease to it */
     const held = stage.offsetHeight;
@@ -1292,10 +1297,21 @@ async function askFollowUp(mine) {
   };
   document.addEventListener('keydown', keys);
 
-  back.addEventListener('click', () => { if (idx > 0) go(idx - 1, 'back'); });
-  next.addEventListener('click', () => { if (answers[idx] && idx < QUESTIONS.length - 1) go(idx + 1, 'fwd'); });
-  submit.addEventListener('click', () => {
-    if (locked || !answeredAll()) return;
+  back.addEventListener('click', () => { if (!back.disabled) go(idx - 1, 'back'); });
+  next.addEventListener('click', () => { if (!next.disabled) go(idx + 1, 'fwd'); });
+  skip.addEventListener('click', () => {
+    if (locked) return;
+    answers[idx] = null;                       // passed over, and left out of the message
+    const step = stage.querySelector('.fu-step:not(.leaving)');
+    step?.querySelectorAll('.fu-opt').forEach((b) => b.classList.remove('chosen'));
+    step?.querySelector('.fu-custom')?.classList.remove('filled');
+    if (idx < QUESTIONS.length - 1) { maxSeen = Math.max(maxSeen, idx + 1); go(idx + 1, 'fwd'); }
+    else finish();
+  });
+  submit.addEventListener('click', finish);
+
+  function finish() {
+    if (locked) return;
     locked = true;
     document.removeEventListener('keydown', keys);
     card.classList.add('sent');
@@ -1305,21 +1321,34 @@ async function askFollowUp(mine) {
       setTimeout(() => wrap.remove(), 320);
       resolveAll(answers);
     }, 260);
-  });
+  }
 
   await go(0, 'fwd');
   if (stale(mine)) return null;
   return new Promise((r) => { resolveAll = r; });
 }
 
+/** what the reader falls back to when every question is passed over */
+const SKIPPED_ALL = 'You left it to me, so I took both risks and pitched it at the adjuster. '
+  + 'Clause 7.2 caps pre-authorised repairs at 3,500 against an estimate of 4,820, and clause '
+  + '4.1 sets a 30-day notification window against a claim logged on day 42. Both clauses are '
+  + 'quoted above their findings, with retrospective authorisation and the discharge record as '
+  + 'the two routes out.';
+
 /** the submitted answers, as one message: each question small above its answer */
 function postAnswers(answers) {
   const b = el('div', 'bubble bubble-qa rise', thread);
-  answers.forEach((a, i) => {
-    const pair = el('div', 'qa', b);
-    el('div', 'qa-q', pair).textContent = QUESTIONS[i].q;
-    el('div', 'qa-a', pair).textContent = a.label;
-  });
+  const given = answers.filter(Boolean).length;
+  if (!given) {
+    el('div', 'qa-a', el('div', 'qa', b)).textContent = 'Skip the questions — use your judgement.';
+  } else {
+    answers.forEach((a, i) => {
+      if (!a) return;                          // skipped questions stay out of the message
+      const pair = el('div', 'qa', b);
+      el('div', 'qa-q', pair).textContent = QUESTIONS[i].q;
+      el('div', 'qa-a', pair).textContent = a.label;
+    });
+  }
   follow();
   return b;
 }
@@ -1328,7 +1357,8 @@ function postAnswers(answers) {
    THE SECOND TURN — the assistant thinks again, then answers
    ══════════════════════════════════════════════════════════ */
 async function respond(answers, mine) {
-  const lead = answers[0];
+  const said = answers.filter(Boolean);
+  const lead = said[0] || { task: 'Re-checking the claim against both risks' };
   setComposer(true);
   const turn = startTurn();
   setTask('Thinking');
@@ -1371,7 +1401,7 @@ async function respond(answers, mine) {
   const ai = el('div', 'answer-ico', ans);
   ai.innerHTML = svg('thinking', 16);
   const body = el('div', 'answer-body', ans);
-  await streamWords(body, answers.map((a) => a.reply).join(' '), mine);
+  await streamWords(body, said.length ? said.map((a) => a.reply).join(' ') : SKIPPED_ALL, mine);
   if (stale(mine)) return;
   follow();
 }
