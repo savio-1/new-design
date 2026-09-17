@@ -186,6 +186,10 @@
 
   /* ---------- summary ---------- */
   .sum-body{font:var(--body3);letter-spacing:-.56px;color:var(--text-secondary);max-width:688px}
+  /* the reasoning between the doing */
+  .thought{font:var(--body3);letter-spacing:-.56px;color:var(--text-primary);max-width:588px}
+  .trace>div>.thought{padding-left:36px}      /* onto the rail of the titles */
+  .steps>.thought{margin-block:4px}           /* prose gets more air than a step row */
   .sum-meta{display:flex;align-items:center;gap:8px;margin-top:-4px;
     font:var(--cap1);letter-spacing:-.24px;color:var(--text-tertiary)}
   .rule{height:1px;background:var(--line-3)}   /* the 20px section gap frames it */
@@ -620,6 +624,9 @@ const GROUPS = [
   { icon:'book14', iconSize:14, label:'Definitions I used',
     activities:['Searching for relevant definitions'],
     note:'Found 3 definitions that match',
+    then:{ task:'Weighing the definitions',
+      text:'Three matched. The third sits close enough to the second to be read the '
+        + 'wrong way round, so I have marked it low relevance and kept it out of the working.' },
     rows:[
       { icon:'bookrow14', name:'Annual Recurring Revenue', open:true,
         def:'Revenue retained from existing customers including expansion',
@@ -634,6 +641,9 @@ const GROUPS = [
   { icon:'ontology', iconSize:16, label:'How some terms are related',
     activities:['Now looking for relations between the terms','Searching for the relations'],
     note:'Found 5 relations for Forecast Deviation',
+    then:{ task:'Following the relations',
+      text:'The relations are the part I actually needed. They tell me which terms move '
+        + 'together, so I do not count two views of the same figure as two pieces of evidence.' },
     rows:[
       { icon:'ontology', name:'Forecast Deviation', chev:'chev12',
         desc:'Signed gap between forecast and calibrated actuals', graph:true },
@@ -641,6 +651,10 @@ const GROUPS = [
   { icon:'warehouse', iconSize:16, label:'Where the data came from',
     activities:['Tracing where the data came from','Querying the company warehouse'],
     note:'Pulled 2 live sources from Snowflake',
+    then:{ task:'Checking the sources',
+      text:'Both sources are live rather than a cached extract, so the figures in the answer '
+        + 'are the figures in the warehouse right now. Worth saying plainly, because it means '
+        + 'this reads differently if someone runs it again next week.' },
     rows:[
       { icon:'warehouse', name:'Revenue figures', tag:'Snowflake',
         desc:'Live revenue data from company warehouse',
@@ -662,6 +676,9 @@ const GROUPS = [
   { icon:'warehouse', iconSize:16, label:'Applying rules and policies',
     activities:['Checking your disclosure and privacy rules'],
     note:'2 rules apply to this answer',
+    then:{ task:'Applying your rules',
+      text:'Two rules apply, and one of them changes what I can show rather than what I found. '
+        + 'The exact amounts stay out of the summary line and sit in the detail instead.' },
     rows:[
       { icon:'warehouse', name:'Revenue figures',
         desc:'Live revenue data from company warehouse' },
@@ -675,7 +692,11 @@ const PPT_STEPS = [
   { icon:'ppt',  text:'Create PPT one-pager slide', hold:1100 },
   { icon:'file', text:'Analysing required files for full context', hold:1300,
     task:'Analysing the required files' },
-  { icon:'web',  text:'Searching relevant web sources', hold:1200 },
+  { icon:'web',  text:'Searching relevant web sources', hold:1200,
+    then:{ task:'Weighing the web sources',
+      text:'The web sources repeat what the policy file already says, so I am leaving them '
+        + 'out. Grounding this in your own documents is worth more than a second opinion '
+        + 'from the open web.' } },
   { icon:'edit', text:'Replace/ re-write the content in the one-pager to target the audience', hold:1100,
     task:'Rewriting the one-pager for its audience' },
 ];
@@ -763,7 +784,7 @@ function termMeta(host, groups, mono = false) {
 }
 
 /** append words one at a time, each resolving out of blur, with a trailing caret */
-async function streamWords(host, text, mine) {
+async function streamWords(host, text, mine, ms = WORD_MS) {
   const caret = el('span', 'caret', host);
   for (const w of text.split(' ')) {
     if (stale(mine)) return;
@@ -771,9 +792,22 @@ async function streamWords(host, text, mine) {
     s.textContent = w + ' ';
     host.insertBefore(s, caret);
     follow();
-    await wait(WORD_MS);
+    await wait(ms);
   }
   caret.remove();
+}
+
+/* ---------- a thought ----------
+   the reasoning between the doing: why this step, and what the last one
+   turned up. Reads as prose, sits above the task lines it explains. */
+const THOUGHT_MS = 26;
+async function thought(host, text, mine, task) {
+  if (task) setTask(task);
+  const p = el('div', 'thought appear', host);
+  await streamWords(p, text, mine, THOUGHT_MS);
+  if (stale(mine)) return;
+  follow();
+  await wait(420);
 }
 
 /* ---------- the live-activity primitive ----------
@@ -863,7 +897,7 @@ async function buildGroup(host, g, mine) {
 
   for (let i = 0; i < g.activities.length; i++) {
     if (stale(mine)) return;
-    await narrate(line, g.activities[i], mine, i === g.activities.length - 1 ? 1400 : 1200);
+    await narrate(line, g.activities[i], mine, i === g.activities.length - 1 ? 1000 : 850);
   }
   if (stale(mine)) return;
 
@@ -1361,7 +1395,15 @@ async function respond(answers, mine) {
   setComposer(true);
   const turn = startTurn();
   setTask('Thinking');
-  await wait(1100); if (stale(mine)) return;
+  await wait(900); if (stale(mine)) return;
+  await thought(traceInner,
+    said.length
+      ? 'That narrows it. The wording matters more than the arithmetic here, so I will pull '
+        + 'the clauses themselves before I touch the document.'
+      : 'Nothing came back, so I will use my own read: both risks, written for the adjuster, '
+        + 'with the clause behind each one.',
+    mine, 'Re-reading the wording');
+  if (stale(mine)) return;
 
   const s1 = section('docsearch');
   await streamWords(s1.title, 'Re-reading the policy wording', mine); if (stale(mine)) return;
@@ -1375,6 +1417,11 @@ async function respond(answers, mine) {
   sectionDone(s1);
   await wait(400); if (stale(mine)) return;
   foldSection(s1);
+  await thought(traceInner,
+    'The clauses say what I expected, so this is a change to one section rather than the '
+    + 'whole page. I will rewrite that part and leave the rest as it stands.',
+    mine, 'Updating one section');
+  if (stale(mine)) return;
 
   const s2 = section('edit');
   await streamWords(s2.title, 'Updating the one-pager', mine); if (stale(mine)) return;
@@ -1434,9 +1481,15 @@ async function play() {
   await wait(500); if (stale(mine)) return;
   const turn = startTurn();
   setTask('Thinking');
-  await wait(2300); if (stale(mine)) return;
+  await wait(1100); if (stale(mine)) return;
+  await thought(traceInner,
+    'Two things can sink this claim: the money and the timing. Before I touch either I want '
+    + 'your definitions rather than the industry ones, because if a term means something '
+    + 'different here, every figure that follows it is wrong.',
+    mine, 'Thinking through the claim');
+  if (stale(mine)) return;
 
-  /* 2 — Reading context: each group narrates, then settles */
+  /* 2 — Reading context: each group narrates, settles, then is thought about */
   setPhase(2, OF);
   setTask('Reading context');
   const read = section('docsearch');
@@ -1447,12 +1500,14 @@ async function play() {
   for (const g of GROUPS) {
     if (stale(mine)) return;
     await buildGroup(read.content, g, mine);
-    await wait(380);
+    await wait(240);
+    if (g.then) { await thought(read.content, g.then.text, mine, g.then.task); }
+    if (stale(mine)) return;
   }
   if (stale(mine)) return;
 
   const comp = statusLine(read.content);
-  await narrate(comp, 'Composing answer with 8 grounded items', mine, 1700);
+  await narrate(comp, 'Composing answer with 8 grounded items', mine, 1300);
   if (stale(mine)) return;
   settle(comp, 'edit', 16);
   sectionDone(read);
@@ -1480,6 +1535,12 @@ async function play() {
   const ppt = section('ppt');
   await streamWords(ppt.title, 'Generate one-pager PPT', mine); if (stale(mine)) return;
   sectionWorking(ppt);
+  await thought(ppt.content,
+    'A one-pager is the right shape for this. The adjuster reads one page and nothing longer, '
+    + 'so both risks have to sit above the fold with their clause references beside them. I '
+    + 'will look for a skill that already knows the house format before laying anything out '
+    + 'by hand.', mine, 'Planning the one-pager');
+  if (stale(mine)) return;
   const steps = el('div', 'steps', ppt.content);
 
   for (const s of PPT_STEPS) {
@@ -1501,6 +1562,10 @@ async function play() {
     }
     settle(line, s.icon, 16);
     await wait(180);
+    if (s.then) {
+      await thought(steps, s.then.text, mine, s.then.task);
+      if (stale(mine)) return;
+    }
   }
   if (stale(mine)) return;
 
@@ -1523,6 +1588,10 @@ async function play() {
   const code = section('code');
   await streamWords(code.title, 'Create code for the document', mine); if (stale(mine)) return;
   sectionWorking(code);
+  await thought(code.content,
+    'The layout has to be reproducible, so the last piece is the code that renders it rather '
+    + 'than anything hand-placed.', mine, 'Writing the code');
+  if (stale(mine)) return;
   const writing = statusLine(code.content);
   await narrate(writing, 'Writing the code', mine, 1300);
   if (stale(mine)) return;
@@ -1548,6 +1617,11 @@ async function play() {
   sectionDone(code);
   await wait(500); if (stale(mine)) return;
   foldSection(code);
+  await thought(traceInner,
+    'That is enough to answer with. Both risks are real and both are curable, and the '
+    + 'one-pager carries the clause for each, so the answer should lead with the two risks '
+    + 'and leave the workings to the document.', mine, 'Writing the answer');
+  if (stale(mine)) return;
 
   /* 6 — the steps tuck away; the line reports what it thought through */
   setPhase(6, OF);
