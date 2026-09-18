@@ -428,6 +428,9 @@
   .fu-key{flex:none;display:grid;place-items:center;width:20px;height:20px;border-radius:6px;
     background:var(--bg-card-1);border:1px solid var(--line-1);
     font:400 11px/1 var(--mono);color:var(--text-secondary)}
+  .fu-label{flex:1;min-width:0}
+  .fu-rec{flex:none;padding:1px 7px;border-radius:6px;background:rgba(13,153,255,.14);
+    color:var(--text-blue);font:var(--cap2);letter-spacing:-.2px;white-space:nowrap}
   .fu-opt.chosen{border-color:var(--blue-500);background:rgba(13,153,255,.12);
     color:var(--text-primary)}
   .fu-opt.chosen .fu-key{background:var(--blue-500);border-color:var(--blue-500);color:#fff}
@@ -448,6 +451,13 @@
   /* composer flips between generating and idle */
   .send-btn{padding:8px;border-radius:100px;background:var(--bg-card-1);
     color:var(--text-tertiary);display:grid;place-items:center}
+
+  /* the chat box waits its turn while the assistant has questions open */
+  .composer.locked{border-top-color:var(--line-1);background:var(--bg-page-3)}
+  .composer.locked .composer-input{color:var(--text-tertiary);gap:6px}
+  .composer.locked .icon-btn,.composer.locked .badge-btn,
+  .composer.locked .stop-btn,.composer.locked .send-btn{opacity:.4;pointer-events:none}
+  .composer.locked .composer-input svg{color:var(--text-tertiary)}
 
   @media (prefers-reduced-motion:reduce){
     @keyframes task-in{from{opacity:0}to{opacity:1}}
@@ -519,6 +529,9 @@
   .qa+.qa{padding-top:10px;border-top:1px solid rgba(255,255,255,.14)}
   .qa-q{font:400 12px/16px var(--sans);letter-spacing:-.24px;color:rgba(255,255,255,.58)}
   .qa-a{font:400 16px/24px var(--sans);letter-spacing:-.64px;color:var(--text-primary)}
+  .qa-tag{align-self:flex-start;margin-top:3px;padding:1px 7px;border-radius:6px;
+    background:rgba(255,255,255,.14);color:rgba(255,255,255,.72);
+    font:var(--cap2);letter-spacing:-.2px}
 
   @media (prefers-reduced-motion:reduce){
     @keyframes step-in-fwd{from{opacity:0}to{opacity:1}}
@@ -1102,6 +1115,7 @@ function endTurn(turn) {
 const QUESTIONS = [
   { q: 'Before this goes out, which risk should I take further?',
     placeholder: 'Something else…',
+    best: 2, recommend: true,      /* both clauses: the safe read on this file */
     options: [
       { label: 'The repair estimate over the pre-authorised limit',
         task: 'Re-reading clause 7.2 on pre-authorised repairs',
@@ -1133,6 +1147,7 @@ const QUESTIONS = [
 
   { q: 'Who is reading it?',
     placeholder: 'Someone else…',
+    best: 0,                       /* only you know who it goes to, so no badge */
     options: [
       { label: 'The claims adjuster',
         reply: 'It is written for the adjuster, so it opens with the decision they have to '
@@ -1151,6 +1166,7 @@ const QUESTIONS = [
 
   { q: 'How much of the policy wording should it carry?',
     placeholder: 'Handle it differently…',
+    best: 0, recommend: true,      /* a disputed claim wants the wording verbatim */
     options: [
       { label: 'Quote both clauses in full',
         reply: 'Both clauses appear verbatim above their findings.' },
@@ -1257,7 +1273,8 @@ async function askFollowUp(mine) {
       b.dataset.label = o.label;
       if (fresh) b.style.animationDelay = (n * 45) + 'ms';
       el('span', 'fu-key', b).textContent = String(n + 1);
-      el('span', '', b).textContent = o.label;
+      el('span', 'fu-label', b).textContent = o.label;
+      if (Q.recommend && n === Q.best) el('span', 'fu-rec', b).textContent = 'Recommended';
       if (answers[i] && !answers[i].custom && answers[i].label === o.label) b.classList.add('chosen');
       b.addEventListener('click', () => choose(i, { ...o, custom: false }));
     });
@@ -1326,12 +1343,10 @@ async function askFollowUp(mine) {
   next.addEventListener('click', () => { if (!next.disabled) go(idx + 1, 'fwd'); });
   skip.addEventListener('click', () => {
     if (locked) return;
-    answers[idx] = null;                       // passed over, and left out of the message
-    const step = stage.querySelector('.fu-step:not(.leaving)');
-    step?.querySelectorAll('.fu-opt').forEach((b) => b.classList.remove('chosen'));
-    step?.querySelector('.fu-custom')?.classList.remove('filled');
-    if (idx < QUESTIONS.length - 1) { maxSeen = Math.max(maxSeen, idx + 1); go(idx + 1, 'fwd'); }
-    else finish();
+    const Q = QUESTIONS[idx];
+    const last = idx === QUESTIONS.length - 1;
+    choose(idx, { ...Q.options[Q.best], custom: false, viaSkip: true });
+    if (last) setTimeout(() => { if (!locked) finish(); }, 560);
   });
   submit.addEventListener('click', finish);
 
@@ -1363,17 +1378,18 @@ const SKIPPED_ALL = 'You left it to me, so I took both risks and pitched it at t
 /** the submitted answers, as one message: each question small above its answer */
 function postAnswers(answers) {
   const b = el('div', 'bubble bubble-qa rise', thread);
-  const given = answers.filter(Boolean).length;
-  if (!given) {
-    el('div', 'qa-a', el('div', 'qa', b)).textContent = 'Skip the questions — use your judgement.';
-  } else {
-    answers.forEach((a, i) => {
-      if (!a) return;                          // skipped questions stay out of the message
-      const pair = el('div', 'qa', b);
-      el('div', 'qa-q', pair).textContent = QUESTIONS[i].q;
-      el('div', 'qa-a', pair).textContent = a.label;
-    });
-  }
+  answers.forEach((a, i) => {
+    if (!a) return;
+    const pair = el('div', 'qa', b);
+    el('div', 'qa-q', pair).textContent = QUESTIONS[i].q;
+    el('div', 'qa-a', pair).textContent = a.label;
+    /* a skipped question still carries an answer — the assistant's own */
+    if (a.viaSkip) {
+      el('span', 'qa-tag', pair).textContent = QUESTIONS[i].recommend
+        ? 'Skipped, took your recommendation'    /* the badge the reader saw */
+        : 'Skipped, took your pick';             /* no badge shown on that one */
+    }
+  });
   follow();
   return b;
 }
@@ -1444,6 +1460,23 @@ async function respond(answers, mine) {
   follow();
 }
 
+const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" '
+  + 'stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'
+  + '<rect x="3.2" y="7" width="9.6" height="6.4" rx="1.6"/>'
+  + '<path d="M5.6 7V5.2a2.4 2.4 0 0 1 4.8 0V7"/></svg>';
+
+/* while the assistant has questions open, the chat box waits its turn */
+function lockComposer(on) {
+  const c = document.querySelector('.composer');
+  const input = document.querySelector('.composer-input');
+  if (!c || !input) return;
+  c.classList.toggle('locked', on);
+  c.setAttribute('aria-disabled', String(on));
+  input.innerHTML = on
+    ? LOCK_SVG + '<span>Answer the questions above to carry on</span>'
+    : '<span class="caret-bar"></span>Ask anything..';
+}
+
 /* the composer mirrors the state: generating, or ready for the next turn */
 function setComposer(working) {
   const btn = document.querySelector('.composer-right .stop-btn, .composer-right .send-btn');
@@ -1462,6 +1495,7 @@ async function play() {
   thread.innerHTML = FIRST_TURN;
   scroller.scrollTop = 0;
   elapsedT.textContent = 'Working…';
+  lockComposer(false);
   setComposer(true);
 
   const setPhase = (n, of) => { phaseEl.textContent = n + '/' + of; };
@@ -1633,7 +1667,9 @@ async function play() {
   /* 7 — the assistant asks, and waits for the user */
   setPhase(7, OF);
   await wait(500); if (stale(mine)) return;
+  lockComposer(true);
   const answers = await askFollowUp(mine);
+  lockComposer(false);
   if (!answers || stale(mine)) return;
 
   postAnswers(answers);
