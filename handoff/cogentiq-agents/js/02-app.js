@@ -737,6 +737,12 @@ function paintCardAuth() {
   document.querySelectorAll('[data-cauth-only]').forEach(el => {
     el.hidden = el.dataset.cauthOnly !== wiz.cardAuth;
   });
+
+  /* Fetching the card needs the credential, so the document only appears
+     once there is one — before that there is nothing honest to show. */
+  const ready = !!chosen && cardAuthOK();
+  $('cardJsonBox').hidden = !ready;
+  if (ready) paintJson('card', `Fetched from <b>${esc(curServer().url)}${esc(chosen.sub || '')}</b>`, cardJSON());
 }
 
 $('csField').addEventListener('click', e => { e.stopPropagation(); setCsOpen(!wiz.csOpen); });
@@ -876,6 +882,111 @@ function draft() {
   });
 }
 
+/* ── The Agent Card itself ──
+   Every route ends holding one: the server returns it, the managed
+   adapter generates it from the uploaded spec, or it is built from the
+   integration. Same document either way — an A2A Agent Card — so the
+   three routes can be read against each other. */
+function cardJSON() {
+  if (wiz.proto === 'a2a') {
+    const s = curServer();
+    const c = s && s.cards.find(x => x.name === wiz.pick);
+    if (!c) return {};
+    return {
+      name: c.name,
+      description: c.desc,
+      version: '1.0.0',
+      url: `https://${s.url}${c.path.replace(/\.json$/, '')}`,
+      provider: { organization: s.name },
+      capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: true },
+      authentication: { schemes: [AUTH_LABEL[wiz.cardAuth]] },
+      defaultInputModes: ['text/plain'],
+      defaultOutputModes: ['text/plain'],
+      skills: c.skills.map(id => ({
+        id,
+        name: id.split('.').pop().replace(/^./, ch => ch.toUpperCase()),
+        description: c.desc,
+        tags: id.split('.')
+      }))
+    };
+  }
+
+  if (wiz.proto === 'direct') {
+    const i = curInteg();
+    if (!i) return {};
+    return {
+      name: i.name,
+      description: i.desc,
+      version: '1.0.0',
+      url: i.url,
+      capabilities: { streaming: false, pushNotifications: false },
+      authentication: { schemes: [i.auth] },
+      defaultInputModes: ['text/plain'],
+      defaultOutputModes: ['text/plain'],
+      skills: i.skills.map(id => ({ id, name: i.name, description: i.desc, tags: id.split('.') })),
+      /* The part a direct connection maps by hand — kept on the card so
+         the adapter can rebuild the call from this document alone. */
+      adapter: {
+        request: { method: i.method, path: i.path, message: i.msg },
+        response: { text: i.resp },
+        timeoutSeconds: i.timeout
+      }
+    };
+  }
+
+  return {
+    name: $('wizName').value.trim() || 'Untitled agent',
+    description: $('wizDesc').value.trim()
+      || `Generated from ${wiz.restFile ? wiz.restFile.name : 'the uploaded document'}.`,
+    version: '1.0.0',
+    url: `${SPEC_RESULT.url}/a2a`,
+    provider: { organization: 'Cogentiq Managed A2A' },
+    capabilities: { streaming: false, pushNotifications: false },
+    authentication: { schemes: [SPEC_RESULT.auth] },
+    defaultInputModes: ['text/plain'],
+    defaultOutputModes: ['text/plain'],
+    skills: REST_OPS.map(o => ({
+      id: o.skill,
+      name: o.op,
+      description: o.desc,
+      tags: o.skill.split('.')
+    }))
+  };
+}
+
+/* Colours the values by type. The JSON is generated here, so this only
+   ever sees what JSON.stringify produced — no parser needed. */
+const jsonHTML = obj => esc(JSON.stringify(obj, null, 2))
+  .replace(/^(\s*)(&quot;[^&]*?&quot;)(:)/gm, '$1<span class="ag-json__k">$2</span>$3')
+  .replace(/: (&quot;.*?&quot;)/g, ': <span class="ag-json__s">$1</span>')
+  .replace(/: (-?\d+\.?\d*)/g, ': <span class="ag-json__n">$1</span>')
+  .replace(/: (true|false|null)/g, ': <span class="ag-json__b">$1</span>')
+  .replace(/^(\s*)(&quot;.*?&quot;)(,?)$/gm, '$1<span class="ag-json__s">$2</span>$3');
+
+function paintJson(prefix, source, obj) {
+  $(prefix + 'JsonSrc').innerHTML = source;
+  $(prefix + 'JsonBody').innerHTML = jsonHTML(obj);
+}
+
+/* Copy buttons, for the two blocks that carry a card. */
+['card', 'prev'].forEach(prefix => {
+  $(prefix + 'JsonCopy').addEventListener('click', async () => {
+    const btn = $(prefix + 'JsonCopy');
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(cardJSON(), null, 2));
+      btn.textContent = 'Copied';
+    } catch {
+      /* file:// and older browsers refuse the clipboard; say so rather
+         than leaving the button looking like it worked. */
+      btn.textContent = 'Press ⌘C';
+      const r = document.createRange();
+      r.selectNodeContents($(prefix + 'JsonBody'));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }
+    setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
+  });
+});
+
 function paintReview() {
   const a = draft();
   const skills = a.agentSkills || [];
@@ -909,6 +1020,12 @@ function paintReview() {
   if (a.reqPath) rows.push(kv('Request', `<span class="ag-mono">${esc(a.reqMethod)} ${esc(a.reqPath)}</span>`));
   rows.push(kv('Auth', esc(a.auth)));
   $('wizReview').innerHTML = rows.join('');
+
+  paintJson('prev',
+    a.conn === 'direct'
+      ? `Built from the <b>${esc(a.server)}</b> integration`
+      : `Generated by the managed adapter from <b>${esc(wiz.restFile ? wiz.restFile.name : 'the uploaded document')}</b>`,
+    cardJSON());
 }
 
 /* Whether the step in front of you is answered. The Continue button
