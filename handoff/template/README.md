@@ -215,12 +215,12 @@ nothing downstream needs to change.
 - **Marks are hashed from the agent name**, so renaming an agent changes
   its colour. If colour should be stable across a rename, hash an id
   instead — one line in `markFor()`.
-- **Breakpoints are unfinished.** The card grid is `auto-fill` with a
-  340px minimum, so columns drop as the window narrows, but there is not
-  a single width media query in the page CSS — the rail, the sidebar
-  filters and the detail drawer keep their desktop widths all the way
-  down. Designed and checked at 1280px and up; phone and tablet need
-  design work that has not been done.
+- **Breakpoints are unfinished.** The card grid is a fixed two columns
+  (`repeat(2, minmax(0, 1fr))`) at every width, and there is not a single
+  width media query in the page CSS — the rail, the sidebar filters and
+  the detail drawer keep their desktop widths all the way down. Designed
+  and checked at 1280px and up; phone and tablet need design work that
+  has not been done, starting with dropping the grid to one column.
 
 ---
 

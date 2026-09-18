@@ -1842,9 +1842,11 @@ body.cq { margin: 0; }
       --card-lift:  0 1px 2px rgba(18,18,18,.06), 0 10px 24px rgba(18,18,18,.10);
     }
 
-    /* 340px is the width the library's own note gives for three columns
-       at the standard 1076px content width. */
-    .ag-grid { --cq-card-min: 340px; gap: 16px; }
+    /* Two per row, fixed. A card carries a name, a description, the model
+       row and the capability chips — at three up the name truncates almost
+       as soon as it is written, so the column count is stated rather than
+       left to auto-fill. */
+    .ag-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
     .ag-card {
       position: relative;
@@ -2443,11 +2445,14 @@ body.cq { margin: 0; }
       border: 1px solid var(--ag-well-border);
     }
     .ag-prev__mark { width: 44px; height: 44px; flex: none; display: block; border-radius: 12px; }
-    .ag-prev__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+    /* 12px between the name row and everything under it. The name sits
+       in a row with its badge, so the gap is set on the column rather
+       than on the text, and stays 12px whether or not the badge wraps. */
+    .ag-prev__id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
     .ag-prev__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .ag-prev__name { color: var(--text-primary); }
     .ag-prev__desc { color: var(--text-secondary); }
-    .ag-prev__skills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .ag-prev__skills { display: flex; flex-wrap: wrap; gap: 6px; }
 
     /* ══════════════════════════════════════════════════════════════
        THE CARD ITSELF
@@ -3432,15 +3437,14 @@ body.cq { margin: 0; }
         </div>
 
         <!-- What the workspace will hold once this is registered, shown the
-             way it will look on the Agents page, with the connection facts
-             under it. Only for the routes that have nothing left to ask by
-             this point — where a card is still being chosen and
-             authenticated, the choice is the step. -->
+             way it will look on the Agents page, with the Agent Card behind
+             it and then the connection facts. Only for the routes that have
+             nothing left to ask by this point — where a card is still being
+             chosen and authenticated, the choice is the step. -->
         <div class="ag-group" id="previewGroup">
           <span class="ag-label cq-caption-med">THE AGENT YOU ARE ADDING</span>
           <div class="ag-prev" id="agentPreview"></div>
-          <div id="wizReview"></div>
-          <div class="ag-json" id="prevJsonBox" style="margin-top:4px">
+          <div class="ag-json" id="prevJsonBox">
             <div class="ag-json__head">
               <svg class="cq-ic" width="14" height="14" viewBox="0 0 16 16" style="color:var(--text-coloured-cyan)"><use href="#i-code"/></svg>
               <span class="ag-json__src cq-caption-reg" id="prevJsonSrc"></span>
@@ -3448,6 +3452,7 @@ body.cq { margin: 0; }
             </div>
             <pre class="ag-json__body" id="prevJsonBody"></pre>
           </div>
+          <div id="wizReview"></div>
         </div>
         <!-- Registration is not activation: a remote agent joins the
              workspace in review and runs once governance approves it. -->
@@ -5137,7 +5142,6 @@ function paintReview() {
       <span class="ag-prev__top">
         <span class="ag-prev__name cq-body1-med">${esc(a.name || 'Untitled agent')}</span>
         ${badge('grey', 'Remote')}
-        ${badge('orange', 'In review')}
       </span>
       <span class="ag-prev__desc cq-body2-reg">${esc(a.desc)}</span>
       ${skills.length ? `<span class="ag-prev__skills">${skills.map(k =>

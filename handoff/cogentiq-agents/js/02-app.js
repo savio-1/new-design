@@ -1021,7 +1021,6 @@ function paintReview() {
       <span class="ag-prev__top">
         <span class="ag-prev__name cq-body1-med">${esc(a.name || 'Untitled agent')}</span>
         ${badge('grey', 'Remote')}
-        ${badge('orange', 'In review')}
       </span>
       <span class="ag-prev__desc cq-body2-reg">${esc(a.desc)}</span>
       ${skills.length ? `<span class="ag-prev__skills">${skills.map(k =>
