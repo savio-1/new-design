@@ -83,6 +83,12 @@ open(f'{OUT}/js/02-app.js', 'w').write(
     head.strip() + '\n\n' + DATA_END.strip() + app.rstrip() + '\n')
 open(f'{OUT}/js/03-theme-shell.js', 'w').write(scripts[1][0].strip() + '\n')
 
+# ── Hand-written docs ────────────────────────────────────────────────
+# The README is authored, not generated, and this script clears its own
+# output directory — so it lives outside the tree and is copied in.
+shutil.copy(f'{ROOT}/handoff/template/README.md', f'{OUT}/README.md')
+shutil.copy(f'{ROOT}/Cogentiq-Agents.html', f'{OUT}/Cogentiq-Agents.standalone.html')
+
 # ── HTML ─────────────────────────────────────────────────────────────
 HEAD, SCRIPTS = '@@HEAD@@', '@@SCRIPTS@@'
 html = SRC[:styles[0][1]] + HEAD + SRC[styles[2][2]:]

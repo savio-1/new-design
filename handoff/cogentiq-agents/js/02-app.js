@@ -270,10 +270,18 @@ function openPanel(i) {
   } else {
     out.push(section('CONFIGURATION',
       kv('Model', esc(a.model)) +
-      kv('Tools bound', String(a.tools)) +
-      kv('Skills', String(a.skills)) +
-      kv('Guardrails', String(a.guards)) +
       (a.parent ? kv('Orchestrated by', esc(a.parent)) : '')));
+
+    /* A count answers "how many"; the names answer "which" — which is
+       the question somebody opening an agent actually has. */
+    const bound = (label, icon, list, tone) => (list && list.length)
+      ? section(`${label} · ${list.length}`,
+          `<div class="ag-pills">${list.map(n =>
+            `<span class="ag-pill">${ic(icon, 13)}${esc(n)}</span>`).join('')}</div>`)
+      : '';
+    out.push(bound('TOOLS', 'i-wrench', a.tools));
+    out.push(bound('SKILLS', 'ic-pp_skill', a.skills));
+    out.push(bound('GUARDRAILS', 'ic-pp_guardrails', a.guards));
   }
 
   if (a.members) {
@@ -287,6 +295,22 @@ function openPanel(i) {
           </span>
           ${m.remote ? badge('cyan', 'Remote', 'i-globe') : ''}
         </div>`).join('')}</div>`));
+  }
+
+  /* An agent is rarely run by hand — it is wired into something. Knowing
+     what breaks if you change it belongs next to the agent itself. */
+  const uses = a.usedBy || [];
+  if (!market) {
+    out.push(section(`USED BY · ${uses.length}`, uses.length
+      ? `<div>${uses.map(u => `
+          <div class="ag-member">
+            <span class="ag-used__ic">${ic(u.kind === 'automation' ? 'i-flow' : 'ic-pp_aiassistant', 15)}</span>
+            <span class="ag-member__id">
+              <span class="cq-body2-reg cq-truncate">${esc(u.name)}</span>
+              <span class="ag-member__role cq-caption-reg cq-truncate">${u.kind === 'automation' ? 'Automation' : 'Assistant'}</span>
+            </span>
+          </div>`).join('')}</div>`
+      : `<p class="ag-note cq-caption-reg">Nothing uses this agent yet. It can still be run on its own.</p>`));
   }
 
   out.push(section('ABOUT',
