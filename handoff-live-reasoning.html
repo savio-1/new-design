@@ -1,0 +1,360 @@
+<title>Live Reasoning Handoff</title>
+<meta name="description" content="Developer handoff for the assistant's live reasoning trace and the follow-up question flow: tokens, type, spacing, anatomy, states, motion, copy and acceptance checks." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --ink:#15171c; --ink-2:#4b5160; --ink-3:#7a8194;
+    --line:#e3e6ec; --line-2:#cfd4de; --accent:#0d99ff; --accent-ink:#0768cf; --accent-soft:#e8f4ff;
+    --code-bg:#f0f2f6; --warn-soft:#fff4e5; --warn-ink:#a45a00; --ok-soft:#eaf8ef; --ok-ink:#1b7a43;
+    --sans:'Geist',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#121212; --surface:#1b1b1b; --ink:#f2f3f5; --ink-2:#bdbdbd; --ink-3:#8c8c8c;
+      --line:#2c2c2c; --line-2:#424242; --accent:#44aaf3; --accent-ink:#80caff; --accent-soft:#0b2a45;
+      --code-bg:#212121; --warn-soft:#3a2a12; --warn-ink:#ffb457; --ok-soft:#10301d; --ok-ink:#7fd39a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#121212; --surface:#1b1b1b; --ink:#f2f3f5; --ink-2:#bdbdbd; --ink-3:#8c8c8c;
+    --line:#2c2c2c; --line-2:#424242; --accent:#44aaf3; --accent-ink:#80caff; --accent-soft:#0b2a45;
+    --code-bg:#212121; --warn-soft:#3a2a12; --warn-ink:#ffb457; --ok-soft:#10301d; --ok-ink:#7fd39a;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.6 var(--sans);letter-spacing:-.15px;
+    -webkit-font-smoothing:antialiased;padding-block:0 64px}
+  a{color:var(--accent-ink);text-decoration:underline;text-underline-offset:2px}
+  .wrap{max-width:1180px;margin:0 auto;padding-inline:16px;display:grid;grid-template-columns:1fr;gap:32px}
+  @media (min-width:1100px){.wrap{grid-template-columns:220px minmax(0,880px);gap:48px}}
+  header.hero{grid-column:1/-1;padding-block:40px 8px;border-bottom:1px solid var(--line)}
+  .eyebrow{font:500 12px/16px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font:600 34px/1.15 var(--sans);letter-spacing:-.9px;margin:8px 0 12px;text-wrap:balance}
+  .lede{color:var(--ink-2);max-width:66ch;margin:0}
+  .links{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:18px;font-size:14px}
+  nav.toc{position:sticky;top:24px;align-self:start;display:none}
+  @media (min-width:1100px){nav.toc{display:block}}
+  nav.toc ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--line)}
+  nav.toc a{display:block;padding:5px 0 5px 14px;color:var(--ink-3);text-decoration:none;font-size:13px}
+  nav.toc a:hover{color:var(--ink)}
+  main{min-width:0}
+  section{padding-block:28px;border-bottom:1px solid var(--line)}
+  section:last-of-type{border-bottom:0}
+  h2{font:600 22px/1.25 var(--sans);letter-spacing:-.5px;margin:0 0 12px}
+  h3{font:600 16px/1.35 var(--sans);letter-spacing:-.3px;margin:22px 0 8px}
+  p{margin:8px 0;max-width:70ch}
+  ul,ol{padding-left:22px;max-width:72ch}
+  li{margin:4px 0}
+  code{font:400 13px/1.5 var(--mono);background:var(--code-bg);padding:1px 6px;border-radius:5px}
+  pre{margin:12px 0;padding:14px 16px;border-radius:10px;background:var(--code-bg);overflow-x:auto;
+    font:400 12.5px/1.6 var(--mono);color:var(--ink)}
+  pre code{background:none;padding:0;font:inherit}
+  .tbl{width:100%;overflow-x:auto;margin:12px 0}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{font-weight:500;color:var(--ink-3);font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+  td code{white-space:nowrap}
+  .num{font-variant-numeric:tabular-nums}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid var(--line-2);vertical-align:-2px;margin-right:6px}
+  .note{padding:12px 14px;border-radius:10px;background:var(--accent-soft);color:var(--ink);margin:14px 0;max-width:none}
+  .warn{background:var(--warn-soft);color:var(--warn-ink)}
+  .ok{background:var(--ok-soft);color:var(--ok-ink)}
+  .flow{display:grid;gap:8px;margin:14px 0;counter-reset:st}
+  .st{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+  .st::before{counter-increment:st;content:counter(st);display:grid;place-items:center;width:28px;height:28px;border-radius:100px;
+    background:var(--accent-soft);color:var(--accent-ink);font:500 13px/1 var(--mono)}
+  .st b{display:block;font-weight:600;margin-bottom:2px}
+  .st span{color:var(--ink-2);font-size:14px}
+  .kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;font-size:14px;margin:10px 0}
+  .kv dt{color:var(--ink-3)} .kv dd{margin:0}
+  .check li{list-style:none;position:relative;padding-left:26px}
+  .check li::before{content:"";position:absolute;left:0;top:7px;width:14px;height:14px;border:1.5px solid var(--line-2);border-radius:4px}
+  @media (max-width:640px){h1{font-size:28px} .kv{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Developer handoff · Claims Review Assistant</div>
+    <h1>Live reasoning trace and follow-up responses</h1>
+    <p class="lede">Everything needed to build the assistant turn that shows one live task line, opens into a reasoning trace of thoughts and railed task blocks, and ends in a three-question series the reader reviews and submits as a single message. Values below are measured from the working prototype, not estimated.</p>
+    <div class="links">
+      <a href="https://claude.ai/artifact/DxeCjcKDcShnQiUhfHafW9">Working prototype (interactive)</a>
+      <a href="https://www.figma.com/design/d2Aeg6YIYnO838TlkmAkRP/AI-assistant-%3C%3E-User?node-id=9257-178578">Figma · Assistant reasoning page</a>
+      <span>Source: <code>claims-assistant-live-task.html</code> on branch <code>claude/gracious-davinci-l444je</code></span>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="#flow">1 · Flow</a></li>
+      <li><a href="#tokens">2 · Tokens</a></li>
+      <li><a href="#type">3 · Typography</a></li>
+      <li><a href="#layout">4 · Layout and spacing</a></li>
+      <li><a href="#turn">5 · Reasoning turn</a></li>
+      <li><a href="#trace">6 · Inside the trace</a></li>
+      <li><a href="#questions">7 · Follow-up questions</a></li>
+      <li><a href="#sent">8 · Submitted message</a></li>
+      <li><a href="#motion">9 · Motion</a></li>
+      <li><a href="#copy">10 · Copy</a></li>
+      <li><a href="#a11y">11 · Accessibility</a></li>
+      <li><a href="#qa">12 · Acceptance checks</a></li>
+      <li><a href="#figma">13 · Figma and open items</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <section id="flow">
+      <h2>1 · Flow</h2>
+      <p>One conversation, two assistant turns. The flow is linear and stops after the second answer. Nothing loops.</p>
+      <div class="flow">
+        <div class="st"><div><b>Working</b><span>Composer shows the stop square. The live task line shimmers blue and renames itself to the task running now. The trace under it is collapsed by default; "Hide steps / Show steps" opens it.</span></div></div>
+        <div class="st"><div><b>Thought through</b><span>The line stops shimmering, loses its icon, drops to 14px and reads "See reasoning ›". The trace tucks away. The answer streams in below with the single assistant mark.</span></div></div>
+        <div class="st"><div><b>Questions open</b><span>A card asks three questions one at a time. The composer locks and reads "Answer the questions above to carry on". Skip takes the assistant's own pick. Nothing is sent until Submit responses, or Skip on the last question.</span></div></div>
+        <div class="st"><div><b>Submitted</b><span>The card fades out. One user message posts with each question at 12px over its answer at 16px, tagging any answer that came from Skip. The composer unlocks.</span></div></div>
+        <div class="st"><div><b>Second turn</b><span>Same live line and trace pattern, shorter: two steps with a thought before each. Then the second answer, composed from the answers given. The composer returns to idle. End.</span></div></div>
+      </div>
+    </section>
+
+    <section id="tokens">
+      <h2>2 · Tokens</h2>
+      <p>All colour comes from the Cogentiq semantic collection, Dark mode. The prototype's CSS custom properties map onto it as below. Do not introduce literals except the two noted.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Cogentiq variable</th><th>Dark value</th><th>Prototype var</th><th>Used for</th></tr></thead>
+        <tbody>
+          <tr><td>Text/Primary</td><td class="num"><span class="sw" style="background:#fff"></span>#FFFFFF</td><td><code>--text-primary</code></td><td>Step headlines, group headings, answer text, user bubble text, question text, chosen option label</td></tr>
+          <tr><td>Text/Secondary</td><td class="num"><span class="sw" style="background:#bdbdbd"></span>#BDBDBD</td><td><code>--text-secondary</code></td><td>Every other line inside the reasoning: thoughts, task lines, notes, row names, descriptions, tags, "See reasoning", the steps toggle</td></tr>
+          <tr><td>Text/Teritiary</td><td class="num"><span class="sw" style="background:#9e9e9e"></span>#9E9E9E</td><td><code>--text-tertiary</code></td><td>Chevrons, field placeholders, the dim end of the shimmer. Never body text</td></tr>
+          <tr><td>Text/Coloured-blue</td><td class="num"><span class="sw" style="background:#80caff"></span>#80CAFF</td><td><code>--text-blue</code></td><td>Live task line, Recommended chip text, answered progress segments</td></tr>
+          <tr><td>Text/Button/Tonal-2</td><td class="num"><span class="sw" style="background:#bdbdbd"></span>#BDBDBD</td><td><code>--text-button-tonal-2</code></td><td>Skip, Back, Assets, Canvas, chevron buttons</td></tr>
+          <tr><td>Backgrounds/Page/bg-1</td><td class="num"><span class="sw" style="background:#121212"></span>#121212</td><td><code>--bg-app</code></td><td>App background, rail</td></tr>
+          <tr><td>Backgrounds/Page/bg-2</td><td class="num"><span class="sw" style="background:#212121"></span>#212121</td><td><code>--bg-page-2</code></td><td>Chat panel, option row fill</td></tr>
+          <tr><td>Backgrounds/Page/bg-3</td><td class="num"><span class="sw" style="background:#1b1b1b"></span>#1B1B1B</td><td><code>--bg-page-3</code></td><td>Question card, evidence rows, locked composer fill</td></tr>
+          <tr><td>Backgrounds/Card/bg-1</td><td class="num"><span class="sw" style="background:#323232"></span>#323232</td><td><code>--bg-card-1</code></td><td>Tonal buttons, key badges, term chips, idle send button</td></tr>
+          <tr><td>Backgrounds/Type/bg-1</td><td class="num"><span class="sw" style="background:#323232"></span>#323232</td><td><code>--bg-type-default</code></td><td>Composer, custom answer field</td></tr>
+          <tr><td>Backgrounds/Button/Primary colour</td><td class="num"><span class="sw" style="background:#0d99ff"></span>#0D99FF</td><td><code>--blue-500</code></td><td>Submit responses, stop button, chosen option stroke, current progress segment, composer top rule</td></tr>
+          <tr><td>Backgrounds/Disabled/Tonal-1</td><td class="num"><span class="sw" style="background:#093077"></span>#093077</td><td><code>--bg-disabled-tonal-1</code></td><td>User message bubble</td></tr>
+          <tr><td>Backgrounds/Badge/blue</td><td class="num">Blue/1000</td><td><code>rgba(13,153,255,.14)</code></td><td>Recommended chip fill. Prototype uses the alpha literal; bind the variable in code</td></tr>
+          <tr><td>Strokes/Card/Default</td><td class="num"><span class="sw" style="background:#424242"></span>#424242</td><td><code>--line-1</code></td><td>Task rail, group rail, card strokes, topbar rule</td></tr>
+          <tr><td>Strokes/Type/Focus</td><td class="num">Blue/600</td><td><code>--blue-500</code></td><td>Custom field focus ring, composer active top rule</td></tr>
+          <tr><td>—</td><td class="num"><span class="sw" style="background:#c8e6c9"></span>#C8E6C9</td><td><code>--thinking-tile</code></td><td>Assistant mark tile. Literal, from the original Figma node; propose adding it to the library</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note">Two-level text rule inside the reasoning: white for step headlines and group headings only, secondary for everything else. Tertiary is never used for readable text there.</div>
+    </section>
+
+    <section id="type">
+      <h2>3 · Typography</h2>
+      <p>Geist throughout, Geist Mono for table names, column names and key badges. Letter-spacing is negative at every size.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Role</th><th>Spec</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>Body1</td><td class="num">Geist 500 · 16/24 · −0.64px</td><td>Step headlines, question text</td></tr>
+          <tr><td>Body1 regular</td><td class="num">Geist 400 · 16/24 · −0.64px</td><td>Answer, user bubble, submitted answers, composer placeholder</td></tr>
+          <tr><td>Body2</td><td class="num">Geist 400 · 14/20 · −0.56px</td><td>Thoughts, task lines, summary body, option labels, "See reasoning", Skip and Submit labels (500)</td></tr>
+          <tr><td>Body2 medium</td><td class="num">Geist 500 · 14/20 · −0.56px</td><td>Group headings, buttons</td></tr>
+          <tr><td>Caption1</td><td class="num">Geist 400 · 12/16 · −0.24px</td><td>Group notes, row names (500), source tags, question counter, steps toggle, question line in the submitted bubble</td></tr>
+          <tr><td>Caption2</td><td class="num">Geist 500 · 10/14 · −0.20px</td><td>Recommended chip, Low relevance badge, Skipped tag</td></tr>
+          <tr><td>Mono</td><td class="num">Geist Mono 400 · 11/12</td><td>Key badges, column names, qualified table names (10.5px)</td></tr>
+        </tbody>
+      </table></div>
+      <p>Thought prose is set to a 588px measure. Answer text to 688px. Summary body to 688px.</p>
+    </section>
+
+    <section id="layout">
+      <h2>4 · Layout and spacing</h2>
+      <dl class="kv">
+        <dt>Thread column</dt><dd>780px, centred, padding 24px top, 16px sides, <b>80px bottom</b>. The bottom padding is what keeps the newest line 80px clear of the composer when scrolled to the end.</dd>
+        <dt>Message rail</dt><dd>Every assistant block is a 24px icon column + 12px gap + content. The live line, the trace steps, the answer and the question card all share this rail, so text starts at the same x.</dd>
+        <dt>Between messages</dt><dd>16px. A collapsed trace pulls one gap back (margin-top −16px) so the finished line sits exactly 16px above the answer.</dd>
+        <dt>Composer</dt><dd>780px, radius 24, padding 12, 1px top rule in Blue/500 when active.</dd>
+      </dl>
+      <h3>Spacing scale inside the trace</h3>
+      <p>One 4px scale. Distance falls as relatedness rises. Collapsed folds must contribute no gap (pull back their parent's gap with a negative margin).</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Relationship</th><th>Gap</th></tr></thead>
+        <tbody>
+          <tr><td>Between steps (and either side of the divider rule)</td><td class="num">16px</td></tr>
+          <tr><td>Step headline to its own content</td><td class="num">8px</td></tr>
+          <tr><td>Between content items inside a step (thought, group, task block)</td><td class="num">12px</td></tr>
+          <tr><td>Group heading to its list; between evidence rows</td><td class="num">8px · 4px</td></tr>
+          <tr><td>Between task lines inside a rail</td><td class="num">6px</td></tr>
+          <tr><td>Anything attached to the line above (skill chips, summary counts, timing pill)</td><td class="num">4px</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="turn">
+      <h2>5 · Reasoning turn</h2>
+      <h3>Live task line</h3>
+      <p>Grid: 24px assistant mark, 12px gap, then a flex head with the title cell and a right-aligned toggle. The title is a one-cell grid so an outgoing and incoming label overlap during the swap.</p>
+      <ul>
+        <li><b>Text</b> names the task running right now. Every task narration and every thought calls <code>setTask(label)</code>; a step headline sets it too. Same text twice is a no-op.</li>
+        <li><b>Style</b> Body1 500 in Text/Coloured-blue with a shimmer sweep and an animated ellipsis. Shimmer: 100° gradient blue → #D9EFFF → blue, 200% width, 1.8s linear loop, clipped to text.</li>
+        <li><b>Toggle</b> "Hide steps" / "Show steps" with a 12px chevron, Caption1 secondary, 4/8 padding, radius 8. Rotates 90° when open. <code>aria-expanded</code> mirrors the trace.</li>
+        <li><b>Default</b> The trace starts collapsed. Only the blue line shows until the reader opens it. Content keeps building underneath while collapsed.</li>
+      </ul>
+      <h3>Finished line</h3>
+      <ul>
+        <li>The assistant mark is hidden (keep the 24px column so text stays on the rail).</li>
+        <li>Title becomes a button: "See reasoning" + 12px right chevron, Body2 secondary, padding 2/6, radius 6, hover fill Card/bg-1. Chevron rotates 90° when open. The right-hand toggle is removed.</li>
+        <li>The trace folds; all groups and rows inside reset to closed.</li>
+        <li>The answer follows at 16px with the only assistant mark in the turn.</li>
+      </ul>
+      <h3>Trace container</h3>
+      <p>Collapsible via <code>grid-template-rows: 1fr → 0fr</code> with opacity, 550ms on the same easing. Inner column gap 16px. Trace-level thoughts carry 36px left padding so they land on the rail of the step titles.</p>
+    </section>
+
+    <section id="trace">
+      <h2>6 · Inside the trace</h2>
+      <h3>Step</h3>
+      <p>Headline row: 24px icon box (16px glyph, secondary) + 12px + Body1 500 white title + 8px + 16px chevron. Below it, content indented 36px. While working the title shimmers grey; done shows the up chevron; the whole step is click-to-fold once done.</p>
+      <h3>Thought</h3>
+      <p>A paragraph of first-person reasoning that sets up the next block or reacts to the last one. Body2 secondary, 588px measure. Streams at 26ms per word. Sits outside any rail. A thought between two runs of tasks closes one rail and opens the next.</p>
+      <h3>Task block</h3>
+      <p>Consecutive task lines are wrapped in one container with a 1px left rail in Strokes/Card/Default, 12px left padding, 6px row gap. A task line is a 16px icon + 6px + Body2 secondary text. While running: spinning logo glyph, streamed text, shimmer, animated ellipsis. Settled: the real icon replaces the spinner. Skill chips (2/6 padding, radius 8, Card/bg-1) hang 2px under their task inside the rail.</p>
+      <h3>Group</h3>
+      <p>Heading: 16px icon + 8px + Body2 500 <b>white</b> label + 12px chevron (right when closed, down when open). Its fold is a grid collapse (350ms). When open, the fold carries a 1px left rail in Strokes/Card/Default aligned under the icon's centre: margin-left 7px, padding-left 16px, so content lands 24px in. The note line ("Found 3 definitions that match") is Caption1 secondary. Rows are 4px apart with a 24px right inset.</p>
+      <h3>Evidence row</h3>
+      <p>Radius 8, fill Page/bg-3, 1px stroke, padding 8/12. Top line: 14px or 16px icon + Caption1 500 name + 12px chevron; optional right-aligned source tag or badge. Definition rows expand on click to show the definition and Synonyms / Parent terms chips. Data-binding rows show the qualified table name in mono and a Column · Type · Value table under a hairline.</p>
+      <h3>Divider</h3>
+      <p>1px rule in Strokes/Card/Default with no margin of its own; the 16px step gap frames it on both sides.</p>
+    </section>
+
+    <section id="questions">
+      <h2>7 · Follow-up questions</h2>
+      <p>Rendered after the first answer, on the message rail with an empty 24px column. Blocks the composer until submitted.</p>
+      <h3>Data model</h3>
+<pre><code>type Option   = { label: string; task?: string; reply: string }
+type Question = {
+  q: string                 // shown Body1 500 white
+  placeholder: string       // custom field hint
+  options: Option[4]
+  best: number              // index Skip selects
+  recommend?: boolean       // show the Recommended chip on options[best]
+  custom: (text) => string  // reply fragment for a typed answer
+}
+type Answer = Option & { custom: boolean; viaSkip?: boolean }
+// reply = answers.filter(Boolean).map(a => a.reply).join(' ')</code></pre>
+      <p>Three questions ship: which risk to take further (best 2, recommended), who is reading it (best 0, no badge, only the reader knows), how much policy wording to carry (best 0, recommended).</p>
+      <h3>Card anatomy</h3>
+      <ul>
+        <li><b>Card</b> 688px, radius 12, fill Page/bg-3, 1px stroke, padding 16, column gap 12.</li>
+        <li><b>Top row</b> "Question n of 3" Caption1 secondary, space-between, an 84px progress strip of three 3px segments (gap 5, radius 2). Unvisited: Strokes/Card/Default. Answered: Text/Coloured-blue. Current: Blue/500 scaled 1.7× tall. Segments are buttons that jump to any question already reached.</li>
+        <li><b>Question</b> Body1 500 white. Streams in the first time it is shown; renders instantly on revisit.</li>
+        <li><b>Options</b> 4 rows, gap 8. Row: padding 10/12, radius 8, fill Page/bg-2, 1px stroke, gap 10. Key badge 20×20 radius 6 Card/bg-1 with a mono digit. Label Body2 secondary, fills. Optional Recommended chip: padding 1/7, radius 6, Badge/blue fill, Caption2 in Text/Coloured-blue, right-aligned.</li>
+        <li><b>Chosen</b> stroke Blue/500, fill Blue/500 at 12%, label white, key badge Blue/500 with white digit. Hover on others: fill Card/bg-1, stroke Strokes/Card/Hover, −1px lift.</li>
+        <li><b>Custom answer</b> full-width field: radius 10, fill Type/bg-1, 1px stroke, padding 6 / 6 / 6 / 12, focus stroke Blue/500. Placeholder Body2 tertiary. 28px round send button, lights Blue/500 when there is text.</li>
+        <li><b>Footer</b> 12px top padding over a 1px rule. Left: two 32px round chevron buttons (1px stroke, no fill). Right: Skip (tonal-2, 32px, radius 80, padding 0/14) and, on the last question only, Submit responses (Blue/500, white label, send glyph).</li>
+      </ul>
+      <h3>Behaviour</h3>
+      <ul>
+        <li>Picking an option records it and auto-advances after 420ms. On the last question it stays and lights Submit.</li>
+        <li>Enter or the send glyph in the custom field records a typed answer the same way.</li>
+        <li>Back is enabled from question 2. Next is enabled when the current question is answered or has already been passed. Segments jump within the reached range.</li>
+        <li>Returning to an answered question shows the pick highlighted (or the typed text in the field). Changing it re-advances.</li>
+        <li><b>Skip</b> selects <code>options[best]</code> in front of the reader, marks it <code>viaSkip</code>, then advances. On the last question it submits.</li>
+        <li><b>Submit</b> is enabled whenever it is visible. It locks the card, fades it out (300ms, −8px), removes it, and resolves the answers.</li>
+        <li><b>Keyboard</b> 1–4 pick an option (not while typing), ← → move between reached questions, Enter in the field records a typed answer.</li>
+        <li><b>Height</b> Hold the stage's min-height at the outgoing step's height until the incoming step is fully built, then ease to the new height over 300ms. Without this the card collapses 258px in one frame when a longer question streams in.</li>
+      </ul>
+      <h3>Composer lock</h3>
+      <p>While the card is open: fill Page/bg-3, top rule Strokes/Card/Default instead of Blue/500, caret hidden, a 14px lock glyph followed by "Answer the questions above to carry on" in tertiary, and all controls at 40% opacity with pointer events off. Unlocks on submit. A replay always starts unlocked.</p>
+    </section>
+
+    <section id="sent">
+      <h2>8 · Submitted message</h2>
+      <p>One user bubble (Disabled/Tonal-1 fill, radius 12, padding 14/16, column gap 10, max 530px, right-aligned). For each answered question, a pair: the question in Caption1 at 58% white, then the answer in Body1 regular white. Pairs after the first carry a 10px top padding and a 1px rule at 14% white. An answer that came from Skip gets a Caption2 tag under it at 14% white fill and 72% white text: "Skipped, took your recommendation" where the badge was shown, otherwise "Skipped, took your pick".</p>
+    </section>
+
+    <section id="motion">
+      <h2>9 · Motion</h2>
+      <p>Easing everywhere is <code>cubic-bezier(.23, 1, .32, 1)</code>. Streaming uses <code>cubic-bezier(.22, .61, .25, 1)</code>. Respect <code>prefers-reduced-motion</code>: keep opacity fades, drop blur, translate, shimmer and spin.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Element</th><th>Animation</th><th>Duration</th></tr></thead>
+        <tbody>
+          <tr><td>Streaming word</td><td>opacity 0→1, blur 5px→0, per word</td><td class="num">420ms · 55ms/word cadence (26ms/word for thoughts)</td></tr>
+          <tr><td>Live task swap</td><td>incoming: opacity, +9px→0, blur 5→0. Outgoing: reverse to −9px</td><td class="num">360ms in · 260ms out</td></tr>
+          <tr><td>Shimmer</td><td>background-position 200%→−100%, linear loop</td><td class="num">1.8s</td></tr>
+          <tr><td>Ellipsis</td><td>'' → '.' → '..' → '...' stepped</td><td class="num">1.2s</td></tr>
+          <tr><td>Spinner glyph</td><td>rotate 1 turn linear + saturate/brightness pulse</td><td class="num">1.1s · 1.6s</td></tr>
+          <tr><td>Trace fold</td><td>grid rows 1fr↔0fr, opacity, margin-top</td><td class="num">550ms</td></tr>
+          <tr><td>Step fold</td><td>same</td><td class="num">450ms</td></tr>
+          <tr><td>Group fold · row fold</td><td>same</td><td class="num">350ms · 300ms</td></tr>
+          <tr><td>Question step</td><td>slide 16px from the travel direction with opacity</td><td class="num">320ms in · 240ms out</td></tr>
+          <tr><td>Question card dismiss</td><td>opacity 0, translate −8px, then remove</td><td class="num">300ms</td></tr>
+          <tr><td>Option chosen → advance</td><td>hold, then go</td><td class="num">420ms</td></tr>
+          <tr><td>Chips, badges, icons</td><td>pop: opacity, scale .86→1</td><td class="num">250ms</td></tr>
+          <tr><td>Rows, cards</td><td>rise: opacity, +6px→0</td><td class="num">350ms</td></tr>
+          <tr><td>Scroll</td><td>follow the newest node to the bottom, smooth</td><td class="num">on every append</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="copy">
+      <h2>10 · Copy</h2>
+      <p>All strings are content, not chrome. Ship them as data so writers can change them.</p>
+<pre><code>Live line       "Thinking" · then each task label · final "See reasoning"
+Toggle          "Hide steps" / "Show steps"
+Composer        "Ask anything.." · locked "Answer the questions above to carry on"
+Footer          "Working…" · "Finished in {n} sec" · "Facing issues with the assistant? Give feedback"
+Card            "Question {n} of 3" · "Skip" · "Submit responses"
+Placeholders    "Something else…" · "Someone else…" · "Handle it differently…"
+Recommended     "Recommended"
+Skip tags       "Skipped, took your recommendation" · "Skipped, took your pick"
+Step headlines  "Reading context" · "Context summary" · "Generate one-pager PPT" · "Create code for the document"
+Groups          "Definitions I used" · "How some terms are related" · "Where the data came from" · "Applying rules and policies"
+Turn 2 steps    "Re-reading the policy wording" · "Updating the one-pager"</code></pre>
+      <p>Thought copy, task lines, question options and replies live in the source file under <code>GROUPS</code>, <code>PPT_STEPS</code>, <code>QUESTIONS</code> and the <code>thought()</code> calls in <code>play()</code> and <code>respond()</code>.</p>
+    </section>
+
+    <section id="a11y">
+      <h2>11 · Accessibility</h2>
+      <ul>
+        <li>The steps toggle and the See reasoning button carry <code>aria-expanded</code> and an <code>aria-label</code> naming the action.</li>
+        <li>Expandable evidence rows are <code>role="button"</code>, <code>tabindex="0"</code>, toggle on Enter and Space, and expose <code>aria-expanded</code>.</li>
+        <li>Progress segments and chevron buttons have labels ("Question 2", "Previous question", "Next question"). The custom field is labelled "Your own answer"; its send glyph "Use this answer".</li>
+        <li>Focus ring: 2px Blue/500 outline, 2px offset, radius 6.</li>
+        <li>The locked composer sets <code>aria-disabled="true"</code> and states why in text, not colour alone.</li>
+        <li>Text contrast: secondary #BDBDBD on #212121 is 8.2:1; blue #80CAFF on #212121 is 8.7:1.</li>
+        <li>Reduced motion: the streaming keeps its fade, the shimmer becomes static secondary text, spinners stop.</li>
+      </ul>
+    </section>
+
+    <section id="qa">
+      <h2>12 · Acceptance checks</h2>
+      <p>Each of these was measured on the prototype in Chromium. Match them.</p>
+      <ul class="check">
+        <li>Trace is collapsed on first paint; the toggle reads "Show steps".</li>
+        <li>Blue line text changes with every task and thought; the text left edge equals the step title left edge (both 36px into the message rail).</li>
+        <li>Finished line reads "See reasoning ›" at 14px with no icon; distance to the answer is exactly 16px.</li>
+        <li>Exactly one assistant mark per answer; none on finished lines.</li>
+        <li>Inside the reasoning only step headlines and group headings compute to #FFFFFF; all other text is #BDBDBD.</li>
+        <li>Task rail is 1px #424242; task lines are 6px apart; a thought never sits inside a rail.</li>
+        <li>Opened group rail lands on the icon centre line (±1px) and content starts 24px in.</li>
+        <li>Steps 16px apart, headline to content 8px, content items 12px, rule centred with 16px each side.</li>
+        <li>Newest line holds 80px above the composer at 1280×900, 1280×1000 and 390×780.</li>
+        <li>Card height does not change by more than the eased transition when moving from question 2 to 3 (was a 258px single-frame drop before the min-height hold).</li>
+        <li>Composer is locked from the moment the card renders until submit, and unlocked before the second turn.</li>
+        <li>Skipping all three questions still submits three answers, each tagged.</li>
+        <li>Back into a skipped question shows the recommended option selected.</li>
+        <li>No horizontal scroll at 390px.</li>
+        <li>Replay resets to one user message, no answers, one live line.</li>
+      </ul>
+    </section>
+
+    <section id="figma">
+      <h2>13 · Figma and open items</h2>
+      <p>The Figma page "Assistant reasoning" holds three 1280px frames in a section, bound to the file's semantic variable collection in Dark mode, plus local components and 31 icon components imported from the product's own exported SVGs.</p>
+      <dl class="kv">
+        <dt>Components</dt><dd>Left rail, Topbar, Task row, Section header, Group header, Thought, Option row (Recommended chip toggle), Icon button 32, Button / tonal-2, Button / primary, Composer, Composer footer.</dd>
+        <dt>Frame 01</dt><dd>Reasoning open while working: live line, opening thought, Reading context with the Definitions group open behind its rail, three collapsed groups with thoughts, railed Composing task, rule, Context summary. Still to add: the Generate one-pager PPT step with its railed tasks and chips, the Create code step, the closing thought.</dd>
+        <dt>Frame 02</dt><dd>Answer plus the question card at Question 3 of 3 with a chosen Recommended option and Skip beside Submit responses; locked composer. The last build call timed out, so verify the card landed.</dd>
+        <dt>Frame 03</dt><dd>Both turns: submitted answers bubble with one Skipped tag, second See reasoning, second answer, idle composer.</dd>
+      </dl>
+      <div class="note warn">Known canvas defect: the component holders ("Icons A/B1/B2/B3", "Primitives A–D") sit at page x=0–1336, y=0–1900 and overlap the screens section that starts at x=800. Move the holders left of x=−1600 or the rail and topbar components will paint over frame 01. The three frames also still carry the placeholder shimmer flag; clear it when the build is signed off.</div>
+      <div class="note ok">The interactive prototype is the source of truth for behaviour and timing. Where the Figma frames and the prototype disagree, follow the prototype and update Figma.</div>
+    </section>
+  </main>
+</div>
