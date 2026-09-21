@@ -84,9 +84,10 @@ open(f'{OUT}/js/02-app.js', 'w').write(
 open(f'{OUT}/js/03-theme-shell.js', 'w').write(scripts[1][0].strip() + '\n')
 
 # ── Hand-written docs ────────────────────────────────────────────────
-# The README is authored, not generated, and this script clears its own
-# output directory — so it lives outside the tree and is copied in.
-shutil.copy(f'{ROOT}/handoff/template/README.md', f'{OUT}/README.md')
+# The README, the specs and the rendered states are authored, not
+# generated, and this script clears its own output directory — so they
+# live outside the tree in handoff/template and are copied in whole.
+shutil.copytree(f'{ROOT}/handoff/template', OUT, dirs_exist_ok=True)
 shutil.copy(f'{ROOT}/Cogentiq-Agents.html', f'{OUT}/Cogentiq-Agents.standalone.html')
 
 # ── HTML ─────────────────────────────────────────────────────────────

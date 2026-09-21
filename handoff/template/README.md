@@ -1,8 +1,8 @@
-# Cogentiq · Agents — design handoff
+# Cogentiq · Agents — developer handoff
 
-The Agents landing page and the "Register a remote agent" flow, as a
-working static prototype. No build step, no dependencies: open
-`index.html` in a browser.
+The Agents page and the three remote-agent registration flows, as a
+working static prototype plus the specs that go with it. No build step,
+no dependencies: open `index.html` in a browser.
 
     open index.html          # macOS
     start index.html         # Windows
@@ -14,12 +14,28 @@ a specification you can run.
 
 ---
 
+## Start here
+
+| If you are… | Read |
+| --- | --- |
+| building the landing page and detail drawer | [docs/01-agents-page.md](docs/01-agents-page.md) |
+| building the registration wizard | [docs/02-registration-flows.md](docs/02-registration-flows.md) |
+| writing the API behind it | [docs/03-data-and-api.md](docs/03-data-and-api.md) |
+| picking up the front-end code | [docs/04-implementation-notes.md](docs/04-implementation-notes.md) |
+| looking for the designs | [design/](design/) and the Figma links below |
+
+**Figma** — [Remote agent registration, dark](https://www.figma.com/design/Cq3g1NA1RzLfySk1EM2n2V/Cogentiq--Builder?node-id=3705-150833)
+(9 frames, one per state, built from the published library).
+**Prototype** — this folder, and the single-file copy
+`Cogentiq-Agents.standalone.html` for anyone who just wants to click.
+
+---
+
 ## What's in the box
 
 ```
 index.html                  markup for the page, the drawer and all three modals
-Cogentiq-Agents.standalone.html   the same thing as one self-contained file,
-                            for anyone who just wants to click and look
+Cogentiq-Agents.standalone.html   the same thing as one self-contained file
 css/
   01-tokens.css             design tokens, light and dark
   02-components.css         the shared design system (.cq-*)
@@ -33,6 +49,8 @@ assets/
   marks/                    agent + orchestrator marks, 7 hues, 96px for a 40px slot
   logos/                    model-provider logos
   img/avatar.png            header avatar
+design/                     rendered states, and what each one is for
+docs/                       the specs listed above
 ```
 
 Load order matters: the CSS files cascade in numbered order, and
@@ -75,6 +93,28 @@ Token families, by what they name rather than what they look like:
 `--text-teritiary` is spelled that way in the source design system. Kept
 as-is so the two do not drift.
 
+The Figma library uses the same names — `Backgrounds/Page/bg-2`,
+`Text/Teritiary`, `Strokes/Card/Default` — so a value in a frame maps to
+exactly one line of CSS.
+
+### Type
+
+Geist and Geist Mono, matching the Figma text styles one-for-one:
+
+| CSS class | Size / line height | Weight | Used for |
+| --- | --- | --- | --- |
+| `.cq-subhead1-med` | 24 / 32 | 500 | page title |
+| `.cq-subhead2-med` | 18 / 24 | 500 | modal titles, drawer name |
+| `.cq-body1-med` · `.cq-body1-reg` | 16 / 24 | 500 · 400 | card names, preview name |
+| `.cq-body2-med` · `.cq-body2-reg` | 14 / 20 | 500 · 400 | body copy, field values, buttons |
+| `.cq-caption-med` · `.cq-caption-reg` | 12 / 16 | 500 · 400 | group labels, help text, meta |
+| `.cq-mono` | 11 / 1 | 400 | endpoints and paths inline |
+| `.ag-json__body` | 12 / 1.6 | 400 | the Agent Card JSON viewer |
+
+The names match the Figma text styles, with one gotcha: Figma's
+`Body2/Reg` is 14/20 and maps to `.cq-body2-reg`, while `.cq-body1-*` is
+the 16/24 step above it.
+
 ---
 
 ## Motion
@@ -116,117 +156,12 @@ The only JS-driven timing is the fake validation delay in `takeSpec()`
 
 ---
 
-## The three registration routes
-
-The modal is three steps: **Details → Connection → Review**. The
-connection method chosen in step 2 decides what step 3 asks for, and that
-is the only thing that varies between the routes.
-
-| | Step 2 asks for | Step 3 shows |
-| --- | --- | --- |
-| **Connect it directly** *(default)* | an integration, picked from a dropdown | the agent preview — nothing to fill in |
-| **It is already an agent** | an A2A server | an agent-card dropdown, then its auth |
-| **It is a plain API** | an OpenAPI spec or manifest, uploaded and validated | the agent preview — nothing to fill in |
-
-An **integration** is one agent card: an address, a credential, and the
-shape of the call, registered once and reused. Creating one opens a
-nested modal (`#intScrim`). A **server** publishes several cards, so that
-route is the only one that still has a choice to make on the last step.
-
-Only one agent card per agent, everywhere. To combine several, register
-them separately and compose them in an orchestrator.
-
-### The one function to read first
-
-`draft()` in `02-app.js` returns the agent the wizard would create, as it
-currently stands. The preview, the review rows and the registration all
-read it, so what the last step shows and what gets created cannot drift
-apart. If you change what an agent is, change it there.
-
-Other load-bearing pieces:
-
-| Function | Does |
-| --- | --- |
-| `paintWiz()` | single render pass for the whole modal — step visibility, validity, button state |
-| `stepOK()` / `stepHint()` | whether the current step is answered, and what to say if not |
-| `pickItems()` | the agent cards on offer (server route only) |
-| `render()` | the landing page grid or table |
-| `openPanel(i)` | the agent detail drawer |
-| `markFor(agent)` | *(in `01-data.js`)* hashes the agent name to one of seven hues, so a card keeps its colour between renders |
-
-### Conditional fields
-
-Three attribute patterns drive show/hide, all resolved in one pass:
-
-```html
-<div data-only="direct">        <!-- shown when wiz.proto === 'direct'   -->
-<div data-cauth-only="bearer">  <!-- shown when wiz.cardAuth === 'bearer' -->
-<div data-niauth-only="apikey"> <!-- shown when wiz.niAuth === 'apikey'   -->
-```
-
-Each has a paired CSS rule so `[hidden]` beats the element's own
-`display`. Adding a case means adding markup only.
-
----
-
-## Data shapes
-
-`01-data.js` holds four collections. Replace them with API responses and
-nothing downstream needs to change.
-
-```js
-// an agent in the workspace
-{ name, type: 'agent'|'orchestrator'|'remote', state: 'running'|'idle'|'review'|'failing'|'draft',
-  desc, by, tags: [], updated, runs,
-  model, tools, skills, guards,              // workspace agents
-  conn: 'a2a'|'direct'|'rest',               // remote agents
-  endpoint, server, auth, cards: [], agentSkills: [],
-  reqMethod, reqPath, msgField, respField }  // direct connections only
-
-// an A2A server, which publishes several cards
-{ id, name, url, updated, cards: [{ name, desc, skills: [], auth, path }] }
-
-// an integration — one agent card: where it is, how to authenticate, how to call it
-{ id, name, url, desc, auth, timeout, skills: [], method, path, msg, resp }
-
-// an operation read off an uploaded OpenAPI document
-{ op, skill, desc }
-```
-
----
-
-## Notes for whoever builds this
-
-- **Accessibility is started, not finished.** Roles, `aria-expanded`,
-  `aria-selected` and `aria-disabled` are in place on the custom
-  dropdowns and the stepper. Full keyboard navigation inside the
-  dropdown lists (arrow keys, type-ahead) is not — the tag picker's
-  Enter handling is the only keyboard affordance implemented, as a
-  pattern to copy.
-- **The dropdowns expand in flow**, not as floating layers. That is
-  deliberate: the modal body scrolls, and an absolutely-positioned
-  popover gets clipped the moment the field sits low enough. If you
-  swap in a portal-based popover, check the low-field case.
-- **Validation is illustrative.** `takeSpec()` accepts any file and
-  reports a fixed result after 900ms. Real parsing replaces it.
-- **Secrets are plain state.** Tokens and keys sit in `wiz` and in
-  `INTEGRATIONS` in memory, and credentials entered in the integration
-  modal are stored on the object. Obviously not how it ships.
-- **Marks are hashed from the agent name**, so renaming an agent changes
-  its colour. If colour should be stable across a rename, hash an id
-  instead — one line in `markFor()`.
-- **Breakpoints are unfinished.** The card grid is a fixed two columns
-  (`repeat(2, minmax(0, 1fr))`) at every width, and there is not a single
-  width media query in the page CSS — the rail, the sidebar filters and
-  the detail drawer keep their desktop widths all the way down. Designed
-  and checked at 1280px and up; phone and tablet need design work that
-  has not been done, starting with dropping the grid to one column.
-
----
-
 ## Source of truth
 
 This folder is generated from the single-file prototype `agents.html` in
 the same repository, which is what the live artifact publishes. Changes
 made here will not flow back — edit the prototype and regenerate, or take
 this folder as the fork point and retire the prototype.
+
+The `docs/` and `design/` folders are written by hand and are not
+regenerated; keep them with the code when you fork.
