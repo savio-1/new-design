@@ -273,7 +273,7 @@ textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height
       <select id="ratioQuick" title="Canvas ratio"></select>
       <span class="sep"></span>
       <button class="btn sm" id="btnAddText"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M12 6v14M8 20h8"/></svg>Text</button>
-      <button class="btn sm" id="btnAddImage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>Image</button>
+      <button class="btn sm" id="btnAddImage" title="Add an image, GIF or video (or drop / paste one on the canvas)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>Media</button>
       <span class="sep"></span>
       <button class="btn sm" id="btnGuides" title="Show centre and thirds guides (G)">Guides</button>
       <button class="btn sm" id="btnSnap" title="Snap layers to centre, edges and each other while dragging">Snap</button>
@@ -320,7 +320,7 @@ textarea{height:auto;min-height:64px;padding:7px 9px;resize:vertical;line-height
 </div>
 <div class="toast" id="toast"></div>
 <input type="file" id="fileFont" accept=".ttf,.otf,.woff,.woff2,font/*" multiple hidden>
-<input type="file" id="fileImage" accept="image/*" multiple hidden>
+<input type="file" id="fileImage" accept="image/*,video/*,.gif,.webp,.apng,.avif,.mov,.mkv,.m4v,.ogv,.webm,.mp4" multiple hidden>
 <input type="file" id="fileJson" accept="application/json,.json" hidden>
 
 <script>
@@ -985,7 +985,7 @@ function defaultLayer(over = {}) {
 }
 function defaultImageLayer(over = {}) {
   return Object.assign({
-    kind: 'image', id: layerSeq++, visible: true, locked: false, src: null, name: 'Image', x: 50, y: 50, w: 50, rotate: 0, flipX: false, lockAspect: true,
+    kind: 'image', id: layerSeq++, visible: true, locked: false, src: null, name: 'Image', x: 50, y: 50, w: 50, rotate: 0, flipX: false, lockAspect: true, speed: 1, offset: 0, trimStart: 0, trimEnd: 0,
     crop: { l: 0, t: 0, r: 0, b: 0 }, radius: 0, circle: false, opacity: 1, blend: 'source-over',
     shadow: 0, shadowY: 0, shadowColor: '#000000', shadowOpacity: 0.5, grade: Object.assign({}, GRADE_DEFAULTS),
   }, over);
@@ -1324,15 +1324,20 @@ void main(){
   const buf = g.createBuffer(); g.bindBuffer(g.ARRAY_BUFFER, buf); g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), g.STATIC_DRAW);
   [pCopy, pBlur, pGrade].forEach(pr => { const a = g.getAttribLocation(pr.p, 'a'); g.enableVertexAttribArray(a); g.vertexAttribPointer(a, 2, g.FLOAT, false, 0, 0); });
 
-  const srcTex = new Map(); // image id -> { tex, w, h }
-  function sourceTexture(id, bmp) {
-    let t = srcTex.get(id); if (t) return t;
-    const tex = g.createTexture(); g.bindTexture(g.TEXTURE_2D, tex);
-    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
-    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
-    g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, false);
-    try { g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, bmp); } catch (e) { return null; }
-    t = { tex, w: bmp.naturalWidth || bmp.width, h: bmp.naturalHeight || bmp.height }; srcTex.set(id, t); return t;
+  const srcTex = new Map(); // texture id -> { tex, w, h, key }  (key changes per video / GIF frame)
+  function sourceTexture(id, img, key = 0) {
+    let t = srcTex.get(id);
+    if (t && t.key === key) return t;
+    if (!t) {
+      const tex = g.createTexture(); g.bindTexture(g.TEXTURE_2D, tex);
+      g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
+      g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.LINEAR); g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.LINEAR);
+      t = { tex }; srcTex.set(id, t);
+    }
+    g.bindTexture(g.TEXTURE_2D, t.tex); g.pixelStorei(g.UNPACK_FLIP_Y_WEBGL, false);
+    try { g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, img); } catch (e) { return null; }
+    t.w = img.videoWidth || img.naturalWidth || img.width; t.h = img.videoHeight || img.naturalHeight || img.height; t.key = key;
+    return t;
   }
   function dropTexture(id) { const t = srcTex.get(id); if (t) { g.deleteTexture(t.tex); srcTex.delete(id); } }
   // framebuffer pool
@@ -1386,8 +1391,8 @@ void main(){
   const BLUR_MODE = { gaussian: 0, box: 1, radial: 2, motion: 3, tilt: 4 };
 
   /** Render a graded, cropped image. Returns the FX canvas (draw it immediately or copy it). */
-  function render(layer, im, crop, outW, outH, grainSeed) {
-    const src = sourceTexture(layer.src, im.bmp); if (!src) return null;
+  function render(layer, frame, texId, crop, outW, outH, grainSeed) {
+    const src = sourceTexture(texId, frame.img, frame.key); if (!src) return null;
     outW = Math.max(2, Math.min(MAX, Math.round(outW))); outH = Math.max(2, Math.min(MAX, Math.round(outH)));
     if (cv.width !== outW || cv.height !== outH) { cv.width = outW; cv.height = outH; }
     const gr = Object.assign({}, GRADE_DEFAULTS, layer.grade || {});
@@ -1538,7 +1543,7 @@ async function runExport() {
     ctx = exportCtx; target = exportCanvas; exportFmt = fmt;
     setRenderSize(W, H, ssFactor(W, H));
     if (fmt === 'png') {
-      renderFrame(savedTime, true);
+      await syncMediaExact(savedTime); renderFrame(savedTime, true);
       const blob = await new Promise(r => target.toBlob(r, 'image/png'));
       download(blob, base + '.png'); toast('PNG saved');
     } else if (fmt === 'gif') {
@@ -1549,7 +1554,7 @@ async function runExport() {
       const stride = Math.max(1, Math.floor(W * H / 6000));
       for (let s = 0; s < sampleFrames; s++) {
         const i = Math.floor(s * frames / sampleFrames);
-        renderFrame(i / fps, true);
+        await syncMediaExact(i / fps); renderFrame(i / fps, true);
         const d = ctx.getImageData(0, 0, W, H).data;
         for (let p = 0; p < W * H; p += stride) { const j = p * 4; samples.push(d[j], d[j + 1], d[j + 2]); }
         if (cancelExport) throw new Error('cancelled');
@@ -1560,7 +1565,7 @@ async function runExport() {
       const enc = new GIF.Encoder(W, H, fps, q.palette);
       const t0 = performance.now();
       for (let i = 0; i < frames; i++) {
-        renderFrame(i / fps, true);
+        await syncMediaExact(i / fps); renderFrame(i / fps, true);
         const d = ctx.getImageData(0, 0, W, H).data;
         enc.addFrame(q.index(d, W, H, S.export.dither));
         if (i % 2 === 0) { setProgress(`Encoding GIF · frame ${i + 1}/${frames}`, (i + 1) / frames); await nextTick(); }
@@ -1610,7 +1615,7 @@ async function exportVideo(fmt, W, H, fps, frames, base) {
     encoder.configure(cfg);
     const us = 1e6 / fps;
     for (let i = 0; i < frames; i++) {
-      renderFrame(i / fps, true);
+      await syncMediaExact(i / fps); renderFrame(i / fps, true);
       const frame = new VideoFrame(target, { timestamp: Math.round(i * us), duration: Math.round(us) });
       encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
       frame.close();
@@ -1645,7 +1650,7 @@ async function recordFallback(W, H, fps, frames, base) {
   const frameMs = 1000 / fps;
   for (let i = 0; i < frames; i++) {
     const t0 = performance.now();
-    renderFrame(i / fps, true);
+    await syncMediaExact(i / fps); renderFrame(i / fps, true);
     if (track.requestFrame) track.requestFrame();
     setProgress(`Recording (real-time) · ${i + 1}/${frames}`, (i + 1) / frames);
     const wait = Math.max(0, frameMs - (performance.now() - t0));
@@ -1659,6 +1664,301 @@ async function recordFallback(W, H, fps, frames, base) {
   toast(`${ext.toUpperCase()} saved (real-time recording) · ${fmtBytes(blob.size)}`);
 }
 
+
+</script>
+<script>
+/* ======================================================================
+   Media — images, animated images (GIF / APNG / animated WebP) and video.
+   All three live in "image" layers and share crop, resize and grading.
+   Blobs are kept in IndexedDB so large files survive a reload.
+   ====================================================================== */
+const BLOBS = new Map();         // media id -> Blob (original file)
+const LAYER_VIDEOS = new Map();  // videoKey -> <video> (one element per clip+timing, so trims/speeds on different layers don't fight)
+const MAX_ANIM_FRAMES = 900;
+const ANIM_PIXEL_BUDGET = 220e6; // total decoded pixels kept in memory for one animation
+const VIDEO_EXT = /\.(mp4|m4v|webm|mov|mkv|ogv|ogg|avi|3gp)$/i;
+const IMAGE_EXT = /\.(gif|png|apng|jpe?g|webp|avif|bmp|svg|ico|jfif)$/i;
+function isMediaFile(f) { return !!f && (/^(image|video)\//.test(f.type || '') || VIDEO_EXT.test(f.name || '') || IMAGE_EXT.test(f.name || '')); }
+function isVideoFile(blob, name = '') { return /^video\//.test(blob.type || '') || VIDEO_EXT.test(name); }
+
+/* ---------- IndexedDB blob store ---------- */
+const MediaDB = (() => {
+  let dbp = null;
+  function open() {
+    if (dbp) return dbp;
+    dbp = new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open('gradient-studio-media', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('blobs');
+        r.onsuccess = () => { const db = r.result; db.onversionchange = () => { db.close(); dbp = null; }; res(db); };
+        r.onerror = () => { dbp = null; rej(r.error); };
+      } catch (e) { rej(e); }
+    });
+    dbp.catch(() => {});
+    return dbp;
+  }
+  function tx(mode, fn) {
+    // never let a stuck database (blocked upgrade, private mode quirks) hang an import
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('media store timeout')), 5000));
+    return Promise.race([timeout, open().then(db => new Promise((res, rej) => {
+      const t = db.transaction('blobs', mode); const store = t.objectStore('blobs'); let out;
+      const r = fn(store); if (r) r.onsuccess = () => { out = r.result; };
+      t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    }))]);
+  }
+  return {
+    put: (id, blob) => tx('readwrite', s => s.put(blob, id)).then(() => true, () => false),
+    get: id => tx('readonly', s => s.get(id)).catch(() => undefined),
+    del: id => tx('readwrite', s => s.delete(id)).catch(() => {}),
+  };
+})();
+function dataURLtoBlob(u) {
+  const [head, body] = u.split(','); const mime = (head.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+  const bin = atob(body); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+function blobToDataURL(b) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }); }
+
+/* ---------- thumbnails ---------- */
+function makeThumb(src, w, h, alpha) {
+  const s = 112 / Math.max(w, h, 1); const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+  try { x.drawImage(src, 0, 0, c.width, c.height); return c.toDataURL(alpha ? 'image/png' : 'image/jpeg', 0.78); } catch (e) { return ''; }
+}
+
+/* ---------- pure-JS GIF decoder (fallback when ImageDecoder is unavailable, e.g. Safari) ---------- */
+function gifLZW(minCode, data, npix) {
+  const out = new Uint8Array(npix); let op = 0;
+  const clear = 1 << minCode, eoi = clear + 1;
+  let size = minCode + 1, mask = (1 << size) - 1, next = eoi + 1;
+  const prefix = new Uint16Array(4096), suffix = new Uint8Array(4096), stack = new Uint8Array(4097);
+  for (let i = 0; i < clear; i++) suffix[i] = i;
+  let bits = 0, cur = 0, dp = 0, old = -1, first = 0;
+  while (op < npix) {
+    while (bits < size) { if (dp >= data.length) return out; cur |= data[dp++] << bits; bits += 8; }
+    let code = cur & mask; cur >>>= size; bits -= size;
+    if (code === clear) { size = minCode + 1; mask = (1 << size) - 1; next = eoi + 1; old = -1; continue; }
+    if (code === eoi) break;
+    if (old === -1) { out[op++] = suffix[code]; old = code; first = suffix[code]; continue; }
+    const inCode = code; let sp = 0;
+    if (code >= next) { stack[sp++] = first; code = old; }
+    while (code > eoi) { stack[sp++] = suffix[code]; code = prefix[code]; }
+    first = suffix[code]; stack[sp++] = first;
+    while (sp && op < npix) out[op++] = stack[--sp];
+    if (next < 4096) { prefix[next] = old; suffix[next] = first; next++; if ((next & mask) === 0 && next < 4096) { size++; mask = (1 << size) - 1; } }
+    old = inCode;
+  }
+  return out;
+}
+function decodeGifJS(buf) {
+  const u = new Uint8Array(buf); let p = 0;
+  const rd = () => u[p++]; const rd16 = () => { const v = u[p] | (u[p + 1] << 8); p += 2; return v; };
+  if (String.fromCharCode(u[0], u[1], u[2]) !== 'GIF') throw new Error('Not a GIF');
+  p = 6; const W = rd16(), H = rd16(); const flags = rd(); p += 2;
+  let gct = null; if (flags & 0x80) { const n = 1 << ((flags & 7) + 1); gct = u.subarray(p, p + n * 3); p += n * 3; }
+  const canvas = new Uint8ClampedArray(W * H * 4); const frames = [];
+  let gce = { delay: 0, disposal: 0, trans: -1 };
+  while (p < u.length) {
+    const b = rd();
+    if (b === 0x3B) break;
+    if (b === 0x21) {
+      const label = rd();
+      if (label === 0xF9) { rd(); const pf = rd(); const delay = rd16(); const ti = rd(); rd(); gce = { delay, disposal: (pf >> 2) & 7, trans: (pf & 1) ? ti : -1 }; }
+      else { let s; while ((s = rd())) p += s; }
+      continue;
+    }
+    if (b !== 0x2C) break;
+    const fx = rd16(), fy = rd16(), fw = rd16(), fh = rd16(); const f2 = rd();
+    let ct = gct; if (f2 & 0x80) { const n = 1 << ((f2 & 7) + 1); ct = u.subarray(p, p + n * 3); p += n * 3; }
+    const minCode = rd(); const chunks = []; let len = 0, s;
+    while ((s = rd())) { chunks.push(u.subarray(p, p + s)); p += s; len += s; }
+    const data = new Uint8Array(len); let o = 0; for (const c of chunks) { data.set(c, o); o += c.length; }
+    const idx = gifLZW(minCode, data, fw * fh);
+    const rows = [];
+    if (f2 & 0x40) { for (const [st, step] of [[0, 8], [4, 8], [2, 4], [1, 2]]) for (let y = st; y < fh; y += step) rows.push(y); }
+    else for (let y = 0; y < fh; y++) rows.push(y);
+    const saved = gce.disposal === 3 ? canvas.slice() : null;
+    if (ct) for (let i = 0; i < fh; i++) {
+      const py = fy + rows[i]; if (py >= H) continue;
+      for (let x = 0; x < fw; x++) {
+        const ci = idx[i * fw + x]; if (ci === gce.trans) continue;
+        const px = fx + x; if (px >= W) continue;
+        const d = (py * W + px) * 4; canvas[d] = ct[ci * 3]; canvas[d + 1] = ct[ci * 3 + 1]; canvas[d + 2] = ct[ci * 3 + 2]; canvas[d + 3] = 255;
+      }
+    }
+    frames.push({ data: canvas.slice(), delay: gce.delay });
+    if (gce.disposal === 2) { for (let y = fy; y < Math.min(H, fy + fh); y++) canvas.fill(0, (y * W + fx) * 4, (y * W + Math.min(W, fx + fw)) * 4); }
+    else if (gce.disposal === 3 && saved) canvas.set(saved);
+    gce = { delay: 0, disposal: 0, trans: -1 };
+  }
+  return { W, H, frames };
+}
+
+/* ---------- decoders ---------- */
+function frameDur(sec) { return sec <= 0.011 ? 0.1 : sec; } // browsers treat 0–10 ms GIF delays as 100 ms
+// cheap header sniffing: APNG has an acTL chunk before IDAT, animated WebP sets the VP8X animation flag, animated AVIF uses the 'avis' brand
+function looksAnimated(u, type) {
+  const str = (a, b) => String.fromCharCode(...u.subarray(a, b));
+  if (/png|apng/.test(type)) {
+    for (let o = 8; o + 8 <= u.length;) {
+      const len = ((u[o] << 24) | (u[o + 1] << 16) | (u[o + 2] << 8) | u[o + 3]) >>> 0, t = str(o + 4, o + 8);
+      if (t === 'acTL') return true; if (t === 'IDAT' || t === 'IEND') return false; o += 12 + len;
+    }
+    return false;
+  }
+  if (/webp/.test(type)) return str(12, 16) === 'VP8X' && (u[20] & 0x02) !== 0;
+  if (/avif/.test(type)) return str(0, Math.min(u.length, 64)).includes('avis');
+  return true;
+}
+async function decodeAnimated(blob, type, name) {
+  const isGif = type === 'image/gif' || /\.gif$/i.test(name);
+  if (!isGif && !/image\/(webp|png|apng|avif)/.test(type)) return null;
+  const buf = await blob.arrayBuffer();
+  if (!isGif && !looksAnimated(new Uint8Array(buf), type)) return null; // plain stills skip the (slower) frame decoder
+  let frames = [], w = 0, h = 0;
+  if (typeof ImageDecoder !== 'undefined' && await ImageDecoder.isTypeSupported(isGif ? 'image/gif' : type).catch(() => false)) {
+    const dec = new ImageDecoder({ data: buf, type: isGif ? 'image/gif' : type });
+    try {
+      await dec.tracks.ready; await dec.completed.catch(() => {});
+      const track = dec.tracks.selectedTrack;
+      if (!track || !(track.frameCount > 1)) return null;
+      const n = Math.min(track.frameCount, MAX_ANIM_FRAMES); let scale = 1;
+      for (let i = 0; i < n; i++) {
+        const { image } = await dec.decode({ frameIndex: i });
+        if (i === 0) { const px = image.displayWidth * image.displayHeight * n; if (px > ANIM_PIXEL_BUDGET) scale = Math.sqrt(ANIM_PIXEL_BUDGET / px); }
+        const bmp = scale < 1
+          ? await createImageBitmap(image, { resizeWidth: Math.max(1, Math.round(image.displayWidth * scale)), resizeHeight: Math.max(1, Math.round(image.displayHeight * scale)), resizeQuality: 'high' })
+          : await createImageBitmap(image);
+        frames.push({ img: bmp, dur: frameDur((image.duration || 0) / 1e6) }); image.close();
+      }
+    } finally { dec.close(); }
+  } else if (isGif) {
+    const g = decodeGifJS(buf);
+    if (g.frames.length <= 1) return null;
+    for (const f of g.frames.slice(0, MAX_ANIM_FRAMES)) frames.push({ img: await createImageBitmap(new ImageData(f.data, g.W, g.H)), dur: frameDur(f.delay / 100) });
+  } else return null;
+  let t = 0; for (const f of frames) { f.t0 = t; t += f.dur; }
+  w = frames[0].img.width; h = frames[0].img.height;
+  return { kind: 'anim', bmp: frames[0].img, frames, duration: t, w, h, thumb: makeThumb(frames[0].img, w, h, true) };
+}
+function waitEvent(el, ev, ms = 8000) { return new Promise((res, rej) => { const to = setTimeout(() => rej(new Error('timeout')), ms); el.addEventListener(ev, () => { clearTimeout(to); res(); }, { once: true }); }); }
+async function decodeVideo(blob) {
+  const url = URL.createObjectURL(blob);
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto';
+  try {
+    const failed = new Promise((_, rej) => v.addEventListener('error', () => rej(new Error('unsupported')), { once: true }));
+    v.src = url;
+    await Promise.race([waitEvent(v, 'loadeddata', 20000), failed]);
+    let duration = v.duration;
+    if (!isFinite(duration) || duration <= 0) { // e.g. WebM from MediaRecorder has no duration in its header
+      v.currentTime = 1e7; await waitEvent(v, 'seeked').catch(() => {}); duration = v.duration; v.currentTime = 0; await waitEvent(v, 'seeked').catch(() => {});
+    }
+    if (!v.videoWidth || !v.videoHeight || !isFinite(duration)) throw new Error('unsupported');
+    v.currentTime = Math.min(0.1, duration / 3); await waitEvent(v, 'seeked', 5000).catch(() => {});
+    const thumb = makeThumb(v, v.videoWidth, v.videoHeight, false);
+    return { kind: 'video', url, w: v.videoWidth, h: v.videoHeight, duration, thumb, bmp: null };
+  } catch (e) {
+    URL.revokeObjectURL(url);
+    throw new Error('This browser can’t play that video format — try MP4 (H.264) or WebM');
+  } finally { v.removeAttribute('src'); v.load(); }
+}
+async function decodeMedia(blob, name = '') {
+  if (isVideoFile(blob, name)) return decodeVideo(blob);
+  const type = blob.type || (/\.gif$/i.test(name) ? 'image/gif' : '');
+  const anim = await decodeAnimated(blob, type, name).catch(() => null);
+  if (anim) return anim;
+  const url = URL.createObjectURL(blob);
+  const bm = await loadBitmap(url);
+  const w = bm.w || 1024, h = bm.h || 1024;
+  return { kind: 'image', bmp: bm.bmp, url, w, h, thumb: makeThumb(bm.bmp, w, h, true) };
+}
+function releaseMedia(id) {
+  const e = IMAGES.get(id);
+  if (e) { if (e.url) URL.revokeObjectURL(e.url); if (e.frames) e.frames.forEach(f => f.img.close && f.img.close()); }
+  for (const [k, v] of LAYER_VIDEOS) if (k.startsWith(id + '|')) { v.pause(); v.remove(); LAYER_VIDEOS.delete(k); }
+  IMAGES.delete(id); BLOBS.delete(id); if (FX) FX.dropTexture(id);
+}
+
+/* ---------- timeline ---------- */
+function clipRange(l, e) {
+  const D = Math.max(0.05, e.duration || 0.05);
+  const a = clamp(l.trimStart || 0, 0, Math.max(0, D - 0.05));
+  const b = l.trimEnd > 0 ? clamp(l.trimEnd, a + 0.05, D) : D;
+  return { a, b, len: Math.max(0.05, b - a) };
+}
+function mediaTime(l, e, t) {
+  const { a, len } = clipRange(l, e);
+  const x = t * (l.speed || 1) + (l.offset || 0);
+  return a + (((x % len) + len) % len);
+}
+// layers showing the same clip with the same timing (duplicates, pastes) share one decoder
+function videoKey(l) { return `${l.src}|${l.speed || 1}|${l.offset || 0}|${l.trimStart || 0}|${l.trimEnd || 0}`; }
+function layerVideo(l, e) {
+  const k = videoKey(l);
+  let v = LAYER_VIDEOS.get(k);
+  if (v && v._url === e.url) return v;
+  if (v) { v.pause(); v.remove(); }
+  v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.loop = false;
+  v.src = e.url; v._url = e.url;
+  mediaShelf().append(v); // attached (but invisible) so every browser keeps decoding frames
+  LAYER_VIDEOS.set(k, v); return v;
+}
+let _shelf = null;
+function mediaShelf() {
+  if (!_shelf) { _shelf = document.createElement('div'); _shelf.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:.001;pointer-events:none;z-index:-1'; document.body.append(_shelf); }
+  return _shelf;
+}
+/** The drawable for a media layer at time t: { img, key, ready } */
+function mediaFrame(l, e, t) {
+  if (e.kind === 'anim') {
+    const mt = mediaTime(l, e, t); const fr = e.frames; let lo = 0, hi = fr.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (fr[mid].t0 <= mt) lo = mid; else hi = mid - 1; }
+    return { img: fr[lo].img, key: lo, ready: true };
+  }
+  if (e.kind === 'video') { const v = layerVideo(l, e); return { img: v, key: Math.round(v.currentTime * 1000), ready: v.readyState >= 2, video: true }; }
+  return { img: e.bmp, key: 0, ready: true };
+}
+function mediaLayers() { return S.layers.filter(l => l.kind === 'image' && IMAGES.get(l.src)?.kind === 'video'); }
+/** Keep preview videos in step with the timeline without seeking every frame. */
+function syncVideosPreview(t, isPlaying) {
+  const live = new Set();
+  for (const l of mediaLayers()) {
+    if (!l.visible) continue;
+    const k = videoKey(l); if (live.has(k)) continue; live.add(k);
+    const e = IMAGES.get(l.src); const v = layerVideo(l, e);
+    const want = mediaTime(l, e, t); const rate = clamp(l.speed || 1, 0.0625, 16);
+    if (v.playbackRate !== rate) v.playbackRate = rate;
+    const drift = Math.abs(v.currentTime - want);
+    if (isPlaying) {
+      if (v.paused && v.readyState >= 2) v.play().catch(() => {});
+      if (drift > 0.25 && !v.seeking) v.currentTime = want;
+    } else {
+      if (!v.paused) v.pause();
+      if (drift > 0.02 && !v.seeking) v.currentTime = want;
+    }
+  }
+  for (const [k, v] of LAYER_VIDEOS) if (!live.has(k)) { v.pause(); v.remove(); LAYER_VIDEOS.delete(k); }
+}
+/** Exact frames for export: seek every visible video to the frame time and wait until it is decoded. */
+async function syncMediaExact(t) {
+  const waits = [], seen = new Set();
+  for (const l of mediaLayers()) {
+    if (!l.visible || seen.has(videoKey(l))) continue; seen.add(videoKey(l));
+    const e = IMAGES.get(l.src); const v = layerVideo(l, e); v.pause();
+    const want = mediaTime(l, e, t);
+    if (v.readyState >= 2 && !v.seeking && Math.abs(v.currentTime - want) < 0.0005) continue;
+    waits.push(new Promise(res => {
+      let done = false; const fin = () => { if (!done) { done = true; res(); } };
+      // 'seeked' means the frame is decodable; give the compositor one presented frame when it offers one, but never wait on it
+      v.addEventListener('seeked', () => { if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(fin); setTimeout(fin, 50); }, { once: true });
+      setTimeout(fin, 4000);
+      v.currentTime = want;
+    }));
+  }
+  if (waits.length) await Promise.all(waits);
+}
+function pauseAllVideos() { for (const v of LAYER_VIDEOS.values()) v.pause(); }
 
 </script>
 <script>
@@ -1735,15 +2035,18 @@ function drawImageLayer(c, l, W, H, forExport) {
     c.globalCompositeOperation = l.blend;
   }
   if (b.im) {
-    if (l.circle || r > 0) { clip(); c.clip(); }
-    const graded = gradedSource(l, b, forExport);
-    if (graded) c.drawImage(graded.canvas, 0, 0, graded.w, graded.h, -b.w / 2, -b.h / 2, b.w, b.h);
-    else c.drawImage(b.im.bmp, b.sx, b.sy, b.sw, b.sh, -b.w / 2, -b.h / 2, b.w, b.h);
+    const fr = mediaFrame(l, b.im, renderT);
+    if (fr.ready) {
+      if (l.circle || r > 0) { clip(); c.clip(); }
+      const graded = gradedSource(l, b, forExport, fr);
+      if (graded) c.drawImage(graded.canvas, 0, 0, graded.w, graded.h, -b.w / 2, -b.h / 2, b.w, b.h);
+      else c.drawImage(fr.img, b.sx, b.sy, b.sw, b.sh, -b.w / 2, -b.h / 2, b.w, b.h);
+    }
   } else if (!forExport) { // missing bitmap: placeholder
     c.globalAlpha = 0.9; c.fillStyle = 'rgba(30,31,42,.85)'; roundRectPath(c, -b.w / 2, -b.h / 2, b.w, b.h, r); c.fill();
     c.strokeStyle = 'rgba(255,255,255,.35)'; c.setLineDash([8, 6]); c.lineWidth = 2; c.stroke();
     c.fillStyle = 'rgba(255,255,255,.7)'; c.font = `500 ${Math.max(12, b.w / 14)}px Inter, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText('Image missing — replace it', 0, 0);
+    c.fillText('Media missing — replace it', 0, 0);
   }
   c.restore();
   return b;
@@ -1751,17 +2054,17 @@ function drawImageLayer(c, l, W, H, forExport) {
 
 // Colour-graded copy of an image layer, rendered from the original pixels at up to 2x its on-canvas size.
 const fxCache = new Map(); // layer id -> { key, canvas, w, h }
-function gradedSource(l, b, forExport) {
+function gradedSource(l, b, forExport, fr) {
   if (!FX || !gradeActive(l.grade)) return null;
   const g = l.grade;
   const scale = Math.min(2 * ssCur, b.sw / Math.max(1, b.w)); // never above source resolution
   let outW = Math.round(b.w * Math.max(1, scale)), outH = Math.round(b.h * Math.max(1, scale));
   if (outW > FX.MAX || outH > FX.MAX) { const f = FX.MAX / Math.max(outW, outH); outW = Math.round(outW * f); outH = Math.round(outH * f); }
-  const seed = g.grain > 0 && g.grainAnimate ? (forExport ? Math.round(time * 1000) : Math.floor(time * 24)) : 0;
-  const key = JSON.stringify([g, l.crop, l.src, outW, outH, seed]);
+  const seed = g.grain > 0 && g.grainAnimate ? (forExport ? Math.round(renderT * 1000) : Math.floor(renderT * 24)) : 0;
+  const key = JSON.stringify([g, l.crop, l.src, outW, outH, seed, fr.key]);
   let e = fxCache.get(l.id);
   if (e && e.key === key) return e;
-  const cvs = FX.render(l, b.im, b, outW, outH, seed);
+  const cvs = FX.render(l, fr, fr.video ? 'v' + l.id : l.src, b, outW, outH, seed);
   if (!cvs) return null;
   if (!e) { e = { canvas: document.createElement('canvas') }; fxCache.set(l.id, e); }
   if (e.canvas.width !== outW || e.canvas.height !== outH) { e.canvas.width = outW; e.canvas.height = outH; }
@@ -1901,12 +2204,14 @@ function setRenderSize(w, h, ss = 1) {
   if (target.width !== w || target.height !== h) { target.width = w; target.height = h; }
   curW = w; curH = h;
 }
-function renderFrame(t, forExport = false) { renderGL(t, glCanvas.width, glCanvas.height); composite(curW, curH, forExport); }
+let renderT = 0; // timeline time of the frame being composited (preview or export)
+function renderFrame(t, forExport = false) { renderT = t; renderGL(t, glCanvas.width, glCanvas.height); composite(curW, curH, forExport); }
 function tick(now) {
   requestAnimationFrame(tick);
   if (exporting) return;
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (playing) { time += dt; if (S.loop) time = time % Math.max(0.5, S.duration); }
+  syncVideosPreview(time, playing);
   renderFrame(time);
   $('#timeLabel').textContent = time.toFixed(2) + 's';
   const scrub = $('#scrub'); if (!scrub.matches(':active')) scrub.value = S.loop ? time / Math.max(0.5, S.duration) : (time % 10) / 10;
@@ -1924,43 +2229,103 @@ function loadBitmap(src) { // src: Blob or dataURL -> { bmp, w, h }
     img.src = typeof src === 'string' ? src : URL.createObjectURL(src);
   });
 }
+let warnedNoStore = false;
+async function ingestMedia(file) {
+  const entry = await decodeMedia(file, file.name || '');
+  const id = 'img' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  BLOBS.set(id, file); IMAGES.set(id, entry);
+  const meta = { name: file.name || 'Pasted media', w: entry.w, h: entry.h, type: file.type || '', kind: entry.kind, duration: entry.duration || 0, frames: entry.frames ? entry.frames.length : 0, thumb: entry.thumb };
+  if (!(await MediaDB.put(id, file))) {
+    if (entry.kind === 'image' && file.size < 3e6) meta.dataURL = await readFileAsDataURL(file); // tiny fallback so it survives a reload
+    else if (!warnedNoStore) { warnedNoStore = true; toast('This browser blocks local storage — media stays for this session only. Use Save to keep it in a file.', 5000); }
+  }
+  S.images[id] = meta;
+  return { id, entry, meta };
+}
+function mediaLabel(meta) {
+  if (!meta) return '';
+  if (meta.kind === 'video') return `video · ${meta.w}×${meta.h} · ${(meta.duration || 0).toFixed(1)}s`;
+  if (meta.kind === 'anim') return `${/gif/i.test(meta.type || meta.name || '') ? 'GIF' : 'animated'} · ${meta.frames} frames · ${(meta.duration || 0).toFixed(1)}s`;
+  return `${meta.w}×${meta.h}`;
+}
 async function addImageFiles(files, at) {
-  let added = null;
+  let added = null, skipped = 0;
   for (const f of files) {
-    if (!f.type.startsWith('image/')) continue;
+    if (!isMediaFile(f)) { skipped++; continue; }
     try {
-      const dataURL = await readFileAsDataURL(f);
-      const bm = await loadBitmap(dataURL);
-      const id = 'img' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: f.name };
+      toast(`Loading ${f.name || 'media'}…`, 60000);
+      const { id, entry } = await ingestMedia(f);
       // native size relative to the canvas so “Canvas size” exports keep the exact pixels
-      let wPct = bm.w / S.canvas.w * 100;
-      let hPct = wPct * (bm.h / bm.w) * (S.canvas.w / S.canvas.h);
+      let wPct = entry.w / S.canvas.w * 100;
+      let hPct = wPct * (entry.h / entry.w) * (S.canvas.w / S.canvas.h);
       if (hPct > 100) { wPct *= 100 / hPct; hPct = 100; }
       if (wPct > 100) { hPct *= 100 / wPct; wPct = 100; }
-      const l = defaultImageLayer({ src: id, name: f.name.replace(/\.[^.]+$/, ''), w: +wPct.toFixed(2), h: +hPct.toFixed(2), x: at ? at.x : 50, y: at ? at.y : 50 });
+      const l = defaultImageLayer({ src: id, name: (f.name || 'Media').replace(/\.[^.]+$/, ''), w: +wPct.toFixed(2), h: +hPct.toFixed(2), x: at ? at.x : 50, y: at ? at.y : 50 });
       S.layers.push(l); S.selected = S.layers.length - 1; added = l;
-    } catch (e) { console.error(e); toast('Could not load image: ' + f.name); }
+    } catch (e) { console.error(e); toast(`Couldn’t add ${f.name || 'that file'}: ${e.message}`, 5000); added = added || null; }
   }
-  if (added) { refreshAll(); toast(`Added ${added.name} at native size (${IMAGES.get(added.src).w}×${IMAGES.get(added.src).h}px)`); }
+  if (added) { refreshAll(); toast(`Added ${added.name} · ${mediaLabel(S.images[added.src])}`); }
+  else if (skipped) toast('Drop an image, GIF or video file');
+}
+async function ensureMediaLoaded(id) {
+  if (IMAGES.has(id)) return true;
+  const meta = S.images[id]; if (!meta) return false;
+  let blob = BLOBS.get(id) || await MediaDB.get(id);
+  if (!blob && meta.dataURL) { blob = dataURLtoBlob(meta.dataURL); if (await MediaDB.put(id, blob)) delete meta.dataURL; }
+  if (!blob) return false;
+  BLOBS.set(id, blob);
+  try {
+    const e = await decodeMedia(blob, meta.name || ''); IMAGES.set(id, e);
+    if (!meta.thumb) meta.thumb = e.thumb; meta.kind = e.kind; meta.w = e.w; meta.h = e.h; meta.duration = e.duration || 0; meta.frames = e.frames ? e.frames.length : 0;
+    return true;
+  } catch (err) { console.warn('media restore failed', id, err); return false; }
+}
+/* ---------- clipboard: copy / cut / paste layers ---------- */
+const CLIP_TAG = 'GRADIENT-STUDIO-LAYER:';
+let CLIP = null, clipWrote = false, pasteN = 0, pendingPaste = null;
+function copyLayer(l) {
+  if (!l || l.kind === 'background') return false;
+  const layer = JSON.parse(JSON.stringify(l));
+  const meta = l.kind === 'image' && S.images[l.src] ? JSON.parse(JSON.stringify(S.images[l.src])) : null;
+  CLIP = { layer, meta }; pasteN = 0; clipWrote = false;
+  try {
+    const m = meta ? Object.assign({}, meta) : null; if (m) delete m.dataURL;
+    navigator.clipboard.writeText(CLIP_TAG + JSON.stringify({ layer, meta: m })).then(() => { clipWrote = true; }, () => {});
+  } catch (e) { /* clipboard API unavailable — internal clipboard still works */ }
+  return true;
+}
+async function pasteClip(clip) {
+  if (!clip || !clip.layer) return;
+  pasteN++;
+  const { id, ...rest } = JSON.parse(JSON.stringify(clip.layer));
+  rest.x = clamp((rest.x ?? 50) + 3 * pasteN, -50, 150); rest.y = clamp((rest.y ?? 50) + 3 * pasteN, -50, 150);
+  const c = normalizeLayer(rest);
+  if (c.kind === 'image' && c.src && !S.images[c.src] && clip.meta) S.images[c.src] = JSON.parse(JSON.stringify(clip.meta));
+  const at = S.selected >= 0 ? S.selected + 1 : S.layers.length;
+  S.layers.splice(at, 0, c); S.selected = at;
+  if (c.kind === 'text') ensureFont(c.font);
+  if (c.kind === 'image' && !(await ensureMediaLoaded(c.src))) toast('Pasted layer — its media isn’t available here, use Replace', 4000);
+  else toast(`Pasted ${layerTitle(c)}`);
+  refreshAll();
 }
 async function restoreImages() {
-  for (const [id, meta] of Object.entries(S.images)) {
-    if (IMAGES.has(id)) continue;
-    if (!meta.dataURL) continue;
-    try { IMAGES.set(id, await loadBitmap(meta.dataURL)); } catch (e) { /* placeholder stays */ }
-  }
-  // drop image records that no layer uses any more
+  for (const id of Object.keys(S.images)) await ensureMediaLoaded(id);
+  // drop media records that no layer uses any more
   const used = new Set(S.layers.filter(l => l.kind === 'image').map(l => l.src));
-  for (const id of Object.keys(S.images)) if (!used.has(id)) { delete S.images[id]; IMAGES.delete(id); if (FX) FX.dropTexture(id); }
+  const clipSrc = CLIP && CLIP.layer && CLIP.layer.src;
+  for (const id of Object.keys(S.images)) if (!used.has(id) && id !== clipSrc) { delete S.images[id]; releaseMedia(id); MediaDB.del(id); }
 }
 function replaceImage(l) { fileImage.dataset.replace = String(l.id); fileImage.click(); }
 fileImage.addEventListener('change', async () => {
   const files = [...fileImage.files]; const rep = fileImage.dataset.replace; fileImage.value = ''; delete fileImage.dataset.replace;
   if (rep && files[0]) {
     const l = S.layers.find(x => String(x.id) === rep); if (!l) return;
-    try { const dataURL = await readFileAsDataURL(files[0]); const bm = await loadBitmap(dataURL); const id = 'img' + Date.now().toString(36); IMAGES.set(id, bm); S.images[id] = { dataURL, w: bm.w, h: bm.h, name: files[0].name }; l.src = id; l.name = files[0].name.replace(/\.[^.]+$/, ''); l.crop = { l: 0, t: 0, r: 0, b: 0 }; if (l.lockAspect) applyAspectFromWidth(l); await restoreImages(); refreshAll(); }
-    catch (e) { toast('Could not load image'); }
+    try {
+      const { id } = await ingestMedia(files[0]);
+      l.src = id; l.name = (files[0].name || 'Media').replace(/\.[^.]+$/, ''); l.crop = { l: 0, t: 0, r: 0, b: 0 }; l.trimStart = 0; l.trimEnd = 0; l.offset = 0;
+      if (l.lockAspect) applyAspectFromWidth(l);
+      fxCache.delete(l.id); await restoreImages(); inspectorKey = ''; refreshAll();
+    } catch (e) { toast(`Couldn’t load that file: ${e.message}`, 5000); }
     return;
   }
   addImageFiles(files);
@@ -2140,7 +2505,7 @@ function buildInspector() {
   propsEl = el('div');
   inspector.append(layersEl, el('div', { class: 'addrow' },
     el('button', { class: 'btn sm', onclick: () => addTextLayer() }, '+ Text'),
-    el('button', { class: 'btn sm', onclick: () => fileImage.click() }, '+ Image')), propsEl);
+    el('button', { class: 'btn sm', title: 'Add an image, GIF or video', onclick: () => fileImage.click() }, '+ Media')), propsEl);
   rerenderers.push(renderLayers);
 }
 function renderLayers() {
@@ -2150,9 +2515,9 @@ function renderLayers() {
     if (l.kind === 'background') {
       ic = el('span', { class: 'ic', style: `background:${cssGradient()}` }); label = 'Background'; sub = TYPES[S.type].name;
     } else if (l.kind === 'image') {
-      const meta = S.images[l.src];
-      ic = el('span', { class: 'ic img', style: meta && meta.dataURL ? `background-image:url(${meta.dataURL})` : '' }, meta && meta.dataURL ? '' : '▣');
-      label = layerTitle(l); sub = meta ? `${meta.w}×${meta.h}` : null;
+      const meta = S.images[l.src]; const th = meta && (meta.thumb || meta.dataURL);
+      ic = el('span', { class: 'ic img' + (meta && meta.kind !== 'image' ? ' anim' : ''), style: th ? `background-image:url(${th})` : '' }, th ? (meta.kind === 'video' ? '▶' : meta.kind === 'anim' ? 'GIF' : '') : '▣');
+      label = layerTitle(l); sub = meta ? mediaLabel(meta) : null;
     } else { ic = el('span', { class: 'ic' }, 'T'); label = layerTitle(l); sub = null; }
     const delBtn = l.kind === 'background'
       ? el('span', { class: 'ib', style: 'opacity:.3', title: 'The animation can be hidden, not deleted' }, '—')
@@ -2328,14 +2693,18 @@ function alignBar(l) {
 }
 function layerActions(l) {
   const idx = () => S.layers.indexOf(l); // looked up live: the panel isn't rebuilt on reorder, only the layer list is
-  return el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
-    el('button', { class: 'btn xs', onclick: () => duplicateLayer(idx()) }, 'Duplicate'),
-    el('button', { class: 'btn xs', title: 'Bring forward one step', onclick: () => moveLayer(idx(), 1) }, '↑ Forward'),
-    el('button', { class: 'btn xs', title: 'Send backward one step', onclick: () => moveLayer(idx(), -1) }, '↓ Back'),
-    el('button', { class: 'btn xs', title: 'Bring in front of every other layer', onclick: () => moveLayerTo(idx(), S.layers.length - 1) }, '⤒ Front'),
-    el('button', { class: 'btn xs', title: 'Send behind everything, including the animated background', onclick: () => moveLayerTo(idx(), 0) }, '⤓ Back'),
-    el('span', { style: 'flex:1' }),
-    el('button', { class: 'btn xs danger', onclick: () => deleteLayer(idx()) }, 'Delete'));
+  const b = (label, title, fn, cls = '') => el('button', { class: 'btn xs ' + cls, title, style: 'flex:1;min-width:0;padding-left:4px;padding-right:4px;justify-content:center', onclick: fn }, label);
+  return el('div', { style: 'display:flex;flex-direction:column;gap:6px;margin-bottom:6px' },
+    el('div', { style: 'display:flex;gap:4px' },
+      b('⤓ To back', 'Send behind everything, including the animated background', () => moveLayerTo(idx(), 0)),
+      b('↓ Backward', 'Send backward one step  ·  [', () => moveLayer(idx(), -1)),
+      b('↑ Forward', 'Bring forward one step  ·  ]', () => moveLayer(idx(), 1)),
+      b('⤒ To front', 'Bring in front of every other layer', () => moveLayerTo(idx(), S.layers.length - 1))),
+    el('div', { style: 'display:flex;gap:4px' },
+      b('Duplicate', 'Duplicate  ·  Ctrl/Cmd+D, or Alt/Option-drag on the canvas', () => duplicateLayer(idx())),
+      b('Copy', 'Copy  ·  Ctrl/Cmd+C, then Ctrl/Cmd+V to paste', () => { if (copyLayer(l)) toast(`Copied ${layerTitle(l)} — Ctrl/Cmd+V to paste`); }),
+      b('Paste', 'Paste the copied layer  ·  Ctrl/Cmd+V', () => { if (CLIP) pasteClip(CLIP); else toast('Nothing copied yet'); }),
+      b('Delete', 'Delete layer', () => deleteLayer(idx()), 'danger')));
 }
 function shadowControls(l) {
   const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
@@ -2382,7 +2751,7 @@ function buildTextProps(l) {
       alignBar(l),
       sl('x', 'X', -20, 120, 0.1, { unit: '%', reset: 50 }), sl('y', 'Y', -20, 120, 0.1, { unit: '%', reset: 50 }),
       sl('rotate', 'Rotation', -180, 180, 1, { unit: '°', reset: 0 }),
-      el('div', { class: 'hint' }, 'Drag on the canvas to move; drag a corner handle to scale. Pink lines appear when the text snaps to the centre, edges or another layer.'),
+      el('div', { class: 'hint' }, 'Drag on the canvas to move; drag a corner handle to scale. Pink lines appear when the text snaps to the centre, edges or another layer. Alt/Option-drag makes a copy; hold Ctrl/Cmd while dragging to skip snapping. Ctrl/Cmd+C, X, V copy, cut and paste layers.'),
     ),
     group('Fill & effects', false,
       row('Fill', selectInput(null, [{ value: 'solid', label: 'Solid colour' }, { value: 'invert', label: 'Inverted animation' }, { value: 'hue', label: 'Hue-shifted animation' }, { value: 'mono', label: 'Monochrome animation' }, { value: 'bg', label: 'Knockout (background colour)' }], { get: () => l.fill, set: v => l.fill = v, onChange: refreshAll })),
@@ -2400,9 +2769,32 @@ function buildTextProps(l) {
 function buildImageProps(l) {
   const sl = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => l[key], set: v => l[key] = v }, o));
   const meta = S.images[l.src];
+  const entry = IMAGES.get(l.src); const kind = (entry && entry.kind) || (meta && meta.kind) || 'image';
+  const th = meta && (meta.thumb || meta.dataURL);
   const info = el('div', { class: 'imginfo' },
-    el('div', { class: 'thumb', style: meta && meta.dataURL ? `background-image:url(${meta.dataURL})` : '' }),
-    el('div', { class: 'meta' }, el('b', {}, l.name || 'Image'), meta ? `${meta.w} × ${meta.h} px${meta.dataURL ? '' : ' · not loaded'}` : 'No file'));
+    el('div', { class: 'thumb', style: th ? `background-image:url(${th})` : '' }),
+    el('div', { class: 'meta' }, el('b', {}, l.name || 'Media'),
+      meta ? `${meta.w} × ${meta.h} px${kind === 'video' ? ` · ${(meta.duration || 0).toFixed(2)}s video` : kind === 'anim' ? ` · ${meta.frames} frames · ${(meta.duration || 0).toFixed(2)}s` : ''}${entry ? '' : ' · not loaded'}` : 'No file'));
+  const groupTitle = kind === 'video' ? 'Video' : kind === 'anim' ? 'GIF / animation' : 'Image';
+  let playback = null;
+  if (entry && (kind === 'video' || kind === 'anim')) {
+    const D = Math.max(0.05, entry.duration || 0.05);
+    const fmtS = v => v.toFixed(2) + 's';
+    const trimS = sl('trimStart', 'Trim start', 0, D, 0.01, { fmt: fmtS, reset: 0, onChange: () => { if (l.trimEnd > 0 && l.trimEnd < l.trimStart + 0.05) l.trimEnd = Math.min(D, l.trimStart + 0.05); syncSliders(); } });
+    const trimE = sl('trimEnd', 'Trim end', 0, D, 0.01, { fmt: v => v <= 0 ? 'end' : fmtS(v), reset: 0, onChange: () => { if (l.trimEnd > 0 && l.trimEnd < l.trimStart + 0.05) l.trimStart = Math.max(0, l.trimEnd - 0.05); syncSliders(); } });
+    const lenNote = el('div', { class: 'hint' });
+    rerenderers.push(() => { const { len } = clipRange(l, entry); lenNote.textContent = `Clip plays ${fmtS(len)} at ${(+l.speed || 1).toFixed(2)}× → ${fmtS(len / (l.speed || 1))} per cycle · timeline loop is ${fmtS(S.duration)}.`; });
+    playback = group('Playback', true,
+      sl('speed', 'Speed', 0.25, 4, 0.05, { unit: '×', reset: 1 }),
+      trimS, trimE,
+      sl('offset', 'Start at', 0, D, 0.01, { fmt: fmtS, reset: 0 }),
+      el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' },
+        el('button', { class: 'btn xs', title: 'Set the timeline loop to exactly one cycle of this clip so exports loop without a jump', onclick: () => { const { len } = clipRange(l, entry); S.duration = +clamp(len / (l.speed || 1), 0.5, 30).toFixed(3); S.loop = true; time = 0; refreshAll(); toast(`Loop length set to ${S.duration.toFixed(2)}s`); } }, 'Match loop to clip'),
+        el('button', { class: 'btn xs', onclick: () => { l.trimStart = 0; l.trimEnd = 0; l.offset = 0; l.speed = 1; refreshAll(); } }, 'Reset playback')),
+      lenNote,
+      el('div', { class: 'hint' }, kind === 'video' ? 'Videos follow the timeline and repeat on their trimmed length. Exports are silent — audio isn’t included.' : 'Frame timing comes from the file; speed and trim work on top of it.'),
+    );
+  }
   const fitBtn = (label, mode) => el('button', { class: 'btn xs', onclick: () => {
     const im = IMAGES.get(l.src); if (!im) return;
     const { sw, sh } = imageCropSize(l); const k = (sw / sh) / (S.canvas.w / S.canvas.h); // width%->height% ratio at 1:1 pixel scale
@@ -2426,11 +2818,12 @@ function buildImageProps(l) {
   } }, label);
   propsEl.append(
     layerActions(l),
-    group('Image', true,
+    group(groupTitle, true,
       info,
       el('div', { class: 'row', style: 'flex-wrap:wrap;gap:6px' }, el('button', { class: 'btn xs', onclick: () => replaceImage(l) }, 'Replace…'), fitBtn('Native size', 'native'), fitBtn('Fit inside', 'contain'), fitBtn('Fill canvas', 'cover')),
-      el('div', { class: 'hint' }, 'Images keep their original pixels: exporting at “Canvas size” reproduces a native-size image 1:1, and larger exports scale from the original, never from the preview.'),
+      el('div', { class: 'hint' }, 'Media keeps its original pixels: exporting at “Canvas size” reproduces native size 1:1, and larger exports scale from the source, never from the preview. Crop, size and colour tools work the same for images, GIFs and video. Alt/Option-drag on the canvas duplicates the layer; Ctrl/Cmd+C / V copy and paste it.'),
     ),
+    ...(playback ? [playback] : []),
     group('Position & size', true,
       alignBar(l),
       sl('x', 'X', -50, 150, 0.1, { unit: '%', reset: 50 }), sl('y', 'Y', -50, 150, 0.1, { unit: '%', reset: 50 }),
@@ -2576,13 +2969,13 @@ function bindStage() {
       const l = hitLayer(p);
       if (!l) { const bi = backgroundIndex(); if (S.selected !== bi) { S.selected = bi; refreshAll(); } return; }
       const idx = S.layers.indexOf(l); if (S.selected !== idx) { S.selected = idx; refreshAll(); }
-      dragState = { mode: 'move', l, sx: p.x, sy: p.y, ox: l.x, oy: l.y, moved: false };
+      dragState = { mode: 'move', l, sx: p.x, sy: p.y, ox: l.x, oy: l.y, moved: false, alt: e.altKey };
     }
     outCanvas.setPointerCapture(e.pointerId); outCanvas.style.cursor = dragState.mode === 'scale' ? 'nwse-resize' : 'grabbing';
   });
   outCanvas.addEventListener('pointermove', e => {
     const p = toCanvasPt(e);
-    if (!dragState) { outCanvas.style.cursor = hitHandle(p) ? 'nwse-resize' : hitLayer(p) ? 'grab' : 'default'; return; }
+    if (!dragState) { outCanvas.style.cursor = hitHandle(p) ? 'nwse-resize' : hitLayer(p) ? (e.altKey ? 'copy' : 'grab') : 'default'; return; }
     const d = dragState;
     if (d.mode === 'scale') {
       const b = boxes.find(t => t.layer === d.l); if (!b) return;
@@ -2592,23 +2985,44 @@ function bindStage() {
       syncSliders(); return;
     }
     let dx = p.x - d.sx, dy = p.y - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) < 2) return;
+    if (!d.moved && (d.alt || e.altKey) && d.l.kind !== 'background') {
+      // Alt/Option + drag: leave the original in place and drag a copy
+      const i = S.layers.indexOf(d.l);
+      const { id, ...rest } = JSON.parse(JSON.stringify(d.l));
+      const c = normalizeLayer(Object.assign(rest, { x: d.ox, y: d.oy }));
+      S.layers.splice(i + 1, 0, c); S.selected = i + 1; d.l = c; d.dup = true; renderLayers();
+    }
     if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
     d.moved = true;
     const b = boxes.find(t => t.layer === d.l);
     const nx = d.ox / 100 * curW + dx, ny = d.oy / 100 * curH + dy;
-    const s = b ? snapMove(d.l, b, nx, ny, curW, curH, e.altKey) : { x: nx, y: ny, guides: null };
+    const s = b ? snapMove(d.l, b, nx, ny, curW, curH, e.ctrlKey || e.metaKey) : { x: nx, y: ny, guides: null };
     d.l.x = +(s.x / curW * 100).toFixed(2); d.l.y = +(s.y / curH * 100).toFixed(2);
     dragGuides = s.guides;
     syncSliders();
   });
-  const end = () => { if (dragState) { dragState = null; dragGuides = null; outCanvas.style.cursor = 'default'; persist(); refreshAll(); } };
+  const end = () => { if (dragState) { if (dragState.dup) toast('Duplicated — Alt-drag again for more copies'); dragState = null; dragGuides = null; outCanvas.style.cursor = 'default'; persist(); refreshAll(); } };
   outCanvas.addEventListener('pointerup', end); outCanvas.addEventListener('pointercancel', end);
   outCanvas.addEventListener('dblclick', e => { const l = hitLayer(toCanvasPt(e)); if (l && l.kind === 'text') { const ta = propsEl.querySelector('textarea'); if (ta) { ta.focus(); ta.select(); } } });
   // drop images onto the canvas
   frame.addEventListener('dragover', e => { e.preventDefault(); frame.style.outline = '2px dashed var(--accent)'; });
   frame.addEventListener('dragleave', () => frame.style.outline = '');
   frame.addEventListener('drop', e => { e.preventDefault(); frame.style.outline = ''; const p = toCanvasPt(e); addImageFiles([...e.dataTransfer.files], { x: +(p.x / curW * 100).toFixed(1), y: +(p.y / curH * 100).toFixed(1) }); });
-  window.addEventListener('paste', e => { const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); addImageFiles(files); } });
+  window.addEventListener('paste', e => {
+    if (e.target.matches && e.target.matches('input,textarea,select,[contenteditable]')) return;
+    clearTimeout(pendingPaste); pendingPaste = null;
+    const files = [...(e.clipboardData?.files || [])].filter(isMediaFile);
+    if (files.length) { e.preventDefault(); addImageFiles(files); return; }
+    const txt = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if (txt && txt.startsWith(CLIP_TAG)) {
+      e.preventDefault();
+      try { const d = JSON.parse(txt.slice(CLIP_TAG.length)); pasteClip(CLIP && JSON.stringify(CLIP.layer) === JSON.stringify(d.layer) ? CLIP : d); } catch (err) { if (CLIP) pasteClip(CLIP); }
+      return;
+    }
+    if (txt && txt.trim() && (clipWrote || !CLIP)) { e.preventDefault(); addTextLayer({ text: txt.trim().slice(0, 400) }); toast('Pasted text as a new layer'); return; }
+    if (CLIP) { e.preventDefault(); pasteClip(CLIP); }
+  });
   window.addEventListener('resize', fitPreview);
   new ResizeObserver(fitPreview).observe($('#wrap'));
 }
@@ -2623,19 +3037,35 @@ function bindChrome() {
   $('#btnPlay').addEventListener('click', () => setPlay(!playing));
   $('#btnRestart').addEventListener('click', () => { time = 0; });
   $('#btnRandom').addEventListener('click', randomize);
-  $('#btnReset').addEventListener('click', () => { if (confirm('Reset everything to defaults? Text and image layers will be removed.')) { S = defaultState(); IMAGES.clear(); presetName = 'Base'; time = 0; inspectorKey = ''; refreshAll(); } });
-  $('#btnSave').addEventListener('click', () => download(new Blob([JSON.stringify({ S, presetName }, null, 2)], { type: 'application/json' }), `gradient-studio-${presetName.toLowerCase().replace(/\s+/g, '-')}.json`));
+  $('#btnReset').addEventListener('click', () => { if (confirm('Reset everything to defaults? Text and media layers will be removed.')) { pauseAllVideos(); for (const id of [...IMAGES.keys()]) releaseMedia(id); fxCache.clear(); S = defaultState(); ensureBackgroundLayer(); layerSeq = Math.max(layerSeq, ...S.layers.map(l => l.id + 1)); presetName = 'Base'; time = 0; inspectorKey = ''; refreshAll(); } });
+  $('#btnSave').addEventListener('click', async () => {
+    // embed the media so the design file opens anywhere
+    const media = {}; let total = 0, skipped = 0;
+    const used = new Set(S.layers.filter(l => l.kind === 'image').map(l => l.src));
+    for (const id of used) {
+      const blob = BLOBS.get(id) || await MediaDB.get(id);
+      if (!blob) continue;
+      if (total + blob.size > 400e6) { skipped++; continue; }
+      total += blob.size; media[id] = await blobToDataURL(blob);
+    }
+    const S2 = JSON.parse(JSON.stringify(S)); for (const m of Object.values(S2.images || {})) delete m.dataURL;
+    download(new Blob([JSON.stringify({ S: S2, presetName, media })], { type: 'application/json' }), `gradient-studio-${presetName.toLowerCase().replace(/\s+/g, '-')}.json`);
+    if (skipped) toast(`${skipped} large media file(s) were too big to embed`, 4000);
+  });
   $('#btnLoad').addEventListener('click', () => $('#fileJson').click());
   $('#fileJson').addEventListener('change', async () => {
     const f = $('#fileJson').files[0]; if (!f) return;
     try {
       const d = JSON.parse(await f.text()); if (!d.S) throw 0;
+      pauseAllVideos(); for (const id of [...IMAGES.keys()]) releaseMedia(id); fxCache.clear();
       S = Object.assign(defaultState(), d.S);
       S.canvas = Object.assign(defaultState().canvas, d.S.canvas || {}); S.export = Object.assign(defaultState().export, d.S.export || {});
       if (d.S.text && d.S.text.layers && !d.S.layers) S.layers = d.S.text.layers;
       S.layers = (S.layers || []).map(normalizeLayer); S.images = S.images || {}; ensureBackgroundLayer(); S.selected = -1;
       S.layers.forEach(l => l.kind === 'text' && ensureFont(l.font));
-      IMAGES.clear(); await restoreImages(); fixImageSizes();
+      for (const [id, url] of Object.entries(d.media || {})) { const blob = dataURLtoBlob(url); BLOBS.set(id, blob); MediaDB.put(id, blob); } // stored in the background; decoding uses the in-memory copy
+      layerSeq = Math.max(layerSeq, ...S.layers.map(l => l.id + 1));
+      await restoreImages(); fixImageSizes();
       presetName = d.presetName || 'Custom'; inspectorKey = ''; refreshAll(); toast('Design loaded');
     } catch (e) { console.error(e); toast('That file is not a Gradient Studio design'); }
     $('#fileJson').value = '';
@@ -2655,11 +3085,18 @@ function bindChrome() {
   window.addEventListener('keydown', e => {
     if (e.target.matches('input,textarea,select')) return;
     const l = selectedLayer(); const meta = e.metaKey || e.ctrlKey;
+    if (meta && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'c' && l && l.kind !== 'background') { if (window.getSelection && String(window.getSelection())) return; e.preventDefault(); copyLayer(l); toast(`Copied ${layerTitle(l)}`); }
+      else if (k === 'x' && l && l.kind !== 'background') { e.preventDefault(); copyLayer(l); deleteLayer(S.selected); toast(`Cut ${layerTitle(l)}`); }
+      else if (k === 'v') { clearTimeout(pendingPaste); pendingPaste = setTimeout(() => { pendingPaste = null; if (CLIP) pasteClip(CLIP); }, 150); } // native paste event wins if it fires
+      else if (k === 'd' && l && l.kind !== 'background') { e.preventDefault(); duplicateLayer(S.selected); }
+      return;
+    }
     if (e.code === 'Space') { e.preventDefault(); setPlay(!playing); }
     else if (e.key === 'r' || e.key === 'R') randomize();
     else if (e.key === 'g' || e.key === 'G') { S.guides = !S.guides; refreshAll(); }
     else if (e.key === 'Escape') { if (modal.classList.contains('open')) closeExport(); else if (S.selected !== -1) { S.selected = -1; refreshAll(); } }
-    else if (meta && (e.key === 'd' || e.key === 'D') && l && l.kind !== 'background') { e.preventDefault(); duplicateLayer(S.selected); }
     else if (e.key.startsWith('Arrow') && l && l.kind !== 'background') {
       const d = e.shiftKey ? 2 : 0.25;
       if (e.key === 'ArrowLeft') l.x -= d; if (e.key === 'ArrowRight') l.x += d; if (e.key === 'ArrowUp') l.y -= d; if (e.key === 'ArrowDown') l.y += d;
