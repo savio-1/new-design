@@ -72,6 +72,22 @@ SHELL = '''<title>CogentIQ Platform</title>
   var busy = false;
   var theme = 'dark';
   var themePref = 'dark';
+  /* The white label belongs to the product, not to a page, so the shell
+     keeps it for the same reason it keeps the theme: srcdoc frames each
+     get their own opaque store and cannot read one another's. */
+  var brand = null;
+  try { brand = JSON.parse(localStorage.getItem('cq-brand') || 'null'); } catch (e) {}
+  /* The frames' own stores are opaque to each other, so whatever spans
+     pages is remembered here or not at all — the theme included, which
+     otherwise came back dark on every reload. */
+  try {
+    var st = localStorage.getItem('cq-theme-pref');
+    if (st === 'light' || st === 'dark' || st === 'system') themePref = st;
+    var sm = localStorage.getItem('cq-theme');
+    theme = sm === 'light' || sm === 'dark' ? sm
+          : themePref === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : themePref;
+  } catch (e) {}
 
   function decode(b64) {
     var bin = atob(b64), bytes = new Uint8Array(bin.length);
@@ -84,12 +100,13 @@ SHELL = '''<title>CogentIQ Platform</title>
   function tellState(frame) {
     try {
       frame.contentWindow.postMessage(
-        { cqTheme: theme, cqThemePref: themePref }, '*');
+        { cqTheme: theme, cqThemePref: themePref, cqBrand: brand }, '*');
     } catch (e) { /* not ready */ }
   }
   function setTheme(mode) {
     theme = mode;
     document.body.dataset.mode = mode;
+    try { localStorage.setItem('cq-theme', mode); } catch (e) {}
     frames.forEach(tellState);
   }
 
@@ -156,9 +173,17 @@ SHELL = '''<title>CogentIQ Platform</title>
   window.addEventListener('message', function (e) {
     var data = e.data || {};
     if (typeof data.cqNav === 'string') show(data.cqNav);
-    if (data.cqThemePref) themePref = data.cqThemePref;
+    if (data.cqThemePref) {
+      themePref = data.cqThemePref;
+      try { localStorage.setItem('cq-theme-pref', themePref); } catch (e) {}
+    }
     if (data.cqTheme === 'light' || data.cqTheme === 'dark') setTheme(data.cqTheme);
     if (data.cqThemeRequest) frames.forEach(tellState);
+    if (data.cqBrand !== undefined) {
+      brand = data.cqBrand;
+      try { localStorage.setItem('cq-brand', JSON.stringify(brand)); } catch (e) {}
+      frames.forEach(tellState);
+    }
   });
 
   var initial = 'index.html';

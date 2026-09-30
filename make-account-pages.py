@@ -51,6 +51,36 @@ CSS_COMMON = '''
 .cq-badge[data-tone="orange"] { background: color-mix(in srgb, var(--orange-500) 14%, transparent); border-color: color-mix(in srgb, var(--orange-500) 45%, transparent); color: color-mix(in srgb, var(--orange-600) 78%, var(--text-primary)); }
 .cq-badge[data-tone="grey"]   { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-line-1); color: var(--text-secondary); }
 
+/* ── Button variants the pages' own stylesheet predates ──────────
+   These three screens are built on the library as it stands now, but
+   the stylesheet each page carries was taken from the product before
+   the sizes, the outline and the blue tonal were added to it. Copied
+   from cogentiq-design-system.css rather than reinvented, so a button
+   here is the same button the library documents; the tokens they need
+   that the older sheet lacks are derived from ones it has. ── */
+.cq-btn--s {
+  height: 24px; padding: 0 8px; border-radius: var(--radius-sm);
+  font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px;
+}
+.cq-btn--s .cq-ic, .cq-btn--s svg { width: 16px; height: 16px; }
+.cq-btn--m { height: 32px; padding: 0 12px; }
+.cq-btn--icon { width: 36px; padding: 0; }
+.cq-btn--icon.cq-btn--s { width: 24px; }
+.cq-btn--icon.cq-btn--m { width: 32px; }
+
+.cq-btn--tonal-1 { background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1); }
+.cq-btn--tonal-1:hover:not(:disabled) { background: color-mix(in srgb, var(--backgrounds-button-tonal-1) 86%, var(--text-button-tonal-1)); }
+.cq-btn--tonal-1:focus-visible { box-shadow: inset 0 0 0 1px var(--strokes-card-selected); }
+.cq-btn--tonal-1:disabled { background: var(--backgrounds-disabled-tonal-1); color: var(--text-disabled-tonal-1); }
+
+.cq-btn--outline {
+  background: transparent; color: var(--text-button-tonal-2);
+  box-shadow: inset 0 0 0 1px var(--strokes-type-default);
+}
+.cq-btn--outline:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--strokes-line-1); color: var(--text-primary); }
+.cq-btn--outline:focus-visible { box-shadow: inset 0 0 0 1px var(--strokes-type-focus); }
+.cq-btn--ghost:disabled, .cq-btn--outline:disabled { background: none; box-shadow: none; color: var(--text-disabled-tonal-2); }
+
 /* ── Text input, on the search field's own tokens ── */
 .ac-input {
   display: flex; align-items: center; height: 36px; padding: 0 12px;
@@ -181,6 +211,8 @@ ICON = dict(
  eyeOff='<svg class=\"cq-ic\" width=\"16\" height=\"16\" viewBox="0 0 16 16" fill="none"><path d="M1.8 8s2.4-4.3 6.2-4.3c1 0 1.9.3 2.7.7M14.2 8s-2.4 4.3-6.2 4.3c-1 0-1.9-.3-2.7-.7M6.6 9.4A2 2 0 0 1 9.4 6.6M2.5 2.5l11 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
  alert='<svg class=\"cq-ic\" width=\"18\" height=\"18\" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6.8" stroke="currentColor" stroke-width="1.5"/><path d="M9 5.6v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="12.3" r=".9" fill="currentColor"/></svg>',
  tick16='<svg class=\"cq-ic\" width=\"16\" height=\"16\" viewBox="0 0 16 16" fill="none"><path d="m3.5 8.3 3 3 6-6.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ upload='<svg class=\"cq-ic\" width=\"16\" height=\"16\" viewBox="0 0 16 16" fill="none"><path d="M8 10.6V2.9M5.2 5.6 8 2.8l2.8 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 10.2v1.9c0 .6.5 1.1 1.1 1.1h8.2c.6 0 1.1-.5 1.1-1.1v-1.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+ spark='<svg class=\"cq-ic\" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.4 9.5 6 13 7.5 9.5 9 8 12.6 6.5 9 3 7.5 6.5 6 8 2.4Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
  arrow='<svg class=\"cq-ic\" width=\"16\" height=\"16\" viewBox="0 0 16 16" fill="none"><path d="M3 8h9.5M9 4.5 12.5 8 9 11.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 )
 
@@ -1053,6 +1085,522 @@ if (PANES[want]) { const b = $('pfTabs').querySelector(`[data-tab="${want}"]`); 
 requestAnimationFrame(() => { cqSegSync($('pfTabs')); cqSegSync($('pfActFilter')); cqSegSync($('pfPubFilter')); });
 '''.replace('__TICK__', ICON['tick']).replace('__KEY__', ICON['key'].replace('width=\\"20\\" height=\\"20\\"', '').replace('width="20" height="20"', ''))
 
+# ═════════════════════════════════════════════════════════════════════
+#  Settings
+# ═════════════════════════════════════════════════════════════════════
+SET_CSS = '''
+.st-wrap { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 20px; align-items: start; }
+
+/* ── The category list ── */
+.st-nav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-nav__grp { padding: 10px 12px 6px; color: var(--text-teritiary); }
+.st-nav button {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 12px; border-radius: var(--radius-md);
+  color: var(--text-secondary); text-align: left;
+  transition: background .15s ease, color .15s ease;
+}
+.st-nav button:hover { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+.st-nav button.is-on { background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1); }
+.st-nav button .cq-ic { width: 16px; height: 16px; flex: none; }
+.st-nav button .lbl { flex: 1 1 auto; min-width: 0; }
+
+/* ── One pane per category ── */
+.st-pane { display: flex; flex-direction: column; gap: 16px; }
+.st-pane[hidden] { display: none !important; }
+.st-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 2px; }
+.st-head .cq-subhead2-med { color: var(--text-primary); }
+.st-head .cq-body2-reg { color: var(--text-teritiary); }
+
+.st-field { display: flex; align-items: flex-start; gap: 16px; padding: 16px; border-top: 1px solid var(--strokes-line-3); }
+.st-field:first-of-type { border-top: 0; }
+.st-field__t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-field__t .cq-body2-med { color: var(--text-primary); }
+.st-field__t .cq-caption-reg { color: var(--text-teritiary); }
+.st-field__c { flex: none; display: flex; align-items: center; gap: 8px; }
+.st-field--stack { flex-direction: column; align-items: stretch; gap: 12px; }
+.st-input { width: 260px; }
+.st-input.ac-input { width: 260px; }
+
+/* ── Brand colour ── */
+.st-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.st-swatch {
+  width: 32px; height: 32px; border-radius: var(--radius-md); cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.st-swatch:hover { transform: translateY(-1px); }
+.st-swatch.is-on { box-shadow: 0 0 0 2px var(--backgrounds-page-bg-1), 0 0 0 4px var(--text-primary); }
+.st-swatch .cq-ic { width: 14px; height: 14px; opacity: 0; }
+.st-swatch.is-on .cq-ic { opacity: 1; }
+.st-hex { display: flex; align-items: center; gap: 8px; }
+.st-hex input[type="color"] {
+  width: 36px; height: 36px; padding: 0; border: 1px solid var(--strokes-type-default);
+  border-radius: var(--radius-md); background: none; cursor: pointer;
+}
+.st-hex input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+.st-hex input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 5px; }
+.st-hex .ac-input { width: 126px; }
+.st-hex .ac-input input { text-transform: uppercase; }
+
+/* ── Logo ── */
+.st-logo { display: flex; align-items: center; gap: 16px; }
+.st-logo__box {
+  width: 56px; height: 56px; flex: none; border-radius: var(--radius-lg);
+  background: var(--backgrounds-page-bg-3); border: 1px solid var(--strokes-line-3);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  color: var(--strokes-icon-default);
+}
+.st-logo__box img { width: 100%; height: 100%; object-fit: contain; }
+.st-logo__box svg { width: 26px; height: 23px; }
+.st-logo__acts { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.st-logo__row { display: flex; align-items: center; gap: 8px; }
+.st-logo__hint { color: var(--text-teritiary); }
+.st-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+/* ── Preview: the ramp the one colour drives ── */
+.st-prev { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 0; }
+.st-prev__rail {
+  padding: 14px; border-right: 1px solid var(--strokes-line-3);
+  background: var(--backgrounds-card-bg-5); display: flex; flex-direction: column; gap: 10px;
+}
+.st-prev__brand { display: flex; align-items: center; gap: 8px; }
+.st-prev__mark {
+  width: 32px; height: 32px; flex: none; border-radius: 100px; overflow: hidden;
+  background: var(--backgrounds-page-bg-2); color: var(--strokes-icon-default);
+  display: flex; align-items: center; justify-content: center;
+}
+.st-prev__mark img { width: 100%; height: 100%; object-fit: contain; }
+.st-prev__mark svg { width: 20px; height: 17.5px; }
+.st-prev__word { font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-prev__row {
+  display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px;
+  color: var(--text-secondary);
+}
+.st-prev__row .cq-ic { width: 16px; height: 16px; flex: none; }
+.st-prev__row.is-active {
+  background: var(--backgrounds-button-tonal-1);
+  border: 1px solid var(--strokes-card-selected);
+  padding: 6px 7px; color: var(--text-coloured-blue);
+}
+.st-prev__row.is-active .cq-body2-reg { color: var(--text-coloured-blue); font-weight: 500; }
+.st-prev__body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.st-prev__strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.st-prev__link { color: var(--text-coloured-blue); }
+.st-prev__sel {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md);
+  background: var(--backgrounds-table-select); border: 1px solid var(--strokes-card-selected);
+  color: var(--text-primary);
+}
+
+/* ── The save bar, present only once something is different ── */
+.st-bar {
+  position: sticky; bottom: 0; z-index: 5; margin-top: 4px;
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--backgrounds-card-bg-3); border: 1px solid var(--strokes-card-default);
+  box-shadow: var(--shadow-pop);
+}
+.st-bar[hidden] { display: none !important; }
+.st-bar__t { flex: 1 1 auto; min-width: 0; color: var(--text-secondary); }
+
+@media (max-width: 1000px) {
+  .st-wrap { grid-template-columns: 1fr; }
+  .st-nav { position: static; flex-direction: row; flex-wrap: wrap; }
+  .st-nav__grp { display: none; }
+  .st-prev { grid-template-columns: 1fr; }
+  .st-prev__rail { border-right: 0; border-bottom: 1px solid var(--strokes-line-3); }
+}
+'''
+
+SET_BODY = '''
+          <div class="cq-page__content cq-scroll-y">
+            <div class="st-wrap">
+
+              <nav class="st-nav" id="stNav" aria-label="Settings sections"></nav>
+
+              <div>
+                <!-- ══ Appearance ══ -->
+                <section class="st-pane" id="st-appearance" role="region" aria-label="Appearance">
+                  <div class="st-head">
+                    <span class="cq-subhead2-med">Appearance</span>
+                    <span class="cq-body2-reg">How the product looks on this account.</span>
+                  </div>
+                  <div class="ac-card">
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Theme</span>
+                        <span class="cq-caption-reg">System follows your operating system, and changes with it.</span></div>
+                      <div class="st-field__c">
+                        <div class="cq-seg" id="stTheme" role="group" aria-label="Theme">
+                          <button type="button" data-pref="light">Light</button>
+                          <button type="button" data-pref="dark">Dark</button>
+                          <button type="button" data-pref="system">System</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Reduce motion</span>
+                        <span class="cq-caption-reg">Page changes and panel animations become instant.</span></div>
+                      <div class="st-field__c"><span class="cq-badge cq-caption-med" data-tone="grey">Follows your system</span></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Landing page</span>
+                        <span class="cq-caption-reg">Where the product opens when you sign in.</span></div>
+                      <div class="st-field__c">
+                        <span class="ac-input st-input"><select id="stLanding" class="cq-body2-reg" style="width:100%;border:0;background:none;color:inherit;font:inherit;outline:0">
+                          <option>Home</option><option>Automations</option><option>Model Hub</option><option>Monitoring</option>
+                        </select></span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ══ Branding ══ -->
+                <section class="st-pane" id="st-branding" role="region" aria-label="Branding" hidden>
+                  <div class="st-head">
+                    <span class="cq-subhead2-med">Branding</span>
+                    <span class="cq-body2-reg">Put your own colour and mark on the product. Everyone in the workspace sees it.</span>
+                  </div>
+
+                  <section class="ac-card">
+                    <div class="ac-card__head"><span class="cq-body1-med">Primary colour</span>
+                      <span class="ac-card__sub cq-caption-reg">Buttons, links, focus rings, selected rows and badges all follow from it.</span></div>
+                    <div class="st-field st-field--stack">
+                      <div class="st-swatches" id="stSwatches"></div>
+                      <div class="st-hex">
+                        <input type="color" id="stColourPick" aria-label="Pick a primary colour" />
+                        <span class="ac-input is-mono"><input id="stColourHex" class="cq-body2-reg" type="text" spellcheck="false"
+                          maxlength="7" aria-label="Primary colour, hex" placeholder="#0D99FF" /></span>
+                        <span class="st-logo__hint cq-caption-reg" id="stColourNote"></span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="ac-card">
+                    <div class="ac-card__head"><span class="cq-body1-med">Logo and name</span>
+                      <span class="ac-card__sub cq-caption-reg">Shown at the top of the platform panel.</span></div>
+                    <div class="st-field">
+                      <div class="st-field__t" style="flex:1 1 auto">
+                        <div class="st-logo">
+                          <span class="st-logo__box" id="stLogoBox"></span>
+                          <span class="st-logo__acts">
+                            <span class="st-logo__row">
+                              <button class="cq-btn cq-btn--s cq-btn--outline" type="button" id="stLogoPick">__UPLOAD__Upload logo</button>
+                              <button class="cq-btn cq-btn--s cq-btn--ghost" type="button" id="stLogoClear">Remove</button>
+                            </span>
+                            <span class="st-logo__hint cq-caption-reg" id="stLogoNote">SVG or PNG, square, up to 512&nbsp;KB.</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Product name</span>
+                        <span class="cq-caption-reg">Replaces the CogentIQ wordmark. Leave it empty to keep CogentIQ.</span></div>
+                      <div class="st-field__c">
+                        <span class="ac-input st-input"><input id="stName" class="cq-body2-reg" type="text" maxlength="24"
+                          placeholder="cogentiq" aria-label="Product name" /></span>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="ac-card">
+                    <div class="ac-card__head"><span class="cq-body1-med">Preview</span>
+                      <span class="ac-card__sub cq-caption-reg">Live, in the theme you are using now</span></div>
+                    <div class="st-prev">
+                      <div class="st-prev__rail">
+                        <div class="st-prev__brand">
+                          <span class="st-prev__mark" id="stPrevMark"></span>
+                          <span class="st-prev__word" id="stPrevWord">cogentiq</span>
+                        </div>
+                        <div class="st-prev__row is-active">__SPARK__<span class="cq-body2-reg">Model Hub</span></div>
+                        <div class="st-prev__row">__SPARK__<span class="cq-body2-reg">Automations</span></div>
+                      </div>
+                      <div class="st-prev__body">
+                        <div class="st-prev__strip">
+                          <button class="cq-btn cq-btn--m cq-btn--primary" type="button">Primary</button>
+                          <button class="cq-btn cq-btn--m cq-btn--tonal-1" type="button">Tonal</button>
+                          <button class="cq-btn cq-btn--m cq-btn--outline" type="button">Outline</button>
+                          <a class="st-prev__link cq-body2-med" href="#" onclick="return false">A link</a>
+                        </div>
+                        <div class="st-prev__strip">
+                          <span class="cq-badge cq-caption-med" data-tone="blue">read</span>
+                          <span class="cq-badge cq-caption-med" data-tone="green">Active</span>
+                          <span class="cq-checkbox is-checked">__TICK__</span>
+                          <span class="ac-input" style="width:180px"><input class="cq-body2-reg" type="text" value="Focus me" aria-label="Focus example" /></span>
+                        </div>
+                        <div class="st-prev__sel"><span class="cq-checkbox is-checked">__TICK__</span>
+                          <span class="cq-body2-reg">A selected row</span></div>
+                      </div>
+                    </div>
+                  </section>
+                </section>
+
+                <!-- ══ Workspace ══ -->
+                <section class="st-pane" id="st-workspace" role="region" aria-label="Workspace" hidden>
+                  <div class="st-head"><span class="cq-subhead2-med">Workspace</span>
+                    <span class="cq-body2-reg">Settings for Marketing, the workspace you are in.</span></div>
+                  <div class="ac-card">
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Workspace name</span>
+                        <span class="cq-caption-reg">Shown in the header and in invitations.</span></div>
+                      <div class="st-field__c"><span class="ac-input st-input"><input class="cq-body2-reg" type="text" value="Marketing" aria-label="Workspace name" /></span></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Who can join</span>
+                        <span class="cq-caption-reg">Anyone with a verified fractal.ai address.</span></div>
+                      <div class="st-field__c"><span class="cq-badge cq-caption-med" data-tone="blue">Domain</span></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Delete workspace</span>
+                        <span class="cq-caption-reg">Removes every automation, assistant and document in it.</span></div>
+                      <div class="st-field__c"><button class="cq-btn cq-btn--s cq-btn--outline" type="button"
+                        data-toast="Deleting a workspace is not wired in this mockup">Delete</button></div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ══ Notifications ══ -->
+                <section class="st-pane" id="st-notifications" role="region" aria-label="Notifications" hidden>
+                  <div class="st-head"><span class="cq-subhead2-med">Notifications</span>
+                    <span class="cq-body2-reg">What reaches you, and where.</span></div>
+                  <div class="ac-card" id="stNotify"></div>
+                </section>
+
+                <!-- ══ Security ══ -->
+                <section class="st-pane" id="st-security" role="region" aria-label="Security" hidden>
+                  <div class="st-head"><span class="cq-subhead2-med">Security</span>
+                    <span class="cq-body2-reg">How you sign in, and what keeps the account yours.</span></div>
+                  <div class="ac-card">
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Password</span>
+                        <span class="cq-caption-reg">Last changed 42 days ago.</span></div>
+                      <div class="st-field__c"><button class="cq-btn cq-btn--s cq-btn--outline" type="button"
+                        data-toast="Password change is not wired in this mockup">Change</button></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Two-factor authentication</span>
+                        <span class="cq-caption-reg">Authenticator app, added March 2025.</span></div>
+                      <div class="st-field__c"><span class="cq-badge cq-caption-med" data-tone="green">Enabled</span></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Sign-in method</span>
+                        <span class="cq-caption-reg">Single sign-on through fractal.ai.</span></div>
+                      <div class="st-field__c"><span class="cq-badge cq-caption-med" data-tone="blue">SSO</span></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Active sessions</span>
+                        <span class="cq-caption-reg">3 devices, this one in Bengaluru.</span></div>
+                      <div class="st-field__c"><button class="cq-btn cq-btn--s cq-btn--outline" type="button"
+                        data-toast="Session list is not wired in this mockup">View</button></div>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- ══ Access ══ -->
+                <section class="st-pane" id="st-access" role="region" aria-label="Access" hidden>
+                  <div class="st-head"><span class="cq-subhead2-med">Access</span>
+                    <span class="cq-body2-reg">What can act as you, and what your workspace lets in.</span></div>
+                  <div class="ac-card">
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Personal access tokens</span>
+                        <span class="cq-caption-reg">19 active, 3 expiring soon, 2 expired.</span></div>
+                      <div class="st-field__c"><button class="cq-btn cq-btn--s cq-btn--tonal-1" type="button" id="stTokens">Manage__ARROW__</button></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Installed integrations</span>
+                        <span class="cq-caption-reg">Slack, Snowflake and 6 more.</span></div>
+                      <div class="st-field__c"><button class="cq-btn cq-btn--s cq-btn--outline" type="button" id="stIntegrations">Open</button></div>
+                    </div>
+                    <div class="st-field">
+                      <div class="st-field__t"><span class="cq-body2-med">Marketplace publishing</span>
+                        <span class="cq-caption-reg">Admins may publish this workspace's work to the marketplace.</span></div>
+                      <div class="st-field__c"><span class="cq-badge cq-caption-med" data-tone="green">Allowed</span></div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="st-bar" id="stBar" hidden role="status">
+              <span class="st-bar__t cq-body2-reg" id="stBarText">You have unsaved branding changes.</span>
+              <button class="cq-btn cq-btn--m cq-btn--ghost" type="button" id="stDiscard">Discard</button>
+              <button class="cq-btn cq-btn--m cq-btn--primary" type="button" id="stSave">Save changes</button>
+            </div>
+          </div>
+          <input type="file" id="stFile" class="st-file" accept="image/png,image/jpeg,image/svg+xml,image/webp" />
+'''
+
+SET_JS = r'''
+/* ── The categories, and which pane each one shows ── */
+const CATS = [
+  ['appearance',    'Appearance',    'M10 2.6a7.4 7.4 0 1 0 0 14.8c.8 0 1.4-.6 1.4-1.4 0-.4-.1-.7-.4-1-.2-.2-.4-.6-.4-1 0-.7.6-1.3 1.4-1.3h1.6a3.8 3.8 0 0 0 3.8-3.8c0-3.5-3.4-6.3-7.4-6.3Z', ['circle:6.3,7.7,1', 'circle:10,5.9,1', 'circle:13.7,7.7,1']],
+  ['branding',      'Branding',      'M4 16.5V6.2c0-1 .8-1.8 1.8-1.8h8.4c1 0 1.8.8 1.8 1.8v10.3l-6-3-6 3Z', []],
+  ['workspace',     'Workspace',     'M3.2 7.4 10 3.6l6.8 3.8-6.8 3.8-6.8-3.8ZM3.2 12.4l6.8 3.8 6.8-3.8', []],
+  ['notifications', 'Notifications', 'M5 8.2a5 5 0 0 1 10 0v3.2l1.4 2.1H3.6L5 11.4V8.2ZM8.2 16a1.9 1.9 0 0 0 3.6 0', []],
+  ['security',      'Security',      'M10 2.8 4 5.2v4.6c0 3.6 2.6 6.4 6 7.4 3.4-1 6-3.8 6-7.4V5.2L10 2.8Z', []],
+  ['access',        'Access',        'M7 13a3.8 3.8 0 1 0 0-7.6A3.8 3.8 0 0 0 7 13ZM9.9 10.1l6.9-6.9M14 5.3l2.1 2.1M12 7.3l2.1 2.1', []],
+];
+const catIcon = (d, extra) => `<svg class="cq-ic" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="${d}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>${
+  extra.map(e => { const [, x, y, r] = e.split(/[:,]/); return `<circle cx="${x}" cy="${y}" r="${r}" fill="currentColor"/>`; }).join('')}</svg>`;
+
+let cat = 'appearance';
+function paintNav() {
+  $('stNav').innerHTML = `<span class="st-nav__grp cq-caption-med">Settings</span>` + CATS.map(([id, label, d, extra]) =>
+    `<button type="button" data-cat="${id}" class="cq-body2-reg${id === cat ? ' is-on' : ''}" aria-current="${id === cat}">
+       ${catIcon(d, extra)}<span class="lbl">${label}</span></button>`).join('');
+}
+function showCat(id) {
+  cat = id;
+  CATS.forEach(([c]) => { $('st-' + c).hidden = c !== id; });
+  paintNav();
+}
+$('stNav').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]'); if (b) showCat(b.dataset.cat);
+});
+
+/* ── Theme, through the same pair the avatar menu calls ── */
+function paintTheme(pref) {
+  $('stTheme').querySelectorAll('[data-pref]').forEach(b => b.classList.toggle('is-active', b.dataset.pref === pref));
+}
+$('stTheme').addEventListener('click', e => {
+  const b = e.target.closest('[data-pref]'); if (!b) return;
+  if (window.cqTheme) window.cqTheme.set(b.dataset.pref);
+  paintTheme(b.dataset.pref);
+});
+document.addEventListener('cq:theme', e => paintTheme(e.detail));
+
+/* ── Branding ─────────────────────────────────────────────────────
+   Every edit paints the whole product at once through the shared
+   chrome, so the rail and the preview are the same thing being
+   changed. Nothing is written down until Save, and Discard puts the
+   saved value back. */
+const CQ_BLUE = '#0D99FF';
+const PRESETS = [CQ_BLUE, '#5860ED', '#9747FF', '#E8632B', '#14AE5C', '#00A2C2', '#D6336C', '#121212'];
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+let saved = { colour: '', name: '', logo: '' };
+let draft = { colour: '', name: '', logo: '' };
+let painting = false;
+
+const clone = b => ({ colour: b.colour || '', name: b.name || '', logo: b.logo || '' });
+const dirty = () => draft.colour !== saved.colour || draft.name !== saved.name || draft.logo !== saved.logo;
+const markSvg = () => {
+  const src = document.querySelector('.rail-logo');
+  const own = src && src.dataset.cqOwn;
+  return own || '<svg viewBox="0 0 20 17.5" aria-hidden="true"><use href="#ic-logoonly"/></svg>';
+};
+
+function paintBrand() {
+  const c = draft.colour || CQ_BLUE;
+  $('stSwatches').innerHTML = PRESETS.map(p => `<button type="button" class="st-swatch${
+    p.toLowerCase() === (draft.colour || CQ_BLUE).toLowerCase() ? ' is-on' : ''}" style="background:${p}"
+    data-colour="${p}" title="${p}${p === CQ_BLUE ? ' · CogentIQ' : ''}" aria-label="Use ${p}">__TICK__</button>`).join('');
+  if (document.activeElement !== $('stColourHex')) $('stColourHex').value = draft.colour || '';
+  $('stColourPick').value = HEX.test(c) ? c : CQ_BLUE;
+  $('stColourNote').textContent = draft.colour ? '' : 'CogentIQ blue';
+  if (document.activeElement !== $('stName')) $('stName').value = draft.name || '';
+
+  const logo = draft.logo ? `<img src="${draft.logo}" alt="" />` : markSvg();
+  $('stLogoBox').innerHTML = logo;
+  $('stPrevMark').innerHTML = logo;
+  $('stPrevWord').textContent = draft.name || 'cogentiq';
+  $('stLogoClear').disabled = !draft.logo;
+
+  /* Painting the product announces the change, and this page listens
+     for that announcement — so the flag marks our own echo and keeps
+     the two from calling each other forever. */
+  if (window.cqBrand) { painting = true; window.cqBrand.preview(draft); painting = false; }
+  $('stBar').hidden = !dirty();
+}
+
+$('stSwatches').addEventListener('click', e => {
+  const b = e.target.closest('[data-colour]'); if (!b) return;
+  draft.colour = b.dataset.colour === CQ_BLUE ? '' : b.dataset.colour;
+  paintBrand();
+});
+$('stColourPick').addEventListener('input', e => { draft.colour = e.target.value.toUpperCase(); paintBrand(); });
+$('stColourHex').addEventListener('input', e => {
+  const v = e.target.value.trim();
+  if (!v) { draft.colour = ''; paintBrand(); return; }
+  if (HEX.test(v)) { draft.colour = v.toUpperCase(); paintBrand(); }
+});
+$('stColourHex').addEventListener('blur', () => paintBrand());
+$('stName').addEventListener('input', e => { draft.name = e.target.value.trim(); paintBrand(); });
+
+/* The logo travels as a data URI: it has to survive being read by every
+   page, and there is nowhere to put a file in a mockup. */
+$('stLogoPick').addEventListener('click', () => $('stFile').click());
+$('stFile').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { $('stLogoNote').textContent = 'That is not an image.'; return; }
+  if (f.size > 512 * 1024) { $('stLogoNote').textContent = 'That file is over 512 KB. Pick a smaller one.'; return; }
+  const r = new FileReader();
+  r.onload = () => {
+    draft.logo = String(r.result);
+    $('stLogoNote').textContent = `${f.name} · ${f.size < 1024 ? f.size + ' bytes' : Math.round(f.size / 1024) + ' KB'}`;
+    paintBrand();
+  };
+  r.onerror = () => { $('stLogoNote').textContent = 'That file could not be read.'; };
+  r.readAsDataURL(f);
+});
+$('stLogoClear').addEventListener('click', () => {
+  draft.logo = '';
+  $('stLogoNote').textContent = 'SVG or PNG, square, up to 512 KB.';
+  paintBrand();
+});
+
+$('stDiscard').addEventListener('click', () => { draft = clone(saved); paintBrand(); toast('Branding changes discarded'); });
+$('stSave').addEventListener('click', () => {
+  saved = clone(draft);
+  if (window.cqBrand) window.cqBrand.save(saved);
+  paintBrand();
+  toast('Branding saved for the workspace');
+});
+
+/* The chrome loads after this script and announces the stored brand
+   when it arrives — standalone that is immediate, inside the shell it
+   comes back over the wire. Either way this is where we learn it. */
+document.addEventListener('cq:brand', e => {
+  if (painting) return;                /* our own paint, coming back */
+  const b = clone(e.detail || {});
+  if (dirty()) return;                 /* never overwrite what is being edited */
+  if (b.colour === saved.colour && b.name === saved.name && b.logo === saved.logo) return;
+  saved = b; draft = clone(b); paintBrand();
+});
+
+/* ── Rows that only go somewhere ── */
+$('stTokens').addEventListener('click', () => go('pat-tokens.html'));
+$('stIntegrations').addEventListener('click', () => go('integrations.html'));
+
+const NOTIFY = [
+  ['Automation failures', 'The moment a run fails', true],
+  ['Mentions', 'Someone names you in a comment', true],
+  ['Weekly digest', 'What changed across your workspaces, on Mondays', true],
+  ['Marketplace reviews', 'When something you published is reviewed', false],
+  ['Token expiry', 'Fourteen days before a personal access token stops working', true],
+];
+$('stNotify').innerHTML = NOTIFY.map(([t, d, on], i) => `<div class="st-field">
+  <div class="st-field__t"><span class="cq-body2-med">${t}</span><span class="cq-caption-reg">${d}</span></div>
+  <div class="st-field__c"><span class="cq-checkbox${on ? ' is-checked' : ''}" role="checkbox" aria-checked="${on}"
+    tabindex="0" data-n="${i}" aria-label="${t}">__TICK__</span></div></div>`).join('');
+$('stNotify').addEventListener('click', e => {
+  const c = e.target.closest('[data-n]'); if (!c) return;
+  const on = !c.classList.contains('is-checked');
+  c.classList.toggle('is-checked', on); c.setAttribute('aria-checked', String(on));
+});
+$('stNotify').addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.key === 'Enter') && e.target.matches('[data-n]')) { e.preventDefault(); e.target.click(); }
+});
+
+document.querySelectorAll('[data-toast]').forEach(b => b.addEventListener('click', () => toast(b.dataset.toast)));
+showCat('appearance');
+paintBrand();
+paintTheme((window.cqTheme && window.cqTheme.get()) || (root.dataset.mode === 'light' ? 'light' : 'dark'));
+'''.replace('__TICK__', ICON['tick'])
+
 (PAGES / 'pat-tokens.html').write_text(page(
     'Cogentiq Builder · Personal access tokens',
     'The tokens that let scripts and tools act as you: what each can do, when it stops working, and a way to make more.',
@@ -1061,7 +1609,15 @@ requestAnimationFrame(() => { cqSegSync($('pfTabs')); cqSegSync($('pfActFilter')
     'Cogentiq Builder · Profile',
     'Who you are on Cogentiq: your details, how you sign in, and what has access as you.',
     'Profile', 'Your details, what you have done, and what you have published.', PROF_CSS, PROF_BODY, PROF_JS))
-for n in ['pat-tokens.html', 'profile.html']:
+(PAGES / 'settings.html').write_text(page(
+    'Cogentiq Builder · Settings',
+    'Theme, branding, workspace, notifications, security and access: what the product looks like and how it behaves for you.',
+    'Settings', 'What the product looks like, and how it behaves for you.',
+    SET_CSS,
+    SET_BODY.replace('__UPLOAD__', ICON['upload']).replace('__SPARK__', ICON['spark'])
+            .replace('__TICK__', ICON['tick']).replace('__ARROW__', ICON['arrow']),
+    SET_JS))
+for n in ['pat-tokens.html', 'profile.html', 'settings.html']:
     t = (PAGES / n).read_text()
     assert t.count('<!--') == t.count('-->'), n
     print(f'{n:18} {len(t):>8,} bytes')
