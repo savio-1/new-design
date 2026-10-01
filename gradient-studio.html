@@ -97,17 +97,20 @@ button{cursor:pointer}
 .three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 
 /* slider: label | filled track with value inside (reference style) */
-.ctl{display:grid;grid-template-columns:88px 1fr;gap:10px;align-items:center;height:30px;margin-top:4px}
-.ctl .lab{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.ctl{display:grid;grid-template-columns:92px 1fr 62px;gap:8px;align-items:center;height:30px;margin-top:4px}
+.ctl .lab{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:ew-resize;user-select:none}
 .ctl .lab:hover{color:var(--text)}
-.ctl .sl{position:relative;height:26px;border-radius:13px;background:var(--panel-3);overflow:hidden}
-.ctl .sl .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3a3550,#514a78);border-radius:13px;min-width:44px;display:flex;align-items:center;justify-content:flex-end;padding-right:9px;font-family:var(--mono);font-size:11px;color:#fff;pointer-events:none;white-space:nowrap}
+.ctl .sl{position:relative;height:24px;border-radius:12px;background:var(--panel-3);overflow:hidden}
+.ctl .sl .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3a3550,#5a528a);border-radius:12px;min-width:16px;pointer-events:none}
+.ctl .sl .fill::after{content:'';position:absolute;right:6px;top:50%;width:4px;height:12px;margin-top:-6px;border-radius:2px;background:rgba(255,255,255,.85)}
 .ctl .sl input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}
-.ctl .sl .edit{position:absolute;left:0;top:0;bottom:0;width:100%;border:0;background:var(--panel-3);color:#fff;font-family:var(--mono);font-size:11.5px;padding:0 10px;outline:2px solid var(--accent);outline-offset:-2px;border-radius:13px;display:none}
-.ctl.editing .sl .edit{display:block}
-.ctl.editing .sl .fill,.ctl.editing .sl input[type=range]{visibility:hidden}
 .ctl:hover .sl{background:#262735}
 .ctl .sl:focus-within{box-shadow:0 0 0 2px rgba(139,124,255,.4)}
+.ctl .num{width:100%;height:24px;border:1px solid var(--line-2);border-radius:7px;background:var(--panel-3);color:var(--text);font-family:var(--mono);font-size:11px;text-align:right;padding:0 7px;outline:none;min-width:0}
+.ctl .num:hover{border-color:rgba(255,255,255,.22)}
+.ctl .num:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(139,124,255,.3);background:#14151d}
+.stop .posin{width:46px;height:24px;border:1px solid var(--line-2);border-radius:7px;background:var(--panel-3);color:var(--text);font-family:var(--mono);font-size:11px;text-align:right;padding:0 6px;outline:none}
+.stop .posin:focus{border-color:var(--accent)}
 /* generic range (scrub) */
 input[type=range].plain{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0}
 input[type=range].plain::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:rgba(255,255,255,.14)}
@@ -2357,21 +2360,47 @@ function slider(path, label, min, max, step, opts = {}) {
   const get = opts.get || (() => getPath(S, path));
   const set = opts.set || (v => setPath(S, path, v));
   const fmt = opts.fmt || (v => (+v).toFixed(step < 0.1 ? 2 : step < 1 ? 1 : 0) + (opts.unit || ''));
-  const range = el('input', { type: 'range', min, max, step });
+  // the number box works in the same units the value is shown in (e.g. 0–100 for percentages)
+  const scale = opts.scale || 1;
+  const dec = Math.min(3, Math.max(0, Math.ceil(-Math.log10(step * scale) - 1e-9)));
+  const toRaw = v => String(+(v * scale).toFixed(dec));
+  const lo = opts.hardMin ?? min, hi = opts.hardMax ?? max;
+  const range = el('input', { type: 'range', min, max, step, tabindex: '-1' });
   const fill = el('div', { class: 'fill' });
-  const edit = el('input', { class: 'edit', type: 'text', spellcheck: 'false' });
-  const sl = el('div', { class: 'sl' }, fill, range, edit);
-  const lab = el('div', { class: 'lab', title: 'Click to type a value · double-click to reset' }, label);
-  const wrap = el('div', { class: 'ctl' }, lab, sl);
-  const paint = v => { const p = clamp((v - min) / (max - min), 0, 1); fill.style.width = `calc(${(p * 100).toFixed(2)}% )`; fill.textContent = fmt(v); };
+  const sl = el('div', { class: 'sl' }, fill, range);
+  const num = el('input', { class: 'num', type: 'text', inputmode: 'decimal', spellcheck: 'false', autocomplete: 'off', title: 'Type a value, then Enter · ↑/↓ nudge (Shift ×10)', 'aria-label': label });
+  const lab = el('div', { class: 'lab', title: 'Drag to adjust · click to type · double-click to reset' }, label);
+  const wrap = el('div', { class: 'ctl' }, lab, sl, num);
+  const paint = v => {
+    const p = clamp((v - min) / (max - min), 0, 1); fill.style.width = `calc(${(p * 100).toFixed(2)}% )`;
+    if (document.activeElement !== num) num.value = fmt(v);
+  };
   const sync = () => { const v = get(); range.value = v; paint(v); };
-  const commit = v => { set(v); paint(v); persist(); opts.onChange && opts.onChange(); };
+  const commit = v => { if (step >= 1) v = Math.round(v); v = clamp(v, lo, hi); set(v); range.value = v; paint(v); persist(); opts.onChange && opts.onChange(); };
   range.addEventListener('input', () => commit(+range.value));
-  lab.addEventListener('click', () => { wrap.classList.add('editing'); edit.value = String(+(+get()).toFixed(4)); edit.focus(); edit.select(); });
-  lab.addEventListener('dblclick', () => { if (opts.reset != null) { commit(opts.reset); sync(); } });
-  const finish = ok => { wrap.classList.remove('editing'); if (ok) { const v = parseFloat(edit.value); if (!isNaN(v)) commit(clamp(v, opts.hardMin ?? min, opts.hardMax ?? max)); } sync(); };
-  edit.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); e.stopPropagation(); });
-  edit.addEventListener('blur', () => { if (wrap.classList.contains('editing')) finish(true); });
+  // number box
+  const parse = () => { const m = num.value.replace(',', '.').match(/[-+]?\d*\.?\d+(e[-+]?\d+)?/i); return m ? parseFloat(m[0]) / scale : NaN; };
+  const apply = () => { const v = parse(); if (!isNaN(v) && Math.abs(v - get()) > 1e-9) commit(v); };
+  num.addEventListener('focus', () => { num.value = toRaw(get()); setTimeout(() => num.select(), 0); });
+  num.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { apply(); num.value = toRaw(get()); num.select(); }
+    else if (e.key === 'Escape') { num.value = toRaw(get()); num.blur(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault(); const cur = isNaN(parse()) ? +get() : parse();
+      commit(cur + (e.key === 'ArrowUp' ? 1 : -1) * step * (e.shiftKey ? 10 : 1)); num.value = toRaw(get()); num.select();
+    }
+  });
+  num.addEventListener('blur', () => { apply(); num.value = fmt(get()); });
+  // label: drag to scrub, click to type, double-click to reset
+  lab.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const x0 = e.clientX, v0 = +get(); let moved = false;
+    const move = ev => { const dx = ev.clientX - x0; if (!moved && Math.abs(dx) < 3) return; moved = true; const v = v0 + dx / 220 * (max - min) * (ev.shiftKey ? 0.1 : 1); commit(+(Math.round(v / step) * step).toFixed(6)); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); if (!moved) num.focus(); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  });
+  lab.addEventListener('dblclick', () => { if (opts.reset != null) { commit(opts.reset); sync(); num.blur(); } });
   rerenderers.push(sync); sync();
   return wrap;
 }
@@ -2543,7 +2572,7 @@ function renderLayers() {
 /* ---- background (animation) properties ---- */
 function buildBackgroundProps(bg) {
   const seedRow = el('div', { class: 'ctl' }); // seed with dice
-  const seed = slider('seed', 'Seed', 0, 1, 0.001, { fmt: v => (v * 1000 | 0) + '' });
+  const seed = slider('seed', 'Seed', 0, 1, 0.001, { fmt: v => (v * 1000 | 0) + '', scale: 1000 });
   const dice = el('button', { class: 'btn xs', title: 'New seed', style: 'position:absolute;right:4px;top:3px', onclick: () => { S.seed = Math.random(); refreshAll(); } }, '⚄');
   seed.querySelector('.sl').style.paddingRight = '0'; seed.querySelector('.sl').append(dice);
   const gradBar = el('div', { class: 'grad' }); const stopsWrap = el('div', { class: 'stops' });
@@ -2555,8 +2584,13 @@ function buildBackgroundProps(bg) {
       c.addEventListener('input', () => { st.c = c.value; hex.value = c.value; gradBar.style.background = cssGradient(); presetName = 'Custom'; persist(); });
       hex.addEventListener('change', () => { let v = hex.value.trim(); if (!v.startsWith('#')) v = '#' + v; if (/^#[0-9a-f]{6}$/i.test(v)) { st.c = v.toLowerCase(); c.value = st.c; gradBar.style.background = cssGradient(); persist(); } hex.value = st.c; });
       const r = el('input', { class: 'plain', type: 'range', min: 0, max: 1, step: 0.001, value: st.p });
-      const pos = el('span', { class: 'pos' }, Math.round(st.p * 100) + '%');
-      r.addEventListener('input', () => { st.p = +r.value; pos.textContent = Math.round(st.p * 100) + '%'; gradBar.style.background = cssGradient(); persist(); presetName = 'Custom'; });
+      const pos = el('input', { class: 'posin', type: 'text', inputmode: 'decimal', title: 'Stop position (0–100%) · Enter to apply · ↑/↓ nudge', value: Math.round(st.p * 100) + '%' });
+      const setP = p => { st.p = clamp(p, 0, 1); r.value = st.p; gradBar.style.background = cssGradient(); persist(); presetName = 'Custom'; };
+      r.addEventListener('input', () => { setP(+r.value); pos.value = Math.round(st.p * 100) + '%'; });
+      const applyPos = () => { const v = parseFloat(pos.value); if (!isNaN(v)) setP(v / 100); };
+      pos.addEventListener('focus', () => { pos.value = String(+(st.p * 100).toFixed(1)); setTimeout(() => pos.select(), 0); });
+      pos.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { applyPos(); pos.select(); } else if (e.key === 'Escape') pos.blur(); else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { e.preventDefault(); setP(st.p + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 0.1 : 0.01)); pos.value = String(+(st.p * 100).toFixed(1)); pos.select(); } });
+      pos.addEventListener('blur', () => { applyPos(); pos.value = Math.round(st.p * 100) + '%'; });
       const x = el('button', { class: 'x', title: 'Remove stop', onclick: () => { if (S.palette.stops.length > 2) { S.palette.stops.splice(i, 1); presetName = 'Custom'; refreshAll(); } } }, '✕');
       stopsWrap.append(el('div', { class: 'stop' }, box, r, pos, x));
     });
@@ -2854,9 +2888,10 @@ function buildImageProps(l) {
 function buildGradeGroup(l) {
   if (!l.grade) l.grade = Object.assign({}, GRADE_DEFAULTS);
   const gr = l.grade;
-  const gs = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => gr[key], set: v => gr[key] = v, reset: GRADE_DEFAULTS[key] }, o));
   const pct = v => Math.round(v * 100) + '';
   const signed = v => (v > 0 ? '+' : '') + Math.round(v * 100);
+  // percentage-style readouts are typed as 0–100 too
+  const gs = (key, label, min, max, step, o = {}) => slider(null, label, min, max, step, Object.assign({ get: () => gr[key], set: v => gr[key] = v, reset: GRADE_DEFAULTS[key] }, o.fmt === pct || o.fmt === signed ? { scale: 100 } : {}, o));
   // looks
   const looks = el('div', { class: 'chips', style: 'grid-template-columns:repeat(5,1fr)' });
   const lbtns = IMAGE_LOOKS.map(lk => el('button', { class: 'chip', title: lk.name, onclick: () => { Object.assign(gr, GRADE_DEFAULTS, lk.g); refreshAll(); } }, lk.name));
@@ -2873,13 +2908,13 @@ function buildGradeGroup(l) {
     el('div', { class: 'row' }, el('label', {}, 'Looks'), el('button', { class: 'btn xs', style: 'margin-left:auto', onclick: () => { Object.assign(gr, GRADE_DEFAULTS); refreshAll(); } }, 'Reset all')),
     looks,
     el('div', { class: 'sub' }, 'Light'),
-    gs('exposure', 'Exposure', -3, 3, 0.01, { fmt: v => (v > 0 ? '+' : '') + v.toFixed(2) + ' EV' }),
+    gs('exposure', 'Exposure', -3, 3, 0.01, { fmt: v => (v > 0 ? '+' : '') + v.toFixed(2) }),
     gs('contrast', 'Contrast', -1, 1, 0.01, { fmt: signed }),
     gs('shadows', 'Shadows', -1, 1, 0.01, { fmt: signed }),
     gs('highlights', 'Highlights', -1, 1, 0.01, { fmt: signed }),
     el('div', { class: 'sub' }, 'Colour'),
-    gs('temperature', 'Temperature', -1, 1, 0.01, { fmt: v => (v > 0 ? 'warm +' : v < 0 ? 'cool ' : '') + Math.round(v * 100) }),
-    gs('tint', 'Tint', -1, 1, 0.01, { fmt: v => (v > 0 ? 'magenta +' : v < 0 ? 'green ' : '') + Math.round(v * 100) }),
+    gs('temperature', 'Temperature', -1, 1, 0.01, { fmt: signed }),
+    gs('tint', 'Tint', -1, 1, 0.01, { fmt: signed }),
     gs('saturation', 'Saturation', -1, 1, 0.01, { fmt: signed }),
     gs('vibrance', 'Vibrance', -1, 1, 0.01, { fmt: signed }),
     gs('bw', 'Black & white', 0, 1, 0.01, { fmt: pct, unit: '%' }),
@@ -2889,7 +2924,7 @@ function buildGradeGroup(l) {
     gs('smoothness', 'Smoothness', 0, 1, 0.01, { fmt: pct }),
     el('div', { class: 'sub' }, 'Effects'),
     gs('halation', 'Halation', 0, 1, 0.01, { fmt: pct }),
-    gs('halationThreshold', 'Halation from', 0.2, 0.95, 0.01, { fmt: pct, unit: '% bright' }),
+    gs('halationThreshold', 'Halation from', 0.2, 0.95, 0.01, { fmt: pct }),
     gs('grain', 'Grain', 0, 1, 0.01, { fmt: pct }),
     gs('grainSize', 'Grain size', 0.6, 4, 0.1, { fmt: v => v.toFixed(1) + 'px' }),
     el('div', { class: 'row' }, toggle(null, 'Animate grain (film-like flicker in video)', { get: () => gr.grainAnimate, set: v => gr.grainAnimate = v })),
@@ -2897,7 +2932,7 @@ function buildGradeGroup(l) {
     row('Type', blurType),
     gs('blur', 'Amount', 0, 100, 0.5, { fmt: pct => Math.round(pct) + '' }),
     angleRow, bandRow, bandW,
-    el('div', { class: 'hint' }, 'Grading runs on the GPU from the original pixels at up to 2× the on-canvas size, so exports stay sharp. Click a slider label to type a value; double-click resets it.'),
+    el('div', { class: 'hint' }, 'Grading runs on the GPU from the original pixels at up to 2× the on-canvas size, so exports stay sharp. Type exact values in the boxes (↑/↓ nudges), drag a label to scrub, double-click a label to reset it.'),
   );
   grp.querySelector('header').append(badge);
   return grp;
