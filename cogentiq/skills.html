@@ -3711,12 +3711,58 @@ railExposeOnly(null);
   var K_BRAND = 'cq-brand';
   var brandNow = null;
 
+  /* A colour on its own is not a palette. Light surfaces are blended
+     towards a fixed luminance rather than by a fixed percentage, so a
+     pale yellow and a deep navy both land on a tint that reads as the
+     same strength of "selected"; text is darkened until it clears a
+     contrast ratio against whatever it ends up sitting on. Dark mode
+     keeps its mixes: a tint on #121212 behaves itself whatever the hue. */
+  function rgbOf(h) {
+    h = String(h).replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  function hexOf(c) {
+    return '#' + c.map(function (v) {
+      return ('0' + Math.round(Math.max(0, Math.min(255, v))).toString(16)).slice(-2);
+    }).join('');
+  }
+  function chan(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  function lumOf(c) { return 0.2126 * chan(c[0]) + 0.7152 * chan(c[1]) + 0.0722 * chan(c[2]); }
+  function blend(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; }
+  var WHITE = [255, 255, 255], BLACK = [0, 0, 0];
+
+  /* Blending towards white raises luminance monotonically, so the amount
+     that lands on a target is a plain bisection. */
+  function atLum(c, target) {
+    var lo = 0, hi = 1, mid;
+    for (var i = 0; i < 22; i++) {
+      mid = (lo + hi) / 2;
+      if (lumOf(blend(c, WHITE, mid)) > target) hi = mid; else lo = mid;
+    }
+    return blend(c, WHITE, (lo + hi) / 2);
+  }
+  function ratio(a, b) {
+    var x = lumOf(a), y = lumOf(b);
+    return ((Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05));
+  }
+  function readableOn(c, ground, want) {
+    if (ratio(c, ground) >= want) return c;
+    var lo = 0, hi = 1, mid;
+    for (var i = 0; i < 22; i++) {
+      mid = (lo + hi) / 2;
+      if (ratio(blend(c, BLACK, mid), ground) >= want) hi = mid; else lo = mid;
+    }
+    return blend(c, BLACK, hi);
+  }
+
   function brandTokens(c) {
+    /* Only the semantic tokens move. The palette ramps (--blue-500 and
+       friends) stay where they are: the rail's category tiles are drawn
+       from them, and those marks belong to the product's own vocabulary,
+       not to whoever is wearing it. */
     var both =
       '--backgrounds-button-primary:' + c + ';' +
-      '--blue-500:' + c + ';' +
-      '--blue-600:color-mix(in srgb,' + c + ' 86%,#000);' +
-      '--blue-300:color-mix(in srgb,' + c + ' 38%,#fff);' +
       '--strokes-card-selected:' + c + ';' +
       '--strokes-checkbox-focus:' + c + ';' +
       '--backgrounds-checkbox-focus:' + c + ';' +
@@ -3730,15 +3776,24 @@ railExposeOnly(null);
       '--backgrounds-table-select:color-mix(in srgb,' + c + ' 20%,#121212);' +
       '--backgrounds-badge-blue:color-mix(in srgb,' + c + ' 14%,#121212);' +
       '--strokes-colour-blue:color-mix(in srgb,' + c + ' 42%,#121212);';
+
+    var rgb = rgbOf(c);
+    /* .84 is a step deeper than the stock #e5f4ff: a selected row has to
+       announce itself on white, and at the stock weight a muted brand
+       all but vanished. */
+    var tonal  = atLum(rgb, 0.84);
+    var badge  = atLum(rgb, 0.93);
+    var edge   = atLum(rgb, 0.74);
     var light = both +
       '--strokes-type-focus:' + c + ';' +
-      '--text-coloured-blue:' + c + ';' +
-      '--backgrounds-button-tonal-1:color-mix(in srgb,' + c + ' 10%,#fff);' +
-      '--backgrounds-disabled-tonal-1:color-mix(in srgb,' + c + ' 10%,#fff);' +
-      '--text-button-tonal-1:color-mix(in srgb,' + c + ' 88%,#000);' +
-      '--backgrounds-table-select:color-mix(in srgb,' + c + ' 10%,#fff);' +
-      '--backgrounds-badge-blue:color-mix(in srgb,' + c + ' 6%,#fff);' +
-      '--strokes-colour-blue:color-mix(in srgb,' + c + ' 20%,#fff);';
+      '--text-coloured-blue:' + hexOf(readableOn(rgb, WHITE, 3)) + ';' +
+      '--backgrounds-button-tonal-1:' + hexOf(tonal) + ';' +
+      '--backgrounds-disabled-tonal-1:' + hexOf(badge) + ';' +
+      '--text-button-tonal-1:' + hexOf(readableOn(rgb, tonal, 4.5)) + ';' +
+      '--backgrounds-table-select:' + hexOf(tonal) + ';' +
+      '--backgrounds-badge-blue:' + hexOf(badge) + ';' +
+      '--strokes-colour-blue:' + hexOf(edge) + ';';
+
     /* Dark is the product default and the pages set it on bare :root,
        so the plain rule carries dark and the two attribute rules match
        the specificity of the page's own light block. */
@@ -3758,7 +3813,11 @@ railExposeOnly(null);
       tag.id = 'cqBrandStyle';
       document.head.appendChild(tag);
     }
-    tag.textContent = HEX.test(b.colour || '') ? brandTokens(b.colour) : '';
+    /* The stock blue goes through the same derivation as any other
+       colour. Left to the pages' own light values its selected rows
+       came out a step paler than every brand's, which is the one thing
+       a shared rule should never allow. */
+    tag.textContent = brandTokens(HEX.test(b.colour || '') ? b.colour : '#0D99FF');
 
     /* The rail wears the name and the mark. Both keep their original
        content beside them, so clearing a field puts CogentIQ back
