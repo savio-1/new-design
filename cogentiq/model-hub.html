@@ -5685,9 +5685,9 @@ railExposeOnly(null);
     return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
   }
   function hexOf(c) {
-    return '#' + c.map(function (v) {
+    return ('#' + c.map(function (v) {
       return ('0' + Math.round(Math.max(0, Math.min(255, v))).toString(16)).slice(-2);
-    }).join('');
+    }).join('')).toUpperCase();
   }
   function chan(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
   function lumOf(c) { return 0.2126 * chan(c[0]) + 0.7152 * chan(c[1]) + 0.0722 * chan(c[2]); }
@@ -5718,6 +5718,60 @@ railExposeOnly(null);
     return blend(c, BLACK, hi);
   }
 
+  /* ── The WCAG adjustment ───────────────────────────────────────
+     From the design guide: a brand colour that is too light to carry
+     white text is pulled down in lightness alone — hue and saturation
+     are the brand's and are left untouched — by a step that widens the
+     lighter the colour is. L 50-59 drops 10, 60-69 drops 20, 70-79
+     drops 30, 80-89 drops 40, 90-100 drops 50; below 50 the colour
+     already carries, and nothing is done to it. The same ladder gives
+     the hover and selected states, at ten and twenty below whatever
+     the primary ends up being. */
+  function toHsl(c) {
+    var r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    var l = (mx + mn) / 2, h = 0, s = 0;
+    if (d) {
+      s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      h = mx === r ? ((g - b) / d + (g < b ? 6 : 0)) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+      h *= 60;
+    }
+    return [Math.round(h), Math.round(s * 100), Math.round(l * 100)];
+  }
+  function fromHsl(h, s, l) {
+    h = ((h % 360) + 360) % 360; s /= 100; l = Math.max(0, Math.min(100, l)) / 100;
+    var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    var t = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+          : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return [(t[0] + m) * 255, (t[1] + m) * 255, (t[2] + m) * 255];
+  }
+  function dropFor(l) {
+    return l >= 90 ? 50 : l >= 80 ? 40 : l >= 70 ? 30 : l >= 60 ? 20 : l >= 50 ? 10 : 0;
+  }
+  /* What the adjustment would do, as the settings page needs to show it
+     before and after rather than only apply it. */
+  function wcagReport(hex) {
+    var hsl = toHsl(rgbOf(hex)), drop = dropFor(hsl[2]);
+    var out = drop ? hexOf(fromHsl(hsl[0], hsl[1], hsl[2] - drop)) : hex.toUpperCase();
+    return {
+      changed: !!drop, drop: drop,
+      from: { hex: hex.toUpperCase(), h: hsl[0], s: hsl[1], l: hsl[2] },
+      to:   { hex: out, h: hsl[0], s: hsl[1], l: hsl[2] - drop },
+      onWhite: Math.round(ratio(rgbOf(out), WHITE) * 100) / 100
+    };
+  }
+  /* The colour the product actually wears: the pick, or its adjustment
+     when the person asked for one. */
+  function effective(b) {
+    var c = HEX.test((b && b.colour) || '') ? b.colour : '#0D99FF';
+    return b && b.wcag ? wcagReport(c).to.hex : c;
+  }
+  /* Hover and selected, one and two steps down the same ladder. */
+  function stepped(hex, by) {
+    var hsl = toHsl(rgbOf(hex));
+    return hexOf(fromHsl(hsl[0], hsl[1], Math.max(0, hsl[2] - by)));
+  }
+
   function brandTokens(c) {
     /* Only the semantic tokens move. The palette ramps (--blue-500 and
        friends) stay where they are: the rail's category tiles are drawn
@@ -5725,6 +5779,8 @@ railExposeOnly(null);
        not to whoever is wearing it. */
     var both =
       '--backgrounds-button-primary:' + c + ';' +
+      '--brand-hover:' + stepped(c, 10) + ';' +
+      '--brand-selected:' + stepped(c, 20) + ';' +
       '--strokes-card-selected:' + c + ';' +
       '--strokes-checkbox-focus:' + c + ';' +
       '--backgrounds-checkbox-focus:' + c + ';' +
@@ -5759,9 +5815,15 @@ railExposeOnly(null);
     /* Dark is the product default and the pages set it on bare :root,
        so the plain rule carries dark and the two attribute rules match
        the specificity of the page's own light block. */
+    /* The pages brighten a primary button on hover, which walks the
+       wrong way once the primary is a deep brand colour. The guide's
+       own states replace it. */
+    var states =
+      '.cq-btn--primary:hover:not(:disabled){background:var(--brand-hover);filter:none}' +
+      '.cq-btn--primary:active:not(:disabled){background:var(--brand-selected);filter:none}';
     return ':root{' + dark + '}' +
            ':root[data-mode="dark"]{' + dark + '}' +
-           ':root[data-mode="light"]{' + light + '}';
+           ':root[data-mode="light"]{' + light + '}' + states;
   }
 
   var HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
@@ -5779,7 +5841,7 @@ railExposeOnly(null);
        colour. Left to the pages' own light values its selected rows
        came out a step paler than every brand's, which is the one thing
        a shared rule should never allow. */
-    tag.textContent = brandTokens(HEX.test(b.colour || '') ? b.colour : '#0D99FF');
+    tag.textContent = brandTokens(effective(b));
 
     /* The rail wears the name and the mark. Both keep their original
        content beside them, so clearing a field puts CogentIQ back
@@ -5814,7 +5876,11 @@ railExposeOnly(null);
   window.cqBrand = {
     get: function () { return brandNow || {}; },
     preview: applyBrand,
-    save: saveBrand
+    save: saveBrand,
+    /* So the settings page can show the before and after without
+       keeping a second copy of the arithmetic. */
+    wcag: wcagReport,
+    effective: effective
   };
   window.cqTheme = {
     get: function () { return pref; },

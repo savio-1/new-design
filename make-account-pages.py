@@ -1154,6 +1154,37 @@ SET_CSS = '''
 .st-swatch.is-on .st-swatch__dot > svg { display: block; }
 .st-swatch__nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-custom { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ── The WCAG opt-in, and the before and after it produces ── */
+.st-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.st-check .cq-checkbox { margin-top: 2px; flex: none; }
+.st-check__t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-check__t .cq-body2-med { color: var(--text-primary); }
+.st-check__t .cq-caption-reg { color: var(--text-teritiary); }
+.st-wcag {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 14px 16px; border-radius: var(--radius-md);
+  background: var(--backgrounds-page-bg-3); border: 1px solid var(--strokes-line-3);
+}
+.st-wcag[hidden] { display: none !important; }
+.st-wcag.is-warn {
+  background: color-mix(in srgb, var(--orange-600) 12%, var(--backgrounds-page-bg-3));
+  border-color: color-mix(in srgb, var(--orange-600) 42%, transparent);
+}
+.st-wcag.is-warn .st-wcag__why .cq-body2-med { color: color-mix(in srgb, var(--orange-600) 78%, var(--text-primary)); }
+.st-wcag__pair { display: flex; align-items: center; gap: 12px; }
+.st-wcag__chip { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.st-wcag__box {
+  width: 86px; height: 44px; border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  font: 500 var(--fs-caption)/1 var(--font-geist-mono, monospace);
+}
+.st-wcag__hsl { color: var(--text-teritiary); }
+.st-wcag__arrow { color: var(--text-teritiary); display: flex; align-items: center; }
+.st-wcag__why { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-wcag__why .cq-body2-med { color: var(--text-primary); }
+.st-wcag__why .cq-caption-reg { color: var(--text-teritiary); }
 .st-custom__lbl { color: var(--text-secondary); }
 
 /* A heading for a run of cards inside a pane that already has one. */
@@ -1316,6 +1347,16 @@ SET_BODY = '''
                         </div>
                         <span class="st-logo__hint cq-caption-reg" id="stColourNote"></span>
                       </div>
+                      <label class="st-check">
+                        <span class="cq-checkbox" id="stWcag" role="checkbox" aria-checked="false" tabindex="0"
+                          aria-label="Adjust the colour for contrast">__TICK__</span>
+                        <span class="st-check__t">
+                          <span class="cq-body2-med">Adjust for contrast (WCAG)</span>
+                          <span class="cq-caption-reg">A colour too light to carry white text is deepened until it does.
+                            Its hue and saturation are kept, so it still reads as your colour.</span>
+                        </span>
+                      </label>
+                      <div class="st-wcag" id="stWcagOut" hidden></div>
                     </div>
                   </section>
 
@@ -1563,12 +1604,13 @@ const PRESETS = [
   ['Ocean', '#0B6BCB'], ['Steel', '#475569'], ['Graphite', '#2B2B2B'],
 ];
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-let saved = { colour: '', name: '', logo: '' };
-let draft = { colour: '', name: '', logo: '' };
+let saved = { colour: '', wcag: false, name: '', logo: '' };
+let draft = { colour: '', wcag: false, name: '', logo: '' };
 let painting = false;
 
-const clone = b => ({ colour: b.colour || '', name: b.name || '', logo: b.logo || '' });
-const dirty = () => draft.colour !== saved.colour || draft.name !== saved.name || draft.logo !== saved.logo;
+const clone = b => ({ colour: b.colour || '', wcag: !!b.wcag, name: b.name || '', logo: b.logo || '' });
+const dirty = () => draft.colour !== saved.colour || draft.name !== saved.name
+  || draft.logo !== saved.logo || draft.wcag !== saved.wcag;
 const markSvg = () => {
   const src = document.querySelector('.rail-logo');
   const own = src && src.dataset.cqOwn;
@@ -1590,6 +1632,8 @@ function paintBrand() {
   $('stColourNote').textContent = named ? '' : 'Custom colour ' + now.toUpperCase();
   if (document.activeElement !== $('stName')) $('stName').value = draft.name || '';
 
+  paintWcag();
+
   const logo = draft.logo ? `<img src="${draft.logo}" alt="" />` : markSvg();
   $('stLogoBox').innerHTML = logo;
   $('stPrevMark').innerHTML = logo;
@@ -1602,6 +1646,50 @@ function paintBrand() {
   if (window.cqBrand) { painting = true; window.cqBrand.preview(draft); painting = false; }
   $('stBar').hidden = !dirty();
 }
+
+/* The arithmetic lives in the shared chrome, beside the tokens it
+   feeds; this only shows what it did. */
+function paintWcag() {
+  const box = $('stWcagOut'), tick = $('stWcag');
+  tick.classList.toggle('is-checked', draft.wcag);
+  tick.setAttribute('aria-checked', String(draft.wcag));
+  if (!window.cqBrand || !window.cqBrand.wcag) { box.hidden = true; return; }
+  const r = window.cqBrand.wcag(draft.colour || CQ_BLUE);
+  /* The guide leaves the adjustment to the person, so a pale pick with
+     the box unticked is allowed — but it should not pass in silence. */
+  if (!draft.wcag) {
+    box.hidden = !r.changed;
+    box.classList.toggle('is-warn', r.changed);
+    if (r.changed) {
+      box.innerHTML = `<span class="st-wcag__pair"><span class="st-wcag__chip">
+          <span class="st-wcag__box" style="background:${r.from.hex};color:${r.from.l > 55 ? '#121212' : '#fff'}">${r.from.hex}</span>
+          <span class="st-wcag__hsl cq-caption-reg">Picked · H ${r.from.h} S ${r.from.s} L ${r.from.l}</span></span></span>
+        <span class="st-wcag__why"><span class="cq-body2-med">White text on this is ${window.cqBrand.wcag(r.from.hex).from.l >= 50 ? 'hard to read' : 'readable'}</span>
+          <span class="cq-caption-reg">At lightness ${r.from.l} a button in this colour does not carry its own label.
+            Tick the box above and it becomes ${r.to.hex}, the same hue at lightness ${r.to.l}.</span></span>`;
+    }
+    return;
+  }
+  box.classList.remove('is-warn');
+  box.hidden = false;
+  const chip = (c, label) => `<span class="st-wcag__chip">
+      <span class="st-wcag__box" style="background:${c.hex};color:${c.l > 55 ? '#121212' : '#fff'}">${c.hex}</span>
+      <span class="st-wcag__hsl cq-caption-reg">${label} · H ${c.h} S ${c.s} L ${c.l}</span></span>`;
+  box.innerHTML = r.changed
+    ? `<span class="st-wcag__pair">${chip(r.from, 'Picked')}
+         <span class="st-wcag__arrow">__ARROW__</span>${chip(r.to, 'Applied')}</span>
+       <span class="st-wcag__why"><span class="cq-body2-med">Lightness ${r.from.l} → ${r.to.l}</span>
+         <span class="cq-caption-reg">Too light to carry white text, so it came down ${r.drop} points.
+           Hue and saturation are untouched. Contrast against white is now ${r.onWhite}:1.</span></span>`
+    : `<span class="st-wcag__pair">${chip(r.from, 'Picked')}</span>
+       <span class="st-wcag__why"><span class="cq-body2-med">No change needed</span>
+         <span class="cq-caption-reg">At lightness ${r.from.l} this colour already carries white text.
+           Contrast against white is ${r.onWhite}:1.</span></span>`;
+}
+$('stWcag').addEventListener('click', () => { draft.wcag = !draft.wcag; paintBrand(); });
+$('stWcag').addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); $('stWcag').click(); }
+});
 
 $('stSwatches').addEventListener('click', e => {
   const b = e.target.closest('[data-colour]'); if (!b) return;
@@ -1655,7 +1743,10 @@ $('stSave').addEventListener('click', () => {
 document.addEventListener('cq:brand', e => {
   if (painting) return;                /* our own paint, coming back */
   const b = clone(e.detail || {});
-  if (dirty()) return;                 /* never overwrite what is being edited */
+  /* Switching the theme makes the shell replay the brand it has stored,
+     which is the saved one — that would wipe an unsaved preview off the
+     screen, so the draft is painted straight back on. */
+  if (dirty()) { paintBrand(); return; }
   if (b.colour === saved.colour && b.name === saved.name && b.logo === saved.logo) return;
   saved = b; draft = clone(b); paintBrand();
 });
@@ -1743,7 +1834,7 @@ paintTeam();
 showCat('appearance');
 paintBrand();
 paintTheme((window.cqTheme && window.cqTheme.get()) || (root.dataset.mode === 'light' ? 'light' : 'dark'));
-'''.replace('__TICK__', ICON['tick']).replace('__TRASH__', ICON['trash'])
+'''.replace('__TICK__', ICON['tick']).replace('__TRASH__', ICON['trash']).replace('__ARROW__', ICON['arrow'])
 
 (PAGES / 'pat-tokens.html').write_text(page(
     'Cogentiq Builder · Personal access tokens',
