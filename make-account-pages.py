@@ -1132,7 +1132,7 @@ SET_CSS = '''
 /* A colour is easier to choose, and far easier to ask a colleague for,
    once it has a name. The chip carries both; the tick belongs to the
    one that is actually on. */
-.st-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(146px, 1fr)); gap: 8px; }
+.st-swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .st-swatch {
   display: flex; align-items: center; gap: 8px; min-width: 0;
   height: 36px; padding: 0 10px; cursor: pointer; text-align: left;
@@ -1292,6 +1292,7 @@ SET_CSS = '''
 .st-bar__t { flex: 1 1 auto; min-width: 0; color: var(--text-secondary); }
 
 @media (max-width: 1000px) {
+  .st-swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .st-wrap { grid-template-columns: 1fr; }
   .st-nav { position: static; flex-direction: row; flex-wrap: wrap; }
   .st-nav__grp { display: none; }
