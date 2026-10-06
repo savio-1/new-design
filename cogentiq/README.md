@@ -42,13 +42,15 @@ everywhere.
 
 The nine preset colours are steps of the design system's own ramps — Blue 500,
 Indigo 500, Purple 500 and 600, Pink 600, Red 600, Cyan 600, Green 600, Light
-Green 700 — chosen so none of them needs correcting, which is why the contrast
-check does not appear beside them. It appears where the problem can actually
-arise: the Custom chip opens a modal that reports on whatever is typed and, for
-a colour too pale to carry white button text or too dark to be seen on the dark
-page, offers the nearest readable colour of the same hue and saturation. The
-offer is a button, not a checkbox — accept it and that corrected hex is what is
-stored, so nothing is adjusted again downstream.
+Green 700 — all of them in the broad middle of the lightness range, which is
+why nothing is checked beside them. The Custom chip opens a modal holding a
+colour field and one box, *Improve for contrast*: tick it and a colour too
+close to white or to black for text to sit on is shifted to a readable shade of
+itself. The box does nothing to a colour in the middle, and a note appears only
+when the pick is genuinely at one end — near-white (lightness 80+) or
+near-black (12 and under). It names the problem in those words and shows the
+shade that would be used; it quotes no ratios and no HSL, because nobody
+choosing a brand colour owes anyone a knowledge of either.
 
 `port-panel.py` writes the shared platform panel (left rail) into every page:
 canonical rail markup, its CSS, and its script wrapped so it cannot clash with

@@ -3801,14 +3801,18 @@ railExposeOnly(null);
           : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
     return [(t[0] + m) * 255, (t[1] + m) * 255, (t[2] + m) * 255];
   }
+  /* Only the two ends of the range. A colour anywhere in the broad
+     middle carries text well enough that second-guessing it would be an
+     insult, and almost everything anybody picks lives there — so this
+     stays quiet unless the pick is genuinely near white or near black. */
   function dropFor(l) {
-    return l >= 90 ? 50 : l >= 80 ? 40 : l >= 70 ? 30 : l >= 60 ? 20 : l >= 50 ? 10 : 0;
+    return l >= 90 ? 50 : l >= 80 ? 40 : 0;
   }
   /* The other end of the same complaint. A colour this dark is a hole
      in the dark theme: the button, the selected row and the focus ring
-     all sink into the #121212 page. Lifted in bands, the same way. */
+     all sink into the #121212 page. */
   function liftFor(l) {
-    return l <= 6 ? 24 : l <= 12 ? 18 : l <= 18 ? 12 : 0;
+    return l <= 6 ? 24 : l <= 12 ? 18 : 0;
   }
   /* What the adjustment would do, as the settings page needs to show it
      before and after rather than only apply it. */
@@ -3826,12 +3830,12 @@ railExposeOnly(null);
       onPage:  Math.round(ratio(rgbOf(out), [18, 18, 18]) * 100) / 100
     };
   }
-  /* The colour the product wears is simply the colour that was chosen.
-     The nine presets are picked to need no help, and a typed colour is
-     corrected at the moment it is typed, in the settings modal — so
-     nothing is adjusted again on the way out. */
+  /* The colour the product wears: the pick, or its correction when the
+     box was ticked. Every preset sits in the broad middle, so for all
+     nine of them the two are the same colour whatever the box says. */
   function effective(b) {
-    return HEX.test((b && b.colour) || '') ? b.colour : '#0D99FF';
+    var c = HEX.test((b && b.colour) || '') ? b.colour : '#0D99FF';
+    return b && b.wcag ? wcagReport(c).to.hex : c;
   }
   /* Hover and selected, one and two steps down the same ladder. */
   function stepped(hex, by) {

@@ -1160,54 +1160,30 @@ SET_CSS = '''
 }
 .st-swatch--custom.is-on { border-color: var(--dot); }
 
-/* ── The custom-colour modal, and the correction it offers ── */
-.st-cc { display: flex; flex-direction: column; gap: 14px; }
+/* ── The custom-colour modal ── */
+/* A field and a box. The colour is the thing being chosen, so nothing
+   else in here competes with it for attention. */
+.st-cc { display: flex; flex-direction: column; gap: 16px; }
 .st-cc__pick { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.st-cc__note { color: var(--text-teritiary); }
-.st-cc__prev {
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  padding: 14px; border-radius: var(--radius-md);
-  background: var(--backgrounds-page-bg-3); border: 1px solid var(--strokes-line-3);
-}
-/* Painted from the candidate rather than from the tokens, because the
-   candidate has not been applied to anything yet. */
-.st-cc__btn {
-  height: 32px; padding: 0 14px; border-radius: var(--radius-md);
-  display: inline-flex; align-items: center; background: var(--cc); color: #fff;
-  font: 500 var(--fs-body-3)/1 var(--font-geist);
-}
-.st-cc__row {
-  height: 32px; padding: 0 12px; border-radius: var(--radius-md);
-  display: inline-flex; align-items: center; gap: 8px;
-  background: color-mix(in srgb, var(--cc) 14%, transparent);
-  border: 1px solid var(--cc); color: var(--text-primary);
-}
-.st-cc__lnk { color: var(--cc); }
-.st-wcag {
-  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
-  padding: 14px 16px; border-radius: var(--radius-md);
-  background: var(--backgrounds-page-bg-3); border: 1px solid var(--strokes-line-3);
-}
-.st-wcag[hidden] { display: none !important; }
-.st-wcag.is-warn {
+.st-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+.st-check .cq-checkbox { margin-top: 2px; flex: none; }
+.st-check__t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-check__t .cq-body2-med { color: var(--text-primary); }
+.st-check__t .cq-caption-reg { color: var(--text-teritiary); }
+/* Shown only at the two ends of the range, where the pick really is a
+   problem — so when it does appear it is worth reading. */
+.st-cc__hint {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--orange-600) 12%, var(--backgrounds-page-bg-3));
-  border-color: color-mix(in srgb, var(--orange-600) 42%, transparent);
+  border: 1px solid color-mix(in srgb, var(--orange-600) 40%, transparent);
+  color: color-mix(in srgb, var(--orange-600) 78%, var(--text-primary));
 }
-.st-wcag.is-warn .st-wcag__why .cq-body2-med { color: color-mix(in srgb, var(--orange-600) 78%, var(--text-primary)); }
-.st-wcag__pair { display: flex; align-items: center; gap: 12px; }
-.st-wcag__chip { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
-.st-wcag__box {
-  width: 86px; height: 44px; border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
-  display: flex; align-items: center; justify-content: center;
-  font: 500 var(--fs-caption)/1 var(--font-geist-mono, monospace);
+.st-cc__hint[hidden] { display: none !important; }
+.st-cc__hint .st-cc__dot {
+  flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--cc);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 18%, transparent);
 }
-.st-wcag__hsl { color: var(--text-teritiary); }
-.st-wcag__arrow { color: var(--text-teritiary); display: flex; align-items: center; }
-.st-wcag__why { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.st-wcag__why .cq-body2-med { color: var(--text-primary); }
-.st-wcag__why .cq-caption-reg { color: var(--text-teritiary); }
-.st-wcag__act { margin-top: 6px; align-self: flex-start; }
 
 /* A heading for a run of cards inside a pane that already has one. */
 .st-head--sub { margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--strokes-line-3); }
@@ -1266,10 +1242,6 @@ SET_CSS = '''
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .st-lock__s[hidden] { display: none; }
-.st-spec { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.st-spec li { display: flex; gap: 8px; color: var(--text-teritiary); }
-.st-spec li::before { content: ""; flex: none; width: 3px; height: 3px; margin-top: 8px; border-radius: 50%; background: currentColor; }
-.st-spec b { color: var(--text-secondary); font-weight: 500; }
 .st-logo { display: flex; align-items: center; gap: 16px; }
 .st-logo__box {
   width: 56px; height: 56px; flex: none; border-radius: var(--radius-lg);
@@ -1363,23 +1335,10 @@ SET_BODY = '''
                               <button class="cq-btn cq-btn--s cq-btn--outline" type="button" id="stLogoPick">__UPLOAD__Upload logo</button>
                               <button class="cq-btn cq-btn--s cq-btn--ghost" type="button" id="stLogoClear">Remove</button>
                             </span>
-                            <span class="st-logo__hint cq-caption-reg" id="stLogoNote">PNG, SVG or WebP, up to 512&nbsp;KB.</span>
+                            <span class="st-logo__hint cq-caption-reg" id="stLogoNote">Square works best &mdash; 512&nbsp;&times;&nbsp;512&nbsp;px. PNG, SVG or WebP, up to 512&nbsp;KB.</span>
                           </span>
                         </div>
                       </div>
-                    </div>
-                    <div class="st-field st-field--stack">
-                      <div class="st-field__t"><span class="cq-body2-med">What makes a logo work here</span></div>
-                      <ul class="st-spec cq-caption-reg">
-                        <li><span><b>Square, 1:1.</b> The frame is a circle, so a wide or tall mark is cropped to fit.
-                          A wordmark belongs in the name field below, not in the image.</span></li>
-                        <li><span><b>512&nbsp;&times;&nbsp;512&nbsp;px is ideal</b>, and 256&nbsp;&times;&nbsp;256&nbsp;px the smallest
-                          that stays sharp on a high-density screen. SVG scales to any size and is the safest choice.</span></li>
-                        <li><span><b>Transparent background</b>, so the mark sits on the panel in both light and dark themes.
-                          A white block shows as a white block in the dark.</span></li>
-                        <li><span><b>Leave no padding of your own.</b> The mark is drawn at 32&nbsp;&times;&nbsp;32&nbsp;px in the panel,
-                          so fine detail and a generous margin both disappear. Fill the square, and let the frame do the inset.</span></li>
-                      </ul>
                     </div>
                     <div class="st-field">
                       <div class="st-field__t"><span class="cq-body2-med">Product name</span>
@@ -1523,14 +1482,17 @@ SET_BODY = '''
             <span class="ac-input is-mono"><input id="stCcHex" class="cq-body2-reg" type="text" spellcheck="false"
               maxlength="7" aria-label="Primary colour, hex" placeholder="#0D99FF" /></span>
           </div>
-          <span class="st-cc__note cq-caption-reg" id="stCcNote">Six hex digits, or use the picker.</span>
         </div>
-        <div class="st-cc__prev" id="stCcPrev">
-          <span class="st-cc__btn">Primary action</span>
-          <span class="st-cc__row">__TICK__<span class="cq-body2-reg">A selected row</span></span>
-          <a class="st-cc__lnk cq-body2-med" href="#" onclick="return false">A link</a>
-        </div>
-        <div class="st-wcag" id="stCcWcag" hidden></div>
+        <label class="st-check">
+          <span class="cq-checkbox" id="stCcFix" role="checkbox" aria-checked="false" tabindex="0"
+            aria-label="Improve for contrast">__TICK__</span>
+          <span class="st-check__t">
+            <span class="cq-body2-med">Improve for contrast</span>
+            <span class="cq-caption-reg">A colour too close to white or to black for text to sit on
+              is shifted to a readable shade of itself.</span>
+          </span>
+        </label>
+        <div class="st-cc__hint" id="stCcHint" hidden></div>
       </div>
     </div>
     <div class="cq-modal__foot">
@@ -1613,18 +1575,19 @@ const CQ_BLUE = '#0D99FF';
    because nobody asks a colleague for #5860ED. The first is the
    product's own, and picking it is the same as having picked nothing. */
 const PRESETS = [
-  ['CogentIQ blue', CQ_BLUE],  ['Indigo',  '#5860ED'], ['Violet', '#9747FF'], ['Plum', '#8638E5'],
+  ['Blue',  CQ_BLUE],   ['Indigo',  '#5860ED'], ['Violet', '#9747FF'], ['Plum',   '#8638E5'],
   ['Rose',          '#D81B60'], ['Crimson', '#DC3412'], ['Teal',   '#0087A8'], ['Forest', '#009951'],
   ['Moss',          '#689F38'],
 ];
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
-let saved = { colour: '', name: '', tagline: '', logo: '' };
-let draft = { colour: '', name: '', tagline: '', logo: '' };
+let saved = { colour: '', wcag: false, name: '', tagline: '', logo: '' };
+let draft = { colour: '', wcag: false, name: '', tagline: '', logo: '' };
 let painting = false;
 
-const clone = b => ({ colour: b.colour || '', name: b.name || '', tagline: b.tagline || '', logo: b.logo || '' });
-const dirty = () => draft.colour !== saved.colour || draft.name !== saved.name
-  || draft.tagline !== saved.tagline || draft.logo !== saved.logo;
+const clone = b => ({ colour: b.colour || '', wcag: !!b.wcag,
+                      name: b.name || '', tagline: b.tagline || '', logo: b.logo || '' });
+const dirty = () => draft.colour !== saved.colour || draft.wcag !== saved.wcag
+  || draft.name !== saved.name || draft.tagline !== saved.tagline || draft.logo !== saved.logo;
 const markSvg = () => {
   const src = document.querySelector('.rail-logo');
   const own = src && src.dataset.cqOwn;
@@ -1634,6 +1597,10 @@ const markSvg = () => {
 function paintBrand() {
   const now = (draft.colour || CQ_BLUE).toLowerCase();
   const named = PRESETS.some(([, p]) => p.toLowerCase() === now);
+  /* With the box ticked the chip and the note show what is actually
+     worn, not what was typed — otherwise the swatch is a colour that
+     appears nowhere in the product. */
+  const worn = (window.cqBrand ? window.cqBrand.effective(draft) : now).toUpperCase();
   /* Nine chips and a door. The door keeps the grid's rhythm and opens
      the one place where a colour can go wrong, and be put right. */
   $('stSwatches').innerHTML = PRESETS.map(([name, p]) => {
@@ -1642,10 +1609,10 @@ function paintBrand() {
       data-colour="${p}" title="${name} · ${p}" aria-pressed="${on}">
       <span class="st-swatch__dot">__TICK__</span><span class="st-swatch__nm cq-body2-reg">${name}</span></button>`;
   }).join('') + `<button type="button" class="st-swatch st-swatch--custom${named ? '' : ' is-on'}"
-      style="--dot:${named ? CQ_BLUE : draft.colour}" id="stCustomChip" aria-pressed="${!named}"
-      title="Pick any colour, and check it reads">
+      style="--dot:${named ? CQ_BLUE : worn}" id="stCustomChip" aria-pressed="${!named}"
+      title="Pick any colour">
       <span class="st-swatch__dot">__TICK__</span><span class="st-swatch__nm cq-body2-reg">Custom…</span></button>`;
-  $('stColourNote').textContent = named ? '' : 'Custom colour ' + now.toUpperCase();
+  $('stColourNote').textContent = named ? '' : 'Custom colour ' + worn.toUpperCase();
 
   if (document.activeElement !== $('stName')) $('stName').value = draft.name || '';
   if (document.activeElement !== $('stTagline')) $('stTagline').value = draft.tagline || '';
@@ -1667,13 +1634,15 @@ function paintBrand() {
 
 /* ── Custom colour ────────────────────────────────────────────────
    The presets are chosen; they need no checking. A colour somebody
-   types might be anything, so the check lives here, beside the field
-   that can produce the problem — and it offers the fix rather than
-   asking for a box to be ticked. */
-let ccHex = CQ_BLUE;
+   types might be anything, so the one box that can put it right lives
+   here beside the field. It does nothing to a colour in the broad
+   middle, and the note below it appears only at the two ends — which
+   is the only time anyone needs to be told anything. */
+let ccHex = CQ_BLUE, ccFix = false;
 
 function openCustom() {
   ccHex = HEX.test(draft.colour) ? draft.colour.toUpperCase() : CQ_BLUE;
+  ccFix = !!draft.wcag;
   $('stCcHex').value = ccHex;
   paintCustom();
   openScrim('stCustom');
@@ -1682,54 +1651,36 @@ function openCustom() {
 
 function paintCustom() {
   $('stCcPick').value = ccHex;
-  $('stCcPrev').style.setProperty('--cc', ccHex);
-  const box = $('stCcWcag'), btn = $('stCcApply');
-  if (!window.cqBrand || !window.cqBrand.wcag) { box.hidden = true; return; }
-  const r = window.cqBrand.wcag(ccHex);
-  if (!r.changed) {
-    box.classList.remove('is-warn');
-    box.hidden = false;
-    box.innerHTML = `<span class="st-wcag__pair">${ccChip(r.from, 'Your colour')}</span>
-      <span class="st-wcag__why"><span class="cq-body2-med">This colour reads well</span>
-        <span class="cq-caption-reg">White text on it clears ${r.onWhite}:1 against white, and it holds its own
-          against the dark page at ${r.onPage}:1. Nothing to correct.</span></span>`;
-    btn.textContent = 'Apply colour';
-    return;
-  }
-  /* A pale or near-black pick is not refused — it is answered, with the
-     nearest colour of the same hue that everybody can actually read. */
-  box.classList.add('is-warn');
-  box.hidden = false;
-  const light = r.why === 'light';
-  box.innerHTML = `<span class="st-wcag__pair">${ccChip(r.from, 'Your colour')}
-      <span class="st-wcag__arrow">__ARROW__</span>${ccChip(r.to, 'Suggested')}</span>
-    <span class="st-wcag__why">
-      <span class="cq-body2-med">${light
-        ? 'Too light to carry white button text'
-        : 'Too dark to be seen on the dark theme'}</span>
-      <span class="cq-caption-reg">At lightness ${r.from.l}, ${light
-        ? 'a button in this colour does not hold its own label — the words wash out.'
-        : 'a button in this colour sinks into the page, and the focus ring with it.'}
-        We suggest <b>${r.to.hex}</b>: the same hue and saturation, ${light ? 'deepened' : 'lifted'}
-        ${Math.abs(r.by)} points to lightness ${r.to.l}. It still reads as your colour, and everyone can read what sits on it.</span>
-      <button class="cq-btn cq-btn--s cq-btn--primary st-wcag__act" type="button" id="stCcFix">Use ${r.to.hex}</button>
-    </span>`;
-  $('stCcFix').addEventListener('click', () => { ccHex = r.to.hex; $('stCcHex').value = ccHex; paintCustom(); });
-  btn.textContent = 'Apply anyway';
+  const box = $('stCcFix'), hint = $('stCcHint');
+  box.classList.toggle('is-checked', ccFix);
+  box.setAttribute('aria-checked', String(ccFix));
+  const r = window.cqBrand && window.cqBrand.wcag && window.cqBrand.wcag(ccHex);
+  if (!r || !r.changed) { hint.hidden = true; return; }
+  /* No ratios and no lightness: a person picking a brand colour is not
+     obliged to know what either of those words means. The dot is the
+     colour that would be used, which is the whole of the answer. */
+  hint.hidden = false;
+  hint.style.setProperty('--cc', ccFix ? r.to.hex : r.from.hex);
+  const near = r.why === 'light' ? 'white' : 'black';
+  hint.innerHTML = `<span class="st-cc__dot"></span><span class="cq-caption-reg">${ccFix
+    ? `This colour is very close to ${near}, so it has been shifted to the shade shown here.
+       Text on it will be readable.`
+    : `This colour is very close to ${near}. Text on it will be hard to read &mdash;
+       tick the box above and a readable shade of it is used instead.`}</span>`;
 }
 
-const ccChip = (c, label) => `<span class="st-wcag__chip">
-    <span class="st-wcag__box" style="background:${c.hex};color:${c.l > 55 ? '#121212' : '#fff'}">${c.hex}</span>
-    <span class="st-wcag__hsl cq-caption-reg">${label} · H ${c.h} S ${c.s} L ${c.l}</span></span>`;
-
+$('stCcFix').addEventListener('click', () => { ccFix = !ccFix; paintCustom(); });
+$('stCcFix').addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); $('stCcFix').click(); }
+});
 $('stCcPick').addEventListener('input', e => { ccHex = e.target.value.toUpperCase(); $('stCcHex').value = ccHex; paintCustom(); });
 $('stCcHex').addEventListener('input', e => {
   const v = e.target.value.trim();
-  $('stCcNote').textContent = !v || HEX.test(v) ? 'Six hex digits, or use the picker.' : 'That is not a hex colour yet.';
   if (HEX.test(v)) { ccHex = v.toUpperCase(); paintCustom(); }
 });
 $('stCcApply').addEventListener('click', () => {
   draft.colour = ccHex === CQ_BLUE ? '' : ccHex;
+  draft.wcag = ccFix;
   closeScrim('stCustom');
   paintBrand();
 });
@@ -1738,6 +1689,7 @@ $('stSwatches').addEventListener('click', e => {
   if (e.target.closest('#stCustomChip')) { openCustom(); return; }
   const b = e.target.closest('[data-colour]'); if (!b) return;
   draft.colour = b.dataset.colour === CQ_BLUE ? '' : b.dataset.colour;
+  draft.wcag = false;           /* every preset already sits in the clear */
   paintBrand();
 });
 $('stName').addEventListener('input', e => { draft.name = e.target.value.trim(); paintBrand(); });
@@ -1785,7 +1737,7 @@ document.addEventListener('cq:brand', e => {
      which is the saved one — that would wipe an unsaved preview off the
      screen, so the draft is painted straight back on. */
   if (dirty()) { paintBrand(); return; }
-  if (b.colour === saved.colour && b.name === saved.name
+  if (b.colour === saved.colour && b.wcag === saved.wcag && b.name === saved.name
       && b.tagline === saved.tagline && b.logo === saved.logo) return;
   saved = b; draft = clone(b); paintBrand();
 });
