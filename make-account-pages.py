@@ -201,6 +201,9 @@ document.querySelectorAll('.cq-scrim').forEach(s => s.addEventListener('click', 
 '''.replace('__SUN__', SUN).replace('__MOON__', MOON)
 
 ICON = dict(
+ sun='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3.1" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.6v1.5M8 12.9v1.5M14.4 8h-1.5M3.1 8H1.6M12.53 3.47l-1.06 1.06M4.53 11.47l-1.06 1.06M12.53 12.53l-1.06-1.06M4.53 4.53 3.47 3.47" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+ moon='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+ system='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.9" y="2.9" width="12.2" height="8.2" rx="1.3" stroke="currentColor" stroke-width="1.4"/><path d="M5.8 13.9h4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
  plus='<svg class=\"cq-ic\" width=\"20\" height=\"20\" viewBox="0 0 20 20" fill="none"><path d="M10 4.5v11M4.5 10h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
  pencil='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m11.3 2.6 2.1 2.1-7.9 7.9H3.4v-2.1l7.9-7.9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="m9.7 4.2 2.1 2.1" stroke="currentColor" stroke-width="1.4"/></svg>',
  trash='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4.3h10M6.2 4.3V2.9h3.6v1.4M4.2 4.3l.6 8.2c0 .5.4.9.9.9h4.6c.5 0 .9-.4.9-.9l.6-8.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -1125,6 +1128,10 @@ SET_CSS = '''
 .st-field__t .cq-caption-reg { color: var(--text-teritiary); }
 .st-field__c { flex: none; display: flex; align-items: center; gap: 8px; }
 .st-field--stack { flex-direction: column; align-items: stretch; gap: 12px; }
+/* The theme tabs carry the same three marks the avatar menu does, so a
+   person meets the sun, the moon and the screen in one shape wherever
+   they change this. */
+#stTheme > button > svg { flex: none; width: 15px; height: 15px; }
 .st-input { width: 260px; }
 .st-input.ac-input { width: 260px; }
 
@@ -1294,9 +1301,9 @@ SET_BODY = '''
                         <span class="cq-caption-reg">System follows your operating system, and changes with it.</span></div>
                       <div class="st-field__c">
                         <div class="cq-seg" id="stTheme" role="group" aria-label="Theme">
-                          <button type="button" data-pref="light">Light</button>
-                          <button type="button" data-pref="dark">Dark</button>
-                          <button type="button" data-pref="system">System</button>
+                          <button type="button" data-pref="light">__SUN__Light</button>
+                          <button type="button" data-pref="dark">__MOON__Dark</button>
+                          <button type="button" data-pref="system">__SYSTEM__System</button>
                         </div>
                       </div>
                     </div>
@@ -1841,6 +1848,8 @@ paintTheme((window.cqTheme && window.cqTheme.get()) || (root.dataset.mode === 'l
     'Settings', 'What the product looks like, and how it behaves for you.',
     SET_CSS,
     SET_BODY.replace('__UPLOAD__', ICON['upload']).replace('__SPARK__', ICON['spark'])
+            .replace('__SUN__', ICON['sun']).replace('__MOON__', ICON['moon'])
+            .replace('__SYSTEM__', ICON['system'])
             .replace('__TICK__', ICON['tick']).replace('__ARROW__', ICON['arrow'])
             .replace('__PLUS__', ICON['plus']).replace('__X__', ICON['x']),
     SET_JS))
