@@ -191,6 +191,15 @@
 
   /* ---------- summary ---------- */
   .sum-body{font:var(--body3);letter-spacing:-.56px;color:var(--text-secondary);max-width:688px}
+  /* the reader's answers, read back as a step of the second turn */
+  .qa-list{display:flex;flex-direction:column;gap:4px;padding-right:24px}
+  .qa-row{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:8px;
+    background:var(--bg-card-5);border:1px solid var(--line-3)}
+  .qa-row-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .qa-row-q{font:var(--cap1);letter-spacing:-.24px;color:var(--text-secondary)}
+  .qa-row-a{font:500 14px/20px var(--sans);letter-spacing:-.56px;color:var(--text-secondary)}
+  .qa-row-tag{flex:none;padding:1px 7px;border-radius:6px;background:rgba(13,153,255,.14);
+    color:var(--text-blue);font:var(--cap2);letter-spacing:-.2px;white-space:nowrap}
   /* the reasoning between the doing */
   .thought{font:var(--body3);letter-spacing:-.56px;color:var(--text-secondary);max-width:588px}
   .trace>div>.thought{padding-left:36px}      /* onto the rail of the titles */
@@ -606,6 +615,12 @@ const GRAPH_PREVIEW_CSS =
 const GRAPH_OVERLAY_CSS = '<style>#fullscr{display:none!important}</style>';
 
 /* ── icon helper ─────────────────────────────────────────── */
+ICONS.answers = { vb: '0 0 16 16', body:
+  '<path d="M13.5 9.5a1.5 1.5 0 0 1-1.5 1.5H6l-3 2.5V4A1.5 1.5 0 0 1 4.5 2.5H12A1.5 1.5 0 0 1 13.5 4z" '
+  + 'stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>'
+  + '<path d="M6 6.8l1.4 1.4 2.8-2.8" stroke="currentColor" stroke-width="1.2" '
+  + 'stroke-linecap="round" stroke-linejoin="round"/>' };
+
 let icoSeq = 0;
 function svg(name, size) {
   const ic = ICONS[name];
@@ -1408,12 +1423,50 @@ async function respond(answers, mine) {
   const turn = startTurn();
   setTask('Thinking');
   await wait(900); if (stale(mine)) return;
+
+  /* step one: the answers themselves, question over answer, one row each */
+  const s0 = section('answers');
+  await streamWords(s0.title, 'Reading your answers', mine); if (stale(mine)) return;
+  sectionWorking(s0);
+  const t0 = el('div', 'tasks', s0.content);
+  const l0 = statusLine(t0);
+  await narrate(l0, 'Going through the ' + said.length + ' answers you sent', mine, 900,
+    'Reading your answers');
+  if (stale(mine)) return;
+  settle(l0, 'answers', 16);
+  const list = el('div', 'qa-list', s0.content);
+  for (let i = 0; i < answers.length; i++) {
+    const a = answers[i];
+    if (!a) continue;
+    const row = el('div', 'qa-row rise', list);
+    const top = el('div', 'qa-row-top', row);
+    el('span', 'qa-row-q', top).textContent = QUESTIONS[i].q;
+    if (a.viaSkip) {
+      el('span', 'qa-row-tag', top).textContent =
+        QUESTIONS[i].recommend ? 'Skipped · my recommendation' : 'Skipped · my pick';
+    } else if (a.custom) {
+      el('span', 'qa-row-tag', top).textContent = 'In your words';
+    }
+    el('div', 'qa-row-a', row).textContent = a.label;
+    follow();
+    await wait(260); if (stale(mine)) return;
+  }
+  sectionDone(s0);
+  await wait(500); if (stale(mine)) return;
+  foldSection(s0);
+
+  const skipped = said.filter((a) => a.viaSkip).length;
   await thought(traceInner,
-    said.length
-      ? 'That narrows it. The wording matters more than the arithmetic here, so I will pull '
-        + 'the clauses themselves before I touch the document.'
-      : 'Nothing came back, so I will use my own read: both risks, written for the adjuster, '
-        + 'with the clause behind each one.',
+    skipped === said.length
+      ? 'You left all three to me, so I will use my own read: both risks, written for the '
+        + 'adjuster, with the clause behind each one.'
+      : skipped
+        ? 'You answered ' + (said.length - skipped) + ' and left ' + skipped + ' to me, so I '
+          + 'have filled ' + (skipped > 1 ? 'those' : 'that one') + ' with my own pick. The '
+          + 'wording matters more than the arithmetic here, so I will pull the clauses '
+          + 'themselves before I touch the document.'
+        : 'That narrows it. The wording matters more than the arithmetic here, so I will pull '
+          + 'the clauses themselves before I touch the document.',
     mine, 'Re-reading the wording');
   if (stale(mine)) return;
 
