@@ -1144,12 +1144,16 @@ SET_CSS = '''
   display: flex; align-items: center; gap: 8px; min-width: 0;
   height: 36px; padding: 0 10px; cursor: pointer; text-align: left;
   border-radius: var(--radius-md);
-  border: 1px solid var(--strokes-line-3);
+  /* line-3 is the hairline between rows inside a card, and in light mode
+     it is the card's own grey — on white it disappears entirely. These
+     are controls, so they take the stroke the input fields take, and
+     hover deepens rather than lightens. */
+  border: 1px solid var(--strokes-type-default);
   background: var(--backgrounds-card-bg-5);
   color: var(--text-secondary);
   transition: border-color .15s ease, background .15s ease, color .15s ease;
 }
-.st-swatch:hover { border-color: var(--strokes-line-1); color: var(--text-primary); }
+.st-swatch:hover { border-color: var(--strokes-icon-default); color: var(--text-primary); }
 .st-swatch.is-on { border-color: var(--dot); background: color-mix(in srgb, var(--dot) 12%, transparent); color: var(--text-primary); }
 .st-swatch__dot {
   flex: none; width: 18px; height: 18px; border-radius: 50%;
