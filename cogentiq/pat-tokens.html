@@ -3550,6 +3550,24 @@ railExposeOnly(null);
 }
 .cq-pm-seg button:focus-visible { outline: 2px solid var(--text-coloured-blue); outline-offset: 1px; }
 
+/* ── The brand lockup in the rail head ──────────────────────────────
+   A product name can carry a line under it. The two stack, and the
+   pair sits beside the mark rather than under it, so the mark still
+   reads as the thing the name belongs to. The name gives up a little
+   size when it has company, to keep the lockup inside the 32px mark. */
+.rail-wordmark { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.rail-wordmark__n {
+  font: 500 18px/24px var(--font-geist, Geist, system-ui, sans-serif); letter-spacing: -0.72px;
+  color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rail-wordmark.has-sub .rail-wordmark__n { font-size: 15px; line-height: 19px; letter-spacing: -0.4px; }
+.rail-wordmark__s {
+  font: 400 11px/14px var(--font-geist, Geist, system-ui, sans-serif); letter-spacing: -0.1px;
+  color: var(--text-teritiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 </style>
 <script>
 /* ── Combined product · shared shell wiring ──────────────────────
@@ -3737,23 +3755,34 @@ railExposeOnly(null);
   function dropFor(l) {
     return l >= 90 ? 50 : l >= 80 ? 40 : l >= 70 ? 30 : l >= 60 ? 20 : l >= 50 ? 10 : 0;
   }
+  /* The other end of the same complaint. A colour this dark is a hole
+     in the dark theme: the button, the selected row and the focus ring
+     all sink into the #121212 page. Lifted in bands, the same way. */
+  function liftFor(l) {
+    return l <= 6 ? 24 : l <= 12 ? 18 : l <= 18 ? 12 : 0;
+  }
   /* What the adjustment would do, as the settings page needs to show it
      before and after rather than only apply it. */
   function wcagReport(hex) {
-    var hsl = toHsl(rgbOf(hex)), drop = dropFor(hsl[2]);
-    var out = drop ? hexOf(fromHsl(hsl[0], hsl[1], hsl[2] - drop)) : hex.toUpperCase();
+    var hsl = toHsl(rgbOf(hex));
+    var drop = dropFor(hsl[2]), lift = liftFor(hsl[2]);
+    var by = drop ? -drop : lift, l2 = hsl[2] + by;
+    var out = by ? hexOf(fromHsl(hsl[0], hsl[1], l2)) : hex.toUpperCase();
     return {
-      changed: !!drop, drop: drop,
+      changed: !!by, drop: drop, lift: lift, by: by,
+      why: drop ? 'light' : lift ? 'dark' : '',
       from: { hex: hex.toUpperCase(), h: hsl[0], s: hsl[1], l: hsl[2] },
-      to:   { hex: out, h: hsl[0], s: hsl[1], l: hsl[2] - drop },
-      onWhite: Math.round(ratio(rgbOf(out), WHITE) * 100) / 100
+      to:   { hex: out, h: hsl[0], s: hsl[1], l: l2 },
+      onWhite: Math.round(ratio(rgbOf(out), WHITE) * 100) / 100,
+      onPage:  Math.round(ratio(rgbOf(out), [18, 18, 18]) * 100) / 100
     };
   }
-  /* The colour the product actually wears: the pick, or its adjustment
-     when the person asked for one. */
+  /* The colour the product wears is simply the colour that was chosen.
+     The nine presets are picked to need no help, and a typed colour is
+     corrected at the moment it is typed, in the settings modal — so
+     nothing is adjusted again on the way out. */
   function effective(b) {
-    var c = HEX.test((b && b.colour) || '') ? b.colour : '#0D99FF';
-    return b && b.wcag ? wcagReport(c).to.hex : c;
+    return HEX.test((b && b.colour) || '') ? b.colour : '#0D99FF';
   }
   /* Hover and selected, one and two steps down the same ladder. */
   function stepped(hex, by) {
@@ -3837,8 +3866,22 @@ railExposeOnly(null);
        without a reload. */
     var word = document.querySelector('.rail-wordmark');
     if (word) {
-      if (word.dataset.cqOwn === undefined) word.dataset.cqOwn = word.textContent;
-      word.textContent = b.name || word.dataset.cqOwn;
+      if (word.dataset.cqOwn === undefined) word.dataset.cqOwn = word.textContent.trim();
+      var sub = (b.tagline || '').trim();
+      word.classList.toggle('has-sub', !!sub);
+      word.textContent = '';
+      /* Built as nodes, not markup: the name is whatever somebody typed
+         into the settings field. */
+      var n = document.createElement('span');
+      n.className = 'rail-wordmark__n';
+      n.textContent = b.name || word.dataset.cqOwn;
+      word.appendChild(n);
+      if (sub) {
+        var t = document.createElement('span');
+        t.className = 'rail-wordmark__s';
+        t.textContent = sub;
+        word.appendChild(t);
+      }
     }
     var slot = document.querySelector('.rail-logo');
     if (slot) {

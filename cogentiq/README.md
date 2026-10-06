@@ -30,14 +30,25 @@ each file wires up what spans pages: the platform rail's buttons route to the
 sibling files, the cogentiq wordmark links back to Home, and the light/dark
 choice is shared — switch it on any page and every other page opens that way.
 
-The white label travels the same way. Settings → Branding takes one primary
-colour, a logo and a product name; the colour is written back into the tokens
-the components already read (`--backgrounds-button-primary`,
-`--strokes-card-selected`, `--text-coloured-blue` and the rest), derived twice
-so it reads on both grounds, and the logo and name replace the mark and
-wordmark at the top of the rail. It is stored under `cq-brand` beside the two
-theme keys, and every page picks it up on load, so branding set on one page is
-the product's everywhere.
+The white label travels the same way. Settings → Appearance → Custom branding
+takes one primary colour, a logo, a product name and a subtitle; the colour is
+written back into the tokens the components already read
+(`--backgrounds-button-primary`, `--strokes-card-selected`,
+`--text-coloured-blue` and the rest), derived twice so it reads on both
+grounds, and the logo, name and subtitle replace the mark and wordmark at the
+top of the rail. It is stored under `cq-brand` beside the two theme keys, and
+every page picks it up on load, so branding set on one page is the product's
+everywhere.
+
+The nine preset colours are steps of the design system's own ramps — Blue 500,
+Indigo 500, Purple 500 and 600, Pink 600, Red 600, Cyan 600, Green 600, Light
+Green 700 — chosen so none of them needs correcting, which is why the contrast
+check does not appear beside them. It appears where the problem can actually
+arise: the Custom chip opens a modal that reports on whatever is typed and, for
+a colour too pale to carry white button text or too dark to be seen on the dark
+page, offers the nearest readable colour of the same hue and saturation. The
+offer is a button, not a checkbox — accept it and that corrected hex is what is
+stored, so nothing is adjusted again downstream.
 
 `port-panel.py` writes the shared platform panel (left rail) into every page:
 canonical rail markup, its CSS, and its script wrapped so it cannot clash with
