@@ -1575,9 +1575,9 @@ const CQ_BLUE = '#0D99FF';
    because nobody asks a colleague for #5860ED. The first is the
    product's own, and picking it is the same as having picked nothing. */
 const PRESETS = [
-  ['Blue',  CQ_BLUE],   ['Indigo',  '#5860ED'], ['Violet', '#9747FF'], ['Plum',   '#8638E5'],
-  ['Rose',          '#D81B60'], ['Crimson', '#DC3412'], ['Teal',   '#0087A8'], ['Forest', '#009951'],
-  ['Moss',          '#689F38'],
+  ['Blue',   CQ_BLUE],   ['Indigo',  '#5860ED'], ['Violet', '#9747FF'], ['Rose',   '#D81B60'],
+  ['Crimson', '#DC3412'], ['Orange',  '#DD7C0E'], ['Teal',   '#0087A8'], ['Forest', '#009951'],
+  ['Moss',    '#689F38'],
 ];
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 let saved = { colour: '', wcag: false, name: '', tagline: '', logo: '' };

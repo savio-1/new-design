@@ -41,8 +41,8 @@ every page picks it up on load, so branding set on one page is the product's
 everywhere.
 
 The nine preset colours are steps of the design system's own ramps — Blue 500,
-Indigo 500, Purple 500 and 600, Pink 600, Red 600, Cyan 600, Green 600, Light
-Green 700 — all of them in the broad middle of the lightness range, which is
+Indigo 500, Purple 500, Pink 600, Red 600, Orange 800, Cyan 600, Green 600,
+Light Green 700 — all of them in the broad middle of the lightness range, which is
 why nothing is checked beside them. The Custom chip opens a modal holding a
 colour field and one box, *Improve for contrast*: tick it and a colour too
 close to white or to black for text to sit on is shifted to a readable shade of
