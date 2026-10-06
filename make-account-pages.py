@@ -198,6 +198,10 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.querySelectorAll('.cq-scrim.is-open').forEach(s => s.classList.remove('is-open'));
 });
 document.querySelectorAll('.cq-scrim').forEach(s => s.addEventListener('click', e => { if (e.target === s) s.classList.remove('is-open'); }));
+/* Every dialog's Cancel and its ✕ carry data-close; wired here rather
+   than per page, which is how the settings page came to have two
+   modals that only Escape could shut. */
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
 '''.replace('__SUN__', SUN).replace('__MOON__', MOON)
 
 ICON = dict(
@@ -645,7 +649,6 @@ function openDelete(id) {
 $('ptDelGo').addEventListener('click', () => {
   tokens = tokens.filter(t => t.id !== pending); closeScrim('ptDel'); toast('Personal access token deleted'); pending = null; render();
 });
-document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
 render();
 '''.replace('__TRASH__', ICON['trash']).replace('__EYEOFF__', ICON['eyeOff']).replace('__EYE__', ICON['eye']).replace('__COPY__', ICON['copy']).replace('__TICK16__', ICON['tick16'])
 
@@ -1086,7 +1089,6 @@ $('pfTokens').addEventListener('click', () => go('pat-tokens.html'));
 function wireToasts() {
   document.querySelectorAll('[data-toast]:not([data-wired])').forEach(b => { b.dataset.wired = '1'; b.addEventListener('click', () => toast(b.dataset.toast)); });
 }
-document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => closeScrim(b.dataset.close)));
 paint(); paintWs(); paintPublished(); paintActivity(); wireToasts();
 /* A hash picks the tab, so a link can land someone on their activity. */
 const want = (location.hash || '').slice(1);
