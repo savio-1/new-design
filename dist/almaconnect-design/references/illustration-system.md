@@ -165,7 +165,7 @@ reads as a family without four versions of the same picture:
 | News | Layered pair (C) | A 0.75-aspect portrait, a white alert card lapping it and running off the right edge, a glass tile with the day's count |
 | Data Mine | Glass split (D) | A white card bleeding off the top with two found-field rows, a 6px connector, a frost card below holding an 84px avatar |
 | Institutions | Screen pair (N) | Two alumni in one 11px rim frame, a gradient pill across its edge, three glass tiles for what the network carries |
-| Corporates | Roster (L) | A halo card, three former employees in tinted rings with role tags, a gradient pill lapping the card's bottom edge |
+| Corporates | Roster (L) → now a hover shortlist (§4.3) | Originally a halo card of three former employees with role tags; replaced by the animated role card and candidate deck |
 
 Two things that only showed up once they were built:
 
@@ -230,6 +230,22 @@ to reveal what was matched. Two things make it work:
 
 Rows scale from `transform-origin: left center` so the lifted row grows rightward and
 the avatar stays put on its left edge.
+
+**Corporates — the shortlist.** The fourth pattern: an open-role card on top with
+three dashed shortlist slots, and a deck of former employees below. Each candidate gets
+a match chip, then **shrinks along a straight line into its slot** (`scale: .12`, which
+makes a 262px card about the size of a 28px face) while the slot's face pops in as it
+lands. After three, a gradient result pill fills the empty deck, and the deck re-forms.
+
+- **Use fixed coordinates for anything that flies to a target.** The flight end is the
+  slot centre minus the deck centre, in px. Percent offsets drift as soon as the card
+  resizes, and a flight that misses its slot by 6px reads as a mistake.
+- **A card stacked behind shows only its shell.** While any card is part-transparent
+  (stepping forward, fading back in at the loop's reset), the text of the card under it
+  ghosts through. Hide the content of cards that are behind and fade it in as the card
+  reaches the front; a white shell over a white shell is invisible.
+- **Peek from the bottom with centre-origin scale.** For a card of height *h* scaled by
+  *s* to peek *p* px below the front card, offset it by `p + (1 - s) x h / 2`.
 
 ### 4.4 The cast
 

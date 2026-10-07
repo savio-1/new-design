@@ -59,6 +59,34 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   }
   console.log('INST beat opacities every 250ms (b1/b2/b3):', beats.join(' '));
 
+  // 4 · CORPORATES — rest frame on hover, match/flight/slot order, flights land on their slots
+  await hover(4);
+  const c0 = await p.evaluate(() => ['.ccand--a', '.ccand--b', '.ccand--c'].map(s => { const c = getComputedStyle(document.querySelector(s)); return `${c.translate}|${c.scale}|${(+c.opacity).toFixed(2)}`; }).join('  '));
+  console.log('CORP at hover (must equal rest: 0px|1|1.00 (≡ none)  0px 11px|0.94|0.90  0px 22px|0.88|0.75):', c0);
+  const steps = [];
+  for (let i = 0; i < 22; i++) {
+    steps.push(await p.evaluate(() => {
+      const o = s => (+getComputedStyle(document.querySelector(s)).opacity).toFixed(1);
+      return `m${o('.ccand--a .cmatch')}/${o('.ccand--b .cmatch')}/${o('.ccand--c .cmatch')} s${o('.cslot:nth-child(1) img')}/${o('.cslot:nth-child(2) img')}/${o('.cslot:nth-child(3) img')} p${o('.cdone')}`;
+    }));
+    await p.waitForTimeout(400);
+  }
+  console.log('CORP every 0.4s (match a/b/c, slot a/b/c, pill):', steps.join('  '));
+  const land = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll('.ccand')], slots = [...document.querySelectorAll('.cslot')];
+    const deck = document.querySelector('.cdeck'), w = deck.offsetWidth, h = deck.offsetHeight, dr = deck.getBoundingClientRect();
+    return ['a', 'b', 'c'].map((k, i) => {
+      // the flight's end state from the keyframes: translate + scale about the card's centre
+      const kf = { a: [37, -102], b: [71, -102], c: [105, -102] }[k];
+      const cx = dr.left + w / 2 + kf[0], cy = dr.top + h / 2 + kf[1];
+      const sr = slots[i].getBoundingClientRect();
+      return `${k}:dx${(cx - (sr.left + sr.width / 2)).toFixed(1)} dy${(cy - (sr.top + sr.height / 2)).toFixed(1)}`;
+    }).join(' ');
+  });
+  console.log('CORP flight end vs slot centre (≈0):', land);
+  const over = await p.evaluate(() => [...document.querySelectorAll('.corp .cname, .corp .cmeta, .ccand__now')].filter(e => e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent));
+  console.log('CORP truncated text:', over.length ? over.join(' | ') : 'none');
+
   // artwork escaping the card on the left (the gradient wash bleeds 25% by design, so it is excluded)
   const clip = await p.evaluate(() => [...document.querySelectorAll('.pcard')].map((pc, i) => {
     const art = pc.querySelector('.pcard__art').getBoundingClientRect(), plus = pc.querySelector('.pcard__plus').getBoundingClientRect();

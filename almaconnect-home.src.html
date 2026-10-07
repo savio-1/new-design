@@ -1420,23 +1420,157 @@ button, input, select, textarea, td, th {
   .pcard:hover .ilabel--1, .pcard:hover .ilabel--2, .pcard:hover .ilabel--3 { animation: none; }
 }
 
-/* ---- 04 · Corporates — roster: the talent pool itself, three former
-   employees tagged, with the match lapping the card's bottom edge ---- */
-.pcorp__card { left: 5%; right: 5%; top: 12%; height: 54%; padding: 14px; }
-.pcorp__row { display: flex; align-items: center; gap: 11px; margin-top: 12px; }
-.pcorp__ava {
-  width: 36px; height: 36px; border-radius: 50%;
-  object-fit: cover; object-position: 50% 18%; display: block; flex: none;
-  box-shadow: 0 0 0 3px var(--ring);
+/* ---- 04 · Corporates — boomerang hiring. An open role at the top, a deck
+   of former employees below. On hover each one is matched, then shrinks into
+   the role's shortlist; with three in, the result pill lands and the deck
+   re-forms. 8.4s, hover-only, opening and closing on the resting frame.
+   Positions are fixed so each flight lands on its slot: deck centre (149, 238)
+   → slots at x 186 / 220 / 254, y 136. ---- */
+.corp { position: absolute; inset: 0; overflow: hidden; font-family: var(--font-body); letter-spacing: -0.035em; }
+.crole {
+  position: absolute; left: 18px; right: 18px; top: 62px; height: 100px;
+  padding: 12px; background: #fff; border-radius: 12px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.3), 0 14px 30px rgba(4, 48, 43, 0.12);
 }
-.pcorp__name { font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pcorp__tag {
-  margin-left: auto; flex: none; height: 26px; padding: 0 9px;
+.crole__top { display: flex; align-items: center; gap: 10px; height: 36px; }
+.crole__icon {
+  width: 36px; height: 36px; flex: none; border-radius: 10px;
   display: grid; place-items: center;
-  border-radius: 8px; font-size: 12px; white-space: nowrap;
-  background: var(--tint); color: var(--on);
+  background: var(--tint-peach); color: var(--on-peach);
 }
-.pcorp__pill { left: 50%; translate: -50% 0; top: 65%; }
+.crole__who, .ccand__who { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-width: 0; }
+.cname {
+  font-family: var(--font-display); font-size: 14px; font-weight: 400;
+  letter-spacing: -0.035em; line-height: 1.2; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cmeta {
+  font-size: 12px; line-height: 1.2; color: var(--ink-65);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.crole__list { display: flex; align-items: center; justify-content: space-between; height: 28px; margin-top: 12px; }
+.cslots { display: flex; gap: 6px; }
+.cslot { position: relative; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed rgba(4, 48, 43, 0.22); }
+.cslot img {
+  position: absolute; inset: -1.5px; width: 28px; height: 28px; border-radius: 50%;
+  object-fit: cover; object-position: 50% 18%; display: block;
+  box-shadow: 0 0 0 2px #fff, 0 4px 10px rgba(4, 48, 43, 0.16);
+  opacity: 0; scale: 0.5;
+}
+
+.cdeck { position: absolute; left: 18px; right: 18px; top: 186px; height: 104px; }
+.ccand {
+  position: absolute; inset: 0;
+  padding: 12px; background: #fff; border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(4, 48, 43, 0.10);
+}
+.ccand--a { z-index: 3; }
+.ccand--b { z-index: 2; translate: 0 11px; scale: 0.94; opacity: 0.9; }
+.ccand--c { z-index: 1; translate: 0 22px; scale: 0.88; opacity: 0.75; }
+.ccand__top { display: flex; align-items: center; gap: 10px; height: 40px; }
+.ccand__face { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; object-position: 50% 18%; flex: none; }
+.cmatch {
+  margin-left: auto; flex: none; height: 24px; padding: 0 8px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--tint-mint); color: #1c7a57;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+  opacity: 0; scale: 0.7;
+}
+.ccand__now {
+  display: block;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(4, 48, 43, 0.08);
+  font-size: 13px; line-height: 1.4; color: var(--ink-80);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ccand__now span { color: var(--ink-65); }
+.cdone { left: 50%; translate: -50% 0; top: 218px; opacity: 0; }
+/* a card sitting behind shows only its shell — its text would ghost
+   through the card in front while either is part-transparent */
+.ccand__body { display: block; }
+.ccand--b .ccand__body, .ccand--c .ccand__body { opacity: 0; }
+
+@keyframes cCandA {
+  0%, 15.476%       { translate: 0px 0px; scale: 1; opacity: 1; animation-timing-function: cubic-bezier(0.55, 0, 0.25, 1); }
+  22.024%, 88.095%  { translate: 37px -102px; scale: 0.12; opacity: 0; }
+  88.107%           { translate: 0px 10px; scale: 0.96; opacity: 0; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  95.238%, 100%     { translate: 0px 0px; scale: 1; opacity: 1; }
+}
+@keyframes cCandB {
+  0%, 17.262%       { translate: 0px 11px; scale: 0.94; opacity: 0.9; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  23.81%, 38.69%    { translate: 0px 0px; scale: 1; opacity: 1; animation-timing-function: cubic-bezier(0.55, 0, 0.25, 1); }
+  45.238%, 89.286%  { translate: 71px -102px; scale: 0.12; opacity: 0; }
+  89.298%           { translate: 0px 21px; scale: 0.9; opacity: 0; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  96.429%, 100%     { translate: 0px 11px; scale: 0.94; opacity: 0.9; }
+}
+@keyframes cCandC {
+  0%, 17.262%       { translate: 0px 22px; scale: 0.88; opacity: 0.75; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  23.81%, 40.476%   { translate: 0px 11px; scale: 0.94; opacity: 0.9; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  47.024%, 61.905%  { translate: 0px 0px; scale: 1; opacity: 1; animation-timing-function: cubic-bezier(0.55, 0, 0.25, 1); }
+  68.452%, 90.476%  { translate: 105px -102px; scale: 0.12; opacity: 0; }
+  90.488%           { translate: 0px 32px; scale: 0.84; opacity: 0; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  97.619%, 100%     { translate: 0px 22px; scale: 0.88; opacity: 0.75; }
+}
+@keyframes cBodyB {
+  0%, 17.262%       { opacity: 0; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  23.81%, 89.286%   { opacity: 1; }
+  89.298%, 100%     { opacity: 0; }
+}
+@keyframes cBodyC {
+  0%, 40.476%       { opacity: 0; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  47.024%, 90.476%  { opacity: 1; }
+  90.488%, 100%     { opacity: 0; }
+}
+@keyframes cChipA {
+  0%, 1.786%        { opacity: 0; scale: 0.7; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  5.357%, 88.095%   { opacity: 1; scale: 1; }
+  88.107%, 100%     { opacity: 0; scale: 0.7; }
+}
+@keyframes cChipB {
+  0%, 25%           { opacity: 0; scale: 0.7; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  28.571%, 88.095%  { opacity: 1; scale: 1; }
+  88.107%, 100%     { opacity: 0; scale: 0.7; }
+}
+@keyframes cChipC {
+  0%, 48.214%       { opacity: 0; scale: 0.7; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  51.786%, 88.095%  { opacity: 1; scale: 1; }
+  88.107%, 100%     { opacity: 0; scale: 0.7; }
+}
+@keyframes cSlotA {
+  0%, 20.238%       { opacity: 0; scale: 0.5; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  23.81%, 88.095%   { opacity: 1; scale: 1; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  94.048%, 100%     { opacity: 0; scale: 0.8; }
+}
+@keyframes cSlotB {
+  0%, 43.452%       { opacity: 0; scale: 0.5; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  47.024%, 88.095%  { opacity: 1; scale: 1; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  94.048%, 100%     { opacity: 0; scale: 0.8; }
+}
+@keyframes cSlotC {
+  0%, 66.667%       { opacity: 0; scale: 0.5; animation-timing-function: cubic-bezier(0.34, 1.5, 0.64, 1); }
+  70.238%, 88.095%  { opacity: 1; scale: 1; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  94.048%, 100%     { opacity: 0; scale: 0.8; }
+}
+@keyframes cDone {
+  0%, 70.238%       { opacity: 0; transform: translateY(10px) scale(0.94); animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  75%, 88.095%      { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  92.857%, 100%     { opacity: 0; transform: translateY(-8px) scale(0.97); }
+}
+
+.pcard:hover .ccand--a { animation: cCandA 8.4s linear infinite; }
+.pcard:hover .ccand--b { animation: cCandB 8.4s linear infinite; }
+.pcard:hover .ccand--c { animation: cCandC 8.4s linear infinite; }
+.pcard:hover .ccand--a .cmatch { animation: cChipA 8.4s linear infinite; }
+.pcard:hover .ccand--b .cmatch { animation: cChipB 8.4s linear infinite; }
+.pcard:hover .ccand--c .cmatch { animation: cChipC 8.4s linear infinite; }
+.pcard:hover .cslot:nth-child(1) img { animation: cSlotA 8.4s linear infinite; }
+.pcard:hover .cslot:nth-child(2) img { animation: cSlotB 8.4s linear infinite; }
+.pcard:hover .cslot:nth-child(3) img { animation: cSlotC 8.4s linear infinite; }
+.pcard:hover .cdone { animation: cDone 8.4s linear infinite; }
+.pcard:hover .ccand--b .ccand__body { animation: cBodyB 8.4s linear infinite; }
+.pcard:hover .ccand--c .ccand__body { animation: cBodyC 8.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pcard:hover .ccand, .pcard:hover .ccand__body, .pcard:hover .cmatch, .pcard:hover .cslot img, .pcard:hover .cdone { animation: none; }
+}
 
 @media (prefers-reduced-motion: reduce) { .pcard__art { transition: none; } }
 
@@ -2952,27 +3086,54 @@ button, input, select, textarea, td, th {
             <span class="pcard__art pcard--peach" aria-hidden="true">
               <span class="pcard__wash"></span>
               <span class="pcard__grain"></span>
-              <span class="pi">
-                <span class="pi-card pi-halo pcorp__card">
-                  <span class="pi-line">Alumni talent pool</span>
-                  <span class="pi-kick" style="margin-top: 3px;">Auto list &middot; 38 people</span>
-                  <span class="pcorp__row" style="margin-top: 14px;">
-                    <img class="pcorp__ava" src="@img:p4" style="--ring: var(--tint-peach);" alt="">
-                    <span class="pcorp__name">Amara Boateng</span>
-                    <span class="pcorp__tag" style="--tint: var(--tint-mint); --on: #1c7a57;">Open to roles</span>
+              <span class="corp">
+                <span class="crole">
+                  <span class="crole__top">
+                    <span class="crole__icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="17" height="12.5" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17"/></svg></span>
+                    <span class="crole__who"><span class="cname">Senior Product Designer</span><span class="cmeta">Corven Group &middot; Open role</span></span>
                   </span>
-                  <span class="pcorp__row">
-                    <img class="pcorp__ava" src="@img:p11" style="--ring: var(--tint-sky);" alt="">
-                    <span class="pcorp__name">Jonas Ek</span>
-                    <span class="pcorp__tag" style="--tint: var(--tint-sky); --on: #255c9e;">Hiring</span>
-                  </span>
-                  <span class="pcorp__row">
-                    <img class="pcorp__ava" src="@img:p1" style="--ring: var(--tint-sand);" alt="">
-                    <span class="pcorp__name">Dan Whitlock</span>
-                    <span class="pcorp__tag" style="--tint: var(--panel); --on: var(--ink-80);">Alumni</span>
+                  <span class="crole__list">
+                    <span class="cmeta">Boomerang shortlist</span>
+                    <span class="cslots">
+                      <span class="cslot"><img src="@img:p2" alt=""></span>
+                      <span class="cslot"><img src="@img:p6" alt=""></span>
+                      <span class="cslot"><img src="@img:p9" alt=""></span>
+                    </span>
                   </span>
                 </span>
-                <span class="pi-gpill pcorp__pill" style="--gp-a: #f7bf95; --gp-b: #fde4d0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>3 roles matched</span>
+                <span class="cdeck">
+                  <span class="ccand ccand--c">
+                    <span class="ccand__body">
+                      <span class="ccand__top">
+                        <img class="ccand__face" src="@img:p9" alt="">
+                        <span class="ccand__who"><span class="cname">Elena Vargas</span><span class="cmeta">Ex-Corven &middot; 2019–23</span></span>
+                        <span class="cmatch">88% match</span>
+                      </span>
+                      <span class="ccand__now"><span>Now</span> UX lead at Arlo Health</span>
+                    </span>
+                  </span>
+                  <span class="ccand ccand--b">
+                    <span class="ccand__body">
+                      <span class="ccand__top">
+                        <img class="ccand__face" src="@img:p6" alt="">
+                        <span class="ccand__who"><span class="cname">Andre Diaz</span><span class="cmeta">Ex-Corven &middot; 2015–20</span></span>
+                        <span class="cmatch">91% match</span>
+                      </span>
+                      <span class="ccand__now"><span>Now</span> Design manager at Kelso Labs</span>
+                    </span>
+                  </span>
+                  <span class="ccand ccand--a">
+                    <span class="ccand__body">
+                      <span class="ccand__top">
+                        <img class="ccand__face" src="@img:p2" alt="">
+                        <span class="ccand__who"><span class="cname">Rosa Keller</span><span class="cmeta">Ex-Corven &middot; 2017–21</span></span>
+                        <span class="cmatch">96% match</span>
+                      </span>
+                      <span class="ccand__now"><span>Now</span> Design lead at Halden &amp; Co</span>
+                    </span>
+                  </span>
+                </span>
+                <span class="pi-gpill cdone" style="--gp-a: #f7bf95; --gp-b: #fde4d0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>3 alumni ready to rehire</span>
               </span>
 
             </span>
