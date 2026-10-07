@@ -176,8 +176,10 @@ inside a stage are blocks via `:where(.ill__stage) span`. Resting styles
 are the finished frame (reduced motion shows it).
 
 - **Solution** (stage 560×232; ≤620px re-flows to 280×300 with the slot at
-  300px): *Find them* (aqua) — web profile ↔ your record, line draws,
-  "Matched" pops, "ID 20417" attaches, Employer "Not on file" → "Kelso Labs".
+  300px): *Find them* (aqua) — three faces found on the web (Amara, Marcus,
+  Chris) on the left, their records (initials, class, ID) on the right in a
+  different order; one at a time a curved accent line draws from a face to
+  its own record, the face rings and the record checks (user's brief).
   *Watch* (lilac) — "Monitoring 400,000+ sources" feed, a scan bar steps to
   "Arlo Health names new CTO" (check), verified alert for Marcus Bell slides
   in. *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles

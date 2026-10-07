@@ -85,7 +85,7 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   // SECTIONS — Solution scenes loop while their card is open; Benefits scenes play once per row
   await p.evaluate(() => document.querySelector('.solution__cards').scrollIntoView({ block: 'center' }));
   await p.waitForTimeout(600);
-  const probe = [['.sf-match', '.sf-rec .ik-new'], ['.sw-alert', '.sw-ok'], ['.sb-tile:nth-child(1)', '.sb-tile:nth-child(2)']];
+  const probe = [['.sf-row--2 .ik-check', '.sf-row--1 .ik-check'], ['.sw-alert', '.sw-ok'], ['.sb-tile:nth-child(1)', '.sb-tile:nth-child(2)']];
   for (let i = 0; i < 3; i++) {
     await p.hover(`.scard:nth-child(${i + 1})`);
     const t0 = Date.now(), seq = [];
