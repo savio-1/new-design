@@ -6,7 +6,10 @@ is still open. It exists so a new session can pick up the work without
 re-deriving decisions that were already made and paid for.
 
 **Repo:** `savio-1/new-design` · branch `claude/almaconnect-design-review-48vnbb`
-**Live prototype:** the homepage artifact (ask the user for the URL)
+**Live prototype:** https://claude.ai/artifact/Uy7WfWmyWdeuYsQvkcd7U6
+**Session handoff:** `HANDOFF.md` at the repo root — resume commands, the
+product-card animation internals, the cast, traps and how this user works.
+Read it first when picking the work back up.
 
 ---
 
@@ -20,7 +23,7 @@ order:
 | — | Load intro | Four keywords cycling one at a time, then the page |
 | 01 | Hero | 88px headline with a looping shimmer; auto-drifting staircase of portraits |
 | 02 | Trusted-by | Headline + 12 placeholder wordmarks |
-| 03 | Products | 4 cards, each with a CSS-built illustration and a `+` that reveals features |
+| 03 | Products | 4 cards, static at rest, each playing a pure-CSS animation on hover: **News** (stack of white person cards rolling up, centre one lit), **Data Mine** (floating avatars glide into a list of rows, then three records lift and open in turn), **Institutions** (three beats: mentors in your area → alumni living nearby → events around you), **Corporates** (still static — animation not yet specified). `+` reveals features. Check with `node scripts/verify-cards.js`. |
 | 04 | Problem | Scroll-lit paragraph — words light progressively as you scroll |
 | 05 | Solution | Grainy gradient ground, 3 cards, one expands to a screenshot |
 | 05b | Benefits | Dark teal band, segmented tabs, auto-advancing accordion |
@@ -109,6 +112,7 @@ Everything here is stand-in and should not ship as-is:
 
 | Item | Note |
 |---|---|
+| Corporates hover animation | 4th product card is still the static halo roster + "3 roles matched" pill. Waiting on the user for content direction. |
 | `--ink-45` at 14px | Measures **2.6:1** — under AA. Affects every caption, role and disclaimer on the page. Moving those to `--ink-65` fixes it; it is a token-level decision, not a one-off. |
 | Mobile nav | Links hide below 1000px and nothing replaces them — no hamburger or drawer exists yet. |
 | Intro replay | Plays on every load. Session-gate it before real traffic, and consider click-to-skip. |
