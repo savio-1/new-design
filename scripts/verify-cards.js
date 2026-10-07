@@ -59,32 +59,29 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   }
   console.log('INST beat opacities every 250ms (b1/b2/b3):', beats.join(' '));
 
-  // 4 · CORPORATES — rest frame on hover, match/flight/slot order, flights land on their slots
+  // 4 · CORPORATES — jobs matched to one person: rest frame on hover, scan order, best match lit, card + CTA
   await hover(4);
-  const c0 = await p.evaluate(() => ['.ccand--a', '.ccand--b', '.ccand--c'].map(s => { const c = getComputedStyle(document.querySelector(s)); return `${c.translate}|${c.scale}|${(+c.opacity).toFixed(2)}`; }).join('  '));
-  console.log('CORP at hover (must equal rest: 0px|1|1.00 (≡ none)  0px 11px|0.94|0.90  0px 22px|0.88|0.75):', c0);
+  const c0 = await p.evaluate(() => { const g = s => getComputedStyle(document.querySelector(s)); return `stage ${g('.cstage').translate} card ${(+g('.cjobcard').opacity).toFixed(2)} best ${g('.cjob--best').scale}`; });
+  console.log('CORP at hover (must be rest: stage 0px/none, card 0.00, best 1/none):', c0);
   const steps = [];
-  for (let i = 0; i < 22; i++) {
+  for (let i = 0; i < 24; i++) {
     steps.push(await p.evaluate(() => {
-      const o = s => (+getComputedStyle(document.querySelector(s)).opacity).toFixed(1);
-      return `m${o('.ccand--a .cmatch')}/${o('.ccand--b .cmatch')}/${o('.ccand--c .cmatch')} s${o('.cslot:nth-child(1) img')}/${o('.cslot:nth-child(2) img')}/${o('.cslot:nth-child(3) img')} p${o('.cdone')}`;
+      const g = s => getComputedStyle(document.querySelector(s));
+      const pulse = [1, 2, 3, 4, 5].map(n => { const v = g(`.cjob--${n} .cjob__mark`).scale; return v === 'none' ? '1' : (+v).toFixed(2); }).join('/');
+      return `pulse ${pulse} dim ${(+g('.cjob--1').opacity).toFixed(1)} card ${(+g('.cjobcard').opacity).toFixed(1)}`;
     }));
-    await p.waitForTimeout(400);
+    await p.waitForTimeout(300);
   }
-  console.log('CORP every 0.4s (match a/b/c, slot a/b/c, pill):', steps.join('  '));
-  const land = await p.evaluate(() => {
-    const cards = [...document.querySelectorAll('.ccand')], slots = [...document.querySelectorAll('.cslot')];
-    const deck = document.querySelector('.cdeck'), w = deck.offsetWidth, h = deck.offsetHeight, dr = deck.getBoundingClientRect();
-    return ['a', 'b', 'c'].map((k, i) => {
-      // the flight's end state from the keyframes: translate + scale about the card's centre
-      const kf = { a: [37, -102], b: [71, -102], c: [105, -102] }[k];
-      const cx = dr.left + w / 2 + kf[0], cy = dr.top + h / 2 + kf[1];
-      const sr = slots[i].getBoundingClientRect();
-      return `${k}:dx${(cx - (sr.left + sr.width / 2)).toFixed(1)} dy${(cy - (sr.top + sr.height / 2)).toFixed(1)}`;
-    }).join(' ');
+  console.log('CORP every 0.3s (mark pulse 1..5, other-jobs opacity, card):\n   ' + steps.join('\n   '));
+  const geo = await p.evaluate(() => {
+    const art = document.querySelectorAll('.pcard')[3].querySelector('.pcard__art').getBoundingClientRect();
+    const card = document.querySelector('.cjobcard'), plus = document.querySelectorAll('.pcard')[3].querySelector('.pcard__plus').getBoundingClientRect();
+    const r = card.getBoundingClientRect(), cs = getComputedStyle(card);
+    const ty = parseFloat((cs.translate.split(' ')[1]) || 0);
+    return `art ${art.width}x${art.height}  card bottom (settled) ${(r.bottom - ty - art.top).toFixed(0)} vs plus top ${(plus.top - art.top).toFixed(0)}`;
   });
-  console.log('CORP flight end vs slot centre (≈0):', land);
-  const over = await p.evaluate(() => [...document.querySelectorAll('.corp .cname, .corp .cmeta, .ccand__now')].filter(e => e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent));
+  console.log('CORP geometry:', geo);
+  const over = await p.evaluate(() => [...document.querySelectorAll('.corp .cname, .corp .cmeta, .cme__name, .ccta')].filter(e => e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent));
   console.log('CORP truncated text:', over.length ? over.join(' | ') : 'none');
 
   // artwork escaping the card on the left (the gradient wash bleeds 25% by design, so it is excluded)
