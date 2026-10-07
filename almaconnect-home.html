@@ -1127,33 +1127,32 @@ button, input, select, textarea, td, th {
    Explicit plateaus rather than a curve, so the parked time is exact:
    3.4s held in the middle, 0.6s to glide to the next. */
 @keyframes newsRoll {
-  0%, 12.2222%       { transform: translateY(0); }
-  16.6667%, 28.8889% { transform: translateY(-120px); }
-  33.3333%, 45.5556% { transform: translateY(-240px); }
-  50%, 62.2222%      { transform: translateY(-360px); }
-  66.6667%, 78.8889% { transform: translateY(-480px); }
-  83.3333%, 95.5556% { transform: translateY(-600px); }
+  0%, 12.1212%       { transform: translateY(0); }
+  16.6667%, 28.7879% { transform: translateY(-120px); }
+  33.3333%, 45.4545% { transform: translateY(-240px); }
+  50%, 62.1212%      { transform: translateY(-360px); }
+  66.6667%, 78.7879% { transform: translateY(-480px); }
+  83.3333%, 95.4545% { transform: translateY(-600px); }
   100%               { transform: translateY(-720px); }
 }
 /* each card is lit around its own 0%, and the delays stagger by one step,
    so the lit card is always the one the rail has just parked in the middle */
 @keyframes newsLit {
-  0%, 12.2222% { opacity: 1; scale: 1; box-shadow: 0 14px 30px rgba(4, 48, 43, 0.14); }
-  15.5%, 96%   { opacity: 0.4; scale: 0.93; box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  99%, 100%    { opacity: 1; scale: 1; box-shadow: 0 14px 30px rgba(4, 48, 43, 0.14); }
+  0%, 12.1212% { opacity: 1; scale: 1; box-shadow: 0 14px 30px rgba(4, 48, 43, 0.14); }
+  15.5%, 96.5% { opacity: 0.4; scale: 0.93; box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  100%         { opacity: 1; scale: 1; box-shadow: 0 14px 30px rgba(4, 48, 43, 0.14); }
 }
 /* The cycle is always attached but parked. Hovering resumes it and leaving
-   freezes it where it stands, instead of starting from scratch — and the
-   whole thing is offset 2.6s in, so the first glide lands 0.8s after the
-   pointer arrives rather than after a full 3.4s hold. */
-.nstack__rail { animation: newsRoll 18s cubic-bezier(0.45, 0, 0.18, 1) infinite both; animation-delay: -1.7s; animation-play-state: paused; }
-.ncard { animation: newsLit 18s cubic-bezier(0.4, 0, 0.2, 1) infinite both; animation-play-state: paused; }
-.ncard:nth-child(6n + 1) { animation-delay: -7.7s; }
-.ncard:nth-child(6n + 2) { animation-delay: -4.7s; }
-.ncard:nth-child(6n + 3) { animation-delay: -1.7s; }
-.ncard:nth-child(6n + 4) { animation-delay: -16.7s; }
-.ncard:nth-child(6n + 5) { animation-delay: -13.7s; }
-.ncard:nth-child(6n + 6) { animation-delay: -10.7s; }
+   freezes it where it stands. 2.2s per card — 1.6s parked, 0.6s to glide —
+   and offset 1.4s in, so the first glide starts 0.2s after the pointer lands. */
+.nstack__rail { animation: newsRoll 13.2s cubic-bezier(0.65, 0, 0.35, 1) infinite both; animation-delay: -1.4s; animation-play-state: paused; }
+.ncard { animation: newsLit 13.2s cubic-bezier(0.4, 0, 0.2, 1) infinite both; animation-play-state: paused; }
+.ncard:nth-child(6n + 1) { animation-delay: -5.8s; }
+.ncard:nth-child(6n + 2) { animation-delay: -3.6s; }
+.ncard:nth-child(6n + 3) { animation-delay: -1.4s; }
+.ncard:nth-child(6n + 4) { animation-delay: -12.4s; }
+.ncard:nth-child(6n + 5) { animation-delay: -10.2s; }
+.ncard:nth-child(6n + 6) { animation-delay: -8s; }
 .pcard:hover .nstack__rail, .pcard:hover .ncard { animation-play-state: running; }
 @media (prefers-reduced-motion: reduce) {
   .nstack__rail, .ncard, .pcard:hover .nstack__rail, .pcard:hover .ncard { animation: none; }
@@ -1206,81 +1205,89 @@ button, input, select, textarea, td, th {
 .dmrow--a .dmrow__real { opacity: 1; }
 .dmrow--b, .dmrow--c { position: relative; z-index: 3; }
 
+/* One 10.5s loop that opens and closes on the resting frame — the list
+   assembled with the first record open — so hovering never cuts. The open
+   record settles at once, the avatars burst out and drift, gather back, and
+   the list walks up through three records before rolling back to the top. */
 @keyframes dmFly {
-  0%        { transform: translate(var(--sx), var(--sy)) scale(0.6); opacity: 0; }
-  3%, 22%   { transform: translate(var(--sx), var(--sy)) scale(1); opacity: 1; }
-  34%, 96%  { transform: translate(0, 0) scale(1); opacity: 1; }
-  99%, 100% { transform: translate(0, 0) scale(0.92); opacity: 0; }
+  0%, 2.9%     { transform: translate(0, 0); }
+  8.6%, 22.9%  { transform: translate(var(--sx), var(--sy)); }
+  34.3%, 100%  { transform: translate(0, 0); }
 }
-/* a slow elliptical wander rather than a shake — small amplitudes, sinusoidal
-   easing, a different ellipse per avatar. On the image, not the wrapper, so it
-   does not fight the fly transform. */
+/* a slow elliptical wander while scattered — small amplitudes, sinusoidal
+   easing, a different ellipse per avatar. On the image, not the wrapper. */
 @keyframes dmDrift {
-  0%, 3%    { translate: 0 0; }
-  9%        { translate: var(--ax) calc(var(--ay) * -0.6); }
-  14%       { translate: calc(var(--ax) * 0.25) var(--ay); }
-  19%       { translate: calc(var(--ax) * -0.9) calc(var(--ay) * 0.35); }
-  22%, 100% { translate: 0 0; }
+  0%, 8.6%     { translate: 0 0; }
+  12.5%        { translate: var(--ax) calc(var(--ay) * -0.6); }
+  16.5%        { translate: calc(var(--ax) * 0.25) var(--ay); }
+  20.5%        { translate: calc(var(--ax) * -0.9) calc(var(--ay) * 0.35); }
+  22.9%, 100%  { translate: 0 0; }
 }
-/* every row fades in, then recedes whenever one of its neighbours is open */
-@keyframes dmCard {
-  0%, 27%   { opacity: 0; transform: scale(0.96); }
-  33%, 36%  { opacity: 1; transform: scale(1); }
-  40%, 95%  { opacity: 0.6; transform: scale(0.985); }
-  99%, 100% { opacity: 0; transform: scale(0.96); }
-}
-/* the list walks up one row between records so the open one stays put */
 @keyframes dmScroll {
-  0%, 54%   { transform: translateY(0); }
-  58%, 75%  { transform: translateY(-65px); }
-  79%, 100% { transform: translateY(-130px); }
+  0%, 52.4%    { transform: translateY(0); }
+  56.7%, 71.4% { transform: translateY(-65px); }
+  75.7%, 90.5% { transform: translateY(-130px); }
+  95.7%, 100%  { transform: translateY(0); }
+}
+@keyframes dmCard {
+  0%, 2.9%       { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  8.6%, 30.5%    { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  37.1%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  41%, 90.5%     { opacity: 0.6; transform: scale(0.985); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  95.7%, 100%    { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
 }
 @keyframes dmLiftA {
-  0%, 27%   { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  33%, 36% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  41%, 51% { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
-  55%, 95% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  99%, 100% { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  0%             { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
+  2.9%           { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  8.6%, 30.5%    { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  37.1%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  41%, 52.4%     { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
+  55.7%, 90.5%   { opacity: 0.6; transform: scale(0.985); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  95.7%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  100%           { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
 }
-@keyframes dmSkelA { 0%, 36% { opacity: 1; } 41%, 51% { opacity: 0; } 55%, 100% { opacity: 1; } }
-@keyframes dmRealA { 0%, 36% { opacity: 0; } 41%, 51% { opacity: 1; } 55%, 100% { opacity: 0; } }
 @keyframes dmLiftB {
-  0%, 27%   { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  33%, 57% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  62%, 72% { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
-  76%, 95% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  99%, 100% { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  0%, 2.9%       { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  8.6%, 30.5%    { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  37.1%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  41%, 52.4%     { opacity: 0.6; transform: scale(0.985); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  56.7%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  60%, 71.4%     { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
+  74.8%, 90.5%   { opacity: 0.6; transform: scale(0.985); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  95.7%, 100%    { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
 }
-@keyframes dmSkelB { 0%, 57% { opacity: 1; } 62%, 72% { opacity: 0; } 76%, 100% { opacity: 1; } }
-@keyframes dmRealB { 0%, 57% { opacity: 0; } 62%, 72% { opacity: 1; } 76%, 100% { opacity: 0; } }
 @keyframes dmLiftC {
-  0%, 27%   { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  33%, 78% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  83%, 94% { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
-  97%, 95% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
-  99%, 100% { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  0%, 2.9%       { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  8.6%, 30.5%    { opacity: 0; transform: scale(0.96); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  37.1%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  41%, 71.4%     { opacity: 0.6; transform: scale(0.985); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  75.7%          { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
+  79%, 90.5%     { opacity: 1; transform: scale(1.075); box-shadow: 0 20px 40px rgba(4, 48, 43, 0.22); }
+  93.8%, 100%    { opacity: 1; transform: scale(1); box-shadow: 0 0 0 rgba(4, 48, 43, 0); }
 }
-@keyframes dmSkelC { 0%, 78% { opacity: 1; } 83%, 94% { opacity: 0; } 97%, 100% { opacity: 1; } }
-@keyframes dmRealC { 0%, 78% { opacity: 0; } 83%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+@keyframes dmRealA { 0% { opacity: 1; } 2.9%, 37.1% { opacity: 0; } 41%, 52.4% { opacity: 1; } 55.7%, 95.7% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes dmSkelA { 0% { opacity: 0; } 2.9%, 37.1% { opacity: 1; } 41%, 52.4% { opacity: 0; } 55.7%, 95.7% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes dmRealB { 0%, 56.7% { opacity: 0; } 60%, 71.4% { opacity: 1; } 74.8%, 100% { opacity: 0; } }
+@keyframes dmSkelB { 0%, 56.7% { opacity: 1; } 60%, 71.4% { opacity: 0; } 74.8%, 100% { opacity: 1; } }
+@keyframes dmRealC { 0%, 75.7% { opacity: 0; } 79%, 90.5% { opacity: 1; } 93.8%, 100% { opacity: 0; } }
+@keyframes dmSkelC { 0%, 75.7% { opacity: 1; } 79%, 90.5% { opacity: 0; } 93.8%, 100% { opacity: 1; } }
 
-/* Runs only while hovered, so every hover replays the story from the top.
-   At rest the static rules above hold the finished state. */
-.pcard:hover .dmstage { animation: dmScroll 13s cubic-bezier(0.5, 0, 0.15, 1) infinite; }
-.pcard:hover .dmface { animation: dmFly 13s cubic-bezier(0.4, 0, 0.15, 1) infinite; }
-.pcard:hover .dmface img { animation: dmDrift 13s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; }
+.pcard:hover .dmstage { animation: dmScroll 10.5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+.pcard:hover .dmface { animation: dmFly 10.5s cubic-bezier(0.45, 0, 0.2, 1) infinite; }
+.pcard:hover .dmface img { animation: dmDrift 10.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite; }
 /* three curves across the set so they do not arrive in lockstep */
-.pcard:hover .dmface:nth-child(3n + 2) { animation-timing-function: cubic-bezier(0.34, 0, 0.2, 1); }
-.pcard:hover .dmface:nth-child(3n + 3) { animation-timing-function: cubic-bezier(0.5, 0, 0.12, 1); }
-.pcard:hover .dmrow { animation: dmCard 13s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .dmrow--a { animation: dmLiftA 13s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .dmrow--b { animation: dmLiftB 13s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .dmrow--c { animation: dmLiftC 13s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .dmrow--a .dmrow__skel { animation: dmSkelA 13s ease infinite; }
-.pcard:hover .dmrow--a .dmrow__real { animation: dmRealA 13s ease infinite; }
-.pcard:hover .dmrow--b .dmrow__skel { animation: dmSkelB 13s ease infinite; }
-.pcard:hover .dmrow--b .dmrow__real { animation: dmRealB 13s ease infinite; }
-.pcard:hover .dmrow--c .dmrow__skel { animation: dmSkelC 13s ease infinite; }
-.pcard:hover .dmrow--c .dmrow__real { animation: dmRealC 13s ease infinite; }
+.pcard:hover .dmface:nth-child(3n + 2) { animation-timing-function: cubic-bezier(0.36, 0, 0.24, 1); }
+.pcard:hover .dmface:nth-child(3n + 3) { animation-timing-function: cubic-bezier(0.55, 0, 0.15, 1); }
+.pcard:hover .dmrow { animation: dmCard 10.5s cubic-bezier(0.33, 0, 0.2, 1) infinite; }
+.pcard:hover .dmrow--a { animation: dmLiftA 10.5s cubic-bezier(0.33, 0, 0.2, 1) infinite; }
+.pcard:hover .dmrow--b { animation: dmLiftB 10.5s cubic-bezier(0.33, 0, 0.2, 1) infinite; }
+.pcard:hover .dmrow--c { animation: dmLiftC 10.5s cubic-bezier(0.33, 0, 0.2, 1) infinite; }
+.pcard:hover .dmrow--a .dmrow__skel { animation: dmSkelA 10.5s ease infinite; }
+.pcard:hover .dmrow--a .dmrow__real { animation: dmRealA 10.5s ease infinite; }
+.pcard:hover .dmrow--b .dmrow__skel { animation: dmSkelB 10.5s ease infinite; }
+.pcard:hover .dmrow--b .dmrow__real { animation: dmRealB 10.5s ease infinite; }
+.pcard:hover .dmrow--c .dmrow__skel { animation: dmSkelC 10.5s ease infinite; }
+.pcard:hover .dmrow--c .dmrow__real { animation: dmRealC 10.5s ease infinite; }
 @media (prefers-reduced-motion: reduce) {
   .pcard:hover .dmstage, .pcard:hover .dmface, .pcard:hover .dmface img,
   .pcard:hover .dmrow, .pcard:hover .dmrow__skel, .pcard:hover .dmrow__real { animation: none; }
@@ -1379,15 +1386,30 @@ button, input, select, textarea, td, th {
 .igoing img + img { margin-left: -8px; }
 
 /* three beats, three labels, one clock */
-@keyframes iBeat1 { 0% { opacity: 0; transform: translateY(12px); } 4%, 28% { opacity: 1; transform: translateY(0); } 32%, 100% { opacity: 0; transform: translateY(-12px); } }
-@keyframes iBeat2 { 0%, 33% { opacity: 0; transform: translateY(12px); } 37%, 61% { opacity: 1; transform: translateY(0); } 65%, 100% { opacity: 0; transform: translateY(-12px); } }
-@keyframes iBeat3 { 0%, 66% { opacity: 0; transform: translateY(12px); } 70%, 94% { opacity: 1; transform: translateY(0); } 98%, 100% { opacity: 0; transform: translateY(-12px); } }
+/* a seamless loop: beat one is on screen at both ends, so the hover can
+   start mid-hold (1.5s in) and the first change lands 0.45s after the pointer */
+@keyframes iBeat1 {
+  0%, 26%   { opacity: 1; transform: translateY(0); }
+  31%       { opacity: 0; transform: translateY(-12px); }
+  32%, 95%  { opacity: 0; transform: translateY(12px); }
+  100%      { opacity: 1; transform: translateY(0); }
+}
+@keyframes iBeat2 {
+  0%, 28%   { opacity: 0; transform: translateY(12px); }
+  33%, 59%  { opacity: 1; transform: translateY(0); }
+  64%, 100% { opacity: 0; transform: translateY(-12px); }
+}
+@keyframes iBeat3 {
+  0%, 61%   { opacity: 0; transform: translateY(12px); }
+  66%, 91%  { opacity: 1; transform: translateY(0); }
+  96%, 100% { opacity: 0; transform: translateY(-12px); }
+}
 
 /* at rest the first beat holds; the others wait out of sight */
 .ibeat--2, .ibeat--3, .ilabel--2, .ilabel--3 { opacity: 0; }
-.pcard:hover .ibeat--1, .pcard:hover .ilabel--1 { animation: iBeat1 12s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .ibeat--2, .pcard:hover .ilabel--2 { animation: iBeat2 12s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
-.pcard:hover .ibeat--3, .pcard:hover .ilabel--3 { animation: iBeat3 12s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+.pcard:hover .ibeat--1, .pcard:hover .ilabel--1 { animation: iBeat1 7.5s cubic-bezier(0.33, 0, 0.2, 1) -1.5s infinite; }
+.pcard:hover .ibeat--2, .pcard:hover .ilabel--2 { animation: iBeat2 7.5s cubic-bezier(0.33, 0, 0.2, 1) -1.5s infinite; }
+.pcard:hover .ibeat--3, .pcard:hover .ilabel--3 { animation: iBeat3 7.5s cubic-bezier(0.33, 0, 0.2, 1) -1.5s infinite; }
 @media (prefers-reduced-motion: reduce) {
   .pcard:hover .ibeat--1, .pcard:hover .ibeat--2, .pcard:hover .ibeat--3,
   .pcard:hover .ilabel--1, .pcard:hover .ilabel--2, .pcard:hover .ilabel--3 { animation: none; }
