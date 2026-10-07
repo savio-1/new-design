@@ -235,13 +235,14 @@ the avatar stays put on its left edge.
 person's profile card. Scores land on each role in turn; the best one is picked with
 an accent ring while the rest dim; the others clear, and the picked role and the
 profile move toward each other until they sit 10px apart, joined by a check badge on
-the seam. Only then does the action appear — the profile's skill chips cross-fade
-into a full-width "Message recruiter" button.
+the seam. Only then does the action appear — the job card grows upward to reveal a
+full-width "Message recruiter" button. The action belongs to the job, not the person.
 
 - **Move both halves, not one.** The role moving 16px down and the profile 48px up
   reads as a match; one card travelling the whole distance reads as a drag.
-- **Swap content in a fixed-height slot.** Chips and button share one absolutely
-  positioned 34px footer, so the action appears without the card changing size.
+- **Grow away from the seam.** The job card animates `height` 52 → 96 while its
+  `translate` rises by the same 44px, on the same keyframes and curve, so its bottom
+  edge never leaves the join and nothing below has to move.
 - **Clear what wasn't chosen.** Dimming first (0.4), then fading out, keeps the
   "there were options" beat before the pair takes the frame.
 

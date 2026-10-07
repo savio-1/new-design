@@ -56,7 +56,7 @@ starts moving ~0.3s after hover and every step prints matching
 `centred/lit` names; Data Mine `rest scale=1.075`, `drift reversals=0`, then
 records A → B → C open in turn; Institutions beat 1 holds ~0.6s then beats
 2 and 3 follow; Corporates rest frame at hover, scores 1→3, others clear, link →
-CTA, docked gap 10px, profile bottom 324 < plus 337, no truncated text; `LAYOUT card1..4:ok`.
+job card grows 52→96 with bottom held at 148, docked gap 10px, profile bottom 324 < plus 337, no truncated text; `LAYOUT card1..4:ok`.
 
 ---
 
@@ -152,9 +152,13 @@ At rest each card shows a designed still; hover plays the animation.
   rows 1→3 (first at 0.15s) → the Corven row lifts (scale 1.03, 2px accent
   ring) while the other two dim to .4 → they clear (fade, ±12px) as the
   Corven row moves down 16px and the profile rises 48px to meet it, 10px
-  apart → an accent check badge pops on the join → the skill chips give way
-  to a full-width accent **Message recruiter** button (ink text) that pulses
-  once → holds to 5.9s → everything settles back.
+  apart → an accent check badge pops on the join → the **job card** grows
+  upward from 52 to 96px (rising 44px on the same curve so its bottom edge
+  holds the seam at y 148) to reveal a full-width accent **Message recruiter**
+  button (ink text) under the title row, which pulses once → holds to 5.9s →
+  everything settles back. The profile keeps its skill chips throughout.
+- The CTA belongs to the job, not the person (user correction) — don't move
+  it back to the profile card.
 - Rejected before this: a "boomerang shortlist" deck flying into slots, and
   a ring of company marks around the person ("not good").
 

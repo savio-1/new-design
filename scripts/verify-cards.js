@@ -59,7 +59,7 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   }
   console.log('INST beat opacities every 250ms (b1/b2/b3):', beats.join(' '));
 
-  // 4 · CORPORATES — job stack above a profile: scores land, best job picked, others clear, match docks, CTA shows
+  // 4 · CORPORATES — job stack above a profile: scores land, best job picked, others clear, match docks, job card grows a CTA
   await hover(4);
   const c0 = await p.evaluate(() => { const g = s => getComputedStyle(document.querySelector(s)); return `prof ${g('.cprof').translate} pick ${g('.cjob--2').translate} cta ${(+g('.ccta').opacity).toFixed(2)} score ${(+g('.cjob--1 .cscore').opacity).toFixed(2)}`; });
   console.log('CORP at hover (must be rest: prof 0px, pick 0px, cta 0.00, score 0.00):', c0);
@@ -67,7 +67,7 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   for (let i = 0; i < 25; i++) {
     steps.push(await p.evaluate(() => {
       const g = s => getComputedStyle(document.querySelector(s)), o = s => (+g(s).opacity).toFixed(1);
-      return `scores ${o('.cjob--1 .cscore')}/${o('.cjob--2 .cscore')}/${o('.cjob--3 .cscore')} others ${o('.cjob--1')}/${o('.cjob--3')} link ${o('.clink')} cta ${o('.ccta')} skills ${o('.cskills')}`;
+      return `scores ${o('.cjob--1 .cscore')}/${o('.cjob--2 .cscore')}/${o('.cjob--3 .cscore')} others ${o('.cjob--1')}/${o('.cjob--3')} link ${o('.clink')} cta ${o('.ccta')} job2 h${g('.cjob--2').height} bottom ${(() => { const e = document.querySelector('.cjob--2'), a = e.closest('.pcard__art').getBoundingClientRect(); return (e.getBoundingClientRect().bottom - a.top).toFixed(0); })()}`;
     }));
     await p.waitForTimeout(300);
   }
