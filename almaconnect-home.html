@@ -1210,18 +1210,23 @@ button, input, select, textarea, td, th {
    record settles at once, the avatars burst out and drift, gather back, and
    the list walks up through three records before rolling back to the top. */
 @keyframes dmFly {
-  0%, 2.9%     { transform: translate(0, 0); }
-  8.6%, 22.9%  { transform: translate(var(--sx), var(--sy)); }
+  /* burst out of the rows: quick start, long soft landing */
+  0%, 2.9%     { transform: translate(0, 0); animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  /* then a slow constant-speed glide a few pixels onward — no stops, no
+     reversals, so it reads as a particle drifting, not a shake */
+  8.6%         { transform: translate(var(--sx), var(--sy)); animation-timing-function: linear; }
+  /* no timing function here: the converge uses the per-avatar curve, so
+     they still arrive at slightly different moments */
+  22.9%        { transform: translate(calc(var(--sx) + var(--ax)), calc(var(--sy) + var(--ay))); }
   34.3%, 100%  { transform: translate(0, 0); }
 }
-/* a slow elliptical wander while scattered — small amplitudes, sinusoidal
-   easing, a different ellipse per avatar. On the image, not the wrapper. */
+/* one gentle sideways arc across the whole drift, perpendicular to the glide,
+   so the path curves slightly instead of running dead straight. It swings out
+   once and comes back while the avatar is already flying home. */
 @keyframes dmDrift {
-  0%, 8.6%     { translate: 0 0; }
-  12.5%        { translate: var(--ax) calc(var(--ay) * -0.6); }
-  16.5%        { translate: calc(var(--ax) * 0.25) var(--ay); }
-  20.5%        { translate: calc(var(--ax) * -0.9) calc(var(--ay) * 0.35); }
-  22.9%, 100%  { translate: 0 0; }
+  0%, 8.6%     { translate: 0 0; animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1); }
+  22.9%        { translate: calc(var(--ay) * -0.5) calc(var(--ax) * 0.5); animation-timing-function: cubic-bezier(0.37, 0, 0.63, 1); }
+  34.3%, 100%  { translate: 0 0; }
 }
 @keyframes dmScroll {
   0%, 52.4%    { transform: translateY(0); }
