@@ -1701,7 +1701,7 @@ button, input, select, textarea, td, th {
 
 /* 01 · Find them — three people found on the web (left) meet their own
    records (right, listed in a different order). One at a time a line draws
-   from a face to its record, the face takes an accent ring and the record a
+   (straight) from a face to its record, the face takes an accent ring and the record a
    check. Faces at y 52 / 116 / 180; rows at the same heights. */
 .sf-face {
   position: absolute; left: 40px; width: 48px; height: 48px; border-radius: 50%;
@@ -1730,25 +1730,51 @@ button, input, select, textarea, td, th {
 .scard.is-open .sf-row--3 .ik-check { animation: sfOk2 6s linear infinite; }
 .scard.is-open .sf-row--1 .ik-check { animation: sfOk3 6s linear infinite; }
 
-/* 02 · Watch for what matters */
-.sw-feed { left: 18px; top: 16px; width: 260px; height: 200px; }
-.sw-feed .ik-kick { margin-bottom: 8px; }
+/* 02 · Watch for what matters — a row of news sources rolls steadily
+   through a fixed search frame; now and then the source in the frame is
+   about one of yours, it takes a check, and that person lands in the
+   shortlist below. 7s loop: five sources (pitch 180) cross 900px, so a
+   source's centre meets the frame (x 280) at a fixed time — sources 3, 5
+   and 1 at 0.5s, 3.3s and 4.7s. The row is doubled so the roll is seamless;
+   a tile's twin is always off-stage when the tile is in the frame. */
+.sw-kick { position: absolute; left: 18px; top: 12px; }
+.sw-kick .ik-kick { color: var(--ink-80); }
 .sw-live { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(0, 196, 181, 0.2); }
-.sw-rows { position: relative; }
-.sw-scan {
-  position: absolute; left: -6px; right: -6px; top: 0; height: 40px;
-  border-radius: 10px; background: var(--tint-lilac);
+.sw-strip {
+  position: absolute; left: 0; right: 0; top: 40px; height: 64px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
 }
-.sw-row { position: relative; display: flex; align-items: center; gap: 10px; height: 40px; }
-.sw-row .ik-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sw-hit { margin-left: auto; }
-.sw-alert { left: 300px; top: 40px; width: 242px; }
-.sw-alert .ik-text { margin: 10px 0 8px; }
-.sw-ok { margin-left: auto; display: inline-flex; gap: 5px; }
-.scard.is-open .sw-scan  { animation: swScan 6s linear infinite; }
-.scard.is-open .sw-hit   { animation: swHit 6s linear infinite; }
-.scard.is-open .sw-alert { animation: swAlert 6s linear infinite; }
-.scard.is-open .sw-ok    { animation: swOk 6s linear infinite; }
+.sw-track { position: absolute; left: -100px; top: 2px; display: flex; gap: 12px; }
+.sw-src { position: relative; width: 168px; height: 60px; padding: 10px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+.ill--s .sw-src { position: relative; }
+.sw-src .ik-row { gap: 8px; }
+.sw-src .ik-tile { width: 20px; height: 20px; border-radius: 6px; font-size: 12px; }
+.sw-src .ik-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; line-height: 1.25; }
+.sw-tick { position: absolute; right: -6px; top: -6px; width: 20px; height: 20px; }
+.sw-lens {
+  position: absolute; left: 188px; top: 34px; width: 184px; height: 76px; z-index: 2;
+  border: 2px solid var(--accent); border-radius: 15px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
+}
+.sw-lens__icon {
+  position: absolute; left: 50%; top: -13px; translate: -50% 0;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent); color: var(--ink);
+  box-shadow: 0 0 0 3px #fff;
+}
+.sw-list { left: 18px; right: 18px; top: 128px; }
+.sw-list .ik-kick { margin-bottom: 10px; }
+.sw-picks { display: flex; gap: 10px; }
+.sw-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.sw-pick .ik-face { width: 28px; height: 28px; }
+.scard.is-open .sw-track { animation: swRoll 7s linear infinite; }
+.scard.is-open .sw-src--2 .sw-tick { animation: swTick2 7s linear infinite; }
+.scard.is-open .sw-src--4 .sw-tick { animation: swTick4 7s linear infinite; }
+.scard.is-open .sw-src--0 .sw-tick { animation: swTick0 7s linear infinite; }
+.scard.is-open .sw-pick:nth-child(1) { animation: swPick1 7s linear infinite; }
+.scard.is-open .sw-pick:nth-child(2) { animation: swPick2 7s linear infinite; }
+.scard.is-open .sw-pick:nth-child(3) { animation: swPick3 7s linear infinite; }
 
 /* 03 · Bring them back together */
 .sb-tile { top: 41px; width: 124px; height: 150px; display: flex; flex-direction: column; gap: 8px; }
@@ -1810,25 +1836,36 @@ button, input, select, textarea, td, th {
   44.167%, 81.667% { opacity: 1; scale: 1; animation-timing-function: ease; }
   90%, 100% { opacity: 0; scale: 0.5; }
 }
-@keyframes swScan {
-  0%, 2.5% { translate: 0 0; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
-  10%, 81.667% { translate: 0 40px; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
-  90%, 100% { translate: 0 0; }
+@keyframes swRoll { from { translate: 0 0; } to { translate: -900px 0; } }
+@keyframes swTick2 {
+  0%, 5% { opacity: 0; scale: 0.5; animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1); }
+  10%, 21.429% { opacity: 1; scale: 1; animation-timing-function: ease; }
+  27.143%, 100% { opacity: 0; scale: 0.5; }
 }
-@keyframes swHit {
-  0%, 12.5% { opacity: 0; scale: 0.6; animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1); }
-  20%, 81.667% { opacity: 1; scale: 1; animation-timing-function: ease; }
-  90%, 100% { opacity: 0; scale: 0.6; }
+@keyframes swTick4 {
+  0%, 45% { opacity: 0; scale: 0.5; animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1); }
+  50%, 61.429% { opacity: 1; scale: 1; animation-timing-function: ease; }
+  67.143%, 100% { opacity: 0; scale: 0.5; }
 }
-@keyframes swAlert {
-  0%, 20% { opacity: 0; translate: 0 10px; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
-  28.333%, 81.667% { opacity: 1; translate: 0 0; animation-timing-function: ease; }
-  90%, 100% { opacity: 0; translate: 0 10px; }
+@keyframes swTick0 {
+  0%, 65% { opacity: 0; scale: 0.5; animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1); }
+  70%, 81.429% { opacity: 1; scale: 1; animation-timing-function: ease; }
+  87.143%, 100% { opacity: 0; scale: 0.5; }
 }
-@keyframes swOk {
-  0%, 30% { opacity: 0; scale: 0.6; animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1); }
-  37.5%, 81.667% { opacity: 1; scale: 1; animation-timing-function: ease; }
-  90%, 100% { opacity: 0; scale: 0.6; }
+@keyframes swPick1 {
+  0%, 10.714% { opacity: 0; translate: 0 -10px; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  17.857%, 90% { opacity: 1; translate: 0 0; animation-timing-function: ease; }
+  95.714%, 100% { opacity: 0; translate: 0 0; }
+}
+@keyframes swPick2 {
+  0%, 50.714% { opacity: 0; translate: 0 -10px; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  57.857%, 90% { opacity: 1; translate: 0 0; animation-timing-function: ease; }
+  95.714%, 100% { opacity: 0; translate: 0 0; }
+}
+@keyframes swPick3 {
+  0%, 70.714% { opacity: 0; translate: 0 -10px; animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1); }
+  77.857%, 90% { opacity: 1; translate: 0 0; animation-timing-function: ease; }
+  95.714%, 100% { opacity: 0; translate: 0 0; }
 }
 @keyframes sbLift {
   0%, 100% { translate: 0 0; box-shadow: 0 0 0 0 rgba(0, 196, 181, 0), 0 10px 24px rgba(4, 48, 43, 0.10); }
@@ -1854,8 +1891,11 @@ button, input, select, textarea, td, th {
   .sf-row--2 { top: 124px; }
   .sf-row--3 { top: 224px; }
   .sf-row .ik-tile { display: none; }
-  .sw-feed { left: 10px; top: 8px; }
-  .sw-alert { left: 30px; top: 150px; width: 240px; }
+  .sw-track { left: -240px; }
+  .sw-lens { left: 48px; }
+  .sw-kick { left: 10px; }
+  .sw-list { left: 10px; right: 10px; top: 124px; }
+  .sw-picks { flex-direction: column; gap: 8px; }
   .sb-tile { width: 132px; height: 140px; }
   .sb-tile .ik-meta { display: none; }
   .sb-tile:nth-child(1) { left: 4px; top: 6px; }
@@ -3463,8 +3503,8 @@ button, input, select, textarea, td, th {
       <div class="solution__cards" id="solutionCards">
         <div class="scard scard--shot is-open" tabindex="0">
           <span class="scard__shot ill ill--s" data-fit><span class="pcard__art pcard--aqua"><span class="pcard__wash"></span><span class="pcard__grain"></span></span><span class="ill__stage">
-            <svg class="sf-lines sf-lines--d" width="560" height="232" viewBox="0 0 560 232" aria-hidden="true"><path pathLength="1" d="M92 52 C 192 52, 192 116, 292 116"/><path pathLength="1" d="M92 116 C 192 116, 192 180, 292 180"/><path pathLength="1" d="M92 180 C 192 180, 192 52, 292 52"/></svg>
-            <svg class="sf-lines sf-lines--m" width="280" height="300" viewBox="0 0 280 300" aria-hidden="true"><path pathLength="1" d="M54 50 C 72 50, 72 150, 86 150"/><path pathLength="1" d="M54 150 C 72 150, 72 250, 86 250"/><path pathLength="1" d="M54 250 C 72 250, 72 50, 86 50"/></svg>
+            <svg class="sf-lines sf-lines--d" width="560" height="232" viewBox="0 0 560 232" aria-hidden="true"><path pathLength="1" d="M92 52 L292 116"/><path pathLength="1" d="M92 116 L292 180"/><path pathLength="1" d="M92 180 L292 52"/></svg>
+            <svg class="sf-lines sf-lines--m" width="280" height="300" viewBox="0 0 280 300" aria-hidden="true"><path pathLength="1" d="M54 50 L86 150"/><path pathLength="1" d="M54 150 L86 250"/><path pathLength="1" d="M54 250 L86 50"/></svg>
             <img class="sf-face sf-face--1" src="@img:p4" alt="">
             <img class="sf-face sf-face--2" src="@img:p10" alt="">
             <img class="sf-face sf-face--3" src="@img:p7" alt="">
@@ -3482,20 +3522,12 @@ button, input, select, textarea, td, th {
         </div>
         <div class="scard scard--shot" tabindex="0">
           <span class="scard__shot ill ill--s" data-fit><span class="pcard__art pcard--lilac"><span class="pcard__wash"></span><span class="pcard__grain"></span></span><span class="ill__stage">
-            <span class="ik-card sw-feed">
-              <span class="ik-kick"><span class="sw-live"></span>Monitoring 400,000+ sources</span>
-              <span class="sw-rows">
-                <span class="sw-scan"></span>
-                <span class="sw-row"><span class="ik-tile ik-tile--sm" style="--tint: var(--tint-lilac); --on: var(--on-lilac);">K</span><span class="ik-text">Kelso Labs raises Series B</span></span>
-                <span class="sw-row"><span class="ik-tile ik-tile--sm" style="--tint: var(--tint-mint); --on: #1c7a57;">A</span><span class="ik-text">Arlo Health names new CTO</span><span class="ik-check sw-hit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span>
-                <span class="sw-row"><span class="ik-tile ik-tile--sm" style="--tint: var(--tint-sky); --on: #255c9e;">H</span><span class="ik-text">Halden &amp; Co opens Boston office</span></span>
-                <span class="sw-row"><span class="ik-tile ik-tile--sm" style="--tint: var(--tint-sand); --on: #a86a12;">C</span><span class="ik-text">City arts board adds trustees</span></span>
-              </span>
-            </span>
-            <span class="ik-card sw-alert">
-              <span class="ik-row"><img class="ik-face" src="@img:p10" alt=""><span class="ik-who"><span class="ik-name">Marcus Bell</span><span class="ik-meta">Class of &rsquo;99</span></span></span>
-              <span class="ik-text">Named chief technology officer at Arlo Health</span>
-              <span class="ik-row"><span class="ik-meta">Health Tech Weekly &middot; 2h</span><span class="ik-chip ik-chip--ok sw-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Verified</span></span>
+            <span class="sw-kick"><span class="ik-kick"><span class="sw-live"></span>Searching 400,000+ sources</span></span>
+            <span class="sw-strip"><span class="sw-track"><span class="ik-card sw-src sw-src--0"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-peach); --on: var(--on-peach);">D</span><span class="ik-meta">Design Weekly</span></span><span class="ik-text">Andre Diaz wins award</span><span class="ik-check sw-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><span class="ik-card sw-src sw-src--1"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-sand); --on: #a86a12;">C</span><span class="ik-meta">City Gazette</span></span><span class="ik-text">New riverside park opens</span></span><span class="ik-card sw-src sw-src--2"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-mint); --on: #1c7a57;">H</span><span class="ik-meta">Health Tech Weekly</span></span><span class="ik-text">Marcus Bell named CTO</span><span class="ik-check sw-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><span class="ik-card sw-src sw-src--3"><span class="ik-row"><span class="ik-tile" style="--tint: var(--panel); --on: var(--ink-65);">M</span><span class="ik-meta">Market Wire</span></span><span class="ik-text">Q3 earnings roundup</span></span><span class="ik-card sw-src sw-src--4"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-lilac); --on: var(--on-lilac);">S</span><span class="ik-meta">Data Summit</span></span><span class="ik-text">Amara Boateng to keynote</span><span class="ik-check sw-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><span class="ik-card sw-src sw-src--0"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-peach); --on: var(--on-peach);">D</span><span class="ik-meta">Design Weekly</span></span><span class="ik-text">Andre Diaz wins award</span><span class="ik-check sw-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><span class="ik-card sw-src sw-src--1"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-sand); --on: #a86a12;">C</span><span class="ik-meta">City Gazette</span></span><span class="ik-text">New riverside park opens</span></span><span class="ik-card sw-src sw-src--2"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-mint); --on: #1c7a57;">H</span><span class="ik-meta">Health Tech Weekly</span></span><span class="ik-text">Marcus Bell named CTO</span><span class="ik-check sw-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><span class="ik-card sw-src sw-src--3"><span class="ik-row"><span class="ik-tile" style="--tint: var(--panel); --on: var(--ink-65);">M</span><span class="ik-meta">Market Wire</span></span><span class="ik-text">Q3 earnings roundup</span></span><span class="ik-card sw-src sw-src--4"><span class="ik-row"><span class="ik-tile" style="--tint: var(--tint-lilac); --on: var(--on-lilac);">S</span><span class="ik-meta">Data Summit</span></span><span class="ik-text">Amara Boateng to keynote</span><span class="ik-check sw-tick"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span></span></span>
+            <span class="sw-lens"><span class="sw-lens__icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></span></span>
+            <span class="ik-card sw-list">
+              <span class="ik-kick">Shortlisted for your alumni</span>
+              <span class="sw-picks"><span class="sw-pick"><img class="ik-face" src="@img:p10" alt=""><span class="ik-who"><span class="ik-name">Marcus Bell</span><span class="ik-meta">New role &middot; CTO</span></span></span><span class="sw-pick"><img class="ik-face" src="@img:p4" alt=""><span class="ik-who"><span class="ik-name">Amara Boateng</span><span class="ik-meta">Keynote speaker</span></span></span><span class="sw-pick"><img class="ik-face" src="@img:p6" alt=""><span class="ik-who"><span class="ik-name">Andre Diaz</span><span class="ik-meta">Design award</span></span></span></span>
             </span>
           </span></span>
           <div class="scard__text">

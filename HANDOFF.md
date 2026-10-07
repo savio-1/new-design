@@ -178,11 +178,17 @@ are the finished frame (reduced motion shows it).
 - **Solution** (stage 560×232; ≤620px re-flows to 280×300 with the slot at
   300px): *Find them* (aqua) — three faces found on the web (Amara, Marcus,
   Chris) on the left, their records (initials, class, ID) on the right in a
-  different order; one at a time a curved accent line draws from a face to
-  its own record, the face rings and the record checks (user's brief).
-  *Watch* (lilac) — "Monitoring 400,000+ sources" feed, a scan bar steps to
-  "Arlo Health names new CTO" (check), verified alert for Marcus Bell slides
-  in. *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
+  different order; one at a time a straight accent line draws from a face
+  to its own record, the face rings and the record checks (user asked for
+  straight lines, not curves).
+  *Watch* (lilac) — a marquee of news-source cards rolls through a
+  fixed accent search frame (x 280); now and then the card in the frame is
+  about one of yours, takes a check, and that person drops into a
+  "Shortlisted for your alumni" card (Marcus 0.75s, Amara 3.55s, Andre
+  4.95s). 7s loop: 5 sources × 180px pitch = 900px per loop, row doubled;
+  pass times are fixed by geometry, so moving the frame or the pitch means
+  recomputing them (on phones the track shifts by the same 140px as the
+  frame, so the times hold). *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
   lift one at a time (1.5s each). 6s loops, only while the card is open;
   keyframes generated so every element leaves together.
 - **Benefits** (stage 440×440; 340×420 on phones; each tab has its own
