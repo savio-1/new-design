@@ -59,29 +59,27 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   }
   console.log('INST beat opacities every 250ms (b1/b2/b3):', beats.join(' '));
 
-  // 4 · CORPORATES — jobs matched to one person: rest frame on hover, scan order, best match lit, card + CTA
+  // 4 · CORPORATES — job stack above a profile: scores land, best job picked, others clear, match docks, CTA shows
   await hover(4);
-  const c0 = await p.evaluate(() => { const g = s => getComputedStyle(document.querySelector(s)); return `stage ${g('.cstage').translate} card ${(+g('.cjobcard').opacity).toFixed(2)} best ${g('.cjob--best').scale}`; });
-  console.log('CORP at hover (must be rest: stage 0px/none, card 0.00, best 1/none):', c0);
+  const c0 = await p.evaluate(() => { const g = s => getComputedStyle(document.querySelector(s)); return `prof ${g('.cprof').translate} pick ${g('.cjob--2').translate} cta ${(+g('.ccta').opacity).toFixed(2)} score ${(+g('.cjob--1 .cscore').opacity).toFixed(2)}`; });
+  console.log('CORP at hover (must be rest: prof 0px, pick 0px, cta 0.00, score 0.00):', c0);
   const steps = [];
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 25; i++) {
     steps.push(await p.evaluate(() => {
-      const g = s => getComputedStyle(document.querySelector(s));
-      const pulse = [1, 2, 3, 4, 5].map(n => { const v = g(`.cjob--${n} .cjob__mark`).scale; return v === 'none' ? '1' : (+v).toFixed(2); }).join('/');
-      return `pulse ${pulse} dim ${(+g('.cjob--1').opacity).toFixed(1)} card ${(+g('.cjobcard').opacity).toFixed(1)}`;
+      const g = s => getComputedStyle(document.querySelector(s)), o = s => (+g(s).opacity).toFixed(1);
+      return `scores ${o('.cjob--1 .cscore')}/${o('.cjob--2 .cscore')}/${o('.cjob--3 .cscore')} others ${o('.cjob--1')}/${o('.cjob--3')} link ${o('.clink')} cta ${o('.ccta')} skills ${o('.cskills')}`;
     }));
     await p.waitForTimeout(300);
   }
-  console.log('CORP every 0.3s (mark pulse 1..5, other-jobs opacity, card):\n   ' + steps.join('\n   '));
+  console.log('CORP every 0.3s:\n   ' + steps.join('\n   '));
   const geo = await p.evaluate(() => {
-    const art = document.querySelectorAll('.pcard')[3].querySelector('.pcard__art').getBoundingClientRect();
-    const card = document.querySelector('.cjobcard'), plus = document.querySelectorAll('.pcard')[3].querySelector('.pcard__plus').getBoundingClientRect();
-    const r = card.getBoundingClientRect(), cs = getComputedStyle(card);
-    const ty = parseFloat((cs.translate.split(' ')[1]) || 0);
-    return `art ${art.width}x${art.height}  card bottom (settled) ${(r.bottom - ty - art.top).toFixed(0)} vs plus top ${(plus.top - art.top).toFixed(0)}`;
+    const pc = document.querySelectorAll('.pcard')[3], art = pc.querySelector('.pcard__art').getBoundingClientRect(), plus = pc.querySelector('.pcard__plus').getBoundingClientRect();
+    const box = s => { const e = document.querySelector(s), r = e.getBoundingClientRect(), ty = parseFloat(getComputedStyle(e).translate.split(' ')[1] || 0); return [r.top - ty - art.top, r.bottom - ty - art.top]; };
+    const job = box('.cjob--2'), prof = box('.cprof');
+    return `rest: job2 ${job.map(v => v.toFixed(0))} prof ${prof.map(v => v.toFixed(0))} (prof bottom vs plus top ${(plus.top - art.top).toFixed(0)}); docked: job2 bottom ${(job[1] + 16).toFixed(0)} → gap to prof ${(prof[0] - 48 - job[1] - 16).toFixed(0)}px`;
   });
   console.log('CORP geometry:', geo);
-  const over = await p.evaluate(() => [...document.querySelectorAll('.corp .cname, .corp .cmeta, .cme__name, .ccta')].filter(e => e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent));
+  const over = await p.evaluate(() => [...document.querySelectorAll('.corp .cname, .corp .cmeta, .cscore, .cskill, .ccta')].filter(e => e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent));
   console.log('CORP truncated text:', over.length ? over.join(' | ') : 'none');
 
   // artwork escaping the card on the left (the gradient wash bleeds 25% by design, so it is excluded)

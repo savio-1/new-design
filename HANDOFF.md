@@ -55,8 +55,8 @@ Expected `verify-cards.js` output: fonts `Geist` / `Nunito Sans`; News rail
 starts moving ~0.3s after hover and every step prints matching
 `centred/lit` names; Data Mine `rest scale=1.075`, `drift reversals=0`, then
 records A → B → C open in turn; Institutions beat 1 holds ~0.6s then beats
-2 and 3 follow; Corporates rest frame at hover, marks pulse 1→5, others dim,
-card settles at y 330 < plus 337, no truncated text; `LAYOUT card1..4:ok`.
+2 and 3 follow; Corporates rest frame at hover, scores 1→3, others clear, link →
+CTA, docked gap 10px, profile bottom 324 < plus 337, no truncated text; `LAYOUT card1..4:ok`.
 
 ---
 
@@ -140,22 +140,23 @@ At rest each card shows a designed still; hover plays the animation.
 - All text on white; nothing set on the gradient.
 
 ### 04 · Network for Corporates — `.corp` (peach) ✅
-- **Jobs matched to you** (user's brief: one profile, jobs around it with
-  match %, highlight one, CTA to message). Rosa Keller (p2, 76px face + white
-  name pill) at (149, 186); five roles around her as 46px tinted company marks
-  (K/H/C/A/N letter monograms) with a white score pill lapping each — 76 / 81 /
-  **94** / 68 / 72% — joined to her by white dashed SVG lines.
-- 7.2s hover-only loop, opens and closes on the rest frame: each mark pulses
-  in turn round the ring (first at 0.15s) → the 94% Corven mark lifts (scale
-  1.12, white + 2.5px accent ring, score pill goes mint) while the other four
-  dim to .35, and an accent line draws in to it → the whole ring lifts 56px and
-  a white job card slides up: "C" logo tile, **Product Designer · Corven Group**,
-  "94% match" chip, full-width accent **Message recruiter** button (ink text),
-  which pulses once → holds to 5.6s → everything settles back.
-- Card bottom sits at y 330 when settled (plus button starts at 337). The
-  best-match line uses `pathLength="1"` + dash offset 1 → 0 to draw.
-- Keyframes generated from seconds ÷ 7.2. The earlier "boomerang shortlist"
-  version (deck flying into slots) was replaced at the user's request.
+- **The right job for you** (user's brief: a stack of jobs with the profile
+  below; match the profile with one job; show a message option). Three white
+  job rows (52 tall, r12, y 22/80/138): 32px tinted letter logo, title (Geist
+  14) + company (Nunito 12), and a score chip that is hidden at rest —
+  Design Lead · Halden & Co 72%, **Product Designer · Corven Group 94%**
+  (mint chip), UX Researcher · Kelso Labs 68%. Below, Rosa Keller's profile
+  card (p2, 44px face, "Product designer · Ex-Corven", peach skill chips
+  Design systems / Figma / 8 yrs) at y 206–324.
+- 7.6s hover-only loop, opens and closes on the rest frame: scores pop on
+  rows 1→3 (first at 0.15s) → the Corven row lifts (scale 1.03, 2px accent
+  ring) while the other two dim to .4 → they clear (fade, ±12px) as the
+  Corven row moves down 16px and the profile rises 48px to meet it, 10px
+  apart → an accent check badge pops on the join → the skill chips give way
+  to a full-width accent **Message recruiter** button (ink text) that pulses
+  once → holds to 5.9s → everything settles back.
+- Rejected before this: a "boomerang shortlist" deck flying into slots, and
+  a ring of company marks around the person ("not good").
 
 ### What the user wants from these animations (learned the hard way)
 - Movement must be **noticeable within ~0.3s** of hover. A loop that opens on a

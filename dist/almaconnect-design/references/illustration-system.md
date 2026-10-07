@@ -165,7 +165,7 @@ reads as a family without four versions of the same picture:
 | News | Layered pair (C) | A 0.75-aspect portrait, a white alert card lapping it and running off the right edge, a glass tile with the day's count |
 | Data Mine | Glass split (D) | A white card bleeding off the top with two found-field rows, a 6px connector, a frost card below holding an 84px avatar |
 | Institutions | Screen pair (N) | Two alumni in one 11px rim frame, a gradient pill across its edge, three glass tiles for what the network carries |
-| Corporates | Roster (L) → now a hover match ring (§4.3) | Originally a halo card of three former employees with role tags; replaced by one person ringed by matched roles |
+| Corporates | Roster (L) → now a hover dock (§4.3) | Originally a halo card of three former employees with role tags; replaced by a job stack docking onto a profile |
 
 Two things that only showed up once they were built:
 
@@ -231,19 +231,19 @@ to reveal what was matched. Two things make it work:
 Rows scale from `transform-origin: left center` so the lifted row grows rightward and
 the avatar stays put on its left edge.
 
-**Corporates — the match ring.** The fourth pattern: one person at the centre,
-open roles around them as tinted company marks, each with a score pill lapping its
-bottom edge and a dashed line back to the person. The scan pulses each mark in turn;
-the best match lifts with an accent ring while the rest dim; its line draws in; the
-ring lifts to make room and the role's card slides up with a single action button.
+**Corporates — the dock.** The fourth pattern: a stack of open roles above one
+person's profile card. Scores land on each role in turn; the best one is picked with
+an accent ring while the rest dim; the others clear, and the picked role and the
+profile move toward each other until they sit 10px apart, joined by a check badge on
+the seam. Only then does the action appear — the profile's skill chips cross-fade
+into a full-width "Message recruiter" button.
 
-- **Place by the mark's centre, scale about it.** Each role wrapper takes `--x/--y` for
-  the mark's centre, `top: calc(var(--y) - 23px)` and `transform-origin: 50% 23px`, so
-  the lift grows from the mark and not from the mark-plus-pill box.
-- **Draw a line in with `pathLength="1"`.** Dash array 1 and offset 1 → 0 animates any
-  SVG line from its start without measuring its length.
-- **Dim, don't hide.** At 0.35 the other roles still read as "there were options",
-  which is the point of the picture.
+- **Move both halves, not one.** The role moving 16px down and the profile 48px up
+  reads as a match; one card travelling the whole distance reads as a drag.
+- **Swap content in a fixed-height slot.** Chips and button share one absolutely
+  positioned 34px footer, so the action appears without the card changing size.
+- **Clear what wasn't chosen.** Dimming first (0.4), then fading out, keeps the
+  "there were options" beat before the pair takes the frame.
 
 ### 4.4 The cast
 
