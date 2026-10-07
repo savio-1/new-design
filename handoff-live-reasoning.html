@@ -81,7 +81,7 @@
     <p class="lede">Everything needed to build the assistant turn that shows one live task line, opens into a reasoning trace of thoughts and railed task blocks, and ends in a three-question series the reader reviews and submits as a single message. Values below are measured from the working prototype, not estimated.</p>
     <div class="links">
       <a href="https://claude.ai/artifact/DxeCjcKDcShnQiUhfHafW9">Working prototype (interactive)</a>
-      <a href="https://www.figma.com/design/d2Aeg6YIYnO838TlkmAkRP/AI-assistant-%3C%3E-User?node-id=9257-178578">Figma · Assistant reasoning page</a>
+      <a href="https://www.figma.com/design/Cq3g1NA1RzLfySk1EM2n2V/Cogentiq--Builder?node-id=3697-149377">Figma · Assistant reasoning page</a>
       <span>Source: <code>claims-assistant-live-task.html</code> on branch <code>claude/gracious-davinci-l444je</code></span>
     </div>
   </header>
@@ -100,7 +100,7 @@
       <li><a href="#copy">10 · Copy</a></li>
       <li><a href="#a11y">11 · Accessibility</a></li>
       <li><a href="#qa">12 · Acceptance checks</a></li>
-      <li><a href="#figma">13 · Figma and open items</a></li>
+      <li><a href="#figma">13 · Figma</a></li>
     </ol>
   </nav>
 
@@ -113,7 +113,7 @@
         <div class="st"><div><b>Thought through</b><span>The line stops shimmering, loses its icon, drops to 14px and reads "See reasoning ›". The trace tucks away. The answer streams in below with the single assistant mark.</span></div></div>
         <div class="st"><div><b>Questions open</b><span>A card asks three questions one at a time. The composer locks and reads "Answer the questions above to carry on". Skip takes the assistant's own pick. Nothing is sent until Submit responses, or Skip on the last question.</span></div></div>
         <div class="st"><div><b>Submitted</b><span>The card fades out. One user message posts with each question at 12px over its answer at 16px, tagging any answer that came from Skip. The composer unlocks.</span></div></div>
-        <div class="st"><div><b>Second turn</b><span>Same live line and trace pattern, shorter: two steps with a thought before each. Then the second answer, composed from the answers given. The composer returns to idle. End.</span></div></div>
+        <div class="st"><div><b>Second turn</b><span>Same live line and trace pattern, shorter. Step one, "Reading your answers", lists every question with the answer that came back, so the reasoning shows what it was given. Two working steps follow, each after a thought. Then the second answer, composed from the answers given. The composer returns to idle. End.</span></div></div>
       </div>
     </section>
 
@@ -266,6 +266,16 @@ type Answer = Option & { custom: boolean; viaSkip?: boolean }
     <section id="sent">
       <h2>8 · Submitted message</h2>
       <p>One user bubble (Disabled/Tonal-1 fill, radius 12, padding 14/16, column gap 10, max 530px, right-aligned). For each answered question, a pair: the question in Caption1 at 58% white, then the answer in Body1 regular white. Pairs after the first carry a 10px top padding and a 1px rule at 14% white. An answer that came from Skip gets a Caption2 tag under it at 14% white fill and 72% white text: "Skipped, took your recommendation" where the badge was shown, otherwise "Skipped, took your pick".</p>
+      <h3>Answers as the first reasoning step</h3>
+      <p>The second turn opens its trace with a step titled "Reading your answers" (16px answers icon: a speech bubble with a tick). Under the title, one railed task line narrates "Going through the {n} answers you sent", then settles. Below it sits a list of answer rows, one per answered question, in question order, each rising in 260ms after the last.</p>
+      <dl class="kv">
+        <dt>List</dt><dd>Column, 4px gap, 24px right padding so it lines up with the thoughts.</dd>
+        <dt>Row</dt><dd>Column, 2px gap, padding 8/12, radius 8, fill Card/bg-5 #1B1B1B, 1px stroke #323232.</dd>
+        <dt>Top line</dt><dd>Question in Caption1 12/16, −0.24px, #BDBDBD; tag pushed right with a 12px gap.</dd>
+        <dt>Answer</dt><dd>Medium 14/20, −0.56px, #BDBDBD. It stays secondary: inside the reasoning only headlines are white.</dd>
+        <dt>Tag</dt><dd>Caption2 10/14, padding 1/7, radius 6, fill Blue 14% (rgba(13,153,255,.14)), text #80CAFF. "Skipped · my recommendation" when the question had a recommended pick, "Skipped · my pick" when it did not, "In your words" for a typed answer. No tag for a picked option.</dd>
+        <dt>After</dt><dd>The step marks done (up chevron), folds after 500ms like every finished step, and the turn's first thought follows. That thought depends on the skips: all skipped, some skipped ("You answered {a} and left {s} to me…"), or none.</dd>
+      </dl>
     </section>
 
     <section id="motion">
@@ -305,7 +315,8 @@ Recommended     "Recommended"
 Skip tags       "Skipped, took your recommendation" · "Skipped, took your pick"
 Step headlines  "Reading context" · "Context summary" · "Generate one-pager PPT" · "Create code for the document"
 Groups          "Definitions I used" · "How some terms are related" · "Where the data came from" · "Applying rules and policies"
-Turn 2 steps    "Re-reading the policy wording" · "Updating the one-pager"</code></pre>
+Turn 2 steps    "Reading your answers" · "Re-reading the policy wording" · "Updating the one-pager"
+Answers step    "Going through the {n} answers you sent" · "Skipped · my recommendation" · "Skipped · my pick" · "In your words"</code></pre>
       <p>Thought copy, task lines, question options and replies live in the source file under <code>GROUPS</code>, <code>PPT_STEPS</code>, <code>QUESTIONS</code> and the <code>thought()</code> calls in <code>play()</code> and <code>respond()</code>.</p>
     </section>
 
@@ -340,20 +351,20 @@ Turn 2 steps    "Re-reading the policy wording" · "Updating the one-pager"</cod
         <li>Skipping all three questions still submits three answers, each tagged.</li>
         <li>Back into a skipped question shows the recommended option selected.</li>
         <li>No horizontal scroll at 390px.</li>
+        <li>Turn two's first step is "Reading your answers", with one row per answered question in question order; picked answers have no tag, skipped ones read "Skipped · my pick" or "Skipped · my recommendation", typed ones read "In your words".</li>
+        <li>Inside the answers step the question is 12px and the answer 14px medium, both #BDBDBD.</li>
         <li>Replay resets to one user message, no answers, one live line.</li>
       </ul>
     </section>
 
     <section id="figma">
-      <h2>13 · Figma and open items</h2>
-      <p>The Figma page "Assistant reasoning" holds three 1280px frames in a section, bound to the file's semantic variable collection in Dark mode, plus local components and 31 icon components imported from the product's own exported SVGs.</p>
+      <h2>13 · Figma</h2>
+      <p>File "Cogentiq Builder", page "Assistant reasoning": three 1440px screens measured from the prototype in Chromium with Geist loaded, so wraps and positions match the build. They are absolutely positioned frames with the Cogentiq hex values, and the 35 icons are local components in "Icons · live reasoning" to their left.</p>
       <dl class="kv">
-        <dt>Components</dt><dd>Left rail, Topbar, Task row, Section header, Group header, Thought, Option row (Recommended chip toggle), Icon button 32, Button / tonal-2, Button / primary, Composer, Composer footer.</dd>
-        <dt>Frame 01</dt><dd>Reasoning open while working: live line, opening thought, Reading context with the Definitions group open behind its rail, three collapsed groups with thoughts, railed Composing task, rule, Context summary. Still to add: the Generate one-pager PPT step with its railed tasks and chips, the Create code step, the closing thought.</dd>
-        <dt>Frame 02</dt><dd>Answer plus the question card at Question 3 of 3 with a chosen Recommended option and Skip beside Submit responses; locked composer. The last build call timed out, so verify the card landed.</dd>
-        <dt>Frame 03</dt><dd>Both turns: submitted answers bubble with one Skipped tag, second See reasoning, second answer, idle composer.</dd>
+        <dt>Reasoning closed</dt><dd><a href="https://www.figma.com/design/Cq3g1NA1RzLfySk1EM2n2V/Cogentiq--Builder?node-id=3793-3926">3793:3926</a> · 1440×1024. First answer under "See reasoning ›", question 1 of 3 with Recommended on option 3, locked composer.</dd>
+        <dt>Reasoning open</dt><dd><a href="https://www.figma.com/design/Cq3g1NA1RzLfySk1EM2n2V/Cogentiq--Builder?node-id=3794-3926">3794:3926</a> · 1440×2590. All four steps open, "Definitions I used" open, the other groups collapsed.</dd>
+        <dt>Answers as a reasoning step</dt><dd><a href="https://www.figma.com/design/Cq3g1NA1RzLfySk1EM2n2V/Cogentiq--Builder?node-id=3797-3926">3797:3926</a> · 1440×1540. Submitted answers bubble, then turn two open with "Reading your answers" listing a picked, a skipped and a typed answer.</dd>
       </dl>
-      <div class="note warn">Known canvas defect: the component holders ("Icons A/B1/B2/B3", "Primitives A–D") sit at page x=0–1336, y=0–1900 and overlap the screens section that starts at x=800. Move the holders left of x=−1600 or the rail and topbar components will paint over frame 01. The three frames also still carry the placeholder shimmer flag; clear it when the build is signed off.</div>
       <div class="note ok">The interactive prototype is the source of truth for behaviour and timing. Where the Figma frames and the prototype disagree, follow the prototype and update Figma.</div>
     </section>
   </main>
