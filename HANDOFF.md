@@ -84,8 +84,8 @@ external requests (only Google Fonts is allowed):
 | 02 | Trusted by (`.trusted`) | 12 placeholder wordmarks in white cells, cycling |
 | 03 | **Products (`.personas`)** | Four cards, 3:4 media (298×397), each with a **hover animation** — see §5 |
 | 04 | Problem (`.problem`) | Scroll-lit paragraph with tinted keyword pills |
-| 05 | Solution (`.solution`) | Full-bleed photo, scroll-morph frame, three-card accordion |
-| 05b | Benefits (`.benefits`) | `--ink` ground, segmented tabs with sliding thumb, auto-advancing accordion with gradient progress lines |
+| 05 | Solution (`.solution`) | Full-bleed photo, scroll-morph frame, three-card accordion; each open card shows an illustrated scene that loops (6s) — see §5b |
+| 05b | Benefits (`.benefits`) | `--ink` ground, segmented tabs with sliding thumb, auto-advancing accordion with gradient progress lines; the panel shows one illustrated scene per benefit (12) that plays once as its row opens — see §5b |
 | 06 | Testimonials (`.tstm`) | Looping carousel, 1.5 cards in view, hover washes each card in its hue; stat band |
 | 07 | Integrations + privacy (`.duo`) | Orbiting logos; three drawn certification marks |
 | 09 | Closing CTA (`.close`) + footer | Aurora wash into near-black |
@@ -161,6 +161,39 @@ At rest each card shows a designed still; hover plays the animation.
   it back to the profile card.
 - Rejected before this: a "boomerang shortlist" deck flying into slots, and
   a ring of company marks around the person ("not good").
+
+## 5b. Section illustrations (Solution + Benefits)
+
+The user asked for the remaining sections to get simple, realistic motion in
+the same language — max 5–8s, easy to read, static where that suits. Hero,
+trusted-by, problem, testimonials, integrations and the closing band were
+left alone (they already move or are text). Shared kit in the CSS under
+"section illustrations": `.ill` slot → `.ill__stage` drawn at a fixed size
+(`--w/--h`) and scaled to fit by a small script (`[data-fit]`, never above
+1); `ik-card / ik-row / ik-face / ik-name / ik-meta / ik-text / ik-chip /
+ik-btn / ik-check / ik-field / ik-swap (ik-old → ik-new) / ik-date`. Spans
+inside a stage are blocks via `:where(.ill__stage) span`. Resting styles
+are the finished frame (reduced motion shows it).
+
+- **Solution** (stage 560×232; ≤620px re-flows to 280×300 with the slot at
+  300px): *Find them* (aqua) — web profile ↔ your record, line draws,
+  "Matched" pops, "ID 20417" attaches, Employer "Not on file" → "Kelso Labs".
+  *Watch* (lilac) — "Monitoring 400,000+ sources" feed, a scan bar steps to
+  "Arlo Health names new CTO" (check), verified alert for Marcus Bell slides
+  in. *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
+  lift one at a time (1.5s each). 6s loops, only while the card is open;
+  keyframes generated so every element leaves together.
+- **Benefits** (stage 440×440; 340×420 on phones; each tab has its own
+  grained ground — aqua/lilac/sky/peach): News — person-first search
+  results that don't mention the school; "Is this your John Smith?"
+  checklist ticks to "Verified match"; alert routed down to Elena Vargas,
+  shared inbox greyed. Data Mine — Chris Doyle's record fields fill in;
+  two Chris Doyles, only the ID-matched one checks; "Approve" writes a note
+  into the CRM while old entries are "Kept". Institutions — directory
+  filters + results; event "Register" → "Registered", 18 → 19 going;
+  mentor match line + job post. Corporates — Rosa Keller rejoins Corven;
+  Andre Diaz's referrals; Elena's post reactions 48 → 212. One-shot
+  entrances (0.3–1.4s) when the row opens.
 
 ### What the user wants from these animations (learned the hard way)
 - Movement must be **noticeable within ~0.3s** of hover. A loop that opens on a
@@ -277,7 +310,7 @@ Measure in the browser; never trust a still.
 
 | Item | Note |
 |---|---|
-| `shot-find.jpg`, `shot-watch.jpg` | **Another company's product UI** (a security tool, a package uploader) shipping on the live page in the Solution card and Benefits panel. Replace with real AlmaConnect captures. |
+| `shot-*.jpg`, `acc*.jpg` | No longer used on the page — the Solution and Benefits slots are illustrated scenes now. `shot-find`/`shot-watch` were another company's UI; the files are still in `assets/img/floema/` and can be deleted. |
 | `--ink-45` contrast | 2.6:1 at small sizes, page-wide. Token-level decision: move captions to `--ink-65`. |
 | Mobile nav | Links hide below 1000px; nothing replaces them. |
 | Intro replay | Plays every load; session-gate it and allow click-to-skip before real traffic. |

@@ -280,6 +280,26 @@ must not appear in artwork.
 
 ---
 
+### 4.5 Section scenes (Solution and Benefits)
+
+The same vocabulary, used where a section used to show a screenshot. One idea per
+slot, told with white cards and the cast; motion is a single verb or two.
+
+- **A stage, not a layout.** Each scene is drawn at a fixed size (`--w`, `--h`) and a
+  small script scales it to fit its slot, never above 1, so type stays on the ladder.
+  Where scaling would push text under ~11px (phones), re-flow the stage instead:
+  stack the two cards, turn four tiles into 2 x 2.
+- **Loop vs. once.** A slot the reader opens on purpose (Solution card) loops, 6s,
+  with every element leaving together. A slot that auto-advances (Benefits, 6s per
+  row) plays once on entry and holds — a second loop under a running progress bar
+  is noise.
+- **Show the change, not the UI.** A value swapping ("Not on file" → "Kelso Labs",
+  "Register" → "Registered", "18 going" → "19 going") says more than a full screen.
+- **The rest frame is the finished frame.** Animations run from hidden to the
+  resting style, so reduced motion and a missed frame both show the end state.
+- **Old screenshot rules leak.** `.scard__shot img { width: 100% }` turned every face
+  in the scene into a full-width photo — scope legacy rules to `> img`.
+
 ## 5. What is deliberately not adopted
 
 - Abstract background patterns filling the frame (bars, triangles, waveforms). Tried,

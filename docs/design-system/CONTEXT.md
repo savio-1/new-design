@@ -25,8 +25,8 @@ order:
 | 02 | Trusted-by | Headline + 12 placeholder wordmarks |
 | 03 | Products | 4 cards, static at rest, each playing a pure-CSS animation on hover: **News** (stack of white person cards rolling up, centre one lit), **Data Mine** (floating avatars glide into a list of rows, then three records lift and open in turn), **Institutions** (three beats: mentors in your area → alumni living nearby → events around you), **Corporates** (a stack of three jobs above a profile; scores land, the best match docks onto the profile, then the job card grows a Message recruiter button). `+` reveals features. Check with `node scripts/verify-cards.js`. |
 | 04 | Problem | Scroll-lit paragraph — words light progressively as you scroll |
-| 05 | Solution | Grainy gradient ground, 3 cards, one expands to a screenshot |
-| 05b | Benefits | Dark teal band, segmented tabs, auto-advancing accordion |
+| 05 | Solution | Grainy gradient ground, 3 cards; the open card shows an illustrated 6s loop (find / watch / bring together) |
+| 05b | Benefits | Dark teal band, segmented tabs, auto-advancing accordion; 12 illustrated scenes on per-product grounds, each playing once as its row opens |
 | 06 | Testimonials | Looping carousel, 1.5 cards in view, ruled stat band |
 | 07 | Integrations + privacy | Orbiting logos; three drawn certification marks |
 | 09 | Closing CTA | Aurora wash dissolving into near-black |
@@ -117,7 +117,7 @@ Everything here is stand-in and should not ship as-is:
 | Intro replay | Plays on every load. Session-gate it before real traffic, and consider click-to-skip. |
 | Figma | Built. Page **AlmaConnect — Homepage** in file `wPFGlGLF2kGdcC06My35za` (node `49:2`) — 1440x7279, all eleven sections, on 27 colour variables, 14 layout variables and 16 text styles. Page 1 (the AngelList reference) is untouched. |
 | Geist 350 in Figma | Figma exposes no variable weight axis for Geist, so 350 maps to the nearest named cut: **Light** at 32px and above, **Regular** at 24px and below. This is the one place the Figma file cannot match the CSS exactly. |
-| `shot-find.jpg` / `shot-watch.jpg` | Not AlmaConnect UI — they are another company's product screenshots (a vulnerability tool and a package uploader) that were sitting in `assets/img/floema/`. They are live on the prototype in the solution card and the benefits panel, and should be replaced with real product captures. Left out of the Figma build. |
+| `shot-*.jpg` / `acc*.jpg` | No longer on the page — replaced by illustrated scenes. `shot-find`/`shot-watch` are another company's UI; delete them from `assets/img/floema/`. |
 
 ---
 
