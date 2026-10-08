@@ -85,7 +85,7 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   // SECTIONS — Solution scenes loop while their card is open; Benefits scenes play once per row
   await p.evaluate(() => document.querySelector('.solution__cards').scrollIntoView({ block: 'center' }));
   await p.waitForTimeout(600);
-  const probe = [['.sf-row--2 .ik-check', '.sf-row--1 .ik-check'], ['.sw-b--guardian', '.sw-b--ap'], ['.sb-tile:nth-child(1)', '.sb-tile:nth-child(2)']];
+  const probe = [['.sf-row--2 .ik-check', '.sf-row--1 .ik-check'], ['.sw-b--guardian', '.sw-b--ap'], ['.sb-beat--1', '.sb-beat--2']];
   for (let i = 0; i < 3; i++) {
     await p.hover(`.scard:nth-child(${i + 1})`);
     const t0 = Date.now(), seq = [];
@@ -101,8 +101,12 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   const ben = [];
   for (let k = 0; k < 8; k++) { ben.push(await p.evaluate(() => (+getComputedStyle(document.querySelector('.bvis.is-on .bshot.is-cur .ik-pop')).opacity).toFixed(1))); await p.waitForTimeout(150); }
   console.log('BENEFITS Data Mine row 2 — ID check opacity every 0.15s after click:', ben.join(' '));
-  const cut = await p.evaluate(() => [...document.querySelectorAll('.ill .ik-name, .ill .ik-meta, .ill .ik-chip, .ill .ik-btn, .ill .sw-src .ik-text, .ill .sw-src .ik-meta')].filter(e => getComputedStyle(e).display !== 'none' && e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent.trim()));
+  const cut = await p.evaluate(() => [...document.querySelectorAll('.ill .ik-name, .ill .ik-meta, .ill .ik-chip, .ill .ik-btn, .ill .sb-tab, .ill .sb-search')].filter(e => getComputedStyle(e).display !== 'none' && e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent.trim()));
   console.log('SECTIONS truncated text:', cut.length ? cut.join(' | ') : 'none');
+  await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(400);
+  const cutM = await p.evaluate(() => [...document.querySelectorAll('.ill .ik-name, .ill .ik-meta, .ill .ik-chip, .ill .ik-btn, .ill .sb-tab')].filter(e => e.offsetParent && getComputedStyle(e).display !== 'none' && e.scrollWidth > e.clientWidth + 0.5).map(e => e.textContent.trim()));
+  console.log('SECTIONS truncated text at 390px:', cutM.length ? cutM.join(' | ') : 'none');
+  await p.setViewportSize({ width: 1440, height: 1100 });
 
   // artwork escaping the card on the left (the gradient wash bleeds 25% by design, so it is excluded)
   const clip = await p.evaluate(() => [...document.querySelectorAll('.pcard')].map((pc, i) => {

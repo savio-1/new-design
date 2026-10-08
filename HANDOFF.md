@@ -190,8 +190,15 @@ are the finished frame (reduced motion shows it).
   and one at a time (scattered order, 0.5s apart, 6s round) a bubble takes
   an accent ring. No names or matching — the user
   only wants it to say we search the news (a marquee + shortlist version
-  was rejected as too much). *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
-  lift one at a time (1.5s each). 6s loops, only while the card is open;
+  was rejected as too much). *Bring them back* (sky) — one feature at a time (user's ask, not all
+  four at once): a tab row Events · Directory · Jobs · Mentorship lights the
+  current one while its card rises in and the last lifts away, 1.8s a beat,
+  7.2s loop, events card on screen at both ends. Cards: event (date tile,
+  who's going, Register) · directory (search "Class of 2011 · Boston", two
+  alumni with Connect) · job (Product Designer at Corven, "Posted by an
+  alum", Ask for referral) · mentorship (Marcus ↔ Jonas matched, first
+  session, Accept). On phones the cards narrow to 264px and drop secondary
+  meta (`.sb-d`). Solution loops run only while the card is open;
   keyframes generated so every element leaves together.
 - **Benefits** (stage 440×440; 340×420 on phones; each tab has its own
   grained ground — aqua/lilac/sky/peach): News — person-first search
