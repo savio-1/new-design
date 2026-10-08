@@ -185,8 +185,8 @@ are the finished frame (reduced motion shows it).
   CNN, FT, Bloomberg, Forbes, The Economist, Reuters, AP, NPR, CNBC) in
   white bubbles (44–52px) scattered at uneven spacing but balanced — six
   per half, clear space above and below the pill (a circular ring was
-  rejected as too regular); phones 44px, own scatter — round a 32px "Searching 400,000+ news
-  sources" pill with a spinner; each bubble bobs ±3px on its own slow sine,
+  rejected as too regular); phones 44px, own scatter — round a 30px "Searching" pill with a spinner (gap to the nearest bubble
+  is equal above and below — 27px desktop, 25px phone); each bubble bobs ±3px on its own slow sine,
   and one at a time (scattered order, 0.5s apart, 6s round) a bubble takes
   an accent ring. No names or matching — the user
   only wants it to say we search the news (a marquee + shortlist version
