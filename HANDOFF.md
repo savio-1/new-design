@@ -181,11 +181,13 @@ are the finished frame (reduced motion shows it).
   different order; one at a time a curved accent line draws from a face
   to its own record, the face rings and the record checks (straight lines
   were tried and rejected — keep the curves).
-  *Watch* (lilac) — ten US/UK news logos (NYT, BBC, CNN, The Guardian,
-  FT, Forbes, Bloomberg, The Economist, AP, Reuters) in white bubbles round
-  a "Searching 400,000+ news sources" pill with a spinner; each bubble bobs
-  ±3px on its own slow sine, and one at a time (scattered order, 0.6s apart,
-  6s round) a bubble takes an accent ring. No names or matching — the user
+  *Watch* (lilac) — twelve US/UK news logos (NYT, BBC, The Guardian,
+  CNN, FT, Bloomberg, Forbes, The Economist, Reuters, AP, NPR, CNBC) in 48px
+  white bubbles in a symmetric ring (five arched top, five bottom, one each
+  side; phones 44px, 4/2/2/4) round a 32px "Searching 400,000+ news
+  sources" pill with a spinner; each bubble bobs ±3px on its own slow sine,
+  and one at a time (scattered order, 0.5s apart, 6s round) a bubble takes
+  an accent ring. No names or matching — the user
   only wants it to say we search the news (a marquee + shortlist version
   was rejected as too much). *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
   lift one at a time (1.5s each). 6s loops, only while the card is open;
@@ -321,7 +323,7 @@ Measure in the browser; never trust a still.
 | `--ink-45` contrast | 2.6:1 at small sizes, page-wide. Token-level decision: move captions to `--ink-65`. |
 | Mobile nav | Links hide below 1000px; nothing replaces them. |
 | Intro replay | Plays every load; session-gate it and allow click-to-skip before real traffic. |
-| News logos | `assets/logo/news-*.svg` (NYT, BBC, CNN, Guardian, FT, Forbes, Bloomberg, Economist, AP, Reuters) come from Wikimedia and are the outlets' trademarks — get permission or swap for neutral marks before launch. |
+| News logos | `assets/logo/news-*.svg` (NYT, BBC, CNN, Guardian, FT, Forbes, Bloomberg, Economist, AP, Reuters, NPR, CNBC) come from Wikimedia and are the outlets' trademarks — get permission or swap for neutral marks before launch. |
 | Placeholders | Stock portraits beside real testimonial names; invented names/news; fake wordmarks; drawn SOC 2 / GDPR / DPF marks (need real artwork + legal sign-off); third-party logos need press kits. |
 | Figma illustrations | User planned to draw them in Figma for me to follow; not yet done. |
 
