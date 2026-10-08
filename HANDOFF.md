@@ -178,17 +178,16 @@ are the finished frame (reduced motion shows it).
 - **Solution** (stage 560×232; ≤620px re-flows to 280×300 with the slot at
   300px): *Find them* (aqua) — three faces found on the web (Amara, Marcus,
   Chris) on the left, their records (initials, class, ID) on the right in a
-  different order; one at a time a straight accent line draws from a face
-  to its own record, the face rings and the record checks (user asked for
-  straight lines, not curves).
-  *Watch* (lilac) — a marquee of news-source cards rolls through a
-  fixed accent search frame (x 280); now and then the card in the frame is
-  about one of yours, takes a check, and that person drops into a
-  "Shortlisted for your alumni" card (Marcus 0.75s, Amara 3.55s, Andre
-  4.95s). 7s loop: 5 sources × 180px pitch = 900px per loop, row doubled;
-  pass times are fixed by geometry, so moving the frame or the pitch means
-  recomputing them (on phones the track shifts by the same 140px as the
-  frame, so the times hold). *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
+  different order; one at a time a curved accent line draws from a face
+  to its own record, the face rings and the record checks (straight lines
+  were tried and rejected — keep the curves).
+  *Watch* (lilac) — ten US/UK news logos (NYT, BBC, CNN, The Guardian,
+  FT, Forbes, Bloomberg, The Economist, AP, Reuters) in white bubbles round
+  a "Searching 400,000+ news sources" pill with a spinner; each bubble bobs
+  ±3px on its own slow sine, and one at a time (scattered order, 0.6s apart,
+  6s round) a bubble takes an accent ring. No names or matching — the user
+  only wants it to say we search the news (a marquee + shortlist version
+  was rejected as too much). *Bring them back* (sky) — Directory / Events / Jobs / Mentorship tiles
   lift one at a time (1.5s each). 6s loops, only while the card is open;
   keyframes generated so every element leaves together.
 - **Benefits** (stage 440×440; 340×420 on phones; each tab has its own
@@ -322,6 +321,7 @@ Measure in the browser; never trust a still.
 | `--ink-45` contrast | 2.6:1 at small sizes, page-wide. Token-level decision: move captions to `--ink-65`. |
 | Mobile nav | Links hide below 1000px; nothing replaces them. |
 | Intro replay | Plays every load; session-gate it and allow click-to-skip before real traffic. |
+| News logos | `assets/logo/news-*.svg` (NYT, BBC, CNN, Guardian, FT, Forbes, Bloomberg, Economist, AP, Reuters) come from Wikimedia and are the outlets' trademarks — get permission or swap for neutral marks before launch. |
 | Placeholders | Stock portraits beside real testimonial names; invented names/news; fake wordmarks; drawn SOC 2 / GDPR / DPF marks (need real artwork + legal sign-off); third-party logos need press kits. |
 | Figma illustrations | User planned to draw them in Figma for me to follow; not yet done. |
 

@@ -85,12 +85,12 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   // SECTIONS — Solution scenes loop while their card is open; Benefits scenes play once per row
   await p.evaluate(() => document.querySelector('.solution__cards').scrollIntoView({ block: 'center' }));
   await p.waitForTimeout(600);
-  const probe = [['.sf-row--2 .ik-check', '.sf-row--1 .ik-check'], ['.sw-pick:nth-child(1)', '.sw-pick:nth-child(3)'], ['.sb-tile:nth-child(1)', '.sb-tile:nth-child(2)']];
+  const probe = [['.sf-row--2 .ik-check', '.sf-row--1 .ik-check'], ['.sw-b--guardian', '.sw-b--ap'], ['.sb-tile:nth-child(1)', '.sb-tile:nth-child(2)']];
   for (let i = 0; i < 3; i++) {
     await p.hover(`.scard:nth-child(${i + 1})`);
     const t0 = Date.now(), seq = [];
     for (let k = 0; k < 14; k++) {
-      seq.push(await p.evaluate(([a, b]) => { const g = s => getComputedStyle(document.querySelector(s)); const v = s => s.includes('sb-tile') ? (g(s).translate.split(' ')[1] || '0px') : (+g(s).opacity).toFixed(1); return v(a) + '/' + v(b); }, probe[i]));
+      seq.push(await p.evaluate(([a, b]) => { const g = s => getComputedStyle(document.querySelector(s)); const v = s => s.includes('sb-tile') ? (g(s).translate.split(' ')[1] || '0px') : s.includes('sw-b') ? 'x' + (g(s).scale === 'none' ? '1' : (+g(s).scale).toFixed(2)) : (+g(s).opacity).toFixed(1); return v(a) + '/' + v(b); }, probe[i]));
       await p.waitForTimeout(450);
     }
     console.log(`SOLUTION card ${i + 1} (${probe[i].join(' , ')}) every 0.45s:`, seq.join(' '));
