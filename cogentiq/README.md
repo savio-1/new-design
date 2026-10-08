@@ -30,6 +30,12 @@ each file wires up what spans pages: the platform rail's buttons route to the
 sibling files, the cogentiq wordmark links back to Home, and the light/dark
 choice is shared — switch it on any page and every other page opens that way.
 
+Appearance holds two things that look alike and reach different people: the
+theme stops at the person who sets it, the branding does not. Each section is
+headed by a badge saying who it reaches — a quiet grey *Only you*, and a
+brand-coloured *Everyone in <workspace>* — with a rule between them, and the
+save bar names the audience again at the moment of commitment.
+
 The white label travels the same way. Settings → Appearance → Custom branding
 takes one primary colour, a logo, a product name and a subtitle; the colour is
 written back into the tokens the components already read

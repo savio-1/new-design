@@ -205,6 +205,8 @@ document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click
 '''.replace('__SUN__', SUN).replace('__MOON__', MOON)
 
 ICON = dict(
+ one='<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="5.4" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M3.4 13.4a4.6 4.6 0 0 1 9.2 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+ many='<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6.1" cy="5.6" r="2.3" stroke="currentColor" stroke-width="1.4"/><path d="M1.8 13.4a4.3 4.3 0 0 1 8.6 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10.9 3.6a2.3 2.3 0 0 1 0 4M12.1 13.4a4.3 4.3 0 0 0-1.1-2.9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
  sun='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="3.1" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.6v1.5M8 12.9v1.5M14.4 8h-1.5M3.1 8H1.6M12.53 3.47l-1.06 1.06M4.53 11.47l-1.06 1.06M12.53 12.53l-1.06-1.06M4.53 4.53 3.47 3.47" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
  moon='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
  system='<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.9" y="2.9" width="12.2" height="8.2" rx="1.3" stroke="currentColor" stroke-width="1.4"/><path d="M5.8 13.9h4.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
@@ -1123,6 +1125,40 @@ SET_CSS = '''
 .st-head .cq-subhead2-med { color: var(--text-primary); }
 .st-head .cq-body2-reg { color: var(--text-teritiary); }
 
+/* ── Who a setting reaches ──────────────────────────────────────────
+   The whole difficulty of this pane is that two things that look the
+   same reach different people: the theme stops at the person changing
+   it, the branding does not. A sentence saying so is read once and
+   forgotten; a badge on the heading is still there on the second
+   visit. The two are deliberately unalike — one grey and quiet, one
+   wearing the brand — so the pair can be told apart at a glance
+   rather than read. */
+.st-scope {
+  display: inline-flex; align-items: center; gap: 6px; width: fit-content;
+  height: 22px; padding: 0 10px 0 8px; margin-bottom: 7px;
+  border-radius: var(--radius-full);
+  font: 500 var(--fs-caption)/1 var(--font-geist); letter-spacing: -0.24px;
+}
+.st-scope svg { width: 13px; height: 13px; flex: none; }
+/* card-bg-4 is the pane's own grey in light mode, so the quiet badge
+   had no fill there at all. page-bg-2 is the card surface in both
+   themes: white on the grey pane, a step up from the dark one. */
+.st-scope--me {
+  background: var(--backgrounds-page-bg-2); color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px var(--strokes-line-1);
+}
+.st-scope--all {
+  background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1);
+  box-shadow: inset 0 0 0 1px var(--strokes-colour-blue);
+}
+/* The personal setting gets its own card rather than sharing the
+   pane's run of them, so the rule under it reads as the line between
+   "yours" and "everyone's" rather than as another divider. */
+.st-head--split { margin-top: 18px; padding-top: 20px; border-top: 1px solid var(--strokes-type-default); }
+/* A reminder at the moment of commitment, where it costs nothing to
+   read and is worth the most. */
+.st-bar__t b { color: var(--text-primary); font-weight: 500; }
+
 .st-field { display: flex; align-items: flex-start; gap: 16px; padding: 16px; border-top: 1px solid var(--strokes-line-3); }
 .st-field:first-of-type { border-top: 0; }
 .st-field__t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1197,9 +1233,6 @@ SET_CSS = '''
   flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--cc);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 18%, transparent);
 }
-
-/* A heading for a run of cards inside a pane that already has one. */
-.st-head--sub { margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--strokes-line-3); }
 
 /* ── Members ── */
 .st-members__sub { display: flex; align-items: center; gap: 12px; }
@@ -1299,7 +1332,14 @@ SET_BODY = '''
                 <section class="st-pane" id="st-appearance" role="region" aria-label="Appearance">
                   <div class="st-head">
                     <span class="cq-subhead2-med">Appearance</span>
-                    <span class="cq-body2-reg">How the product looks on this account.</span>
+                    <span class="cq-body2-reg">How the product looks to you, and to everyone in your workspace.</span>
+                  </div>
+
+                  <!-- ══ Yours alone ══ -->
+                  <div class="st-head">
+                    <span class="st-scope st-scope--me">__ONE__Only you</span>
+                    <span class="cq-subhead2-med">Your theme</span>
+                    <span class="cq-body2-reg">Everyone picks their own. Changing this is invisible to the rest of the workspace.</span>
                   </div>
                   <div class="ac-card">
                     <div class="st-field">
@@ -1315,10 +1355,12 @@ SET_BODY = '''
                     </div>
                   </div>
 
-                  <!-- ══ Custom branding, a section of Appearance ══ -->
-                  <div class="st-head st-head--sub">
+                  <!-- ══ Everyone's ══ -->
+                  <div class="st-head st-head--split">
+                    <span class="st-scope st-scope--all">__MANY__Everyone in Marketing</span>
                     <span class="cq-subhead2-med">Custom branding</span>
-                    <span class="cq-body2-reg">Put your own colour and mark on the product. Everyone in the workspace sees it.</span>
+                    <span class="cq-body2-reg">Change the CogentIQ colour and logo to your company's branding.
+                      Everyone in the workspace sees it the moment you save.</span>
                   </div>
 
                   <section class="ac-card">
@@ -1475,7 +1517,7 @@ SET_BODY = '''
             </div>
 
             <div class="st-bar" id="stBar" hidden role="status">
-              <span class="st-bar__t cq-body2-reg" id="stBarText">You have unsaved branding changes.</span>
+              <span class="st-bar__t cq-body2-reg" id="stBarText">Unsaved changes. Saving applies them to <b>everyone in Marketing</b>.</span>
               <button class="cq-btn cq-btn--m cq-btn--ghost" type="button" id="stDiscard">Discard</button>
               <button class="cq-btn cq-btn--m cq-btn--primary" type="button" id="stSave">Save changes</button>
             </div>
@@ -1855,6 +1897,7 @@ paintTheme((window.cqTheme && window.cqTheme.get()) || (root.dataset.mode === 'l
     SET_CSS,
     SET_BODY.replace('__UPLOAD__', ICON['upload']).replace('__SPARK__', ICON['spark'])
             .replace('__SUN__', ICON['sun']).replace('__MOON__', ICON['moon'])
+            .replace('__ONE__', ICON['one']).replace('__MANY__', ICON['many'])
             .replace('__SYSTEM__', ICON['system'])
             .replace('__TICK__', ICON['tick']).replace('__ARROW__', ICON['arrow'])
             .replace('__PLUS__', ICON['plus']).replace('__X__', ICON['x']),
