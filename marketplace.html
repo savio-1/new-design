@@ -1686,6 +1686,7 @@ body.cq { margin: 0; }
        its ground does not change with the theme either. */
     :root {
       --orange-700: #f79722;
+      --pink-500: #e91e63;
       --red-500: #f24822;
       --purple-100: #f9f5ff;
       --purple-200: #f1e5ff;
@@ -1974,15 +1975,23 @@ body.cq { margin: 0; }
     /* ── Verified creators ── */
     .mk-section--creators { padding-bottom: 40px; }
     .mk-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    /* Each creator card takes one palette hue (set per card as --hue) as a
+       soft wash fading into the card ground from the top-left. The hue is
+       mixed into the theme's own card colour, so it stays quiet in both
+       themes; dark needs a little more of it to show at all. */
     .mk-creator {
+      --mk-wash: 14%;
       display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 66px;
       padding: 12px; border-radius: 16px;
-      background: var(--backgrounds-card-bg-4);
-      border: 1px solid var(--strokes-card-default);
+      background: linear-gradient(120deg,
+        color-mix(in srgb, var(--hue, var(--blue-500)) var(--mk-wash), var(--backgrounds-card-bg-4)) 0%,
+        var(--backgrounds-card-bg-4) 78%);
+      border: 1px solid color-mix(in srgb, var(--hue, var(--blue-500)) 12%, var(--strokes-card-default));
       text-align: left;
       transition: border-color .15s ease;
     }
-    .mk-creator:hover { border-color: var(--strokes-type-default); }
+    :root:not([data-mode="light"]) .mk-creator { --mk-wash: 20%; }
+    .mk-creator:hover { border-color: color-mix(in srgb, var(--hue, var(--blue-500)) 35%, var(--strokes-type-default)); }
     .mk-creator__face { position: relative; flex: none; width: 40px; height: 40px; }
     .mk-creator__face > img:first-child { width: 40px; height: 40px; border-radius: 50%; display: block; object-fit: cover; }
     .mk-creator__badge { position: absolute; top: -2px; right: -3px; display: block; }
@@ -2716,8 +2725,9 @@ function renderFeatured() {
 let creatorsOpen = false;
 function renderCreators() {
   const list = creatorsOpen ? CREATORS : CREATORS.slice(0, 8);
-  $('mkCreators').innerHTML = list.map(([name, n, photo]) => `
-    <div class="mk-creator">
+  const HUES = ['--blue-500', '--purple-500', '--green-500', '--orange-600', '--pink-500', '--indigo-500', '--cyan-400', '--purple-400'];
+  $('mkCreators').innerHTML = list.map(([name, n, photo], i) => `
+    <div class="mk-creator" style="--hue: var(${HUES[i % HUES.length]})">
       <span class="mk-creator__face">
         <img src="${photo < 0 ? IMG.creator : IMG.people[photo]}" width="40" height="40" alt="" />
         <img class="mk-creator__badge" src="${IMG.verified}" width="16" height="16" alt="Verified" />
