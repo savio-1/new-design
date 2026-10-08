@@ -210,8 +210,9 @@ are the finished frame (reduced motion shows it).
   as three dark-ink checks tick (0.5/1.0/1.5s) and "Verified match" lands; CNBC-logo alert routed down an
   accent line labelled "Sent to" to gift officer Elena Vargas ("1 new"); the
   shared-inbox card was removed. Data Mine — Chris Doyle's record fields fill in;
-  two Chris Doyles, only the ID-matched one checks; "Approve" writes a note
-  into the CRM while old entries are "Kept". Institutions — directory
+  two Chris Doyles, only the ID-matched one checks; "Approve" (pressed) updates
+  a "Your CRM" card — face + name, divider, then Employment "Unknown" →
+  "VP Engineering · Corven Group" first, last gift and last event below. Institutions — directory
   filters + results; event "Register" → "Registered", 18 → 19 going;
   mentor match line + job post. Corporates — Rosa Keller rejoins Corven;
   Andre Diaz's referrals; Elena's post reactions 48 → 212. One-shot
