@@ -298,6 +298,37 @@ connection drops between calls; reload tools via ToolSearch and continue.
 
 ---
 
+## 8b. Figma build #2 (file otQ54rVHiFpo0fjqcKI6z7, in progress)
+
+User asked (2026-10-08) for the homepage in this file at 1440 with proper
+auto-layout, plus a mobile design after a mobile pass on the site.
+**Blocked:** the file's team is on Figma **Starter**, which allows only
+**20 MCP tool calls per month**; the limit was hit mid-build. Resume needs a
+paid seat (Pro/Org Full or Dev seat = 200/day), or the file moved into a
+paid team, or next month's allowance.
+
+State on page `6:2` (renamed "AlmaConnect Homepage"):
+- Variables: `AlmaConnect / Color` (37) and `AlmaConnect / Layout`
+  (desktop/* and mobile/* spacing + radius/*; Starter allows 1 mode only,
+  so desktop and mobile are separate variables, not modes). 23 text styles
+  (Desktop/*, Mobile/*, Heading/*, Body/*, UI/*, Art/*).
+- `33:92` Components & assets board: 27 image fills (hashes saved in the
+  session scratchpad; re-read from `img/*` rects), Logo/* and News/*
+  components, Button set `35:38` (Primary/Light/Outline/Ghost × L/M/S),
+  Pill `35:39`, Logo Cell `35:41`, Stat `35:43`, Accordion Row `35:53`,
+  Nav Link `35:54`, Art/Chip, Art/Check `35:59`, Art/Plus `35:62`,
+  Cert/SOC/GDPR/DPF, Mark/AlmaConnect Hex, product art components
+  Art/News `38:35`, Art/Data Mine `38:60`, Art/Institutions `39:39`,
+  Art/Corporates `39:61`.
+- `33:90` Desktop 1440 (vertical auto-layout): Nav `36:13`, Hero `36:32`
+  (staircase), Trusted `36:47`, Products `39:96`, Problem `40:180`,
+  Solution `40:185` — **known bug:** the Solution intro paragraph renders
+  dark/overlapping (set it to white 88%, width 420, auto height) and the
+  heading should be 700 wide so it stays on two lines.
+- Still to build on desktop: Benefits, Testimonials + stats, Duo, Close,
+  Footer. Then the whole `33:91` Mobile 390 frame (mirror the site's mobile
+  layout: burger nav, hero strip, 2-up logos, stacked cards, 2×2 stats).
+
 ## 9. How to verify (the habit that mattered most)
 
 Measure in the browser; never trust a still.
