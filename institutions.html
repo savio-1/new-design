@@ -2805,6 +2805,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       }).join('');
     }
 
+    var ROLL = Math.PI / 4, CR = Math.cos(ROLL), SR = Math.sin(ROLL);   // spin runs top left to bottom right
     var W = 0, H = 0, R = 1, Rx = 1, Ry = 1, D = 1, k = 1, count = N, TW = 58, TH = 72;
     var yaw = 0.6, pitch = -0.18, vYaw = 0, vPitch = 0, spinK = 1;
     var SPIN = reduced ? 0 : 0.00011;           // radians per ms when left alone
@@ -2836,8 +2837,9 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       var x1 = p.x0 * cy + p.z0 * sy, z1 = -p.x0 * sy + p.z0 * cy;
       var y2 = p.y0 * cp - z1 * sp, z2 = p.y0 * sp + z1 * cp;
       var f = D / (D - z2 * R);
-      p.X = x1; p.Y = y2; p.Z = z2;
-      p.sx = W / 2 + x1 * Rx * f; p.sy = H / 2 + y2 * Ry * f; p.f = f;
+      var rx = x1 * CR - y2 * SR, ry = x1 * SR + y2 * CR;   // the 45 degree roll
+      p.X = rx; p.Y = ry; p.Z = z2;
+      p.sx = W / 2 + rx * Rx * f; p.sy = H / 2 + ry * Ry * f; p.f = f;
     }
 
     function render(dt) {
@@ -2919,7 +2921,9 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
         net.classList.add('is-dragging');
         try { net.setPointerCapture(pid); } catch (err) {}
       }
-      var ry = dx * 0.006, rp = e.pointerType === 'touch' ? 0 : dy * 0.004;   // touch keeps vertical scroll
+      // undo the roll, so dragging along the diagonal spins it along the diagonal
+      var ux = dx * CR + dy * SR, uy = -dx * SR + dy * CR;
+      var ry = (e.pointerType === 'touch' ? dx : ux) * 0.006, rp = e.pointerType === 'touch' ? 0 : -uy * 0.004;   // touch keeps vertical scroll
       yaw += ry; pitch = Math.max(-0.75, Math.min(0.75, pitch + rp));
       vYaw = ry / dt; vPitch = rp / dt;
       lx = e.clientX; ly = e.clientY; lt = now;
