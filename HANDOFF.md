@@ -242,7 +242,9 @@ are the finished frame (reduced motion shows it).
 woman with the afro). Their files (`p3`, `p4`, `av2`, `av3`) are deleted —
 never bring them back. Amara Boateng now uses q2.
 
-**q1–q12** are new portraits from the user's People-1/People-2 zips (Pexels
+**q4 is also removed** (the woman in the red cap, user request; file deleted).
+
+**q1–q12** (minus q4) are new portraits from the user's People-1/People-2 zips (Pexels
 and Unsplash), cropped to 500×625 with the head at ~34% of the frame height
 and its centre ~31% down. They fill the hero strip (16 distinct faces) and
 the anonymous slots (who's going, mentor row, Data Mine avatars). q12 also
