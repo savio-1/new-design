@@ -3,27 +3,32 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Night Garden</title>
+<title>Happy 15, My Love</title>
 <meta name="theme-color" content="#030604" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Manrope:wght@500;600&display=swap" rel="stylesheet" />
 <style>
-  /* Layout: one fixed full-bleed WebGL garden; a centred text stage floats above it,
-     with a thin chrome of wordmark (top) and chapter + sound controls (bottom). */
+  /* Layout: a phone-shaped column. The WebGL garden fills it; the letter floats in the
+     centre; progress and sound sit along the bottom. On wide screens the column becomes
+     a framed phone so it always reads at mobile size. */
   :root {
     --night: #030604;        /* ground behind the garden, fog colour */
-    --moss: #0d1a0f;         /* fallback ground when WebGL is unavailable */
-    --petal-white: #f6f1ea;  /* headline text */
-    --pollen: #f2c94c;       /* accent: progress tick, focus ring */
-    --mist: rgba(246, 241, 234, 0.62); /* secondary text */
+    --moss: #0d1a0f;         /* soft ground around the phone frame on desktop */
+    --petal-white: #f6f1ea;  /* letter text */
+    --pollen: #f2c94c;       /* accent: progress fill, focus ring, final glow */
+    --mist: rgba(246, 241, 234, 0.62);
     --glass: rgba(246, 241, 234, 0.10);
     --glass-edge: rgba(246, 241, 234, 0.18);
+    --shadow: rgba(3, 6, 4, 0.55);
 
     --font-display: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
     --font-ui: "Manrope", "Avenir Next", "Segoe UI", system-ui, sans-serif;
 
-    --step-hero: clamp(2.15rem, 9.6vw, 4.75rem);
+    --step-letter: clamp(1.9rem, 8.4vw, 2.45rem);
+    --step-final: clamp(2.9rem, 13.5vw, 3.7rem);
+    --step-letter-c: clamp(1.9rem, 8.4cqw, 2.45rem);
+    --step-final-c: clamp(2.9rem, 13.5cqw, 3.7rem);
     --step-label: 0.6875rem;
     color-scheme: dark;
   }
@@ -39,39 +44,63 @@
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  .app {
+    position: fixed; top: 0; bottom: 0; left: 50%;
+    width: min(100%, 440px);
+    transform: translateX(-50%);
+    overflow: hidden;
+    background: var(--night);
+    container-type: size;
+  }
+  @media (min-width: 640px) and (min-height: 560px) {
+    body { background: radial-gradient(80% 70% at 50% 50%, var(--moss), var(--night) 75%); }
+    .app {
+      top: 50%; bottom: auto;
+      height: min(calc(100% - 48px), 880px);
+      width: auto; max-width: 100%;
+      aspect-ratio: 9 / 19.5;
+      transform: translate(-50%, -50%);
+      border-radius: 40px;
+      box-shadow: 0 0 0 1px var(--glass-edge), 0 40px 120px var(--shadow);
+    }
   }
 
   #gl {
-    position: fixed; inset: 0;
+    position: absolute; inset: 0;
     width: 100%; height: 100%;
     display: block;
     background: radial-gradient(120% 80% at 50% 60%, var(--moss), var(--night) 70%);
   }
 
   .veil {
-    position: fixed; inset: 0;
+    position: absolute; inset: 0;
     background: var(--night);
     pointer-events: none;
     transition: opacity 1.8s ease 0.2s;
   }
   .ready .veil { opacity: 0; }
 
-  /* ── text stage ─────────────────────────────────────────── */
+  /* ── the letter ─────────────────────────────────────────── */
   .stage {
-    position: fixed; inset: 0;
+    position: absolute; inset: 0;
     display: grid; place-items: center;
-    padding-inline: 20px;
+    padding-inline: 24px;
+    padding-bottom: 14%;
     pointer-events: none;
-    perspective: 900px;
+    transition: opacity 0.7s ease;
   }
+  .rewind .stage { opacity: 0; }
   .phrase {
     grid-area: 1 / 1;
-    display: grid; justify-items: center; gap: 1.1rem;
+    display: grid; justify-items: center; gap: 1rem;
     text-align: center;
     transform-origin: 50% 50%;
-    margin-top: -6vh;
     will-change: transform;
   }
+  .phrase h2 { margin: 0; font-weight: inherit; display: grid; gap: 0.1em; }
   .kicker {
     font-family: var(--font-ui);
     font-size: var(--step-label);
@@ -84,55 +113,38 @@
     display: block;
     font-family: var(--font-display);
     font-weight: 300;
-    font-size: var(--step-hero);
-    line-height: 1.06;
-    letter-spacing: -0.012em;
+    font-size: var(--step-letter);
+    font-size: var(--step-letter-c);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
     font-optical-sizing: auto;
     text-wrap: balance;
-    text-shadow: 0 0 28px rgba(3, 6, 4, 0.55), 0 1px 2px rgba(3, 6, 4, 0.5);
+    text-shadow: 0 0 28px var(--shadow), 0 1px 2px var(--shadow);
+  }
+  .final .line {
+    font-size: var(--step-final);
+    font-size: var(--step-final-c);
+    line-height: 1.02;
+    text-shadow: 0 0 36px rgba(242, 201, 76, 0.28), 0 0 22px var(--shadow), 0 1px 2px var(--shadow);
   }
   .w { display: inline-block; will-change: opacity, transform, filter; }
   .w em { font-style: italic; font-weight: 300; }
 
-  /* ── chrome ─────────────────────────────────────────────── */
-  .top, .bottom {
-    position: fixed; left: 0; right: 0;
-    display: flex; align-items: center; justify-content: space-between;
-    padding-inline: 20px;
-    pointer-events: none;
-  }
-  .top { top: 0; padding-top: calc(env(safe-area-inset-top, 0px) + 18px); }
-  .bottom { bottom: 0; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); align-items: flex-end; }
-
-  .mark {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1.375rem;
-    letter-spacing: -0.01em;
-    color: var(--petal-white);
-  }
-  .season {
-    font-size: var(--step-label);
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--mist);
-  }
-
-  .chapter {
-    display: grid; gap: 8px;
-    min-width: 0;
-    font-variant-numeric: tabular-nums;
-  }
-  .chapter-num { font-size: var(--step-label); font-weight: 600; letter-spacing: 0.2em; color: var(--mist); }
-  .chapter-num b { color: var(--petal-white); font-weight: 600; }
-  .ticks { display: flex; gap: 5px; }
-  .ticks i {
-    display: block; width: 14px; height: 2px; border-radius: 1px;
+  /* ── bottom chrome ──────────────────────────────────────── */
+  .progress {
+    position: absolute; left: 24px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 38px);
+    width: 64px; height: 2px; border-radius: 1px;
     background: var(--glass-edge);
-    transition: background 0.5s ease, width 0.5s ease;
+    overflow: hidden;
+    transition: opacity 0.6s ease;
   }
-  .ticks i.on { background: var(--pollen); width: 22px; }
+  .progress span {
+    display: block; height: 100%;
+    background: var(--pollen);
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
 
   .sound {
     pointer-events: auto;
@@ -147,7 +159,7 @@
     cursor: pointer;
     padding: 0;
   }
-  .sound:focus-visible { outline: 2px solid var(--pollen); outline-offset: 3px; }
+  .sound:focus-visible, .again:focus-visible { outline: 2px solid var(--pollen); outline-offset: 3px; }
   .bars { display: flex; align-items: center; gap: 2.5px; height: 16px; }
   .bars span {
     width: 2px; height: 4px; border-radius: 1px; background: currentColor;
@@ -161,8 +173,8 @@
   @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 15px; } }
 
   .hint {
-    position: fixed; left: 0; right: 0;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+    position: absolute; left: 0; right: 0;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
     display: grid; justify-items: center; gap: 10px;
     font-size: var(--step-label); font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
     color: var(--mist);
@@ -178,11 +190,32 @@
   @keyframes drip { 0% { transform: scaleY(0); opacity: 1; } 70% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
   .moved .hint { opacity: 0; }
 
+  .again {
+    position: absolute; left: 50%;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+    transform: translate(-50%, 10px);
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 13px 22px 13px 18px;
+    border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--glass-edge);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    color: var(--petal-white);
+    font: 600 var(--step-label) / 1 var(--font-ui);
+    letter-spacing: 0.2em; text-transform: uppercase;
+    cursor: pointer;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.9s ease 0.4s, transform 0.9s ease 0.4s, visibility 0s linear 1.3s;
+  }
+  .again svg { width: 16px; height: 16px; }
+  .at-end .again {
+    opacity: 1; visibility: visible; transform: translate(-50%, 0);
+    transition: opacity 0.9s ease 0.6s, transform 0.9s ease 0.6s, visibility 0s;
+  }
+  .at-end .progress { opacity: 0; }
+
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  @media (min-width: 900px) {
-    .top, .bottom { padding-inline: 40px; }
-  }
   @media (prefers-reduced-motion: reduce) {
     .hint::after, .sound[aria-pressed="true"] .bars span { animation: none; }
   }
@@ -190,70 +223,77 @@
 </head>
 <body>
 
-<canvas id="gl" aria-hidden="true"></canvas>
+<div class="app" id="app">
+  <canvas id="gl" aria-hidden="true"></canvas>
 
-<main class="stage" id="stage" aria-live="polite"></main>
+  <main class="stage" id="stage" aria-live="polite"></main>
 
-<header class="top">
-  <span class="mark">Verdance</span>
-  <span class="season">Night bloom</span>
-</header>
+  <div class="progress" aria-hidden="true"><span id="progressFill"></span></div>
 
-<footer class="bottom">
-  <div class="chapter" aria-hidden="true">
-    <span class="chapter-num"><b id="chapNow">01</b> / <span id="chapAll">06</span></span>
-    <span class="ticks" id="ticks"></span>
-  </div>
-  <span></span>
-</footer>
+  <button class="sound" id="sound" type="button" aria-pressed="false" aria-label="Play ambient sound">
+    <span class="bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
+  </button>
 
-<button class="sound" id="sound" type="button" aria-pressed="false" aria-label="Play ambient sound">
-  <span class="bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></span>
-</button>
+  <div class="hint" id="hint">Swipe up to read</div>
 
-<div class="hint" id="hint">Swipe to wander</div>
-<div class="veil" aria-hidden="true"></div>
+  <button class="again" id="again" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+    Read it again
+  </button>
+
+  <div class="veil" aria-hidden="true"></div>
+</div>
 
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
 /* ────────────────────────────────────────────────────────────
-   Content — placeholder copy. Wrap a word in *asterisks* for
-   italic, use " / " for a line break.
+   The letter. Wrap a word in *asterisks* for italic,
+   use " / " for a line break. The last entry is the ending.
    ──────────────────────────────────────────────────────────── */
 const CHAPTERS = [
-  { kicker: "Seed",    text: "Where quiet ideas / take *root*" },
-  { kicker: "Root",    text: "Grown slowly, / built to *last*" },
-  { kicker: "Leaf",    text: "Design that breathes / with the *seasons*" },
-  { kicker: "Bloom",   text: "Every detail / opens in its own *time*" },
-  { kicker: "Pollen",  text: "Made to be shared, / carried *further*" },
-  { kicker: "Return",  text: "And then, / it all *begins* again" },
+  { kicker: "A letter for you", text: "To the love who came / into my life / as a *surprise*" },
+  { text: "Thank you / for *finding* your way to me" },
+  { text: "You turned my world / into a *garden* in bloom" },
+  { text: "Almost a year together, / and I still can't quite / *believe* it" },
+  { text: "And now, / you're *fifteen*" },
+  { text: "I hope life brings you / every *success* / you're dreaming of" },
+  { text: "So smart, so caring, / so full of *love* to give" },
+  { text: "I'm so *proud* / of who you are" },
+  { text: "I wish you a whole life / of *happiness*" },
+  { text: "And may every hard day / pass you by *gently*, / without any pain" },
+  { text: "Happy 15, / my *love*", final: true },
 ];
 
 const SPACING = 34;            // world units travelled per chapter
+const END = (CHAPTERS.length - 1) * SPACING;
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TAU = Math.PI * 2;
+const root = document.documentElement;
+const app = document.getElementById("app");
 
-/* ── build text DOM ───────────────────────────────────────── */
+/* ── build the letter DOM ─────────────────────────────────── */
 const stage = document.getElementById("stage");
 const phraseEls = CHAPTERS.map((c, i) => {
   const el = document.createElement("section");
-  el.className = "phrase";
+  el.className = "phrase" + (c.final ? " final" : "");
   el.setAttribute("aria-hidden", i === 0 ? "false" : "true");
-  const k = document.createElement("span");
-  k.className = "kicker";
-  k.textContent = c.kicker;
-  el.appendChild(k);
+  const parts = [];
+  if (c.kicker) {
+    const k = document.createElement("span");
+    k.className = "kicker";
+    k.textContent = c.kicker;
+    el.appendChild(k);
+    parts.push(k);
+  }
   const h = document.createElement("h2");
-  h.style.margin = "0";
-  h.style.fontWeight = "inherit";
   c.text.split(" / ").forEach((ln) => {
     const line = document.createElement("span");
     line.className = "line";
     ln.split(" ").forEach((word, wi, arr) => {
       const w = document.createElement("span");
       w.className = "w";
-      const m = word.match(/^\*(.+)\*(\W*)$/);
+      const m = word.match(/^\*(.+?)\*(\W*)$/);
       if (m) { const em = document.createElement("em"); em.textContent = m[1]; w.appendChild(em); if (m[2]) w.append(m[2]); }
       else w.textContent = word;
       line.appendChild(w);
@@ -263,13 +303,9 @@ const phraseEls = CHAPTERS.map((c, i) => {
   });
   el.appendChild(h);
   stage.appendChild(el);
-  return { el, kicker: k, words: [k, ...el.querySelectorAll(".w")] };
+  return { el, words: [...parts, ...el.querySelectorAll(".w")] };
 });
-
-const ticks = document.getElementById("ticks");
-CHAPTERS.forEach(() => ticks.appendChild(document.createElement("i")));
-document.getElementById("chapAll").textContent = String(CHAPTERS.length).padStart(2, "0");
-const chapNow = document.getElementById("chapNow");
+const progressFill = document.getElementById("progressFill");
 
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mod = (a, n) => ((a % n) + n) % n;
@@ -279,8 +315,9 @@ function updateText(dist) {
   const n = CHAPTERS.length;
   const pos = dist / SPACING;
   phraseEls.forEach((p, i) => {
-    const k = i + n * Math.round((pos - i) / n);
-    const t = pos - k;                       // −0.5 … 0.5 around its slot
+    let t = pos - i;                          // −0.5 … 0.5 around its slot
+    if (i === 0) t = Math.max(t, 0);          // the opening holds when pulled back
+    if (i === n - 1) t = Math.min(t, 0);      // the ending holds once reached
     const vis = Math.abs(t) < 0.5;
     p.el.style.visibility = vis ? "visible" : "hidden";
     if (!vis) return;
@@ -297,23 +334,24 @@ function updateText(dist) {
       w.style.transform = reduceMotion ? "none" : `translate3d(0, ${(-tw * 46).toFixed(2)}px, 0)`;
     });
   });
-  const ch = mod(Math.round(pos), n);
+  progressFill.style.transform = `scaleX(${Math.min(1, Math.max(0, dist / END)).toFixed(4)})`;
+  const ch = Math.min(n - 1, Math.max(0, Math.round(pos)));
   if (ch !== lastChapter) {
     lastChapter = ch;
-    chapNow.textContent = String(ch + 1).padStart(2, "0");
-    [...ticks.children].forEach((t, i) => t.classList.toggle("on", i === ch));
     phraseEls.forEach((p, i) => p.el.setAttribute("aria-hidden", i === ch ? "false" : "true"));
   }
 }
 
-/* ── input: virtual, endless scroll ───────────────────────── */
+/* ── input: virtual scroll from the first line to the last ── */
 let target = 0, current = 0, velocity = 0, dragging = false, lastY = 0, lastT = 0, travelled = 0;
-const root = document.documentElement;
+const outside = (v) => (v < 0 ? v : v > END ? v - END : 0);
 
 addEventListener("wheel", (e) => {
   e.preventDefault();
   const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-  target += Math.max(-120, Math.min(120, d)) * 0.03;
+  let step = Math.max(-120, Math.min(120, d)) * 0.03;
+  if (outside(target) * step > 0) step *= 0.25;
+  target += step;
 }, { passive: false });
 
 addEventListener("pointerdown", (e) => {
@@ -324,7 +362,8 @@ addEventListener("pointermove", (e) => {
   if (!dragging) return;
   const now = performance.now();
   const dy = lastY - e.clientY;
-  const step = dy * (e.pointerType === "touch" ? 0.06 : 0.04);
+  let step = dy * (e.pointerType === "touch" ? 0.06 : 0.04);
+  if (outside(target) * step > 0) step *= 0.3;          // rubber band at either end
   target += step;
   const dt = Math.max(1, now - lastT);
   velocity = velocity * 0.6 + (step * 16.67 / dt) * 0.4;
@@ -339,8 +378,27 @@ const endDrag = () => {
 addEventListener("pointerup", endDrag);
 addEventListener("pointercancel", endDrag);
 addEventListener("keydown", (e) => {
-  if (["ArrowDown", "PageDown", " "].includes(e.key)) { target += SPACING * 0.5; e.preventDefault(); }
-  if (["ArrowUp", "PageUp"].includes(e.key)) { target -= SPACING * 0.5; e.preventDefault(); }
+  if (e.target.closest && e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
+  if (["ArrowDown", "PageDown", " "].includes(e.key)) { target = Math.min(END, target + SPACING * 0.5); e.preventDefault(); }
+  if (["ArrowUp", "PageUp"].includes(e.key)) { target = Math.max(0, target - SPACING * 0.5); e.preventDefault(); }
+});
+
+/* ── read it again: the garden keeps flying forward, the letter restarts ── */
+let camBase = 0, camFly = 0, camFlyTarget = 0, rewinding = false;
+const againBtn = document.getElementById("again");
+againBtn.addEventListener("click", () => {
+  if (rewinding) return;
+  rewinding = true;
+  root.classList.add("rewind");
+  camFlyTarget += SPACING * 0.9;
+  setTimeout(() => {
+    camBase += current;
+    current = target = 0; velocity = 0; travelled = 0;
+    root.classList.remove("at-end", "moved");
+    updateText(0);
+    root.classList.remove("rewind");
+    rewinding = false;
+  }, 750);
 });
 
 /* ── ambient sound (generated, starts on tap) ─────────────── */
@@ -777,12 +835,12 @@ if (renderer) {
 }
 
 function resize() {
-  const w = innerWidth, h = innerHeight;
+  const w = app.clientWidth || innerWidth, h = app.clientHeight || innerHeight;
   camera.aspect = w / h;
   camera.fov = w < h ? 74 : 58;
   camera.updateProjectionMatrix();
   if (!renderer) return;
-  const dpr = Math.min(devicePixelRatio || 1, w < 700 ? 1.75 : 1.5);
+  const dpr = Math.min(devicePixelRatio || 1, 1.75);
   renderer.setPixelRatio(dpr);
   renderer.setSize(w, h, false);
   rt.setSize(Math.floor(w * dpr), Math.floor(h * dpr));
@@ -790,6 +848,7 @@ function resize() {
   if (shared.uPx) shared.uPx.value = dpr * h / 800;
 }
 addEventListener("resize", resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(app);
 resize();
 
 const cP = new THREE.Vector3(), cT = new THREE.Vector3(), cB = new THREE.Vector3(), cN = new THREE.Vector3();
@@ -811,28 +870,39 @@ function placeCamera(dist, time) {
 }
 
 /* ── loop ────────────────────────────────────────────────── */
-const DRIFT = reduceMotion ? 0 : 0.35;   // gentle forward breathing when idle
-let prevT = performance.now(), elapsed = 0, speedSmooth = 0, running = true;
+const DRIFT = reduceMotion ? 0 : 0.35;   // the garden keeps breathing forward, even at the end
+let prevT = performance.now(), elapsed = 0, speedSmooth = 0, running = true, drift = 0, lastCam = 0;
 document.addEventListener("visibilitychange", () => { running = !document.hidden; prevT = performance.now(); if (running) requestAnimationFrame(frame); });
 
 function frame(now) {
   if (!running) return;
   const dt = Math.min(0.05, (now - prevT) / 1000); prevT = now; elapsed += dt;
   const f60 = dt * 60;
-  if (!dragging) { target += velocity * f60; velocity *= Math.pow(0.95, f60); if (Math.abs(velocity) < 0.002) velocity = 0; }
-  target += DRIFT * dt;
+  if (!dragging) {
+    target += velocity * f60; velocity *= Math.pow(0.95, f60);
+    if (Math.abs(velocity) < 0.002) velocity = 0;
+    const over = outside(target);
+    if (over) { target -= over * (1 - Math.pow(0.82, f60)); if (over * velocity > 0) velocity *= 0.5; }
+  }
   const before = current;
   current += (target - current) * (1 - Math.pow(1 - 0.075, f60));
-  const speed = Math.abs(current - before) / Math.max(dt, 1e-3);
-  speedSmooth += (Math.min(speed / 40, 1) - speedSmooth) * 0.08;
   travelled += Math.abs(current - before);
   if (travelled > 4) root.classList.add("moved");
+  if (!rewinding && current > END - SPACING * 0.12) root.classList.add("at-end");
+  else if (current < END - SPACING * 0.4) root.classList.remove("at-end");
+
+  drift += DRIFT * dt;
+  camFly += (camFlyTarget - camFly) * (1 - Math.pow(1 - 0.035, f60));
+  const camDist = camBase + current + drift + camFly;
+  const speed = Math.abs(camDist - lastCam) / Math.max(dt, 1e-3);
+  lastCam = camDist;
+  speedSmooth += (Math.min(speed / 40, 1) - speedSmooth) * 0.08;
   if (audio) audio.wind.gain.setTargetAtTime(0.3 + speedSmooth * 0.9, audio.ac.currentTime, 0.3);
 
-  updateText(current);
+  if (!rewinding) updateText(current);
   if (renderer) {
     shared.uTime.value = elapsed;
-    placeCamera(current, elapsed);
+    placeCamera(camDist, elapsed);
     renderer.setRenderTarget(rt);
     renderer.render(scene, camera);
     renderer.setRenderTarget(null);
