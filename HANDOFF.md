@@ -182,9 +182,10 @@ are the finished frame (reduced motion shows it).
   to its own record, the face rings and the record checks (straight lines
   were tried and rejected — keep the curves).
   *Watch* (lilac) — twelve US/UK news logos (NYT, BBC, The Guardian,
-  CNN, FT, Bloomberg, Forbes, The Economist, Reuters, AP, NPR, CNBC) in 48px
-  white bubbles in a symmetric ring (five arched top, five bottom, one each
-  side; phones 44px, 4/2/2/4) round a 32px "Searching 400,000+ news
+  CNN, FT, Bloomberg, Forbes, The Economist, Reuters, AP, NPR, CNBC) in
+  white bubbles (44–52px) scattered at uneven spacing but balanced — six
+  per half, clear space above and below the pill (a circular ring was
+  rejected as too regular); phones 44px, own scatter — round a 32px "Searching 400,000+ news
   sources" pill with a spinner; each bubble bobs ±3px on its own slow sine,
   and one at a time (scattered order, 0.5s apart, 6s round) a bubble takes
   an accent ring. No names or matching — the user
