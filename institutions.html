@@ -1166,7 +1166,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 @keyframes auraC { 0% { transform: translate3d(0,0,0); } 50% { transform: translate3d(-5%, -4.5%, 0); } 100% { transform: translate3d(0,0,0); } }
 
 /* ---- the network: alumni in a 3D cloud ----
-   Sixteen portrait cards on a loose sphere, projected with perspective:
+   Sixteen straight portrait cards on a sphere, projected with perspective:
    near cards larger and on top, far ones smaller. It spins slowly and can be dragged. One card is lit at a time
    and its activity card opens beside it; hovering a card takes over. */
 .hero__copy { max-width: min(640px, 44vw); }
@@ -2756,8 +2756,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
   /* ---------- hero: alumni in a 3D cloud, one lit at a time --------------
      Sixteen portrait cards sit on a loose sphere and are projected with
      perspective every frame: near cards are larger and on top, far ones
-     smaller. Each card turns slightly as it
-     travels round, which is what sells the depth. The cloud spins slowly
+     smaller. The cloud spins slowly
      on its own; dragging spins it by hand and lets go with inertia.
      A front-facing card is lit every few seconds and its activity card
      opens beside it; hovering, focusing or tapping a card takes over and
@@ -2774,13 +2773,11 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
 
     function rnd(i, k) { var v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); }
 
-    /* --- places on a loose sphere: a Fibonacci spiral, then jittered --- */
+    /* --- places on a sphere: a Fibonacci spiral, evenly spread --- */
     var GA = Math.PI * (3 - Math.sqrt(5));
     P.forEach(function (p, i) {
       var y = 1 - (i + 0.5) / N * 2, r = Math.sqrt(1 - y * y), th = i * GA;
-      var j = 0.82 + rnd(i, 1) * 0.18;
-      p.x0 = Math.cos(th) * r * j; p.y0 = y * j * 0.92; p.z0 = Math.sin(th) * r * j;
-      p.rz = (rnd(i, 2) - 0.5) * 18;            // each card's own resting tilt, degrees
+      p.x0 = Math.cos(th) * r; p.y0 = y; p.z0 = Math.sin(th) * r;
     });
 
     /* --- build the cards and their activity cards --- */
@@ -2819,7 +2816,8 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       if (!W || !H) return;
       k = Math.max(0.78, Math.min(1, W / 640));
       // an ellipse fitted to the field, so the cloud spreads out rather than bunching
-      Rx = W * 0.4; Ry = H * 0.42; R = Math.min(W, H) * 0.34; D = R * 4.4;
+      // a round globe: one radius across and down, sized to the field
+      Rx = Ry = Math.min(W * 0.4, H * 0.42); R = Math.min(W, H) * 0.34; D = R * 4.4;
       count = W < 480 ? SMALL_MAX : N;
       P.forEach(function (p, i) {
         var show = i < count;
@@ -2851,8 +2849,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
         var isOn = i === on;
         p.lift += ((isOn ? 1.16 : 1) - p.lift) * Math.min(1, dt / 120);
         var s = p.f * p.lift;
-        p.el.style.transform = 'translate(' + p.sx.toFixed(1) + 'px,' + p.sy.toFixed(1) + 'px) scale(' + s.toFixed(3) +
-          ') perspective(600px) rotateY(' + (p.X * 28).toFixed(1) + 'deg) rotateX(' + (-p.Y * 16).toFixed(1) + 'deg) rotate(' + p.rz.toFixed(1) + 'deg)';
+        p.el.style.transform = 'translate(' + p.sx.toFixed(1) + 'px,' + p.sy.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')';
         p.el.style.zIndex = isOn ? 150 : 10 + Math.round(t * 100);
       }
       if (on >= 0) {
