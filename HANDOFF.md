@@ -202,10 +202,12 @@ are the finished frame (reduced motion shows it).
   keyframes generated so every element leaves together.
 - **Benefits** (stage 440×440; 340×420 on phones; each tab has its own
   grained ground — aqua/lilac/sky/peach): News — person-first search
-  results that don't mention the school; a Bloomberg-logo article card, then an
+  results that don't mention the school; an Economist-logo article card (Bloomberg's
+  black wordmark read as UI — use colourful logos on article cards), then an
   "Analysing source and data…" spinner that resolves to "Analysis complete"
-  as three dark-ink checks tick (0.5/1.0/1.5s) and "Verified match" lands; alert routed down to Elena Vargas,
-  shared inbox greyed. Data Mine — Chris Doyle's record fields fill in;
+  as three dark-ink checks tick (0.5/1.0/1.5s) and "Verified match" lands; CNBC-logo alert routed down an
+  accent line labelled "Sent to" to gift officer Elena Vargas ("1 new"); the
+  shared-inbox card was removed. Data Mine — Chris Doyle's record fields fill in;
   two Chris Doyles, only the ID-matched one checks; "Approve" writes a note
   into the CRM while old entries are "Kept". Institutions — directory
   filters + results; event "Register" → "Registered", 18 → 19 going;
