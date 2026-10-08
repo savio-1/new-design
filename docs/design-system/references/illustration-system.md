@@ -174,7 +174,7 @@ Two things that only showed up once they were built:
   the tile the source's own aspect (~0.75-0.8) and the whole person reads.
 - **`av_n` is a face crop of `p_(n+1)`.** All three faces in the Corporates roster
   were the same people as cards 1-3 under different names. Check the crops, not the
-  filenames — and keep p3, p5 and p8 out of artwork entirely, since they sit beside
+  filenames — and keep p5 and p8 out of artwork entirely (p3 and p4 are deleted at the user's request), since they sit beside
   real named testimonial authors.
 
 ### 4.3 Hover-animated product cards
@@ -257,7 +257,7 @@ what made the earlier cards read as copy-paste.
 |---|---|---|---|
 | p1 | Dan Whitlock | p7 | Chris Doyle |
 | p2 | Rosa Keller | p9 | Elena Vargas |
-| p4 | Amara Boateng | p10 | Marcus Bell |
+| q2 | Amara Boateng | p10 | Marcus Bell |
 | p6 | Andre Diaz | p11 | Jonas Ek |
 
 `p3`, `p5` and `p8` are reserved — they stand in for the named testimonial authors and

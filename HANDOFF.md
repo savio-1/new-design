@@ -235,14 +235,23 @@ are the finished frame (reduced motion shows it).
 |---|---|---|---|
 | p1 | Dan Whitlock | p7 | Chris Doyle |
 | p2 | Rosa Keller | p9 | Elena Vargas |
-| p4 | Amara Boateng | p10 | Marcus Bell |
+| **q2** | Amara Boateng | p10 | Marcus Bell |
 | p6 | Andre Diaz | p11 | Jonas Ek |
 
-**p3, p5, p8 are reserved** — they stand in beside real named testimonial
-authors (Nicole Melmed, Christi Hendry, Katie Bokenkamp) and must never appear
-in artwork. `av_n.jpg` is a face crop of `p_(n+1).jpg` — same person; check
-crops, not filenames. All names, news lines and institutions in artwork are
-invented placeholders.
+**Removed at the user's request: p3 and p4** (the dark-haired woman and the
+woman with the afro). Their files (`p3`, `p4`, `av2`, `av3`) are deleted —
+never bring them back. Amara Boateng now uses q2.
+
+**q1–q12** are new portraits from the user's People-1/People-2 zips (Pexels
+and Unsplash), cropped to 500×625 with the head at ~34% of the frame height
+and its centre ~31% down. They fill the hero strip (16 distinct faces) and
+the anonymous slots (who's going, mentor row, Data Mine avatars). q12 also
+stands in beside Nicole Melmed's testimonial.
+
+**p5, p8 are reserved** for the real named testimonial authors (Christi
+Hendry, Katie Bokenkamp) and must never appear in artwork. `av_n.jpg` is a
+face crop of `p_(n+1).jpg`. All names, news lines and institutions in
+artwork are invented placeholders. Copy uses no em dashes (user request).
 
 ---
 

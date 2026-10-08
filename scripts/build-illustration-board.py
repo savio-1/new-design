@@ -27,9 +27,9 @@ def face(name, size=112):
 
 MARK = 'data:image/svg+xml;base64,' + base64.b64encode((ROOT / 'assets/logo/almac-green.svg').read_bytes()).decode()
 
-T = {k: tile(k) for k in ['p7', 'p11', 'p6', 'p2', 'p4', 'p8']}
+T = {k: tile(k) for k in ['p7', 'p11', 'p6', 'p2', 'q2', 'p8']}
 A = {k: tile(k, h=760, q=84) for k in ['p6', 'p11']}   # arch portraits, taller crop
-F = {k: face(k) for k in ['p7', 'p11', 'p6', 'p9', 'p10', 'p1', 'p2', 'p4', 'p8']}
+F = {k: face(k) for k in ['p7', 'p11', 'p6', 'p9', 'p10', 'p1', 'p2', 'q2', 'p8']}
 
 # ---------------------------------------------------------------- glyphs
 def sv(inner, w=24):
