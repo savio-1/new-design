@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Verdance Garden</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Manrope:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: one fixed WebGL garden behind a fixed, centred text stage; a tall spacer drives the camera and the word fades. */
+:root {
+  --night: #030504;        /* garden darkness, also the fog colour */
+  --ink: #f3eee4;          /* warm paper white for type */
+  --ink-dim: rgba(243, 238, 228, 0.62);
+  --glass: rgba(26, 30, 27, 0.55);
+  --glass-line: rgba(243, 238, 228, 0.14);
+  --pollen: #ffd98a;
+  --display: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --ui: "Manrope", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--night); color: var(--ink); }
+body {
+  font-family: var(--ui);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+::selection { background: rgba(255, 217, 138, 0.35); }
+
+#gl {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh; height: 100lvh;
+  display: block; z-index: 0;
+}
+.no-webgl #gl { display: none; }
+.no-webgl body, body.no-webgl {
+  background:
+    radial-gradient(60% 40% at 50% 85%, rgba(140, 90, 200, 0.35), transparent 70%),
+    radial-gradient(40% 35% at 80% 70%, rgba(255, 110, 70, 0.35), transparent 70%),
+    radial-gradient(40% 35% at 15% 65%, rgba(220, 80, 140, 0.3), transparent 70%),
+    var(--night);
+}
+
+/* curtain for the opening fade from black */
+#curtain {
+  position: fixed; inset: 0; z-index: 30; background: var(--night);
+  display: grid; place-items: center; pointer-events: none;
+  transition: opacity 1.6s cubic-bezier(.4, 0, .2, 1);
+}
+#curtain.gone { opacity: 0; }
+#curtain span {
+  font: 500 11px/1 var(--ui); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-dim);
+  transition: opacity .6s;
+}
+#curtain.gone span { opacity: 0; }
+
+/* header */
+.top {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 20;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) clamp(16px, 2.4vw, 32px) 0;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+  pointer-events: none;
+}
+.top > * { pointer-events: auto; }
+.mark {
+  justify-self: start; display: inline-flex; align-items: center; gap: 8px;
+  font: 800 clamp(18px, 1.55vw, 22px)/1 var(--ui); letter-spacing: -0.035em; color: var(--ink);
+  text-decoration: none;
+}
+.menu-btn {
+  justify-self: center;
+  font: 500 13px/1 var(--ui); letter-spacing: 0.01em; color: var(--ink);
+  background: var(--glass); border: 1px solid var(--glass-line); border-radius: 999px;
+  padding: 10px 18px; cursor: pointer;
+  backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  transition: background .3s, transform .3s cubic-bezier(.2, .8, .2, 1);
+}
+.menu-btn:hover { background: rgba(60, 66, 60, 0.6); transform: translateY(-1px); }
+.bloom-icon { justify-self: end; width: 30px; height: 30px; color: var(--ink); display: block; }
+.bloom-icon svg { width: 100%; height: 100%; display: block; transition: transform 1.2s cubic-bezier(.2, .8, .2, 1); }
+.bloom-icon:hover svg { transform: rotate(72deg); }
+:focus-visible { outline: 2px solid var(--pollen); outline-offset: 3px; }
+
+/* text stage */
+.stage {
+  position: fixed; inset: 0; z-index: 10; pointer-events: none;
+  display: grid; place-items: center; padding-inline: 20px;
+}
+.slide {
+  grid-area: 1 / 1; text-align: center; max-width: min(92vw, 980px);
+  display: flex; flex-direction: column; align-items: center; gap: clamp(18px, 2.4vh, 28px);
+}
+.slide h1, .slide h2 {
+  margin: 0; font-family: var(--display); font-weight: 300;
+  font-size: clamp(34px, 5.1vw, 76px); line-height: 1.12; letter-spacing: -0.012em;
+  font-variation-settings: "opsz" 60;
+  text-wrap: balance;
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.55), 0 0 2px rgba(0, 0, 0, 0.25);
+}
+.slide em { font-style: italic; font-weight: 300; }
+.slide .line { display: block; }
+.slide p {
+  margin: 0; max-width: 44ch; font: 400 clamp(14px, 1.1vw, 16px)/1.65 var(--ui); color: var(--ink-dim);
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.7); text-wrap: pretty;
+}
+.slide .eyebrow {
+  font: 500 11px/1 var(--ui); letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-dim);
+}
+.w {
+  display: inline-block; white-space: pre;
+  will-change: opacity, transform, filter;
+}
+.cta-row { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; justify-content: center; pointer-events: auto; }
+.cta {
+  font: 600 14px/1 var(--ui); color: #10140f; background: var(--ink); border: 0; border-radius: 999px;
+  padding: 15px 24px; cursor: pointer; text-decoration: none;
+  transition: transform .35s cubic-bezier(.2, .8, .2, 1), box-shadow .35s;
+}
+.cta:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(255, 217, 138, 0.25); }
+.mail { font: 500 14px/1 var(--ui); color: var(--ink); user-select: all; border-bottom: 1px solid var(--glass-line); padding-bottom: 4px; }
+
+/* footer chrome */
+.hud {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; pointer-events: none;
+  padding: 0 clamp(16px, 2.4vw, 32px) calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  font: 500 11px/1 var(--ui); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-dim);
+}
+.scroll-hint { display: flex; align-items: center; gap: 12px; transition: opacity .6s; }
+.scroll-hint i {
+  position: relative; width: 1px; height: 36px; background: rgba(243, 238, 228, 0.18); overflow: hidden; display: block;
+}
+.scroll-hint i::after {
+  content: ""; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: var(--ink);
+  animation: drip 2.2s cubic-bezier(.6, 0, .2, 1) infinite;
+}
+@keyframes drip { to { top: 110%; } }
+.chapter { display: flex; align-items: center; gap: 14px; font-variant-numeric: tabular-nums; }
+.chapter .bar { width: clamp(60px, 9vw, 120px); height: 1px; background: rgba(243, 238, 228, 0.18); position: relative; overflow: hidden; }
+.chapter .bar b { position: absolute; inset: 0; background: var(--ink); transform-origin: left; transform: scaleX(0); }
+
+/* menu overlay */
+.menu {
+  position: fixed; inset: 0; z-index: 25;
+  background: rgba(3, 5, 4, 0.55);
+  backdrop-filter: blur(22px) saturate(120%); -webkit-backdrop-filter: blur(22px) saturate(120%);
+  display: grid; place-items: center; padding-inline: 20px;
+  opacity: 0; visibility: hidden; transition: opacity .6s cubic-bezier(.4, 0, .2, 1), visibility 0s .6s;
+}
+.menu.open { opacity: 1; visibility: visible; transition: opacity .6s cubic-bezier(.4, 0, .2, 1); }
+.menu nav { display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1.4vh, 14px); }
+.menu a {
+  font: 300 clamp(36px, 6vw, 72px)/1.08 var(--display); color: var(--ink); text-decoration: none;
+  opacity: 0; transform: translateY(24px); filter: blur(10px);
+  transition: opacity .7s, transform .9s cubic-bezier(.2, .8, .2, 1), filter .7s, color .3s;
+}
+.menu a:hover { font-style: italic; }
+.menu.open a { opacity: 1; transform: none; filter: blur(0); }
+.menu.open a:nth-child(2) { transition-delay: .06s; }
+.menu.open a:nth-child(3) { transition-delay: .12s; }
+.menu.open a:nth-child(4) { transition-delay: .18s; }
+.menu.open a:nth-child(5) { transition-delay: .24s; }
+
+.spacer { height: 600vh; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .menu-btn { padding: 9px 15px; }
+  .chapter .label { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint i::after { animation: none; }
+  #curtain { transition-duration: .3s; }
+}
+</style>
+</head>
+<body>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="curtain"><span>Growing the garden</span></div>
+
+<header class="top">
+  <a class="mark" href="#top" aria-label="Verdance, back to top">verdance</a>
+  <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="menu">Menu</button>
+  <a class="bloom-icon" href="#top" aria-label="Verdance">
+    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+      <circle cx="16" cy="6.2" r="4.6"/><circle cx="25.3" cy="12.9" r="4.6"/><circle cx="21.8" cy="23.9" r="4.6"/>
+      <circle cx="10.2" cy="23.9" r="4.6"/><circle cx="6.7" cy="12.9" r="4.6"/><circle cx="16" cy="16" r="3.3" fill="#030504"/>
+    </svg>
+  </a>
+</header>
+
+<main class="stage" id="stage">
+  <section class="slide" data-i="0" id="top">
+    <h1><span class="line">Digital craft</span><span class="line">for a <em>regenerative</em> future</span></h1>
+  </section>
+  <section class="slide" data-i="1">
+    <span class="eyebrow">Studio</span>
+    <h2><span class="line">We design living systems</span><span class="line">that <em>grow</em> with people</span></h2>
+    <p>Strategy, product and brand for organisations working on climate, health and the land we share.</p>
+  </section>
+  <section class="slide" data-i="2">
+    <span class="eyebrow">Approach</span>
+    <h2><span class="line">Rooted in research,</span><span class="line">shaped by <em>curiosity</em></span></h2>
+    <p>Every project starts in the field: interviews, working prototypes and honest measurement before a single pixel is polished.</p>
+  </section>
+  <section class="slide" data-i="3">
+    <span class="eyebrow">Practice</span>
+    <h2><span class="line">Technology that gives back</span><span class="line"><em>more</em> than it takes</span></h2>
+    <p>Low-carbon builds, accessible by default, and made to last a decade rather than a season.</p>
+  </section>
+  <section class="slide" data-i="4">
+    <span class="eyebrow">Contact</span>
+    <h2><span class="line">Let’s grow</span><span class="line">something <em>together</em></span></h2>
+    <div class="cta-row">
+      <a class="cta" href="#contact" id="ctaBtn">Start a project</a>
+      <span class="mail">hello@verdance.studio</span>
+    </div>
+  </section>
+</main>
+
+<div class="hud">
+  <div class="scroll-hint" id="hint"><i></i><span>Scroll to wander</span></div>
+  <div class="chapter"><span class="label" id="chapterLabel">Hero</span><span class="bar"><b id="bar"></b></span><span id="chapterNum">01 / 05</span></div>
+</div>
+
+<div class="menu" id="menu" aria-hidden="true">
+  <nav>
+    <a href="#" data-go="0">Home</a>
+    <a href="#" data-go="1">Studio</a>
+    <a href="#" data-go="2">Approach</a>
+    <a href="#" data-go="3">Practice</a>
+    <a href="#" data-go="4">Contact</a>
+  </nav>
+</div>
+
+<div class="spacer" aria-hidden="true"></div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+
+/* ------------------------------------------------------------------ *
+ *  Shared helpers
+ * ------------------------------------------------------------------ */
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isSmall = Math.min(innerWidth, innerHeight) < 700 || /Mobi|Android/i.test(navigator.userAgent);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+
+// deterministic RNG so the garden is the same on every visit
+let seed = 1337;
+const rand = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const rr = (a, b) => a + (b - a) * rand();
+
+// 2D value noise
+const P = new Uint8Array(512);
+{ const p = [...Array(256).keys()]; for (let i = 255; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; } for (let i = 0; i < 512; i++) P[i] = p[i & 255]; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const h = (i, j) => P[(P[(xi + i) & 255] + yi + j) & 255] / 255;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  return lerp(lerp(h(0, 0), h(1, 0), u), lerp(h(0, 1), h(1, 1), u), v);
+}
+const fbm = (x, y) => vnoise(x, y) * 0.55 + vnoise(x * 2.1, y * 2.1) * 0.3 + vnoise(x * 4.3, y * 4.3) * 0.15;
+
+/* ------------------------------------------------------------------ *
+ *  Scroll + text choreography (runs even without WebGL)
+ * ------------------------------------------------------------------ */
+const slides = [...document.querySelectorAll(".slide")];
+const N = slides.length;
+const names = ["Hero", "Studio", "Approach", "Practice", "Contact"];
+
+// split every text node in the slide into word spans, keeping <em> intact
+slides.forEach(slide => {
+  const words = [];
+  const walk = node => {
+    [...node.childNodes].forEach(ch => {
+      if (ch.nodeType === 3) {
+        const parts = ch.textContent.split(/(\s+)/).filter(Boolean);
+        const frag = document.createDocumentFragment();
+        parts.forEach(part => {
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+          const s = document.createElement("span"); s.className = "w"; s.textContent = part;
+          frag.appendChild(s); words.push(s);
+        });
+        ch.replaceWith(frag);
+      } else if (ch.nodeType === 1 && !ch.classList.contains("cta-row")) walk(ch);
+      else if (ch.nodeType === 1) { ch.classList.add("w"); words.push(ch); }
+    });
+  };
+  walk(slide);
+  slide._words = words;
+});
+
+let target = 0, current = 0;
+const readScroll = () => {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  target = max > 0 ? clamp(scrollY / max, 0, 1) : 0;
+};
+addEventListener("scroll", readScroll, { passive: true });
+addEventListener("resize", readScroll);
+readScroll(); current = target;
+
+const centers = slides.map((_, i) => i / (N - 1));
+const SPAN = 0.5 / (N - 1);       // half distance between slide centres
+const IN0 = SPAN * 0.92, IN1 = SPAN * 0.28;   // fade-in from (c-IN0) to (c-IN1)
+
+function renderText(p) {
+  slides.forEach((slide, i) => {
+    const c = centers[i], words = slide._words, n = words.length;
+    let any = false;
+    words.forEach((w, k) => {
+      const lag = (k / Math.max(1, n - 1)) * SPAN * 0.32;
+      // fade in: words arrive left to right
+      let tin = i === 0 ? 1 : clamp((p - (c - IN0) - lag) / (IN0 - IN1 - SPAN * 0.32), 0, 1);
+      // fade out: words leave left to right as well, drifting upwards
+      let tout = i === N - 1 ? 0 : clamp((p - (c + IN1) - lag) / (IN0 - IN1 - SPAN * 0.32), 0, 1);
+      tin = easeOut(tin); tout = tout * tout;
+      const o = tin * (1 - tout);
+      const y = (1 - tin) * 28 - tout * 34;
+      const blur = (1 - tin) * 14 + tout * 12;
+      const sc = 1 - (1 - tin) * 0.04 + tout * 0.03;
+      w.style.opacity = o.toFixed(3);
+      w.style.transform = `translate3d(0,${y.toFixed(2)}px,0) scale(${sc.toFixed(4)})`;
+      w.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "none";
+      if (o > 0.02) any = true;
+    });
+    slide.style.visibility = any ? "visible" : "hidden";
+    const cta = slide.querySelector(".cta-row");
+    if (cta) cta.style.pointerEvents = any ? "auto" : "none";
+  });
+  const idx = clamp(Math.round(p * (N - 1)), 0, N - 1);
+  chapterNum.textContent = `${String(idx + 1).padStart(2, "0")} / ${String(N).padStart(2, "0")}`;
+  chapterLabel.textContent = names[idx];
+  bar.style.transform = `scaleX(${p.toFixed(4)})`;
+  hint.style.opacity = p > 0.02 ? 0 : 1;
+}
+
+// menu
+const menu = document.getElementById("menu"), menuBtn = document.getElementById("menuBtn");
+const setMenu = open => {
+  menu.classList.toggle("open", open); menu.setAttribute("aria-hidden", String(!open));
+  menuBtn.setAttribute("aria-expanded", String(open)); menuBtn.textContent = open ? "Close" : "Menu";
+};
+menuBtn.addEventListener("click", () => setMenu(!menu.classList.contains("open")));
+addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });
+const goTo = i => {
+  const max = document.documentElement.scrollHeight - innerHeight;
+  scrollTo({ top: centers[i] * max, behavior: reduceMotion ? "auto" : "smooth" });
+};
+menu.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); setMenu(false); goTo(+a.dataset.go); }));
+document.querySelectorAll('a[href="#top"]').forEach(a => a.addEventListener("click", e => { e.preventDefault(); goTo(0); }));
+document.getElementById("ctaBtn").addEventListener("click", e => e.preventDefault());
+
+/* ------------------------------------------------------------------ *
+ *  WebGL garden
+ * ------------------------------------------------------------------ */
+const canvas = document.getElementById("gl");
+const curtain = document.getElementById("curtain");
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: "high-performance" });
+} catch (e) { renderer = null; }
+
+if (!renderer || !renderer.capabilities.isWebGL2) {
+  document.documentElement.classList.add("no-webgl"); document.body.classList.add("no-webgl");
+  curtain.classList.add("gone");
+  const loop = () => { current = lerp(current, target, 0.12); renderText(current); requestAnimationFrame(loop); };
+  loop();
+} else {
+  startGarden();
+}
+
+function startGarden() {
+  const FAR = 260;
+  const L = 210;                  // length of the walk through the garden
+  const Z0 = 10;                  // camera z at scroll 0
+  const pathX = z => Math.sin(z * 0.043) * 3.2 + Math.sin(z * 0.017 + 1.3) * 4.5;
+  const NIGHT = new THREE.Color(0x030504);
+
+  let pr = Math.min(devicePixelRatio || 1, isSmall ? 1.5 : 1.5);
+  renderer.setPixelRatio(pr);
+  renderer.setSize(innerWidth, innerHeight, false);
+  renderer.setClearColor(NIGHT, 1);
+  renderer.autoClear = false;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(isSmall && innerWidth < innerHeight ? 62 : 46, innerWidth / innerHeight, 0.1, FAR);
+
+  /* ---------- procedural atlas: 4 x 2 cells, R = shade, G = centre mask, A = alpha ---------- */
+  const CELL = 256, atlasCanvas = document.createElement("canvas");
+  atlasCanvas.width = CELL * 4; atlasCanvas.height = CELL * 2;
+  const g = atlasCanvas.getContext("2d");
+  const R = CELL * 0.46;
+  const petalGrad = (r0, r1, a, b) => {
+    const gr = g.createRadialGradient(0, 0, r0, 0, 0, r1);
+    gr.addColorStop(0, `rgb(${a},0,0)`); gr.addColorStop(1, `rgb(${b},0,0)`); return gr;
+  };
+  const cellAt = (i, fn) => {
+    g.save(); g.translate((i % 4) * CELL + CELL / 2, Math.floor(i / 4) * CELL + CELL / 2); fn(); g.restore();
+  };
+  const ringOfPetals = (count, dist, rx, ry, a, b, rot = 0, rimDark = 0) => {
+    for (let k = 0; k < count; k++) {
+      g.save(); g.rotate(rot + (k / count) * Math.PI * 2);
+      g.fillStyle = petalGrad(0, dist + ry, a, b);
+      g.beginPath(); g.ellipse(0, -dist, rx, ry, 0, 0, Math.PI * 2); g.fill();
+      if (rimDark) { g.strokeStyle = `rgb(${rimDark},0,0)`; g.lineWidth = 2.5; g.stroke(); }
+      // veins
+      g.strokeStyle = `rgba(${Math.round(a * 0.8)},0,0,0.55)`; g.lineWidth = 1.4;
+      for (let v = -1; v <= 1; v++) { g.beginPath(); g.moveTo(0, -dist + ry * 0.6); g.quadraticCurveTo(v * rx * 0.35, -dist, v * rx * 0.5, -dist - ry * 0.7); g.stroke(); }
+      g.restore();
+    }
+  };
+  const centre = (r, shade = 140) => {
+    const gr = g.createRadialGradient(-r * 0.3, -r * 0.3, 0, 0, 0, r);
+    gr.addColorStop(0, `rgb(${shade + 80},255,0)`); gr.addColorStop(1, `rgb(${shade - 60},255,0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
+    g.fillStyle = `rgb(255,255,0)`;
+    for (let k = 0; k < 14; k++) { const a = rand() * 6.28, d = rand() * r * 0.7; g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, r * 0.09, 0, 6.28); g.fill(); }
+  };
+  // 0: five-petal (geranium / viola)
+  cellAt(0, () => { ringOfPetals(5, R * 0.5, R * 0.4, R * 0.52, 120, 255, 0.2, 150); centre(R * 0.15); });
+  // 1: daisy
+  cellAt(1, () => { ringOfPetals(18, R * 0.55, R * 0.085, R * 0.44, 170, 255); centre(R * 0.24, 150); });
+  // 2: ranunculus / rose, layered
+  cellAt(2, () => {
+    ringOfPetals(9, R * 0.55, R * 0.34, R * 0.42, 150, 255, 0, 120);
+    ringOfPetals(7, R * 0.36, R * 0.3, R * 0.32, 110, 215, 0.4, 90);
+    ringOfPetals(5, R * 0.2, R * 0.22, R * 0.22, 80, 170, 0.9, 70);
+    g.fillStyle = "rgb(70,0,0)"; g.beginPath(); g.arc(0, 0, R * 0.12, 0, 6.28); g.fill();
+  });
+  // 3: cluster of tiny florets (phlox / verbena)
+  cellAt(3, () => {
+    const pts = [[0, 0]]; for (let k = 0; k < 7; k++) { const a = k / 7 * 6.28 + 0.3; pts.push([Math.cos(a) * R * 0.6, Math.sin(a) * R * 0.6]); }
+    for (let k = 0; k < 5; k++) { const a = rand() * 6.28; pts.push([Math.cos(a) * R * 0.32, Math.sin(a) * R * 0.32]); }
+    pts.forEach(([x, y]) => { g.save(); g.translate(x, y); g.scale(0.36, 0.36); ringOfPetals(5, R * 0.5, R * 0.42, R * 0.5, 140, 255, rand() * 6, 130); g.fillStyle = "rgb(200,255,0)"; g.beginPath(); g.arc(0, 0, R * 0.12, 0, 6.28); g.fill(); g.restore(); });
+  });
+  // 4: cosmos, eight broad petals
+  cellAt(4, () => { ringOfPetals(8, R * 0.52, R * 0.25, R * 0.48, 140, 255, 0.1, 130); centre(R * 0.17, 160); });
+  // 5: star (borage / campanula)
+  cellAt(5, () => {
+    for (let k = 0; k < 5; k++) {
+      g.save(); g.rotate(k / 5 * 6.28); g.fillStyle = petalGrad(0, R, 130, 255);
+      g.beginPath(); g.moveTo(-R * 0.22, 0); g.quadraticCurveTo(-R * 0.3, -R * 0.55, 0, -R * 0.98); g.quadraticCurveTo(R * 0.3, -R * 0.55, R * 0.22, 0); g.closePath(); g.fill();
+      g.strokeStyle = "rgba(110,0,0,0.6)"; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -R * 0.1); g.lineTo(0, -R * 0.85); g.stroke();
+      g.restore();
+    }
+    centre(R * 0.13, 200);
+  });
+  // 6, 7: leaves, base at the bottom of the cell
+  const leaf = (w, h) => {
+    g.translate(0, CELL * 0.48);
+    const gr = g.createLinearGradient(0, 0, 0, -h); gr.addColorStop(0, "rgb(90,0,0)"); gr.addColorStop(1, "rgb(255,0,0)");
+    g.fillStyle = gr; g.beginPath(); g.moveTo(0, 0);
+    g.bezierCurveTo(-w, -h * 0.25, -w * 0.85, -h * 0.8, 0, -h);
+    g.bezierCurveTo(w * 0.85, -h * 0.8, w, -h * 0.25, 0, 0); g.fill();
+    g.strokeStyle = "rgb(70,0,0)"; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(w * 0.08, -h * 0.5, 0, -h * 0.97); g.stroke();
+    g.lineWidth = 1.5; g.strokeStyle = "rgba(120,0,0,0.7)";
+    for (let k = 1; k < 7; k++) { const y = -h * k / 7.5; for (const s of [-1, 1]) { g.beginPath(); g.moveTo(0, y); g.quadraticCurveTo(s * w * 0.35, y - h * 0.03, s * w * 0.6, y - h * 0.12); g.stroke(); } }
+  };
+  cellAt(6, () => leaf(CELL * 0.36, CELL * 0.94));
+  cellAt(7, () => leaf(CELL * 0.18, CELL * 0.95));
+
+  const atlas = new THREE.CanvasTexture(atlasCanvas);
+  atlas.colorSpace = THREE.NoColorSpace;
+  atlas.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  atlas.generateMipmaps = true; atlas.minFilter = THREE.LinearMipmapLinearFilter;
+
+  /* ---------- garden layout ---------- */
+  const zones = [
+    // hero: coral, vermilion, rose, a few violets (the opening frame of the reference)
+    { petals: ["#ff6a3d", "#ff8f5e", "#f2557a", "#e84a8a", "#8e6ee0", "#f3c64a", "#ffb3a0"], types: [2, 0, 3, 0, 5, 1, 2] },
+    // violas and buttercups
+    { petals: ["#7d5ce0", "#9b7ff2", "#6340c4", "#b79cff", "#f5c542", "#ffd75e", "#e8dcff"], types: [0, 0, 5, 3, 1, 4, 3] },
+    // moon garden: whites and pale blues
+    { petals: ["#f6f2e8", "#e6ecff", "#aec4ff", "#7f9cf5", "#fff3c9", "#ffffff", "#c9b6ff"], types: [1, 1, 4, 5, 3, 0, 3] },
+    // magenta and rose
+    { petals: ["#ff4fa3", "#d93a8a", "#ff86c2", "#ffc2df", "#a3307f", "#ff6b6b", "#f7e1ea"], types: [2, 4, 0, 3, 2, 4, 1] },
+    // amber dusk
+    { petals: ["#ffb02e", "#ff7a1a", "#ffd36b", "#ff5d3a", "#e04e2a", "#fff0b8", "#b36ef0"], types: [1, 4, 2, 0, 3, 1, 5] },
+  ];
+  const zoneLen = L / (zones.length - 1);
+  const zoneAt = z => clamp((Z0 - z) / zoneLen, 0, zones.length - 1);
+
+  function groundH(x, z) {
+    const ax = Math.abs(x - pathX(z));
+    const n = fbm(x * 0.07 + 30, z * 0.07);
+    const bed = smooth(1.4, 6.5, ax) * (3.6 + 3.2 * n);
+    const outer = smooth(7.5, 17, ax) * (3.5 + 3.5 * fbm(x * 0.03, z * 0.03 + 9));
+    return bed + outer + (n - 0.5) * 0.5;
+  }
+  const bushH = (x, z) => 0.7 + 1.4 * fbm(x * 0.18, z * 0.18 + 40);
+
+  const nFlowers = isSmall ? 80000 : 170000;
+  const nLeaves = isSmall ? 100000 : 210000;
+  const total = nFlowers + nLeaves;
+  const aOffset = new Float32Array(total * 3), aQuat = new Float32Array(total * 4), aScale = new Float32Array(total * 2);
+  const aColor = new Float32Array(total * 3), aColor2 = new Float32Array(total * 3), aMisc = new Float32Array(total * 4);
+  const Zaxis = new THREE.Vector3(0, 0, 1), nrm = new THREE.Vector3(), q = new THREE.Quaternion(), spin = new THREE.Quaternion(), col = new THREE.Color(), col2 = new THREE.Color();
+  const zMin = Z0 - L - 90, zMax = Z0 + 14, halfW = 17;
+
+  const sampleXZ = () => {
+    // more plants near the walk, rejection sampling on a clump mask leaves dark gaps
+    for (;;) {
+      const z = rr(zMin, zMax);
+      const u = rand() * 2 - 1;
+      const x = pathX(z) + Math.sign(u) * Math.pow(Math.abs(u), 1.1) * halfW;
+      const clump = fbm(x * 0.22 + 7, z * 0.22);
+      if (rand() < smooth(0.2, 0.55, clump) * 0.8 + 0.2) return [x, z];
+    }
+  };
+
+  let i = 0;
+  // leaves first (they occupy the volume of each bush)
+  for (let k = 0; k < nLeaves; k++, i++) {
+    const [x, z] = sampleXZ();
+    const gH = groundH(x, z), bh = bushH(x, z), t = Math.pow(rand(), 0.7);
+    aOffset.set([x, gH + t * bh - 0.15, z], i * 3);
+    const yaw = rand() * 6.28, tilt = rr(0.25, 1.25);
+    nrm.set(Math.sin(yaw) * Math.sin(tilt), Math.cos(tilt) * 0.35, Math.cos(yaw) * Math.sin(tilt)).normalize();
+    q.setFromUnitVectors(Zaxis, nrm); spin.setFromAxisAngle(Zaxis, rr(-0.6, 0.6)); q.multiply(spin);
+    aQuat.set([q.x, q.y, q.z, q.w], i * 4);
+    const s = rr(0.24, 0.48);
+    aScale.set([s * rr(0.8, 1.1), s * rr(1.6, 2.4)], i * 2);
+    col.setHSL(rr(0.2, 0.36), rr(0.35, 0.65), rr(0.06, 0.2));
+    if (rand() < 0.08) col.offsetHSL(rr(-0.06, 0.02), 0, 0.06);
+    aColor.set([col.r, col.g, col.b], i * 3); aColor2.set([0, 0, 0], i * 3);
+    aMisc.set([rand() < 0.65 ? 6 : 7, rand() * 6.28, 0.25 + 0.75 * t, 0], i * 4);
+  }
+  // flowers on top of the foliage
+  for (let k = 0; k < nFlowers; k++, i++) {
+    let x, z;
+    for (;;) { [x, z] = sampleXZ(); if (rand() < smooth(0.3, 0.58, fbm(x * 0.14 - 50, z * 0.14 + 20)) * 0.97 + 0.03) break; }
+    const gH = groundH(x, z), bh = bushH(x, z);
+    const zf = zoneAt(z);
+    // blend between neighbouring zones so colours drift instead of stepping
+    let zi = Math.floor(zf); if (rand() < smooth(0.55, 1.0, zf - zi)) zi = Math.min(zi + 1, zones.length - 1);
+    const zone = zones[zi];
+    // drifts: a low-frequency field picks the species so colours clump together
+    const field = fbm(x * 0.09 + zi * 13.1, z * 0.09 - zi * 7.7);
+    let pick = Math.floor(clamp(field * 1.6 - 0.3, 0, 0.999) * zone.petals.length);
+    if (rand() < 0.22) pick = Math.floor(rand() * zone.petals.length);
+    const type = zone.types[pick];
+    const top = rand() < 0.86;
+    const y = gH + bh * (top ? rr(0.82, 1.12) : rr(0.35, 0.8));
+    aOffset.set([x, y, z], i * 3);
+    // faces turn up and slightly toward the walker
+    nrm.set(rr(-0.45, 0.45), 1, rr(-0.1, 0.6) + (x - pathX(z)) * -0.02).normalize();
+    nrm.x += (pathX(z) - x) * 0.025; nrm.normalize();
+    q.setFromUnitVectors(Zaxis, nrm); spin.setFromAxisAngle(Zaxis, rand() * 6.28); q.multiply(spin);
+    aQuat.set([q.x, q.y, q.z, q.w], i * 4);
+    const base = 0.72 * (type === 3 ? rr(0.4, 0.66) : type === 1 ? rr(0.24, 0.38) : type === 2 ? rr(0.26, 0.42) : rr(0.18, 0.33)) * (rand() < 0.08 ? 1.5 : 1);
+    aScale.set([base, base], i * 2);
+    col.set(zone.petals[pick]); col.offsetHSL(rr(-0.015, 0.015), rr(-0.08, 0.04), rr(-0.07, 0.05));
+    aColor.set([col.r, col.g, col.b], i * 3);
+    if (type === 1 || type === 4) col2.set(rand() < 0.8 ? "#f2b705" : "#5a3410");
+    else if (type === 2) col2.copy(col).multiplyScalar(0.45);
+    else if (type === 5) col2.set("#f4f0ff");
+    else if (type === 3) col2.set("#fff6dc");
+    else col2.set(rand() < 0.6 ? "#ffd34d" : "#2b1530");
+    aColor2.set([col2.r, col2.g, col2.b], i * 3);
+    aMisc.set([type, rand() * 6.28, top ? rr(0.8, 1.0) : rr(0.45, 0.75), 1], i * 4);
+  }
+
+  const geo = new THREE.InstancedBufferGeometry();
+  const plane = new THREE.PlaneGeometry(1, 1);
+  geo.index = plane.index; geo.setAttribute("position", plane.getAttribute("position")); geo.setAttribute("uv", plane.getAttribute("uv"));
+  geo.setAttribute("aOffset", new THREE.InstancedBufferAttribute(aOffset, 3));
+  geo.setAttribute("aQuat", new THREE.InstancedBufferAttribute(aQuat, 4));
+  geo.setAttribute("aScale", new THREE.InstancedBufferAttribute(aScale, 2));
+  geo.setAttribute("aColor", new THREE.InstancedBufferAttribute(aColor, 3));
+  geo.setAttribute("aColor2", new THREE.InstancedBufferAttribute(aColor2, 3));
+  geo.setAttribute("aMisc", new THREE.InstancedBufferAttribute(aMisc, 4));
+  geo.instanceCount = total;
+
+  const plantMat = new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: {
+      uAtlas: { value: atlas }, uTime: { value: 0 }, uWind: { value: reduceMotion ? 0 : 1 },
+      uFog: { value: new THREE.Vector3(NIGHT.r, NIGHT.g, NIGHT.b) }, uFar: { value: FAR },
+      uFogDensity: { value: 0.033 }, uCam: { value: new THREE.Vector3() },
+    },
+    vertexShader: /* glsl */`
+      attribute vec3 aOffset; attribute vec4 aQuat; attribute vec2 aScale;
+      attribute vec3 aColor; attribute vec3 aColor2; attribute vec4 aMisc;
+      uniform float uTime, uWind;
+      varying vec2 vUv; varying vec3 vColor, vColor2; varying float vShade, vDepth, vKind;
+      vec3 qrot(vec4 q, vec3 v){ return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }
+      void main(){
+        float kind = aMisc.w;
+        vec3 p = vec3(position.xy * aScale, 0.0);
+        if (kind < 0.5) p.y += 0.5 * aScale.y;           // leaves pivot at their base
+        p = qrot(aQuat, p);
+        vec3 wp = aOffset + p;
+        float tip = kind < 0.5 ? uv.y : 1.0;
+        float ph = aMisc.y + aOffset.x * 0.21 + aOffset.z * 0.13;
+        float gust = sin(uTime * 0.35 + aOffset.z * 0.04) * 0.5 + 0.5;
+        vec2 sway = vec2(sin(uTime * 1.25 + ph) + 0.4 * sin(uTime * 2.7 + ph * 1.7),
+                         cos(uTime * 1.05 + ph * 0.8)) * (0.035 + 0.06 * gust);
+        wp.xz += sway * tip * uWind * (0.6 + aMisc.z);
+        wp.y += sin(uTime * 1.6 + ph) * 0.012 * uWind * kind;
+        vec3 n = qrot(aQuat, vec3(0.0, 0.0, 1.0));
+        vec3 L = normalize(vec3(-0.25, 0.9, 0.55));
+        float lambert = abs(dot(n, L));
+        vShade = (0.42 + 0.78 * lambert) * aMisc.z * (1.0 + 0.15 * kind);
+        vec4 mv = modelViewMatrix * vec4(wp, 1.0);
+        vDepth = -mv.z;
+        gl_Position = projectionMatrix * mv;
+        float idx = aMisc.x;
+        vec2 cell = vec2(mod(idx, 4.0), floor(idx / 4.0));
+        vUv = vec2((cell.x + uv.x) / 4.0, (uv.y + (1.0 - cell.y)) / 2.0);
+        vColor = aColor; vColor2 = aColor2; vKind = kind;
+      }`,
+    fragmentShader: /* glsl */`
+      uniform sampler2D uAtlas; uniform vec3 uFog; uniform float uFar, uFogDensity;
+      varying vec2 vUv; varying vec3 vColor, vColor2; varying float vShade, vDepth, vKind;
+      void main(){
+        vec4 t = texture2D(uAtlas, vUv);
+        if (t.a < 0.5) discard;
+        vec3 petal = vColor * (0.28 + 0.9 * t.r);
+        vec3 c = mix(petal, vColor2 * (0.45 + 0.7 * t.r), t.g * vKind);
+        c *= vShade;
+        // a touch of translucency on flowers so they glow against the dark foliage
+        c += vColor * 0.1 * vKind * t.r;
+        float fog = 1.0 - exp(-pow(vDepth * uFogDensity, 1.55));
+        c = mix(c, uFog, clamp(fog, 0.0, 1.0));
+        gl_FragColor = vec4(c, clamp(vDepth / uFar, 0.0, 1.0));
+      }`,
+  });
+  const plants = new THREE.Mesh(geo, plantMat);
+  plants.frustumCulled = false;
+  scene.add(plants);
+
+  // dark ground under everything so gaps read as soil, not void
+  const groundGeo = new THREE.PlaneGeometry(70, L + 120, 70, 220);
+  groundGeo.rotateX(-Math.PI / 2);
+  const gp = groundGeo.getAttribute("position");
+  for (let v = 0; v < gp.count; v++) {
+    const z = gp.getZ(v) + (Z0 - L / 2 - 30); const xl = gp.getX(v); const x = xl + pathX(z);
+    gp.setXYZ(v, x, groundH(x, z) - 0.2, z);
+  }
+  groundGeo.computeVertexNormals();
+  const groundMat = new THREE.ShaderMaterial({
+    uniforms: plantMat.uniforms,
+    vertexShader: `varying float vDepth; varying vec3 vW; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vDepth = -mv.z; vW = position; gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: `uniform vec3 uFog; uniform float uFar, uFogDensity; varying float vDepth; varying vec3 vW;
+      void main(){ vec3 c = vec3(0.02, 0.038, 0.018) * (0.7 + 0.3 * sin(vW.x * 3.1) * sin(vW.z * 2.7));
+        float fog = 1.0 - exp(-pow(vDepth * uFogDensity, 1.55)); c = mix(c, uFog, clamp(fog,0.0,1.0));
+        gl_FragColor = vec4(c, clamp(vDepth / uFar, 0.0, 1.0)); }`,
+  });
+  scene.add(new THREE.Mesh(groundGeo, groundMat));
+
+  /* ---------- floating pollen, drawn after the lens pass with fake bokeh ---------- */
+  const nPollen = isSmall ? 1400 : 2600;
+  const pPos = new Float32Array(nPollen * 3), pSeed = new Float32Array(nPollen * 4);
+  for (let k = 0; k < nPollen; k++) {
+    const z = rr(zMin + 30, zMax), x = pathX(z) + rr(-13, 13) * (rand() < 0.7 ? 0.6 : 1);
+    pPos.set([x, groundH(pathX(z), z) + rr(0.6, 8.5), z], k * 3);
+    pSeed.set([rand() * 6.28, rr(0.4, 1.4), rand(), rand()], k * 4);
+  }
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute("position", new THREE.BufferAttribute(pPos, 3));
+  pGeo.setAttribute("aSeed", new THREE.BufferAttribute(pSeed, 4));
+  const pollenMat = new THREE.ShaderMaterial({
+    transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: {
+      uTime: { value: 0 }, uPR: { value: pr }, uFocus: { value: 15 }, uAperture: { value: 1 },
+      uScene: { value: null }, uRes: { value: new THREE.Vector2() }, uFar: { value: FAR }, uFade: { value: 0 },
+    },
+    vertexShader: /* glsl */`
+      attribute vec4 aSeed; uniform float uTime, uPR, uFocus, uAperture;
+      varying float vAlpha, vBlur, vDepth; varying vec3 vCol;
+      void main(){
+        vec3 p = position;
+        float t = uTime * aSeed.y;
+        p.x += sin(t * 0.31 + aSeed.x) * 0.9 + sin(t * 0.77 + aSeed.x * 2.0) * 0.25;
+        p.y += sin(t * 0.23 + aSeed.x * 1.3) * 0.7;
+        p.z += cos(t * 0.27 + aSeed.x) * 0.9;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        float d = -mv.z; vDepth = d;
+        float coc = abs(d - uFocus) / max(d, 0.1) * uAperture;
+        vBlur = clamp(coc, 0.0, 1.0);
+        float size = (0.9 + aSeed.z * 1.6) * uPR * (36.0 / d) * (1.0 + coc * 5.0);
+        gl_PointSize = clamp(size, 1.0, 90.0 * uPR);
+        float twinkle = 0.65 + 0.35 * sin(uTime * (1.0 + aSeed.w * 2.0) + aSeed.x * 4.0);
+        vAlpha = twinkle * smoothstep(90.0, 20.0, d) * smoothstep(0.8, 2.5, d) / (1.0 + coc * coc * 14.0);
+        vCol = mix(vec3(1.0, 0.93, 0.78), vec3(1.0, 0.78, 0.5), aSeed.w);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */`
+      uniform sampler2D uScene; uniform vec2 uRes; uniform float uFar, uFade;
+      varying float vAlpha, vBlur, vDepth; varying vec3 vCol;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5; float r = length(c) * 2.0;
+        if (r > 1.0) discard;
+        float soft = mix(1.0 - smoothstep(0.0, 1.0, r), smoothstep(1.0, 0.82, r) * (0.55 + 0.45 * smoothstep(0.5, 0.95, r)), vBlur);
+        float sceneD = texture2D(uScene, gl_FragCoord.xy / uRes).a * uFar;
+        float vis = smoothstep(vDepth - 0.4, vDepth + 0.6, sceneD);
+        gl_FragColor = vec4(vCol * soft * vAlpha * vis * uFade * 0.9, 1.0);
+      }`,
+  });
+  const pollen = new THREE.Points(pGeo, pollenMat);
+  pollen.frustumCulled = false;
+  const pollenScene = new THREE.Scene(); pollenScene.add(pollen);
+
+  /* ---------- lens: half-res bokeh gather + full-res composite ---------- */
+  const fsTri = new THREE.BufferGeometry();
+  fsTri.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+  const fsCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const fsVert = `varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+  const cocGLSL = /* glsl */`
+    uniform float uFocus, uAperture, uEdge, uMaxBlur, uFar, uAspect;
+    float cocAt(float d, vec2 uv){
+      float c = abs(d - uFocus) / max(d, 0.001) * uAperture;
+      vec2 e = (uv - 0.5) * vec2(uAspect, 1.0);
+      c += smoothstep(0.32, 0.95, length(e)) * uEdge;     // lens falloff toward the frame edges
+      return clamp(c, 0.0, uMaxBlur);
+    }`;
+
+  const rtType = THREE.HalfFloatType;
+  const sceneRT = new THREE.WebGLRenderTarget(1, 1, { type: rtType, samples: 4, depthBuffer: true, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  const blurRT = new THREE.WebGLRenderTarget(1, 1, { type: rtType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+
+  const lensUniforms = {
+    tScene: { value: sceneRT.texture }, tBlur: { value: blurRT.texture },
+    uRes: { value: new THREE.Vector2() }, uFocus: { value: 15 }, uAperture: { value: 9 }, uEdge: { value: 10 },
+    uMaxBlur: { value: 26 }, uFar: { value: FAR }, uAspect: { value: 1 }, uScale: { value: 0.5 },
+    uTime: { value: 0 }, uFade: { value: 0 },
+  };
+  const dofMat = new THREE.ShaderMaterial({
+    uniforms: lensUniforms, vertexShader: fsVert, depthTest: false, depthWrite: false,
+    fragmentShader: /* glsl */`
+      uniform sampler2D tScene; uniform vec2 uRes; uniform float uScale;
+      varying vec2 vUv;
+      ${cocGLSL}
+      #define GOLDEN 2.39996323
+      #define RAD 1.15
+      void main(){
+        vec4 c0 = texture2D(tScene, vUv);
+        float cd = c0.a * uFar;
+        float cs = cocAt(cd, vUv) * uScale;
+        vec3 col = c0.rgb; float tot = 1.0; float fg = 0.0; float fgN = 1.0;
+        float radius = RAD; float ang = 0.0;
+        float maxR = uMaxBlur * uScale;
+        for (int i = 0; i < 200; i++) {
+          if (radius >= maxR) break;
+          vec2 tc = vUv + vec2(cos(ang), sin(ang)) * radius / uRes;
+          vec4 s = texture2D(tScene, tc);
+          float sd = s.a * uFar;
+          float ss = cocAt(sd, tc) * uScale;
+          if (sd > cd) ss = clamp(ss, 0.0, cs * 2.0);
+          float m = smoothstep(radius - 0.5, radius + 0.5, ss);
+          col += mix(col / tot, s.rgb, m);
+          tot += 1.0;
+          if (sd < cd - 0.5) { fg += m * smoothstep(1.0, 3.0, ss); }
+          fgN += 1.0;
+          ang += GOLDEN; radius += RAD / radius;
+        }
+        gl_FragColor = vec4(col / tot, clamp(fg / fgN * 2.2, 0.0, 1.0));
+      }`,
+  });
+  const compMat = new THREE.ShaderMaterial({
+    uniforms: lensUniforms, vertexShader: fsVert, depthTest: false, depthWrite: false,
+    fragmentShader: /* glsl */`
+      uniform sampler2D tScene, tBlur; uniform vec2 uRes; uniform float uTime, uFade;
+      varying vec2 vUv;
+      ${cocGLSL}
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main(){
+        vec4 s = texture2D(tScene, vUv);
+        vec4 b = texture2D(tBlur, vUv);
+        float c = cocAt(s.a * uFar, vUv);
+        float f = max(smoothstep(0.8, 3.2, c), b.a);
+        vec3 col = mix(s.rgb, b.rgb, f);
+        // soft halation from the blurred layer
+        col += b.rgb * b.rgb * 0.55 + b.rgb * 0.04;
+        // grade: lift shadows toward green-black, gentle s-curve, a little saturation
+        float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        col = mix(vec3(l), col, 1.02);
+        col = col / (1.0 + col * 0.18);
+        col = pow(max(col, 0.0), vec3(0.94));
+        col += vec3(0.006, 0.009, 0.007);
+        // vignette with a darker sky band at the top, like a lens looking into the walk
+        vec2 e = (vUv - 0.5) * vec2(uAspect, 1.0);
+        col *= mix(1.0, smoothstep(1.15, 0.25, length(e)), 0.65);
+        col *= mix(0.55, 1.0, smoothstep(1.0, 0.6, vUv.y));
+        col *= 1.08;
+        // keep the headline zone a touch darker for legibility
+        col *= 1.0 - 0.28 * exp(-pow(length((vUv - vec2(0.5, 0.5)) * vec2(1.6, 3.2)), 2.0));
+        // film grain
+        float gr = hash(gl_FragCoord.xy + fract(uTime * 7.31) * 517.0) - 0.5;
+        col += gr * 0.045 * (0.4 + 0.6 * (1.0 - l));
+        gl_FragColor = vec4(col * uFade, 1.0);
+      }`,
+  });
+  const dofQuad = new THREE.Mesh(fsTri, dofMat); dofQuad.frustumCulled = false;
+  const compQuad = new THREE.Mesh(fsTri, compMat); compQuad.frustumCulled = false;
+  const dofScene = new THREE.Scene(); dofScene.add(dofQuad);
+  const compScene = new THREE.Scene(); compScene.add(compQuad);
+
+  function resize() {
+    const w = innerWidth, h = innerHeight;
+    renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
+    const W = Math.round(w * pr), H = Math.round(h * pr);
+    sceneRT.setSize(W, H);
+    blurRT.setSize(Math.max(1, Math.round(W / 2)), Math.max(1, Math.round(H / 2)));
+    camera.aspect = w / h;
+    camera.fov = w < h ? 62 : 46;
+    camera.updateProjectionMatrix();
+    lensUniforms.uAspect.value = w / h;
+    lensUniforms.uMaxBlur.value = 26 * pr * Math.min(1.25, Math.max(0.7, h / 900));
+    lensUniforms.uAperture.value = 8.5 * pr * Math.min(1.25, Math.max(0.7, h / 900));
+    lensUniforms.uEdge.value = 9 * pr * Math.min(1.25, Math.max(0.7, h / 900));
+    pollenMat.uniforms.uPR.value = pr * Math.max(0.7, h / 900);
+    pollenMat.uniforms.uRes.value.set(W, H);
+  }
+  addEventListener("resize", resize);
+  resize();
+
+  /* ---------- camera choreography ---------- */
+  const mouse = { x: 0, y: 0, sx: 0, sy: 0 };
+  addEventListener("pointermove", e => { mouse.x = e.clientX / innerWidth * 2 - 1; mouse.y = e.clientY / innerHeight * 2 - 1; }, { passive: true });
+  const camPos = new THREE.Vector3(), look = new THREE.Vector3();
+  const pathGround = z => groundH(pathX(z), z);
+
+  const clock = new THREE.Clock();
+  let introT = reduceMotion ? 1 : 0, frames = 0, acc = 0, quality = 0;
+  const prSteps = [pr, Math.min(pr, 1.25), 1, 0.85, 0.7];
+
+  // let the curtain lift once the first frame is on screen
+  requestAnimationFrame(() => requestAnimationFrame(() => curtain.classList.add("gone")));
+
+  function frame() {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+    introT = Math.min(1, introT + dt / 3.2);
+    const intro = easeOut(introT);
+
+    current = reduceMotion ? target : lerp(current, target, 1 - Math.pow(0.0009, dt));
+    if (Math.abs(current - target) < 1e-5) current = target;
+    renderText(current);
+
+    mouse.sx = lerp(mouse.sx, mouse.x, 1 - Math.pow(0.02, dt));
+    mouse.sy = lerp(mouse.sy, mouse.y, 1 - Math.pow(0.02, dt));
+
+    // walk: scroll moves the camera, plus a slow breathing drift so the garden never freezes
+    const drift = reduceMotion ? 0 : Math.sin(t * 0.18) * 0.9 + t * 0.0;
+    const z = Z0 - current * L - drift + (1 - intro) * 9;
+    const ground = pathGround(z);
+    const h = 5.2 + (1 - intro) * 2.6 + Math.sin(t * 0.4) * 0.08;
+    camPos.set(pathX(z) + mouse.sx * 0.7, ground + h - mouse.sy * 0.35, z);
+    const lz = z - 15;
+    look.set(pathX(lz) + mouse.sx * 0.35, pathGround(lz) - 0.5 - (1 - intro) * 1.5, lz);
+    camera.position.copy(camPos);
+    camera.lookAt(look);
+    camera.rotateZ(Math.sin(t * 0.21) * 0.006 - mouse.sx * 0.012);
+
+    const focus = camPos.distanceTo(look) * 0.92;
+    lensUniforms.uFocus.value = focus; pollenMat.uniforms.uFocus.value = focus;
+    pollenMat.uniforms.uAperture.value = 0.9;
+    plantMat.uniforms.uTime.value = t;
+    pollenMat.uniforms.uTime.value = t;
+    lensUniforms.uTime.value = t;
+    const fade = smooth(0, 0.6, introT);
+    lensUniforms.uFade.value = fade; pollenMat.uniforms.uFade.value = fade;
+    pollenMat.uniforms.uScene.value = sceneRT.texture;
+
+    renderer.setRenderTarget(sceneRT); renderer.clear(); renderer.render(scene, camera);
+    lensUniforms.uRes.value.set(blurRT.width, blurRT.height);
+    renderer.setRenderTarget(blurRT); renderer.render(dofScene, fsCam);
+    lensUniforms.uRes.value.set(sceneRT.width, sceneRT.height);
+    renderer.setRenderTarget(null); renderer.clear(); renderer.render(compScene, fsCam);
+    renderer.render(pollenScene, camera);
+
+    // adaptive resolution: step down if frames are consistently slow
+    frames++; acc += dt;
+    if (frames === 90) {
+      if (acc / frames > 1 / 40 && quality < prSteps.length - 1) { quality++; pr = prSteps[quality]; resize(); }
+      frames = 0; acc = 0;
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+</script>
+</body>
+</html>
