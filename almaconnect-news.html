@@ -1,3 +1,9 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- Without this a phone lays the page out at 980px and scales the result
+     down, so every breakpoint below that never fires. The artifact host
+     injects its own; a page served from news.almaconnect.com would not. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>AlmaConnect News</title>
 <meta name="description" content="AlmaConnect News monitors 400,000+ sources for your alumni and donors, verifies every match, and alerts the right gift officer. Prospect monitoring for advancement teams." />
 <link rel="canonical" href="https://news.almaconnect.com/" />
@@ -1108,6 +1114,21 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   .mega { padding-left: 40px; flex-direction: column; }
   .mega__feature { width: 100%; }
 }
+/* On a phone the bar had the logo, Log in and a full-size CTA competing for
+   326px of usable width and ran 36px past the viewport. Everything comes in
+   a step, and below 420 the Log in link stands down — it is in the footer,
+   and the CTA is what the bar is for. */
+@media (max-width: 560px) {
+  .nav__bar { padding-inline: 16px; }
+  .nav__logo img { height: 26px; }
+  .nav__login { font-size: 15px; padding: 10px 8px; }
+  .btn--nav { height: 42px; padding-inline: 18px; font-size: 15px; }
+  .nav__right { gap: 6px; }
+}
+@media (max-width: 420px) {
+  .nav__login { display: none; }
+}
+
 
 /* ============================================================ HERO
    The globe is the thesis: AlmaConnect News finds your people wherever
@@ -1245,7 +1266,14 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 /* At and below the 1160px stacking breakpoint the globe sits behind the
    copy, so a card that tracks its marker lands on top of the CTA. Pinned to
    the foot of the stage it keeps the content without colliding. */
-.gtag.is-pinned { left: 0; top: auto; bottom: 10px; width: min(320px, 100%); transform: none !important; }
+/* the stage runs edge to edge — left:0 would put the card against the
+   screen, half a gutter outside every other block on the page */
+.gtag.is-pinned {
+  left: max(var(--page-margin), calc((100vw - var(--container)) / 2));
+  top: auto; bottom: 10px;
+  width: min(320px, calc(100vw - 2 * var(--page-margin)));
+  transform: none !important;
+}
 .gtag--aqua  { --gwash: linear-gradient(150deg, #ffffff 0%, #ecfbf8 54%, #d3f2ec 100%); }
 .gtag--lilac { --gwash: linear-gradient(150deg, #ffffff 0%, #f9f4fe 54%, #e6d9f9 100%); }
 .gtag--sky   { --gwash: linear-gradient(150deg, #ffffff 0%, #f1f7fe 54%, #daeafc 100%); }
@@ -1860,14 +1888,14 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 .pricing__grid { display: grid; grid-template-columns: 6fr 5fr; gap: 72px; align-items: center; }
 .pricecard { background: var(--ground); border-radius: var(--r-panel); padding: 44px 44px 40px; transition: border-radius 0.35s var(--ease); }
 .pricecard:hover { border-radius: 0; }
-.pricecard__from { margin: 0; font-family: var(--font-body); font-size: 14px; letter-spacing: -0.03em; color: var(--ink-45); }
+.pricecard__from { margin: 0; font-family: var(--font-body); font-size: 14px; letter-spacing: -0.03em; color: var(--ink-65); }
 .pricecard__num { display: block; margin-top: 10px; }
 .pricecard__num sub { font-family: var(--font-body); font-size: 20px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink-45); vertical-align: baseline; }
 .pricecard__cap { margin: 8px 0 0; font-family: var(--font-body); font-size: 16px; letter-spacing: -0.03em; color: var(--ink-65); }
 .pricecard hr { border: 0; border-top: 1px solid var(--hairline); margin: 28px 0 4px; }
 .pricecard ul { margin: 0; padding: 0; list-style: none; }
 .pricecard li { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; font-family: var(--font-body); font-size: 16px; letter-spacing: -0.03em; }
-.pricecard li span:first-child { color: var(--ink-65); }
+.pricecard li span:first-child { color: var(--ink-80); }
 .pricecard li span:last-child { color: var(--ink); }
 
 /* ============================================================ SECURITY
@@ -1892,7 +1920,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   font-family: var(--font-display); font-size: 24px; font-weight: 400;
   line-height: 1.22; letter-spacing: -0.03em; color: var(--ink);
 }
-.faq__q .plus { margin-left: auto; flex: none; width: 22px; height: 22px; color: var(--ink-45); transition: rotate 0.35s var(--ease), color 0.2s ease; }
+.faq__q .plus { margin-left: auto; flex: none; width: 22px; height: 22px; color: var(--ink-65); transition: rotate 0.35s var(--ease), color 0.2s ease; }
 .faq__row.is-open .faq__q .plus { rotate: 45deg; color: var(--accent-dark); }
 .faq__a { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s var(--ease); }
 .faq__row.is-open .faq__a { grid-template-rows: 1fr; }
@@ -1959,6 +1987,59 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .foot__grid { grid-template-columns: 1fr; }
   .foot__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; }
 }
+/* ---- the comparison table on a phone -----------------------------------
+   780px of table in a 390px viewport scrolled sideways with no affordance:
+   the Google Alerts column was entirely off-screen and nothing said so.
+   Below 760 the table stops being a grid and each row becomes a card —
+   the row label as its heading, then the two answers stacked and labelled
+   from data-col. It stays a real <table> in the markup, which the copy
+   deck requires and which is what gets extracted. */
+@media (max-width: 760px) {
+  .tablewrap { overflow-x: visible; }
+  table.vs { min-width: 0; display: block; }
+  .vs thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .vs tbody, .vs tbody tr, .vs tbody th, .vs tbody td { display: block; width: auto; }
+  .vs tbody tr {
+    border: 1px solid var(--hairline); border-radius: var(--r-card);
+    padding: 18px 18px 6px; margin-bottom: 14px; background: var(--surface);
+  }
+  .vs tbody tr:last-child { margin-bottom: 0; }
+  .vs tbody th {
+    padding: 0 0 14px; width: auto; color: var(--ink);
+    font-family: var(--font-display); font-size: 20px; line-height: 1.25; letter-spacing: -0.03em;
+  }
+  .vs tbody th { border: 0; }
+  /* the 42% column width and the row rules belong to the grid, not the cards */
+  .vs td, .vs td.us, .vs tbody tr:last-child td { width: auto; padding: 12px 14px; border: 0; border-radius: 10px; margin-bottom: 12px; }
+  .vs td::before {
+    content: attr(data-col); display: block; margin-bottom: 4px;
+    font-family: var(--font-body); font-size: 12px; letter-spacing: -0.03em;
+  }
+  /* the product answer keeps the dark ground it has on desktop; the aurora
+     is a two-cell effect that cannot survive the stack, so it is dropped
+     rather than half-applied */
+  .vs td.us, .vs tbody tr:last-child td.us { background: var(--deep); color: #fff; border-radius: 10px; }
+  .vs td.us::before { color: var(--accent-lift); }
+  .vs td.them { background: var(--panel); color: var(--ink-80); }
+  .vs td.them::before { color: var(--ink-65); }
+}
+
+/* ---- touch targets ----------------------------------------------------
+   Measured on a 390px viewport: the arrow links stood 25px tall, the
+   carousel arrows 38 and the footer links 19. None is comfortable under a
+   thumb, and none of this changes how they look — the box grows around the
+   same text. It lives down here because the rules it overrides are defined
+   below the nav block, where an earlier copy of it lost on source order. */
+@media (max-width: 920px) {
+  .link-arrow { min-height: 44px; }
+  .tstm__arrow { width: 44px; height: 44px; }
+  /* min-height alone gives a one-line link its air and a wrapped one none,
+     so a two-line item runs straight into the next */
+  .foot__col a { display: inline-flex; align-items: center; min-height: 40px; padding-block: 5px; }
+  .foot__col li + li { margin-top: 2px; }
+  .nav__logo { padding-block: 9px; }
+}
+
 @media (max-width: 920px) {
   .sec, .problem, .hiw, .detail, .compare, .duo,
   .monitor, .tstm, .pricing, .faq { padding-block: 80px; }
@@ -1976,8 +2057,59 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 }
 @media (max-width: 620px) {
   .problem__body p { font-size: 20px; }
-    .hiw__slide { padding: 32px 20px; min-height: 0; }
+  .hiw__slide { padding: 32px 20px; min-height: 0; }
+  /* 28px of card padding inside a 24px page gutter puts the figure 52px from
+     the screen edge on a phone — the card reads as inset twice */
+  .bars { --barpad: 20px; }
+  /* 384px of artwork over a 342px card is a square of mostly empty ground;
+     the orbit's 132px radius still clears the edges at 300 */
+  .dcard__visual { height: 300px; }
+  .dcard__copy { padding: 24px 24px 32px; }
+  /* 44px of inset either side leaves the blocker's label 94px — "Mid-
+     conversion" breaks in half next to a pill that never wraps */
+  .blockers { padding: 24px 16px; gap: 10px; }
+  .blocker { padding: 14px 14px; gap: 10px; }
+  /* 44px of card inset leaves each half of the price row ~110px, and both
+     the label and the value break mid-phrase; stack them instead */
+  .pricecard { padding: 32px 24px 28px; }
+  .pricecard li { display: block; padding: 10px 0; }
+  .pricecard li span { display: block; }
+  .pricecard li span:first-child { font-size: 14px; margin-bottom: 2px; }
+  /* margin-left:auto sends the link to the far right once the row wraps,
+     leaving it alone on a line against the right edge */
+  .security__inner .link-arrow { margin-left: 0; white-space: normal; }
+  .security__inner { gap: 28px; }
+  /* 48px of right padding is a third of the answer's measure on a phone */
+  .faq__a p { padding-right: 0; }
+  /* once the two buttons wrap they stack at their own label widths and the
+     pair reads ragged; one column at a shared width instead */
+  .close__cta { flex-direction: column; align-items: stretch; gap: 10px; }
+  .close__cta .btn { width: 100%; }
   /* the FAQ question stays on the Geist 24 step — the ladder has no 20 */
+}
+
+/* The results band's artwork is built at a desktop measure: 44px of frame
+   padding leaves a phone 254px of stage, and every fixed width inside it
+   (the 190px feed, the pill beside a 48px portrait) then eats more than the
+   stage has. Below this the pieces lay out down the page instead of across. */
+@media (max-width: 560px) {
+  .art { padding: 28px 20px; min-height: 0; }
+  /* the pill drops to a line of its own and the caption under it */
+  .tier { flex-wrap: wrap; row-gap: 10px; padding: 14px; }
+  .tier__who { flex: 1 1 140px; }
+  .tier__desc { flex: 1 1 100%; order: 3; }
+  .tier .pill { order: 2; }
+  /* 190px of feed plus a 28px gutter leaves the officer list 36px, and the
+     frame clips it — one column, and the connector rules go with it */
+  .hub { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .hub__feed { width: auto; }
+  .hub__list::before, .hub__row::before { display: none; }
+  /* publication and timestamp are two flex items: the name wraps inside its
+     own box and the timestamp lands alone under it */
+  .rescard { padding: 18px 16px 14px; }
+  .rescard__src { display: block; }
+  .rescard__who { flex-wrap: wrap; row-gap: 10px; }
+  .rescard__route { margin-left: 0; flex: 1 1 100%; text-align: left; }
 }
 
 /* ============================================================ REDUCED MOTION */
@@ -2545,16 +2677,16 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
           </tr>
         </thead>
         <tbody>
-          <tr><th scope="row">Sources</th><td class="us">400,000+ news and public-data sources</td><td class="them">A limited public index</td></tr>
-          <tr><th scope="row">What it searches</th><td class="us">Each constituent, by name plus employer, education, location and spouse</td><td class="them">Keywords you type by hand</td></tr>
-          <tr><th scope="row">Disambiguation</th><td class="us">Every match verified against your constituent database and graded by confidence</td><td class="them">None — every John Smith matches</td></tr>
-          <tr><th scope="row">Duplicate stories</th><td class="us">One story from six outlets arrives as one result</td><td class="them">Six separate emails</td></tr>
-          <tr><th scope="row">Scale</th><td class="us">300 to 300,000 constituents monitored</td><td class="them">Practical limit of a few dozen alerts</td></tr>
-          <tr><th scope="row">Categorisation</th><td class="us">11 categories, including obituary alerts, job changes and financial filings</td><td class="them">None</td></tr>
-          <tr><th scope="row">Routing</th><td class="us">Results go to the gift officer who owns the prospect</td><td class="them">One inbox</td></tr>
-          <tr><th scope="row">CRM</th><td class="us">Written to Raiser&rsquo;s Edge NXT, Salesforce or Ellucian on approval</td><td class="them">Manual copy and paste</td></tr>
-          <tr><th scope="row">Relevance</th><td class="us">Flag a result in plain English; results adapt for the team</td><td class="them">Rebuild the alert</td></tr>
-          <tr><th scope="row">Cost</th><td class="us">From $4,000 a year, unlimited users</td><td class="them">Free</td></tr>
+          <tr><th scope="row">Sources</th><td class="us" data-col="AlmaConnect News">400,000+ news and public-data sources</td><td class="them" data-col="Google Alerts">A limited public index</td></tr>
+          <tr><th scope="row">What it searches</th><td class="us" data-col="AlmaConnect News">Each constituent, by name plus employer, education, location and spouse</td><td class="them" data-col="Google Alerts">Keywords you type by hand</td></tr>
+          <tr><th scope="row">Disambiguation</th><td class="us" data-col="AlmaConnect News">Every match verified against your constituent database and graded by confidence</td><td class="them" data-col="Google Alerts">None — every John Smith matches</td></tr>
+          <tr><th scope="row">Duplicate stories</th><td class="us" data-col="AlmaConnect News">One story from six outlets arrives as one result</td><td class="them" data-col="Google Alerts">Six separate emails</td></tr>
+          <tr><th scope="row">Scale</th><td class="us" data-col="AlmaConnect News">300 to 300,000 constituents monitored</td><td class="them" data-col="Google Alerts">Practical limit of a few dozen alerts</td></tr>
+          <tr><th scope="row">Categorisation</th><td class="us" data-col="AlmaConnect News">11 categories, including obituary alerts, job changes and financial filings</td><td class="them" data-col="Google Alerts">None</td></tr>
+          <tr><th scope="row">Routing</th><td class="us" data-col="AlmaConnect News">Results go to the gift officer who owns the prospect</td><td class="them" data-col="Google Alerts">One inbox</td></tr>
+          <tr><th scope="row">CRM</th><td class="us" data-col="AlmaConnect News">Written to Raiser&rsquo;s Edge NXT, Salesforce or Ellucian on approval</td><td class="them" data-col="Google Alerts">Manual copy and paste</td></tr>
+          <tr><th scope="row">Relevance</th><td class="us" data-col="AlmaConnect News">Flag a result in plain English; results adapt for the team</td><td class="them" data-col="Google Alerts">Rebuild the alert</td></tr>
+          <tr><th scope="row">Cost</th><td class="us" data-col="AlmaConnect News">From $4,000 a year, unlimited users</td><td class="them" data-col="Google Alerts">Free</td></tr>
         </tbody>
       </table>
     </div>
