@@ -18,7 +18,7 @@ Last updated 2026-10-07 — all four product-card hover animations built.
 | Build | `python3 scripts/build-home.py` |
 | Live homepage (artifact) | https://claude.ai/artifact/Uy7WfWmyWdeuYsQvkcd7U6 (older form: `https://claude.ai/code/artifact/e27c6863-2000-46f4-bdf7-a037cc551a6b`) — private to the user |
 | Illustration board (artifact) | https://claude.ai/code/artifact/c7c71d5f-ec62-4096-b254-83d48ff91765 — built by `scripts/build-illustration-board.py` → `dist/illustration-system.html` |
-| Figma homepage | https://www.figma.com/design/wPFGlGLF2kGdcC06My35za/Website?node-id=49-2 — page "AlmaConnect — Homepage" (`45:2`), wrapper frame `49:2`. Page 1 is the AngelList reference; do not touch it. |
+| Figma homepage | **Current:** https://www.figma.com/design/PBFDyLHrj2bROH2fh5lCPm/Cogentiq-design-system--Copy-?node-id=4038-152 (page `4038:112`: desktop `4038:152`, mobile `4038:277`, assets `4038:278`; see §8b). Older first draft: `wPFGlGLF2kGdcC06My35za` frame `49:2` (§8). |
 | Design-system skill bundle | `dist/almaconnect-design/` (`SKILL.md`, `CONTEXT.md`, `almaconnect.css`, `references/*.md`) → zipped as `dist/almaconnect-design.zip`. Mirrored to `docs/design-system/`. |
 | Verify the card animations | `NODE_PATH=/opt/node22/lib/node_modules node scripts/verify-cards.js` |
 | Install real fonts locally | `bash scripts/setup-fonts.sh` (run once per container) |
@@ -298,36 +298,61 @@ connection drops between calls; reload tools via ToolSearch and continue.
 
 ---
 
-## 8b. Figma build #2 (file otQ54rVHiFpo0fjqcKI6z7, in progress)
+## 8b. Figma build #2 (current): file PBFDyLHrj2bROH2fh5lCPm
 
-User asked (2026-10-08) for the homepage in this file at 1440 with proper
-auto-layout, plus a mobile design after a mobile pass on the site.
-**Blocked:** the file's team is on Figma **Starter**, which allows only
-**20 MCP tool calls per month**; the limit was hit mid-build. Resume needs a
-paid seat (Pro/Org Full or Dev seat = 200/day), or the file moved into a
-paid team, or next month's allowance.
+**This is the live Figma homepage.** https://www.figma.com/design/PBFDyLHrj2bROH2fh5lCPm/Cogentiq-design-system--Copy-?node-id=4038-152
+The first attempt (file `otQ54rVHiFpo0fjqcKI6z7`) hit Figma Starter's
+20-MCP-calls-a-month limit. The user pasted that progress into this file and
+the build was finished here.
 
-State on page `6:2` (renamed "AlmaConnect Homepage"):
-- Variables: `AlmaConnect / Color` (37) and `AlmaConnect / Layout`
-  (desktop/* and mobile/* spacing + radius/*; Starter allows 1 mode only,
-  so desktop and mobile are separate variables, not modes). 23 text styles
-  (Desktop/*, Mobile/*, Heading/*, Body/*, UI/*, Art/*).
-- `33:92` Components & assets board: 27 image fills (hashes saved in the
-  session scratchpad; re-read from `img/*` rects), Logo/* and News/*
-  components, Button set `35:38` (Primary/Light/Outline/Ghost × L/M/S),
-  Pill `35:39`, Logo Cell `35:41`, Stat `35:43`, Accordion Row `35:53`,
-  Nav Link `35:54`, Art/Chip, Art/Check `35:59`, Art/Plus `35:62`,
-  Cert/SOC/GDPR/DPF, Mark/AlmaConnect Hex, product art components
-  Art/News `38:35`, Art/Data Mine `38:60`, Art/Institutions `39:39`,
-  Art/Corporates `39:61`.
-- `33:90` Desktop 1440 (vertical auto-layout): Nav `36:13`, Hero `36:32`
-  (staircase), Trusted `36:47`, Products `39:96`, Problem `40:180`,
-  Solution `40:185` — **known bug:** the Solution intro paragraph renders
-  dark/overlapping (set it to white 88%, width 420, auto height) and the
-  heading should be 700 wide so it stays on two lines.
-- Still to build on desktop: Benefits, Testimonials + stats, Duo, Close,
-  Footer. Then the whole `33:91` Mobile 390 frame (mirror the site's mobile
-  layout: burger nav, hero strip, 2-up logos, stacked cards, 2×2 stats).
+**Leave the Cogentiq pages and variables alone.** The file is a copy of the
+Cogentiq design system. Everything AlmaConnect lives on page `4038:112`:
+- `4038:152` **Desktop 1440**. Vertical auto-layout, about 7788 tall. Nav,
+  Hero (staircase), Trusted by, Products, Problem, Solution, Benefits
+  `4041:175`, Testimonials `4041:331`, Integrations + privacy `4042:295`,
+  Closing CTA `4042:358`, Footer `4042:362`.
+- `4038:277` **Mobile 390**. Vertical auto-layout, about 12084 tall. It
+  mirrors the site at 390px:
+  - Nav `4045:334`: burger plus Book a demo.
+  - Hero `4045:346`: portrait strip in place of the staircase.
+  - Trusted `4045:362`: 2-up wordmarks.
+  - Products `4045:389`: stacked cards, art instances at 342.
+  - Problem `4045:561`.
+  - Solution `4048:489`: all three cards open, scenes on the 280×300
+    phone stage, the same layout as `.ill--s` at 620px and below.
+  - Benefits `4048:746`: 2×2 tabs, accordion, link, then the 342×415
+    person-first visual. The CTO chip is dropped, as on the site.
+  - Testimonials `4051:746`: stacked actions, a text-only 336 card with
+    a peek, and 2×2 stats with the number first in Mobile/Stat 36.
+  - Integrations + privacy `4051:800`: stacked cards with 320px visuals.
+  - Closing CTA `4051:863`: padding 140/110.
+  - Footer `4051:867`: brand, then a 2-up link grid.
+- `4038:278` **Components & assets**:
+  - img/* rects carry the photo hashes.
+  - Logo/* and News/* components.
+  - Button set `4038:473`, Pill `4038:498`, Logo Cell `4038:500`,
+    Stat `4038:502`, Accordion Row `4038:505`.
+  - Art/Chip `4038:516`, Art/Check `4038:518`.
+  - Cert/* `4038:524/530/545`, Mark/AlmaConnect Hex `4038:557`.
+  - Art/News `4038:561`, Art/Data Mine `4038:584`, Art/Institutions
+    `4038:637`, Art/Corporates `4038:657`.
+- **Variables and styles.** Collections are named `AlmaConnect*`, and text
+  styles are prefixed `AlmaConnect/`. They are single-mode, so desktop/* and
+  mobile/* spacing are separate variables. Section side padding binds to
+  `desktop/page-margin` or `mobile/page-margin`.
+
+**Gotchas learned here:**
+- `setBoundVariableForPaint` **drops the paint's opacity**. Spread the
+  result and set opacity afterwards:
+  `[{ ...figma.variables.setBoundVariableForPaint({type:'SOLID', color: <resolved>, opacity: 1}, 'color', v), opacity: op }]`.
+  Even then, one frame fill still kept opacity 1 and was re-set. Check the
+  result in a screenshot.
+- Always put the variable's **resolved** colour in the base paint. A black
+  base renders black when the binding misbehaves.
+- `resize()` resets auto-layout sizing to FIXED. Set
+  `primaryAxisSizingMode = 'AUTO'` again afterwards.
+- Accordion instances need their text set to FILL plus HEIGHT so they wrap
+  at 342.
 
 ## 9. How to verify (the habit that mattered most)
 
