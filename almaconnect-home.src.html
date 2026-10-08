@@ -2938,7 +2938,7 @@ button, input, select, textarea, td, th {
   .problem__body p { font-size: 20px; }
   .solution__inner { padding: 48px 24px; gap: 48px; min-height: 0; }
   .solution__top { flex-direction: column; gap: 20px; }
-  .solution__cards { flex-direction: column; height: auto; }
+  .solution__cards { flex-direction: column; height: auto; align-items: stretch; }
   .scard, .scard--shot.is-open { height: auto; padding: 24px; }
   .scard--shot .scard__shot { height: 232px; opacity: 1; }
   .scard p { opacity: 1; max-height: none; margin-bottom: 12px; }
@@ -2996,6 +2996,80 @@ button, input, select, textarea, td, th {
   .pcard__media { aspect-ratio: 4 / 3; }
 }
 
+
+/* ============ mobile pass: menu sheet, hero portrait strip, and fixes
+   found by auditing the page at 390 and 768px ============ */
+.nav__burger { display: none; }
+.nav__sheet { display: none; }
+.hero__strip { display: none; }
+@media (max-width: 1000px) {
+  .nav__burger {
+    display: grid; place-content: center; gap: 6px;
+    width: 44px; height: 44px; border-radius: 10px; border: 0; cursor: pointer;
+    background: rgba(4, 48, 43, 0.06); color: var(--ink);
+  }
+  .nav__burger span { display: block; width: 18px; height: 2px; border-radius: 2px; background: currentColor; transition: transform 0.3s var(--ease); }
+  .nav.is-menu .nav__burger span:first-child { transform: translateY(4px) rotate(45deg); }
+  .nav.is-menu .nav__burger span:last-child { transform: translateY(-4px) rotate(-45deg); }
+  .nav__right { gap: 8px; }
+  .nav__sheet {
+    display: flex; flex-direction: column;
+    position: absolute; left: 16px; right: 16px; top: calc(var(--nav-h) + 12px);
+    padding: 8px 20px 20px; border-radius: 16px; background: #fff;
+    box-shadow: 0 24px 60px rgba(4, 48, 43, 0.18);
+    opacity: 0; visibility: hidden; translate: 0 -8px;
+    transition: opacity 0.25s ease, translate 0.3s var(--ease), visibility 0.25s;
+  }
+  .nav.is-menu .nav__sheet { opacity: 1; visibility: visible; translate: 0 0; }
+  .nav__sheetlink {
+    display: flex; align-items: center; height: 56px;
+    border-bottom: 1px solid var(--hairline);
+    font-family: var(--font-display); font-size: 24px; font-weight: 400; letter-spacing: -0.03em; color: var(--ink);
+  }
+  .nav__sheetfoot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+  .nav__sheetfoot .btn { justify-content: center; }
+  .btn--ghost { height: 44px; padding-inline: 20px; border-radius: 10px; background: var(--panel); color: var(--ink); font-size: 16px; display: inline-flex; align-items: center; }
+}
+@media (max-width: 420px) {
+  .nav__right > .btn--nav { padding-inline: 16px; font-size: 14px; height: 40px; }
+  .nav__burger { width: 40px; height: 40px; }
+}
+@media (max-width: 920px) {
+  /* the staircase is desktop-only; phones get a slow strip of faces */
+  .hero__strip {
+    display: block; position: relative; z-index: 2; overflow: hidden;
+    order: 2; margin-top: 32px; padding-inline: var(--page-margin);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  .hero__striptrack { display: flex; gap: 10px; width: max-content; animation: heroStrip 26s ease-in-out infinite alternate; }
+  .hero__striptrack img { width: 116px; height: 145px; border-radius: 12px; object-fit: cover; object-position: 50% 25%; display: block; }
+  .hero__pin { padding-bottom: 56px; flex-direction: column; align-items: stretch; }
+  /* solution titles clear the round icon */
+  .scard h3 { padding-right: 60px; }
+}
+@keyframes heroStrip { to { translate: calc(-100% + 100vw - 2 * var(--page-margin)) 0; } }
+@media (max-width: 700px) {
+  /* wordmarks wrap and step down instead of clipping in the 2-up grid */
+  .tcell__logo { white-space: normal; line-height: 1.15; padding: 10px 10px; }
+  .wm-serif, .wm-ital, .wm-light { font-size: 14px; }
+  .wm-slab { font-size: 15px; }
+  .wm-sans { font-size: 13px; }
+  .wm-caps { font-size: 11px; letter-spacing: 0.08em; }
+}
+@media (max-width: 900px) {
+  /* stats: label sits right on its number, rows breathe instead */
+  .tstats { row-gap: 40px; }
+  .tstat { min-height: 0; justify-content: flex-end; gap: 10px; flex-direction: column-reverse; }
+  .tstat__num { font-size: 36px; white-space: nowrap; }
+  .tstat__label { font-size: 14px; }
+}
+@media (max-width: 560px) {
+  /* the artwork is drawn for a 3:4 frame; a landscape crop cut it off */
+  .pcard__media { aspect-ratio: 3 / 4; }
+}
+@media (prefers-reduced-motion: reduce) { .hero__striptrack { animation: none; } }
+
 @media (prefers-reduced-motion: reduce) {
   .shine::after { animation: none; opacity: 0; }
   .bw { opacity: 1; filter: none; translate: 0 0; transition: none; }
@@ -3047,8 +3121,20 @@ button, input, select, textarea, td, th {
     <div class="nav__right">
       <a class="nav__login" data-plain href="#login">Log in</a>
       <a class="btn btn--nav" data-plain href="#demo">Book a demo</a>
+      <button class="nav__burger" type="button" aria-expanded="false" aria-controls="navSheet" aria-label="Open menu"><span></span><span></span></button>
     </div>
   </div>
+
+  <nav class="nav__sheet" id="navSheet" aria-label="Main">
+    <a class="nav__sheetlink" href="#products">Products</a>
+    <a class="nav__sheetlink" href="#customers">Customers</a>
+    <a class="nav__sheetlink" href="#pricing">Pricing</a>
+    <a class="nav__sheetlink" href="#company">Company</a>
+    <div class="nav__sheetfoot">
+      <a class="btn btn--ghost" data-plain href="#login">Log in</a>
+      <a class="btn btn--nav" data-plain href="#demo">Book a demo</a>
+    </div>
+  </nav>
 
   <div class="nav__panelwrap">
     <div class="nav__panel">
@@ -3118,6 +3204,9 @@ button, input, select, textarea, td, th {
   <section class="hero">
     <div class="hero__pin">
     <div class="hero__stack" id="heroStack" aria-hidden="true"></div>
+    <div class="hero__strip" aria-hidden="true"><div class="hero__striptrack">
+      <img src="@img:q1" alt=""><img src="@img:p7" alt=""><img src="@img:q3" alt=""><img src="@img:q6" alt=""><img src="@img:p10" alt=""><img src="@img:q8" alt=""><img src="@img:q9" alt=""><img src="@img:q12" alt="">
+    </div></div>
     <div class="container">
       <h1>Your alumni moved on.<br><span class="shine" data-text="Your database didn’t.">Your database didn&rsquo;t.</span></h1>
 
@@ -4865,6 +4954,21 @@ button, input, select, textarea, td, th {
     }
     window.addEventListener('resize', all);
     all();
+  })();
+
+
+  /* ============ mobile menu sheet ============ */
+  (function () {
+    var nav = document.getElementById('siteNav'), btn = nav && nav.querySelector('.nav__burger');
+    if (!btn) return;
+    function set(open) {
+      nav.classList.toggle('is-menu', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    }
+    btn.addEventListener('click', function () { set(!nav.classList.contains('is-menu')); });
+    nav.querySelectorAll('.nav__sheet a').forEach(function (a) { a.addEventListener('click', function () { set(false); }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') set(false); });
   })();
 
   /* ============ scroll effects: section parallax + solution frame morph ============ */

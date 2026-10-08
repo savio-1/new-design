@@ -346,7 +346,7 @@ Measure in the browser; never trust a still.
 |---|---|
 | `shot-*.jpg`, `acc*.jpg` | No longer used on the page — the Solution and Benefits slots are illustrated scenes now. `shot-find`/`shot-watch` were another company's UI; the files are still in `assets/img/floema/` and can be deleted. |
 | `--ink-45` contrast | 2.6:1 at small sizes, page-wide. Token-level decision: move captions to `--ink-65`. |
-| Mobile nav | Links hide below 1000px; nothing replaces them. |
+| Mobile | Audited at 390/768 (2026-10-08): burger + sheet menu ≤1000px, hero portrait strip ≤920px (drifts side to side, no duplicated images), product art kept 3:4 ≤560px, wrapping wordmarks ≤700px, number-first stats ≤900px, solution cards stretch and titles clear the icon ≤920px. |
 | Intro replay | Plays every load; session-gate it and allow click-to-skip before real traffic. |
 | News logos | `assets/logo/news-*.svg` (NYT, BBC, CNN, Guardian, FT, Forbes, Bloomberg, Economist, AP, Reuters, NPR, CNBC) come from Wikimedia and are the outlets' trademarks — get permission or swap for neutral marks before launch. |
 | Placeholders | Stock portraits beside real testimonial names; invented names/news; fake wordmarks; drawn SOC 2 / GDPR / DPF marks (need real artwork + legal sign-off); third-party logos need press kits. |
