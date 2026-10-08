@@ -1167,14 +1167,13 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 
 /* ---- the network: alumni in a 3D cloud ----
    Sixteen portrait cards on a loose sphere, projected with perspective:
-   near cards larger, sharper and on top, far ones smaller, fainter and
-   softer. It spins slowly and can be dragged. One card is lit at a time
+   near cards larger and on top, far ones smaller. It spins slowly and can be dragged. One card is lit at a time
    and its activity card opens beside it; hovering a card takes over. */
 .hero__copy { max-width: min(640px, 44vw); }
 .hero__net {
   position: absolute; z-index: 3;
-  left: 50%; right: 16px;
-  top: 12px; bottom: 28px;
+  left: 50%; right: 0;
+  top: 8px; bottom: 20px;
   cursor: grab; touch-action: pan-y;
   -webkit-user-select: none; user-select: none;
 }
@@ -1187,7 +1186,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   background: var(--panel);
   box-shadow: 0 10px 24px rgba(4, 48, 43, 0.16);
   transform-origin: 50% 50%;
-  will-change: transform, opacity;
+  will-change: transform;
   transition: box-shadow 0.3s var(--ease);
 }
 .pt img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; -webkit-user-drag: none; }
@@ -2756,8 +2755,8 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
 
   /* ---------- hero: alumni in a 3D cloud, one lit at a time --------------
      Sixteen portrait cards sit on a loose sphere and are projected with
-     perspective every frame: near cards are larger, sharper and on top,
-     far ones shrink, fade and soften. Each card turns slightly as it
+     perspective every frame: near cards are larger and on top, far ones
+     smaller. Each card turns slightly as it
      travels round, which is what sells the depth. The cloud spins slowly
      on its own; dragging spins it by hand and lets go with inertia.
      A front-facing card is lit every few seconds and its activity card
@@ -2809,7 +2808,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       }).join('');
     }
 
-    var W = 0, H = 0, R = 1, Rx = 1, Ry = 1, D = 1, k = 1, count = N, TW = 72, TH = 90;
+    var W = 0, H = 0, R = 1, Rx = 1, Ry = 1, D = 1, k = 1, count = N, TW = 58, TH = 72;
     var yaw = 0.6, pitch = -0.18, vYaw = 0, vPitch = 0, spinK = 1;
     var SPIN = reduced ? 0 : 0.00011;           // radians per ms when left alone
     var on = -1, recent = [], held = false, timer = 0, releaseT = 0, running = false, raf = 0, last = 0;
@@ -2818,9 +2817,9 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
     function layout() {
       W = net.clientWidth; H = net.clientHeight;
       if (!W || !H) return;
-      k = Math.max(0.68, Math.min(1, W / 640));
+      k = Math.max(0.78, Math.min(1, W / 640));
       // an ellipse fitted to the field, so the cloud spreads out rather than bunching
-      Rx = W * 0.3; Ry = H * 0.35; R = Math.min(W, H) * 0.34; D = R * 3.6;
+      Rx = W * 0.4; Ry = H * 0.42; R = Math.min(W, H) * 0.34; D = R * 4.4;
       count = W < 480 ? SMALL_MAX : N;
       P.forEach(function (p, i) {
         var show = i < count;
@@ -2852,12 +2851,8 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
         var isOn = i === on;
         p.lift += ((isOn ? 1.16 : 1) - p.lift) * Math.min(1, dt / 120);
         var s = p.f * p.lift;
-        var op = isOn ? 1 : 0.32 + 0.68 * Math.pow(t, 0.8);
-        var blur = isOn ? 0 : Math.round((1 - t) * 4) / 2;   // 0, 0.5 … 2px
         p.el.style.transform = 'translate(' + p.sx.toFixed(1) + 'px,' + p.sy.toFixed(1) + 'px) scale(' + s.toFixed(3) +
           ') perspective(600px) rotateY(' + (p.X * 28).toFixed(1) + 'deg) rotateX(' + (-p.Y * 16).toFixed(1) + 'deg) rotate(' + p.rz.toFixed(1) + 'deg)';
-        p.el.style.opacity = op.toFixed(3);
-        if (p.blur !== blur) { p.el.style.filter = blur ? 'blur(' + blur + 'px)' : ''; p.blur = blur; }
         p.el.style.zIndex = isOn ? 150 : 10 + Math.round(t * 100);
       }
       if (on >= 0) {
