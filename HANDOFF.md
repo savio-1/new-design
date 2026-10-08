@@ -53,7 +53,7 @@ again if a video reference needs frames extracted.
 
 Expected `verify-cards.js` output: fonts `Geist` / `Nunito Sans`; News rail
 starts moving ~0.3s after hover and every step prints matching
-`centred/lit` names; Data Mine rest `scaleX 1.000 y -4.0`, `drift reversals=0`, then
+`centred/lit` names; Data Mine rest `scaleX 1.040 y -4.0`, `drift reversals=0`, then
 records A → B → C open in turn; Institutions beat 1 holds ~0.6s then beats
 2 and 3 follow; Corporates rest frame at hover, scores 1→3, others clear, link →
 job card grows 52→96 with bottom held at 148, docked gap 10px, profile bottom 324 < plus 337, no truncated text; `LAYOUT card1..4:ok`.
@@ -126,7 +126,7 @@ At rest each card shows a designed still; hover plays the animation.
   constant-speed glide** a few px with one gentle perpendicular arc (no
   reversals — the user rejected two earlier "jiggly" versions) → converge on
   three alternating curves → rows fade in → records **A, B, C open in turn**
-  (lift 4px with a deeper shadow — no scaling, the user saw a scaled row clipped at the card edge; real name/role replaces skeleton) while the stage
+  (lift 4px + a 1.04 bulge from the row's centre, deeper shadow — the old left-anchored 1.075 scale was clipped at the card's right edge; the row's avatar, which lives on its own layer, gets the same lift via dmFaceA/B/C so the whole card moves together; real name/role replaces skeleton) while the stage
   walks up one row each time and the others recede to 0.6 → stage rolls back.
 - Records: A Chris Doyle (VP Engineering · Corven Group), B Jonas Ek
   (Partner · Halden & Co), C Amara Boateng (Data lead… "Head of Data · Kelso Labs").

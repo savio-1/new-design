@@ -228,8 +228,9 @@ to reveal what was matched. Two things make it work:
   `cubic-bezier` curves across the set give the same natural stagger while every element
   stays on one clock.
 
-Rows scale from `transform-origin: left center` so the lifted row grows rightward and
-the avatar stays put on its left edge.
+Rows scale from their centre (bulging evenly left and right) and lift 4px; each open
+row's avatar is animated with the same lift and an x offset of (avatar − row centre) ×
+(scale − 1), so it stays locked in its slot.
 
 **Corporates — the dock.** The fourth pattern: a stack of open roles above one
 person's profile card. Scores land on each role in turn; the best one is picked with

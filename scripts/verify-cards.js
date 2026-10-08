@@ -42,7 +42,7 @@ const matY = (sel) => `+new DOMMatrix(getComputedStyle(document.querySelector('$
   for (let i = 0; i < 24; i++) { pts.push(await p.evaluate(() => { const r = document.querySelector('.dmface img').getBoundingClientRect(); return [r.left, r.top]; })); await p.waitForTimeout(50); }
   let rev = 0, prev = null;
   for (let i = 1; i < pts.length; i++) { const d = [pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]]; if (prev && d[0]*prev[0] + d[1]*prev[1] < -0.01) rev++; if (Math.hypot(...d) > 0.01) prev = d; }
-  console.log(`DATAMINE rest at hover=${r0} (scaleX 1.000 y -4.0 = seamless, no widening)  drift reversals=${rev} (must be 0)`);
+  console.log(`DATAMINE rest at hover=${r0} (scaleX 1.040 y -4.0 = seamless; bulge is centred)  drift reversals=${rev} (must be 0)`);
   const seq = [];
   for (let i = 0; i < 18; i++) {
     seq.push(await p.evaluate(() => { const o = s => +(+getComputedStyle(document.querySelector(s)).opacity).toFixed(1); return `A${o('.dmrow--a .dmrow__real')}B${o('.dmrow--b .dmrow__real')}C${o('.dmrow--c .dmrow__real')}`; }));
