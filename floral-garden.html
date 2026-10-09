@@ -93,6 +93,15 @@
     transition: opacity 0.7s ease;
   }
   .rewind .stage { opacity: 0; }
+  .scrim {
+    position: absolute; inset: 0;
+    background: radial-gradient(closest-side at 50% 44%, rgba(3, 6, 4, 0.72), rgba(3, 6, 4, 0.4) 65%, rgba(3, 6, 4, 0.12));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 2.4s ease;
+  }
+  .at-end .scrim { opacity: 1; }
+  .rewind .scrim { opacity: 0; transition-duration: 0.7s; }
   .phrase {
     grid-area: 1 / 1;
     display: grid; justify-items: center; gap: 1rem;
@@ -219,6 +228,7 @@
 <div class="app" id="app">
   <canvas id="gl" aria-hidden="true"></canvas>
 
+  <div class="scrim" aria-hidden="true"></div>
   <main class="stage" id="stage" aria-live="polite"></main>
 
   <div class="progress" aria-hidden="true"><span id="progressFill"></span></div>
@@ -862,6 +872,79 @@ if (renderer) {
   postScene.add(quad);
 }
 
+
+/* ── the ending: a wall of flowers blooms across the whole view ── */
+const endScene = new THREE.Scene();
+const endBloom = { value: 0 };
+let endGroup = null;
+if (renderer) {
+  endGroup = new THREE.Group();
+  endGroup.matrixAutoUpdate = false;
+  endScene.add(endGroup);
+  const bloomVert = plantVert
+    .replace("uniform float uWind;", "uniform float uWind;\n  uniform float uBloom;\n  attribute float aDelay;")
+    .replace("vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);",
+      `float bl = smoothstep(aDelay, aDelay + 0.3, uBloom);
+    vec3 lp = position * bl * (1.0 + 0.16 * sin(bl * 3.14159));
+    vec4 world = modelMatrix * instanceMatrix * vec4(lp, 1.0);`);
+  const wallMat = (center, sheen) => new THREE.ShaderMaterial({
+    uniforms: { ...shared, uFogDensity: { value: 1 / 60 }, uCenterColor: { value: new THREE.Color(center) }, uSheen: { value: sheen }, uBloom: endBloom },
+    vertexShader: bloomVert, fragmentShader: plantFrag, side: THREE.DoubleSide,
+  });
+  const ALL = DRIFTS.flatMap((d) => d.colors);
+  const tanHalf = Math.tan(THREE.MathUtils.degToRad(74 / 2));
+  const LAYERS = [ // distance from camera, flowers, leaves, size
+    { d: 9.6, f: 900, l: 900, k: 0.95, edge: 0 },
+    { d: 7.4, f: 420, l: 380, k: 0.85, edge: 0 },
+    { d: 5.4, f: 90,  l: 70,  k: 0.75, edge: 0.55 },   // foreground only round the rim
+  ];
+  const pos = new THREE.Vector3(), scl = new THREE.Vector3(), q = new THREE.Quaternion(), qa = new THREE.Quaternion();
+  const m = new THREE.Matrix4(), col = new THREE.Color(), X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
+  const buckets = SPECIES.map(() => ({ m: [], c: [], d: [] })), leafB = { m: [], c: [], d: [] };
+  const put = (b, L, colour, size, H, W) => {
+    let x, y, r;
+    do { x = (rand() - 0.5) * W; y = (rand() - 0.5) * H; r = Math.hypot(x / (W * 0.5), y / (H * 0.5)); } while (r < L.edge);
+    pos.set(x, y, -L.d + (rand() - 0.5) * 0.6 + (x * x + y * y) * 0.015);
+    q.setFromAxisAngle(X, (rand() - 0.5) * 0.9);
+    q.multiply(qa.setFromAxisAngle(Y, (rand() - 0.5) * 0.9));
+    q.multiply(qa.setFromAxisAngle(Z, rand() * TAU));
+    scl.setScalar(size);
+    b.m.push(m.compose(pos, q, scl).clone());
+    b.c.push(colour.clone());
+    b.d.push(Math.min(0.68, 0.04 + r * 0.42 + rand() * 0.2));   // bloom from the centre outwards
+  };
+  for (const L of LAYERS) {
+    const H = 2 * L.d * tanHalf * 1.1, W = H * 0.6;
+    for (let i = 0; i < L.f; i++) {
+      const sp = Math.floor(rand() * SPECIES.length);
+      col.set(ALL[Math.floor(rand() * ALL.length)]).multiplyScalar(0.42 + rand() * 0.2);
+      const [a, b] = SPECIES[sp].size;
+      put(buckets[sp], L, col, (a + rand() * (b - a)) * L.k, H, W);
+    }
+    for (let i = 0; i < L.l; i++) {
+      col.set(GREENS[Math.floor(rand() * GREENS.length)]).multiplyScalar(0.55 + rand() * 0.4);
+      put(leafB, L, col, (0.8 + rand() * 0.8) * L.k, H, W);
+    }
+  }
+  const addWall = (geo, mat, b) => {
+    const g = geo.clone();
+    g.setAttribute("aDelay", new THREE.InstancedBufferAttribute(new Float32Array(b.d), 1));
+    const mesh = new THREE.InstancedMesh(g, mat, b.m.length);
+    b.m.forEach((mm, j) => { mesh.setMatrixAt(j, mm); mesh.setColorAt(j, b.c[j]); });
+    mesh.frustumCulled = false;
+    endGroup.add(mesh);
+  };
+  // dark moss backdrop so nothing of the tunnel shows through
+  const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ color: "#07120a", transparent: true, opacity: 0, depthWrite: false }));
+  backdrop.position.z = -10.5;
+  backdrop.renderOrder = -1;
+  endGroup.add(backdrop);
+  endGroup.userData.backdrop = backdrop;
+  addWall(LEAF.geo, wallMat("#000000", 0.18), leafB);
+  SPECIES.forEach((sp, i) => addWall(sp.geo, wallMat(sp.mat.uniforms.uCenterColor.value.getHex(), sp.mat.uniforms.uSheen.value), buckets[i]));
+  endGroup.visible = false;
+}
+
 function resize() {
   const w = app.clientWidth || innerWidth, h = app.clientHeight || innerHeight;
   camera.aspect = w / h;
@@ -930,8 +1013,22 @@ function frame(now) {
   if (renderer) {
     shared.uTime.value = elapsed;
     placeCamera(camDist, elapsed);
+    const wantBloom = root.classList.contains("at-end") && !rewinding ? 1 : 0;
+    const rate = wantBloom ? 0.42 : 1.4;                         // grow slowly, fold away quickly
+    endBloom.value += Math.max(-rate * dt, Math.min(rate * dt, wantBloom - endBloom.value));
     renderer.setRenderTarget(rt);
     renderer.render(scene, camera);
+    if (endGroup && endBloom.value > 0.001) {
+      endGroup.visible = true;
+      camera.updateMatrixWorld();
+      endGroup.matrix.copy(camera.matrixWorld);
+      endGroup.matrixWorldNeedsUpdate = true;
+      endGroup.userData.backdrop.material.opacity = Math.min(1, endBloom.value * 1.6);
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      renderer.render(endScene, camera);
+      renderer.autoClear = true;
+    } else if (endGroup) endGroup.visible = false;
     renderer.setRenderTarget(null);
     post.uniforms.uTime.value = elapsed;
     post.uniforms.uSpeed.value = reduceMotion ? 0 : speedSmooth;
