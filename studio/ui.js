@@ -49,6 +49,10 @@
     x: 'M6 6l12 12M18 6 6 18', edit: 'M4 20h4L19 9l-4-4L4 16z', check: 'M5 12l5 5 9-11',
     sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
     wand: 'M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5',
+    eraser: 'M7 21h10M5.6 13.4l7-7a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L12.4 19H8.6l-3-3a1.8 1.8 0 0 1 0-2.6zM9 10l6 6',
+    play: 'M7 4.5v15l12.5-7.5z', pause: 'M8 5v14M16 5v14',
+    film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4',
+    square: 'M5 5h14v14H5z', circle: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', stop: 'M6 6h12v12H6z',
     shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
     bgimg: 'M3 15l6-6 4 4 3-3 5 5M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
     paste: 'M9 4h6v3H9zM15 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2',
@@ -435,7 +439,7 @@
       if (el.type === 'calendar') parts.push(...calendarInspector(el));
       if (el.type === 'badge') parts.push(...badgeInspector());
       if (el.type === 'checklist') parts.push(...checklistInspector());
-      parts.push(effectsSection(el), arrangeSection(el));
+      parts.push(animSection(el), effectsSection(el), arrangeSection(el));
     }
     const top = insp.scrollTop;
     insp.replaceChildren(...parts.filter(Boolean));
@@ -485,6 +489,7 @@
         lineStyle ? row('Line gap', num(T, 'bg.gap', { min: -40, max: 120, slider: true })) : null,
         bgStyle !== 'none' ? row(bgStyle === 'select' ? 'Accent' : 'Border', colorCtl(T, 'bg.borderColor')) : null,
         bgStyle !== 'none' ? row(bgStyle === 'select' ? 'Line' : 'Border W', num(T, 'bg.borderWidth', { min: 0, max: 40, slider: true, step: 0.5 })) : null,
+        ['box', 'pill', 'lines'].includes(bgStyle) ? toggle(T, 'bg.stitch', 'Stitched dashed edge') : null,
       ]),
       sec('Outline & 3D', [
         row('Outline', num(T, 'stroke.width', { min: 0, max: 40, step: 0.5, slider: true })),
@@ -539,7 +544,14 @@
     const items = [['brightness', 'Brightness', -100, 100], ['contrast', 'Contrast', -100, 100], ['saturation', 'Saturation', -100, 100],
       ['warmth', 'Warmth', -100, 100], ['fade', 'Fade', 0, 100], ['grayscale', 'Mono', 0, 100], ['sepia', 'Sepia', 0, 100],
       ['vignette', 'Vignette', 0, 100], ['grain', 'Grain', 0, 100], ['blur', 'Blur', 0, 40]];
-    return items.map(([k, l, a, b]) => row(l, num(t, base + '.' + k, { min: a, max: b, slider: true, def: 0 })));
+    const out = items.map(([k, l, a, b]) => row(l, num(t, base + '.' + k, { min: a, max: b, slider: true, def: 0 })));
+    const f = S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
+    out.push(h('div.hint', { style: { marginTop: '6px' } }, 'Print effects'),
+      row('Halftone', num(t, base + '.halftone', { min: 0, max: 100, slider: true, def: 0 })),
+      row('Photocopy', num(t, base + '.threshold', { min: 0, max: 100, slider: true, def: 0 })),
+      toggle(t, base + '.duotone', 'Duotone', { set: v => { S.change(t, base + '.duotone', v); if (v && !f.duoDark) { S.change(t, base + '.duoDark', '#1b2a8f', true); S.change(t, base + '.duoLight', '#a9c4ff'); } renderInspector(); } }));
+    if (f.duotone || f.threshold || f.halftone) out.push(row('Ink', colorCtl(t, base + '.duoDark')), row('Paper', colorCtl(t, base + '.duoLight')));
+    return out;
   }
 
   function frameTiles(el) {
@@ -610,12 +622,13 @@
       ]),
       el.assetId ? sec('Filters', [full(filterThumbs(el, 'sel')), ...filterSliders(T, 'filters'),
         full(h('button.btn', { onclick: () => { S.change(T, 'filters', {}); renderInspector(); } }, 'Reset adjustments'))]) : null,
-      fs === 'none' && el.assetId ? sec('Die-cut outline', [
-        toggle(T, 'outline.on', 'White sticker border'),
+      fs === 'none' && el.assetId ? sec('Cut-out border', [
+        toggle(T, 'outline.on', 'Sticker border'),
+        row('Style', selectCtl(T, 'outline.style', Object.entries(R.OUTLINE_STYLES), { def: 'smooth' })),
         row('Colour', colorCtl(T, 'outline.color')),
         row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
-        h('div.hint', null, 'Best on PNG cut-outs with a transparent background.'),
-      ], false) : null,
+        h('div.hint', null, 'Follows the subject’s shape on cut-outs (after Remove background) and transparent PNGs.'),
+      ], !!(el.outline && el.outline.on) || !!el.bgRemoved) : null,
     ];
   }
 
@@ -636,6 +649,7 @@
       ]),
       sec('Die-cut outline', [
         toggle(T, 'outline.on', 'Sticker border'),
+        row('Style', selectCtl(T, 'outline.style', Object.entries(R.OUTLINE_STYLES), { def: 'smooth' })),
         row('Colour', colorCtl(T, 'outline.color')),
         row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
       ], !!el.outline.on),
@@ -819,6 +833,7 @@
     const T = 'sel';
     const presetOf = () => { const s = S.selEls()[0]?.shadow || {}; if (!s.on) return 'none'; for (const [k, p] of Object.entries(SHADOWS)) if (p.on && p.blur === s.blur && p.x === s.x && p.y === s.y && p.opacity === s.opacity) return k; return 'custom'; };
     return sec('Effects', [
+      el.erase && el.erase.length ? full(h('div.btn-row', null, h('button.btn', { onclick: () => { S.clearErase(el.id); renderInspector(); } }, ic('eraser'), 'Restore erased areas'), h('button.btn', { onclick: () => S.setTool('erase') }, ic('eraser'), 'Keep erasing'))) : null,
       row('Opacity', num(T, 'opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
       row('Blend', selectCtl(T, 'blend', [['normal', 'Normal'], ['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-burn', 'Colour burn'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['luminosity', 'Luminosity']])),
       row('Shadow', seg(T, 'shadow', [['none', 'None'], ['soft', 'Soft'], ['lifted', 'Lift'], ['hard', 'Hard'], ['glow', 'Glow']], { get: presetOf, set: v => { S.change(T, 'shadow', Object.assign({}, S.selEls()[0].shadow, SHADOWS[v])); renderInspector(); } })),
@@ -923,8 +938,11 @@
         row('Vignette', num(T, 'overlay.vignette', { min: 0, max: 100, slider: true })),
         row('Tint', colorCtl(T, 'overlay.tint')),
         row('Tint amt', num(T, 'overlay.tintAmount', { min: 0, max: 100, slider: true })),
+        row('Paper on top', num(T, 'overlay.paper', { min: 0, max: 100, slider: true, def: 0 })),
+        row('Poster folds', num(T, 'overlay.creases', { min: 0, max: 100, slider: true, def: 0 })),
+        row('Light leak', num(T, 'overlay.leak', { min: 0, max: 100, slider: true, def: 0 })),
       ]),
-      sec('Tips', [h('div.hint', { html: 'Drag to move · <span class="kbd">Shift</span> to lock an axis · hold <span class="kbd">Alt</span> to skip snapping · <span class="kbd">Space</span>-drag to pan · double-click text to edit, photos to crop · paste images straight in with <span class="kbd">⌘V</span>.' })], false),
+      sec('Tips', [h('div.hint', { html: 'Drag to move · <span class="kbd">Shift</span> to lock an axis · <span class="kbd">Alt</span>-drag to duplicate · hold <span class="kbd">Ctrl</span> to skip snapping · <span class="kbd">E</span> eraser · <span class="kbd">Space</span>-drag to pan · double-click text to edit, photos to crop · paste images straight in with <span class="kbd">⌘V</span>.' })], false),
     ];
   }
 
@@ -948,7 +966,7 @@
   });
 
   function renderPanel() {
-    const fn = { templates: templatesPanel, text: textPanel, stickers: stickersPanel, shapes: shapesPanel, photos: photosPanel, planner: plannerPanel, background: backgroundPanel, layers: layersPanel }[tab];
+    const fn = { templates: templatesPanel, text: textPanel, stickers: stickersPanel, shapes: shapesPanel, photos: photosPanel, planner: plannerPanel, animate: animatePanel, background: backgroundPanel, layers: layersPanel }[tab];
     panel.replaceChildren(...fn().filter(Boolean));
     hydrateIcons(panel);
   }
@@ -1057,7 +1075,7 @@
       body.replaceChildren(...[...groups].flatMap(([cat, items]) => [
         h('h3', null, cat),
         h('div.stk-grid', null, items.map(s => {
-          const b = h('button.stk' + (/chalk|star-outline|paper-plane|polaroid|tape-clear/i.test(s.id) ? '.dark' : ''), { title: s.name, onclick: () => addSticker(s.id) }, h('img', { src: stickerUrl(s), alt: s.name, loading: 'lazy' }));
+          const b = h('button.stk' + (/chalk|star-outline|paper-plane|polaroid|tape-clear|sparkle-outline|smiley-chain|px-cursor|px-hand|cloud-/i.test(s.id) ? '.dark' : ''), { title: s.name, onclick: () => addSticker(s.id) }, h('img', { src: stickerUrl(s), alt: s.name, loading: 'lazy' }));
           dragPayload(b, { kind: 'sticker', id: s.id });
           return b;
         })),
@@ -1492,56 +1510,118 @@
     updateTop();
   }
 
-  async function openExport() {
-    let fmt = 'png', scale = 2, transparent = false, quality = 0.92;
+  // export resolutions are named by their short side, so "4K" means 2160 px on the short edge (3840 × 2160 landscape)
+  const RES = [['1×', 0], ['HD 720', 720], ['Full HD 1080', 1080], ['2K 1440', 1440], ['4K 2160', 2160]];
+  function sizeFor(short, mult) {
+    const d = S.doc, s0 = Math.min(d.width, d.height);
+    const k = short ? short / s0 : (mult || 1);
+    return { w: S.even(d.width * k), h: S.even(d.height * k), k };
+  }
+  async function openExport(startTab) {
+    let mode = startTab || (S.hasAnimation() ? 'video' : 'image');
+    let fmt = 'png', res = 1080, transparent = false, quality = 0.92;
+    let vfmt = 'mp4', vres = 1080, fps = S.doc.anim.fps || 30, vq = 'high';
+    let ctrl = null;
+    S.pause();
     const preview = h('div.export-preview', null, h('div.hint', null, 'Rendering preview…'));
-    const info = h('div.hint');
     const box = modal([]);
+    const tabs = h('div.seg.export-tabs');
     const opts = h('div');
-    const draw = () => {
-      const segBtn = (cur, v, l, set) => h('button' + (cur === v ? '.on' : ''), { onclick: () => { set(v); draw(); } }, l);
-      const W = Math.round(S.doc.width * scale), H = Math.round(S.doc.height * scale);
-      info.textContent = `${W} × ${H} px · ${fmt.toUpperCase()}`;
-      opts.replaceChildren(...[
-        row('Format', h('div.seg', null, segBtn(fmt, 'png', 'PNG', v => { fmt = v; }), segBtn(fmt, 'jpeg', 'JPG', v => { fmt = v; transparent = false; }), segBtn(fmt, 'webp', 'WEBP', v => { fmt = v; }))),
-        row('Size', h('div.seg', null, [0.5, 1, 2, 3].map(s => segBtn(scale, s, s + '×', v => { scale = v; })))),
-        fmt !== 'jpeg' ? h('div.toggle-row', null, h('label', null, 'Transparent background'), (() => { const s = h('button.switch' + (transparent ? '.on' : ''), { onclick: () => { transparent = !transparent; draw(); } }); return s; })()) : null,
-        fmt !== 'png' ? row('Quality', (() => { const r = h('input.slider', { type: 'range', min: 50, max: 100, value: Math.round(quality * 100), oninput: e => { quality = e.target.value / 100; } }); return r; })()) : null,
-        info,
-        h('div.btn-row', { style: { marginTop: '14px' } },
-          navigator.clipboard && window.ClipboardItem ? h('button.btn', { onclick: copyImage }, ic('copy'), 'Copy image') : null,
-          h('button.btn.primary', { onclick: doExport, style: { height: '38px' } }, ic('download'), 'Download')),
-      ].filter(Boolean));
+    box.style.width = 'min(500px, 100%)';
+    box.append(h('h1', null, 'Export'), h('p.lead', null, 'Download your design as an image or, if it’s animated, as a video — up to 4K.'), tabs, preview, opts);
+    const segBtn = (cur, v, l, set) => h('button' + (cur === v ? '.on' : ''), { onclick: () => { set(v); draw(); } }, l);
+    const drawTabs = () => tabs.replaceChildren(segBtn(mode, 'image', 'Image', v => { mode = v; }), segBtn(mode, 'video', 'Video', v => { mode = v; }));
+    function draw() {
+      drawTabs();
+      if (mode === 'image') {
+        const sz = sizeFor(res);
+        opts.replaceChildren(...[
+          row('Format', h('div.seg', null, segBtn(fmt, 'png', 'PNG', v => { fmt = v; }), segBtn(fmt, 'jpeg', 'JPG', v => { fmt = v; transparent = false; }), segBtn(fmt, 'webp', 'WEBP', v => { fmt = v; }))),
+          row('Size', h('div.seg', null, RES.map(([l, v]) => segBtn(res, v, l, x => { res = x; })))),
+          fmt !== 'jpeg' ? h('div.toggle-row', null, h('label', null, 'Transparent background'), h('button.switch' + (transparent ? '.on' : ''), { onclick: () => { transparent = !transparent; draw(); } })) : null,
+          fmt !== 'png' ? row('Quality', h('input.slider', { type: 'range', min: 50, max: 100, value: Math.round(quality * 100), oninput: e => { quality = e.target.value / 100; } })) : null,
+          h('div.hint', null, `${sz.w} × ${sz.h} px · ${fmt.toUpperCase()}`),
+          h('div.btn-row', { style: { marginTop: '14px' } },
+            navigator.clipboard && window.ClipboardItem ? h('button.btn', { onclick: copyImage }, ic('copy'), 'Copy image') : null,
+            h('button.btn.primary', { onclick: doImage, style: { height: '38px' } }, ic('download'), 'Download image')),
+        ].filter(Boolean));
+      } else {
+        const sz = sizeFor(vres);
+        const anim = S.hasAnimation();
+        opts.replaceChildren(...[
+          anim ? null : h('div.hint', { style: { marginBottom: '8px', color: 'var(--ink)' } }, 'Nothing is animated yet. Open the Animate tab (or press “Animate everything”) to bring layers to life — or export a still video.'),
+          anim ? null : h('button.btn', { style: { marginBottom: '10px' }, onclick: () => { closeModal(); setTab('animate'); } }, ic('film'), 'Go to Animate'),
+          row('Format', h('div.seg', null, segBtn(vfmt, 'mp4', 'MP4', v => { vfmt = v; }), segBtn(vfmt, 'webm', 'WEBM', v => { vfmt = v; }))),
+          row('Size', h('div.seg', null, RES.slice(1).map(([l, v]) => segBtn(vres, v, l.split(' ')[0], x => { vres = x; })))),
+          row('Frame rate', h('div.seg', null, [24, 30, 60].map(f => segBtn(fps, f, f + ' fps', x => { fps = x; })))),
+          row('Quality', h('div.seg', null, segBtn(vq, 'standard', 'Standard', v => { vq = v; }), segBtn(vq, 'high', 'High', v => { vq = v; }), segBtn(vq, 'max', 'Max', v => { vq = v; }))),
+          row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); if (!live) draw(); } })),
+          h('div.hint', null, `${sz.w} × ${sz.h} px · ${fps} fps · ${S.doc.anim.duration}s · loops seamlessly`),
+          h('div.progress', { hidden: true }, h('div')),
+          h('div.hint.vstatus'),
+          h('div.btn-row', { style: { marginTop: '14px' } },
+            h('button.btn.vcancel', { hidden: true, onclick: () => ctrl && ctrl.abort() }, 'Cancel'),
+            h('button.btn.primary.vgo', { onclick: doVideo, style: { height: '38px' } }, ic('film'), 'Render video')),
+        ].filter(Boolean));
+      }
       hydrateIcons(opts);
-    };
-    async function doExport(e) {
+    }
+    async function doImage(e) {
       const btn = e.currentTarget; btn.disabled = true; btn.lastChild.textContent = 'Rendering…';
       try {
-        const c = await S.render({ scale, transparent: transparent && fmt !== 'jpeg' });
-        const blob = await new Promise(res => c.toBlob(res, 'image/' + fmt, quality));
+        const sz = sizeFor(res);
+        const c = await S.render({ scale: sz.k, transparent: transparent && fmt !== 'jpeg', time: null });
+        const blob = await new Promise(r => c.toBlob(r, 'image/' + fmt, quality));
         const name = `${slug()}.${fmt === 'jpeg' ? 'jpg' : fmt}`;
         download(blob, name);
-        toast('Exported ' + `${c.width} × ${c.height}`);
-        // some embedded browsers block script-started downloads; show the file so it can be saved by hand
+        toast(`Exported ${c.width} × ${c.height}`);
         const url = URL.createObjectURL(blob);
         preview.replaceChildren(h('div.export-result', null, h('img', { src: url, alt: name }),
           h('div.hint', null, `${name} · ${c.width} × ${c.height}. If the download didn’t start, right-click or long-press the image to save it.`)));
-        btn.disabled = false; btn.lastChild.textContent = 'Download again';
-      } catch (err) { console.error(err); toast('Export failed — try a smaller size'); btn.disabled = false; btn.lastChild.textContent = 'Download'; }
+      } catch (err) { console.error(err); toast('Export failed — try a smaller size'); }
+      btn.disabled = false; btn.lastChild.textContent = 'Download image';
     }
     async function copyImage() {
       try {
-        const c = await S.render({ scale: Math.min(scale, 2), transparent });
-        const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+        const c = await S.render({ scale: Math.min(sizeFor(res).k, 2), transparent, time: null });
+        const blob = await new Promise(r => c.toBlob(r, 'image/png'));
         await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
         toast('Image copied to clipboard');
       } catch (err) { toast('Your browser blocked clipboard access'); }
     }
-    box.append(h('h1', null, 'Export'), h('p.lead', null, 'Download a high-resolution image of your design.'), preview, opts);
-    box.style.width = 'min(480px, 100%)';
+    async function doVideo() {
+      const bar = $('.progress', opts), fill = $('.progress > div', opts), status = $('.vstatus', opts), go = $('.vgo', opts), cancel = $('.vcancel', opts);
+      const sz = sizeFor(vres);
+      const bpp = { standard: 0.07, high: 0.12, max: 0.2 }[vq];
+      ctrl = new AbortController();
+      bar.hidden = false; cancel.hidden = false; go.disabled = true;
+      const t0 = performance.now();
+      try {
+        const out = await S.exportVideo({
+          width: sz.w, height: sz.h, fps, duration: S.doc.anim.duration, format: vfmt,
+          bitrate: Math.min(80e6, Math.round(sz.w * sz.h * fps * bpp)), signal: ctrl.signal,
+          onProgress: (f, stage) => {
+            fill.style.width = Math.round(f * 100) + '%';
+            const el = (performance.now() - t0) / 1000;
+            status.textContent = stage === 'finish' ? 'Finishing the file…' : `Rendering frames… ${Math.round(f * 100)}%` + (f > 0.05 ? ` · about ${Math.max(1, Math.round(el / f - el))}s left` : '');
+          },
+        });
+        const name = `${slug()}.${out.ext}`;
+        download(out.blob, name);
+        const url = URL.createObjectURL(out.blob);
+        preview.replaceChildren(h('div.export-result', null, h('video', { src: url, controls: true, autoplay: true, loop: true, muted: true, playsInline: true }),
+          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If the download didn’t start, right-click the video and choose “Save video as”.`)));
+        status.textContent = out.ext !== vfmt ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
+        toast('Video exported');
+      } catch (err) {
+        console.error(err);
+        status.textContent = err.name === 'AbortError' ? 'Cancelled.' : 'Video export failed. Try a smaller size or a lower frame rate.';
+      }
+      cancel.hidden = true; go.disabled = false; ctrl = null;
+    }
     draw();
-    const c = await S.render({ scale: Math.min(1, 520 / Math.max(S.doc.width, S.doc.height)) });
-    preview.replaceChildren(c);
+    const c = await S.render({ scale: Math.min(1, 520 / Math.max(S.doc.width, S.doc.height)), time: null });
+    if (!preview.querySelector('.export-result')) preview.replaceChildren(c);
   }
 
   function openHelp() {
@@ -1550,13 +1630,145 @@
       h('h1', null, 'Shortcuts'),
       h('p.lead', null, 'Snapping: elements snap to the canvas edges and centre lines (pink), to other elements (orange) and to the grid when grid-snap is on.'),
       h('div.help-grid', null,
-        k('Drag', 'Move — snaps to guides'), k('Shift drag', 'Move along one axis'), k('Alt drag', 'Move without snapping'),
+        k('Drag', 'Move — snaps to guides'), k('Shift drag', 'Move along one axis'), k('Alt drag', 'Duplicate while dragging'), k('Ctrl drag', 'Move without snapping'),
+        k('E', 'Eraser (Esc to leave)'), k('[ ]', 'Eraser size'), k('P', 'Play / pause animation'),
         k('Arrows', 'Nudge 1px (Shift: 10px)'), k('Space drag', 'Pan the canvas'), k('⌘ scroll', 'Zoom'), k('⌘0', 'Fit to screen'),
         k('Dbl-click', 'Edit text · crop a photo'), k('T', 'Add text'), k('G', 'Toggle grid'),
         k('⌘D', 'Duplicate'), k('⌘C ⌘V', 'Copy & paste'), k('⌘Z', 'Undo'), k('⇧⌘Z', 'Redo'), k('⌘] ⌘[', 'Forward / backward'),
         k('⌘L', 'Lock'), k('⌘A', 'Select all'), k('⌫', 'Delete'), k('⌘E', 'Export'), k('Esc', 'Deselect / finish')),
     ], { small: true });
   }
+
+  /* ───────────────────────── animation ───────────────────────── */
+
+  function animSection(el) {
+    const T = 'sel';
+    const an = el.anim || {};
+    const loop = an.loop || 'none', enter = an.enter || 'none';
+    const setA = (k, v, live) => { S.change(T, 'anim.' + k, v, live); if (!live && (k === 'loop' || k === 'enter')) renderInspector(); updateTimeline(); };
+    const enterOpts = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'typewriter' || el.type === 'text');
+    return sec('Animation', [
+      row('Loop', selectCtl(T, 'anim.loop', Object.entries(R.ANIM_LOOPS), { def: 'none', set: v => setA('loop', v) })),
+      row('Entrance', selectCtl(T, 'anim.enter', enterOpts, { def: 'none', set: v => setA('enter', v) })),
+      loop !== 'none' || enter !== 'none' ? row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })) : null,
+      loop !== 'none' && loop !== 'spin' && loop !== 'blink' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
+      enter !== 'none' ? row('Delay', num(T, 'anim.delay', { min: 0, max: 10, step: 0.05, slider: true, def: 0, unit: 's', set: (v, l) => setA('delay', v, l) })) : null,
+      loop === 'spin' ? toggle(T, 'anim.reverse', 'Spin anticlockwise') : null,
+      loop !== 'none' ? toggle(T, 'anim.sync', 'Start in sync with other layers') : null,
+      full(h('div.btn-row', null,
+        h('button.btn', { onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic('play'), 'Preview'),
+        h('button.btn', { onclick: () => { setTab('animate'); } }, ic('film'), 'All animation'))),
+    ], loop !== 'none' || enter !== 'none');
+  }
+
+  // one-click looks for the whole design
+  const ANIM_PRESETS = [
+    { name: 'Stop-motion', sub: 'Everything boils like hand-made frames', apply: (el, i) => ({ loop: 'wiggle', amount: el.type === 'image' && el.width > S.doc.width * 0.8 ? 0 : 1, speed: 1 }) },
+    { name: 'Gentle float', sub: 'Stickers drift, text settles in', apply: (el, i) => el.type === 'text' ? { enter: 'rise', delay: i * 0.12, loop: 'none' } : { loop: el.type === 'sticker' ? 'float' : 'sway', amount: 0.7 } },
+    { name: 'Pop in', sub: 'Layers pop in one after another', apply: (el, i) => ({ enter: 'pop', delay: 0.15 + i * 0.12, loop: el.type === 'sticker' ? 'jiggle' : 'none', amount: 0.6 }) },
+    { name: 'Party', sub: 'Bouncy stickers, spinning stars', apply: (el, i) => el.type === 'sticker' ? { loop: /star|sparkle|sun|flower|asterisk|burst/i.test(el.stickerId) ? 'spin' : 'bounce', speed: 1 } : el.type === 'text' ? { loop: 'pulse', amount: 0.6 } : { loop: 'jiggle', amount: 0.4 } },
+    { name: 'Typewriter story', sub: 'Text types itself out', apply: (el, i) => el.type === 'text' ? { enter: 'typewriter', delay: 0.2 + i * 0.5, speed: 0.4 } : { enter: 'fade', delay: i * 0.1 } },
+    { name: 'Drop & sway', sub: 'Things fall in and keep swinging', apply: (el, i) => ({ enter: 'drop', delay: i * 0.1, loop: el.type === 'sticker' ? 'swing' : 'none', amount: 0.8 }) },
+  ];
+  function animatePanel() {
+    const D = S.doc.anim;
+    const presets = h('div.anim-presets', null, ANIM_PRESETS.map(p => h('button.big-btn', {
+      onclick: () => {
+        const targets = S.doc.elements.filter(e => !e.locked && !e.hidden);
+        // large full-bleed photos act as backdrops and stay still
+        targets.forEach((el, i) => { el.anim = Object.assign({ loop: 'none', enter: 'none', speed: 1, amount: 1, delay: 0 }, p.apply(el, i)); if (el.anim.amount === 0) el.anim = { loop: 'none', enter: 'none' }; });
+        S.touchAll(); S.commit(); renderInspector(); updateTimeline(); S.play();
+        toast(`“${p.name}” applied to ${targets.length} layers`);
+      },
+    }, h('b', null, p.name), h('small', null, p.sub))));
+    return [
+      h('h2', null, 'Animate'),
+      h('p.sub', null, 'Bring layers to life, then export a looping video up to 4K. Pick a look for everything, or set each layer in the right-hand panel.'),
+      h('div.btn-row', null,
+        h('button.btn.primary', { onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic(S.isPlaying() ? 'pause' : 'play'), S.isPlaying() ? 'Pause' : 'Play'),
+        h('button.btn', { onclick: () => openExport('video') }, ic('film'), 'Export video')),
+      h('h3', null, 'Animate everything'),
+      presets,
+      h('button.btn', { style: { marginTop: '8px', width: '100%' }, onclick: () => { S.doc.elements.forEach(e => { delete e.anim; }); S.stopPreview(); S.touchAll(); S.commit(); renderInspector(); updateTimeline(); toast('Animations removed'); } }, ic('trash'), 'Remove all animation'),
+      h('h3', null, 'Timing'),
+      row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); updateTimeline(); } })),
+      row('Frame rate', selectCtl('doc', 'anim.fps', [[24, '24 fps'], [30, '30 fps'], [60, '60 fps']], { number: true })),
+      h('p.hint', null, 'Loops repeat a whole number of times within the length, so exported videos loop seamlessly.'),
+      h('h3', null, 'Animated layers'),
+      ...(() => {
+        const list = S.doc.elements.filter(R.hasAnim).slice().reverse();
+        if (!list.length) return [h('p.hint', null, 'No layers are animated yet.')];
+        return list.map(el => h('div.layer', { onclick: () => S.select([el.id]) },
+          h('div.lname', null, S.elLabel(el), h('div.ltype', null, [el.anim.enter && el.anim.enter !== 'none' ? R.ANIM_ENTER[el.anim.enter] : null, el.anim.loop && el.anim.loop !== 'none' ? R.ANIM_LOOPS[el.anim.loop] : null].filter(Boolean).join(' · ')))));
+      })(),
+    ];
+  }
+
+  // floating timeline under the canvas whenever something moves
+  const tl = $('#timeline');
+  function updateTimeline() {
+    const show = S.hasAnimation() || S.isPlaying();
+    tl.hidden = !show;
+    if (!show) return;
+    const D = S.doc.anim.duration;
+    if (!tl.firstChild) {
+      tl.append(
+        h('button.play', { title: 'Play / pause (P)', onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic('play')),
+        h('input', { type: 'range', min: 0, max: 1000, value: 0, 'aria-label': 'Animation time', oninput: e => { S.pause(); S.seek(e.target.value / 1000 * S.doc.anim.duration); } }),
+        h('span.time'),
+        h('button.btn', { title: 'Back to the editing layout', onclick: () => S.stopPreview() }, ic('stop'), 'Edit'),
+        h('button.btn', { onclick: () => openExport('video') }, ic('film'), 'Export'));
+      hydrateIcons(tl);
+    }
+    const t = R.playTime;
+    $('input', tl).value = t == null ? 0 : Math.round(t / D * 1000);
+    $('.time', tl).textContent = t == null ? `edit · ${D}s` : `${t.toFixed(1)} / ${D}s`;
+    const pb = $('.play', tl);
+    const want = S.isPlaying() ? 'pause' : 'play';
+    if (pb.dataset.state !== want) { pb.dataset.state = want; pb.replaceChildren(ic(want)); }
+  }
+  let tlRaf = 0;
+  S.on('time', () => { if (!tlRaf) tlRaf = requestAnimationFrame(() => { tlRaf = 0; updateTimeline(); }); });
+  S.on('playstate', playing => {
+    updateTimeline();
+    $('#btn-play').classList.toggle('on', playing);
+    $('#btn-play').replaceChildren(ic(playing ? 'pause' : 'play'));
+    if (tab === 'animate') renderPanel();
+  });
+  S.on('change', updateTimeline);
+  S.on('doc', updateTimeline);
+  $('#btn-play').onclick = () => {
+    if (!S.hasAnimation() && !S.isPlaying()) { toast('Nothing is animated yet — pick a look in Animate'); setTab('animate'); if (matchMedia('(max-width: 920px)').matches) panel.classList.add('open'); return; }
+    S.isPlaying() ? S.pause() : S.play();
+  };
+
+  /* ───────────────────────── eraser bar ───────────────────────── */
+
+  const ebar = $('#eraser-bar');
+  function updateEraserBar() {
+    const on = S.tool === 'erase';
+    ebar.hidden = !on;
+    $('#tg-eraser').classList.toggle('on', on);
+    if (!on) return;
+    const E = S.eraser;
+    const segE = (cur, v, label, set) => h('button' + (cur === v ? '.on' : ''), { title: typeof label === 'string' ? label : '', onclick: () => { set(v); S.refreshBrush(); updateEraserBar(); } }, ICONS[label] ? ic(label) : label);
+    const size = h('input', { type: 'range', min: 4, max: 400, value: Math.round(E.size), 'aria-label': 'Eraser size', oninput: e => { E.size = +e.target.value; val.textContent = E.size + 'px'; S.refreshBrush(); } });
+    const val = h('span.val', null, Math.round(E.size) + 'px');
+    const cur = S.selEls()[0];
+    ebar.replaceChildren(
+      h('label', null, 'Eraser'),
+      h('div.seg', null, segE(E.shape, 'circle', 'circle', v => { E.shape = v; }), segE(E.shape, 'square', 'square', v => { E.shape = v; })),
+      size, val,
+      h('div.seg', null, segE(E.mode, 'erase', 'Erase', v => { E.mode = v; }), segE(E.mode, 'restore', 'Restore', v => { E.mode = v; })),
+      cur && cur.erase && cur.erase.length ? h('button.btn', { onclick: () => { S.clearErase(cur.id); updateEraserBar(); } }, 'Reset layer') : null,
+      h('button.btn.primary', { onclick: () => S.setTool('select') }, 'Done'));
+    [...ebar.childNodes].forEach(n => { if (n.nodeType === 3 && n.textContent === 'null') n.remove(); });
+    hydrateIcons(ebar);
+  }
+  S.on('tool', updateEraserBar);
+  S.on('selection', () => { if (S.tool === 'erase') updateEraserBar(); });
+  S.on('values', () => { if (S.tool === 'erase') { const c = S.selEls()[0]; const has = !!(c && c.erase && c.erase.length); if (has !== !!$('#eraser-bar .btn:not(.primary)')) updateEraserBar(); } });
+  $('#tg-eraser').onclick = () => S.setTool(S.tool === 'erase' ? 'select' : 'erase');
 
   /* ───────────────────────── wiring ───────────────────────── */
 

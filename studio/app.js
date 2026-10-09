@@ -97,6 +97,7 @@
   let doc = blankDoc(1080, 1350, '#f6f1e7');
   let assets = {};
   let sel = [];
+  let playing = false;
   const elMap = new Map();
   S.view = { scale: 1, x: 0, y: 0, fit: true };
   S.settings = { grid: false, snapGrid: false, guides: true, gridSize: 40 };
@@ -104,17 +105,21 @@
   function saveSettings() { try { localStorage.setItem('studio.settings', JSON.stringify(S.settings)); } catch (e) { /* ignore */ } }
   S.saveSettings = saveSettings;
   S.docName = 'Untitled design';
+  S.tool = 'select';
+  S.eraser = { shape: 'circle', size: 60, mode: 'erase' };
 
   function blankDoc(w, h, color) {
     return {
       width: w, height: h,
       background: { color, color2: '#ffffff', gradient: 'none', angle: 180, assetId: null, filters: {}, crop: { zoom: 1, x: 0.5, y: 0.5 }, imageOpacity: 1, texture: 0, pattern: { type: 'none', color: 'rgba(29,27,24,0.14)', size: 40, thick: 1.5, opacity: 1, color2: '' } },
-      overlay: { grain: 0, vignette: 0, tint: '#ff8a3d', tintAmount: 0 },
+      overlay: { grain: 0, vignette: 0, tint: '#ff8a3d', tintAmount: 0, paper: 0, leak: 0, creases: 0 },
+      anim: { duration: 5, fps: 30 },
       elements: [],
     };
   }
   S.blankDoc = blankDoc;
   Object.defineProperty(S, 'doc', { get: () => doc });
+  R.animDoc = doc;
   Object.defineProperty(S, 'assets', { get: () => assets });
   Object.defineProperty(S, 'sel', { get: () => sel.slice() });
   S.elById = id => elMap.get(id);
@@ -348,7 +353,7 @@
     if (!n) return;
     n.setAttrs({
       x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation || 0, scaleX: 1, scaleY: 1,
-      opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id),
+      opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && S.tool === 'select' && !playing,
       globalCompositeOperation: el.blend && el.blend !== 'normal' ? el.blend : 'source-over',
     });
   }
@@ -413,6 +418,7 @@
   };
   function restore(s) {
     doc = JSON.parse(s);
+    R.animDoc = doc;
     rebuild();
     emit('doc');
     emit('selection');
@@ -470,6 +476,7 @@
     const base = blankDoc(d.width || 1080, d.height || 1350, (d.background && d.background.color) || '#ffffff');
     doc = deepMerge(base, { ...d, elements: [] });
     doc.elements = (d.elements || []).map(normalize);
+    R.animDoc = doc;
     if (newAssets) Object.assign(assets, newAssets);
     for (const el of doc.elements) autosize(el, false);
     sel = [];
@@ -525,9 +532,9 @@
     } else if (els.length > 1) {
       anchors = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     }
-    if (anyLocked || cropState) anchors = [];
+    if (anyLocked || cropState || S.tool === 'erase') anchors = [];
     tr.setAttrs({
-      enabledAnchors: anchors, keepRatio, rotateEnabled: !anyLocked && !cropState,
+      enabledAnchors: anchors, keepRatio, rotateEnabled: !anyLocked && !cropState && S.tool !== 'erase',
       shouldOverdrawWholeArea: ns.length > 1, borderDash: anyLocked ? [4, 4] : null,
     });
     tr.nodes(textEdit ? [] : ns);
@@ -560,7 +567,7 @@
 
   let marqueeStart = null;
   let panning = null;
-  const keys = { space: false, alt: false, shift: false };
+  const keys = { space: false, alt: false, shift: false, ctrl: false };
   S.keys = keys;
 
   stage.on('mousedown touchstart', e => {
@@ -571,7 +578,9 @@
       return;
     }
     if (evt.button === 2) return;
+    if (playing) S.pause();
     const t = e.target;
+    if (S.tool === 'erase') { eraseStart(evt, t); return; }
     if (cropState) {
       if (t.id && t.id() === cropState.id) { cropDragStart(evt); return; }
       endCrop();
@@ -601,6 +610,8 @@
       return;
     }
     if (cropDrag) { cropDragMove(e); return; }
+    if (S.tool === 'erase') moveBrush(e);
+    if (erasing) { eraseMove(e); return; }
     if (marqueeStart) {
       const p = docPoint(e.clientX, e.clientY);
       const x = Math.min(p.x, marqueeStart.x), y = Math.min(p.y, marqueeStart.y);
@@ -622,6 +633,7 @@
   window.addEventListener('mouseup', () => {
     if (panning) { panning = null; area.style.cursor = keys.space ? 'grab' : ''; }
     if (cropDrag) { cropDrag = null; S.commit(); }
+    if (erasing) { erasing = null; S.commit(); emit('values'); }
     if (marqueeStart) {
       marqueeStart = null;
       if (marquee.visible()) { marquee.visible(false); uiLayer.batchDraw(); emit('selection'); }
@@ -726,12 +738,29 @@
   function onDragStart(e) {
     const n = e.target;
     if (!sel.includes(n.id())) S.select([n.id()]);
+    if (e.evt && e.evt.altKey) leaveCopiesBehind();
     const ns = sel.map(id => nodes.get(id)).filter(Boolean);
     const box = unionRect(ns);
     dragging = { node: n, rel: { x: box.x - n.x(), y: box.y - n.y(), w: box.width, h: box.height }, ids: new Set(sel), start: ns.map(m => [m, m.x(), m.y()]) };
     hoverRect.visible(false);
     showMid = true;
     emit('dragstart');
+  }
+  // Alt-drag: drop a copy at the starting position and keep dragging the original
+  function leaveCopiesBehind() {
+    for (const id of sel) {
+      const el = elMap.get(id);
+      if (!el || el.locked) continue;
+      const c = clone(el);
+      c.id = uid();
+      doc.elements.splice(doc.elements.indexOf(el), 0, c);
+      elMap.set(c.id, c);
+      const cn = makeNode(c);
+      nodes.set(c.id, cn);
+      art.add(cn);
+    }
+    reorderNodes();
+    S.hint('Duplicating — release to drop the copy', 1200);
   }
   function onDragMove(e) {
     const n = e.target;
@@ -741,7 +770,7 @@
     const ddx = n.x() - s0[1], ddy = n.y() - s0[2];
     let box = { x: n.x() + dragging.rel.x, y: n.y() + dragging.rel.y, width: dragging.rel.w, height: dragging.rel.h };
     guideLines = [];
-    if (!keys.alt && (S.settings.guides || S.settings.snapGrid)) {
+    if (!keys.ctrl && (S.settings.guides || S.settings.snapGrid)) {
       const snap = computeSnap(box, dragging.ids);
       if (snap.dx || snap.dy) { n.x(n.x() + snap.dx); n.y(n.y() + snap.dy); box.x += snap.dx; box.y += snap.dy; }
       guideLines = snap.lines;
@@ -850,7 +879,7 @@
   // snap resize handles to the canvas, other elements and the grid
   tr.anchorDragBoundFunc(function (oldAbs, newAbs) {
     const ns = tr.nodes();
-    if (keys.alt || ns.length !== 1 || (!S.settings.guides && !S.settings.snapGrid)) { guideLines = []; return newAbs; }
+    if (keys.ctrl || ns.length !== 1 || (!S.settings.guides && !S.settings.snapGrid)) { guideLines = []; return newAbs; }
     const rot = ((ns[0].rotation() % 90) + 90) % 90;
     if (rot > 0.5 && rot < 89.5) return newAbs;
     const anchor = tr.getActiveAnchor() || '';
@@ -871,7 +900,7 @@
   S.quickBar = quick;
   function positionOverlays(hideQuick) {
     if (textEdit) positionTextEditor();
-    if (hideQuick || !sel.length || textEdit || dragging || transforming) { quick.style.display = 'none'; return; }
+    if (hideQuick || !sel.length || textEdit || dragging || transforming || playing || S.tool === 'erase') { quick.style.display = 'none'; return; }
     const ns = sel.map(id => nodes.get(id)).filter(n => n && n.visible());
     if (!ns.length) { quick.style.display = 'none'; return; }
     const r = tr.getClientRect();
@@ -973,6 +1002,125 @@
   }
   S.finishTextEdit = finishTextEdit;
   S.isEditingText = () => !!textEdit;
+
+  /* ───────────────────────── eraser ───────────────────────── */
+
+  let erasing = null;
+  const brush = document.createElement('div');
+  brush.className = 'eraser-brush';
+  brush.style.display = 'none';
+  overlayEl.appendChild(brush);
+  S.setTool = function (tool) {
+    if (textEdit) finishTextEdit();
+    endCrop();
+    S.tool = tool;
+    for (const el of doc.elements) syncNode(el);
+    area.style.cursor = tool === 'erase' ? 'none' : '';
+    area.classList.toggle('erasing', tool === 'erase');
+    if (tool !== 'erase') brush.style.display = 'none';
+    attachTransformer();
+    if (tool === 'erase') S.hint(sel.length ? 'Paint over the selected layer to erase it' : 'Click a layer to start erasing it', 2600);
+    emit('tool', tool);
+  };
+  function moveBrush(e) {
+    const rect = area.getBoundingClientRect();
+    const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    if (!inside) { brush.style.display = 'none'; return; }
+    const d = S.eraser.size * S.view.scale;
+    brush.style.display = 'block';
+    brush.style.width = brush.style.height = d + 'px';
+    brush.style.borderRadius = S.eraser.shape === 'circle' ? '50%' : '2px';
+    brush.style.left = (e.clientX - rect.left - d / 2) + 'px';
+    brush.style.top = (e.clientY - rect.top - d / 2) + 'px';
+    brush.classList.toggle('restore', S.eraser.mode === 'restore');
+  }
+  S.refreshBrush = () => { if (S.tool === 'erase' && lastPointer) moveBrush(lastPointer); };
+  let lastPointer = null;
+  window.addEventListener('pointermove', e => { lastPointer = { clientX: e.clientX, clientY: e.clientY }; });
+  function localPoint(el, evt) {
+    const n = nodes.get(el.id);
+    const rect = area.getBoundingClientRect();
+    const p = n.getAbsoluteTransform().copy().invert().point({ x: evt.clientX - rect.left, y: evt.clientY - rect.top });
+    return [p.x / el.width, p.y / el.height];
+  }
+  function eraseStart(evt, target) {
+    // keep erasing the selected layer while the brush is over it; otherwise take the layer under the brush
+    const hitId = target && target.id && target.id();
+    let el = hitId && elMap.has(hitId) ? elMap.get(hitId) : null;
+    if (sel.length === 1) { const cur = elMap.get(sel[0]); if (cur && (!el || hitsEl(cur, evt))) el = cur; }
+    if (!el) { emit('toast', 'Click a layer to erase it'); return; }
+    if (el.locked) { emit('toast', 'Unlock this layer to erase it'); return; }
+    if (sel[0] !== el.id || sel.length !== 1) S.select([el.id]);
+    const [u, v] = localPoint(el, evt);
+    const st = { m: S.eraser.mode, s: S.eraser.shape, r: S.eraser.size / 2 / el.width, p: [round4(u), round4(v)] };
+    if (!el.erase) el.erase = [];
+    el.erase.push(st);
+    erasing = { el, st, last: [u, v] };
+    layer.batchDraw();
+  }
+  function hitsEl(el, evt) {
+    const [u, v] = localPoint(el, evt);
+    return u >= 0 && u <= 1 && v >= 0 && v <= 1;
+  }
+  const round4 = v => Math.round(v * 10000) / 10000;
+  function eraseMove(e) {
+    const { el, st, last } = erasing;
+    const [u, v] = localPoint(el, e);
+    const minStep = (S.eraser.size * 0.12) / el.width;
+    if (Math.hypot((u - last[0]) * el.width / el.height, v - last[1]) < minStep * Math.min(1, el.width / el.height) && Math.abs(u - last[0]) < minStep) return;
+    st.p.push(round4(u), round4(v));
+    erasing.last = [u, v];
+    layer.batchDraw();
+  }
+  S.clearErase = function (id) {
+    const el = elMap.get(id);
+    if (!el || !el.erase) return;
+    delete el.erase;
+    redraw(); S.commit(); emit('values');
+  };
+
+  /* ───────────────────────── playback ───────────────────────── */
+
+  let playStart = 0, raf = 0;
+  S.isPlaying = () => playing;
+  S.hasAnimation = () => doc.elements.some(R.hasAnim);
+  S.play = function () {
+    if (playing) return;
+    if (textEdit) finishTextEdit();
+    endCrop();
+    playing = true;
+    const D = doc.anim.duration;
+    playStart = performance.now() - ((R.playTime || 0) % D) * 1000;
+    for (const el of doc.elements) syncNode(el);
+    tr.visible(false); hoverRect.visible(false); quick.style.display = 'none';
+    uiLayer.batchDraw();
+    const tick = now => {
+      if (!playing) return;
+      const t = ((now - playStart) / 1000) % doc.anim.duration;
+      R.playTime = t;
+      layer.batchDraw();
+      emit('time', t);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    emit('playstate', true);
+  };
+  S.pause = function () {
+    if (!playing) return;
+    playing = false;
+    cancelAnimationFrame(raf);
+    for (const el of doc.elements) syncNode(el);
+    tr.visible(true);
+    attachTransformer();
+    emit('playstate', false);
+  };
+  // show one moment of the animation without playing (null = the finished layout used for editing)
+  S.seek = function (t) {
+    R.playTime = t;
+    layer.batchDraw();
+    emit('time', t);
+  };
+  S.stopPreview = function () { S.pause(); R.playTime = null; layer.batchDraw(); emit('time', null); };
 
   /* ───────────────────────── crop mode ───────────────────────── */
 
@@ -1345,11 +1493,37 @@
       try { emit('dropPayload', JSON.parse(data), at); } catch (err) { /* ignore */ }
     }
   });
+  const CLIP_TAG = 'collage-studio/layers:';
+  function typingTarget(t) { return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
+  function onCopy(e, cut) {
+    if (typingTarget(e.target) || !sel.length) return;
+    S.copy();
+    try { e.clipboardData.setData('text/plain', CLIP_TAG + JSON.stringify(clipboard)); e.preventDefault(); } catch (err) { /* internal clipboard still works */ }
+    if (cut) S.removeSelected();
+    emit('toast', `${cut ? 'Cut' : 'Copied'} ${clipboard.length} layer${clipboard.length > 1 ? 's' : ''}`);
+  }
+  window.addEventListener('copy', e => onCopy(e, false));
+  window.addEventListener('cut', e => onCopy(e, true));
   window.addEventListener('paste', e => {
-    const t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    if (typingTarget(e.target)) return;
+    const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if (text && text.startsWith(CLIP_TAG)) {
+      e.preventDefault();
+      try {
+        const els = JSON.parse(text.slice(CLIP_TAG.length));
+        // layers copied from another tab may reference photos this tab doesn't have
+        const usable = els.filter(el => !el.assetId || assets[el.assetId]);
+        if (usable.length) { clipboard = usable; S.paste(); } else if (clipboard) S.paste();
+      } catch (err) { if (clipboard) S.paste(); }
+      return;
+    }
     const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
     if (files.length) { e.preventDefault(); S.importFiles(files); return; }
+    if (text && text.trim()) {
+      e.preventDefault();
+      S.addElement(S.mk('text', { text: text.trim().slice(0, 2000), fontSize: Math.round(doc.width * 0.05), fontFamily: 'Instrument Sans', lineHeight: 1.25 }));
+      return;
+    }
     if (clipboard) { e.preventDefault(); S.paste(); }
   });
 
@@ -1357,7 +1531,7 @@
 
   window.addEventListener('keydown', e => {
     if (e.key === ' ' ) keys.space = !isTyping(e);
-    keys.alt = e.altKey; keys.shift = e.shiftKey;
+    keys.alt = e.altKey; keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey || e.metaKey;
     if (keys.space && !panning) area.style.cursor = 'grab';
     if (isTyping(e)) return;
     if (document.querySelector('.modal-back')) return;
@@ -1367,8 +1541,8 @@
     if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? S.redo() : S.undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); S.redo(); return; }
     if (mod && k === 'd') { e.preventDefault(); S.duplicate(); return; }
-    if (mod && k === 'c') { if (S.copy()) e.preventDefault(); return; }
-    if (mod && k === 'x') { e.preventDefault(); S.cut(); return; }
+    // ⌘C / ⌘X / ⌘V arrive as copy / cut / paste events below so the system clipboard is used too
+    if (mod && (k === 'c' || k === 'x' || k === 'v')) return;
     if (mod && k === 'a') { e.preventDefault(); S.selectAll(); return; }
     if (mod && k === 'l') { e.preventDefault(); S.toggleLock(); return; }
     if (mod && (k === '=' || k === '+')) { e.preventDefault(); S.zoomBy(1.2); return; }
@@ -1381,7 +1555,11 @@
     if (mod && k === 'e') { e.preventDefault(); emit('export'); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }
-    if (e.key === 'Escape') { if (cropState) endCrop(); else S.select([]); return; }
+    if (e.key === 'Escape') { if (playing) S.pause(); else if (S.tool === 'erase') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
+    if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
+    if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }
+    if (S.tool === 'erase' && (e.key === '[' || e.key === ']')) { S.eraser.size = clamp(S.eraser.size * (e.key === ']' ? 1.2 : 1 / 1.2), 4, 800); S.refreshBrush(); emit('tool', 'erase'); return; }
+    if (k === 'p') { playing ? S.pause() : S.play(); return; }
     if (e.key === 'Enter') {
       if (cropState) { endCrop(); return; }
       const els = S.selEls();
@@ -1398,10 +1576,10 @@
     if (e.key === '?') { emit('help'); return; }
   });
   window.addEventListener('keyup', e => {
-    if (e.key === ' ') { keys.space = false; if (!panning) area.style.cursor = ''; }
-    keys.alt = e.altKey; keys.shift = e.shiftKey;
+    if (e.key === ' ') { keys.space = false; if (!panning) area.style.cursor = S.tool === 'erase' ? 'none' : ''; }
+    keys.alt = e.altKey; keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey || e.metaKey;
   });
-  window.addEventListener('blur', () => { keys.space = keys.alt = keys.shift = false; });
+  window.addEventListener('blur', () => { keys.space = keys.alt = keys.shift = keys.ctrl = false; });
   function isTyping(e) {
     const t = e.target;
     return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);

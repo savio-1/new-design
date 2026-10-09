@@ -526,11 +526,11 @@
     }
   }
 
-  const LINE_BG = new Set(['lines', 'select', 'marker', 'underline']);
+  const LINE_BG = new Set(['lines', 'select', 'marker', 'underline', 'rough']);
   R.TEXT_BG = {
     none: 'None', box: 'Box', pill: 'Pill', lines: 'Line highlight', select: 'Selection', marker: 'Marker',
     sticker: 'Sticker outline', tape: 'Tape', oval: 'Oval', scallop: 'Scallop', burst: 'Burst',
-    speech: 'Speech bubble', ticket: 'Ticket', underline: 'Underline', scribble: 'Scribble circle', torn: 'Torn paper',
+    speech: 'Speech bubble', ticket: 'Ticket', underline: 'Underline', scribble: 'Scribble circle', torn: 'Torn paper', rough: 'Marker blocks',
   };
 
   const layoutCache = new LRU(400);
@@ -651,12 +651,21 @@
     const border = bg.borderWidth > 0 ? { w: bg.borderWidth, c: bg.borderColor || '#111' } : null;
     const paint = (path, fill = true) => {
       if (fill) { ctx.fillStyle = col; ctx.fill(path); }
-      if (border) { ctx.lineWidth = border.w; ctx.strokeStyle = border.c; ctx.lineJoin = 'round'; ctx.stroke(path); }
+      if (border && !bg.stitch) { ctx.lineWidth = border.w; ctx.strokeStyle = border.c; ctx.lineJoin = 'round'; ctx.stroke(path); }
+    };
+    // dashed "stitched" line sewn just inside a label's edge
+    const stitch = (x, y, ww, hh, r) => {
+      if (!bg.stitch) return;
+      const ins = Math.max(3, L.size * 0.09), lw = bg.borderWidth > 0 ? bg.borderWidth : Math.max(1.5, L.size * 0.035);
+      ctx.save();
+      ctx.setLineDash([lw * 3.2, lw * 2.4]); ctx.lineWidth = lw; ctx.strokeStyle = bg.borderColor || '#ffffff'; ctx.lineCap = 'round';
+      ctx.stroke(rrect(new Path2D(), x + ins, y + ins, ww - ins * 2, hh - ins * 2, Math.max(0, r - ins)));
+      ctx.restore();
     };
     const seed = hashStr(el.id || 'x');
     switch (style) {
-      case 'box': paint(rrect(new Path2D(), 0, 0, w, h, rad)); break;
-      case 'pill': paint(rrect(new Path2D(), 0, 0, w, h, h / 2)); break;
+      case 'box': paint(rrect(new Path2D(), 0, 0, w, h, rad)); stitch(0, 0, w, h, rad); break;
+      case 'pill': paint(rrect(new Path2D(), 0, 0, w, h, h / 2)); stitch(0, 0, w, h, h / 2); break;
       case 'oval': { const p = new Path2D(); p.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, TAU); paint(p); break; }
       case 'scallop': paint(shapePath('scallop', w, h, { points: Math.round(clamp((w + h) / 18, 12, 28)), depth: 0.07 })); break;
       case 'burst': paint(shapePath('burst', w, h, { points: 20, inner: 0.84 })); break;
@@ -692,7 +701,14 @@
         for (const ln of L.lines) {
           if (!ln.text.trim()) continue;
           const x = ln.x - L.padX, y = ln.top - L.padY, lw = ln.w + L.padX * 2, lh = L.lh + L.padY * 2;
-          if (style === 'lines') paint(rrect(new Path2D(), x, y, lw, lh, rad));
+          if (style === 'lines') { paint(rrect(new Path2D(), x, y, lw, lh, rad)); stitch(x, y, lw, lh, rad); }
+          else if (style === 'rough') {
+            // hand-cut marker block: wobbly edges and slightly skewed corners
+            const r = rng(seed + (ln.top | 0)), j = Math.max(2, L.size * 0.06), pts = [];
+            const edge = (x0, y0, x1, y1) => { const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / (L.size * 0.5))); for (let i = 0; i < n; i++) pts.push([x0 + (x1 - x0) * i / n + (r() - 0.5) * j, y0 + (y1 - y0) * i / n + (r() - 0.5) * j]); };
+            edge(x, y, x + lw, y); edge(x + lw, y, x + lw, y + lh); edge(x + lw, y + lh, x, y + lh); edge(x, y + lh, x, y);
+            paint(polyPath(pts));
+          }
           else if (style === 'select') {
             ctx.fillStyle = col; ctx.fillRect(x, y, lw, lh);
             const ac = bg.borderColor || '#6c5ce7', bw = bg.borderWidth || Math.max(1.5, L.size * 0.025);
@@ -1150,12 +1166,21 @@
     bw: { label: 'B&W', f: { grayscale: 100, contrast: 12 } },
     noir: { label: 'Noir', f: { grayscale: 100, contrast: 45, brightness: -8, vignette: 45, grain: 25 } },
     sepia: { label: 'Sepia', f: { sepia: 85, contrast: 5 } },
+    halftone: { label: 'Halftone', f: { grayscale: 100, contrast: 25, brightness: 12, halftone: 35 } },
+    halftoneFine: { label: 'Fine dots', f: { grayscale: 100, contrast: 20, halftone: 12 } },
+    duoBlue: { label: 'Duo blue', f: { contrast: 15, duotone: true, duoDark: '#1b2a8f', duoLight: '#a9c4ff' } },
+    duoPink: { label: 'Duo pink', f: { contrast: 15, duotone: true, duoDark: '#3a0d2c', duoLight: '#ff7ab6' } },
+    duoDots: { label: 'Duo dots', f: { contrast: 20, duotone: true, duoDark: '#1b2a8f', duoLight: '#b8cdfa', halftone: 20 } },
+    photocopy: { label: 'Photocopy', f: { contrast: 20, threshold: 50, grain: 35 } },
+    riso: { label: 'Riso', f: { contrast: 25, duotone: true, duoDark: '#f2542d', duoLight: '#fff3d6', halftone: 8, grain: 25 } },
+    xerox: { label: 'Xerox', f: { grayscale: 100, contrast: 60, brightness: 8, grain: 50, fade: 10 } },
   };
-  const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia'];
+  const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone'];
   const filterCache = new LRU(40);
+  function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
   function filteredSource(id, img, f) {
     if (!f || !FILTER_KEYS.some(k => f[k])) return img;
-    const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',');
+    const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',') + '|' + (f.duotone || f.threshold || f.halftone ? (f.duoDark || '') + (f.duoLight || '') : '');
     const hit = filterCache.get(key);
     if (hit) return hit;
     const c = canvas(img.naturalWidth || img.width, img.naturalHeight || img.height), x = c.getContext('2d', { willReadFrequently: true });
@@ -1169,6 +1194,11 @@
     const wa = (f.warmth || 0) * 0.35;
     const fade = (f.fade || 0) / 100 * 0.32;
     const gs = (f.grayscale || 0) / 100, sp = (f.sepia || 0) / 100;
+    // two-tone mapping (duotone and photocopy threshold) paints luminance between an ink and a paper colour
+    const twoTone = f.duotone || f.threshold;
+    const dk = twoTone ? hexRgb(f.duoDark || '#111111') : null, lt = twoTone ? hexRgb(f.duoLight || '#f4f1ea') : null;
+    const thr = (f.threshold || 0) / 100 * 255;
+    const tone = f.halftone ? new Float32Array(a.length / 4) : null;
     for (let i = 0; i < a.length; i += 4) {
       let r = a[i] * br, g = a[i + 1] * br, b = a[i + 2] * br;
       r = cf * (r - 128) + 128; g = cf * (g - 128) + 128; b = cf * (b - 128) + 128;
@@ -1181,16 +1211,47 @@
         r += (sr - r) * sp; g += (sg - g) * sp; b += (sb - b) * sp;
       }
       if (fade) { r = r * (1 - fade) + 255 * fade * 0.42; g = g * (1 - fade) + 255 * fade * 0.4; b = b * (1 - fade) + 255 * fade * 0.38; }
+      if (tone) tone[i >> 2] = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255, 0, 1);
+      if (twoTone) {
+        let t = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255, 0, 1);
+        if (f.threshold) t = t * 255 > thr ? 1 : 0;
+        r = dk[0] + (lt[0] - dk[0]) * t; g = dk[1] + (lt[1] - dk[1]) * t; b = dk[2] + (lt[2] - dk[2]) * t;
+      }
       a[i] = r; a[i + 1] = g; a[i + 2] = b;
     }
     x.putImageData(d, 0, 0);
-    filterCache.set(key, c);
-    return c;
+    let out = c;
+    if (f.halftone) out = halftone(c, tone, f);
+    filterCache.set(key, out);
+    return out;
+  }
+  // print-style dot screen: one dot per cell, sized by how dark the cell is
+  function halftone(src, tone, f) {
+    const w = src.width, h = src.height;
+    const cell = Math.max(3, Math.round(Math.max(w, h) * (0.004 + f.halftone / 100 * 0.022)));
+    const ink = f.duotone ? f.duoDark || '#111' : '#111111', paper = f.duotone ? f.duoLight || '#f4f1ea' : '#f4f1ea';
+    const o = canvas(w, h), x = o.getContext('2d');
+    x.fillStyle = paper; x.fillRect(0, 0, w, h);
+    x.fillStyle = ink;
+    const p = new Path2D();
+    for (let row = 0, y = cell / 2; y < h + cell; y += cell * 0.866, row++) {
+      for (let cx0 = (row % 2) * cell / 2; cx0 < w + cell; cx0 += cell) {
+        const sx = Math.min(w - 1, Math.max(0, cx0 | 0)), sy = Math.min(h - 1, Math.max(0, y | 0));
+        const dark = 1 - tone[sy * w + sx];
+        const r = cell * 0.56 * Math.sqrt(dark);  // dot area tracks darkness
+        if (r > 0.35) { p.moveTo(cx0 + r, y); p.arc(cx0, y, r, 0, TAU); }
+      }
+    }
+    x.fill(p);
+    // keep the photo's transparency (cut-outs stay cut out)
+    x.globalCompositeOperation = 'destination-in';
+    x.drawImage(src, 0, 0);
+    return o;
   }
 
   R.FRAMES = {
     none: 'None', rounded: 'Rounded', circle: 'Circle', arch: 'Arch', polaroid: 'Polaroid', stamp: 'Stamp',
-    film: 'Film', torn: 'Torn paper', border: 'Border', blob: 'Blob', heart: 'Heart', star: 'Star',
+    film: 'Film', torn: 'Torn paper', papercut: 'Paper cut', border: 'Border', blob: 'Blob', heart: 'Heart', star: 'Star',
     scallop: 'Scallop', flower: 'Flower', ticket: 'Ticket', squircle: 'Squircle', sparkle: 'Sparkle',
   };
   function frameGeometry(el) {
@@ -1242,6 +1303,24 @@
         g.rect = inset(size, size, size, size);
         g.inner = rrect(new Path2D(), g.rect.x, g.rect.y, g.rect.w, g.rect.h, 0);
         break;
+      case 'papercut': {
+        // angular hand-cut outline: a jittered polygon with the photo cut along an inset copy
+        const r = rng(hashStr(el.id || 'pc')), cx = w / 2, cy = h / 2, n = 16;
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+          const t = i / n * TAU + (r() - 0.5) * 0.25;
+          const ex = Math.cos(t), ey = Math.sin(t);
+          const k = 1 / Math.max(Math.abs(ex), Math.abs(ey)); // push towards the rectangle's edge
+          const j = 0.9 + r() * 0.1;
+          pts.push([ex * Math.min(k, 1.25) * j, ey * Math.min(k, 1.25) * j]);
+        }
+        const outerPts = fitPoly(pts, w, h);
+        g.outer = polyPath(outerPts);
+        const sx = Math.max(0.1, (w / 2 - size) / (w / 2)), sy = Math.max(0.1, (h / 2 - size) / (h / 2));
+        g.inner = polyPath(outerPts.map(([x, y]) => [cx + (x - cx) * sx, cy + (y - cy) * sy]));
+        g.rect = { x: 0, y: 0, w, h };
+        break;
+      }
       case 'ticket':
         g.inner = ticketPath(w, h, f.radius ?? Math.min(w, h) * 0.06, Math.min(w, h) * 0.1);
         if (f.size) g.stroke = { path: g.inner, w: size };
@@ -1331,11 +1410,91 @@
   /* ───────────────────────── die-cut outline ───────────────────────── */
 
   const outlineCache = new LRU(60);
+  R.OUTLINE_STYLES = { smooth: 'Smooth sticker', paper: 'Paper cut-out', scribble: 'Marker scribble' };
+  function dilate(sil, W, H, rad) {
+    const d = canvas(W, H), dx = d.getContext('2d');
+    const n = 28;
+    for (let i = 0; i < n; i++) { const a = i / n * TAU; dx.drawImage(sil, Math.cos(a) * rad, Math.sin(a) * rad); }
+    for (let i = 0; i < n / 2; i++) { const a = i / (n / 2) * TAU; dx.drawImage(sil, Math.cos(a) * rad * 0.5, Math.sin(a) * rad * 0.5); }
+    dx.drawImage(sil, 0, 0);
+    return d;
+  }
+  // outer contours of the opaque blobs in a canvas, as point lists in canvas pixels
+  function contours(src, W, H) {
+    const g = Math.min(1, 240 / Math.max(W, H));
+    const gw = Math.max(2, Math.round(W * g)), gh = Math.max(2, Math.round(H * g));
+    const sm = canvas(gw + 2, gh + 2), sx = sm.getContext('2d', { willReadFrequently: true });
+    sx.drawImage(src, 1, 1, gw, gh);
+    const gw2 = gw + 2, gh2 = gh + 2, px = sx.getImageData(0, 0, gw2, gh2).data;
+    const G = new Uint8Array(gw2 * gh2);
+    for (let i = 0; i < G.length; i++) G[i] = px[i * 4 + 3] > 110 ? 1 : 0;
+    const lab = new Int32Array(G.length), comps = [];
+    let id = 0;
+    for (let i = 0; i < G.length; i++) {
+      if (!G[i] || lab[i]) continue;
+      id++;
+      let area = 0;
+      const stack = [i];
+      lab[i] = id;
+      while (stack.length) {
+        const q = stack.pop(); area++;
+        const qx = q % gw2, qy = (q / gw2) | 0;
+        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = qx + ox, ny = qy + oy;
+          if (nx < 0 || ny < 0 || nx >= gw2 || ny >= gh2) continue;
+          const ni = ny * gw2 + nx;
+          if (G[ni] && !lab[ni]) { lab[ni] = id; stack.push(ni); }
+        }
+      }
+      comps.push({ id, start: i, area });
+    }
+    const maxA = Math.max(0, ...comps.map(c => c.area));
+    const D = [[-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1]];
+    const out = [];
+    for (const c of comps) {
+      if (c.area < Math.max(12, maxA * 0.03)) continue;
+      const inC = (x, y) => x >= 0 && y >= 0 && x < gw2 && y < gh2 && lab[y * gw2 + x] === c.id;
+      const sxp = c.start % gw2, syp = (c.start / gw2) | 0;
+      let cx = sxp, cy = syp, dir = 0;
+      const pts = [];
+      const cap = c.area * 4 + 100;
+      for (let step = 0; step < cap; step++) {
+        pts.push([cx, cy]);
+        let found = false;
+        for (let k = 0; k < 8; k++) {
+          const d = (dir + k) % 8, nx = cx + D[d][0], ny = cy + D[d][1];
+          if (inC(nx, ny)) { cx = nx; cy = ny; dir = (d + 6) % 8; found = true; break; }
+        }
+        if (!found || (cx === sxp && cy === syp && pts.length > 2)) break;
+      }
+      out.push(pts.map(([x, y]) => [(x - 1 + 0.5) / g, (y - 1 + 0.5) / g]));
+    }
+    return out;
+  }
+  function simplify(pts, eps) {
+    if (pts.length < 4) return pts;
+    const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+    const stack = [[0, pts.length - 1]];
+    while (stack.length) {
+      const [i0, i1] = stack.pop();
+      const [ax, ay] = pts[i0], [bx, by] = pts[i1];
+      const L = Math.hypot(bx - ax, by - ay) || 1;
+      let best = -1, bd = 0;
+      for (let i = i0 + 1; i < i1; i++) {
+        const d = Math.abs((bx - ax) * (ay - pts[i][1]) - (ax - pts[i][0]) * (by - ay)) / L;
+        if (d > bd) { bd = d; best = i; }
+      }
+      if (bd > eps && best > 0) { keep[best] = 1; stack.push([i0, best], [best, i1]); }
+    }
+    return pts.filter((_, i) => keep[i]);
+  }
   function drawOutlined(ctx, el, srcKey, paint) {
     const w = el.width, h = el.height, o = el.outline;
+    const style = o.style || 'smooth';
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
-    const pad = o.width + 2;
-    const key = [srcKey, w | 0, h | 0, s, o.width, o.color].join('|');
+    const sw = style === 'scribble' ? Math.max(3, o.width * 0.5) : 0;
+    const pad = o.width + sw + 4;
+    const key = [srcKey, w | 0, h | 0, s, o.width, o.color, style].join('|');
     let c = outlineCache.get(key);
     if (!c) {
       const W = (w + pad * 2) * s, H = (h + pad * 2) * s;
@@ -1345,13 +1504,38 @@
       sx.drawImage(art, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = o.color || '#fff'; sx.fillRect(0, 0, W, H);
       c = canvas(W, H);
       const cx = c.getContext('2d');
-      const rad = o.width * s, n = 28;
-      for (let i = 0; i < n; i++) { const a = i / n * TAU; cx.drawImage(sil, Math.cos(a) * rad, Math.sin(a) * rad); }
-      for (let i = 0; i < n / 2; i++) { const a = i / (n / 2) * TAU; cx.drawImage(sil, Math.cos(a) * rad * 0.5, Math.sin(a) * rad * 0.5); }
-      cx.drawImage(art, 0, 0);
+      const rad = o.width * s;
+      if (style === 'smooth') {
+        cx.drawImage(dilate(sil, W, H, rad), 0, 0);
+      } else {
+        const polys = contours(dilate(sil, W, H, rad), W, H);
+        const r = rng(hashStr(el.id || 'o'));
+        cx.fillStyle = cx.strokeStyle = o.color || '#fff';
+        cx.lineJoin = 'round'; cx.lineCap = 'round';
+        for (const poly of polys) {
+          if (style === 'paper') {
+            // few, straight cuts like scissors through paper
+            const pts = simplify(poly, Math.max(W, H) * 0.018).map(([x, y]) => [x + (r() - 0.5) * rad * 0.3, y + (r() - 0.5) * rad * 0.3]);
+            cx.fill(polyPath(pts));
+          } else {
+            // low-frequency wobble so the line reads as drawn by hand around the subject
+            const s1 = r() * 10, s2 = r() * 10, amp = sw * s * 0.55;
+            const pts = simplify(poly, Math.max(1.5, Math.max(W, H) * 0.004)).map(([x, y], i) => [x + (Math.sin(i * 0.55 + s1) + 0.5 * Math.sin(i * 1.7 + s2)) * amp, y + (Math.cos(i * 0.6 + s2) + 0.5 * Math.sin(i * 1.3 + s1)) * amp]);
+            cx.lineWidth = sw * s;
+            cx.stroke(polyPath(pts, 1));
+            cx.globalAlpha = 0.55;
+            cx.lineWidth = sw * s * 0.6;
+            cx.stroke(polyPath(pts.map(([x, y]) => [x + (r() - 0.5) * sw * s * 0.8, y + (r() - 0.5) * sw * s * 0.8]), 1));
+            cx.globalAlpha = 1;
+          }
+        }
+      }
+      if (style !== 'scribble') cx.drawImage(art, 0, 0);
+      c.art = style === 'scribble' ? art : null;
       outlineCache.set(key, c);
     }
     ctx.drawImage(c, -pad, -pad, w + pad * 2, h + pad * 2);
+    if (c.art) ctx.drawImage(c.art, -pad, -pad, w + pad * 2, h + pad * 2);
   }
 
   /* ───────────────────────── stickers & shapes ───────────────────────── */
@@ -1415,7 +1599,7 @@
     const m = Math.max(el.width, el.height);
     switch (el.type) {
       case 'text': return ((el.bg && el.bg.padX) || 0) + ((el.stroke && el.stroke.width) || 0) * 2 + (el.echo && el.echo.on ? el.fontSize * 0.4 : 0) + 8;
-      case 'sticker': case 'image': return ((el.outline && el.outline.on && el.outline.width) || 0) + 6;
+      case 'sticker': case 'image': return ((el.outline && el.outline.on && el.outline.width) || 0) * 1.6 + 8;
       case 'shape': return (el.strokeWidth || 0) + 6;
       default: return m * 0.05 + 6;
     }
@@ -1433,35 +1617,171 @@
     }
   }
 
-  const shadowCache = new LRU(60);
+  /* ───────────────────────── animation ───────────────────────── */
+
+  R.playTime = null;
+  R.animDoc = null;
+  R.ANIM_LOOPS = {
+    none: 'None', wiggle: 'Stop-motion wiggle', float: 'Float', jiggle: 'Jiggle', sway: 'Sway', swing: 'Swing',
+    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink',
+  };
+  R.ANIM_ENTER = {
+    none: 'None', pop: 'Pop in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
+    right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe',
+  };
+  const LOOP_PERIOD = { float: 3, jiggle: 0.9, sway: 3, swing: 2.2, spin: 6, pulse: 1.6, bounce: 1.2, shake: 0.5, orbit: 4, blink: 1.4 };
+  const easeOut = p => 1 - Math.pow(1 - p, 3);
+  const easeBack = p => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+  const easeBounce = p => {
+    const n = 7.5625, d = 2.75;
+    if (p < 1 / d) return n * p * p;
+    if (p < 2 / d) return n * (p -= 1.5 / d) * p + 0.75;
+    if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
+    return n * (p -= 2.625 / d) * p + 0.984375;
+  };
+  R.hasAnim = el => !!(el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none')));
+  function animState(el, t, doc) {
+    const an = el.anim, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1 };
+    const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
+    const tl = ((t % D) + D) % D;
+    const loop = an.loop || 'none';
+    if (loop !== 'none') {
+      const phase = an.sync ? 0 : (hashStr(el.id || 'a') % 1000) / 1000;
+      if (loop === 'wiggle') {
+        const N = Math.max(1, Math.round(D * 8 * spd));
+        const k = Math.floor(tl / D * N) % N;
+        const r = rng(hashStr(el.id || 'w') + k * 7919);
+        st.dx = (r() - 0.5) * m * 0.035 * amt; st.dy = (r() - 0.5) * m * 0.035 * amt; st.rot = (r() - 0.5) * 5 * amt;
+      } else {
+        const base = LOOP_PERIOD[loop] / spd;
+        const P = D / Math.max(1, Math.round(D / base));
+        const u = tl / P + phase, ph = u * TAU;
+        switch (loop) {
+          case 'float': st.dy = Math.sin(ph) * m * 0.06 * amt; break;
+          case 'jiggle': st.rot = Math.sin(ph) * 6 * amt; st.sc = 1 + Math.sin(ph * 2) * 0.02 * amt; break;
+          case 'sway': st.rot = Math.sin(ph) * 4 * amt; st.dx = Math.sin(ph) * m * 0.03 * amt; break;
+          case 'swing': st.rot = Math.sin(ph) * 10 * amt; st.py = 0; break;
+          case 'spin': st.rot = (u % 1) * 360 * (an.reverse ? -1 : 1); break;
+          case 'pulse': st.sc = 1 + (0.5 + 0.5 * Math.sin(ph)) * 0.08 * amt; break;
+          case 'bounce': st.dy = -Math.abs(Math.sin(ph / 2)) * m * 0.14 * amt; break;
+          case 'shake': st.dx = Math.sin(ph) * m * 0.025 * amt; break;
+          case 'orbit': st.dx = Math.cos(ph) * m * 0.06 * amt; st.dy = Math.sin(ph) * m * 0.06 * amt; break;
+          case 'blink': st.alpha = (u % 1) < 0.78 ? 1 : 0.12; break;
+        }
+      }
+    }
+    const enter = an.enter || 'none';
+    if (enter !== 'none') {
+      const dur = 0.6 / spd, p = clamp((tl - (an.delay || 0)) / dur, 0, 1), e = easeOut(p);
+      switch (enter) {
+        case 'pop': st.sc *= Math.max(0, easeBack(p)); st.alpha *= Math.min(1, p * 3); break;
+        case 'fade': st.alpha *= e; break;
+        case 'rise': st.dy += (1 - e) * m * 0.4; st.alpha *= e; break;
+        case 'drop': st.dy -= (1 - easeBounce(p)) * m * 1.2; st.alpha *= Math.min(1, p * 4); break;
+        case 'left': st.dx -= (1 - e) * m * 1.2; st.alpha *= e; break;
+        case 'right': st.dx += (1 - e) * m * 1.2; st.alpha *= e; break;
+        case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
+        case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
+        case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * [...(el.text || '')].length); else st.reveal = p; break;
+        case 'wipe': st.reveal = e; break;
+      }
+    }
+    return st;
+  }
+  R.animState = animState;
+
   function drawElement(ctx, el, env = {}) {
+    const t = 'time' in env ? env.time : R.playTime;
+    if (t == null || !R.hasAnim(el)) { drawLayered(ctx, el, env); return; }
+    const A = animState(el, t, env.doc || R.animDoc);
+    if (A.alpha <= 0.001 || A.sc <= 0.001 || A.reveal <= 0) return;
+    ctx.save();
+    ctx.translate(A.px + A.dx, A.py + A.dy);
+    if (A.rot) ctx.rotate(A.rot * Math.PI / 180);
+    if (A.sc !== 1) ctx.scale(A.sc, A.sc);
+    ctx.translate(-A.px, -A.py);
+    if (A.alpha < 1) ctx.globalAlpha *= A.alpha;
+    if (A.reveal < 1) {
+      const b = bleed(el);
+      ctx.beginPath(); ctx.rect(-b, -b, (el.width + b * 2) * A.reveal, el.height + b * 2); ctx.clip();
+    }
+    let e = el;
+    if (A.chars != null) {
+      const chars = [...(el.text || '')];
+      if (A.chars < chars.length) e = Object.assign({}, el, { text: chars.slice(0, A.chars).join(''), autoWidth: false, width: el.width });
+    }
+    drawLayered(ctx, e, env);
+    ctx.restore();
+  }
+  R.drawElement = drawElement;
+
+  /* ───────────────────────── erasing ───────────────────────── */
+
+  // el.erase: [{ m: 'erase'|'restore', s: 'circle'|'square', r, p: [u, v, …] }] in fractions of the box
+  function strokeErase(x, el, st) {
+    const w = el.width, h = el.height, r = Math.max(0.5, st.r * w), p = st.p;
+    if (st.s === 'square') {
+      const stamp = (u, v) => x.fillRect(u * w - r, v * h - r, r * 2, r * 2);
+      stamp(p[0], p[1]);
+      for (let i = 2; i < p.length; i += 2) {
+        const x0 = p[i - 2] * w, y0 = p[i - 1] * h, x1 = p[i] * w, y1 = p[i + 1] * h;
+        const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / (r * 0.4)));
+        for (let k = 1; k <= n; k++) stamp((x0 + (x1 - x0) * k / n) / w, (y0 + (y1 - y0) * k / n) / h);
+      }
+      return;
+    }
+    if (p.length <= 2) { x.beginPath(); x.arc(p[0] * w, p[1] * h, r, 0, TAU); x.fill(); return; }
+    x.lineWidth = r * 2; x.lineCap = 'round'; x.lineJoin = 'round';
+    x.beginPath(); x.moveTo(p[0] * w, p[1] * h);
+    for (let i = 2; i < p.length; i += 2) x.lineTo(p[i] * w, p[i + 1] * h);
+    x.stroke();
+  }
+
+  const layerCache = new LRU(60);
+  function drawLayered(ctx, el, env) {
     const sh = el.shadow;
-    if (!sh || !sh.on) { drawCore(ctx, el, env); return; }
+    const erased = el.erase && el.erase.length;
+    if ((!sh || !sh.on) && !erased) { drawCore(ctx, el, env); return; }
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
-    const { x, y, rotation, opacity, name, locked, hidden, ...rest } = el;
+    const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
     const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion;
-    let c = shadowCache.get(key);
+    let c = layerCache.get(key);
     if (!c || c.dirty) {
       const W = (el.width + b * 2) * s, H = (el.height + b * 2) * s;
       c = canvas(W, H);
       const x2 = c.getContext('2d');
       x2.scale(s, s); x2.translate(b, b);
       drawCore(x2, el, env);
+      if (erased) {
+        const mk = canvas(W, H), mx = mk.getContext('2d');
+        mx.scale(s, s); mx.translate(b, b);
+        mx.fillStyle = mx.strokeStyle = '#000';
+        mx.fillRect(-b, -b, el.width + b * 2, el.height + b * 2);
+        for (const st of el.erase) {
+          mx.globalCompositeOperation = st.m === 'restore' ? 'source-over' : 'destination-out';
+          strokeErase(mx, el, st);
+        }
+        x2.setTransform(1, 0, 0, 1, 0, 0);
+        x2.globalCompositeOperation = 'destination-in';
+        x2.drawImage(mk, 0, 0);
+      }
       // async resources may still be loading; don't cache an incomplete render
       if (!isComplete(el)) c.dirty = true;
-      shadowCache.set(key, c);
+      layerCache.set(key, c);
     }
     const ds = deviceScale(ctx);
     ctx.save();
-    ctx.shadowColor = rgba(sh.color || '#000', sh.opacity ?? 0.35);
-    ctx.shadowBlur = (sh.blur ?? 20) * ds;
-    ctx.shadowOffsetX = (sh.x ?? 0) * ds;
-    ctx.shadowOffsetY = (sh.y ?? 12) * ds;
+    if (sh && sh.on) {
+      ctx.shadowColor = rgba(sh.color || '#000', sh.opacity ?? 0.35);
+      ctx.shadowBlur = (sh.blur ?? 20) * ds;
+      ctx.shadowOffsetX = (sh.x ?? 0) * ds;
+      ctx.shadowOffsetY = (sh.y ?? 12) * ds;
+    }
     ctx.drawImage(c, -b, -b, el.width + b * 2, el.height + b * 2);
     ctx.restore();
   }
-  R.drawElement = drawElement;
 
   function isComplete(el) {
     if (el.type === 'image') return !el.assetId || !!assetImage(el.assetId);
@@ -1499,6 +1819,37 @@
     if (o.vignette) overlays(ctx, { x: 0, y: 0, w, h }, { vignette: o.vignette });
     if (o.grain) fillTexture(ctx, 'grain', o.grain, w, h);
     if (o.tint && o.tintAmount) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha *= o.tintAmount / 100; ctx.fillStyle = o.tint; ctx.fillRect(0, 0, w, h); ctx.restore(); }
+    if (o.paper) fillTexture(ctx, 'paper', o.paper, w, h);
+    if (o.leak) {
+      // warm light leak bleeding in from two corners
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha *= o.leak / 100;
+      for (const [x, y, c] of [[0, 0, '255,120,40'], [w, h * 0.85, '255,60,120']]) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(w, h) * 0.6);
+        g.addColorStop(0, `rgba(${c},0.85)`); g.addColorStop(0.5, `rgba(${c},0.25)`); g.addColorStop(1, `rgba(${c},0)`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      }
+      ctx.restore();
+    }
+    if (o.creases) {
+      // folded-poster creases: a shadow and a highlight either side of each fold
+      const a = o.creases / 100;
+      const fold = (x0, y0, x1, y1, vertical) => {
+        const span = Math.max(w, h) * 0.012;
+        const g = vertical ? ctx.createLinearGradient(x0 - span, 0, x0 + span, 0) : ctx.createLinearGradient(0, y0 - span, 0, y0 + span);
+        g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.45, `rgba(0,0,0,${0.22 * a})`);
+        g.addColorStop(0.55, `rgba(255,255,255,${0.35 * a})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        if (vertical) ctx.fillRect(x0 - span, 0, span * 2, h); else ctx.fillRect(0, y0 - span, w, span * 2);
+      };
+      ctx.save();
+      fold(w / 2, 0, w / 2, h, true);
+      fold(0, h / 3, w, h / 3, false);
+      fold(0, h * 2 / 3, w, h * 2 / 3, false);
+      fillTexture(ctx, 'paper', 25 * a, w, h);
+      ctx.restore();
+    }
   }
   R.drawOverlay = drawOverlay;
 
@@ -1532,9 +1883,11 @@
     const scale = opts.scale || 1;
     const c = opts.canvas || canvas(doc.width * scale, doc.height * scale);
     const ctx = c.getContext('2d');
+    if (opts.canvas) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); }
     ctx.save();
     ctx.scale(c.width / doc.width, c.height / doc.height);
     drawBackground(ctx, doc, opts);
+    const env = Object.assign({}, opts, { time: opts.time ?? null, doc });
     for (const el of doc.elements || []) {
       if (el.hidden) continue;
       ctx.save();
@@ -1542,7 +1895,7 @@
       ctx.rotate((el.rotation || 0) * Math.PI / 180);
       ctx.globalAlpha = el.opacity ?? 1;
       if (el.blend && el.blend !== 'normal') ctx.globalCompositeOperation = el.blend;
-      drawElement(ctx, el, opts);
+      drawElement(ctx, el, env);
       ctx.restore();
     }
     drawOverlay(ctx, doc);

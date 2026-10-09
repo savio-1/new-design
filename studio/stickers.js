@@ -811,6 +811,500 @@
       `<ellipse cx="48" cy="40" rx="12" ry="5" transform="rotate(-25 48 40)" fill="#fff" filter="url(#bl)"/><ellipse cx="172" cy="40" rx="12" ry="5" transform="rotate(25 172 40)" fill="#fff" filter="url(#bl)"/><path d="${sparkle(64, 128, 9)}${sparkle(184, 70, 8)}" fill="#fff"/>`, CHROME));
   }
 
+  /* ============================================================ PIXEL & WEB */
+  const PW = 'Pixel & Web';
+
+  // mix a #rgb / #rrggbb colour toward white (t > 0) or black (t < 0); other formats pass through
+  function tint(col, t) {
+    let h = String(col).trim().replace(/^#/, '');
+    if (h.length === 3) h = h.replace(/./g, '$&$&');
+    if (!/^[0-9a-f]{6}$/i.test(h)) return col;
+    return '#' + [0, 2, 4].map((i) => {
+      const n = parseInt(h.slice(i, i + 2), 16);
+      return Math.round(t > 0 ? n + (255 - n) * t : n * (1 + t)).toString(16).padStart(2, '0');
+    }).join('');
+  }
+
+  // pixel art -> crisp <rect>s. rows: strings with one char per cell ('.' = empty); pal: { char: colour },
+  // a colour may carry an opacity as '#000/.3'. Horizontal runs of one char become a single rect, identical
+  // runs on consecutive rows merge vertically, and rects are grouped per colour to keep the markup small.
+  function pix(rows, pal, s, ox = 0, oy = 0) {
+    const runs = [];
+    let prev = {};
+    rows.forEach((row, y) => {
+      const cur = {};
+      for (let x = 0; x < row.length;) {
+        const ch = row[x];
+        let e = x + 1;
+        while (e < row.length && row[e] === ch) e++;
+        if (pal[ch]) {
+          const k = x + ',' + e + ch;
+          const r = prev[k] || { x, n: e - x, y, h: 0, col: pal[ch] };
+          if (!prev[k]) runs.push(r);
+          r.h++;
+          cur[k] = r;
+        }
+        x = e;
+      }
+      prev = cur;
+    });
+    const g = {};
+    for (const r of runs) (g[r.col] = g[r.col] || []).push(`<rect x="${f(ox + r.x * s)}" y="${f(oy + r.y * s)}" width="${f(r.n * s)}" height="${f(r.h * s)}"/>`);
+    return '<g shape-rendering="crispEdges">' + Object.keys(g).map((k) => {
+      const [col, op] = k.split('/');
+      return `<g fill="${col}"${op ? ` fill-opacity="${op}"` : ''}>${g[k].join('')}</g>`;
+    }).join('') + '</g>';
+  }
+  // palette mapping every used char to one colour (silhouettes / drop shadows)
+  const silPal = (rows, col) => { const p = {}; rows.join('').replace(/[^. ]/g, (ch) => (p[ch] = col)); return p; };
+
+  // build a char grid: ops are fills [ch, x, y, w, h] or stamps [rows, x, y] ('.' in a stamp is see-through)
+  function pgrid(w, h, ops) {
+    const g = Array.from({ length: h }, () => Array(w).fill('.'));
+    const set = (x, y, ch) => { if (x >= 0 && y >= 0 && x < w && y < h) g[y][x] = ch; };
+    for (const o of ops) {
+      if (Array.isArray(o[0])) o[0].forEach((r, j) => [...r].forEach((ch, i) => { if (ch !== '.') set(o[1] + i, o[2] + j, ch); }));
+      else for (let j = 0; j < o[4]; j++) for (let i = 0; i < o[3]; i++) set(o[1] + i, o[2] + j, o[0]);
+    }
+    return g.map((r) => r.join(''));
+  }
+  // wrap every filled cell in a 1-cell outline (4-neighbour, so corners stay soft); grid grows 1 cell per side
+  function pout(rows, ch = 'K') {
+    const at = (x, y) => (rows[y - 1] || '')[x - 1] || '.';
+    const w = rows.reduce((m, r) => Math.max(m, r.length), 0) + 2, o = [];
+    for (let y = 0; y < rows.length + 2; y++) {
+      let s = '';
+      for (let x = 0; x < w; x++) {
+        const c = at(x, y);
+        s += c !== '.' ? c : (at(x - 1, y) !== '.' || at(x + 1, y) !== '.' || at(x, y - 1) !== '.' || at(x, y + 1) !== '.') ? ch : '.';
+      }
+      o.push(s);
+    }
+    return o;
+  }
+  // pixel sticker: s = cell size, palFn(c) -> palette, shadow = drop-shadow offset in cells
+  function addPx(id, name, rows, s, colors, palFn, shadow = 0) {
+    const w = rows.reduce((m, r) => Math.max(m, r.length), 0) * s + shadow * s, h = rows.length * s + shadow * s;
+    const sp = silPal(rows, '#000/.28');
+    add(id, name, PW, w, h, colors, (c) => S(w, h, (shadow ? pix(rows, sp, s, shadow * s, shadow * s) : '') + pix(rows, palFn(c), s)));
+  }
+
+  {
+    const ARROW = [
+      'K...........',
+      'KK..........',
+      'KWK.........',
+      'KWWK........',
+      'KWWWK.......',
+      'KWWWWK......',
+      'KWWWWWK.....',
+      'KWWWWWWK....',
+      'KWWWWWWWK...',
+      'KWWWWWWWWK..',
+      'KWWWWWWWWWK.',
+      'KWWWWWWKKKKK',
+      'KWWWKWWK....',
+      'KWWK.KWWK...',
+      'KWK..KWWK...',
+      'KK....KWWK..',
+      'K.....KWWK..',
+      '.......KWWK.',
+      '.......KWWK.',
+      '........KK..',
+    ];
+    const cur = (c) => ({ K: c[1], W: c[0] });
+    addPx('px-cursor', 'Pixel cursor', ARROW, 10, ['#ffffff', '#000000'], cur);
+    addPx('px-cursor-shadow', 'Cursor with shadow', ARROW, 11, ['#ffffff', '#000000'], cur, 1);
+    const HAND = [
+      '.....KK..........',
+      '....KWWK.........',
+      '....KWWK.........',
+      '....KWWK.........',
+      '....KWWK.........',
+      '....KWWKKK.......',
+      '....KWWKWWKKK....',
+      '....KWWKWWKWWKK..',
+      '....KWWKWWKWWKWK.',
+      '.KK.KWWWWWWWWKWWK',
+      'KWWKKWWWWWWWWWWWK',
+      'KWWWKWWWWWWWWWWWK',
+      '.KWWKWWWWWWWWWWWK',
+      '..KWWWWWWWWWWWWWK',
+      '..KWWWWWWWWWWWWWK',
+      '...KWWWWWWWWWWWK.',
+      '...KWWWWWWWWWWWK.',
+      '....KWWWWWWWWWK..',
+      '....KWWWWWWWWWK..',
+      '.....KWWWWWWWK...',
+      '.....KKKKKKKKK...',
+    ];
+    addPx('px-hand', 'Pointing hand cursor', HAND, 10, ['#ffffff', '#000000'], cur);
+    const GLASS = [
+      'KKKKKKKKKKKKK',
+      'KWWWWWWWWWWWK',
+      'KKKKKKKKKKKKK',
+      '.KWWWWWWWWWK.',
+      '.KWSSSSSSSWK.',
+      '.KWWSSSSSWWK.',
+      '..KWWSSSWWK..',
+      '...KWWSWWK...',
+      '....KWSWK....',
+      '.....KSK.....',
+      '....KWSWK....',
+      '...KWWSWWK...',
+      '..KWWWSWWWK..',
+      '.KWWWWSWWWWK.',
+      '.KWWWSSSWWWK.',
+      '.KWSSSSSSSWK.',
+      'KKKKKKKKKKKKK',
+      'KWWWWWWWWWWWK',
+      'KKKKKKKKKKKKK',
+    ];
+    addPx('px-hourglass', 'Hourglass cursor', GLASS, 12, ['#e0a526'], (c) => ({ K: K, W: '#ffffff', S: c[0] }));
+  }
+  {
+    const PC = pgrid(32, 30, [
+      ['K', 4, 0, 24, 20], ['B', 5, 1, 22, 18], ['H', 5, 1, 22, 1], ['H', 5, 1, 1, 17], ['D', 26, 1, 1, 18], ['D', 5, 18, 22, 1],
+      ['K', 7, 3, 18, 13], ['S', 8, 4, 16, 11], ['h', 9, 5, 2, 1], ['h', 9, 6, 1, 1],
+      ['s', 12, 7, 10, 7], ['W', 11, 6, 10, 7], ['T', 11, 6, 10, 2], ['W', 19, 6, 1, 1], ['g', 12, 9, 6, 1], ['g', 12, 11, 4, 1],
+      ['G', 23, 16, 2, 1],
+      ['K', 11, 20, 10, 2], ['D', 12, 20, 8, 1],
+      ['K', 1, 22, 30, 8], ['B', 2, 23, 28, 6], ['H', 2, 23, 28, 1], ['H', 2, 23, 1, 5], ['D', 29, 23, 1, 6], ['D', 2, 28, 28, 1],
+      ['K', 17, 25, 10, 1], ['D', 17, 26, 10, 1], ['G', 4, 26, 2, 1], ['D', 8, 25, 1, 2], ['D', 10, 25, 1, 2], ['D', 12, 25, 1, 2],
+    ]);
+    addPx('px-computer', 'Retro computer', PC, 7, ['#e3d8bb', '#2a5bd7'], (c) => ({
+      K: K, B: c[0], H: tint(c[0], 0.6), D: tint(c[0], -0.2), S: c[1], h: tint(c[1], 0.4), s: tint(c[1], -0.35),
+      W: '#ffffff', T: '#0b1f7a', g: '#a9b3c6', G: '#35c75a',
+    }));
+  }
+  {
+    const FOLDER = pout(pgrid(22, 16, [
+      ['b', 0, 0, 8, 2], ['b', 0, 2, 22, 14],
+      ['K', 0, 4, 22, 1], ['Y', 0, 5, 22, 11], ['H', 0, 5, 22, 1], ['d', 0, 15, 22, 1], ['d', 21, 5, 1, 11],
+    ]));
+    addPx('px-folder', 'Pixel folder', FOLDER, 9, ['#dcd44a'], (c) => ({
+      K: K, Y: c[0], b: tint(c[0], -0.22), H: tint(c[0], 0.5), d: tint(c[0], -0.12),
+    }));
+  }
+  {
+    const DOC = pgrid(17, 22, [[[
+      'KKKKKKKKKKKK.....',
+      'KWWWWWWWWWWKK....',
+      'KWWWWWWWWWWKgK...',
+      'KWWWWWWWWWWKggK..',
+      'KWWWWWWWWWWKgggK.',
+      'KWWWWWWWWWWKKKKKK',
+    ], 0, 0], ['K', 0, 6, 17, 16], ['W', 1, 6, 15, 15], ['p', 15, 6, 1, 15],
+    ['L', 3, 8, 11, 1], ['L', 3, 10, 9, 1], ['L', 3, 12, 11, 1], ['L', 3, 14, 7, 1], ['L', 3, 16, 10, 1], ['L', 3, 18, 8, 1]]);
+    addPx('px-document', 'Pixel document', DOC, 10, ['#7d9be8'], (c) => ({ K: K, W: '#ffffff', g: '#d6dae3', p: '#e9ecf2', L: c[0] }));
+  }
+  {
+    const FLOPPY = pgrid(22, 22, [
+      ['K', 0, 0, 22, 22], ['C', 1, 1, 20, 20], ['h', 1, 1, 19, 1], ['h', 1, 1, 1, 19], ['d', 20, 1, 1, 20], ['d', 1, 20, 20, 1],
+      ['M', 5, 1, 12, 7], ['m', 5, 7, 12, 1], ['m', 16, 1, 1, 7], ['k', 12, 2, 3, 4],
+      ['W', 3, 11, 16, 10], ['L', 5, 13, 12, 1], ['L', 5, 15, 12, 1], ['L', 5, 17, 8, 1], ['k', 1, 18, 1, 2],
+      ['.', 20, 0, 2, 1], ['.', 21, 1, 1, 1], ['K', 20, 1, 1, 1], ['K', 21, 2, 1, 1],
+    ]);
+    addPx('px-floppy', 'Floppy disk', FLOPPY, 10, ['#3d5fd9'], (c) => ({
+      K: K, C: c[0], h: tint(c[0], 0.3), d: tint(c[0], -0.3), M: '#d2d7de', m: '#9aa1ab', k: '#3a3f47', W: '#ffffff', L: '#b9c4d8',
+    }));
+  }
+  {
+    const HEART = [
+      '..KKK...KKK..',
+      '.KRRRK.KRRRK.',
+      'KRWWRRKRRRRRK',
+      'KRWRRRRRRRRRK',
+      'KRRRRRRRRRRRK',
+      'KRRRRRRRRRRdK',
+      '.KRRRRRRRRdK.',
+      '..KRRRRRRdK..',
+      '...KRRRRdK...',
+      '....KRRdK....',
+      '.....KdK.....',
+      '......K......',
+    ];
+    addPx('px-heart', 'Pixel heart', HEART, 15, ['#ff4f8b'], (c) => ({ K: K, R: c[0], d: tint(c[0], -0.22), W: '#ffffff' }));
+    const STAR = [
+      '........K........',
+      '.......KYK.......',
+      '.......KYK.......',
+      '......KYYYK......',
+      '......KYYYK......',
+      'KKKKKKYYYYYKKKKKK',
+      '.KYWWYYYYYYYYYYK.',
+      '..KYWYYYYYYYYYK..',
+      '...KYYYYYYYYYK...',
+      '....KYYYYYYYK....',
+      '....KYYYYYYYK....',
+      '...KYYYYYYYYYK...',
+      '...KYYYYKYYYYK...',
+      '..KYYYYK.KYYYYK..',
+      '..KYYKK...KKYYK..',
+      '.KYKK.......KKYK.',
+      '.KK...........KK.',
+    ];
+    addPx('px-star', 'Pixel star', STAR, 12, ['#ffd23f'], (c) => ({ K: K, Y: c[0], d: tint(c[0], -0.2), W: '#ffffff' }));
+    const SMILEY = [
+      '.....KKKKKK.....',
+      '...KKYYYYYYKK...',
+      '..KYWWYYYYYYYK..',
+      '.KYWYYYYYYYYYYK.',
+      '.KYYYKYYYYKYYYK.',
+      'KYYYYKYYYYKYYYYK',
+      'KYYYYKYYYYKYYYYK',
+      'KYYYYYYYYYYYYYYK',
+      'KYYYYYYYYYYYYYdK',
+      'KYYKYYYYYYYYKYdK',
+      'KYYYKYYYYYYKYYdK',
+      '.KYYYKKKKKKYYdK.',
+      '.KYYYYYYYYYYYdK.',
+      '..KYYYYYYYYddK..',
+      '...KKddddddKK...',
+      '.....KKKKKK.....',
+    ];
+    addPx('px-smiley', 'Pixel smiley', SMILEY, 13, ['#ffd400', '#1d1d1b'], (c) => ({ K: c[1], Y: c[0], d: tint(c[0], -0.15), W: '#ffffff' }));
+    const SPARK = pgrid(19, 19, [[[
+      '.......K.......',
+      '......KYK......',
+      '......KYK......',
+      '......KYK......',
+      '.....KYYYK.....',
+      '....KKYYYKK....',
+      '.KKKYYYWYYYKKK.',
+      'KYYYYYWWWYYYYYK',
+      '.KKKYYYWYYYKKK.',
+      '....KKYYYKK....',
+      '.....KYYYK.....',
+      '......KYK......',
+      '......KYK......',
+      '......KYK......',
+      '.......K.......',
+    ], 0, 4], [['..K..', '.KYK.', 'KYWYK', '.KYK.', '..K..'], 14, 0], [['.K.', 'KYK', '.K.'], 15, 13]]);
+    addPx('px-sparkle', 'Pixel sparkle', SPARK, 11, ['#ffe14d'], (c) => ({ K: K, Y: c[0], W: '#ffffff' }));
+  }
+  {
+    const X = ['KK..KK', '.KKKK.', '..KK..', '.KKKK.', 'KK..KK'];
+    const WIN = pgrid(56, 42, [
+      ['G', 0, 0, 56, 42], ['l', 0, 0, 55, 1], ['l', 0, 0, 1, 41], ['K', 0, 41, 56, 1], ['K', 55, 0, 1, 42],
+      ['W', 1, 1, 53, 1], ['W', 1, 1, 1, 39], ['D', 1, 40, 54, 1], ['D', 54, 1, 1, 40],
+      ['T', 3, 3, 50, 10],
+      ['W', 41, 4, 10, 1], ['W', 41, 4, 1, 7], ['K', 41, 11, 11, 1], ['K', 51, 4, 1, 8], ['D', 42, 10, 9, 1], ['D', 50, 5, 1, 6], ['G', 42, 5, 8, 5], [X, 43, 5],
+    ]);
+    addPx('px-window', 'Retro dialog window', WIN, 4, ['#000080', '#c0c0c0'], (c) => ({
+      K: K, W: '#ffffff', T: c[0], G: c[1], l: tint(c[1], 0.55), D: tint(c[1], -0.33),
+    }));
+  }
+  {
+    const ops = [['K', 1, 0, 54, 1], ['K', 1, 13, 54, 1], ['K', 0, 1, 1, 12], ['K', 55, 1, 1, 12], ['W', 1, 1, 54, 12], ['g', 1, 1, 54, 1], ['g', 1, 1, 1, 12]];
+    for (let i = 0; i < 7; i++) ops.push(['F', 3 + i * 5, 3, 4, 8], ['f', 3 + i * 5, 3, 4, 2], ['e', 3 + i * 5, 10, 4, 1]);
+    addPx('px-progress', 'Loading bar', pgrid(56, 14, ops), 4, ['#4f7cff'], (c) => ({
+      K: K, W: '#ffffff', g: '#c9ccd3', F: c[0], f: tint(c[0], 0.35), e: tint(c[0], -0.25),
+    }));
+  }
+  {
+    const dot = (ch) => ['.' + ch.repeat(3) + '.', ch.repeat(5), ch.repeat(5), ch.repeat(5), '.' + ch.repeat(3) + '.'];
+    const BR = pgrid(56, 44, [
+      ['K', 0, 0, 56, 44], ['W', 1, 1, 54, 42], ['T', 1, 1, 54, 8], ['K', 1, 9, 54, 1],
+      [dot('r'), 3, 3], [dot('y'), 9, 3], [dot('n'), 15, 3],
+      ['K', 22, 2, 31, 6], ['W', 23, 3, 29, 4], ['a', 25, 4, 12, 2],
+      ['K', 48, 10, 1, 33], ['g', 49, 10, 6, 33], ['s', 50, 12, 4, 10],
+    ]);
+    addPx('px-browser', 'Browser window', BR, 4, ['#c9b8ff', '#ffffff'], (c) => ({
+      K: K, W: c[1], T: c[0], r: '#ff5f57', y: '#febc2e', n: '#28c840', a: '#d5d9e0', g: '#eceef2', s: '#b4bac6',
+    }));
+  }
+  {
+    const SPEECH = pout(pgrid(24, 17, [
+      ['W', 2, 0, 20, 1], ['W', 1, 1, 22, 1], ['W', 0, 2, 24, 10], ['W', 1, 12, 22, 1], ['W', 2, 13, 20, 1],
+      ['W', 3, 14, 5, 1], ['W', 3, 15, 3, 1], ['W', 3, 16, 1, 1],
+      ['g', 7, 6, 2, 2], ['g', 11, 6, 2, 2], ['g', 15, 6, 2, 2],
+    ]));
+    addPx('px-speech', 'Pixel speech bubble', SPEECH, 8, ['#ffffff', '#9aa0aa'], (c) => ({ K: K, W: c[0], g: c[1] }), 1);
+    const HRT = ['.WW.WW.', 'WWWWWWW', 'WWWWWWW', '.WWWWW.', '..WWW..', '...W...'];
+    const ONE = ['.W.', 'WW.', '.W.', '.W.', '.W.', 'WWW'];
+    const NOTIF = pout(pgrid(22, 15, [
+      ['R', 2, 0, 18, 1], ['R', 1, 1, 20, 1], ['R', 0, 2, 22, 8], ['R', 1, 10, 20, 1], ['R', 2, 11, 18, 1],
+      ['R', 8, 12, 6, 1], ['R', 9, 13, 4, 1], ['R', 10, 14, 2, 1],
+      [HRT, 5, 3], [ONE, 14, 3],
+    ]));
+    addPx('px-notification', 'Like notification', NOTIF, 8, ['#ff3b5c'], (c) => ({ K: K, R: c[0], W: '#ffffff' }), 1);
+  }
+  {
+    const ops = [['K', 6, 0, 6, 1], ['K', 6, 1, 1, 1], ['K', 11, 1, 1, 1], ['K', 1, 2, 16, 4], ['L', 2, 3, 14, 1], ['G', 2, 4, 14, 1]];
+    for (let y = 6; y <= 20; y++) {
+      const i = Math.floor((y - 6) / 6);
+      ops.push(['K', 2 + i, y, 14 - 2 * i, 1], ['G', 3 + i, y, 12 - 2 * i, 1]);
+      if (y > 6 && y < 20) ops.push(['D', 6, y, 1, 1], ['D', 9, y, 1, 1], ['D', 12, y, 1, 1]);
+      if (y > 6 && y < 18) ops.push(['L', 5, y, 1, 1]);
+    }
+    ops.push(['K', 4, 21, 10, 1]);
+    addPx('px-trash', 'Pixel trash bin', pgrid(18, 22, ops), 10, ['#c4c9d1'], (c) => ({ K: K, G: c[0], L: tint(c[0], 0.6), D: tint(c[0], -0.3) }));
+  }
+  {
+    const NOTE = pout([
+      '....NNNNNNNNNN',
+      '....NNNNNNNNNN',
+      '....NN......NN',
+      '....NN......NN',
+      '....NN......NN',
+      '....NN......NN',
+      '....NN......NN',
+      '....NN......NN',
+      '....NN......NN',
+      '..NNNN....NNNN',
+      '.NWNNN...NWNNN',
+      'NNNNNN..NNNNNN',
+      'NNNNN...NNNNN.',
+      '.NNN.....NNN..',
+    ]);
+    addPx('px-music', 'Pixel music note', NOTE, 12, ['#7b5cff'], (c) => ({ K: K, N: c[0], W: tint(c[0], 0.6) }));
+  }
+  {
+    const TRI = ['WW....', 'WWW...', 'WWWW..', 'WWWWW.', 'WWWWWW', 'WWWWW.', 'WWWW..', 'WWW...', 'WW....'];
+    const PLAY = pout(pgrid(24, 17, [
+      ['R', 2, 0, 20, 1], ['R', 1, 1, 22, 1], ['R', 0, 2, 24, 13], ['R', 1, 15, 22, 1], ['R', 2, 16, 20, 1],
+      ['h', 2, 1, 6, 1], ['h', 1, 2, 1, 4], ['d', 2, 15, 20, 1], ['d', 22, 4, 1, 11],
+      [TRI, 10, 4],
+    ]));
+    addPx('px-play', 'Play button', PLAY, 8, ['#ff2d55'], (c) => ({ K: K, R: c[0], h: tint(c[0], 0.4), d: tint(c[0], -0.2), W: '#ffffff' }));
+  }
+  {
+    const ops = [['W', 0, 0, 20, 14]];
+    for (let x = 0; x < 20; x++) {
+      const m = Math.min(x, 19 - x), yv = Math.floor(m * 0.7);
+      if (yv) ops.push(['F', x, 0, 1, yv]);
+      ops.push(['K', x, yv, 1, 1]);
+      if (m <= 6) ops.push(['g', x, 13 - Math.floor(m * 0.6), 1, 1]);
+    }
+    ops.push([['.R..R.', 'RRRRRR', 'RRRRRR', '.RRRR.', '..RR..'], 7, 5]);
+    addPx('px-mail', 'Pixel mail', pout(pgrid(20, 14, ops)), 10, ['#ffffff', '#ff3b5c'], (c) => ({ K: K, W: c[0], F: tint(c[0], -0.07), g: '#c9ccd3', R: c[1] }));
+  }
+  {
+    const ops = [];
+    for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) {
+      const d = Math.hypot(x + 0.5 - 7, y + 0.5 - 7);
+      if (d <= 4.4) ops.push(['B', x, y, 1, 1]);
+      else if (d <= 6.6) ops.push(['F', x, y, 1, 1]);
+      else if (Math.abs(x - y) <= 1 && x + y >= 22) ops.push(['H', x, y, 1, 1]);
+    }
+    ops.push(['W', 4, 4, 2, 1], ['W', 4, 5, 1, 1], ['b', 8, 10, 2, 1], ['b', 10, 8, 1, 2]);
+    addPx('px-magnifier', 'Pixel magnifier', pout(pgrid(18, 18, ops)), 10, ['#5b6270'], (c) => ({
+      K: K, F: c[0], B: '#bfe9ff', b: '#8fd3f5', W: '#ffffff', H: '#8a5a33',
+    }));
+  }
+
+  /* --------------------------------------------- cartoon shapes & objects */
+  add('googly-eyes', 'Googly eyes', SH, 240, 160, ['#ffffff', '#1d1d1b'], (c) => S(240, 160,
+    `<g stroke="${K}" stroke-width="8"><ellipse cx="70" cy="82" rx="54" ry="66" transform="rotate(-8 70 82)" fill="${c[0]}"/>` +
+    `<ellipse cx="168" cy="78" rx="56" ry="68" transform="rotate(6 168 78)" fill="${c[0]}"/></g>` +
+    `<circle cx="50" cy="96" r="24" fill="${c[1]}"/><circle cx="144" cy="92" r="25" fill="${c[1]}"/>` +
+    `<circle cx="43" cy="87" r="6.5" fill="#fff"/><circle cx="137" cy="83" r="7" fill="#fff"/>`));
+  add('cartoon-eye', 'Cartoon eye', SH, 160, 190, ['#ffffff', '#1d1d1b'], (c) => S(160, 190,
+    `<ellipse cx="80" cy="95" rx="62" ry="81" fill="${c[0]}" stroke="${K}" stroke-width="8"/>` +
+    `<path d="M30 124A58 77 0 0 0 124 152" fill="none" stroke="#000" stroke-opacity=".07" stroke-width="10" stroke-linecap="round"/>` +
+    `<ellipse cx="104" cy="110" rx="30" ry="36" fill="${c[1]}"/><circle cx="94" cy="96" r="9" fill="#fff"/><circle cx="114" cy="126" r="4" fill="#fff" opacity=".8"/>`));
+  {
+    const parts = (a) => a.map((p) => (p.length === 3 ? `<circle cx="${p[0]}" cy="${p[1]}" r="${p[2]}"/>` : `<rect x="${p[0]}" y="${p[1]}" width="${p[2]}" height="${p[3]}" rx="${p[3] / 2}"/>`)).join('');
+    // flat puffy cloud: hairline outline, cream base showing along the lower-right edges of a white top layer
+    const puff = (id, a, c0, c1) => {
+      const sh = parts(a);
+      return `<g fill="${tint(c1, -0.1)}" stroke="${tint(c1, -0.1)}" stroke-width="3">${sh}</g><g fill="${c1}">${sh}</g>` +
+        `<clipPath id="${id}">${sh}</clipPath><g clip-path="url(#${id})"><g fill="${c0}" transform="translate(-3 -6)">${sh}</g></g>`;
+    };
+    const WIDE = [[48, 86, 28], [88, 64, 38], [138, 56, 44], [184, 76, 32], [206, 94, 20], [28, 76, 190, 38]];
+    const SMALL = [[46, 64, 24], [80, 46, 32], [116, 60, 24], [22, 56, 118, 38]];
+    const BACK = [[124, 62, 24], [160, 42, 32], [198, 58, 24], [100, 56, 124, 32]];
+    const FRONT = [[46, 116, 28], [86, 92, 40], [134, 88, 36], [170, 112, 26], [18, 110, 174, 44]];
+    add('cloud-puffy', 'Puffy cloud', SH, 240, 130, ['#ffffff', '#f3ead7'], (c) => S(240, 130, puff('a', WIDE, c[0], c[1])));
+    add('cloud-puffy-small', 'Small puffy cloud', SH, 160, 110, ['#ffffff', '#f3ead7'], (c) => S(160, 110, puff('a', SMALL, c[0], c[1])));
+    add('cloud-cluster', 'Cloud cluster', SH, 240, 170, ['#ffffff', '#f3ead7'], (c) => S(240, 170, puff('a', BACK, c[0], c[1]) + puff('b', FRONT, c[0], c[1])));
+  }
+  {
+    const ear = roundPoly([[24, 104], [36, 14], [96, 60]], 12);
+    const earIn = roundPoly([[42, 82], [47, 38], [80, 62]], 8);
+    add('cat-face', 'Kawaii cat', SH, 220, 200, ['#7ab8f5', '#1d1d1b'], (c) => S(220, 200,
+      `<g fill="${c[0]}"><path d="${ear}"/><path d="${mirror(ear, 220)}"/><ellipse cx="110" cy="122" rx="94" ry="72"/></g>` +
+      `<g fill="#ffb3c7"><path d="${earIn}"/><path d="${mirror(earIn, 220)}"/></g>` +
+      `<g fill="#ff8fb1" opacity=".55"><ellipse cx="60" cy="142" rx="16" ry="10"/><ellipse cx="160" cy="142" rx="16" ry="10"/></g>` +
+      `<g fill="${c[1]}"><ellipse cx="74" cy="118" rx="10" ry="13"/><ellipse cx="146" cy="118" rx="10" ry="13"/></g><g fill="#fff"><circle cx="77" cy="113" r="3.5"/><circle cx="149" cy="113" r="3.5"/></g>` +
+      `<path d="M104 132H116L110 139Z" fill="#ff8fb1" stroke="#ff8fb1" stroke-width="3" stroke-linejoin="round"/>` +
+      `<path d="M96 142Q103 152 110 142Q117 152 124 142" ${DS(c[1], 4)}/>` +
+      `<path d="M6 120L38 127M6 142L38 139M214 120L182 127M214 142L182 139" ${DS(c[1], 3.5)}/>`));
+  }
+  add('heart-sparkle', 'Sparkling heart', SH, 220, 210, ['#ff9ad5', '#ff2f7e', '#ffd84d'], (c) => S(220, 210,
+    `<path d="${heart(110, 116, 1.72)}" fill="url(#g)"/><path d="${heart(104, 106, 1.25)}" fill="#fff" opacity=".1"/>` +
+    `<ellipse cx="64" cy="76" rx="20" ry="11" transform="rotate(-40 64 76)" fill="#fff" opacity=".6"/><circle cx="90" cy="60" r="5.5" fill="#fff" opacity=".6"/>` +
+    `<path d="${sparkle(186, 38, 26)}${sparkle(28, 48, 16)}${sparkle(198, 160, 13)}" fill="${c[2]}"/><path d="${sparkle(186, 38, 9)}" fill="#fff"/>`,
+    `<linearGradient id="g" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient>`));
+  add('star-sticker', 'Sticker star', SH, 200, 200, ['#ffd23f'], (c) => {
+    const d = roundPoly(starPts(100, 106, 84, 44, 5), [14, 8]);
+    return S(200, 200,
+      `<g filter="url(#sh)"><path d="${d}" fill="#fff" stroke="#fff" stroke-width="18" stroke-linejoin="round"/></g>` +
+      `<path d="${d}" fill="${c[0]}" stroke="${tint(c[0], -0.14)}" stroke-width="4" stroke-linejoin="round"/>` +
+      `<ellipse cx="74" cy="92" rx="15" ry="8" transform="rotate(-30 74 92)" fill="#fff" opacity=".5"/><circle cx="96" cy="70" r="5" fill="#fff" opacity=".5"/>`,
+      shadowF('sh', 3, 0, 4, 0.25));
+  });
+  add('sun-face', 'Smiley sun', SH, 220, 220, ['#ffd23f', '#ff9f1c', '#1d1d1b'], (c) => {
+    let rays = '';
+    for (let i = 0; i < 12; i++) rays += roundPoly([pol(110, 110, 66, i * 30 - 101), pol(110, 110, 104, i * 30 - 90), pol(110, 110, 66, i * 30 - 79)], 5);
+    return S(220, 220,
+      `<path d="${rays}" fill="${c[1]}"/><circle cx="110" cy="110" r="72" fill="${c[0]}"/>` +
+      `<g fill="${c[2]}"><ellipse cx="86" cy="100" rx="7.5" ry="11"/><ellipse cx="134" cy="100" rx="7.5" ry="11"/></g>` +
+      `<g fill="#ff7a8a" opacity=".55"><ellipse cx="68" cy="126" rx="13" ry="8"/><ellipse cx="152" cy="126" rx="13" ry="8"/></g>` +
+      `<path d="M88 130Q110 152 132 130" ${DS(c[2], 6)}/><ellipse cx="78" cy="70" rx="14" ry="7" transform="rotate(-38 78 70)" fill="#fff" opacity=".35"/>`);
+  });
+  {
+    let d = '';
+    [104, 80, 56, 32].forEach((R, i) => { d += smooth(wob(samp((t) => pol(120, 136, R, 180 + t * 180), 36), 1.1, 40 + i)); });
+    d += smooth(jit([[16, 136], [52, 137.5], [88, 135.5]], 0.8, 7)) + smooth(jit([[152, 135.5], [188, 137.5], [224, 136]], 0.8, 9));
+    add('rainbow-outline', 'Rainbow doodle', 'Doodles', 240, 150, ['#ff7eb6'], (c) => S(240, 150, `<path d="${d}" ${DS(c[0], 7)}/>`));
+  }
+  {
+    // hand-drawn 4-point twinkle: concave quadratic sides, start overlaps the end like a pen stroke
+    const tw = (cx, cy, s, seed, k = 0.14) => {
+      const tips = [[0, -1], [1, 0], [0, 1], [-1, 0]], p = [];
+      for (let i = 0; i < 4; i++) {
+        const a = tips[i], b = tips[(i + 1) % 4], q = [(a[0] + b[0]) * k, (a[1] + b[1]) * k];
+        for (let j = 0; j < 8; j++) {
+          const t = j / 8, u = 1 - t;
+          p.push([cx + s * (u * u * a[0] + 2 * u * t * q[0] + t * t * b[0]), cy + s * (u * u * a[1] + 2 * u * t * q[1] + t * t * b[1])]);
+        }
+      }
+      return smooth(wob(p.concat(p.slice(0, 3)), s * 0.025, seed));
+    };
+    const d = tw(92, 110, 78, 3) + tw(166, 40, 24, 5);
+    add('sparkle-outline', 'Twinkle outline', 'Doodles', 200, 200, ['#ffffff'], (c) => S(200, 200, `<path d="${d}" ${DS(c[0], 7)}/>`));
+  }
+  {
+    let d = '';
+    [[60, 52, -6], [60, 144, 5], [60, 236, -3]].forEach(([cx, cy, rot], i) => {
+      d += wcirc(cx, cy, 45, 44, -100 + i * 40, 1.06, 60 + i, 1.1);
+      const e = (x, y) => pol(cx, cy, Math.hypot(x, y), (Math.atan2(y, x) * 180) / PI + rot);
+      d += 'M' + pt(e(-15, -14)) + 'L' + pt(e(-15, -4)) + 'M' + pt(e(15, -14)) + 'L' + pt(e(15, -4));
+      d += smooth(samp((t) => e(-22 + 44 * t, 8 + 14 * Math.sin(PI * t)), 10));
+    });
+    add('smiley-chain', 'Smiley stack', 'Doodles', 120, 290, ['#ffffff'], (c) => S(120, 290, `<path d="${d}" ${DS(c[0], 6)}/>`));
+  }
+  add('magnet', 'Magnet', OB, 210, 210, ['#e8384f'], (c) => S(210, 210,
+    `<g transform="rotate(-25 105 105)"><path d="M31 172V96A74 74 0 0 1 179 96V172H135V96A30 30 0 0 0 75 96V172Z" fill="${c[0]}" ${OL}/>` +
+    `<path d="M44 132V96A61 61 0 0 1 84 39" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="7" stroke-linecap="round"/>` +
+    `<rect x="31" y="140" width="44" height="32" fill="url(#sv)" ${OL}/><rect x="135" y="140" width="44" height="32" fill="url(#sv)" ${OL}/></g>`,
+    `<linearGradient id="sv" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e3e7ed"/><stop offset=".4" stop-color="#ffffff"/><stop offset=".72" stop-color="#a7b0bc"/><stop offset="1" stop-color="#d9dee5"/></linearGradient>`));
+  add('app-icon', 'App icon tile', OB, 200, 200, ['#8f7bff', '#4f2fe0'], (c) => S(200, 200,
+    `<rect x="16" y="12" width="168" height="168" rx="44" fill="url(#g)" filter="url(#sh)"/>` +
+    `<path d="M16 96V56A44 44 0 0 1 60 12H140A44 44 0 0 1 184 56V78C140 62 70 64 16 96Z" fill="#fff" opacity=".16"/>` +
+    `<rect x="17.5" y="13.5" width="165" height="165" rx="42.5" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3"/>`,
+    `<linearGradient id="g" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient>` + shadowF('sh', 4, 0, 6, 0.28)));
+  add('tv-retro', 'Retro TV', OB, 220, 210, ['#ff8a5c', '#7fd0e8'], (c) => S(220, 210,
+    `<path d="M110 58L70 16M110 58L152 12" fill="none" stroke="${K}" stroke-width="6" stroke-linecap="round"/><circle cx="70" cy="16" r="7" fill="${c[0]}" ${OL}/><circle cx="152" cy="12" r="7" fill="${c[0]}" ${OL}/>` +
+    `<path d="M50 186L42 202M170 186L178 202" stroke="${K}" stroke-width="8" stroke-linecap="round"/>` +
+    `<rect x="16" y="56" width="188" height="130" rx="24" fill="${c[0]}" ${OL}/><rect x="32" y="72" width="122" height="98" rx="20" fill="url(#g)" ${OL}/>` +
+    `<path d="M48 108C49 94 57 87 70 85" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="7" stroke-linecap="round"/>` +
+    `<circle cx="180" cy="96" r="11" fill="#fff3e2" ${OL}/><circle cx="180" cy="128" r="11" fill="#fff3e2" ${OL}/>` +
+    `<path d="M180 88V96M180 120V128M168 154H192M168 164H192" stroke="${K}" stroke-width="4" stroke-linecap="round"/>`,
+    `<linearGradient id="g" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="${tint(c[1], 0.35)}"/><stop offset="1" stop-color="${tint(c[1], -0.2)}"/></linearGradient>`));
+
   /* ---------------------------------------------- namespace ids per sticker */
   // SVG ids are scoped to each image document, but if the editor ever inlines the
   // markup into the DOM, ids would collide; prefix them with the sticker id.
