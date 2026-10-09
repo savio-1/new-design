@@ -20,7 +20,15 @@ address bar carries #news, #about and so on, so Back works and a page can
 be linked to directly.
 
 Sources: almaconnect-home.html (run build-home.py first) and site/*.html,
-the sub-pages as last published. Run:  python3 scripts/build-site.py
+the sub-pages exactly as the artifact host serves them. The product pages
+are edited elsewhere, so before every build re-read each live artifact and
+copy it over its site/ file; a stale copy ships an old page. Live links:
+  news         https://claude.ai/artifact/4FuQxzHfutUX6ecVaou7SR
+  data-mine    https://claude.ai/artifact/JbRjpKSwrjefLHLfrQ8Exb
+  institutions https://claude.ai/artifact/MY79nGkgJoV2iDvx5sNX7v
+  corporates   https://claude.ai/artifact/3cGaDiZzdxPSgRSVAnrwBu
+  about        https://claude.ai/artifact/F9yvG7aMzGqXqnRiuDMRbV
+Run:  python3 scripts/build-site.py
 """
 import base64, json, pathlib, re
 
@@ -55,6 +63,7 @@ ABSOLUTE = {
     'https://claude.ai/code/artifact/151ee804-4b69-409e-b10f-16a1b2631fa8': 'corporates',
     'https://almaconnect.com/corporates': 'corporates',
     'https://claude.ai/code/artifact/72a0f7f2-38fd-4589-8cab-de08f007e0d0': 'about',
+    'https://claude.ai/artifact/F9yvG7aMzGqXqnRiuDMRbV': 'about',
     'https://almaconnect.com/about': 'about',
 }
 # home and About were built with in-page anchors standing in for the pages
