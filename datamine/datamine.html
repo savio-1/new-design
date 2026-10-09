@@ -2088,15 +2088,31 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 .attrs { margin: 88px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--hairline); counter-reset: attr; }
 .attrs li {
   counter-increment: attr;
+  position: relative; isolation: isolate;
   display: flex; flex-direction: column; gap: 14px;
-  min-height: 132px; padding: 22px 24px 26px 0;
+  min-height: 132px; padding: 22px 24px 26px;
   border-bottom: 1px solid var(--hairline);
   font-family: var(--font-display); font-size: 24px; font-weight: 400; line-height: 1.22; letter-spacing: -0.03em; color: var(--ink);
+  cursor: default;
 }
-.attrs li:not(:nth-child(4n + 1)) { padding-left: 24px; border-left: 1px solid var(--hairline); }
-.attrs li::before { content: counter(attr, decimal-leading-zero); font-family: var(--font-body); font-size: 14px; letter-spacing: -0.03em; color: var(--ink-45); }
-.attrs li.is-key { background: linear-gradient(165deg, #ffffff 0%, #e3f8f5 40%, #b3e9e0 100%); padding-left: 24px; }
-.attrs li.is-key::before { color: var(--on-aqua); }
+.attrs li:not(:nth-child(4n + 1)) { border-left: 1px solid var(--hairline); }
+.attrs li::before { content: counter(attr, decimal-leading-zero); font-family: var(--font-body); font-size: 14px; letter-spacing: -0.03em; color: var(--ink-45); transition: color 0.3s var(--ease); }
+/* each field washes in a hue on hover — the same cross-fade the house
+   cards use, on a pseudo-element because a gradient cannot transition.
+   Hues run so no two neighbours, across or down, share one; field 10,
+   the one most institutions lack, rests lit. */
+.attrs li::after {
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: var(--wash); opacity: 0; pointer-events: none;
+  transition: opacity 0.38s var(--ease);
+}
+.attrs li:hover::after, .attrs li.is-key::after { opacity: 1; }
+.attrs li:hover::before, .attrs li.is-key::before { color: var(--hue); }
+.attrs li:nth-child(1), .attrs li:nth-child(7), .attrs li:nth-child(10) { --wash: linear-gradient(165deg, #ffffff 0%, #e3f8f5 40%, #b3e9e0 100%); --hue: var(--on-aqua); }
+.attrs li:nth-child(2), .attrs li:nth-child(8), .attrs li:nth-child(11) { --wash: linear-gradient(165deg, #ffffff 0%, #f5edfd 40%, #d5bef5 100%); --hue: #7c42ad; }
+.attrs li:nth-child(3), .attrs li:nth-child(5), .attrs li:nth-child(12) { --wash: linear-gradient(165deg, #ffffff 0%, #ebf4fd 40%, #bcd8fa 100%); --hue: #255c9e; }
+.attrs li:nth-child(4), .attrs li:nth-child(6), .attrs li:nth-child(9)  { --wash: linear-gradient(165deg, #ffffff 0%, #fce9dc 40%, #f7cdad 100%); --hue: #a35a2b; }
+@media (prefers-reduced-motion: reduce) { .attrs li::after, .attrs li::before { transition: none; } }
 
 /* ============================================================ FIND ANYONE */
 .find { background: var(--ground); padding: 128px 0; }
@@ -2169,8 +2185,8 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 /* ============================================================ RESPONSIVE (page additions) */
 @media (max-width: 1160px) {
   .attrs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .attrs li:not(:nth-child(4n + 1)) { padding-left: 0; border-left: 0; }
-  .attrs li:nth-child(2n) { padding-left: 24px; border-left: 1px solid var(--hairline); }
+  .attrs li:not(:nth-child(4n + 1)) { border-left: 0; }
+  .attrs li:nth-child(2n) { border-left: 1px solid var(--hairline); }
   .proof__grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 920px) {
@@ -2179,8 +2195,7 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 }
 @media (max-width: 620px) {
   .attrs { grid-template-columns: 1fr; }
-  .attrs li, .attrs li:nth-child(2n) { padding-left: 0; border-left: 0; min-height: 0; }
-  .attrs li.is-key { padding-left: 16px; }
+  .attrs li, .attrs li:nth-child(2n) { padding: 18px 16px 20px; border-left: 0; min-height: 0; }
   .mrow { grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1fr) 20px; gap: 8px; }
   .match__act small { display: none; }
 }
