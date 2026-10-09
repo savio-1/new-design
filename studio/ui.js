@@ -984,10 +984,12 @@
 
   // templates
   let tplTag = 'All';
-  function templateCard(t, onPick, width = 260) {
+  function templateCard(t, onPick, width = 260, opts = {}) {
     const thumb = h('div.thumb.skeleton', { style: { aspectRatio: `${t.width} / ${t.height}` } });
-    const card = h('button.tpl', { onclick: () => onPick(t), title: t.name }, thumb, h('div.meta', null, t.name, h('small', null, `${t.width} × ${t.height}`)));
-    docThumb('tpl:' + t.id, prepDoc(t.build()), width).then(c => {
+    const main = h('button.tpl-main', { onclick: () => onPick(t), title: opts.pieces ? `Use “${t.name}”` : t.name }, thumb, h('div.meta', null, t.name, h('small', null, `${t.width} × ${t.height}`)));
+    const card = h('div.tpl', null, main,
+      opts.pieces ? h('button.tpl-pieces', { title: `Browse the layers in “${t.name}” and add the ones you want`, onclick: () => openPieces(t) }, ic('layers'), 'Pieces') : null);
+    docThumb('tpl:' + t.id, templateDoc(t), width).then(c => {
       const img = new Image();
       img.src = c.toDataURL('image/jpeg', 0.85);
       thumb.classList.remove('skeleton');
@@ -995,20 +997,112 @@
     });
     return card;
   }
-  function useTemplate(t) {
-    const go = () => { closeModal(); S.loadDoc(prepDoc(t.build()), null, { name: t.name }); toast(`“${t.name}” loaded — make it yours`); };
-    if (S.doc.elements.length) confirmBox('Replace your design?', 'Loading a template replaces what’s on the canvas. You can undo with ⌘Z.', 'Use template', go);
-    else go();
+  // a template's measured document; built once so pieces and thumbnails agree
+  const tplDocs = new Map();
+  function templateDoc(t) {
+    if (!tplDocs.has(t.id)) tplDocs.set(t.id, prepDoc(t.build()));
+    return tplDocs.get(t.id);
   }
+
+  // map template coordinates onto the current canvas: scale to fit, centre the template's frame
+  function fitTemplate(t) {
+    const d = S.doc, td = templateDoc(t);
+    const k = Math.min(d.width / td.width, d.height / td.height);
+    return { k, ox: (d.width - td.width * k) / 2, oy: (d.height - td.height * k) / 2 };
+  }
+  function pieceFor(t, src, at) {
+    const { k, ox, oy } = fitTemplate(t);
+    const el = S.clone(src);
+    el.id = S.uid();
+    if (k !== 1) S.scaleElement(el, k, k);
+    el.x = src.x * k + ox; el.y = src.y * k + oy;
+    if (at) { el.x = at.x - el.width / 2; el.y = at.y - el.height / 2; }
+    return el;
+  }
+  function addTemplateLayers(t, els) {
+    const list = (els || templateDoc(t).elements).map(e => pieceFor(t, e));
+    S.addElements(list);
+    toast(`Added ${list.length} layer${list.length > 1 ? 's' : ''} from “${t.name}”`);
+  }
+  function useTemplateBackground(t) {
+    const td = templateDoc(t);
+    S.doc.background = S.deepMerge(S.blankDoc(1, 1, '#fff').background, S.clone(td.background));
+    S.doc.overlay = S.deepMerge(S.blankDoc(1, 1, '#fff').overlay, S.clone(td.overlay || {}));
+    S.touchAll(); S.commit(); renderInspector();
+    toast(`Using the background from “${t.name}”`);
+  }
+  function replaceWithTemplate(t) {
+    closeModal();
+    S.loadDoc(prepDoc(t.build()), null, { name: t.name });
+    toast(`“${t.name}” loaded — make it yours`);
+  }
+
+  function useTemplate(t) {
+    if (!S.doc.elements.length) { replaceWithTemplate(t); return; }
+    const n = templateDoc(t).elements.length;
+    const choice = (iconName, title, sub, run, primary) => h('button.big-btn' + (primary ? '.accent' : ''), { onclick: () => { closeModal(); run(); } },
+      ic(iconName), h('div', null, h('b', { style: { display: 'block' } }, title), h('small', { style: { opacity: 0.8 } }, sub)));
+    const box = modal([
+      h('h1', { style: { fontSize: '22px' } }, `Use “${t.name}”`),
+      h('p.lead', null, 'Your canvas already has a design. How do you want to use this template?'),
+      choice('plus', 'Add to my design', `Adds its ${n} layers on top, scaled to fit. Your layers stay as they are.`, () => addTemplateLayers(t), true),
+      choice('layers', 'Pick pieces', 'Browse its layers and add only the ones you want.', () => openPieces(t)),
+      choice('palette', 'Use just its background', 'Swap in its backdrop, pattern and finish. Nothing else changes.', () => useTemplateBackground(t)),
+      choice('replace', 'Replace my design', 'Start over with this template. You can undo with ⌘Z.', () => replaceWithTemplate(t)),
+    ], { small: true });
+    box.style.width = 'min(460px, 100%)';
+    hydrateIcons(box);
+  }
+
+  // pieces view: every layer of one template as a tile you can click or drag onto the canvas
+  let piecesOf = null;
+  function openPieces(t) {
+    closeModal();
+    piecesOf = t.id;
+    if (tab !== 'templates') setTab('templates'); else renderPanel();
+    if (matchMedia('(max-width: 920px)').matches) panel.classList.add('open');
+    panel.scrollTop = 0;
+  }
+  function piecesPanel(t) {
+    const td = templateDoc(t);
+    const grid = h('div.piece-grid');
+    // background tile first
+    const bgThumb = h('div.piece-thumb');
+    docThumb('bg-of:' + t.id, Object.assign({}, td, { elements: [] }), 140).then(c => bgThumb.replaceChildren(c));
+    grid.append(h('button.piece', { title: 'Use this background on your canvas', onclick: () => useTemplateBackground(t) }, bgThumb, h('span', null, 'Background')));
+    td.elements.slice().reverse().forEach(src => {
+      const demo = S.clone(src); demo.rotation = 0;
+      const tile = h('button.piece', { title: 'Click to add · drag onto the canvas', onclick: () => { S.addElement(pieceFor(t, src), { center: false }); toast(`Added ${S.elLabel(src)}`); } },
+        h('div.piece-thumb', null, elThumb(demo, 128, 96, 8)), h('span', null, S.elLabel(src)));
+      tile.draggable = true;
+      tile.addEventListener('dragstart', e => {
+        const el = pieceFor(t, src);
+        e.dataTransfer.setData('application/x-studio', JSON.stringify({ kind: 'element', el }));
+        e.dataTransfer.effectAllowed = 'copy';
+      });
+      grid.append(tile);
+    });
+    return [
+      h('button.back-link', { onclick: () => { piecesOf = null; renderPanel(); } }, ic('backward'), 'All templates'),
+      h('h2', null, t.name),
+      h('p.sub', null, `${td.elements.length} layers. Click one to add it where it sits in the template, or drag it to where you want it.`),
+      h('div.btn-row', { style: { marginBottom: '12px' } },
+        h('button.btn.primary', { onclick: () => addTemplateLayers(t) }, ic('plus'), 'Add all layers'),
+        h('button.btn', { onclick: () => useTemplate(t) }, ic('layout'), 'More options')),
+      grid,
+    ];
+  }
+
   function templatesPanel() {
     const T = window.STUDIO_TEMPLATES || [];
+    if (piecesOf) { const t = T.find(x => x.id === piecesOf); if (t) return piecesPanel(t); piecesOf = null; }
     const tags = ['All', ...new Set(T.flatMap(t => t.tags || []))];
     const grid = h('div.tpl-grid');
-    const draw = () => grid.replaceChildren(...T.filter(t => tplTag === 'All' || (t.tags || []).includes(tplTag)).map(t => templateCard(t, useTemplate, 260)));
+    const draw = () => { grid.replaceChildren(...T.filter(t => tplTag === 'All' || (t.tags || []).includes(tplTag)).map(t => templateCard(t, useTemplate, 260, { pieces: true }))); hydrateIcons(grid); };
     const chips = h('div.chips');
     const drawChips = () => chips.replaceChildren(...tags.map(tg => h('button.chip' + (tg === tplTag ? '.on' : ''), { onclick: () => { tplTag = tg; drawChips(); draw(); } }, tg)));
     drawChips(); draw();
-    return [h('h2', null, 'Templates'), h('p.sub', null, 'Every piece stays editable — swap the photos, words and colours.'), chips, grid];
+    return [h('h2', null, 'Templates'), h('p.sub', null, 'Use a whole template, add it to your design, or open its Pieces to grab single layers.'), chips, grid];
   }
 
   // text
