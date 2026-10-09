@@ -1496,9 +1496,14 @@
       try {
         const c = await S.render({ scale, transparent: transparent && fmt !== 'jpeg' });
         const blob = await new Promise(res => c.toBlob(res, 'image/' + fmt, quality));
-        download(blob, `${slug()}.${fmt === 'jpeg' ? 'jpg' : fmt}`);
+        const name = `${slug()}.${fmt === 'jpeg' ? 'jpg' : fmt}`;
+        download(blob, name);
         toast('Exported ' + `${c.width} × ${c.height}`);
-        closeModal();
+        // some embedded browsers block script-started downloads; show the file so it can be saved by hand
+        const url = URL.createObjectURL(blob);
+        preview.replaceChildren(h('div.export-result', null, h('img', { src: url, alt: name }),
+          h('div.hint', null, `${name} · ${c.width} × ${c.height}. If the download didn’t start, right-click or long-press the image to save it.`)));
+        btn.disabled = false; btn.lastChild.textContent = 'Download again';
       } catch (err) { console.error(err); toast('Export failed — try a smaller size'); btn.disabled = false; btn.lastChild.textContent = 'Download'; }
     }
     async function copyImage() {
