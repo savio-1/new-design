@@ -8,8 +8,9 @@
   'use strict';
 
   /* ---------------------------------------------------------------- helpers */
-  const r = (n) => Math.round(n * 10) / 10;
-  const pt = (p) => r(p[0]) + ' ' + r(p[1]);
+  const r = (n) => Math.round(n);
+  const r1 = (n) => Math.round(n * 10) / 10;
+  const pt = (p) => (r(p[0]) + ' ' + r(p[1])).replace(' -', '-');
 
   // lighten (a > 0, toward white) or darken (a < 0, toward a deep warm-neutral) a hex colour
   function tint(hex, a) {
@@ -28,6 +29,7 @@
     const g = (i) => (closed ? p[(i + n) % n] : p[Math.max(0, Math.min(n - 1, i))]);
     for (let i = 0; i < (closed ? n : n - 1); i++) {
       const p0 = g(i - 1), p1 = g(i), p2 = g(i + 1), p3 = g(i + 2);
+      if (p1[2] && p2[2]) { d += 'L' + pt(p2); continue; }
       const c1 = p1[2] ? p1 : [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
       const c2 = p2[2] ? p2 : [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
       d += 'C' + pt(c1) + ' ' + pt(c2) + ' ' + pt(p2);
@@ -70,9 +72,9 @@
   const endAng = (P) => { const n = P.length, p = P[n - 1], q = P[n - 2]; return Math.atan2(-(p[0] - q[0]), p[1] - q[1]) * 180 / Math.PI; };
 
   const F = (d, f, x = '') => `<path d="${d}" fill="${f}"${x}/>`;
-  const S = (d, s, w = 1.2, x = '') => `<path d="${d}" fill="none" stroke="${s}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"${x}/>`;
+  const S = (d, s, w = 1.2, x = '') => `<path d="${d}" fill="none" stroke="${s}" stroke-width="${w}"${x}/>`;
   const C = (x, y, rr, f, x2 = '') => `<circle cx="${r(x)}" cy="${r(y)}" r="${rr}" fill="${f}"${x2}/>`;
-  const OUT = (c, w = 0.9) => ` stroke="${tint(c, -0.45)}" stroke-width="${w}" stroke-linejoin="round"`;
+  const OUT = (c, w = 0.9) => ` stroke="${tint(c, -0.45)}" stroke-width="${w}"`;
   const Fo = (d, f, w) => F(d, f, OUT(f, w));
   const DASH = ' stroke-dasharray="2.2 1.8"';
   const ribs = (x0, x1, y0, y1, step, col, w = 0.7) => { let d = ''; for (let x = x0; x <= x1; x += step) d += `M${r(x)} ${y0}V${y1}`; return S(d, col, w); };
@@ -82,16 +84,14 @@
     const defs = [], body = []; let n = 0;
     const o = {
       part(d, fill, inner, stroke) {
-        const k = id + '-' + n++;
-        defs.push(`<path id="${k}" d="${d}"/>`);
-        let s = `<use href="#${k}" fill="${fill}"/>`;
+        const k = id + n++;
+        let s = `<path id="${k}" d="${d}" fill="${fill}"${stroke !== 0 ? ` stroke="${stroke || tint(fill, -0.42)}" stroke-width="1.8"` : ''}/>`;
         if (inner) { defs.push(`<clipPath id="${k}c"><use href="#${k}"/></clipPath>`); s += `<g clip-path="url(#${k}c)">${inner}</g>`; }
-        if (stroke !== 0) s += `<use href="#${k}" fill="none" stroke="${stroke || tint(fill, -0.42)}" stroke-width="1.1" stroke-linejoin="round"/>`;
         body.push(s); return o;
       },
       add(s) { body.push(s); return o; },
       def(s) { defs.push(s); return o; },
-      out() { return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs.join('')}</defs>${body.join('')}</svg>`; },
+      out() { return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs.join('')}</defs><g stroke-linecap="round" stroke-linejoin="round">${body.join('')}</g></svg>`; },
     };
     return o;
   }
@@ -101,13 +101,13 @@
 
   // hand; local wrist at (0,0) pointing down (+y)
   function hand(x, y, ang, sk, kind, flip = 1, s = 1) {
-    const st = ` stroke="${tint(sk, -0.38)}" stroke-width=".9" stroke-linejoin="round"`;
+    const st = ` stroke="${tint(sk, -0.38)}" stroke-width=".9"`;
     const ln = tint(sk, -0.3);
     let d;
     if (kind === 'fist') d = F('M-8 -3C-11 5-11 14-7 19C-2 23 6 22 9 16C11 10 10 2 8-3Z', sk, st) + S('M-6 9C-2 11 3 11 8 9M-6 14C-2 16 3 16 7 14', ln, 0.8) + F('M-8 1C-14 5-13 13-7 13C-6 9-6 5-6 2Z', tint(sk, 0.06), st);
     else if (kind === 'open') d = F('M-9 -3C-11 8-11 20-9 28C-7 33 5 33 8 28C10 20 10 8 8-3Z', sk, st) + S('M-4.5 20V30M-.5 21V31M3.5 20V30', ln, 0.8) + F('M8 5C14 6 18 10 17 14C14 16 10 14 8 12Z', sk, st);
     else d = F('M-8 -3C-10 7-10 16-8 22C-5 29 4 30 7 25C10 19 10 9 8-3Z', sk, st) + F('M-8 2C-13 7-13 14-10 18C-8 16-6 12-6 8Z', tint(sk, 0.05), st) + S('M-1 16C1 20 4 21 6 20', ln, 0.8);
-    return `<g transform="translate(${r(x)} ${r(y)}) rotate(${r(ang)}) scale(${flip * s} ${s})">${d}${F('M-8 -3H8V3C3 5-3 5-8 3Z', tint(sk, -0.14))}</g>`;
+    return `<g transform="translate(${r1(x)} ${r1(y)}) rotate(${r(ang)}) scale(${flip * s} ${s})">${d}${F('M-8 -3H8V3C3 5-3 5-8 3Z', tint(sk, -0.14))}</g>`;
   }
 
   /* ---------------------------------------------------------------- shoes
@@ -195,8 +195,11 @@
       S('M24 -15C32 -14 38 -12 41 -10', tint(c, 0.25), 1.4),
   };
   // place a shoe: origin on the ground under the ankle; dir -1 mirrors; rot lifts the heel (around the toe)
-  const foot = (k, x, y, dir, c, sk, rot = 0, s = 1) =>
-    `<g transform="translate(${x} ${y}) scale(${dir * s} ${s})${rot ? ` rotate(${rot} 44 0)` : ''}">${SH[k](c, sk)}</g>`;
+  const SC = 1.2; // shoes a little oversized on the figures
+  const feet = (b, id, k, c, sk, L, R) => {
+    b.def(`<g id="${id}-sh">${SH[k](c, sk)}</g>`);
+    return b.add([[L, -1], [R, 1]].map(([[x, y, rot], dir]) => `<use href="#${id}-sh" transform="translate(${x} ${y}) scale(${dir * SC} ${SC})${rot ? ` rotate(${rot} 44 0)` : ''}"/>`).join(''));
+  };
 
   /* -------------------------------------------------------------- trousers */
   function pants(b, c, o) {
@@ -207,7 +210,7 @@
     const sh = tint(c, -0.17), hi = tint(c, 0.12);
     const inner = F(band(o.L, o.W, -0.16, -0.75), sh) + F(band(R, RW, -0.22, -0.75), sh) +
       F(band(o.L, o.W, 0.36, 0.2), hi) + F(band(R, RW, 0.26, 0.1), hi) +
-      F(`M${150 - 22} ${o.cr[1] - 40}C${146} ${o.cr[1] - 20} 148 ${o.cr[1]} 150 ${o.cr[1] + 4}C152 ${o.cr[1]} 156 ${o.cr[1] - 22} ${150 + 18} ${o.cr[1] - 40}Z`, tint(c, -0.24)) +
+      F(`M140 ${o.cr[1] - 26}C146 ${o.cr[1] - 14} 148 ${o.cr[1]} 150 ${o.cr[1] + 4}C152 ${o.cr[1]} 154 ${o.cr[1] - 14} 158 ${o.cr[1] - 26}Z`, tint(c, -0.12)) +
       (o.extra || '');
     b.part(shape(P), c, inner);
     return { a, e, R, RW };
@@ -233,12 +236,12 @@
   /* =============================================================== OUTFITS */
 
   // 1 — oversized hoodie, cargo pants, chunky sneakers; hands in the kangaroo pocket
-  outfit('boy-hoodie-cargo', 'Hoodie & cargos', ['#7b8d6a', '#4a4a3f', '#f2f0ea', '#b07a55'], (b, g) => {
+  outfit('boy-hoodie-cargo', 'Hoodie & cargos', ['#7b8d6a', '#4a4a3f', '#f2f0ea', '#b07a55'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
-    b.add(foot('dad', 120, 506, -1, s) + foot('dad', 180, 506, 1, s));
+    feet(b, id, 'dad', s, sk, [117, 506], [183, 506]);
     const pk = F('M91 318H120V366C112 371 100 371 92 366Z', tint(p, 0.04), OUT(p)) + F('M90 311H121V326H90Z', tint(p, 0.1), OUT(p)) + C(105.5, 320, 1.8, tint(p, -0.5)) +
       S('M94 402C110 407 130 407 146 402M100 454C110 449 122 455 140 449M98 469C112 463 124 471 144 465', tint(p, -0.32), 1.1);
-    pants(b, p, { wy: 226, whw: 54, cr: [150, 288], L: [[123, 238], [120, 364], [118, 482]], W: [58, 53, 54], extra: pk + MX(pk) });
+    pants(b, p, { wy: 226, whw: 54, cr: [150, 288], L: [[123, 238], [120, 360], [118, 474]], W: [58, 53, 54], extra: pk + MX(pk) });
     // hood bunched behind the neck
     b.part('M102 58C94 24 116 4 150 4C184 4 206 24 198 58Z', tint(c, -0.12), F('M150 4C180 4 204 22 198 58H170Z', tint(c, -0.24)));
     neck(b, sk);
@@ -260,10 +263,11 @@
   });
 
   // 2 — denim jacket over a white tee, cropped chinos, suede loafers; walking with a phone
-  outfit('boy-denim-chinos', 'Denim jacket & chinos', ['#5b7fa6', '#d8c3a0', '#7a4b2f', '#e3b18c'], (b, g) => {
+  outfit('boy-denim-chinos', 'Denim jacket & chinos', ['#5b7fa6', '#d8c3a0', '#7a4b2f', '#e3b18c'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
     const L = [[127, 232], [114, 354], [104, 452]], R = [[173, 232], [182, 356], [185, 470]], W = [52, 44, 38];
-    b.add(ankle(104, 448, sk, 14, 18) + ankle(185, 466, sk, 15, 22) + foot('loafer', 109, 500, -1, s, sk, 18) + foot('loafer', 189, 507, 1, s));
+    b.add(ankle(104, 448, sk, 14, 18) + ankle(185, 466, sk, 15, 20));
+    feet(b, id, 'loafer', s, sk, [111, 503, 18], [190, 507]);
     const pk = S('M106 214C112 226 116 236 116 246', tint(p, -0.35), 1.1) + S('M138 202V250C138 258 146 260 150 262', tint(p, -0.3), 1);
     const pa = pants(b, p, { wy: 200, whw: 50, cr: [150, 270], L, R, W, extra: pk + MX(S('M106 214C112 226 116 236 116 246', tint(p, -0.35), 1.1)) + S('M120 300C118 330 114 360 110 400M178 300C181 330 184 360 185 410', tint(p, 0.2), 1.2) + S('M104 360C114 366 122 366 130 362M164 362C174 368 186 368 194 362', tint(p, -0.25), 1) });
     b.part(cuff(L, W, 9), tint(p, -0.04)).part(cuff(R, W, 9), tint(p, -0.04));
@@ -291,20 +295,24 @@
   });
 
   // 3 — varsity jacket, straight jeans, high-top sneakers; waving
-  outfit('boy-varsity-jeans', 'Varsity jacket & jeans', ['#23365c', '#55779e', '#b9352d', '#8a5636', '#ede3cf'], (b, g) => {
+  outfit('boy-varsity-jeans', 'Varsity jacket & jeans', ['#23365c', '#55779e', '#b9352d', '#8a5636', '#ede3cf'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3), sl = g(4);
-    b.add(foot('hi', 120, 506, -1, s) + foot('hi', 180, 506, 1, s));
+    feet(b, id, 'hi', s, sk, [117, 506], [183, 506]);
     const jd = S('M100 232C110 244 118 250 122 262M200 232C190 244 182 250 178 262M138 226V262C138 270 146 272 150 274', STITCH, 0.9, DASH) +
       S('M95 280C94 340 96 420 97 470M205 280C206 340 204 420 203 470', STITCH, 0.8, DASH) +
       F('M110 300C118 330 118 360 114 390C106 360 104 330 110 300ZM190 300C182 330 182 360 186 390C194 360 196 330 190 300Z', tint(p, 0.18)) +
       S('M128 284C134 290 140 290 144 288M128 294C134 300 140 300 144 296M156 288C160 290 166 290 172 284', tint(p, 0.3), 1) +
       S('M100 456C112 452 124 458 140 452M100 470C112 464 126 472 142 466M160 452C174 458 188 452 200 456M158 466C174 472 188 464 200 470', tint(p, -0.3), 1);
-    pants(b, p, { wy: 214, whw: 52, cr: [150, 276], L: [[124, 236], [121, 362], [119, 482]], W: [54, 48, 48], extra: jd });
+    pants(b, p, { wy: 214, whw: 52, cr: [150, 276], L: [[124, 236], [121, 360], [119, 470]], W: [54, 48, 48], extra: jd });
     // raised arm (behind body)
     const AR = [[192, 64], [234, 100], [246, 48]], AW = [38, 34, 30];
     b.part(tube(AR, AW), sl, F(band(AR, AW, -0.15, -0.8), tint(sl, -0.14)) + S(open([[236, 104], [244, 70], [244, 56]]), tint(sl, 0.6), 1.5));
     b.part(cuff(AR, AW, 13), c, S(cuff(AR, AW, 8.5, 0.9), sl, 1.6) + ribs(220, 270, 30, 70, 3.2, tint(c, -0.3), 0.6));
     b.add(hand(246, 48, endAng(AR), sk, 'open', -1));
+    const AL = [[106, 64], [96, 150], [92, 236]], WL = [38, 34, 30];
+    b.part(tube(AL, WL), sl, F(band(AL, WL, -0.15, -0.8), tint(sl, -0.14)) + S('M94 90C90 110 88 130 90 140', tint(sl, 0.6), 1.5) + S('M90 142C96 148 100 150 106 150', tint(sl, -0.3), 1));
+    b.part(cuff(AL, WL, 13), c, S(cuff(AL, WL, 8.5, 0.9), sl, 1.6) + ribs(70, 120, 220, 240, 3.2, tint(c, -0.3), 0.6));
+    b.add(hand(92, 236, endAng(AL), sk));
     neck(b, sk);
     b.part(sym([[150, 32, 1], [162, 30], [178, 30], [198, 44, 1], [202, 66], [196, 100], [195, 150], [196, 212, 1], [150, 212, 1]]), c,
       F('M178 40C196 70 200 140 196 214H220V30Z', tint(c, -0.2)) + F('M102 50C106 80 108 150 106 212H90V40Z', tint(c, 0.1)) + S('M150 52V210', tint(c, -0.4), 1.2) +
@@ -314,11 +322,6 @@
     // felt star patch
     const star = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 7 : 16; star.push([172 + Math.cos(a) * rr, 96 + Math.sin(a) * rr, 1]); }
     b.add(F(shape(star), sl, ` stroke="${s}" stroke-width="2.4" stroke-linejoin="round"`));
-    // left arm, hand tucked in welt pocket (in front)
-    const AL = [[106, 64], [92, 148], [118, 176]], WL = [38, 34, 30];
-    b.part(tube(AL, WL, true), sl, F(band(AL, WL, -0.15, -0.8), tint(sl, -0.14)) + S('M94 90C90 110 88 130 90 140', tint(sl, 0.6), 1.5) + S('M86 140C92 146 98 150 104 150', tint(sl, -0.3), 1));
-    b.part(cuff(AL, WL, 11), c, S(cuff(AL, WL, 7, 0.9), sl, 1.6));
-    b.part('M110 150L120 147L128 196L118 199Z', sl);
     b.part('M124 30C128 52 140 58 150 58C160 58 172 52 176 30C171 25 167 25 164 28C162 40 156 46 150 46C144 46 138 40 136 28C133 25 128 25 124 30Z', c,
       S('M125 36C132 52 142 55 150 55C158 55 168 52 175 36', sl, 2) + S('M127 40C133 49 141 51 150 51C159 51 167 49 173 40', s, 1.6));
   });
@@ -340,12 +343,12 @@
       F('M22 62C22 30 118 30 118 62Z', '#f4f7f8', ' fill-opacity=".7" stroke="#b9c3c6" stroke-width="1.5"') +
       S('M34 54C40 42 56 38 70 38', '#ffffff', 3);
   }
-  outfit('boy-linen-shorts', 'Linen shirt & shorts', ['#e6d8bb', '#3f5b78', '#6b4a33', '#d39a74'], (b, g) => {
+  outfit('boy-linen-shorts', 'Linen shirt & shorts', ['#e6d8bb', '#3f5b78', '#6b4a33', '#d39a74'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
     // legs
-    const LL = [[118, 330], [116, 410], [121, 484]], LW = [36, 33, 22];
+    const LL = [[118, 330], [117, 410], [125, 480]], LW = [36, 33, 22];
     for (const P of [LL, LL.map(mir)]) b.part(tube(P, LW), sk, F(band(P, LW, -0.1, -0.7), tint(sk, -0.14)) + F(band(P, LW, 0.42, 0.25), tint(sk, 0.1)), tint(sk, -0.32));
-    b.add(foot('sandal', 125, 506, -1, s, sk) + foot('sandal', 175, 506, 1, s, sk));
+    feet(b, id, 'sandal', s, sk, [117, 506], [183, 506]);
     const sd = S('M100 214L114 250M200 214L186 250', tint(p, -0.35), 1.2) + S('M134 214V256M166 214V256', tint(p, -0.22), 1) +
       F('M96 202H204V214H96Z', tint(p, -0.12)) + F('M112 202h5v14h-5zM183 202h5v14h-5zM147 202h6v14h-6z', tint(p, -0.25)) +
       S('M100 300C110 304 124 304 138 300M162 300C176 304 190 304 200 300', tint(p, -0.3), 1);
@@ -372,16 +375,16 @@
   });
 
   // 5 — relaxed double-breasted suit over a white tee, loafers; hand in pocket
-  outfit('boy-suit-tee', 'Relaxed suit & tee', ['#7a6552', '#7a6552', '#1f1d1c', '#f0c6a2'], (b, g) => {
+  outfit('boy-suit-tee', 'Relaxed suit & tee', ['#7a6552', '#7a6552', '#1f1d1c', '#f0c6a2'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
-    b.add(foot('loafer', 120, 506, -1, s) + foot('loafer', 180, 506, 1, s));
+    feet(b, id, 'loafer', s, sk, [117, 506], [183, 506]);
     const crease = S('M118 300C117 360 115 420 113 488M182 300C183 360 185 420 187 488', tint(p, 0.2), 1.2) +
       S('M100 470C112 466 124 472 138 466M162 466C176 472 188 466 200 470', tint(p, -0.3), 1.1);
     pants(b, p, { wy: 240, whw: 54, cr: [150, 298], L: [[124, 250], [118, 372], [114, 488]], W: [60, 60, 64], extra: crease });
     // arms behind the jacket
-    const AL = [[104, 64], [80, 150], [112, 222]], AR = [[196, 64], [208, 152], [212, 242]], AW = [42, 38, 34];
+    const AR = [[196, 64], [208, 152], [212, 242]], AL = AR.map(mir), AW = [42, 38, 34];
     for (const P of [AL, AR]) b.part(tube(P, AW), c, F(band(P, AW, -0.12, -0.8), tint(c, -0.17)) + F(band(P, AW, 0.44, 0.24), tint(c, 0.1)) + S(`M${P[1][0] - 6} ${P[1][1] - 10}C${P[1][0]} ${P[1][1] - 2} ${P[1][0] + 4} ${P[1][1] + 2} ${P[1][0] + 10} ${P[1][1] + 6}`, tint(c, -0.3), 1));
-    b.add(F(cuff(AR, AW, 5, 0.86), TEE) + hand(212, 242, endAng(AR), sk));
+    b.add(hand(212, 242, endAng(AR), sk) + hand(88, 242, endAng(AL), sk));
     neck(b, sk);
     b.part(sym([[150, 38, 1], [160, 35], [166, 28], [184, 34], [196, 60], [194, 160, 1], [150, 160, 1]]), TEE, F('M156 40C160 80 160 120 158 160H190V40Z', tint(TEE, -0.1)) + S('M137 28C142 41 158 41 163 28', tint(TEE, -0.15), 3));
     const body = sym([[150, 150, 1], [170, 30], [204, 44, 1], [210, 64], [206, 110], [204, 200], [208, 292, 1], [150, 294, 1]]);
@@ -398,10 +401,10 @@
   });
 
   // 6 — puffer jacket, joggers, trail shoes; hands in pockets
-  outfit('boy-puffer-joggers', 'Puffer & joggers', ['#d4602f', '#3c3e44', '#c4bfa6', '#a46d4b'], (b, g) => {
+  outfit('boy-puffer-joggers', 'Puffer & joggers', ['#d4602f', '#3c3e44', '#c4bfa6', '#a46d4b'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
-    b.add(foot('trail', 121, 506, -1, s) + foot('trail', 179, 506, 1, s));
-    const L = [[124, 238], [121, 360], [122, 466]], W = [56, 48, 34];
+    feet(b, id, 'trail', s, sk, [117, 506], [183, 506]);
+    const L = [[124, 238], [121, 358], [121, 464]], W = [56, 48, 34];
     const jd = S('M100 274C108 278 116 274 122 280M98 312C110 318 118 312 126 318M102 410C112 416 124 410 134 416M104 432C114 438 126 432 134 438M106 450C116 444 128 450 136 444', tint(p, -0.35), 1.1) +
       S('M94 250L98 300', tint(p, -0.4), 1.6);
     pants(b, p, { wy: 226, whw: 54, cr: [150, 288], L, W, extra: jd + MX(jd) });
@@ -430,12 +433,12 @@
     const c = g(0), p = g(1), s = g(2), sk = g(3), c2 = g(4);
     b.def(`<pattern id="${id}-st" patternUnits="userSpaceOnUse" width="10" height="30"><rect width="10" height="30" fill="${c}"/><rect y="15" width="10" height="15" fill="${c2}"/></pattern>`);
     const ST = `url(#${id}-st)`, OL = tint(c, -0.35), DK = tint(c, -0.6);
-    b.add(foot('skate', 119, 506, -1, s) + foot('skate', 181, 506, 1, s));
+    feet(b, id, 'skate', s, sk, [117, 506], [183, 506]);
     const jd = S('M99 262C108 274 116 280 120 290M201 262C192 274 184 280 180 290M138 256V292C138 300 146 302 150 304', tint(p, -0.3), 1, DASH) +
       F('M106 320C116 350 116 380 110 410C100 380 98 350 106 320ZM194 320C184 350 184 380 190 410C200 380 202 350 194 320Z', tint(p, 0.22)) +
       S('M126 312C134 318 142 316 146 312M126 322C134 330 142 326 146 320M154 312C158 316 166 318 174 312', tint(p, 0.32), 1.1) +
       S('M90 458C104 452 118 462 140 454M90 476C106 468 122 480 142 470M160 454C182 462 196 452 210 458M158 470C178 480 194 468 210 476', tint(p, -0.3), 1.1);
-    pants(b, p, { wy: 244, whw: 56, cr: [150, 306], L: [[123, 256], [116, 372], [114, 488]], W: [64, 64, 68], extra: jd });
+    pants(b, p, { wy: 244, whw: 56, cr: [150, 306], L: [[123, 256], [117, 370], [115, 478]], W: [64, 64, 68], extra: jd });
     // skateboard hanging from the right hand
     b.add(`<g transform="translate(240 236) rotate(-7)">` +
       F('M-24 22C-24 4-14 -2 0 -2C14 -2 24 4 24 22V240C24 258 14 264 0 264C-14 264-24 258-24 240Z', '#d79a3a', OUT('#d79a3a', 1.1)) +
@@ -461,7 +464,7 @@
   // 8 — argyle sweater vest over a shirt, pleated trousers, derbies; tote on the shoulder
   outfit('boy-vest-pleats', 'Sweater vest & pleats', ['#c9b07a', '#6b5644', '#2e211a', '#dba57e', '#c4d6ea'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3), sh = g(4);
-    b.add(foot('derby', 120, 506, -1, s) + foot('derby', 180, 506, 1, s));
+    feet(b, id, 'derby', s, sk, [117, 506], [183, 506]);
     const pl = S('M134 216C134 240 132 262 130 280M118 214C116 240 116 270 118 300M166 216C166 240 168 262 170 280M182 214C184 240 184 270 182 300', tint(p, -0.3), 1.1) +
       S('M118 300C117 360 116 420 116 486M182 300C183 360 184 420 184 486', tint(p, 0.2), 1.2) + S('M98 228L104 262M202 228L196 262', tint(p, -0.4), 1.2) +
       S('M100 472C112 468 124 474 138 468M162 468C176 474 188 468 200 472', tint(p, -0.3), 1);
@@ -501,10 +504,10 @@
   });
 
   // 9 — camel overcoat, black turtleneck & trousers, chelsea boots; walking, hands in pockets
-  outfit('boy-camel-coat', 'Camel overcoat', ['#c39a6b', '#26262a', '#1c1b1b', '#f2c9a8', '#1e1e21'], (b, g) => {
+  outfit('boy-camel-coat', 'Camel overcoat', ['#c39a6b', '#26262a', '#1c1b1b', '#f2c9a8', '#1e1e21'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3), tn = g(4);
     const L = [[128, 240], [116, 370], [107, 452]], R = [[172, 240], [182, 372], [187, 474]], W = [50, 44, 40];
-    b.add(foot('chelsea', 112, 498, -1, s, sk, 16) + foot('chelsea', 190, 507, 1, s));
+    feet(b, id, 'chelsea', s, sk, [118, 500, 16], [187, 507]);
     pants(b, p, { wy: 220, whw: 50, cr: [150, 290], L, R, W, extra: S('M116 380C114 410 110 440 108 460M182 380C184 410 186 440 187 470', tint(p, 0.22), 1.2) });
     neck(b, sk);
     b.part(sym([[150, 40, 1], [166, 34], [184, 36], [200, 60], [196, 160, 1], [150, 160, 1]]), tn, F('M156 40V160H200V40Z', tint(tn, -0.25)));
@@ -514,14 +517,14 @@
       F('M188 40C210 100 212 260 224 400H250V30Z', tint(c, -0.16)) + F('M94 44C102 120 96 260 86 400H60V30Z', tint(c, 0.12)) +
       S('M150 150L134 176V392', tint(c, -0.45), 1.3) + F('M134 176V392H140V172Z', tint(c, -0.1)) + C(141, 196, 3.4, tint(c, -0.45)) + C(141, 250, 3.4, tint(c, -0.45)) +
       S('M110 300C116 340 112 370 106 392M190 300C186 340 190 370 196 392M160 330C164 360 166 380 168 392', tint(c, -0.22), 1.2) + S('M172 112L190 109', tint(c, -0.45), 2));
-    const AL = [[104, 66], [88, 160], [114, 236]], AW = [40, 36, 34];
+    const AL = [[106, 66], [97, 160], [116, 236]], AW = [40, 36, 34];
     for (const P of [AL, AL.map(mir)]) b.part(tube(P, AW, true), c, F(band(P, AW, -0.12, -0.8), tint(c, -0.17)) + F(band(P, AW, 0.44, 0.24), tint(c, 0.12)) + F(cuff(P, AW, 18), tint(c, -0.05)) + S(cuff(P, AW, 18), tint(c, -0.3), 0.8));
     b.part('M100 232H134V246C122 248 110 248 100 246Z', c, F('M100 240H134V246H100Z', tint(c, -0.14)));
     b.part('M166 232H200V246C190 248 178 248 166 246Z', tint(c, -0.1), F('M166 240H200V246H166Z', tint(c, -0.22)));
     const lap = [[137, 26], [124, 36], [98, 46, 1], [106, 62, 1], [114, 60, 1], [112, 76], [146, 150, 1], [134, 96], [139, 42, 1]];
     b.part(shape(lap), c, F('M112 76L146 150L138 150L108 76Z', tint(c, -0.2)) + S('M118 70L144 132', tint(c, 0.25), 1.2));
     b.part(shape(lap.map(mir)), c, F('M188 76L154 150L170 150L200 76Z', tint(c, -0.22)) + F('M160 30V140H210V30Z', tint(c, -0.08)));
-    b.part('M124 26C124 12 176 12 176 26L178 52C168 60 132 60 122 52Z', tn, ribs(124, 178, 14, 60, 4, tint(tn, 0.14), 0.9) + F('M150 10H180V62H150Z', tint(tn, -0.2)) + S('M124 40C140 46 160 46 176 40', tint(tn, 0.2), 1.2), tint(tn, 0.15));
+    b.part('M124 28C124 16 176 16 176 28L178 52C168 60 132 60 122 52Z', tn, ribs(124, 178, 14, 60, 4, tint(tn, 0.14), 0.9) + F('M150 10H180V62H150Z', tint(tn, -0.2)) + S('M124 40C140 46 160 46 176 40', tint(tn, 0.2), 1.2), tint(tn, 0.15));
   });
 
   /* ======================================================== SHOES & BAGS */
