@@ -428,8 +428,8 @@
      third. Every position is a continuous function of one number, pos, so
      a drag moves the whole row by fractions of a card and a release
      settles it on the nearest person. It advances by itself every few
-     seconds; hovering holds it, a drag or a click on a side card takes
-     over. Reduced motion: no auto-advance and no transitions. */
+     seconds, under the pointer too; a drag or a click on a side card
+     takes over. Reduced motion: no auto-advance and no transitions. */
   (function () {
     var root = document.getElementById('heroMine');
     if (!root) return;
@@ -513,6 +513,8 @@
         el.classList.toggle('is-front', i === front && Math.abs(d) < 0.5);
       });
       if (front !== shown) showInfo(front);
+      /* the dotted sphere behind turns with the row */
+      document.dispatchEvent(new CustomEvent('mine:pos', { detail: { pos: pos, dragging: !!drag } }));
     }
 
     /* the two lines under the front card, cross-faded on change */
@@ -578,9 +580,8 @@
     window.addEventListener('pointerup', release);
     window.addEventListener('pointercancel', release);
 
+    /* the row keeps moving under the pointer too; only a drag holds it */
     var hold = false;
-    root.addEventListener('mouseenter', function () { hold = true; });
-    root.addEventListener('mouseleave', function () { hold = false; });
 
     render();
     var rt;
@@ -624,7 +625,7 @@
     if (!cv || !cv.getContext || !root || !stage) return;
     var ctx = cv.getContext('2d'), TAU = Math.PI * 2, RAD = Math.PI / 180;
 
-    var N = 1500, GOLD = Math.PI * (3 - Math.sqrt(5));
+    var N = 2400, GOLD = Math.PI * (3 - Math.sqrt(5));
     var ux = new Float32Array(N), uy = new Float32Array(N), uz = new Float32Array(N);
     for (var i = 0; i < N; i++) {
       var y = 1 - (i + 0.5) / N * 2, r = Math.sqrt(1 - y * y), th = i * GOLD;
@@ -640,11 +641,16 @@
     var HUE_RGB = { aqua: '0, 163, 150', lilac: '155, 95, 208', sky: '47, 111, 191', peach: '196, 112, 60', sand: '208, 138, 33' };
     var ripHue = HUE_RGB.aqua, ripAt = -1e9, RIP_MS = 2200;
     var SCAN_CYCLE = 8000, SCAN_SWEEP = 0.6, SCAN_W = 0.18;
-    var PITCH = -16 * RAD, yaw = 0.6, SPIN = 0.00006;
+    /* no spin of its own: the sphere turns with the carousel, one STEP of
+       yaw per card, eased toward the row's position the way the cards'
+       own transition eases, and tracking it directly during a drag */
+    var PITCH = -16 * RAD, YAW0 = 0.6, STEP = 0.42, yaw = YAW0, yawTo = YAW0, follow = false;
 
     var W = 0, H = 0, cx = 0, cy = 0, R = 0, dpr = 1;
     function size() {
-      var rb = root.getBoundingClientRect(), sb = stage.getBoundingClientRect();
+      /* the canvas runs past the illustration box above and below, so the
+         sphere is measured against the canvas itself */
+      var rb = cv.getBoundingClientRect(), sb = stage.getBoundingClientRect();
       if (!rb.width) return;
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = rb.width; H = rb.height;
@@ -652,7 +658,7 @@
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       cx = W / 2;
       cy = sb.top - rb.top + sb.height * 0.5;
-      R = Math.min(W * 0.47, H * 0.56, sb.height * 1.25, cy + 30);
+      R = Math.min(W * 0.52, sb.height * 1.45, cy - 8, H - cy - 8);
     }
 
     function draw(now) {
@@ -695,6 +701,10 @@
       }
     }
 
+    document.addEventListener('mine:pos', function (e) {
+      yawTo = YAW0 - e.detail.pos * STEP;
+      follow = e.detail.dragging;
+    });
     document.addEventListener('mine:change', function (e) {
       ripHue = HUE_RGB[e.detail && e.detail.hue] || HUE_RGB.aqua;
       ripAt = performance.now();
@@ -709,7 +719,7 @@
     var raf = 0, last = 0, running = false, visible = true;
     function frame(now) {
       var dt = last ? Math.min(64, now - last) : 16; last = now;
-      yaw += SPIN * dt;
+      yaw = follow ? yawTo : yaw + (yawTo - yaw) * (1 - Math.exp(-dt / 170));
       draw(now);
       raf = requestAnimationFrame(frame);
     }
