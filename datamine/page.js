@@ -440,7 +440,6 @@
     var fromEl = info.querySelector('.fi__from');
     var toEl = info.querySelector('.fi__to span');
     var metaEl = info.querySelector('.fi__meta');
-    var idxEl = document.getElementById('mineIdx');
     var listEl = document.getElementById('mineList');
 
     /* illustrative people: from → to is what the last refresh found */
@@ -533,8 +532,6 @@
     function showInfo(i) {
       var first = shown < 0;
       shown = i;
-      var n = ((Math.round(pos) % 412) + 412) % 412 + 1;
-      idxEl.textContent = (n < 10 ? '0' : '') + n + ' / 412';
       if (first || reduced) { fillInfo(PEOPLE[i]); return; }
       info.classList.add('is-swap');
       clearTimeout(swapT);
