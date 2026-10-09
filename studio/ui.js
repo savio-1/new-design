@@ -1592,16 +1592,35 @@
   S.on('export', () => openExport());
 
   function slug() { return (S.docName || 'design').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'design'; }
-  function download(blob, name) {
+  // Embedded hosts (the shared Claude link) block page-started downloads but
+  // offer a confirmed save; everywhere else a plain download link is used.
+  let dlCap = null;
+  function downloadsCap() {
+    if (!dlCap) dlCap = window.claude && typeof window.claude.use === 'function' ? Promise.resolve(window.claude.use('downloads')).catch(() => null) : Promise.resolve(null);
+    return dlCap;
+  }
+  downloadsCap();
+  async function download(blob, name) {
+    const dl = await downloadsCap();
+    if (dl) {
+      try { await dl.save({ filename: name, data: blob }); return 'saved'; }
+      catch (e) {
+        const code = e && e.code;
+        if (code === 'declined') { toast('Save cancelled'); return 'declined'; }
+        if (code === 'rate_limited') { toast('A save prompt is already open'); return 'busy'; }
+        if (code === 'too_large') { toast('That file is too large to save here — try a smaller size'); return 'failed'; }
+        // anything else: fall back to an ordinary download below
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = h('a', { href: url, download: name });
     document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return 'started';
   }
   function saveProject() {
     const blob = new Blob([JSON.stringify(S.projectData())], { type: 'application/json' });
-    download(blob, slug() + '.studio.json');
-    toast('Project file saved');
+    download(blob, slug() + '.studio.json').then(r => { if (r === 'saved' || r === 'started') toast('Project file saved'); });
   }
   $('#project-input').addEventListener('change', async e => {
     const f = e.target.files[0];
@@ -1750,11 +1769,13 @@
         const c = await S.render({ scale: sz.k, transparent: transparent && fmt !== 'jpeg', time: null });
         const blob = await new Promise(r => c.toBlob(r, 'image/' + fmt, quality));
         const name = `${slug()}.${fmt === 'jpeg' ? 'jpg' : fmt}`;
-        download(blob, name);
-        toast(`Exported ${c.width} × ${c.height}`);
         const url = URL.createObjectURL(blob);
         preview.replaceChildren(h('div.export-result', null, h('img', { src: url, alt: name }),
-          h('div.hint', null, `${name} · ${c.width} × ${c.height}. If the download didn’t start, right-click or long-press the image to save it.`)));
+          h('div.hint', null, `${name} · ${c.width} × ${c.height}. If nothing downloaded, use Save again, or right-click / long-press the image to save it.`),
+          h('button.btn', { onclick: () => download(blob, name) }, ic('download'), 'Save again')));
+        hydrateIcons(preview);
+        const r = await download(blob, name);
+        if (r === 'saved' || r === 'started') toast(`Exported ${c.width} × ${c.height}`);
       } catch (err) { console.error(err); toast('Export failed — try a smaller size'); }
       btn.disabled = false; btn.lastChild.textContent = 'Download image';
     }
@@ -1784,10 +1805,12 @@
           },
         });
         const name = `${slug()}.${out.ext}`;
-        download(out.blob, name);
         const url = URL.createObjectURL(out.blob);
         preview.replaceChildren(h('div.export-result', null, h('video', { src: url, controls: true, autoplay: true, loop: true, muted: true, playsInline: true }),
-          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If the download didn’t start, right-click the video and choose “Save video as”.`)));
+          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If nothing downloaded, use Save again, or right-click the video and choose “Save video as”.`),
+          h('button.btn', { onclick: () => download(out.blob, name) }, ic('download'), 'Save again')));
+        hydrateIcons(preview);
+        download(out.blob, name);
         status.textContent = out.ext !== vfmt ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
         toast('Video exported');
       } catch (err) {
