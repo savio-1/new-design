@@ -435,12 +435,14 @@
     if (!root) return;
     var stage = document.getElementById('mineStage');
     var info = document.getElementById('mineInfo');
-    var chgEl = info.querySelector('.flow__chg');
-    var metaEl = info.querySelector('.flow__meta');
+    var tagEl = info.querySelector('.fi__tag');
+    var whenEl = info.querySelector('.fi__when');
+    var fromEl = info.querySelector('.fi__from');
+    var toEl = info.querySelector('.fi__to span');
+    var metaEl = info.querySelector('.fi__meta');
     var idxEl = document.getElementById('mineIdx');
     var listEl = document.getElementById('mineList');
 
-    var DOT = { peach: 'var(--on-peach)', lilac: 'var(--on-lilac)', sky: 'var(--on-sky)', sand: 'var(--on-sand)', aqua: 'var(--accent)' };
     /* illustrative people: from → to is what the last refresh found */
     var PEOPLE = [
       { name: 'Sarah Okafor', photo: '@asset:portrait-okafor.jpg', edu: 'MBA ’04', tag: 'Promotion', hue: 'peach',
@@ -477,8 +479,7 @@
     var cards = PEOPLE.map(function (p) {
       var el = document.createElement('div');
       el.className = 'fc';
-      el.style.setProperty('--dot', DOT[p.hue]);
-      el.innerHTML = '<img alt="" src="' + p.photo + '"><span class="fc__tag">' + esc(p.tag) + '</span>' +
+      el.innerHTML = '<img alt="" src="' + p.photo + '">' +
         '<span class="fc__name">' + esc(p.name) + '<small>' + esc(p.edu) + '</small></span>';
       stage.appendChild(el);
       return el;
@@ -517,9 +518,17 @@
 
     /* the two lines under the front card, cross-faded on change */
     var swapT;
+    var HUES = ['peach', 'lilac', 'sky', 'sand', 'aqua'];
     function fillInfo(p) {
-      chgEl.innerHTML = p.from ? esc(p.from) + '<span class="arr">→</span>' + esc(p.to) : esc(p.to);
-      metaEl.textContent = p.meta;
+      /* a trailing month and year in the meta line is the date of the change */
+      var m = p.meta.match(/^(.*) · ([A-Z][a-z]{2} \d{4})$/);
+      HUES.forEach(function (h) { info.classList.toggle('is-' + h, h === p.hue); });
+      tagEl.className = 'hchip fi__tag hchip--' + p.hue;
+      tagEl.textContent = p.tag;
+      whenEl.textContent = m ? 'Since last refresh · ' + m[2] : 'This refresh';
+      fromEl.textContent = p.from;
+      toEl.textContent = p.to;
+      metaEl.textContent = m ? m[1] : p.meta;
     }
     function showInfo(i) {
       var first = shown < 0;
