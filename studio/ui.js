@@ -48,6 +48,7 @@
     upper: 'M3 18 7 6l4 12M4.5 14h5M13 18l4-12 4 12M14.5 14h5',
     x: 'M6 6l12 12M18 6 6 18', edit: 'M4 20h4L19 9l-4-4L4 16z', check: 'M5 12l5 5 9-11',
     sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z',
+    wand: 'M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5',
     shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
     bgimg: 'M3 15l6-6 4 4 3-3 5 5M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
     paste: 'M9 4h6v3H9zM15 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2',
@@ -567,6 +568,21 @@
     return grid;
   }
 
+  function bgRemovalControls(el) {
+    const busy = S.isRemovingBackground();
+    if (el.bgRemoved) {
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+        h('div.btn-row', null,
+          h('button.btn', { onclick: () => S.restoreBackground(el.id) }, ic('undo'), 'Restore background'),
+          h('button.btn' + (el.outline && el.outline.on ? '.on' : ''), { onclick: () => { S.change('sel', 'outline.on', !(el.outline && el.outline.on)); renderInspector(); } }, ic('sticker'), 'Sticker border')));
+    }
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
+      h('div.btn-row', null,
+        h('button.btn.primary', { disabled: busy, onclick: () => S.removeBackground(el.id, 'replace') }, ic('wand'), busy ? 'Working…' : 'Remove background'),
+        h('button.btn', { disabled: busy, title: 'Keep the photo and add the cut-out subject as a new layer on top', onclick: () => S.removeBackground(el.id, 'layer') }, ic('layers'), 'Cut out to layer')),
+      h('div.hint', null, 'Finds the subject automatically. Runs on your device — the first use downloads a 44 MB model.'));
+  }
+
   function imageInspector(el) {
     const T = 'sel';
     const fs = el.frame.style || 'none';
@@ -577,6 +593,7 @@
           h('button.btn', { onclick: () => S.pickImages({ replaceId: el.id }) }, ic('replace'), el.assetId ? 'Replace' : 'Add photo'),
           el.assetId ? h('button.btn', { onclick: () => S.startCrop(el.id) }, ic('crop'), 'Crop') : null,
           el.assetId ? h('button.btn', { onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'As bg') : null)),
+        el.assetId ? bgRemovalControls(el) : null,
         el.assetId ? row('Zoom', num(T, 'crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })) : null,
         el.assetId ? row('Pan X', num(T, 'crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })) : null,
         el.assetId ? row('Pan Y', num(T, 'crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })) : null,
@@ -586,7 +603,7 @@
       sec('Frame', [
         full(frameTiles(el)),
         fs !== 'none' ? row('Frame', colorCtl(T, 'frame.color')) : null,
-        row(bordered ? 'Border' : 'Edge', num(T, 'frame.size', { min: 0, max: 200, slider: true })),
+        fs !== 'none' ? row(bordered ? 'Border' : 'Edge', num(T, 'frame.size', { min: 0, max: 200, slider: true })) : null,
         ['none', 'rounded', 'border', 'polaroid', 'ticket'].includes(fs) ? row('Radius', num(T, 'frame.radius', { min: 0, max: 400, slider: true })) : null,
         fs === 'polaroid' ? row('Bottom', num(T, 'frame.bottom', { min: 1, max: 8, step: 0.1, slider: true, unit: '×' })) : null,
         bordered ? row('Paper', num(T, 'frame.texture', { min: 0, max: 100, slider: true })) : null,
@@ -884,6 +901,8 @@
           h('button.btn', { onclick: () => openSizeModal() }, ic('resize'), 'Resize'))),
       ]),
       bg.assetId ? sec('Background photo', [
+        full(h('button.btn.primary', { disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
+        h('div.hint', null, 'Great for putting text behind a person. Runs on your device.'),
         row('Opacity', num(T, 'background.imageOpacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
         row('Zoom', num(T, 'background.crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
         row('Pan X', num(T, 'background.crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
@@ -1151,6 +1170,7 @@
     ];
   }
   S.on('uploads', () => { if (tab === 'photos') renderPanel(); });
+  S.on('bgremove', stage => { if (stage === 'start' || stage === 'end') { renderInspector(); quickBar(); hydrateIcons(S.quickBar); } });
 
   // planner
   function plannerPanel() {
@@ -1285,6 +1305,7 @@
     if (els.length === 1 && el.type === 'image' && !el.locked) {
       kids.push(b('replace', el.assetId ? 'Replace photo' : 'Add photo', () => S.pickImages({ replaceId: el.id })));
       if (el.assetId) kids.push(b('crop', 'Crop', () => S.startCrop(el.id)));
+      if (el.assetId && !el.bgRemoved) kids.push(b('wand', 'Remove background', () => S.removeBackground(el.id, 'replace')));
     }
     if (kids.length) kids.push(h('div.sep'));
     kids.push(b('copy', 'Duplicate (⌘D)', () => S.duplicate()), b(el.locked ? 'unlock' : 'lock', el.locked ? 'Unlock' : 'Lock', () => S.toggleLock()),
@@ -1311,6 +1332,8 @@
     if (els.length === 1 && el.type === 'image') {
       items.push({ label: el.assetId ? 'Replace photo' : 'Add photo', icon: 'replace', run: () => S.pickImages({ replaceId: el.id }) });
       if (el.assetId) items.push({ label: 'Crop', icon: 'crop', run: () => S.startCrop(el.id) }, { label: 'Use as background', icon: 'bgimg', run: () => S.setBackgroundImage(el.assetId) });
+      if (el.assetId && !el.bgRemoved) items.push({ label: 'Remove background', icon: 'wand', run: () => S.removeBackground(el.id, 'replace') }, { label: 'Cut out subject to a layer', icon: 'layers', run: () => S.removeBackground(el.id, 'layer') });
+      if (el.bgRemoved) items.push({ label: 'Restore background', icon: 'undo', run: () => S.restoreBackground(el.id) });
     }
     if (items.length) items.push('-');
     items.push(
