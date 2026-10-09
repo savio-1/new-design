@@ -532,6 +532,8 @@
     function showInfo(i) {
       var first = shown < 0;
       shown = i;
+      /* the dotted sphere behind the row ripples in this change's hue */
+      document.dispatchEvent(new CustomEvent('mine:change', { detail: { hue: PEOPLE[i].hue } }));
       if (first || reduced) { fillInfo(PEOPLE[i]); return; }
       info.classList.add('is-swap');
       clearTimeout(swapT);
@@ -603,6 +605,121 @@
       new IntersectionObserver(function (es) {
         es.forEach(function (e) { visible = e.isIntersecting; if (visible && !document.hidden) start(); else stop(); });
       }, { threshold: 0.1 }).observe(root);
+    } else { start(); }
+  })();
+
+  /* ---------- hero: the dotted sphere behind the carousel ----------
+     The News globe's dot language, carried to this page so every product
+     hero shares it: ink dots on a sphere, smaller and fainter with depth,
+     only the near face drawn; a turquoise scan band crossing it every few
+     seconds (here, a refresh passing over your alumni); and a ring that
+     runs outward from behind the front card whenever a new change comes
+     forward, in that change's hue. Even Fibonacci points rather than a
+     land mask — the map is News's idea; this sphere is just people.
+     Dots are bucketed by depth and drawn one path per bucket, as on News. */
+  (function () {
+    var cv = document.getElementById('mineDots');
+    var root = document.getElementById('heroMine');
+    var stage = document.getElementById('mineStage');
+    if (!cv || !cv.getContext || !root || !stage) return;
+    var ctx = cv.getContext('2d'), TAU = Math.PI * 2, RAD = Math.PI / 180;
+
+    var N = 1500, GOLD = Math.PI * (3 - Math.sqrt(5));
+    var ux = new Float32Array(N), uy = new Float32Array(N), uz = new Float32Array(N);
+    for (var i = 0; i < N; i++) {
+      var y = 1 - (i + 0.5) / N * 2, r = Math.sqrt(1 - y * y), th = i * GOLD;
+      ux[i] = Math.cos(th) * r; uy[i] = y; uz[i] = Math.sin(th) * r;
+    }
+
+    /* six ink buckets by depth, three scan buckets, three ripple buckets */
+    var NB = 6, NT = NB + 6;
+    var bx = [], by = [], bn = new Int32Array(NT);
+    for (var q = 0; q < NT; q++) { bx.push(new Float32Array(N)); by.push(new Float32Array(N)); }
+    var ALPHA = [0.12, 0.18, 0.26, 0.34, 0.44, 0.54, 0.34, 0.54, 0.76, 0.40, 0.62, 0.86];
+    var RADII = [0.9, 1.0, 1.1, 1.22, 1.35, 1.5, 1.25, 1.45, 1.65, 1.35, 1.6, 1.85];
+    var HUE_RGB = { aqua: '0, 163, 150', lilac: '155, 95, 208', sky: '47, 111, 191', peach: '196, 112, 60', sand: '208, 138, 33' };
+    var ripHue = HUE_RGB.aqua, ripAt = -1e9, RIP_MS = 2200;
+    var SCAN_CYCLE = 8000, SCAN_SWEEP = 0.6, SCAN_W = 0.18;
+    var PITCH = -16 * RAD, yaw = 0.6, SPIN = 0.00006;
+
+    var W = 0, H = 0, cx = 0, cy = 0, R = 0, dpr = 1;
+    function size() {
+      var rb = root.getBoundingClientRect(), sb = stage.getBoundingClientRect();
+      if (!rb.width) return;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = rb.width; H = rb.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx = W / 2;
+      cy = sb.top - rb.top + sb.height * 0.5;
+      R = Math.min(W * 0.47, H * 0.56, sb.height * 1.25, cy + 30);
+    }
+
+    function draw(now) {
+      ctx.clearRect(0, 0, W, H);
+      var sy = Math.sin(yaw), cyw = Math.cos(yaw), sp = Math.sin(PITCH), cp = Math.cos(PITCH);
+      var phase = (now % SCAN_CYCLE) / SCAN_CYCLE;
+      var scanning = !reduced && phase < SCAN_SWEEP;
+      var scanX = scanning ? -1.25 + (phase / SCAN_SWEEP) * 2.5 : 9;
+      /* the ripple is fixed in view space: it starts at the point of the
+         sphere facing us, right behind the front card */
+      var age = (now - ripAt) / RIP_MS, ripOn = !reduced && age >= 0 && age < 1;
+      var ripCos = ripOn ? Math.cos(age * 1.6) : 0, ripFade = 1 - age;
+      bn.fill(0);
+      for (var i = 0; i < N; i++) {
+        var x1 = ux[i] * cyw + uz[i] * sy;
+        var z1 = uz[i] * cyw - ux[i] * sy;
+        var y2 = uy[i] * cp - z1 * sp;
+        var z2 = uy[i] * sp + z1 * cp;
+        if (z2 <= 0.02) continue;
+        var b = (z2 * NB) | 0; if (b > NB - 1) b = NB - 1;
+        if (scanning) {
+          var d = (x1 - scanX) / SCAN_W;
+          if (d > -1 && d < 1) { d = 1 - (d < 0 ? -d : d); var lit = d * d * z2; if (lit > 0.16) b = NB + (lit > 0.6 ? 2 : lit > 0.34 ? 1 : 0); }
+        }
+        if (ripOn) {
+          var dd = z2 - ripCos; if (dd < 0) dd = -dd;    // angle from the view axis
+          if (dd < 0.07) { var rl = (1 - dd / 0.07) * ripFade; if (rl > 0.16) b = NB + 3 + (rl > 0.6 ? 2 : rl > 0.34 ? 1 : 0); }
+        }
+        var k = bn[b]++;
+        bx[b][k] = cx + x1 * R; by[b][k] = cy - y2 * R;
+      }
+      for (var b2 = 0; b2 < NT; b2++) {
+        var n = bn[b2]; if (!n) continue;
+        var rr = RADII[b2];
+        var ink = b2 < NB ? '4, 48, 43' : b2 < NB + 3 ? '0, 172, 159' : ripHue;
+        ctx.fillStyle = 'rgba(' + ink + ', ' + ALPHA[b2] + ')';
+        ctx.beginPath();
+        for (var j = 0; j < n; j++) { var px = bx[b2][j], py = by[b2][j]; ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, TAU); }
+        ctx.fill();
+      }
+    }
+
+    document.addEventListener('mine:change', function (e) {
+      ripHue = HUE_RGB[e.detail && e.detail.hue] || HUE_RGB.aqua;
+      ripAt = performance.now();
+    });
+
+    size(); draw(performance.now());
+    var rt;
+    window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { size(); draw(performance.now()); }, 120); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { size(); draw(performance.now()); });
+    if (reduced) return;
+
+    var raf = 0, last = 0, running = false, visible = true;
+    function frame(now) {
+      var dt = last ? Math.min(64, now - last) : 16; last = now;
+      yaw += SPIN * dt;
+      draw(now);
+      raf = requestAnimationFrame(frame);
+    }
+    function start() { if (running) return; running = true; last = 0; raf = requestAnimationFrame(frame); }
+    function stop() { running = false; cancelAnimationFrame(raf); }
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else if (visible) start(); });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) { visible = e.isIntersecting; if (visible && !document.hidden) start(); else stop(); });
+      }, { threshold: 0.05 }).observe(root);
     } else { start(); }
   })();
 })();
