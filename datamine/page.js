@@ -421,50 +421,223 @@
     });
   })();
 
-  /* ---------- hero directory: one record open at a time ----------
-     The directory demonstrates itself: records open on their employment
-     history in turn, and the change card lands once the window is in
-     view. The pointer wins — hovering a row opens it and holds the cycle,
-     leaving the window lets it run again. Reduced motion: one record open,
-     the card shown, nothing moves. */
+  /* ---------- hero: the change feed as a deck of person cards ----------
+     One card per person: who they are, how they matched your file, what
+     moved since the last refresh, and their history. The front card is lit
+     and its progress line fills over the dwell; when it is full the card
+     flies off and rejoins the back of the deck, and the next one rises.
+     Drag the front card sideways to send it on yourself (short of the
+     threshold it springs back); click a card peeking behind to bring it
+     forward. Hovering the deck holds it. Reduced motion: no auto-advance,
+     no transitions; dragging and clicking still work. */
   (function () {
-    var rows = [].slice.call(document.querySelectorAll('#dirRows .drow'));
-    var toast = document.getElementById('dirToast');
-    if (!rows.length) return;
-    var i = 1, timer = null, hold = false;
-    var DWELL = 3600;
+    var root = document.getElementById('heroMine');
+    if (!root) return;
+    var deck = document.getElementById('mineDeck');
+    var foot = document.getElementById('mineFoot');
+    var idxEl = document.getElementById('mineIdx');
+    var listEl = document.getElementById('mineList');
 
-    function open(n) {
-      i = (n + rows.length) % rows.length;
-      rows.forEach(function (r, k) { r.classList.toggle('is-open', k === i); });
-    }
-    function start() {
-      if (reduced || hold) return;
-      clearInterval(timer);
-      timer = setInterval(function () { open(i + 1); }, DWELL);
-    }
-    function stop() { clearInterval(timer); }
+    var MATCH = ['Name', 'Employer', 'Class', 'Location'];
+    /* illustrative people; hue follows the kind of change */
+    var PEOPLE = [
+      { name: 'Camila Reyes', photo: '@asset:face-reyes.jpg', meta: 'Your ID 61-22094 · BS ’07 · Oakland, CA',
+        status: ['hchip--mint', '100% match'], hue: 'lilac', when: 'Since last refresh · Sep 2026', type: 'New title',
+        from: 'Director of Product', to: 'VP Product, Northwind Labs',
+        hist: [['VP Product, Northwind Labs', '2026 – now'], ['Director of Product, Northwind Labs', '2021 – 2026'], ['Product Manager, Brightline', '2014 – 2021']],
+        attrs: 'all', action: 'Push to CRM' },
+      { name: 'Richard Hale', photo: '@asset:face-hale.jpg', meta: 'Your ID 40-77102 · MBA ’98 · San Jose, CA',
+        status: ['hchip--mint', '100% match'], hue: 'sky', when: 'Since last refresh · Aug 2026', type: 'New employer',
+        from: 'Halcyon Systems', to: 'Arden Cloud',
+        hist: [['SVP Platform, Arden Cloud', '2026 – now'], ['SVP Platform, Halcyon Systems', '2017 – 2026'], ['VP Engineering, Fernway', '2009 – 2017']],
+        attrs: 'all', action: 'Push to CRM' },
+      { name: 'Elizabeth Chen', photo: '@asset:face-chen.jpg', meta: 'Your ID 52-30417 · BA ’06 · Boston, MA',
+        status: ['hchip--sand', '86% · review'], hue: 'sand', when: 'Partial name match · held for you', type: 'Surname',
+        from: 'Elizabeth Smith', to: 'Elizabeth Chen',
+        hist: [['Chief Technology Officer, Quarry Data', '2023 – now'], ['VP Engineering, Lantern Partners', '2015 – 2023'], ['Engineering Lead, Halcyon Systems', '2010 – 2015']],
+        attrs: 'name-off', action: 'Confirm match' },
+      { name: 'Sarah Okafor', photo: '@asset:face-okafor.jpg', meta: 'Your ID 88-04231 · MBA ’04 · Portland, OR',
+        status: ['hchip--mint', '100% match'], hue: 'peach', when: 'Since last refresh · Sep 2026', type: 'Promotion',
+        from: 'Chief Operating Officer', to: 'Chief Executive Officer',
+        hist: [['Chief Executive Officer, Meridian Health', '2026 – now'], ['Chief Operating Officer, Meridian Health', '2019 – 2026'], ['VP Operations, Cascade Care', '2012 – 2019']],
+        attrs: 'all', action: 'Push to CRM' },
+      { name: 'Amara Otieno', photo: '@asset:face-otieno.jpg', meta: 'Postdoc ’19 · Nairobi, KE · no ID yet',
+        status: ['hchip--aqua', 'New record'], hue: 'aqua', when: 'Not in your file · lists your institution', type: 'Found',
+        from: 'No record', to: 'Research Scientist, Lattice Bio',
+        hist: [['Research Scientist, Lattice Bio', '2022 – now'], ['Postdoctoral Fellow, your institution', '2019 – 2022']],
+        attrs: 'none', action: 'Add record' },
+      { name: 'Daniel Brooks', photo: '@asset:face-brooks.jpg', meta: 'Your ID 33-90215 · BS ’03 · Seattle, WA',
+        status: ['hchip--mint', '100% match'], hue: 'aqua', when: 'Since last refresh · Jul 2026', type: 'Location',
+        from: 'Denver, CO', to: 'Seattle, WA',
+        hist: [['Engineering Director, Fernway', '2020 – now'], ['Senior Engineer, Fernway', '2015 – 2020'], ['Engineer, Quarry Data', '2003 – 2015']],
+        attrs: 'all', action: 'Push to CRM' },
+      { name: 'John Smith', photo: '@asset:face-smith.jpg', meta: 'Your ID 77-10982 · BA ’98 · 1 of 3 John Smiths',
+        status: ['hchip--mint', '100% match'], hue: 'peach', when: 'Since last refresh · Jun 2026', type: 'Promotion',
+        from: 'Senior Associate', to: 'Partner, Baird & Lowe',
+        hist: [['Partner, Baird & Lowe', '2026 – now'], ['Senior Associate, Baird & Lowe', '2018 – 2026'], ['Associate, Keller Ames', '2011 – 2018']],
+        attrs: 'all', action: 'Push to CRM' }
+    ];
 
-    rows.forEach(function (r, k) {
-      r.addEventListener('mouseenter', function () { hold = true; stop(); open(k); });
-      r.addEventListener('click', function () { open(k); });
+    /* the same cards as text, for anyone not seeing the deck */
+    listEl.innerHTML = PEOPLE.map(function (p) {
+      return '<li>' + p.name + ' (' + p.meta + '), ' + p.status[1] + ': ' + p.when + ' — ' + p.type.toLowerCase() + ', ' + p.from + ' to ' + p.to + '.</li>';
+    }).join('');
+
+    function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function cardHTML(p) {
+      var attrs = p.attrs === 'none'
+        ? '<span class="is-none">No record to match yet</span>'
+        : MATCH.map(function (a, i) { return '<span' + (p.attrs === 'name-off' && i === 0 ? ' class="is-off"' : '') + '>' + a + '</span>'; }).join('');
+      return '<div class="pc__body">' +
+        '<div class="pc__top"><img class="pc__ava" alt="" src="' + p.photo + '">' +
+          '<span class="pc__who"><span class="pc__name">' + esc(p.name) + '</span><span class="pc__meta">' + esc(p.meta) + '</span></span>' +
+          '<span class="hchip ' + p.status[0] + '">' + esc(p.status[1]) + '</span></div>' +
+        '<div class="pc__chg"><p class="pc__when"><span>' + esc(p.when) + '</span><span class="hchip">' + esc(p.type) + '</span></p>' +
+          '<p class="pc__move"><span class="pc__from">' + esc(p.from) + '</span><span class="pc__arrow">→</span><span class="pc__to">' + esc(p.to) + '</span></p></div>' +
+        '<p class="pc__lbl">Employment history</p>' +
+        '<ul class="hist">' + p.hist.map(function (h) { return '<li><b>' + esc(h[0]) + '</b><span>' + esc(h[1]) + '</span></li>'; }).join('') + '</ul>' +
+        '<div class="pc__foot"><span class="pc__attrs">' + attrs + '</span><span class="mbtn mbtn--ink">' + esc(p.action) + '</span></div>' +
+        '</div><span class="pc__load"><i></i></span>';
+    }
+
+    var cards = PEOPLE.map(function (p) {
+      var el = document.createElement('div');
+      el.className = 'pc pc--' + p.hue;
+      el.innerHTML = cardHTML(p);
+      deck.appendChild(el);
+      return el;
     });
-    var box = rows[0].parentNode;
-    box.addEventListener('mouseleave', function () { hold = false; start(); });
+    var order = cards.slice();          // order[0] is the front card
+    var seen = 1;
 
-    open(1);
-    if (reduced || !('IntersectionObserver' in window)) {
-      if (toast) toast.classList.add('is-on');
-      return;
+    /* stack slots: each card behind rises and recedes a step */
+    var SLOTS = [
+      { y: 0, s: 1, o: 1 }, { y: -38, s: 0.95, o: 1 }, { y: -72, s: 0.9, o: 0.85 },
+      { y: -102, s: 0.85, o: 0.55 }, { y: -122, s: 0.8, o: 0 }
+    ];
+    function slot(k) { return SLOTS[Math.min(k, SLOTS.length - 1)]; }
+    function place(el, k) {
+      var s = slot(k);
+      el.style.transform = 'translate3d(0,' + s.y + 'px,0) scale(' + s.s + ')';
+      el.style.opacity = s.o;
+      el.style.zIndex = String(100 - k);
+      el.classList.toggle('is-front', k === 0);
     }
-    var shown = false;
-    new IntersectionObserver(function (es) {
-      es.forEach(function (e) {
-        if (e.isIntersecting) {
-          start();
-          if (!shown && toast) { shown = true; setTimeout(function () { toast.classList.add('is-on'); }, 900); }
-        } else { stop(); }
-      });
-    }, { threshold: 0.3 }).observe(box);
+    function layout() { order.forEach(place); }
+
+    /* keep the deck and its foot centred on the front card's height */
+    function size() {
+      var front = order[0], h = front.offsetHeight, H = root.clientHeight, peek = 102, footH = foot.offsetHeight, gap = 22;
+      var top = Math.max(peek + 8, (H - (peek + h + gap + footH)) / 2 + peek);
+      deck.style.top = top + 'px';
+      foot.style.top = (top + h + gap) + 'px';
+    }
+
+    /* the dwell clock */
+    var DWELL = 4600, elapsed = 0, hold = false, visible = true, busy = false;
+    function setLoad(f) {
+      var bar = order[0].querySelector('.pc__load i');
+      if (bar) bar.style.transform = 'scaleX(' + f.toFixed(4) + ')';
+    }
+
+    /* the front card leaves (dir -1 left, +1 right) and rejoins at the back */
+    function advance(dir) {
+      if (busy) return;
+      busy = true;
+      var out = order[0];
+      out.classList.remove('is-grabbing');
+      out.style.transform = 'translate3d(' + (dir * 120) + '%,40px,0) rotate(' + (dir * 9) + 'deg)';
+      out.style.opacity = '0';
+      setLoad(0);
+      order.push(order.shift());
+      order.forEach(function (el, k) { if (el !== out) place(el, k); });
+      seen = seen % 412 + 1;
+      idxEl.textContent = seen;
+      elapsed = 0;
+      size();
+      setTimeout(function () {
+        out.classList.add('is-snap');
+        place(out, order.length - 1);
+        void out.offsetWidth;
+        out.classList.remove('is-snap');
+        busy = false;
+      }, reduced ? 0 : 460);
+    }
+
+    function bringForward(el) {
+      var k = order.indexOf(el);
+      if (k <= 0 || busy) return;
+      setLoad(0);
+      order = order.slice(k).concat(order.slice(0, k));
+      seen = seen % 412 + 1;
+      idxEl.textContent = seen;
+      elapsed = 0;
+      layout();
+      size();
+    }
+
+    /* drag the front card */
+    var drag = null;
+    deck.addEventListener('pointerdown', function (e) {
+      var el = e.target.closest('.pc');
+      if (!el) return;
+      if (el !== order[0]) { bringForward(el); return; }
+      if (busy) return;
+      drag = { el: el, x: e.clientX, y: e.clientY, dx: 0, dy: 0, t: performance.now(), vx: 0, moved: false };
+      el.setPointerCapture && el.setPointerCapture(e.pointerId);
+    });
+    deck.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var now = performance.now(), ndx = e.clientX - drag.x, ndy = e.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.abs(ndx) < 5 && Math.abs(ndy) < 5) return;
+        /* a mostly vertical touch is a page scroll, not a drag */
+        if (e.pointerType === 'touch' && Math.abs(ndy) > Math.abs(ndx)) { drag = null; return; }
+        drag.moved = true;
+        drag.el.classList.add('is-grabbing');
+      }
+      drag.vx = (ndx - drag.dx) / Math.max(1, now - drag.t);
+      drag.dx = ndx; drag.dy = ndy; drag.t = now;
+      drag.el.style.transform = 'translate3d(' + ndx + 'px,' + (ndy * 0.3) + 'px,0) rotate(' + (ndx * 0.045) + 'deg)';
+    });
+    function release() {
+      if (!drag) return;
+      var d = drag; drag = null;
+      d.el.classList.remove('is-grabbing');
+      if (!d.moved) return;
+      if (Math.abs(d.dx) > 110 || Math.abs(d.vx) > 0.6) advance(d.dx < 0 ? -1 : 1);
+      else place(d.el, 0);
+    }
+    deck.addEventListener('pointerup', release);
+    deck.addEventListener('pointercancel', release);
+
+    root.addEventListener('mouseenter', function () { hold = true; });
+    root.addEventListener('mouseleave', function () { hold = false; });
+
+    layout();
+    size();
+    var rt;
+    window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(size, 120); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(size);
+    if (reduced) return;
+
+    var raf = 0, last = 0, running = false;
+    function frame(now) {
+      var dt = last ? Math.min(64, now - last) : 16; last = now;
+      if (!hold && !drag && !busy) {
+        elapsed += dt;
+        setLoad(Math.min(1, elapsed / DWELL));
+        if (elapsed >= DWELL) advance(-1);
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    function start() { if (running) return; running = true; last = 0; raf = requestAnimationFrame(frame); }
+    function stop() { running = false; cancelAnimationFrame(raf); }
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else if (visible) start(); });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) { visible = e.isIntersecting; if (visible && !document.hidden) start(); else stop(); });
+      }, { threshold: 0.1 }).observe(root);
+    } else { start(); }
   })();
 })();
