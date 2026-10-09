@@ -1194,10 +1194,10 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   padding: 0; border: 0; cursor: pointer; background: var(--pf-tint);
   box-shadow: 0 0 0 4px var(--pf-tint), 0 10px 22px rgba(4, 48, 43, 0.14);
   transition: box-shadow 0.35s var(--ease), scale 0.35s var(--ease);
-  will-change: transform;
+  will-change: translate;
 }
 .pf img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: 50% 22%; display: block; pointer-events: none; }
-.pf.is-on { scale: 1.08; box-shadow: 0 0 0 3px #fff, 0 0 0 5.5px var(--pf-on), 0 14px 28px rgba(4, 48, 43, 0.18); }
+.pf.is-on { scale: 1.04; box-shadow: 0 0 0 3px #fff, 0 0 0 5.5px var(--pf-on), 0 14px 28px rgba(4, 48, 43, 0.18); }
 .pf:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
 
 /* the popover: an icon in its hue, one line, one small fact */
@@ -1209,7 +1209,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
   box-shadow: 0 14px 34px rgba(4, 48, 43, 0.14), 0 0 0 1px rgba(4, 48, 43, 0.04);
   opacity: 0; scale: 0.96;
   transition: opacity 0.34s cubic-bezier(0.42, 0, 0.58, 1), scale 0.34s cubic-bezier(0.42, 0, 0.58, 1);
-  pointer-events: none; will-change: transform;
+  pointer-events: none; will-change: translate;
 }
 .pop.is-on { opacity: 1; scale: 1; }
 .pop__ic { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--pf-tint); color: var(--pf-on); }
@@ -1235,7 +1235,7 @@ section[id] { scroll-margin-top: calc(var(--nav-h) + 24px); }
 }
 @media (max-width: 620px) {
   .hero__net { --pf: 40px; width: calc(100vw - 16px); }
-  .pop { max-width: 230px; padding: 7px 12px 7px 7px; gap: 8px; }
+  .pop { max-width: 280px; padding: 7px 12px 7px 7px; gap: 8px; }
   .pop__ic { width: 30px; height: 30px; border-radius: 9px; }
   .pop__txt b { font-size: 14px; }
 }
@@ -2768,8 +2768,9 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
   /* ---------- hero: people joined by dotted lines ----------------------
      Thirteen portraits at fixed spots, drawn in towards the middle, each drifting a few pixels on its
      own slow loop, joined by dotted quadratic curves that are redrawn as
-     they drift. An activity is either a person's (popover over them) or a
-     pair's (popover on their line). Showing one rings its people, warms
+     they drift. An activity is either a person's or a pair's; either way
+     its popover sits a fixed gap above one person (below, at the top
+     edge): the person hovered, or for a pair left alone, the lower one. Showing one rings its people, warms
      its line and runs the line's dots. Hover or tap a person for theirs;
      left alone, the activities take turns. */
   (function () {
@@ -2793,11 +2794,11 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'pf h-' + p.hue; b.setAttribute('aria-label', p.label);
       b.innerHTML = '<img src="' + p.img + '" alt="">';
-      net.appendChild(b); p.el = b; p.ph = i * 1.7;
-      b.addEventListener('mouseenter', function () { if (hoverable.matches) hold(actFor(i)); });
-      b.addEventListener('mouseleave', function () { if (hoverable.matches) release(900); });
-      b.addEventListener('click', function () { hold(actFor(i)); release(hoverable.matches ? 900 : 6000); });
-      b.addEventListener('focus', function () { hold(actFor(i)); });
+      net.appendChild(b); p.el = b; p.ph = i * 1.7; p.amp = 1;
+      b.addEventListener('mouseenter', function () { if (hoverable.matches) { p.still = true; hold(actFor(i), i); } });
+      b.addEventListener('mouseleave', function () { p.still = false; if (hoverable.matches) release(900); });
+      b.addEventListener('click', function () { hold(actFor(i), i); release(hoverable.matches ? 900 : 6000); });
+      b.addEventListener('focus', function () { hold(actFor(i), i); });
       b.addEventListener('blur', function () { release(900); });
     });
     /* the lines an activity lights: a person's, every line they are on;
@@ -2834,7 +2835,10 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
     }
 
     function pos(p, t) {
-      var dx = reduced ? 0 : Math.sin(t * 0.00042 + p.ph) * 4, dy = reduced ? 0 : Math.cos(t * 0.00035 + p.ph * 1.3) * 5;
+      /* a slow drift of a few pixels, easing to a stop under the pointer */
+      p.amp += ((p.still ? 0 : 1) - p.amp) * 0.08;
+      var k = reduced ? 0 : p.amp;
+      var dx = Math.sin(t * 0.00042 + p.ph) * 3 * k, dy = Math.cos(t * 0.00035 + p.ph * 1.3) * 3.5 * k;
       p.cx = p.x * W + dx; p.cy = p.y * H + dy;
     }
     function ctrl(e) {
@@ -2843,25 +2847,21 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       return { x: mx - dy * e.bend, y: my + dx * e.bend, ax: a.cx, ay: a.cy, bx: b.cx, by: b.cy };
     }
 
+    /* the popover sits a fixed gap off its person's ring: above, or
+       below when the top edge leaves no room */
     function placePop(a) {
-      var x, y;
-      if (a.n != null) {
-        var p = P[a.n]; x = p.cx - a.cw / 2; y = p.cy - pf / 2 - 14 - a.ch;
-        if (y < -12) y = p.cy + pf / 2 + 14;
-      } else {
-        var c = ctrl(E[a.e]);
-        x = 0.25 * c.ax + 0.5 * c.x + 0.25 * c.bx - a.cw / 2;
-        y = 0.25 * c.ay + 0.5 * c.y + 0.25 * c.by - a.ch / 2;
-      }
-      x = Math.max(4, Math.min(x, visR - a.cw - 4)); y = Math.max(-12, Math.min(y, H - a.ch));
-      a.el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+      var p = P[a.an], off = pf * 0.52 + 6 + 12;
+      var x = p.cx - a.cw / 2, y = p.cy - off - a.ch;
+      if (y < -12) y = p.cy + off;
+      x = Math.max(4, Math.min(x, visR - a.cw - 4)); y = Math.min(y, H - a.ch);
+      a.el.style.translate = x.toFixed(1) + 'px ' + y.toFixed(1) + 'px';
     }
 
     function frame(now) {
       if (!W) return;
       P.forEach(function (p) {
         pos(p, now);
-        p.el.style.transform = 'translate3d(' + (p.cx - pf / 2).toFixed(1) + 'px,' + (p.cy - pf / 2).toFixed(1) + 'px,0)';
+        p.el.style.translate = (p.cx - pf / 2).toFixed(1) + 'px ' + (p.cy - pf / 2).toFixed(1) + 'px';
       });
       E.forEach(function (e) {
         var c = ctrl(e);
@@ -2870,15 +2870,16 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       if (on >= 0) placePop(A[on]);
     }
 
-    function show(k) {
-      if (k === on) return;
+    function show(k, an) {
+      if (an == null) an = A[k].n != null ? A[k].n : (P[E[A[k].e].a].y > P[E[A[k].e].b].y ? E[A[k].e].a : E[A[k].e].b);
+      if (k === on) { A[k].an = an; placePop(A[k]); return; }
       if (on >= 0) {
         var o = A[on]; o.el.classList.remove('is-on');
         o.lit.forEach(function (j) { E[j].el.removeAttribute('class'); });
         if (o.n != null) P[o.n].el.classList.remove('is-on');
         else { P[E[o.e].a].el.classList.remove('is-on'); P[E[o.e].b].el.classList.remove('is-on'); }
       }
-      on = k; var a = A[k];
+      on = k; var a = A[k]; a.an = an;
       a.cw = a.el.offsetWidth; a.ch = a.el.offsetHeight;
       a.lit.forEach(function (j) { E[j].el.setAttribute('class', 'is-on h-' + a.hue); });
       if (a.n != null) P[a.n].el.classList.add('is-on');
@@ -2895,7 +2896,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       clearTimeout(timer);
       timer = setTimeout(function () { if (!held && running) next(); schedule(DWELL); }, ms);
     }
-    function hold(k) { held = true; clearTimeout(releaseT); show(k); }
+    function hold(k, an) { held = true; clearTimeout(releaseT); show(k, an); }
     function release(ms) { clearTimeout(releaseT); releaseT = setTimeout(function () { held = false; schedule(1600); }, ms); }
 
     function tick(now) { if (!running) return; frame(now); raf = requestAnimationFrame(tick); }
