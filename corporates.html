@@ -3105,7 +3105,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
     var GLOW = { aqua: '0, 196, 181', lilac: '155, 95, 208', sky: '74, 144, 226', peach: '196, 112, 60' };
     var TAU = Math.PI * 2;
     var DWELL = reduced ? 5200 : 3600, FADE = 340;
-    var CW = 270, CH = 34;                  // the note's footprint, for placing people
+    var CW = 300, CH = 34;                  // the widest note's footprint (292px measured), for placing people
     var rip = -1, hovering = false;
 
     var W = 0, H = 0, dpr = 1, S = 26, cols = 0, rows = 0, ci = 0, cj = 0, ox = 0, oy = 0;
@@ -3155,7 +3155,16 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
         vis[j * cols + i] = f * f * (3 - 2 * f);
       }
       paintBase();
-      if (act) { placeFace(); placeCard(); }
+      if (act) {
+        // the grid follows the company, so a resize or late font can move a
+        // person's dot under the copy: move them if their spot no longer fits
+        if (!fits(act.i, act.j, 4)) {
+          var c2 = pick();
+          if (c2) { act.i = c2.i; act.j = c2.j; }
+          else { faceEl.classList.remove('is-on'); note.classList.remove('is-on'); }
+        }
+        placeFace(); placeCard();
+      }
       if (!running) draw(performance.now());
     }
 
@@ -3192,26 +3201,37 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
 
     // the four sides of the company, taken in turn so people and cards spread out
     var SIDES = [[-1, -1], [1, 1], [1, -1], [-1, 1]];
+    // a dot a person may stand on: visible, clear of the copy and the
+    // company, and with room for their note
+    function fits(i, j, minD) {
+      var di = i - ci, dj = j - cj;
+      if (Math.sqrt(di * di + dj * dj) < minD) return false;
+      if (v(i, j) < 0.5) return false;
+      var p = at(i, j);
+      if (p.x > vr - 40 || p.x < Math.max(W * 0.08, vl + 40)) return false;
+      if (p.y < 40 || p.y > (pinned ? H - 60 : vb - 40)) return false;
+      return !!cardSpot(p, CW, CH);
+    }
     function pick() {
+      var minD = pinned ? 4 : 7;
       for (var pass = 0; pass < 4; pass++) {
         var sd = SIDES[(side + pass) % 4];
         for (var tries = 0; tries < 160; tries++) {
           var i = Math.round(rnd() * (cols - 1)), j = Math.round(rnd() * (rows - 1));
           var di = i - ci, dj = j - cj;
           if (di * sd[0] < 3 || dj * sd[1] < 2) continue;
-          if (Math.sqrt(di * di + dj * dj) < (pinned ? 4 : 7)) continue;
-          if (v(i, j) < 0.5) continue;
-          var p = at(i, j);
-          if (p.x > vr - 40 || p.x < Math.max(W * 0.08, vl + 40)) continue;
-          if (p.y < 40 || p.y > (pinned ? H - 60 : vb - 40)) continue;
           if (act && Math.abs(act.i - i) + Math.abs(act.j - j) < 6) continue;
-          if (!cardSpot(p, CW, CH)) continue;
+          if (!fits(i, j, minD)) continue;
           side = (side + pass + 1) % 4;
           return { i: i, j: j };
         }
       }
+      // nothing random fitted: take any dot that does, nearest first allowed distance
       side = (side + 1) % 4;
-      return { i: Math.min(cols - 2, ci + 8), j: Math.max(1, cj - 5) };
+      var all = [];
+      for (var jj = 0; jj < rows; jj++) for (var ii = 0; ii < cols; ii++) if (fits(ii, jj, 4)) all.push({ i: ii, j: jj });
+      if (all.length) return all[Math.floor(rnd() * all.length)];
+      return null;
     }
 
     function placeFace() {
@@ -3234,6 +3254,8 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
     function next(now) {
       idx = (idx + 1) % P.length;
       var c = pick();
+      lastSwap = now;
+      if (!c) { note.classList.remove('is-on'); faceEl.classList.remove('is-on'); return; }
       act = { k: idx, i: c.i, j: c.j, at: now + FADE };
       note.classList.remove('is-on'); faceEl.classList.remove('is-on');
       setTimeout(function () {
@@ -3296,7 +3318,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
 
     layout();
     if (reduced) {
-      var c0 = pick();
+      var c0 = pick() || { i: Math.min(cols - 2, ci + 8), j: Math.max(1, cj - 5) };
       idx = 0; act = { k: 0, i: c0.i, j: c0.j, at: 0 };
       fillCard(0); faceImg.src = srcs[0]; placeFace(); placeCard();
       faceEl.classList.add('is-on'); note.classList.add('is-on');
