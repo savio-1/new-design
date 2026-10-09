@@ -1015,11 +1015,16 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none;
 }
 .tstm__track::-webkit-scrollbar { display: none; }
+/* the homepage's testimonial card, spec for spec: quote left, portrait
+   right. The person is a photograph and is the largest thing in the card —
+   the same rule the artwork follows. Card and photo column measure as they
+   do on the homepage (66%/880 and 300px), so the quote keeps its measure
+   beside the portrait rather than being squeezed by it. */
 .tcard {
-  position: relative; flex: 0 0 clamp(320px, 46%, 600px);
+  position: relative; flex: 0 0 clamp(320px, 66%, 880px);
   scroll-snap-align: start;
-  display: flex; flex-direction: column;
-  min-height: 316px; padding: 34px 36px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 348px;
   background: var(--surface); border: 1px solid var(--hairline);
   border-radius: var(--r-card); overflow: hidden;
   transition: border-radius 0.35s var(--ease);
@@ -1029,7 +1034,12 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
    pseudo-element that cross-fades over the white fill */
 .tcard::before { content: ""; position: absolute; inset: 0; z-index: 0; opacity: 0; pointer-events: none; background: var(--tgrad); transition: opacity 0.38s var(--ease); }
 .tcard:hover::before { opacity: 1; }
-.tcard > * { position: relative; z-index: 1; }
+/* the content has to outrank the wash */
+.tcard__body, .tcard__photo { position: relative; z-index: 1; }
+.tcard__body { display: flex; flex-direction: column; padding: 34px 36px; }
+.tcard__photo { background: var(--panel); overflow: hidden; }
+.tcard__photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: scale 0.6s var(--ease); }
+.tcard:hover .tcard__photo img { scale: 1.07; }
 /* the hue rides the markup, not DOM position, so a clone keeps it */
 .tcard--aqua  { --tgrad: linear-gradient(165deg, #ffffff 0%, #e3f8f5 40%, #b3e9e0 100%); }
 .tcard--lilac { --tgrad: linear-gradient(165deg, #ffffff 0%, #f5edfd 40%, #d5bef5 100%); }
@@ -1220,6 +1230,10 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   /* three columns of 82px is not a column; the institutions page stacks
      them at this width and so does this */
   .asks { grid-template-columns: 1fr; gap: 36px; }
+  /* a 300px portrait beside the quote leaves the quote nothing at this
+     width — the homepage drops the column here too */
+  .tcard { flex-basis: min(86%, 520px); grid-template-columns: 1fr; min-height: 0; }
+  .tcard__photo { display: none; }
   .hband__pin { padding-block: 80px; }
   .hband__track { gap: 80px; }
   /* the caption drops under the number: below this width the two columns
@@ -1293,6 +1307,8 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
   .problem__body .w, .problem__body .chip { color: var(--ink); opacity: 1; }
   .bar__body, .bar__detail { transition: none; }
   .hero__aura i { animation: none; }
+  .tcard__photo img, .tcard::before { transition: none; }
+  .tcard:hover .tcard__photo img { scale: 1; }
 }
 </style>
 
@@ -1982,28 +1998,37 @@ table.vs { width: 100%; border-collapse: collapse; min-width: 780px; }
 
   <div class="tstm__track" id="tstmTrack" tabindex="0" role="region" aria-label="Customer testimonials">
     <article class="tcard tcard--aqua">
-      <span class="tcard__logo wm-serif">Bryant University</span>
-      <blockquote>&ldquo;I am able to find prospects that I would not have found through other methods.&rdquo;</blockquote>
-      <div class="tcard__who">
-        <span class="tcard__name">Nicole Melmed</span>
-        <span class="tcard__role">Director of Prospect Development, Bryant University</span>
+      <div class="tcard__body">
+        <span class="tcard__logo wm-serif">Bryant University</span>
+        <blockquote>&ldquo;I am able to find prospects that I would not have found through other methods.&rdquo;</blockquote>
+        <div class="tcard__who">
+          <span class="tcard__name">Nicole Melmed</span>
+          <span class="tcard__role">Director of Prospect Development, Bryant University</span>
+        </div>
       </div>
+      <div class="tcard__photo"><img src="@img:t-melmed" alt="" width="300" height="348"></div>
     </article>
     <article class="tcard tcard--lilac">
-      <span class="tcard__logo wm-caps">San Diego State University</span>
-      <blockquote>&ldquo;We&rsquo;re all very impressed. Google Alerts can&rsquo;t compare. I like that we are getting significant, actionable news.&rdquo;</blockquote>
-      <div class="tcard__who">
-        <span class="tcard__name">Christi Hendry</span>
-        <span class="tcard__role">San Diego State University</span>
+      <div class="tcard__body">
+        <span class="tcard__logo wm-caps">San Diego State University</span>
+        <blockquote>&ldquo;We&rsquo;re all very impressed. Google Alerts can&rsquo;t compare. I like that we are getting significant, actionable news.&rdquo;</blockquote>
+        <div class="tcard__who">
+          <span class="tcard__name">Christi Hendry</span>
+          <span class="tcard__role">San Diego State University</span>
+        </div>
       </div>
+      <div class="tcard__photo"><img src="@img:t-hendry" alt="" width="300" height="348"></div>
     </article>
     <article class="tcard tcard--sky">
-      <span class="tcard__logo wm-slab">Willamette University</span>
-      <blockquote>&ldquo;We&rsquo;ve been really pleased with the results. It&rsquo;s a really great product that has really changed the way that we&rsquo;ve been doing news alerts.&rdquo;</blockquote>
-      <div class="tcard__who">
-        <span class="tcard__name">Katie Bokenkamp</span>
-        <span class="tcard__role">Prospect Research Analyst, Willamette University</span>
+      <div class="tcard__body">
+        <span class="tcard__logo wm-slab">Willamette University</span>
+        <blockquote>&ldquo;We&rsquo;ve been really pleased with the results. It&rsquo;s a really great product that has really changed the way that we&rsquo;ve been doing news alerts.&rdquo;</blockquote>
+        <div class="tcard__who">
+          <span class="tcard__name">Katie Bokenkamp</span>
+          <span class="tcard__role">Prospect Research Analyst, Willamette University</span>
+        </div>
       </div>
+      <div class="tcard__photo"><img src="@img:t-bokenkamp" alt="" width="300" height="348"></div>
     </article>
   </div>
 </section>
