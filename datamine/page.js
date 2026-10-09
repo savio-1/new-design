@@ -421,218 +421,177 @@
     });
   })();
 
-  /* ---------- hero: the change feed as a deck of person cards ----------
-     One card per person: who they are, how they matched your file, what
-     moved since the last refresh, and their history. The front card is lit
-     and its progress line fills over the dwell; when it is full the card
-     flies off and rejoins the back of the deck, and the next one rises.
-     Drag the front card sideways to send it on yourself (short of the
-     threshold it springs back); click a card peeking behind to bring it
-     forward. Hovering the deck holds it. Reduced motion: no auto-advance,
-     no transitions; dragging and clicking still work. */
+  /* ---------- hero: the change feed as a row of people ----------
+     Eleven people on a ring. The one in the middle is in front at full
+     size, named on the photo; the others step back to either side,
+     smaller, turned toward the middle and veiled, and fade out past the
+     third. Every position is a continuous function of one number, pos, so
+     a drag moves the whole row by fractions of a card and a release
+     settles it on the nearest person. It advances by itself every few
+     seconds; hovering holds it, a drag or a click on a side card takes
+     over. Reduced motion: no auto-advance and no transitions. */
   (function () {
     var root = document.getElementById('heroMine');
     if (!root) return;
-    var deck = document.getElementById('mineDeck');
-    var foot = document.getElementById('mineFoot');
+    var stage = document.getElementById('mineStage');
+    var info = document.getElementById('mineInfo');
+    var chgEl = info.querySelector('.flow__chg');
+    var metaEl = info.querySelector('.flow__meta');
     var idxEl = document.getElementById('mineIdx');
     var listEl = document.getElementById('mineList');
 
-    var MATCH = ['Name', 'Employer', 'Class', 'Location'];
-    /* illustrative people; hue follows the kind of change */
+    var DOT = { peach: 'var(--on-peach)', lilac: 'var(--on-lilac)', sky: 'var(--on-sky)', sand: 'var(--on-sand)', aqua: 'var(--accent)' };
+    /* illustrative people: from → to is what the last refresh found */
     var PEOPLE = [
-      { name: 'Camila Reyes', photo: '@asset:face-reyes.jpg', meta: 'Your ID 61-22094 · BS ’07 · Oakland, CA',
-        status: ['hchip--mint', '100% match'], hue: 'lilac', when: 'Since last refresh · Sep 2026', type: 'New title',
-        from: 'Director of Product', to: 'VP Product, Northwind Labs',
-        hist: [['VP Product, Northwind Labs', '2026 – now'], ['Director of Product, Northwind Labs', '2021 – 2026'], ['Product Manager, Brightline', '2014 – 2021']],
-        attrs: 'all', action: 'Push to CRM' },
-      { name: 'Richard Hale', photo: '@asset:face-hale.jpg', meta: 'Your ID 40-77102 · MBA ’98 · San Jose, CA',
-        status: ['hchip--mint', '100% match'], hue: 'sky', when: 'Since last refresh · Aug 2026', type: 'New employer',
-        from: 'Halcyon Systems', to: 'Arden Cloud',
-        hist: [['SVP Platform, Arden Cloud', '2026 – now'], ['SVP Platform, Halcyon Systems', '2017 – 2026'], ['VP Engineering, Fernway', '2009 – 2017']],
-        attrs: 'all', action: 'Push to CRM' },
-      { name: 'Elizabeth Chen', photo: '@asset:face-chen.jpg', meta: 'Your ID 52-30417 · BA ’06 · Boston, MA',
-        status: ['hchip--sand', '86% · review'], hue: 'sand', when: 'Partial name match · held for you', type: 'Surname',
-        from: 'Elizabeth Smith', to: 'Elizabeth Chen',
-        hist: [['Chief Technology Officer, Quarry Data', '2023 – now'], ['VP Engineering, Lantern Partners', '2015 – 2023'], ['Engineering Lead, Halcyon Systems', '2010 – 2015']],
-        attrs: 'name-off', action: 'Confirm match' },
-      { name: 'Sarah Okafor', photo: '@asset:face-okafor.jpg', meta: 'Your ID 88-04231 · MBA ’04 · Portland, OR',
-        status: ['hchip--mint', '100% match'], hue: 'peach', when: 'Since last refresh · Sep 2026', type: 'Promotion',
-        from: 'Chief Operating Officer', to: 'Chief Executive Officer',
-        hist: [['Chief Executive Officer, Meridian Health', '2026 – now'], ['Chief Operating Officer, Meridian Health', '2019 – 2026'], ['VP Operations, Cascade Care', '2012 – 2019']],
-        attrs: 'all', action: 'Push to CRM' },
-      { name: 'Amara Otieno', photo: '@asset:face-otieno.jpg', meta: 'Postdoc ’19 · Nairobi, KE · no ID yet',
-        status: ['hchip--aqua', 'New record'], hue: 'aqua', when: 'Not in your file · lists your institution', type: 'Found',
-        from: 'No record', to: 'Research Scientist, Lattice Bio',
-        hist: [['Research Scientist, Lattice Bio', '2022 – now'], ['Postdoctoral Fellow, your institution', '2019 – 2022']],
-        attrs: 'none', action: 'Add record' },
-      { name: 'Daniel Brooks', photo: '@asset:face-brooks.jpg', meta: 'Your ID 33-90215 · BS ’03 · Seattle, WA',
-        status: ['hchip--mint', '100% match'], hue: 'aqua', when: 'Since last refresh · Jul 2026', type: 'Location',
-        from: 'Denver, CO', to: 'Seattle, WA',
-        hist: [['Engineering Director, Fernway', '2020 – now'], ['Senior Engineer, Fernway', '2015 – 2020'], ['Engineer, Quarry Data', '2003 – 2015']],
-        attrs: 'all', action: 'Push to CRM' },
-      { name: 'John Smith', photo: '@asset:face-smith.jpg', meta: 'Your ID 77-10982 · BA ’98 · 1 of 3 John Smiths',
-        status: ['hchip--mint', '100% match'], hue: 'peach', when: 'Since last refresh · Jun 2026', type: 'Promotion',
-        from: 'Senior Associate', to: 'Partner, Baird & Lowe',
-        hist: [['Partner, Baird & Lowe', '2026 – now'], ['Senior Associate, Baird & Lowe', '2018 – 2026'], ['Associate, Keller Ames', '2011 – 2018']],
-        attrs: 'all', action: 'Push to CRM' }
+      { name: 'Sarah Okafor', photo: '@asset:portrait-okafor.jpg', edu: 'MBA ’04', tag: 'Promotion', hue: 'peach',
+        from: 'Chief Operating Officer', to: 'Chief Executive Officer', meta: 'Meridian Health · your ID 88-04231 · 100% match · Sep 2026' },
+      { name: 'Camila Reyes', photo: '@asset:portrait-reyes.jpg', edu: 'BS ’07', tag: 'New title', hue: 'lilac',
+        from: 'Director of Product', to: 'VP Product', meta: 'Northwind Labs · your ID 61-22094 · 100% match · Sep 2026' },
+      { name: 'Richard Hale', photo: '@asset:portrait-hale.jpg', edu: 'MBA ’98', tag: 'New employer', hue: 'sky',
+        from: 'Halcyon Systems', to: 'Arden Cloud', meta: 'SVP Platform · your ID 40-77102 · 100% match · Aug 2026' },
+      { name: 'Elizabeth Chen', photo: '@asset:portrait-chen.jpg', edu: 'BA ’06', tag: 'Held for review', hue: 'sand',
+        from: 'Elizabeth Smith', to: 'Elizabeth Chen', meta: 'Partial name match · 86% · your ID 52-30417 · you review it once' },
+      { name: 'Amara Otieno', photo: '@asset:portrait-otieno.jpg', edu: 'Postdoc ’19', tag: 'New record', hue: 'aqua',
+        from: '', to: 'Research Scientist, Lattice Bio', meta: 'Lists your institution · not in your file · added as a new record' },
+      { name: 'Daniel Brooks', photo: '@asset:portrait-brooks.jpg', edu: 'BS ’03', tag: 'Location', hue: 'aqua',
+        from: 'Denver, CO', to: 'Seattle, WA', meta: 'Engineering Director, Fernway · your ID 33-90215 · Jul 2026' },
+      { name: 'John Smith', photo: '@asset:portrait-smith.jpg', edu: 'BA ’98', tag: 'Promotion', hue: 'peach',
+        from: 'Senior Associate', to: 'Partner', meta: 'Baird & Lowe · your ID 77-10982 · 1 of 3 John Smiths in your file' },
+      { name: 'James Whitfield', photo: '@asset:portrait-whitfield.jpg', edu: 'BS ’09', tag: 'New employer', hue: 'sky',
+        from: 'Quarry Data', to: 'Fernway', meta: 'Head of Engineering · your ID 73-11845 · 100% match · Mar 2026' },
+      { name: 'Margaret Lowell', photo: '@asset:portrait-lowell.jpg', edu: 'BA ’86', tag: 'New title', hue: 'lilac',
+        from: 'Dean of Business', to: 'Provost', meta: 'Ashford College · your ID 21-60478 · 100% match · Jun 2026' },
+      { name: 'Kwame Asante', photo: '@asset:portrait-asante.jpg', edu: 'MSc ’15', tag: 'New employer', hue: 'sky',
+        from: 'Lattice Bio', to: 'Meridian Health', meta: 'Data Scientist · your ID 90-11532 · 100% match · Sep 2026' },
+      { name: 'Nia Thompson', photo: '@asset:portrait-thompson.jpg', edu: 'BA ’15', tag: 'New title', hue: 'lilac',
+        from: 'Senior Designer', to: 'Design Director', meta: 'Brightline · your ID 66-40219 · 100% match · Aug 2026' }
     ];
+    var N = PEOPLE.length;
 
-    /* the same cards as text, for anyone not seeing the deck */
+    /* the same people as text, for anyone not seeing the carousel */
     listEl.innerHTML = PEOPLE.map(function (p) {
-      return '<li>' + p.name + ' (' + p.meta + '), ' + p.status[1] + ': ' + p.when + ' — ' + p.type.toLowerCase() + ', ' + p.from + ' to ' + p.to + '.</li>';
+      return '<li>' + p.name + ' (' + p.edu + '), ' + p.tag.toLowerCase() + ': ' + (p.from ? p.from + ' to ' : '') + p.to + '. ' + p.meta + '.</li>';
     }).join('');
 
     function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-    function cardHTML(p) {
-      var attrs = p.attrs === 'none'
-        ? '<span class="is-none">No record to match yet</span>'
-        : MATCH.map(function (a, i) { return '<span' + (p.attrs === 'name-off' && i === 0 ? ' class="is-off"' : '') + '>' + a + '</span>'; }).join('');
-      return '<div class="pc__body">' +
-        '<div class="pc__top"><img class="pc__ava" alt="" src="' + p.photo + '">' +
-          '<span class="pc__who"><span class="pc__name">' + esc(p.name) + '</span><span class="pc__meta">' + esc(p.meta) + '</span></span>' +
-          '<span class="hchip ' + p.status[0] + '">' + esc(p.status[1]) + '</span></div>' +
-        '<div class="pc__chg"><p class="pc__when"><span>' + esc(p.when) + '</span><span class="hchip">' + esc(p.type) + '</span></p>' +
-          '<p class="pc__move"><span class="pc__from">' + esc(p.from) + '</span><span class="pc__arrow">→</span><span class="pc__to">' + esc(p.to) + '</span></p></div>' +
-        '<p class="pc__lbl">Employment history</p>' +
-        '<ul class="hist">' + p.hist.map(function (h) { return '<li><b>' + esc(h[0]) + '</b><span>' + esc(h[1]) + '</span></li>'; }).join('') + '</ul>' +
-        '<div class="pc__foot"><span class="pc__attrs">' + attrs + '</span><span class="mbtn mbtn--ink">' + esc(p.action) + '</span></div>' +
-        '</div><span class="pc__load"><i></i></span>';
-    }
-
     var cards = PEOPLE.map(function (p) {
       var el = document.createElement('div');
-      el.className = 'pc pc--' + p.hue;
-      el.innerHTML = cardHTML(p);
-      deck.appendChild(el);
+      el.className = 'fc';
+      el.style.setProperty('--dot', DOT[p.hue]);
+      el.innerHTML = '<img alt="" src="' + p.photo + '"><span class="fc__tag">' + esc(p.tag) + '</span>' +
+        '<span class="fc__name">' + esc(p.name) + '<small>' + esc(p.edu) + '</small></span>';
+      stage.appendChild(el);
       return el;
     });
-    var order = cards.slice();          // order[0] is the front card
-    var seen = 1;
 
-    /* stack slots: each card behind rises and recedes a step */
-    var SLOTS = [
-      { y: 0, s: 1, o: 1 }, { y: -38, s: 0.95, o: 1 }, { y: -72, s: 0.9, o: 0.85 },
-      { y: -102, s: 0.85, o: 0.55 }, { y: -122, s: 0.8, o: 0 }
+    /* one row of the slot table per step out from the middle; every value
+       in between is interpolated, so fractional positions are smooth */
+    var T = [
+      { x: 0,    s: 1,    r: 0,  z: 0,    v: 0,    o: 1 },
+      { x: 0.66, s: 0.8,  r: 30, z: -60,  v: 0.16, o: 1 },
+      { x: 1.14, s: 0.64, r: 38, z: -120, v: 0.3,  o: 0.95 },
+      { x: 1.5,  s: 0.52, r: 42, z: -170, v: 0.44, o: 0.6 },
+      { x: 1.76, s: 0.44, r: 44, z: -210, v: 0.6,  o: 0 }
     ];
-    function slot(k) { return SLOTS[Math.min(k, SLOTS.length - 1)]; }
-    function place(el, k) {
-      var s = slot(k);
-      el.style.transform = 'translate3d(0,' + s.y + 'px,0) scale(' + s.s + ')';
-      el.style.opacity = s.o;
-      el.style.zIndex = String(100 - k);
-      el.classList.toggle('is-front', k === 0);
-    }
-    function layout() { order.forEach(place); }
-
-    /* keep the deck and its foot centred on the front card's height */
-    function size() {
-      var front = order[0], h = front.offsetHeight, H = root.clientHeight, peek = 102, footH = foot.offsetHeight, gap = 22;
-      var top = Math.max(peek + 8, (H - (peek + h + gap + footH)) / 2 + peek);
-      deck.style.top = top + 'px';
-      foot.style.top = (top + h + gap) + 'px';
+    function at(d) {
+      var a = Math.min(Math.abs(d), T.length - 1), i = Math.floor(a), f = a - i, A = T[i], B = T[Math.min(i + 1, T.length - 1)];
+      function m(k) { return A[k] + (B[k] - A[k]) * f; }
+      return { x: m('x'), s: m('s'), r: m('r'), z: m('z'), v: m('v'), o: m('o') };
     }
 
-    /* the dwell clock */
-    var DWELL = 4600, elapsed = 0, hold = false, visible = true, busy = false;
-    function setLoad(f) {
-      var bar = order[0].querySelector('.pc__load i');
-      if (bar) bar.style.transform = 'scaleX(' + f.toFixed(4) + ')';
+    var pos = 0, cw = 260, shown = -1;
+    function wrap(d) { d = ((d % N) + N) % N; return d > N / 2 ? d - N : d; }
+    function render() {
+      cw = stage.offsetWidth || cw;
+      var front = ((Math.round(pos) % N) + N) % N;
+      cards.forEach(function (el, i) {
+        var d = wrap(i - pos), k = at(d), sg = d < 0 ? -1 : 1;
+        el.style.transform = 'translate3d(' + (sg * k.x * cw).toFixed(1) + 'px,0,' + k.z.toFixed(1) + 'px) rotateY(' + (sg * k.r).toFixed(2) + 'deg) scale(' + k.s.toFixed(3) + ')';
+        el.style.opacity = k.o.toFixed(3);
+        el.style.setProperty('--veil', k.v.toFixed(3));
+        el.style.zIndex = String(100 - Math.round(Math.abs(d) * 10));
+        el.classList.toggle('is-front', i === front && Math.abs(d) < 0.5);
+      });
+      if (front !== shown) showInfo(front);
     }
 
-    /* the front card leaves (dir -1 left, +1 right) and rejoins at the back */
-    function advance(dir) {
-      if (busy) return;
-      busy = true;
-      var out = order[0];
-      out.classList.remove('is-grabbing');
-      out.style.transform = 'translate3d(' + (dir * 120) + '%,40px,0) rotate(' + (dir * 9) + 'deg)';
-      out.style.opacity = '0';
-      setLoad(0);
-      order.push(order.shift());
-      order.forEach(function (el, k) { if (el !== out) place(el, k); });
-      seen = seen % 412 + 1;
-      idxEl.textContent = seen;
-      elapsed = 0;
-      size();
-      setTimeout(function () {
-        out.classList.add('is-snap');
-        place(out, order.length - 1);
-        void out.offsetWidth;
-        out.classList.remove('is-snap');
-        busy = false;
-      }, reduced ? 0 : 460);
+    /* the two lines under the front card, cross-faded on change */
+    var swapT;
+    function fillInfo(p) {
+      chgEl.innerHTML = p.from ? esc(p.from) + '<span class="arr">→</span>' + esc(p.to) : esc(p.to);
+      metaEl.textContent = p.meta;
+    }
+    function showInfo(i) {
+      var first = shown < 0;
+      shown = i;
+      var n = ((Math.round(pos) % 412) + 412) % 412 + 1;
+      idxEl.textContent = (n < 10 ? '0' : '') + n + ' / 412';
+      if (first || reduced) { fillInfo(PEOPLE[i]); return; }
+      info.classList.add('is-swap');
+      clearTimeout(swapT);
+      swapT = setTimeout(function () { fillInfo(PEOPLE[shown]); info.classList.remove('is-swap'); }, 220);
     }
 
-    function bringForward(el) {
-      var k = order.indexOf(el);
-      if (k <= 0 || busy) return;
-      setLoad(0);
-      order = order.slice(k).concat(order.slice(0, k));
-      seen = seen % 412 + 1;
-      idxEl.textContent = seen;
-      elapsed = 0;
-      layout();
-      size();
-    }
-
-    /* drag the front card */
+    /* drag the row; a still click on a side card brings it forward */
     var drag = null;
-    deck.addEventListener('pointerdown', function (e) {
-      var el = e.target.closest('.pc');
-      if (!el) return;
-      if (el !== order[0]) { bringForward(el); return; }
-      if (busy) return;
-      drag = { el: el, x: e.clientX, y: e.clientY, dx: 0, dy: 0, t: performance.now(), vx: 0, moved: false };
-      el.setPointerCapture && el.setPointerCapture(e.pointerId);
+    root.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, p0: pos, moved: false, vx: 0, lx: e.clientX, lt: performance.now(), card: e.target.closest('.fc') };
     });
-    deck.addEventListener('pointermove', function (e) {
+    window.addEventListener('pointermove', function (e) {
       if (!drag) return;
-      var now = performance.now(), ndx = e.clientX - drag.x, ndy = e.clientY - drag.y;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (!drag.moved) {
-        if (Math.abs(ndx) < 5 && Math.abs(ndy) < 5) return;
-        /* a mostly vertical touch is a page scroll, not a drag */
-        if (e.pointerType === 'touch' && Math.abs(ndy) > Math.abs(ndx)) { drag = null; return; }
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        if (e.pointerType === 'touch' && Math.abs(dy) > Math.abs(dx)) { drag = null; return; }   // a page scroll
         drag.moved = true;
-        drag.el.classList.add('is-grabbing');
+        stage.classList.add('is-dragging');
       }
-      drag.vx = (ndx - drag.dx) / Math.max(1, now - drag.t);
-      drag.dx = ndx; drag.dy = ndy; drag.t = now;
-      drag.el.style.transform = 'translate3d(' + ndx + 'px,' + (ndy * 0.3) + 'px,0) rotate(' + (ndx * 0.045) + 'deg)';
+      var now = performance.now();
+      drag.vx = (e.clientX - drag.lx) / Math.max(1, now - drag.lt);
+      drag.lx = e.clientX; drag.lt = now;
+      pos = drag.p0 - dx / (cw * 0.66);
+      render();
     });
     function release() {
       if (!drag) return;
       var d = drag; drag = null;
-      d.el.classList.remove('is-grabbing');
-      if (!d.moved) return;
-      if (Math.abs(d.dx) > 110 || Math.abs(d.vx) > 0.6) advance(d.dx < 0 ? -1 : 1);
-      else place(d.el, 0);
+      stage.classList.remove('is-dragging');
+      if (d.moved) {
+        /* a flick carries on a card or two in the direction it was thrown */
+        pos = Math.round(pos - Math.max(-2, Math.min(2, d.vx * 1.6)));
+      } else if (d.card) {
+        var i = cards.indexOf(d.card);
+        pos = Math.round(pos + wrap(i - pos));
+      }
+      elapsed = 0;
+      render();
     }
-    deck.addEventListener('pointerup', release);
-    deck.addEventListener('pointercancel', release);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
 
+    var hold = false;
     root.addEventListener('mouseenter', function () { hold = true; });
     root.addEventListener('mouseleave', function () { hold = false; });
 
-    layout();
-    size();
+    render();
     var rt;
-    window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(size, 120); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(size);
+    window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(render, 100); });
     if (reduced) return;
 
-    var raf = 0, last = 0, running = false;
+    /* the dwell: a clock that only runs while the row is seen and free */
+    var DWELL = 3200, elapsed = 0, raf = 0, last = 0, running = false;
     function frame(now) {
       var dt = last ? Math.min(64, now - last) : 16; last = now;
-      if (!hold && !drag && !busy) {
+      if (!hold && !drag) {
         elapsed += dt;
-        setLoad(Math.min(1, elapsed / DWELL));
-        if (elapsed >= DWELL) advance(-1);
+        if (elapsed >= DWELL) { elapsed = 0; pos = Math.round(pos) + 1; render(); }
       }
       raf = requestAnimationFrame(frame);
     }
     function start() { if (running) return; running = true; last = 0; raf = requestAnimationFrame(frame); }
     function stop() { running = false; cancelAnimationFrame(raf); }
+    var visible = true;
     document.addEventListener('visibilitychange', function () { if (document.hidden) stop(); else if (visible) start(); });
     if ('IntersectionObserver' in window) {
       new IntersectionObserver(function (es) {
