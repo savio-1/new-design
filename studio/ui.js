@@ -194,22 +194,49 @@
     const search = h('input.search', { placeholder: 'Search 120+ fonts', type: 'text' });
     const chips = h('div.chips');
     const list = h('div.font-list');
-    const cats = ['All', ...F.CATEGORIES];
+    const upload = h('button.btn', { style: { marginTop: '8px', width: '100%' }, title: 'Add .otf, .ttf, .woff, .woff2 files or a .zip of them', onclick: () => pickFonts(fam => { draw(); if (fam) { onPick(fam); closePop(); } }) }, ic('upload'), 'Upload your own fonts');
     const draw = () => {
+      const cats = ['All', ...(F.customFamilies().length ? [F.CUSTOM_CAT] : []), ...F.CATEGORIES];
+      if (!cats.includes(fontCat)) fontCat = 'All';
       chips.replaceChildren(...cats.map(c => h('button.chip' + (c === fontCat ? '.on' : ''), { onclick: () => { fontCat = c; draw(); } }, c)));
       const q = search.value.trim().toLowerCase();
       const items = F.FONTS.filter(f => (fontCat === 'All' || f.cat === fontCat) && (!q || f.family.toLowerCase().includes(q)));
       list.replaceChildren(...items.map(f => h('button.font-item' + (f.family === current ? '.on' : ''), {
         style: { fontFamily: `"${f.family}", ${f.cat === 'Serif' ? 'serif' : 'sans-serif'}` },
         onclick: () => { onPick(f.family); closePop(); },
-      }, h('span', null, f.family), h('small', null, f.cat + (f.weights.length > 1 ? ' · ' + f.weights.length : '')))));
+      }, h('span', null, f.family), h('small', null, f.cat + (f.weights.length > 1 ? ' · ' + f.weights.length : ''),
+        f.custom ? h('span.font-del', { title: `Remove ${f.family} from this browser`, onclick: async e => { e.stopPropagation(); await F.removeFamily(f.family); toast(`Removed ${f.family}`); draw(); } }, ' ✕') : null))));
       if (!items.length) list.append(h('div.hint', { style: { padding: '12px' } }, 'No fonts match.'));
     };
     search.addEventListener('input', draw);
     draw();
-    popover(anchor, [search, chips, list], { cls: 'font-pop', side: anchor.closest && anchor.closest('.inspector') ? 'left' : undefined });
+    popover(anchor, [search, chips, list, upload], { cls: 'font-pop', side: anchor.closest && anchor.closest('.inspector') ? 'left' : undefined });
     setTimeout(() => { search.focus(); const on = $('.font-item.on', list); if (on) on.scrollIntoView({ block: 'center' }); }, 0);
   }
+
+  // font upload: files or zips → registered in this browser only
+  function pickFonts(done) {
+    const inp = h('input', { type: 'file', accept: '.otf,.ttf,.woff,.woff2,.zip,font/*,application/zip', multiple: true, hidden: true });
+    document.body.append(inp);
+    inp.addEventListener('change', async () => {
+      const files = [...inp.files];
+      inp.remove();
+      if (!files.length) return;
+      toast('Adding fonts…');
+      try {
+        const { families, skipped } = await F.importFonts(files);
+        const names = Object.keys(families);
+        if (!names.length) { toast('No usable fonts found — use .otf, .ttf, .woff or .woff2 files'); done && done(null); return; }
+        R.fontsVersion++; R.requestRedraw();
+        fontCat = F.CUSTOM_CAT;
+        toast(`Added ${names.map(n => `${n} (${families[n]} style${families[n] > 1 ? 's' : ''})`).join(', ')}${skipped ? ` · ${skipped} file${skipped > 1 ? 's' : ''} skipped` : ''}`);
+        done && done(names.length === 1 ? names[0] : null);
+        if (tab === 'text') renderPanel();
+      } catch (err) { console.error(err); toast('Couldn’t read those font files'); }
+    });
+    inp.click();
+  }
+  S.pickFonts = pickFonts;
 
   function menu(at, items) {
     const kids = items.map(it => it === '-' ? h('hr') : h('button', { onclick: () => { closePop(); it.run(); }, disabled: it.disabled }, ic(it.icon || 'plus'), it.label, it.kbd ? h('kbd', null, it.kbd) : null));
@@ -1131,6 +1158,14 @@
       h('button.big-btn', { onclick: () => addText({ text: 'Add a subheading', fontFamily: 'Bricolage Grotesque', fontWeight: 600, fontSize: Math.round(W * 0.05) }), style: { fontFamily: '"Bricolage Grotesque"', fontWeight: 600, fontSize: '18px' } }, 'Add a subheading'),
       h('button.big-btn', { onclick: () => addText({ text: 'Add a little body text', fontFamily: 'Instrument Sans', fontSize: Math.round(W * 0.032), lineHeight: 1.35 }), style: { fontFamily: '"Instrument Sans"', fontSize: '14px' } }, 'Add a little body text'),
       h('button.big-btn', { onclick: () => S.addElement(S.mk('badge', { width: W * 0.3, height: W * 0.3 })), style: { fontSize: '14px' } }, ic('sparkle'), 'Add circular text badge'),
+      h('h3', null, 'Your fonts'),
+      F.customFamilies().length
+        ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } }, F.customFamilies().map(fam => h('button.big-btn', {
+          style: { fontFamily: `"${fam}", sans-serif`, fontSize: '20px', marginBottom: 0 },
+          onclick: () => { const meta = F.BY_NAME[fam]; addText({ text: fam, fontFamily: fam, fontWeight: meta && meta.weights.includes(500) ? 500 : F.nearestWeight(fam, 400), fontSize: Math.round(W * 0.08) }); },
+        }, fam)))
+        : h('p.hint', null, 'Upload fonts you own (or a .zip of them). They stay in this browser and are saved inside project files.'),
+      h('button.btn', { style: { marginTop: '8px', width: '100%' }, onclick: () => pickFonts(() => renderPanel()) }, ic('upload'), 'Upload fonts'),
       h('h3', null, 'Text styles'),
       h('p.sub', null, 'Click to add or drag onto the canvas.'),
       grid,
@@ -1149,11 +1184,43 @@
   function addSticker(id, at) {
     const def = R.stickerDef(id);
     if (!def) return;
+    if (def.neck) { addFigure(def, at); return; }
     const base = Math.min(S.doc.width, S.doc.height) * 0.24;
     const s = base / Math.max(def.w, def.h);
     const el = S.mk('sticker', { stickerId: id, colors: def.colors.slice(), width: def.w * s, height: def.h * s });
     S.addElement(el, at ? { at } : {});
   }
+  // big-head figure: an outfit body plus an oversized face slot sitting on its neck
+  function figureEls(def, at, scale = 1) {
+    const H = Math.min(S.doc.width, S.doc.height) * 0.42 * scale, k = H / def.h;
+    const bw = def.w * k, bh = H;
+    const cx = at ? at.x : S.doc.width / 2, cy = at ? at.y : S.doc.height / 2 + bh * 0.12;
+    const bx = cx - bw / 2, by = cy - bh / 2;
+    const body = S.mk('sticker', { stickerId: def.id, colors: def.colors.slice(), x: bx, y: by, width: bw, height: bh, name: def.name });
+    const nx = bx + def.neck[0] * k, ny = by + def.neck[1] * k;
+    const hw = bw * 0.66, hh = hw * 1.18;
+    const head = S.mk('image', {
+      x: nx - hw / 2, y: ny - hh * 0.92, width: hw, height: hh, name: 'Face — add a selfie, then Remove background',
+      frame: { style: 'circle', size: 0 }, placeholder: ['#ecd2bb', '#c99d7d'],
+    });
+    return [body, head];
+  }
+  function addFigure(def, at) {
+    S.addElements(figureEls(def, at));
+    if (!S.settings.faceTipShown) {
+      S.settings.faceTipShown = true; S.saveSettings();
+      toast('Double-click the face circle to add a selfie, then press Remove background');
+    }
+  }
+  S.figureEls = figureEls;
+  // a selfie dropped into a face slot is cut out straight away
+  S.on('replaced', el => {
+    if (el && el.type === 'image' && /^Face/.test(el.name || '') && S.removeBackground) {
+      toast('Cutting out the face…');
+      S.removeBackground(el.id, 'replace');
+    }
+  });
+
   function stickersPanel() {
     const all = window.STICKERS || [];
     const cats = ['All', ...new Set(all.map(s => s.cat))];
@@ -1178,7 +1245,10 @@
     };
     search.addEventListener('input', () => { stkQuery = search.value; draw(); });
     draw();
-    return [h('h2', null, 'Stickers'), search, chips, body];
+    const hasOutfits = all.some(st => st.neck);
+    return [h('h2', null, 'Stickers'), search, chips,
+      hasOutfits && (stkCat === 'All' || /^Outfits/.test(stkCat)) ? h('p.hint', { style: { margin: '8px 0 0' } }, 'Outfits come with a face slot on top — add a selfie to it and press Remove background for the big-head look.') : null,
+      body];
   }
 
   // shapes
@@ -1527,6 +1597,7 @@
     try {
       const data = JSON.parse(await f.text());
       if (!data.doc) throw new Error('bad');
+      if (data.fonts && data.fonts.length) { await F.unpackFamilies(data.fonts); R.fontsVersion++; }
       S.uploads.splice(0, S.uploads.length, ...(data.uploads || []));
       S.loadDoc(data.doc, data.assets || {}, { name: data.name || f.name.replace(/\.studio\.json$|\.json$/, '') });
       toast('Project opened');
@@ -1892,6 +1963,7 @@
 
   // first run: restore the last session silently, otherwise show the start screen
   F.injectStylesheets();
+  F.customReady.then(() => { if (F.customFamilies().length) { R.fontsVersion++; R.requestRedraw(); } });
   S.loadAutosave().then(save => {
     if (save && save.doc && save.doc.elements && save.doc.elements.length) { resumeFrom(save); }
     else {

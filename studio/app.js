@@ -466,7 +466,13 @@
   S.scheduleSave = scheduleSave;
   S.loadAutosave = () => DB.get('autosave').catch(() => null);
 
-  S.projectData = () => ({ app: 'collage-studio', version: 1, name: S.docName, doc, assets: usedAssets(), uploads: S.uploads });
+  // uploaded fonts used in the design travel inside the project file so it opens anywhere
+  function usedFamilies() {
+    const fam = new Set();
+    for (const el of doc.elements) for (const k of ['fontFamily', 'titleFont', 'bodyFont', 'ringFont', 'centerFont']) if (el[k]) fam.add(el[k]);
+    return [...fam].filter(f => window.StudioFonts.BY_NAME[f] && window.StudioFonts.BY_NAME[f].custom);
+  }
+  S.projectData = () => ({ app: 'collage-studio', version: 1, name: S.docName, doc, assets: usedAssets(), uploads: S.uploads, fonts: window.StudioFonts.packFamilies(usedFamilies()) });
 
   /* ───────────────────────── load / new ───────────────────────── */
 
@@ -1442,6 +1448,7 @@
       const el = elMap.get(opts.replaceId);
       el.assetId = added[0].id; el.crop = { zoom: 1, x: 0.5, y: 0.5 };
       redraw(); S.commit(); emit('doc'); positionOverlays();
+      emit('replaced', el);
       return added;
     }
     const ids = [];

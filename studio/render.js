@@ -483,7 +483,7 @@
   function fontFor(family, weight, italic, size) {
     const meta = Fonts.BY_NAME[family];
     const wgt = meta ? Fonts.nearestWeight(family, weight || 400) : (weight || 400);
-    const gen = meta ? GENERIC[meta.cat] : 'sans-serif';
+    const gen = meta ? (GENERIC[meta.cat] || 'sans-serif') : 'sans-serif';
     if (meta && !Fonts.isLoaded(family, wgt, !!italic)) {
       Fonts.ensure(family, wgt, !!italic).then(() => { R.fontsVersion++; requestRedraw(); });
     }
