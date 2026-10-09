@@ -12,6 +12,9 @@
   const WASM_SOURCES = [`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/${WASM_FILE}`, `vendor/${WASM_FILE}`];
   const MODEL_URL = 'https://huggingface.co/briaai/RMBG-1.4/resolve/main/onnx/model_quantized.onnx';
   const MODEL_KEY = 'rmbg-1.4-quantized';
+  // UltraFace RFB-320: a 1.3 MB face detector, used to keep just the head for face slots
+  const FACE_URL = 'https://huggingface.co/onnxmodelzoo/version-RFB-320/resolve/main/version-RFB-320.onnx';
+  const FACE_KEY = 'ultraface-rfb-320';
   const SIZE = 1024;
 
   /* ───────── model cache (IndexedDB) ───────── */
@@ -98,6 +101,7 @@
       ort.env.wasm.numThreads = 1;
       ort.env.wasm.simd = true;
       ort.env.wasm.proxy = false;
+      ort.env.logLevel = 'error';
       let model = null;
       try { model = await cacheGet(MODEL_KEY); } catch (e) { /* storage unavailable */ }
       if (!model) {
@@ -115,6 +119,44 @@
     })();
     sessionP.catch(() => { sessionP = null; });
     return sessionP;
+  }
+
+  let faceP = null;
+  function faceSession() {
+    if (faceP) return faceP;
+    faceP = (async () => {
+      let model = null;
+      try { model = await cacheGet(FACE_KEY); } catch (e) { /* storage unavailable */ }
+      if (!model) {
+        try { model = await fetchBytes(FACE_URL); }
+        catch (e) {
+          if (!window.STUDIO_MODEL_PARTS) throw e;
+          const t = (await (await fetch('models/ultraface.txt')).text()).trim(), bin = atob(t);
+          model = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) model[i] = bin.charCodeAt(i);
+        }
+        try { await cachePut(FACE_KEY, model); } catch (e) { /* storage full or blocked */ }
+      }
+      return window.ort.InferenceSession.create(model, { executionProviders: ['wasm'], logSeverityLevel: 3 });
+    })();
+    faceP.catch(() => { faceP = null; });
+    return faceP;
+  }
+  // most confident face as { x1, y1, x2, y2 } in image pixels, or null
+  async function detectFace(img) {
+    const sess = await faceSession();
+    const W = 320, H = 240, iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, W, H);
+    const px = x.getImageData(0, 0, W, H).data, n = W * H, input = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { input[i] = (px[i * 4] - 127) / 128; input[n + i] = (px[i * 4 + 1] - 127) / 128; input[2 * n + i] = (px[i * 4 + 2] - 127) / 128; }
+    const out = await sess.run({ [sess.inputNames[0]]: new window.ort.Tensor('float32', input, [1, 3, H, W]) });
+    const scores = out.scores ? out.scores.data : out[sess.outputNames[0]].data, boxes = out.boxes ? out.boxes.data : out[sess.outputNames[1]].data;
+    let best = -1, bs = 0;
+    for (let i = 0; i < scores.length / 2; i++) if (scores[i * 2 + 1] > bs) { bs = scores[i * 2 + 1]; best = i; }
+    if (best < 0 || bs < 0.7) return null;
+    return { x1: boxes[best * 4] * iw, y1: boxes[best * 4 + 1] * ih, x2: boxes[best * 4 + 2] * iw, y2: boxes[best * 4 + 3] * ih };
   }
 
   /* ───────── inference ───────── */
@@ -210,10 +252,66 @@
     return { canvas: c, x: x + ox, y: y + oy, width: w, height: h, rotation: rotation || 0 };
   }
 
+  // Portrait cut-outs include shoulders; for a face slot keep the head and neck.
+  // Walking down the mask, the outline stays head-width until the shoulders
+  // flare out — cut just above that flare.
+  function headBounds(canvas, b) {
+    const w = canvas.width, d = canvas.getContext('2d').getImageData(b.x, b.y, b.w, b.h).data;
+    const widths = [];
+    let minX = b.w, maxX = -1, lastY = 0;
+    for (let y = 0; y < b.h; y++) {
+      let x0 = -1, x1 = -1;
+      for (let x = 0; x < b.w; x++) if (d[(y * b.w + x) * 4 + 3] > 100) { if (x0 < 0) x0 = x; x1 = x; }
+      widths.push(x0 < 0 ? 0 : x1 - x0);
+      if (x0 >= 0) { minX = Math.min(minX, x0); maxX = Math.max(maxX, x1); lastY = y; }
+    }
+    const solidW = Math.max(1, maxX - minX);
+    let top = 0;
+    while (top < b.h && !widths[top]) top++;
+    // a full-length figure: the head is roughly the top sixth
+    if (lastY - top > solidW * 1.8) return { x: b.x, y: b.y, w: b.w, h: Math.round(top + (lastY - top) * 0.17) };
+    // a portrait: the outline stays head-width until the shoulders flare out
+    const headZone = Math.max(4, Math.round(b.h * 0.35));
+    let head = 0;
+    for (let y = 0; y < headZone; y++) head = Math.max(head, widths[y]);
+    let cut = b.h;
+    for (let y = Math.round(b.h * 0.3); y < b.h; y++) {
+      if (widths[y] > head * 1.35) { cut = y; break; }
+    }
+    // never shorter than a head-ish proportion
+    cut = Math.max(cut, Math.round(Math.min(b.h, head * 1.15)));
+    void w;
+    return { x: b.x, y: b.y, w: b.w, h: Math.min(b.h, cut + Math.round(b.h * 0.02)) };
+  }
+  // hair, face and a little neck around a detected face
+  function faceBounds(f, b) {
+    const fw = f.x2 - f.x1, fh = f.y2 - f.y1;
+    const x0 = Math.max(b.x, Math.round(f.x1 - fw * 0.8)), x1 = Math.min(b.x + b.w, Math.round(f.x2 + fw * 0.8));
+    const y0 = Math.max(b.y, Math.round(f.y1 - fh * 0.9)), y1 = Math.min(b.y + b.h, Math.round(f.y2 + fh * 0.3));
+    return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+  }
+  function fadeBottom(canvas, b) {
+    const x = canvas.getContext('2d'), f = Math.max(4, b.h * 0.08);
+    const g = x.createLinearGradient(0, b.y + b.h - f, 0, b.y + b.h);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+    x.save(); x.globalCompositeOperation = 'destination-out'; x.fillStyle = g;
+    x.fillRect(b.x, b.y + b.h - f, b.w, f); x.restore();
+  }
+
   /* ───────── public actions ───────── */
 
   // colour adjustments carry over to the cut-out; frame-wide vignette and grain don't
   function lookOnly(f) { const o = S.clone(f || {}); delete o.vignette; delete o.grain; return o; }
+
+  // a photo that was just added may still be decoding
+  async function loadedImage(id) {
+    for (let i = 0; i < 100; i++) {
+      const img = R.assetImage(id);
+      if (img) return img;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    return null;
+  }
 
   let busy = false;
   function reporter() {
@@ -252,16 +350,30 @@
     return guard(async () => {
       const el = S.elById(id);
       if (!el || el.type !== 'image' || !el.assetId) return;
-      const img = R.assetImage(el.assetId);
+      const img = await loadedImage(el.assetId);
       if (!img) throw new Error('image not loaded');
       const cut = await cutout(img, reporter());
-      const b = opaqueBounds(cut);
+      let b = opaqueBounds(cut);
       if (!b) { S.emit('toast', 'No clear subject found in this photo'); return; }
+      if (mode === 'face') {
+        let face = null;
+        try { face = await detectFace(img); } catch (e) { console.warn('face detection unavailable', e); }
+        b = face ? faceBounds(face, b) : headBounds(cut, b);
+        fadeBottom(cut, b);
+      }
       const g = R.frameGeometry(el);
       const placed = placeCutout(cut, b, { iw: cut.width, ih: cut.height, rect: g.rect, crop: el.crop, flipX: el.flipX, flipY: el.flipY, x: el.x, y: el.y, rotation: el.rotation });
+      if (placed && mode === 'face') {
+        // sit the head on the neck: same height as the slot, chin at the slot's bottom centre
+        const k = el.height / placed.height, w = placed.width * k;
+        const [bx, by] = rot(el.width / 2, el.height, el.rotation || 0);
+        const [ox, oy] = rot(-w / 2, -el.height, el.rotation || 0);
+        Object.assign(placed, { width: w, height: el.height, x: el.x + bx + ox, y: el.y + by + oy, rotation: el.rotation || 0 });
+      }
       if (!placed) { S.emit('toast', 'The subject is outside the visible part of the photo'); return; }
       const assetId = S.addAsset(placed.canvas.toDataURL('image/png'));
       await new Promise(res => { const i = new Image(); i.onload = i.onerror = res; i.src = S.assets[assetId]; R.assetImage(assetId); });
+      if (mode === 'face') mode = 'replace';
       if (mode === 'layer') {
         const idx = S.doc.elements.indexOf(el);
         const nel = S.mk('image', { assetId, x: placed.x, y: placed.y, width: placed.width, height: placed.height, rotation: placed.rotation, filters: lookOnly(el.filters), flipX: !!el.flipX, flipY: !!el.flipY, name: 'Cut-out' });
@@ -299,7 +411,7 @@
     return guard(async () => {
       const d = S.doc, bg = d.background;
       if (!bg.assetId) return;
-      const img = R.assetImage(bg.assetId);
+      const img = await loadedImage(bg.assetId);
       if (!img) throw new Error('image not loaded');
       const cut = await cutout(img, reporter());
       const b = opaqueBounds(cut);

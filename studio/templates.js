@@ -13,6 +13,15 @@
   const lifted = { on: true, color: '#000000', opacity: 0.3, blur: 14, x: 0, y: 7 };
   const deep = { on: true, color: '#0b1f18', opacity: 0.45, blur: 40, x: 0, y: 22 };
   const grid = (color, size, thick = 1.5) => ({ type: 'grid', color, size, thick, opacity: 1 });
+  // a big-head figure: outfit body (neck anchor at 150,18 of 300×520) plus an oversized face slot
+  const figure = (id, cx, cy, H, o = {}) => {
+    const k = H / 520, bw = 300 * k, bx = cx - bw / 2, by = cy - H / 2;
+    const nx = bx + 150 * k, ny = by + 18 * k, hw = bw * 0.66, hh = hw * 1.18;
+    return [
+      Object.assign({ type: 'sticker', stickerId: id, x: bx, y: by, width: bw, height: H }, o),
+      { type: 'image', x: nx - hw / 2, y: ny - hh * 0.92, width: hw, height: hh, rotation: o.rotation || 0, name: 'Face — add a selfie, then Remove background', frame: { style: 'circle', size: 0 }, placeholder: ['#ecd2bb', '#c99d7d'] },
+    ];
+  };
 
   const TEMPLATES = [
     {
@@ -616,6 +625,34 @@
           stk('flower-cog', 620, 170, 110, 110, { colors: [v.flower] }),
           txt(v.title, { x: 262, y: 300, align: 'left', fontFamily: 'Instrument Serif', fontSize: 92, lineHeight: 0.95, fill: '#151413' }),
           txt(v.body, { x: 262, y: 520, width: 540, autoWidth: false, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 31, lineHeight: 1.32, fill: '#151413' }),
+        ],
+      }),
+    })),
+    // ── big-head outfit line-up ──
+    ...[
+      { id: 'zapato', name: 'One shoe for each', bg: '#7a3a2c', ink: '#f3d6b0', title: 'UN\nZAPATO\nPARA CADA', swipe: 'deslizar  >>', brand: 'White.',
+        figs: ['girl-striped-cardigan', 'girl-trench-walk', 'girl-blazer-coffee', 'girl-leather-bag', 'girl-polka-shirt'], shoes: [['shoe-suede-clog', ['#8a5a3a', '#c9a679', '#d8c08a'], 250, 146], ['shoe-suede-clog', ['#b5a48e', '#d3bf9c', '#d8c08a'], 270, 158]] },
+      { id: 'jacket-mood', name: 'A jacket for every mood', bg: '#4b5a3a', ink: '#eadfc4', title: 'ONE\nJACKET FOR\nEVERY MOOD', swipe: 'swipe  >>', brand: 'Northside.',
+        figs: ['boy-hoodie-cargo', 'boy-denim-chinos', 'boy-varsity-jeans', 'boy-puffer-joggers', 'boy-camel-coat'], shoes: [['shoe-m-dad-sneaker', null, 250, 158], ['shoe-m-chelsea', null, 180, 167]] },
+      { id: 'what-we-wore', name: 'What we wore', bg: '#1d2a4a', ink: '#f2e9d8', title: 'WHAT WE\nWORE THIS\nWEEK', swipe: 'swipe  >>', brand: 'Studio Notes.',
+        figs: ['girl-hoodie-sneakers', 'boy-rugby-skate', 'girl-floral-slip', 'boy-linen-shorts', 'girl-knit-vest'], shoes: [['shoe-chunky-sneaker', null, 250, 140], ['shoe-penny-loafer', null, 290, 119]] },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Post', 'Collage', 'Fashion'], width: 1080, height: 1350,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.bg },
+        overlay: { grain: 10 },
+        elements: [
+          stk(v.shoes[0][0], 50, 640, v.shoes[0][2] * 0.85, v.shoes[0][3] * 0.85, Object.assign({ rotation: -6 }, v.shoes[0][1] ? { colors: v.shoes[0][1] } : {})),
+          ...figure(v.figs[0], 200, 400, 380, { rotation: -3 }),
+          ...figure(v.figs[1], 540, 330, 330),
+          ...figure(v.figs[2], 880, 400, 380, { rotation: 3 }),
+          txt(v.title, { cx: 540, cy: 670, fontFamily: 'Josefin Sans', fontWeight: 300, fontSize: 74, lineHeight: 1.22, letterSpacing: 0.02, fill: v.ink }),
+          txt(v.swipe, { cx: 540, cy: 990, fontFamily: 'Instrument Sans', fontWeight: 500, fontSize: 34, letterSpacing: 0.02, fill: v.ink }),
+          ...figure(v.figs[3], 180, 1135, 400, { rotation: -2 }),
+          ...figure(v.figs[4], 900, 1135, 400, { rotation: 2 }),
+          stk(v.shoes[1][0], 690, 1210, v.shoes[1][2], v.shoes[1][3], Object.assign({ rotation: 4 }, v.shoes[1][1] ? { colors: v.shoes[1][1] } : {})),
+          txt(v.brand, { cx: 540, cy: 1290, fontFamily: 'Instrument Serif', italic: true, fontSize: 56, fill: v.ink }),
         ],
       }),
     })),

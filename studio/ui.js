@@ -1229,7 +1229,7 @@
   S.on('replaced', el => {
     if (el && el.type === 'image' && /^Face/.test(el.name || '') && S.removeBackground) {
       toast('Cutting out the face…');
-      S.removeBackground(el.id, 'replace');
+      S.removeBackground(el.id, 'face');
     }
   });
 

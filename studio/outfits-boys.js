@@ -123,7 +123,7 @@
       },
       add(s) { body.push(s); return o; },
       def(s) { defs.push(s); return o; },
-      out() { return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs.join('')}</defs><g stroke-linecap="round" stroke-linejoin="round">${body.join('')}</g></svg>`.replace(/ d="([^"]+)"/g, (m, d) => ' d="' + minPath(d) + '"'); },
+      out() { return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs>${defs.join('')}</defs><g stroke-linecap="round" stroke-linejoin="round">${body.join('')}</g></svg>`.replace(/ d="([^"]+)"/g, (m, d) => ' d="' + minPath(d) + '"').replace(/="0\./g, '=".').replace(/#ffffff/g, '#fff').replace(/ scale\(1 1\)| rotate\(0\)/g, ''); },
     };
     return o;
   }
@@ -155,7 +155,7 @@
         F('M28 -24C40 -21 48 -19 48 -15H33C33 -19 32 -21 28 -24Z', tint(c, -0.14)) +
         F('M-4 -17C2 -27 14 -30 31 -23C19 -22 9 -19 5 -16Z', A) + F('M8 -17C14 -22 22 -23 30 -21C24 -19 18 -18 14 -16Z', tint(A, 0.5)) +
         F('M-13 -36C-8 -40 0 -40 4 -37C-1 -35-8 -34-13 -36Z', tint(c, -0.6)) +
-        Fo('M-2 -37C-3 -44 8 -46 11 -38C7 -35 2 -35-2 -37Z', tint(c, -0.06)) +
+        Fo('M-1 -37C-1 -42 6 -43 9 -37C6 -35 2 -35-1 -37Z', tint(c, -0.06)) +
         S('M3 -33l3 3M8 -30l3 3M13 -28l3 3', tint(c, -0.5), 1.3) + C(-16, -27, 1.6, tint(A, 0.6)) +
         S('M-20 -26C-19 -30-16 -33-12 -34M20 -21C26 -20 30 -19 34 -19', tint(c, 0.6), 1.1);
     },
@@ -242,8 +242,8 @@
     const P = [[150 - o.whw, o.wy, 1], ...a.A.slice(0, n - 1), K(a.A[n - 1]), K(a.B[n - 1]), ...a.B.slice(1, n - 1).reverse(),
       K(o.cr), ...e.A.slice(1, m - 1), K(e.A[m - 1]), K(e.B[m - 1]), ...e.B.slice(0, m - 1).reverse(), [150 + o.whw, o.wy, 1]];
     const sh = tint(c, -0.17), hi = tint(c, 0.12);
-    const inner = F(band(o.L, o.W, -0.16, -0.75), sh) + F(band(R, RW, -0.22, -0.75), sh) +
-      F(band(o.L, o.W, 0.36, 0.2), hi) + F(band(R, RW, 0.26, 0.1), hi) +
+    const inner = F(band(o.L, o.W, -0.16, -0.75) + band(R, RW, -0.22, -0.75), sh) +
+      F(band(o.L, o.W, 0.36, 0.2) + band(R, RW, 0.26, 0.1), hi) +
       F(`M140 ${o.cr[1] - 26}C146 ${o.cr[1] - 14} 148 ${o.cr[1]} 150 ${o.cr[1] + 4}C152 ${o.cr[1]} 154 ${o.cr[1] - 14} 158 ${o.cr[1] - 26}Z`, tint(c, -0.12)) +
       (o.extra || '');
     b.part(shape(P), c, inner);
@@ -275,7 +275,7 @@
     feet(b, id, 'dad', s, tint(c, -0.1), [117, 506], [183, 506]);
     const pk = F('M91 318H120V366C112 371 100 371 92 366Z', tint(p, 0.04), OUT(p)) + F('M90 311H121V326H90Z', tint(p, 0.1), OUT(p)) + C(105.5, 320, 1.8, tint(p, -0.5)) +
       S('M94 402C110 407 130 407 146 402M100 454C110 449 122 455 140 449M98 469C112 463 124 471 144 465', tint(p, -0.32), 1.1);
-    pants(b, p, { wy: 226, whw: 54, cr: [150, 288], L: [[123, 238], [120, 360], [118, 474]], W: [58, 53, 54], extra: pk + MX(pk) });
+    pants(b, p, { wy: 226, whw: 54, cr: [150, 288], L: [[123, 238], [120, 360], [119, 470]], W: [58, 52, 48], extra: pk + MX(pk) });
     // hood bunched behind the neck
     b.part('M102 58C94 24 116 4 150 4C184 4 206 24 198 58Z', tint(c, -0.12), F('M150 4C180 4 204 22 198 58H170Z', tint(c, -0.24)));
     neck(b, sk);
@@ -316,13 +316,14 @@
     b.add(hand(100, 230, endAng(AL), sk) + hand(212, 228, endAng(AR), sk, 'fist'));
     neck(b, sk);
     b.part(sym([[150, 38, 1], [161, 34], [168, 26], [186, 32], [200, 60], [196, 120], [194, 226, 1], [150, 228, 1]]), TEE,
-      F('M150 40V230H170V40Z', tint(TEE, -0.08)) + S('M137 27C142 41 158 41 163 27', tint(TEE, -0.15), 3) + S('M144 110C148 130 146 160 140 180', tint(TEE, -0.12), 1.2));
+      F('M150 40V230H170V40Z', tint(TEE, -0.08)) + S('M137 27C142 41 158 41 163 27', tint(TEE, -0.15), 3) );
     const half = [[137, 24], [118, 30], [92, 46, 1], [102, 72], [112, 100], [110, 150], [108, 216, 1], [136, 218, 1], [134, 120], [137, 44, 1]];
     const det = S('M94 78C110 82 124 82 137 80', STITCH, 0.9, DASH) + Fo('M110 92H132L131 104L121 109L111 104Z', tint(c, -0.05)) + C(121, 104, 2.2, BRASS) +
       S('M115 109V196M127 109V196', STITCH, 0.9, DASH) + F('M80 196H140V220H80Z', tint(c, -0.08)) + S('M80 199.5H140M80 215H140', STITCH, 0.8, DASH) +
       S('M101 140L106 182', tint(c, -0.42), 2) + F('M118 118C124 134 124 160 120 180C114 160 114 136 118 118Z', tint(c, 0.12));
-    b.part(shape(half), c, det + F('M80 40C96 80 100 150 98 230H70V40Z', tint(c, 0.1)) + C(131, 132, 2.3, BRASS) + C(131, 166, 2.3, BRASS) + C(131, 207, 2.3, BRASS));
-    b.part(shape(half.map(mir)), c, MX(det) + F('M186 40C200 80 204 150 202 230H230V40Z', tint(c, -0.16)) + F('M164 84H170V220H164Z', tint(c, -0.2)));
+    b.def(`<g id="${id}-d">${det}</g>`);
+    b.part(shape(half), c, `<use href="#${id}-d"/>` + F('M80 40C96 80 100 150 98 230H70V40Z', tint(c, 0.1)) + C(131, 132, 2.3, BRASS) + C(131, 166, 2.3, BRASS) + C(131, 207, 2.3, BRASS));
+    b.part(shape(half.map(mir)), c, `<use href="#${id}-d" transform="matrix(-1 0 0 1 300 0)"/>` + F('M186 40C200 80 204 150 202 230H230V40Z', tint(c, -0.16)) + F('M164 84H170V220H164Z', tint(c, -0.2)));
     const col = [[141, 20], [126, 24], [110, 34], [104, 44, 1], [122, 70, 1], [132, 52], [139, 34]];
     const cd = S('M109 46L122 64', STITCH, 0.8, DASH) + F('M104 44L122 70L125 62Z', tint(c, -0.15));
     b.part(shape(col), c, cd).part(shape(col.map(mir)), c, MX(cd) + F('M140 0H200V90H160Z', tint(c, -0.1)));
@@ -364,24 +365,23 @@
   function coffee(c1, c2, lite) {
     // drawn in a 140 x 260 frame
     const cup = 'M18 74H122L110 246C109 252 104 254 98 254H42C36 254 31 252 30 246Z';
-    return S('M66 62L80 4', tint(c2, -0.35), 11) + S('M66 62L80 4', c2, 9) + S('M66 62L80 4', tint(c2, 0.3), 3) +
+    return (lite ? '' : S('M66 62L80 4', tint(c2, -0.35), 11)) + S('M66 62L80 4', c2, 9) + (lite ? '' : S('M66 62L80 4', tint(c2, 0.3), 3)) +
       F(cup, '#eef3f4', ' fill-opacity=".55"') +
       F('M23 108H117L110 246C109 252 104 254 98 254H42C36 254 31 252 30 246Z', c1) +
       F('M23 108H117L115 140C96 148 62 132 25 142Z', tint(c1, 0.55)) +
-      F('M25 142C62 132 96 148 115 140L113 170C90 160 60 176 27 166Z', tint(c1, 0.3)) +
+      (lite ? '' : F('M25 142C62 132 96 148 115 140L113 170C90 160 60 176 27 166Z', tint(c1, 0.3))) +
       F('M98 108H117L110 246C109 252 104 254 98 254Z', tint(c1, -0.2)) +
       (lite ? '' : F('M36 96l26-6 6 24-26 6zM72 92l24 2-2 24-24-2zM46 128l22-4 4 20-22 4z', '#ffffff', ' fill-opacity=".45" stroke="#ffffff" stroke-opacity=".8" stroke-width="1.2"')) +
-      F(cup, 'none', ` stroke="${tint(c1, -0.2)}" stroke-opacity=".55" stroke-width="2"`) +
-      S('M32 90L44 236', '#ffffff', 5, ' stroke-opacity=".55"') +
+      (lite ? '' : F(cup, 'none', ` stroke="${tint(c1, -0.2)}" stroke-opacity=".55" stroke-width="2"`) + S('M32 90L44 236', '#ffffff', 5, ' stroke-opacity=".55"')) +
       F('M10 62H130C134 62 134 76 130 76H10C6 76 6 62 10 62Z', '#f1f4f5', ` stroke="${tint(c1, -0.35)}" stroke-opacity=".5" stroke-width="1.5"`) +
       F('M22 62C22 30 118 30 118 62Z', '#f4f7f8', ' fill-opacity=".7" stroke="#b9c3c6" stroke-width="1.5"') +
-      S('M34 54C40 42 56 38 70 38', '#ffffff', 3);
+      (lite ? '' : S('M34 54C40 42 56 38 70 38', '#ffffff', 3));
   }
   outfit('boy-linen-shorts', 'Linen shirt & shorts', ['#e6d8bb', '#3f5b78', '#6b4a33', '#d39a74', '#8a5a36'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
     // legs
     const LL = [[118, 330], [117, 410], [125, 480]], LW = [36, 33, 22];
-    for (const P of [LL, LL.map(mir)]) b.part(tube(P, LW), sk, F(band(P, LW, -0.1, -0.7), tint(sk, -0.14)) + F(band(P, LW, 0.42, 0.25), tint(sk, 0.1)), tint(sk, -0.32));
+    for (const P of [LL, LL.map(mir)]) b.part(tube(P, LW), sk, F(band(P, LW, -0.1, -0.7), tint(sk, -0.14)), tint(sk, -0.32));
     feet(b, id, 'sandal', s, sk, [117, 506], [183, 506]);
     const sd = S('M100 214L114 250M200 214L186 250', tint(p, -0.35), 1.2) + S('M134 214V256M166 214V256', tint(p, -0.22), 1) +
       F('M96 202H204V214H96Z', tint(p, -0.12)) + F('M112 202h5v14h-5zM183 202h5v14h-5zM147 202h6v14h-6z', tint(p, -0.25)) +
@@ -395,15 +395,16 @@
     b.add(hand(97, 234, endAng(AL), sk) + `<g transform="translate(222 30) scale(.4)">${coffee(g(4), '#4f9a6e', 1)}</g>` + hand(236, 96, endAng(AR), sk, 'fist', -1, 1.05));
     for (const P of [[[104, 56], [100, 104]], [[196, 56], [206, 102]]]) {
       const W2 = [44, 40];
-      b.part(tube(P, W2, true), c, F(band(P, W2, -0.15, -0.8), tint(c, -0.16)) + F(cuff(P, W2, 9), tint(c, -0.07)) + S(cuff(P, W2, 9), tint(c, -0.3), 0.8));
+      b.part(tube(P, W2, true), c, F(band(P, W2, -0.15, -0.8), tint(c, -0.16)) + F(cuff(P, W2, 9), tint(c, -0.07), ` stroke="${tint(c, -0.3)}" stroke-width=".8"`));
     }
     neck(b, sk);
     b.part(sym([[150, 42, 1], [158, 38], [164, 30], [174, 30], [176, 60], [184, 120], [186, 214, 1], [150, 216, 1]]), TEE,
-      F('M156 40C162 100 164 160 160 216H190V40Z', tint(TEE, -0.1)) + S('M140 31C142 42 158 42 160 31', tint(TEE, -0.16), 2.5) + S('M145 130C150 150 148 180 142 200', tint(TEE, -0.12), 1.1));
+      F('M156 40C162 100 164 160 160 216H190V40Z', tint(TEE, -0.1)) + S('M140 31C142 42 158 42 160 31', tint(TEE, -0.16), 2.5) );
     const half = [[138, 24], [118, 32], [90, 48, 1], [96, 80], [108, 104], [106, 170], [104, 236], [118, 246, 1], [134, 240, 1], [136, 180], [139, 120], [140, 54, 1]];
     const det = S('M112 200C116 210 122 220 124 238M128 64C124 100 124 150 128 200', tint(c, -0.2), 1.1) + S('M100 106C104 140 104 190 102 230', tint(c, 0.25), 1.2);
-    b.part(shape(half), c, det + F('M86 40C100 90 102 160 98 240H70V40Z', tint(c, 0.12)) + F('M134 50L140 54L136 240H130Z', tint(c, -0.1)) + C(134, 132, 2, tint(c, -0.3)) + C(134, 166, 2, tint(c, -0.3)) + C(134, 200, 2, tint(c, -0.3)));
-    b.part(shape(half.map(mir)), c, MX(det) + F('M182 40C198 90 202 160 200 240H230V40Z', tint(c, -0.18)) + F('M166 50V240H172V50Z', tint(c, -0.12)));
+    b.def(`<g id="${id}-d">${det}</g>`);
+    b.part(shape(half), c, `<use href="#${id}-d"/>` + F('M86 40C100 90 102 160 98 240H70V40Z', tint(c, 0.12)) + F('M134 50L140 54L136 240H130Z', tint(c, -0.1)) + C(134, 132, 2, tint(c, -0.3)) + C(134, 166, 2, tint(c, -0.3)) + C(134, 200, 2, tint(c, -0.3)));
+    b.part(shape(half.map(mir)), c, `<use href="#${id}-d" transform="matrix(-1 0 0 1 300 0)"/>` + F('M182 40C198 90 202 160 200 240H230V40Z', tint(c, -0.18)) + F('M166 50V240H172V50Z', tint(c, -0.12)));
     const col = [[141, 20], [126, 24], [110, 34], [106, 44, 1], [118, 50, 1], [126, 74, 1], [139, 40]];
     b.part(shape(col), c, F('M106 44L118 50L126 74L131 64Z', tint(c, -0.12))).part(shape(col.map(mir)), c, F('M150 0H220V100H150Z', tint(c, -0.12)));
   });
@@ -477,19 +478,19 @@
       S('M90 458C104 452 118 462 140 454M90 476C106 468 122 480 142 470M160 454C182 462 196 452 210 458M158 470C178 480 194 468 210 476', tint(p, -0.3), 1.1);
     pants(b, p, { wy: 244, whw: 56, cr: [150, 306], L: [[123, 256], [117, 370], [115, 478]], W: [64, 64, 68], extra: jd });
     // skateboard hanging from the right hand
-    b.add(`<g transform="translate(240 236) rotate(-7)">` +
+    b.add(`<g transform="translate(234 238) rotate(-3)">` +
       F('M-24 22C-24 4-14 -2 0 -2C14 -2 24 4 24 22V240C24 258 14 264 0 264C-14 264-24 258-24 240Z', '#d79a3a', OUT('#d79a3a', 1.1)) +
       F('M8 0C18 2 24 8 24 22V240C24 256 16 262 8 263Z', tint('#d79a3a', -0.18)) +
       C(0, 130, 15, 'none', ` stroke="${c}" stroke-width="7"`) + F('M-24 96H24V104H-24ZM-24 156H24V164H-24Z', c2) + C(0, 130, 5, c) +
       F('M-30 40h60v10h-60zM-30 212h60v10h-60z', '#d9d6cf', OUT('#d9d6cf', 0.8)) + F('M-8 34h16v22h-16zM-8 206h16v22h-16z', '#b8b5ae', OUT('#b8b5ae', 0.8)) +
       F('M-36 36h10v18h-10zM26 36h10v18h-10zM-36 208h10v18h-10zM26 208h10v18h-10z', '#efe8d6', OUT('#efe8d6', 0.9)) + '</g>');
     neck(b, sk);
-    const AL = [[106, 62], [96, 150], [94, 236]], AR = [[194, 62], [208, 150], [222, 232]], AW = [36, 32, 28];
+    const AL = [[106, 62], [96, 150], [94, 236]], AR = [[194, 62], [208, 150], [220, 234]], AW = [36, 32, 28];
     for (const P of [AL, AR]) {
       b.part(tube(P, AW, true), ST, F(band(P, AW, -0.15, -0.8), DK, ' fill-opacity=".28"'), OL);
       b.part(cuff(P, AW, 12), c, ribs(60, 240, 200, 250, 3.2, tint(c, -0.35), 0.6), OL);
     }
-    b.add(hand(94, 236, endAng(AL), sk) + hand(222, 232, endAng(AR), sk, 'fist'));
+    b.add(hand(94, 236, endAng(AL), sk) + hand(220, 234, endAng(AR), sk, 'fist'));
     b.part(sym([[150, 32, 1], [164, 28], [184, 32], [204, 46, 1], [208, 64], [204, 120], [206, 252, 1], [150, 254, 1]]), ST,
       F('M184 40C206 90 206 180 208 256H240V30Z', DK, ' fill-opacity=".26"') + F('M96 50C104 90 104 180 100 256H80V40Z', '#ffffff', ' fill-opacity=".1"') +
       S('M126 120C132 140 132 160 124 178M176 110C170 130 174 150 180 162', DK, 1.3, ' stroke-opacity=".4"') + F('M90 240H210V256H90Z', DK, ' fill-opacity=".22"'), OL);
@@ -560,7 +561,7 @@
     const lap = [[137, 26], [124, 36], [98, 46, 1], [106, 62, 1], [114, 60, 1], [112, 76], [146, 150, 1], [134, 96], [139, 42, 1]];
     b.part(shape(lap), c, F('M112 76L146 150L138 150L108 76Z', tint(c, -0.2)) + S('M118 70L144 132', tint(c, 0.25), 1.2));
     b.part(shape(lap.map(mir)), c, F('M188 76L154 150L170 150L200 76Z', tint(c, -0.22)) + F('M160 30V140H210V30Z', tint(c, -0.08)));
-    b.part('M128 27C128 18 172 18 172 27L176 54C166 62 134 62 124 54Z', tn, ribs(126, 176, 16, 62, 4, tint(tn, 0.14), 0.9) + F('M150 10H180V62H150Z', tint(tn, -0.2)) + S('M124 40C140 46 160 46 176 40', tint(tn, 0.2), 1.2), tint(tn, 0.15));
+    b.part('M127 20C140 25 160 25 173 20L176 54C166 62 134 62 124 54Z', tn, ribs(126, 176, 16, 62, 4, tint(tn, 0.14), 0.9) + F('M120 14C140 20 160 20 180 14V31C160 36 140 36 120 31Z', tint(tn, 0.1)) + S('M126 31C140 36 160 36 174 31', tint(tn, -0.4), 1.2) + F('M150 10H180V62H150Z', tint(tn, -0.2)) + S('M124 40C140 46 160 46 176 40', tint(tn, 0.2), 1.2), tint(tn, 0.15));
   });
 
   /* ======================================================== SHOES & BAGS */
