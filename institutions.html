@@ -2790,7 +2790,20 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
     var INK_A = [0.13, 0.20, 0.29, 0.39, 0.50, 0.62], INK_R = [0.95, 1.05, 1.16, 1.28, 1.42, 1.55];
     /* tinted steps run from nearly the ink dot to the full hue, so the
        field melts into its neighbours instead of ending on an edge */
-    var LIT_MIX = [0.18, 0.36, 0.55, 0.75, 1], LIT_A = [0.34, 0.4, 0.47, 0.55, 0.62], LIT_R = [1.2, 1.26, 1.33, 1.41, 1.5];
+    var LIT_MIX = [0.2, 0.38, 0.56, 0.8, 1], LIT_A = [0.34, 0.42, 0.5, 0.64, 0.84], LIT_R = [1.2, 1.28, 1.38, 1.56, 1.85];
+    /* each region's icon, drawn in its dots: 24-unit line icons, in the
+       same order as the regions (directory, events, nearby, jobs,
+       mentoring, news, groups). The dots under a stroke take the full hue;
+       the rest of the field only takes a faint tint around them. */
+    var ICONS = [
+      'M10 11a4 4 0 1 0 0-8a4 4 0 1 0 0 8z M3 21c0-3.9 3.1-7 7-7s7 3.1 7 7 M16 11l2 2 4-4',
+      'M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M3 10h18 M8 3v4 M16 3v4',
+      'M12 21.5s-7-6.2-7-11.5a7 7 0 0 1 14 0c0 5.3-7 11.5-7 11.5z M12 7.4a2.6 2.6 0 1 0 0 5.2a2.6 2.6 0 1 0 0-5.2z',
+      'M4 7h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2 M3 13h18',
+      'M2 9l10-5 10 5-10 5z M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5 M22 9v6',
+      'M4 4h13v15a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z M17 8h3v11a2 2 0 0 1-2 2 M7 8h7 M7 12h7 M7 16h4',
+      'M9 11a3.5 3.5 0 1 0 0-7a3.5 3.5 0 1 0 0 7z M2 20c0-3.6 3.1-6 7-6s7 2.4 7 6 M16 4.3a3.5 3.5 0 0 1 0 6.4 M18 14.4c2.4.7 4 2.7 4 5.6'
+    ];
 
     /* pointy-top hexagon test, radius r, centred on the origin */
     function inHex(x, y, r) { var ax = Math.abs(x), ay = Math.abs(y); return ax <= r * COS30 && ay <= r - ax * TAN30; }
@@ -2823,7 +2836,7 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
         for (var j = -rows; j <= rows; j++) {
           var x = i * S * COS30, y = (j + (i & 1 ? 0.5 : 0)) * S;
           if (!inHex(x, y, R * 0.98)) continue;
-          dots.push({ x: x, y: y, e: 1 - hexDist(x, y, R), h: 0, zone: -1, d: 0 });
+          dots.push({ x: x, y: y, e: 1 - hexDist(x, y, R), h: 0, zone: -1, d: 0, ic: 0 });
         }
       }
       /* each region's field: dots within a small hexagon around its centre */
@@ -2837,6 +2850,28 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
           if (inHex(lx, ly, z.fr)) { d.zone = k; d.d = hexDist(lx, ly, z.fr); break; }
         }
       });
+      /* rasterise each icon at the field's size and mark the dots its
+         strokes pass over; a stroke about one dot pitch wide reads as a
+         single line of dots */
+      if (window.Path2D) {
+        var oc = document.createElement('canvas'), ox = oc.getContext('2d');
+        Z.forEach(function (z, k) {
+          var side = Math.ceil(z.fr * 2), sc = z.fr * 1.5 / 24;
+          oc.width = side; oc.height = side;
+          ox.clearRect(0, 0, side, side);
+          ox.setTransform(sc, 0, 0, sc, side / 2 - 12 * sc, side / 2 - 12 * sc);
+          ox.lineWidth = S * 0.9 / sc; ox.lineCap = 'round'; ox.lineJoin = 'round';
+          ox.strokeStyle = '#000'; ox.stroke(new Path2D(ICONS[k % ICONS.length]));
+          ox.setTransform(1, 0, 0, 1, 0, 0);
+          var px = ox.getImageData(0, 0, side, side).data;
+          dots.forEach(function (d) {
+            if (d.zone !== k) return;
+            var ix = Math.round(d.x - z.px + side / 2), iy = Math.round(d.y - z.py + side / 2);
+            if (ix < 0 || iy < 0 || ix >= side || iy >= side) return;
+            d.ic = px[(iy * side + ix) * 4 + 3] / 255;
+          });
+        });
+      }
       bx = []; by = []; bn = new Int32Array(NT);
       for (var q = 0; q < NT; q++) { bx.push(new Float32Array(dots.length)); by.push(new Float32Array(dots.length)); }
       var br = net.getBoundingClientRect();
@@ -2865,8 +2900,9 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
           /* ripple out from the region's centre */
           var p = (since - d.d * 320) / 420;
           lit = p <= 0 ? 0 : p >= 1 ? 1 : p * p * (3 - 2 * p);
-          var q = d.d < 0.2 ? 0 : (d.d - 0.2) / 0.8;  // full in the middle, nothing at the edge
-          lit *= 1 - q * q * (3 - 2 * q);
+          var q = d.d < 0.2 ? 0 : (d.d - 0.2) / 0.8;  // the tint: soft, nothing at the edge
+          var ic = d.ic > 0.35 ? 1 : 0;               // the icon: crisp, in full hue
+          lit *= Math.max(ic, 0.42 * (1 - q * q * (3 - 2 * q)));
         }
         d.h += (lit - d.h) * ease;
         var b;
@@ -2891,14 +2927,15 @@ section.hband { position: relative; background: var(--deep); color: #fff; scroll
       }
     }
 
-    /* the card sits just above its field, its lower edge over the field's
-       faded rim; only where that would leave the box does it drop below */
+    /* the card sits just above its field, clear of the icon, over the
+       field's faded rim; only where that would leave the box does it drop
+       below */
     function place(z) {
-      var fx = cx + z.px, fy = cy + z.py, gap = z.fr * 0.55 + 8;
+      var fx = cx + z.px, fy = cy + z.py, gap = z.fr * 0.82 + 8;
       var top = fy - gap - z.ch;
-      if (top < -6) top = fy + gap;
+      if (top < -20) top = fy + gap;
       var left = Math.max(4, Math.min(fx - z.cw / 2, visR - z.cw - 4));
-      top = Math.max(-6, Math.min(top, H - z.ch));
+      top = Math.max(-20, Math.min(top, H - z.ch));
       z.card.style.left = left.toFixed(1) + 'px'; z.card.style.top = top.toFixed(1) + 'px';
     }
 
