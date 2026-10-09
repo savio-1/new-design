@@ -33,7 +33,7 @@ FAQ = [
 ]
 
 # Cross-link to News from the FAQ answer about data sources (SEO spec).
-NEWS_URL = "https://claude.ai/code/artifact/1a602129-77d6-402e-bf2e-355bed9eecba"
+NEWS_URL = "https://claude.ai/artifact/4FuQxzHfutUX6ecVaou7SR?sk=cQLm4m7bDBHOdw-1ZUxLBw"
 PLUS = '<svg class="plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>'
 
 
@@ -42,7 +42,7 @@ def faq_html():
     for i, (q, a) in enumerate(FAQ):
         body = escape(a, quote=False)
         if i == 3:
-            body = body.replace("AlmaConnect News", f'<a href="{NEWS_URL}">AlmaConnect News</a>', 1)
+            body = body.replace("AlmaConnect News", f'<a href="{NEWS_URL}" target="_blank" rel="noopener">AlmaConnect News</a>', 1)
         is_open = i == 0
         out.append(
             f'''      <div class="faq__row{' is-open' if is_open else ''}">

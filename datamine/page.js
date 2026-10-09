@@ -641,3 +641,19 @@
     } else { start(); }
   })();
 })();
+
+/* phone menu: open and close the sheet under the bar */
+(function () {
+  var nav = document.getElementById('siteNav');
+  var burger = nav && nav.querySelector('.nav__burger'), mnav = document.getElementById('mnav');
+  if (!burger || !mnav) return;
+  function setMenu(open) {
+    mnav.hidden = !open;
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    nav.classList.toggle('is-scrolled', open || window.scrollY > 12);
+  }
+  burger.addEventListener('click', function () { setMenu(mnav.hidden); });
+  [].slice.call(mnav.querySelectorAll('a')).forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !mnav.hidden) { setMenu(false); burger.focus(); } });
+})();
