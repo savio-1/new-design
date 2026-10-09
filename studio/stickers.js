@@ -1319,3 +1319,25 @@
 
   window.STICKERS = out;
 })();
+
+/* Studio additions: highlighter pen (used by the calendar templates) */
+(function () {
+  const L = window.STICKERS || (window.STICKERS = []);
+  L.push({
+    id: 'highlighter', name: 'Highlighter pen', cat: 'Objects', w: 320, h: 150, colors: ['#3fd16a', '#25302a'],
+    svg: (c) => {
+      const body = (c && c[0]) || '#3fd16a', cap = (c && c[1]) || '#25302a';
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="150" viewBox="0 0 320 150">
+<defs><linearGradient id="hl-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient>
+<filter id="hl-s" x="-10%" y="-20%" width="130%" height="160%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+<ellipse cx="190" cy="120" rx="130" ry="12" fill="#000" opacity=".22" filter="url(#hl-s)"/>
+<g transform="rotate(-18 160 75)">
+<path d="M14 70 L44 56 L44 92 L14 84 Z" fill="${body}"/><path d="M14 70 L44 56 L44 66 L14 76 Z" fill="#fff" opacity=".35"/>
+<rect x="42" y="50" width="34" height="48" rx="6" fill="${cap}"/><rect x="42" y="50" width="34" height="48" rx="6" fill="url(#hl-g)"/>
+<rect x="72" y="42" width="214" height="64" rx="18" fill="${body}"/><rect x="72" y="42" width="214" height="64" rx="18" fill="url(#hl-g)"/>
+<rect x="276" y="46" width="30" height="56" rx="12" fill="${body}"/><rect x="276" y="46" width="30" height="56" rx="12" fill="#000" opacity=".12"/>
+<rect x="96" y="52" width="150" height="7" rx="3.5" fill="#fff" opacity=".35"/>
+</g></svg>`;
+    },
+  });
+})();

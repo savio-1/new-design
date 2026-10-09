@@ -483,6 +483,142 @@
         ],
       }),
     },
+    // ── "Meet our…" on crumpled poster paper ──
+    ...[
+      { id: 'meet-women', name: 'Meet our women', paper: '#2d3fd3', ink: '#ffffff', words: ['MEET', 'OUR', 'WOMEN'], corners: ['THE WOMEN', 'BEHIND BACKSPACE'], caption: '[BEFORE BACKSPACE]', layout: 'grid' },
+      { id: 'meet-team', name: 'Meet the team', paper: '#d8402d', ink: '#fff4ea', words: ['MEET', 'THE', 'TEAM'], corners: ['THE TEAM', 'BEHIND THE STUDIO'], caption: '[EST. 2019]', layout: 'single' },
+      { id: 'our-story', name: 'Our small story', paper: '#f2cf3d', ink: '#1d1b18', words: ['OUR', 'SMALL', 'STORY'], corners: ['CHAPTER 01', 'SINCE 2021'], caption: '[WHERE IT STARTED]', layout: 'strip' },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Post', 'Paper', 'Photo'], width: 1080, height: 1350,
+      build: () => {
+        const label = (text, o) => txt(text, Object.assign({ fontFamily: 'Inter', fontWeight: 500, fontSize: 26, letterSpacing: 0.02, fill: v.ink }, o));
+        const prints = [
+          shp('rect', 300, 372, 400, 560, { rotation: -3, fill: '#d9d2c4', texture: 50, shadow: lifted }),
+          shp('rect', 334, 384, 380, 520, { rotation: 2.5, fill: '#ebe5d8', texture: 45, shadow: lifted }),
+          shp('rect', 352, 404, 376, 500, { rotation: 0.5, fill: '#f4efe4', texture: 40, shadow: soft }),
+        ];
+        const bw = { grayscale: 100, contrast: 12, fade: 18, grain: 25 };
+        const photos = v.layout === 'grid'
+          ? [[372, 424], [546, 424], [372, 650], [546, 650]].map(([x, y], k) => img(x, y, 166, 218, { rotation: 0.5, filters: bw, placeholder: [['#cfcac2', '#8f8a83'], ['#d8d3cb', '#9a958d'], ['#c9c4bc', '#858079'], ['#d3cec6', '#938e87']][k] }))
+          : v.layout === 'single'
+            ? [img(372, 424, 340, 444, { rotation: 0.5, filters: bw, placeholder: ['#d3cec6', '#8a857e'] })]
+            : [0, 1, 2].map(k => img(392, 424 + k * 148, 300, 140, { rotation: 0.5, filters: bw, placeholder: ['#d3cec6', '#8a857e'] }));
+        return {
+          width: 1080, height: 1350,
+          background: { color: v.paper, crumple: 70, crumpleSeed: 7 },
+          overlay: { grain: 12 },
+          elements: [
+            label(v.corners[0], { x: 100, y: 78, align: 'left' }), label(v.corners[1], { x: 980 - 330, y: 78, width: 330, autoWidth: false, align: 'right' }),
+            label(v.corners[0], { x: 100, y: 1250, align: 'left' }), label(v.corners[1], { x: 980 - 330, y: 1250, width: 330, autoWidth: false, align: 'right' }),
+            txt(v.words[0], { cx: 180, cy: 292, fontFamily: 'Inter', fontWeight: 800, fontSize: 76, fill: v.ink }),
+            txt(v.words[1], { cx: 512, cy: 292, fontFamily: 'Inter', fontWeight: 800, fontSize: 76, fill: v.ink }),
+            txt(v.words[2], { cx: 820, cy: 292, fontFamily: 'Inter', fontWeight: 800, fontSize: 76, fill: v.ink }),
+            ...prints, ...photos,
+            txt(v.caption, { cx: 540, cy: 1000, fontFamily: 'Inter', fontWeight: 600, fontSize: 32, fill: v.ink }),
+          ],
+        };
+      },
+    })),
+
+    // ── childhood note: grid-paper note between two taped-on photos ──
+    ...[
+      { id: 'note-blue', name: 'Childhood notes', bg: '#1f3fe0', note: 'grid', a: 'SAULO', b: 'ANA', ta: 'SAULO: QUEIMADA, BETIS,\nESCONDE-ESCONDE', tb: 'ANA: JOGAR FUTEBOL, FAZER\nCOMIDINHAS DE BRINCADEIRA,\nSOLTAR PIPA E PULAR ELÁSTICO', brand: ['CREARE', 'ESPAÇO CRIATIVO'] },
+      { id: 'note-green', name: 'Favourite snacks', bg: '#14824a', note: 'lined', a: 'MAYA', b: 'LEO', ta: 'MAYA: MANGO SLICES,\nPOPCORN AT THE CINEMA', tb: 'LEO: GRANDMA’S BISCUITS,\nCHOCOLATE MILK AND\nANYTHING WITH CHEESE', brand: ['LITTLE CO.', 'FAMILY ARCHIVE'] },
+      { id: 'note-pink', name: 'First dream job', bg: '#f0418f', note: 'dots', a: 'JOÃO', b: 'BIA', ta: 'JOÃO: ASTRONAUT,\nTHEN A PIZZA CHEF', tb: 'BIA: VET, BALLERINA\nAND, FOR ONE SUMMER,\nA PROFESSIONAL MERMAID', brand: ['STUDIO 22', 'THEN & NOW'] },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Post', 'Paper', 'Photo'], width: 1080, height: 1350,
+      build: () => {
+        const pattern = v.note === 'grid' ? { type: 'grid', color: 'rgba(40,60,90,0.16)', size: 20, thick: 1 } : v.note === 'lined' ? { type: 'lined', color: 'rgba(60,110,170,0.3)', size: 50, thick: 1.4, color2: 'rgba(0,0,0,0)' } : { type: 'dots', color: 'rgba(0,0,0,0.22)', size: 26, thick: 1.6 };
+        const photo = { frame: { style: 'border', color: '#f7f6f2', size: 22, texture: 30 }, filters: { fade: 15, grain: 30, contrast: 6 }, shadow: lifted };
+        const tag = (t, o) => txt(t, Object.assign({ fontFamily: 'Gochi Hand', fontSize: 46, fill: v.bg, bg: { style: 'folded', color: '#d6d6d3', padX: 42, padY: 12 }, shadow: { on: true, color: '#000000', opacity: 0.18, blur: 10, x: 0, y: 4 } }, o));
+        const brand = (t, o) => txt(t, Object.assign({ fontFamily: 'Inter', fontWeight: 600, fontSize: 28, letterSpacing: 0.02, fill: 'rgba(255,255,255,0.88)' }, o));
+        return {
+          width: 1080, height: 1350,
+          background: { color: v.bg },
+          overlay: { grain: 22 },
+          elements: [
+            brand(v.brand[0], { x: 80, y: 40, align: 'left' }),
+            brand(v.brand[1], { x: 1000 - 380, y: 40, width: 380, autoWidth: false, align: 'right' }),
+            img(-40, 60, 420, 540, Object.assign({ rotation: 4, placeholder: ['#e9d8c8', '#a78c76'] }, photo)),
+            tag(v.a, { cx: 330, cy: 112, rotation: 14 }),
+            shp('torn', 150, 380, 690, 470, { tornSides: 'b', fill: '#f6f5f1', pattern, texture: 35, shadow: lifted, seed: 11 }),
+            shp('ellipse', 790, 462, 28, 28, { fill: v.bg }),
+            shp('ellipse', 790, 650, 28, 28, { fill: v.bg }),
+            txt(v.ta, { cx: 480, cy: 520, fontFamily: 'Gochi Hand', fontSize: 46, lineHeight: 1.12, fill: '#1d1b18' }),
+            txt(v.tb, { cx: 480, cy: 692, fontFamily: 'Gochi Hand', fontSize: 46, lineHeight: 1.12, fill: '#1d1b18' }),
+            img(600, 830, 420, 530, Object.assign({ rotation: -6, placeholder: ['#e7d7cf', '#b3988b'] }, photo)),
+            tag(v.b, { cx: 610, cy: 1080, rotation: -12 }),
+            brand(v.brand[0], { x: 80, y: 1255, align: 'left' }),
+          ],
+        };
+      },
+    })),
+
+    // ── POV note: polaroid with tape over a blurred photo, cursive on a ripped notebook page ──
+    ...[
+      { id: 'pov-red', name: 'Creator POV', ink: '#c4232b', tape: '#d9262c', pattern: 'lined', bubble: 'Your product is SOLD OUT!\nCongrats — everything was snapped\nup faster than you expected.', body: 'Creator POV: You refresh your\nstore and see it — SOLD OUT.\n\nThe late nights, the hustle, the\ndoubts… suddenly feel worth it.\nBecause this is what growth\nlooks like.' },
+      { id: 'pov-blue', name: 'Day one vs today', ink: '#1f3fa8', tape: '#3f73e8', pattern: 'dots', bubble: 'New order! That’s 1,000\norders since you launched.', body: 'Day 1: one sale, from my mum.\nToday: a thousand little parcels\npacked at this same desk.\n\nKeep going. Small steps\nstill count.' },
+      { id: 'pov-green', name: 'Note to self', ink: '#1f6b3a', tape: '#3aa655', pattern: 'graph', bubble: 'Reminder: you planned\nto rest today.', body: 'Note to self:\nyou don’t have to earn rest.\n\nLog off, make tea,\ncall someone you love.\nThe work will still be here\ntomorrow.' },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Quote', 'Photo', 'Paper'], width: 1080, height: 1350,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: '#3b2f27' },
+        overlay: { vignette: 25 },
+        elements: [
+          img(0, 0, 1080, 1350, { filters: { blur: 22, brightness: -12, saturation: -10 }, placeholder: ['#6b5646', '#2e241d'], name: 'Background photo (blurred)' }),
+          img(220, 110, 560, 520, { rotation: -1.5, frame: { style: 'polaroid', color: '#f7f5f0', size: 22, bottom: 2.4, texture: 25 }, placeholder: ['#b8a18b', '#6a5544'], shadow: soft }),
+          stk('washi-plain', 360, 70, 240, 66, { rotation: -4, colors: [v.tape] }),
+          txt(v.bubble, { x: 268, y: 200, rotation: -1.5, align: 'left', fontFamily: 'Newsreader', fontWeight: 600, fontSize: 22, lineHeight: 1.2, fill: '#1d1b18', bg: { style: 'speech', color: '#ffffff', padX: 18, padY: 12, radius: 22 }, shadow: { on: true, color: '#000000', opacity: 0.18, blur: 10, x: 0, y: 4 } }),
+          shp('notebook', 110, 560, 840, 680, { fill: '#f3efe6', pattern: { type: v.pattern === 'lined' ? 'lined' : v.pattern, color: 'rgba(60,60,60,0.22)', size: v.pattern === 'lined' ? 52 : 30, thick: 1.2, color2: 'rgba(0,0,0,0)' }, texture: 35, rim: '#ffffff', shadow: soft, seed: 4 }),
+          txt(v.body, { cx: 560, cy: 905, fontFamily: 'Allura', fontSize: 58, lineHeight: 1.0, fill: v.ink }),
+        ],
+      }),
+    })),
+
+    // ── save the date, written on a giant wall calendar ──
+    ...[
+      { id: 'date-green', name: 'Save the date (calendar)', head: 'SAVE\nTHE\nDATE', headInk: '#173d12', l1: 'POWDERFINGER +\nSILVERCHAIR SHOW', l2: '@ Wharf Events', mark: '#5cf06a', price: '$25pp', pen: ['#3fd16a', '#25302a'] },
+      { id: 'date-pink', name: 'Birthday dinner', head: 'BIRTHDAY\nDINNER', headInk: '#8f1d4f', l1: 'MAYA TURNS 30 —\nDRESS UP, OBVIOUSLY', l2: '@ Lola’s, 8pm', mark: '#ff8ac8', price: 'RSVP!', pen: ['#ff6fb5', '#3a2030'] },
+      { id: 'date-blue', name: 'Deadline day', head: 'DEAD\nLINE', headInk: '#1b2f8f', l1: 'PORTFOLIO DUE\nBY MIDNIGHT', l2: 'don’t panic', mark: '#7fd3ff', price: '11:59', pen: ['#3fa9f5', '#1d2a3a'] },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Event', 'Planner'], width: 1080, height: 1350,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: '#f3f2ee', texture: 55, crumple: 18, crumpleSeed: 21 },
+        elements: [
+          // one giant cell (the 19th) sits in the middle of the frame; the notes are written inside it
+          { type: 'calendar', x: -1271, y: -1146, width: 4000, height: 3600, rotation: -10, year: 2026, month: 4, layout: 'grid', showTitle: false, showWeekdays: false, numberPos: 'corner-right', numberScale: 0.3, lineColor: '#2a2f3a', color: '#2a2f3a', bodyFont: 'Space Mono', bodyWeight: 400, marked: [] },
+          txt(v.head, { cx: 431, cy: 537, rotation: -10, align: 'left', fontFamily: 'Archivo Black', fontSize: 96, lineHeight: 0.9, fill: v.headInk }),
+          txt(v.l1, { cx: 592, cy: 702, rotation: -20, fontFamily: 'Covered By Your Grace', fontSize: 58, lineHeight: 1.0, fill: '#1d1b18' }),
+          txt(v.l2, { cx: 629, cy: 797, rotation: -20, fontFamily: 'Caveat', fontWeight: 600, fontSize: 62, fill: '#1d1b18', bg: { style: 'marker', color: v.mark, padX: 18, padY: 0, gap: 0 } }),
+          txt(v.price, { cx: 735, cy: 845, rotation: -10, fontFamily: 'Caveat', fontWeight: 600, fontSize: 54, fill: '#1d1b18', bg: { style: 'scribble', color: '#1d1b18', padX: 34, padY: 24, borderWidth: 3 } }),
+          stk('highlighter', 500, 980, 660, 309, { rotation: -10, colors: v.pen }),
+        ],
+      }),
+    })),
+
+    // ── torn notebook papers layered over a photo ──
+    ...[
+      { id: 'tip-green', name: 'Brand tip', back: '#cfe0ef', backPat: 'dots', front: '#d9eecf', line: 'rgba(90,170,90,0.6)', tape: ['#f2b8cc', '#c86a8a'], flower: '#9cc3ef', title: 'Polish your\nbrand look', body: 'Consistency builds recognition. Stick to the same colours, fonts and style across your posts. It makes your brand instantly recognisable and builds trust.' },
+      { id: 'tip-pink', name: 'Reels tip', back: '#f6cfdc', backPat: 'grid', front: '#fbf3c8', line: 'rgba(214,170,60,0.6)', tape: ['#bfe3f2', '#5b9ec4'], flower: '#ff8fb8', title: 'Hook them in\nthree seconds', body: 'Open with the result, not the setup. Show the finished look first, then rewind and walk people through how you got there.' },
+      { id: 'tip-lilac', name: 'Caption tip', back: '#dcd3f6', backPat: 'dots', front: '#f4efe6', line: 'rgba(120,110,180,0.5)', tape: ['#d7ef5a', '#8aa12a'], flower: '#f7d046', title: 'Write captions\nlike texts', body: 'Short lines, one idea each, the way you’d message a friend. End with a question so people have a reason to reply.' },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Post', 'Paper', 'Quote'], width: 1080, height: 1080,
+      build: () => ({
+        width: 1080, height: 1080,
+        background: { color: '#6b5a50' },
+        elements: [
+          img(0, 0, 1080, 1080, { placeholder: ['#9b7d6c', '#4a3a31'], name: 'Background photo' }),
+          shp('torn', 250, 130, 700, 500, { tornSides: 'tb', fill: v.back, pattern: { type: v.backPat, color: 'rgba(70,110,170,0.35)', size: 22, thick: 1.4 }, rim: '#ffffff', texture: 25, shadow: soft, seed: 12 }),
+          shp('torn', 200, 210, 640, 690, { tornSides: 'l', fill: v.front, pattern: { type: 'lined', color: v.line, size: 34, thick: 1.6, color2: 'rgba(0,0,0,0)' }, rim: '#ffffff', texture: 25, shadow: soft, seed: 15 }),
+          stk('washi-grid', 140, 190, 210, 56, { rotation: -2, colors: v.tape }),
+          stk('flower-cog', 620, 170, 110, 110, { colors: [v.flower] }),
+          txt(v.title, { x: 262, y: 300, align: 'left', fontFamily: 'Instrument Serif', fontSize: 92, lineHeight: 0.95, fill: '#151413' }),
+          txt(v.body, { x: 262, y: 520, width: 540, autoWidth: false, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 31, lineHeight: 1.32, fill: '#151413' }),
+        ],
+      }),
+    })),
   ];
 
   const TEXT_PRESETS = [
@@ -615,6 +751,18 @@
   ];
 
   const BACKGROUNDS = [
+    { name: 'Crumpled blue', bg: { color: '#2d3fd3', crumple: 70, crumpleSeed: 3 }, overlay: { grain: 10 } },
+    { name: 'Crumpled red', bg: { color: '#d8402d', crumple: 70, crumpleSeed: 4 }, overlay: { grain: 10 } },
+    { name: 'Crumpled yellow', bg: { color: '#f2cf3d', crumple: 65, crumpleSeed: 5 }, overlay: { grain: 10 } },
+    { name: 'Crumpled pink', bg: { color: '#f27bb3', crumple: 65, crumpleSeed: 6 }, overlay: { grain: 10 } },
+    { name: 'Crumpled green', bg: { color: '#1f8a4c', crumple: 70, crumpleSeed: 7 }, overlay: { grain: 10 } },
+    { name: 'Crumpled orange', bg: { color: '#f07a2a', crumple: 65, crumpleSeed: 8 }, overlay: { grain: 10 } },
+    { name: 'Crumpled lilac', bg: { color: '#b9a6ee', crumple: 60, crumpleSeed: 9 }, overlay: { grain: 10 } },
+    { name: 'Crumpled navy', bg: { color: '#1c2a5a', crumple: 75, crumpleSeed: 10 }, overlay: { grain: 10 } },
+    { name: 'Crumpled black', bg: { color: '#1a1918', crumple: 80, crumpleSeed: 11 }, overlay: { grain: 10 } },
+    { name: 'Crumpled kraft', bg: { color: '#c39a6b', crumple: 70, crumpleSeed: 12 }, overlay: { grain: 10 } },
+    { name: 'Crumpled cream', bg: { color: '#efe8da', crumple: 55, crumpleSeed: 13 }, overlay: { grain: 10 } },
+    { name: 'Crumpled white', bg: { color: '#f7f6f2', crumple: 50, crumpleSeed: 14 }, overlay: { grain: 10 } },
     { name: 'Cutting mat', bg: { color: '#1f5a4a', pattern: grid('rgba(255,255,255,0.10)', 54), texture: 12 } },
     { name: 'Grid paper', bg: { color: '#f3f2ee', pattern: grid('rgba(40,40,40,0.13)', 108, 2) } },
     { name: 'Graph paper', bg: { color: '#f6f5ef', pattern: { type: 'graph', color: 'rgba(70,130,170,0.3)', size: 90, thick: 1.4 }, texture: 20 } },

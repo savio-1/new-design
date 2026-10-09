@@ -291,17 +291,31 @@
     p.closePath();
     return p;
   }
-  function tornPath(w, h, seed, amp) {
+  // sides: any of 't', 'r', 'b', 'l' — the edges that are ripped; the rest stay straight
+  function tornPath(w, h, seed, amp, sides = 'trbl') {
     const r = rng(seed), pts = [];
-    const edge = (x0, y0, x1, y1, nx, ny) => {
+    const edge = (x0, y0, x1, y1, nx, ny, torn) => {
+      if (!torn) { pts.push([x0, y0]); return; }
       const len = Math.hypot(x1 - x0, y1 - y0), steps = Math.max(6, Math.round(len / (amp * 1.4)));
       for (let i = 0; i < steps; i++) {
         const t = i / steps, j = (r() * 0.85 + 0.15) * amp;
         pts.push([x0 + (x1 - x0) * t + nx * j, y0 + (y1 - y0) * t + ny * j]);
       }
     };
-    edge(0, 0, w, 0, 0, 1); edge(w, 0, w, h, -1, 0); edge(w, h, 0, h, 0, -1); edge(0, h, 0, 0, 1, 0);
+    edge(0, 0, w, 0, 0, 1, sides.includes('t')); edge(w, 0, w, h, -1, 0, sides.includes('r'));
+    edge(w, h, 0, h, 0, -1, sides.includes('b')); edge(0, h, 0, 0, 1, 0, sides.includes('l'));
     return polyPath(pts);
+  }
+  // a page ripped out of a spiral notebook: ragged left edge with torn-through punch holes
+  function notebookPath(w, h, seed) {
+    const p = new Path2D();
+    p.addPath(tornPath(w, h, seed, Math.max(3, w * 0.03), 'l'));
+    const hole = Math.max(4, Math.min(w, h) * 0.028), gap = hole * 2.6, r = rng(seed + 9);
+    for (let y = gap; y < h - hole * 2; y += gap) {
+      const x = w * 0.035 + (r() - 0.5) * hole * 0.3;
+      rrect(p, x, y, hole * 1.2, hole, hole * 0.2);
+    }
+    return p;
   }
   function ticketPath(w, h, r, notch) {
     const p = new Path2D(), n = notch;
@@ -367,7 +381,8 @@
     ticket: { label: 'Ticket', path: (w, h, o) => ticketPath(w, h, o.radius ?? 12, Math.min(w, h) * 0.12) },
     speech: { label: 'Speech', path: (w, h, o) => speechPath(w, h, o.radius ?? Math.min(w, h) * 0.2) },
     stamp: { label: 'Stamp edge', path: (w, h) => stampPath(w, h, Math.max(4, Math.min(w, h) * 0.035)) },
-    torn: { label: 'Torn paper', path: (w, h, o) => tornPath(w, h, o.seed || 5, Math.max(3, Math.min(w, h) * 0.025)) },
+    torn: { label: 'Torn paper', path: (w, h, o) => tornPath(w, h, o.seed || 5, Math.max(3, Math.min(w, h) * 0.025), o.tornSides || 'trbl') },
+    notebook: { label: 'Notebook page', path: (w, h, o) => notebookPath(w, h, o.seed || 7), evenodd: true },
     cross: { label: 'Plus', path: (w, h) => { const t = 0.32; return polyPath([[w * (0.5 - t / 2), 0], [w * (0.5 + t / 2), 0], [w * (0.5 + t / 2), h * (0.5 - t / 2)], [w, h * (0.5 - t / 2)], [w, h * (0.5 + t / 2)], [w * (0.5 + t / 2), h * (0.5 + t / 2)], [w * (0.5 + t / 2), h], [w * (0.5 - t / 2), h], [w * (0.5 - t / 2), h * (0.5 + t / 2)], [0, h * (0.5 + t / 2)], [0, h * (0.5 - t / 2)], [w * (0.5 - t / 2), h * (0.5 - t / 2)]]); } },
     arrow: { label: 'Arrow', path: (w, h) => polyPath([[0, h * 0.32], [w * 0.62, h * 0.32], [w * 0.62, 0], [w, h / 2], [w * 0.62, h], [w * 0.62, h * 0.68], [0, h * 0.68]]) },
     parallelogram: { label: 'Slant', path: (w, h) => polyPath([[w * 0.18, 0], [w, 0], [w * 0.82, h], [0, h]]) },
@@ -530,7 +545,7 @@
   R.TEXT_BG = {
     none: 'None', box: 'Box', pill: 'Pill', lines: 'Line highlight', select: 'Selection', marker: 'Marker',
     sticker: 'Sticker outline', tape: 'Tape', oval: 'Oval', scallop: 'Scallop', burst: 'Burst',
-    speech: 'Speech bubble', ticket: 'Ticket', underline: 'Underline', scribble: 'Scribble circle', torn: 'Torn paper', rough: 'Marker blocks',
+    speech: 'Speech bubble', ticket: 'Ticket', underline: 'Underline', scribble: 'Scribble circle', torn: 'Torn paper', rough: 'Marker blocks', folded: 'Folded label',
   };
 
   const layoutCache = new LRU(400);
@@ -672,6 +687,20 @@
       case 'speech': paint(speechPath(w, h, rad || h * 0.2)); break;
       case 'ticket': paint(ticketPath(w, h, rad, Math.min(h * 0.16, 18))); break;
       case 'torn': paint(tornPath(w, h, seed, Math.max(2, Math.min(w, h) * 0.04))); break;
+      case 'folded': {
+        // paper label with its top-right corner folded over
+        const f = Math.min(h * 0.75, w * 0.3);
+        const body = polyPath([[0, 0], [w - f, 0], [w, f], [w, h], [0, h]]);
+        paint(body);
+        if (!isClear(col)) {
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.25)'; ctx.shadowBlur = f * 0.25 * deviceScale(ctx); ctx.shadowOffsetX = -f * 0.08 * deviceScale(ctx); ctx.shadowOffsetY = f * 0.1 * deviceScale(ctx);
+          ctx.fillStyle = col; ctx.fill(polyPath([[w - f, 0], [w - f, f], [w, f]]));
+          ctx.restore();
+          ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill(polyPath([[w - f, 0], [w - f, f], [w, f]]));
+        }
+        break;
+      }
       case 'tape': {
         const r = rng(seed), p = new Path2D(), z = Math.max(3, h * 0.07), n = Math.max(4, Math.round(h / (z * 1.6)));
         p.moveTo(0, 0); p.lineTo(w, 0);
@@ -992,7 +1021,7 @@
     const pad = w * 0.04;
     const showT = el.showTitle !== false;
     const th = showT ? h * (el.titleSize || 0.17) : 0;
-    const hh = h * 0.08;
+    const hh = el.showWeekdays === false ? 0 : h * 0.08;
     const gx = pad, gy = pad + th + hh, gw = w - pad * 2, gh = h - gy - pad;
     const cw = gw / 7, chh = gh / rows;
     if (showT) {
@@ -1016,7 +1045,7 @@
       }
     }
     // weekday header
-    {
+    if (hh) {
       const fs = Math.min(cw * 0.3, hh * 0.5);
       ctx.font = fontFor(bF, Math.max(bW, 600), false, fs);
       const names = el.startMonday ? [1, 2, 3, 4, 5, 6, 0] : [0, 1, 2, 3, 4, 5, 6];
@@ -1042,10 +1071,11 @@
       for (let c = 0; c <= 7; c++) { p.moveTo(gx + cw * c, gy); p.lineTo(gx + cw * c, gy + gh); }
       ctx.stroke(p);
     }
-    const fs = Math.min(cw, chh) * (layout === 'grid' ? 0.34 : 0.42);
+    const fs = Math.min(cw, chh) * (layout === 'grid' ? 0.34 : 0.42) * (el.numberScale || 1);
     const numFont = fontFor(bF, bW, false, fs);
     const numCap = capOf(bF, bW) * fs;
-    const topLeft = layout === 'grid' && el.numberPos === 'corner';
+    const topLeft = layout === 'grid' && (el.numberPos === 'corner' || el.numberPos === 'corner-right');
+    const rightCorner = el.numberPos === 'corner-right';
     for (let d = 1; d <= days; d++) {
       const idx = off + d - 1, r = Math.floor(idx / 7), c = idx % 7;
       const x0 = gx + cw * c, y0 = gy + chh * r;
@@ -1055,7 +1085,7 @@
         ctx.fill(rrect(new Path2D(), x0 + ins, y0 + ins, cw - ins * 2, chh - ins * 2, (el.cellRadius ?? 0.2) * Math.min(cw, chh)));
       }
       let cx = x0 + cw / 2, cy = y0 + chh / 2;
-      if (topLeft) { cx = x0 + fs * 0.9; cy = y0 + fs * 0.95; }
+      if (topLeft) { cx = rightCorner ? x0 + cw - fs * 1.1 : x0 + fs * 0.9; cy = y0 + fs * 0.95; }
       let onAccent = false;
       if (marked.has(d)) onAccent = drawMark(ctx, el, cx, cy, Math.min(cw, chh) * (topLeft ? 0.22 : 0.36), d);
       ctx.font = numFont;
@@ -1575,14 +1605,22 @@
       return;
     }
     const path = shapePath(el.shape, w, h, el);
+    const rule = (SHAPES[el.shape] || {}).evenodd ? 'evenodd' : 'nonzero';
+    // white paper fibres showing along a ripped edge
+    if ((el.shape === 'torn' || el.shape === 'notebook') && el.rim && !isClear(el.rim)) {
+      const amp = Math.max(3, Math.min(w, h) * 0.025) * 1.9;
+      ctx.fillStyle = el.rim;
+      ctx.fill(el.shape === 'torn' ? tornPath(w, h, (el.seed || 5) + 31, amp, el.tornSides || 'trbl') : tornPath(w, h, (el.seed || 7) + 31, Math.max(3, w * 0.03) * 1.6, 'l'));
+    }
     if (!isClear(el.fill)) {
       ctx.fillStyle = makeFill(ctx, { color: el.fill, color2: el.fill2, gradient: el.gradient, angle: el.gradAngle }, w, h);
-      ctx.fill(path);
+      ctx.fill(path, rule);
     }
-    if ((el.pattern && el.pattern.type && el.pattern.type !== 'none') || el.texture) {
-      ctx.save(); ctx.clip(path);
+    if ((el.pattern && el.pattern.type && el.pattern.type !== 'none') || el.texture || el.crumple) {
+      ctx.save(); ctx.clip(path, rule);
       drawPattern(ctx, w, h, el.pattern);
       if (el.texture) fillTexture(ctx, 'paper', el.texture, w, h);
+      if (el.crumple) drawCrumple(ctx, w, h, el.crumple, el.seed || 3);
       ctx.restore();
     }
     if (el.strokeWidth > 0 && !isClear(el.stroke)) {
@@ -1592,6 +1630,91 @@
     }
     ctx.restore();
   }
+
+  /* ───────────────────────── crumpled paper ─────────────────────────
+     Light and shadow painted as translucent white and black (folds, crinkles,
+     mottling, fibres, dust), so the relief reads on any paper colour. */
+  const crumpleCache = new LRU(12);
+  let dustTile = null;
+  function dust() {
+    if (dustTile) return dustTile;
+    const c = canvas(256, 256), x = c.getContext('2d'), d = x.createImageData(256, 256), r = rng(29);
+    for (let i = 0; i < d.data.length; i += 4) {
+      const v = r(), white = v < 0.5;
+      d.data[i] = d.data[i + 1] = d.data[i + 2] = white ? 255 : 0;
+      d.data[i + 3] = r() < 0.004 ? 200 : Math.round(Math.abs(v - 0.5) * 2 * 46);
+    }
+    x.putImageData(d, 0, 0);
+    return (dustTile = c);
+  }
+  function crumpleTexture(w, h, seed) {
+    const k = Math.min(1, 1800 / Math.max(w, h));
+    const W = Math.max(64, Math.round(w * k)), H = Math.max(64, Math.round(h * k));
+    const key = W + 'x' + H + ':' + seed;
+    let c = crumpleCache.get(key);
+    if (c) return c;
+    c = canvas(W, H);
+    const x = c.getContext('2d'), r = rng(seed * 7919 + 13), M = Math.max(W, H);
+    // blotchy mottling
+    for (let i = 0; i < 90; i++) {
+      const px = r() * W, py = r() * H, rad = M * (0.06 + r() * 0.3), light = r() < 0.35;
+      const g = x.createRadialGradient(px, py, 0, px, py, rad);
+      const al = (0.06 + r() * 0.14) * (light ? 0.55 : 1);
+      g.addColorStop(0, light ? `rgba(255,255,255,${al})` : `rgba(0,0,0,${al})`);
+      g.addColorStop(1, light ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+    }
+    // folds: shaded band on one side, lit band on the other, crisp ridge between
+    const crease = (pts, strength) => {
+      const path = new Path2D(); pts.forEach(([a, b], i) => i ? path.lineTo(a, b) : path.moveTo(a, b));
+      const [ax, ay] = pts[0], [bx, by] = pts[pts.length - 1], len = Math.hypot(bx - ax, by - ay) || 1;
+      const nx = -(by - ay) / len, ny = (bx - ax) / len, band = M * (0.01 + r() * 0.025);
+      x.save(); x.lineJoin = 'round'; x.lineCap = 'round';
+      for (let j = 0; j < 3; j++) {
+        const bw = band * (1 - j * 0.3);
+        x.lineWidth = bw;
+        x.save(); x.translate(nx * bw / 2, ny * bw / 2); x.strokeStyle = `rgba(0,0,0,${0.07 * strength})`; x.stroke(path); x.restore();
+        x.save(); x.translate(-nx * bw / 2, -ny * bw / 2); x.strokeStyle = `rgba(255,255,255,${0.05 * strength})`; x.stroke(path); x.restore();
+      }
+      x.lineWidth = Math.max(1, M * 0.0013);
+      x.strokeStyle = `rgba(255,255,255,${0.55 * strength})`; x.stroke(path);
+      x.translate(nx * Math.max(1.2, M * 0.001), ny * Math.max(1.2, M * 0.001)); x.strokeStyle = `rgba(0,0,0,${0.45 * strength})`; x.stroke(path);
+      x.restore();
+    };
+    const line = (x0, y0, x1, y1, wobble) => {
+      const pts = [], n = 8;
+      for (let i = 0; i <= n; i++) { const t = i / n; pts.push([x0 + (x1 - x0) * t + (r() - 0.5) * wobble, y0 + (y1 - y0) * t + (r() - 0.5) * wobble]); }
+      return pts;
+    };
+    crease(line(W * (0.47 + r() * 0.06), -10, W * (0.47 + r() * 0.06), H + 10, M * 0.01), 1.1);
+    crease(line(-10, H * (0.18 + r() * 0.06), W + 10, H * (0.18 + r() * 0.06), M * 0.01), 1);
+    crease(line(-10, H * (0.72 + r() * 0.06), W + 10, H * (0.72 + r() * 0.06), M * 0.01), 0.8);
+    for (let i = 0; i < 18; i++) {
+      const a = r() * TAU, cx = r() * W, cy = r() * H, L = M * (0.15 + r() * 0.6);
+      crease(line(cx - Math.cos(a) * L / 2, cy - Math.sin(a) * L / 2, cx + Math.cos(a) * L / 2, cy + Math.sin(a) * L / 2, M * 0.025), 0.35 + r() * 0.6);
+    }
+    // fine crinkles
+    x.lineWidth = Math.max(0.6, M * 0.0009);
+    for (let i = 0; i < 600; i++) {
+      const cx = r() * W, cy = r() * H, a = r() * TAU, L = M * (0.008 + r() * 0.05);
+      x.strokeStyle = r() < 0.45 ? `rgba(255,255,255,${0.1 + r() * 0.15})` : `rgba(0,0,0,${0.12 + r() * 0.18})`;
+      x.beginPath(); x.moveTo(cx, cy); x.quadraticCurveTo(cx + Math.cos(a + 0.6) * L / 2, cy + Math.sin(a + 0.6) * L / 2, cx + Math.cos(a) * L, cy + Math.sin(a) * L); x.stroke();
+    }
+    // fibres and photocopy dust
+    x.fillStyle = x.createPattern(dust(), 'repeat');
+    x.fillRect(0, 0, W, H);
+    crumpleCache.set(key, c);
+    return c;
+  }
+  function drawCrumple(ctx, w, h, amount, seed) {
+    if (!amount) return;
+    const tex = crumpleTexture(w, h, seed || 1);
+    ctx.save();
+    ctx.globalAlpha *= clamp(amount / 100, 0, 1);
+    ctx.drawImage(tex, 0, 0, w, h);
+    ctx.restore();
+  }
+  R.drawCrumple = drawCrumple;
 
   /* ───────────────────────── element dispatch ───────────────────────── */
 
@@ -1810,6 +1933,7 @@
     }
     drawPattern(ctx, w, h, bg.pattern);
     if (bg.texture) fillTexture(ctx, 'paper', bg.texture, w, h);
+    if (bg.crumple) drawCrumple(ctx, w, h, bg.crumple, bg.crumpleSeed || 1);
   }
   R.drawBackground = drawBackground;
 

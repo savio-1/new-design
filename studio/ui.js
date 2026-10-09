@@ -708,7 +708,14 @@
     if (['star', 'burst', 'scallop', 'flower'].includes(k)) fill.push(row('Points', num(T, 'points', { min: 3, max: 40, slider: true })));
     if (['star', 'burst'].includes(k)) fill.push(row('Inner', num(T, 'inner', { min: 10, max: 95, scale: 100, slider: true, unit: '%' })));
     if (['scallop', 'flower'].includes(k)) fill.push(row('Depth', num(T, 'depth', { min: 1, max: 50, scale: 100, slider: true, unit: '%' })));
-    if (['blob', 'torn'].includes(k)) fill.push(full(h('button.btn', { onclick: () => S.change(T, 'seed', Math.floor(Math.random() * 1000)) }, ic('shuffle'), 'Shuffle shape')));
+    if (k === 'torn') {
+      const sides = (el.tornSides || 'trbl');
+      fill.push(row('Torn edges', h('div.seg', null, [['t', 'Top'], ['r', 'Right'], ['b', 'Bottom'], ['l', 'Left']].map(([c, l]) => h('button' + (sides.includes(c) ? '.on' : ''), {
+        onclick: () => { const cur = S.selEls()[0].tornSides || 'trbl'; let nx = cur.includes(c) ? cur.replace(c, '') : cur + c; if (!nx) nx = c; S.change(T, 'tornSides', 'trbl'.split('').filter(x => nx.includes(x)).join('')); renderInspector(); },
+      }, l)))));
+    }
+    if (['torn', 'notebook'].includes(k)) fill.push(row('Torn rim', colorCtl(T, 'rim', { allowNone: true })));
+    if (['blob', 'torn', 'notebook'].includes(k)) fill.push(full(h('button.btn', { onclick: () => S.change(T, 'seed', Math.floor(Math.random() * 1000)) }, ic('shuffle'), 'Shuffle shape')));
     return [
       sec('Shape', fill),
       sec('Pattern & paper', [
@@ -717,7 +724,8 @@
         row('Size', num(T, 'pattern.size', { min: 4, max: 300, slider: true })),
         row('Line', num(T, 'pattern.thick', { min: 0.5, max: 12, step: 0.5, slider: true })),
         row('Paper grain', num(T, 'texture', { min: 0, max: 100, slider: true })),
-      ], !!(el.texture || (el.pattern && el.pattern.type !== 'none'))),
+        row('Crumpled', num(T, 'crumple', { min: 0, max: 100, slider: true, def: 0 })),
+      ], !!(el.texture || el.crumple || (el.pattern && el.pattern.type !== 'none'))),
     ];
   }
 
@@ -787,10 +795,12 @@
       ], false),
       lay === 'grid' || lay === 'minimal' ? sec('Grid', [
         lay === 'grid' ? toggle(T, 'showLines', 'Grid lines') : null,
+        toggle(T, 'showWeekdays', 'Weekday names', { get: () => S.selEls()[0].showWeekdays !== false }),
         toggle(T, 'headerLine', 'Rule under weekdays'),
         toggle(T, 'weekendAccent', 'Accent weekends'),
         toggle(T, 'showAdjacent', 'Show neighbouring days'),
-        lay === 'grid' ? row('Numbers', seg(T, 'numberPos', [['center', 'Centre'], ['corner', 'Corner']])) : null,
+        lay === 'grid' ? row('Numbers', seg(T, 'numberPos', [['center', 'Centre'], ['corner', 'Top left'], ['corner-right', 'Top right']])) : null,
+        row('Number size', num(T, 'numberScale', { min: 20, max: 200, scale: 100, slider: true, unit: '%', def: 1 })),
         row('Cell radius', num(T, 'cellRadius', { min: 0, max: 50, scale: 100, slider: true, unit: '%' })),
       ], false) : null,
     ];
@@ -961,6 +971,8 @@
       ], bg.pattern && bg.pattern.type !== 'none'),
       sec('Finish', [
         row('Paper', num(T, 'background.texture', { min: 0, max: 100, slider: true })),
+        row('Crumpled', num(T, 'background.crumple', { min: 0, max: 100, slider: true, def: 0 })),
+        d.background.crumple ? full(h('button.btn', { onclick: () => S.change(T, 'background.crumpleSeed', Math.floor(Math.random() * 1e6)) }, ic('shuffle'), 'New creases')) : null,
         row('Film grain', num(T, 'overlay.grain', { min: 0, max: 100, slider: true })),
         row('Vignette', num(T, 'overlay.vignette', { min: 0, max: 100, slider: true })),
         row('Tint', colorCtl(T, 'overlay.tint')),
