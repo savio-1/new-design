@@ -289,7 +289,7 @@
     let s = feet(id, 'clog', 124, 176, 505, sh, { foot: sk });
     const jl = tube([[134, 236], [128, 360], [121, 486]], [44, 48, 58]);
     s += both(jl, `url(#${id}-b)`, ol(b)) + P('M110,200 L190,200 L192,252 C170,264 130,264 108,252Z', b) +
-      bothL('M113,252 L104,370 L94,486', gold, 0.8, ' stroke-dasharray="2.4 2"') + bothL('M93,477 L148,477', gold, 0.8, ' stroke-dasharray="2.4 2"') +
+      bothL('M113,252 L104,370 L95,480', gold, 0.8, ' stroke-dasharray="2.4 2"') + bothL('M93,477 L148,477', gold, 0.8, ' stroke-dasharray="2.4 2"') +
       bothL('M110,340 Q122,334 136,342 M104,420 Q116,414 130,422', tint(b, -0.3), 1) + bothL('M131,270 L124,470', tint(b, 0.3), 1.2);
     s += P('M136,34 L164,34 L157,156 L143,156Z', tee) + neck(sk);
     // left arm
