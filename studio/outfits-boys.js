@@ -146,17 +146,19 @@
    * Local frame: toe → +x, sole on y = 0, heel near x = -24, ankle near x = -3. */
   const GUM = '#d7a865', RUB = '#f3efe4';
   const SH = {
-    dad: (c) => Fo('M-24 -14C-28 -4-25 0-18 0H40C48 0 50-7 47-13Z', tint(c, 0.6)) +
-      F('M-25 -5C-25-1-22 0-18 0H40C46 0 49-3 48-6Z', tint(c, -0.42)) +
-      S('M-22 -10C-14 -12-6 -8 4 -10S24 -12 34 -9 44 -10', tint(c, -0.16), 0.8) +
-      Fo('M-22 -13C-26 -22-22 -32-11 -34L3 -35C9 -30 16 -25 28 -22C40 -19 47 -16 47 -12Z', c) +
-      F('M-22 -13C-26 -22-22 -32-11 -34L-7 -26C-8 -20-6 -15-2 -13Z', tint(c, -0.13)) +
-      F('M28 -22C40 -19 47 -16 47 -12H33C33 -16 32 -19 28 -22Z', tint(c, -0.12)) +
-      F('M-4 -14C2 -24 14 -27 31 -20C19 -19 9 -16 5 -13Z', tint(c, -0.34)) +
-      F('M-13 -34C-8 -38 0 -38 4 -35C-1 -33-8 -32-13 -34Z', tint(c, -0.6)) +
-      Fo('M-1 -35C0 -41 7 -42 9 -34Z', c) +
-      S('M3 -31l3 3M8 -28l3 3M13 -26l3 3', tint(c, -0.45), 1.3) +
-      S('M-19 -24C-18 -28-15 -31-11 -32', tint(c, 0.6), 1.2),
+    dad: (c, sk, ac) => {
+      const A = ac || tint(c, -0.34);
+      return Fo('M-25 -17C-29 -5-26 0-18 0H40C49 0 51-8 48-16Z', tint(c, 0.6)) +
+        F('M-26 -6C-26-1-22 0-18 0H40C46 0 50-3 49-7Z', tint(c, -0.4)) + F('M-26 -12C-12 -9 10 -12 49 -11L49 -7C10 -8-12 -5-26 -8Z', tint(A, 0.55)) +
+        Fo('M-22 -16C-26 -25-22 -34-11 -36L3 -37C9 -32 16 -27 28 -24C40 -21 48 -19 48 -15Z', c) +
+        F('M-22 -16C-26 -25-22 -34-11 -36L-7 -28C-8 -22-6 -18-2 -16Z', A) +
+        F('M28 -24C40 -21 48 -19 48 -15H33C33 -19 32 -21 28 -24Z', tint(c, -0.14)) +
+        F('M-4 -17C2 -27 14 -30 31 -23C19 -22 9 -19 5 -16Z', A) + F('M8 -17C14 -22 22 -23 30 -21C24 -19 18 -18 14 -16Z', tint(A, 0.5)) +
+        F('M-13 -36C-8 -40 0 -40 4 -37C-1 -35-8 -34-13 -36Z', tint(c, -0.6)) +
+        Fo('M-2 -37C-3 -44 8 -46 11 -38C7 -35 2 -35-2 -37Z', tint(c, -0.06)) +
+        S('M3 -33l3 3M8 -30l3 3M13 -28l3 3', tint(c, -0.5), 1.3) + C(-16, -27, 1.6, tint(A, 0.6)) +
+        S('M-20 -26C-19 -30-16 -33-12 -34M20 -21C26 -20 30 -19 34 -19', tint(c, 0.6), 1.1);
+    },
     hi: (c) => Fo('M-20 -10C-22 -26-21 -40-17 -48L2 -49C3 -38 6 -28 14 -22C24 -17 34 -15 40 -11Z', c) +
       F('M-20 -10C-22 -26-21 -40-17 -48L-12 -48C-15 -36-15 -22-12 -10Z', tint(c, -0.16)) +
       F('M-17 -48C-10 -52-2 -52 2 -49C-4 -47-12 -46-17 -48Z', tint(c, -0.6)) +
@@ -229,7 +231,7 @@
   // place a shoe: origin on the ground under the ankle; dir -1 mirrors; rot lifts the heel (around the toe)
   const SC = 1.2; // shoes a little oversized on the figures
   const feet = (b, id, k, c, sk, L, R) => {
-    b.def(`<g id="${id}-sh">${SH[k](c, sk)}</g>`);
+    b.def(`<g id="${id}-sh">${SH[k](c, sk, sk)}</g>`);
     return b.add([[L, -1], [R, 1]].map(([[x, y, rot], dir]) => `<use href="#${id}-sh" transform="translate(${x} ${y}) scale(${dir * SC} ${SC})${rot ? ` rotate(${rot} 44 0)` : ''}"/>`).join(''));
   };
 
@@ -270,7 +272,7 @@
   // 1 — oversized hoodie, cargo pants, chunky sneakers; hands in the kangaroo pocket
   outfit('boy-hoodie-cargo', 'Hoodie & cargos', ['#7b8d6a', '#4a4a3f', '#f2f0ea', '#b07a55'], (b, g, id) => {
     const c = g(0), p = g(1), s = g(2), sk = g(3);
-    feet(b, id, 'dad', s, sk, [117, 506], [183, 506]);
+    feet(b, id, 'dad', s, tint(c, -0.1), [117, 506], [183, 506]);
     const pk = F('M91 318H120V366C112 371 100 371 92 366Z', tint(p, 0.04), OUT(p)) + F('M90 311H121V326H90Z', tint(p, 0.1), OUT(p)) + C(105.5, 320, 1.8, tint(p, -0.5)) +
       S('M94 402C110 407 130 407 146 402M100 454C110 449 122 455 140 449M98 469C112 463 124 471 144 465', tint(p, -0.32), 1.1);
     pants(b, p, { wy: 226, whw: 54, cr: [150, 288], L: [[123, 238], [120, 360], [118, 474]], W: [58, 53, 54], extra: pk + MX(pk) });
@@ -416,7 +418,6 @@
     // arms behind the jacket
     const AR = [[198, 66], [210, 152], [213, 242]], AL = AR.map(mir), AW = [42, 38, 34];
     for (const P of [AL, AR]) b.part(tube(P, AW, true), c, F(band(P, AW, -0.12, -0.8), tint(c, -0.17)) + F(band(P, AW, 0.44, 0.24), tint(c, 0.1)) + S(`M${P[1][0] - 6} ${P[1][1] - 10}C${P[1][0]} ${P[1][1] - 2} ${P[1][0] + 4} ${P[1][1] + 2} ${P[1][0] + 10} ${P[1][1] + 6}`, tint(c, -0.3), 1));
-    b.add(hand(213, 242, endAng(AR), sk) + hand(87, 242, endAng(AL), sk));
     neck(b, sk);
     b.part(sym([[150, 38, 1], [160, 35], [166, 28], [184, 34], [196, 60], [194, 160, 1], [150, 160, 1]]), TEE, F('M156 40C160 80 160 120 158 160H190V40Z', tint(TEE, -0.1)) + S('M137 28C142 41 158 41 163 28', tint(TEE, -0.15), 3));
     const body = sym([[150, 150, 1], [170, 30], [208, 44, 1], [214, 66], [208, 110], [204, 200], [208, 292, 1], [150, 294, 1]]);
@@ -430,6 +431,7 @@
     const lap = [[138, 24], [124, 30], [110, 38], [95, 39, 1], [105, 56, 1], [116, 58, 1], [112, 66], [126, 106], [148, 152, 1], [140, 104], [137, 44, 1]];
     const ld = S('M116 58L136 44', tint(c, -0.4), 1) + S('M139 50C140 90 142 120 146 146', tint(c, 0.22), 1.4);
     b.part(shape(lap), tint(c, 0.05), ld).part(shape(lap.map(mir)), tint(c, -0.04), MX(ld) + F('M150 0H220V160H160Z', tint(c, -0.12)));
+    b.add(hand(213, 242, endAng(AR), sk) + hand(87, 242, endAng(AL), sk));
   });
 
   // 6 — puffer jacket, joggers, trail shoes; hands in pockets
@@ -562,14 +564,14 @@
   });
 
   /* ======================================================== SHOES & BAGS */
-  const BOX = { dad: [-28, -43, 50, 2], hi: [-24, -53, 49, 1], chelsea: [-23, -61, 47, 1], desert: [-24, -46, 48, 1] };
+  const BOX = { dad: [-29, -46, 51, 2], hi: [-24, -53, 49, 1], chelsea: [-23, -61, 47, 1], desert: [-24, -46, 48, 1] };
   function shoeItem(id, name, kind, w, h, s, colors) {
     item(id, name, w, h, colors, (b, g) => {
       const bx = BOX[kind], tx = w / 2 - ((bx[0] + bx[2]) / 2) * s, ty = h / 2 - ((bx[1] + bx[3]) / 2) * s;
-      b.add(`<g transform="translate(${r(tx)} ${r(ty)}) scale(${s})">${SH[kind](g(0))}</g>`);
+      b.add(`<g transform="translate(${r(tx)} ${r(ty)}) scale(${s})">${SH[kind](g(0), null, (colors[1] && g(1)) || null)}</g>`);
     });
   }
-  shoeItem('shoe-m-dad-sneaker', 'Chunky dad sneaker', 'dad', 300, 190, 3.7, ['#f2f0ea']);
+  shoeItem('shoe-m-dad-sneaker', 'Chunky dad sneaker', 'dad', 300, 190, 3.6, ['#ece6da', '#7c8aa5']);
   shoeItem('shoe-m-hightop', 'High-top canvas sneaker', 'hi', 280, 230, 3.6, ['#b9352d']);
   shoeItem('shoe-m-chelsea', 'Chelsea boot', 'chelsea', 270, 250, 3.6, ['#3b2a20']);
   shoeItem('shoe-m-desert-boot', 'Suede desert boot', 'desert', 280, 220, 3.6, ['#c4a27a']);
