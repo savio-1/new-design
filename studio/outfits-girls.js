@@ -98,7 +98,7 @@
     const nap = o.nap ? (d) => P(d, `url(#${o.nap})`) : () => '';
     if (kind === 'clog') {
       const so = o.sole || '#c9a679';
-      if (o.foot) s += P('M8,-70 L32,-70 L33,-14 L7,-14Z', o.foot);
+      if (o.foot) s += P('M8,-50 L32,-50 L33,-14 L7,-14Z', o.foot);
       s += P('M0,-14 L101,-14 C107,-14 109,-8 106,-4 L2,-4 C0,-6 -1,-10 0,-14Z', so, ol(so, 0.7)) +
         line('M8,-9 L18,-9 M30,-8 L44,-8 M60,-9 L72,-9 M84,-8 L96,-8', tint(so, -0.2), 0.8) +
         P('M2,-4 L106,-4 C106,-1 103,0 100,0 L4,0 C2,0 1,-2 2,-4Z', tint(so, -0.72));
@@ -111,11 +111,11 @@
         P('M26,-15 C26,-30 34,-42 45,-47 L54,-48 C43,-41 35,-30 35,-15Z', tint(c, -0.1), ol(c, 0.7)) +
         `<rect x="25" y="-33" width="11" height="8" rx="2" fill="none" stroke="${o.acc || '#d8c08a'}" stroke-width="1.8"/>`;
     } else if (kind === 'mule') {
-      if (o.foot) s += P('M8,-70 L32,-70 L33,-40 C40,-32 56,-24 78,-14 L64,-6 C46,-10 28,-18 5,-23 C4,-30 6,-36 8,-42Z', o.foot);
+      if (o.foot) s += P('M8,-50 L32,-50 L33,-36 C40,-30 56,-22 78,-14 L64,-6 C46,-8 28,-13 5,-16 C4,-24 6,-30 8,-36Z', o.foot);
       const hd = tint(c, -0.35);
-      s += P('M3,0 L19,0 L21,-21 L2,-23Z', hd, ol(hd, 0.6)) +
-        P('M1,-23 C24,-22 44,-12 62,-6 L101,-5 C106,-5 107,-1 103,0 L62,0 C44,-4 30,-12 21,-17 L21,-21Z', tint(c, -0.5));
-      if (o.inside) s += P('M2,-23 C22,-22 38,-15 48,-10 L47,-7.5 C38,-12 22,-19 2,-21Z', tint(c, 0.2));
+      s += P('M3,0 L18,0 L19,-14 L2,-16Z', hd, ol(hd, 0.6)) +
+        P('M1,-16 C24,-15 44,-8 62,-5 L101,-5 C106,-5 107,-1 103,0 L62,0 C44,-3 30,-8 19,-11 L19,-14Z', tint(c, -0.5));
+      if (o.inside) s += P('M2,-16 C22,-15 38,-10 48,-8 L47,-6 C38,-9 22,-13 2,-14Z', tint(c, 0.2));
       const up = 'M44,-8 C46,-26 58,-36 73,-35 C89,-33 101,-19 106,-5 L62,-5Z';
       s += P(up, c, ol(c)) + nap(up) +
         P('M46,-8 C54,-14 76,-13 104,-6 L62,-5Z', tint(c, -0.2)) +
@@ -125,21 +125,21 @@
     } else if (kind === 'loafer') {
       if (o.foot) s += P('M8,-70 L32,-70 L32,-22 L8,-22Z', o.foot);
       const so = o.sole || '#2c1e17';
-      if (o.inside) s += P('M-1,-28 C12,-33 30,-30 42,-24 C30,-24 14,-26 -1,-26Z', tint(c, -0.55));
-      const up = 'M0,-8 L-1,-28 C12,-31 27,-27 40,-23 C52,-31 66,-33 79,-29 C95,-23 105,-14 103,-8Z';
+      if (o.inside) s += P('M-1,-30 C10,-36 28,-34 40,-27 C28,-28 12,-30 -1,-28Z', tint(c, -0.55));
+      const up = 'M0,-8 L-1,-30 C10,-33 24,-30 36,-26 C48,-34 64,-37 78,-33 C95,-27 106,-16 104,-8Z';
       s += P('M0,-8 L101,-8 C106,-8 107,-3 103,-2 L24,-3 L23,0 L1,0Z', so) +
         P(up, c, ol(c)) + nap(up) +
         P('M1,-8 C30,-13 76,-15 103,-8Z', tint(c, -0.22)) +
-        P('M72,-27 C85,-25 96,-19 100,-12 C92,-18 82,-23 72,-27Z', tint(c, 0.28)) +
-        P('M42,-24 C52,-31 64,-33 75,-30 L73,-23 C63,-26 53,-24 46,-19Z', tint(c, -0.12), ol(c, 0.6)) +
-        `<ellipse cx="59" cy="-26.5" rx="5.5" ry="1.6" transform="rotate(-6 59 -26.5)" fill="${tint(c, -0.6)}"/>` +
-        dash('M75,-29 C87,-26 97,-18 100,-10', tint(c, 0.4)) + line('M3,-27 C6,-18 8,-12 9,-8', tint(c, -0.3), 0.7);
+        P('M74,-31 C87,-28 97,-21 101,-13 C93,-20 83,-26 74,-31Z', tint(c, 0.28)) +
+        P('M40,-27 C50,-34 64,-36 75,-33 L73,-26 C63,-29 53,-27 44,-22Z', tint(c, -0.12), ol(c, 0.6)) +
+        `<ellipse cx="59" cy="-29.5" rx="5.5" ry="1.6" transform="rotate(-6 59 -29.5)" fill="${tint(c, -0.6)}"/>` +
+        dash('M75,-33 C89,-29 99,-20 101,-11', tint(c, 0.4)) + line('M3,-27 C6,-18 8,-12 9,-8', tint(c, -0.3), 0.7);
     } else if (kind === 'sneaker') {
       if (o.foot) s += P('M8,-80 L32,-80 L33,-40 L7,-40Z', o.foot);
       const so = o.sole || tint(c, -0.04), ac = o.acc || tint(c, -0.2);
       s += P('M-3,-17 C-4,-8 -3,0 4,0 L99,0 C107,0 111,-6 109,-14 L105,-19 C80,-15 40,-16 -3,-17Z', so, ol(so, 0.8, -0.3)) +
         line('M2,-5 L104,-5', tint(so, -0.28), 1.3) + line('M8,-11 C40,-12 70,-12 100,-13', tint(so, -0.15), 0.7) +
-        P('M33,-50 C36,-60 46,-62 50,-56 L48,-50Z', tint(c, -0.1), ol(c, 0.7, -0.3)) +
+        P('M33,-50 C36,-60 46,-62 50,-56 L48,-50Z', tint(c, -0.05), ol(c, 0.7, -0.3)) +
         P('M-2,-17 L-1,-47 C8,-51 18,-49 26,-45 C33,-51 41,-54 47,-52 C60,-41 80,-31 101,-25 C108,-23 109,-19 105,-17Z', c, ol(c, 0.8, -0.32)) +
         P('M80,-18 C88,-27 99,-27 106,-19Z', tint(c, -0.08), ol(c, 0.6, -0.3)) +
         P('M16,-18 C28,-36 50,-40 72,-31 C60,-29 46,-25 34,-18Z', ac, ol(ac, 0.6, -0.3)) +
@@ -153,13 +153,13 @@
         P('M0,-7 L100,-7 C105,-7 106,-2 102,-1 L20,-2 L18,-7Z', tint(c, -0.3)) +
         P('M0,-7 L0,-26 C12,-28 24,-24 34,-20 C50,-26 70,-28 86,-23 C99,-18 105,-12 102,-7Z', c, ol(c, 0.8, 0.25)) +
         line('M70,-24 C83,-23 92,-19 97,-12', tint(c, 0.6), 2.4) + line('M4,-22 L4,-12', tint(c, 0.45), 1.6) +
-        P('M24,-22 C25,-32 30,-40 36,-44 L43,-43 C37,-37 33,-29 33,-21Z', c, ol(c, 0.7, 0.25)) +
-        circ(28.5, -24.5, 2.4, tint(c, 0.4));
+        P('M23,-21 C25,-35 42,-40 52,-26 L47,-24.5 C40,-33 31,-31 30,-20Z', c, ol(c, 0.7, 0.25)) +
+        circ(26.5, -23.5, 2.4, tint(c, 0.4));
     } else if (kind === 'sandal') {
       const sk = o.foot || '#dca27f', skc = o.skin || sk;
       s += P('M1,0 L14,0 L15,-12 L0,-13Z', tint(c, -0.3)) +
         P('M0,-13 C20,-12 40,-6 58,-4 L102,-4 C107,-4 107,0 102,0 L58,0 C40,-2 24,-6 15,-8 L14,-12Z', tint(c, -0.25)) +
-        P('M8,-64 L32,-64 L32,-14 L3,-14 C2,-24 4,-30 8,-36Z', sk) + P('M30,-46 C42,-32 64,-20 92,-12 C101,-10 105,-7 103,-5 L58,-5 C40,-8 24,-12 2,-14 C2,-18 4,-22 6,-24 L30,-26Z', skc, ol(skc, 0.6, -0.3)) +
+        P('M8,-50 L32,-50 L32,-14 L3,-14 C2,-24 4,-30 8,-36Z', sk) + P('M30,-46 C42,-32 64,-20 92,-12 C101,-10 105,-7 103,-5 L58,-5 C40,-8 24,-12 2,-14 C2,-18 4,-22 6,-24 L30,-26Z', skc, ol(skc, 0.6, -0.3)) +
         line('M88,-11 L90,-6 M96,-9 L97,-5', tint(skc, -0.25), 0.7) +
         P('M6,-46 L34,-44 L34,-38 L6,-40Z', c, ol(c, 0.5)) +
         P('M30,-48 L50,-28 L45,-25 L27,-43Z', c, ol(c, 0.5)) +
@@ -174,7 +174,30 @@
     `<use href="#${id}-f" transform="translate(${ax},${gy})${rot ? ` rotate(${rot})` : ''} scale(${dir * 0.58},0.92) translate(-20,0)"/>`;
   const feet = (id, kind, a, b, gy, c, o) => shoeDef(id, kind, c, o) + useShoe(id, a, gy, -1) + useShoe(id, b, gy, 1);
 
+  // n horizontal fingers wrapped round a prop, from x to x+len starting at y0
+  const fingers = (x, y0, len, n, sk) => {
+    let d = '';
+    for (let i = 0; i < n; i++) d += `M${x},${N(y0 + i * 5.5)} L${x + len},${N(y0 + i * 5.5)}`;
+    return line(d, tint(sk, -0.3), 6.6) + line(d, sk, 5.2);
+  };
+  // pleated skirt: n panels fanning from top edge [a,b]@y0 to hem [c,d]@y1, clipped to path `clip`
+  function pleats(id, clip, a, b, y0, c, d, y1, n, col) {
+    let sh = '', ln = '';
+    for (let i = 0; i < n; i++) {
+      const x0 = a + (b - a) * i / n, x1 = c + (d - c) * i / n, w0 = (b - a) / n, w1 = (d - c) / n;
+      const h = (k) => N(y1 + 6 * Math.sin(k / n * Math.PI));
+      if (i % 2) sh += `M${N(x0)},${y0} L${N(x0 + w0)},${y0} L${N(x1 + w1)},${h(i + 1)} L${N(x1)},${h(i)}Z`;
+      if (i) ln += `M${N(x0)},${y0} L${N(x1)},${h(i)}`;
+    }
+    return `<clipPath id="${id}-cp"><path d="${clip}"/></clipPath><g clip-path="url(#${id}-cp)">` +
+      P(sh, tint(col, -0.5), op(0.3)) + line(ln, tint(col, -0.5), 0.7) + '</g>';
+  }
+
   /* bags & props (local coords) */
+  const weave = (id, c) => `<pattern id="${id}-wv" width="10" height="10" patternUnits="userSpaceOnUse">` +
+    `<path d="M0,2.5 L5,2.5 M5,7.5 L10,7.5" stroke="${tint(c, 0.13)}" stroke-width="3.2"/>` +
+    `<path d="M7.5,0 L7.5,5 M2.5,5 L2.5,10" stroke="${tint(c, -0.08)}" stroke-width="3.2"/>` +
+    `<path d="M0,5 L10,5 M5,0 L5,10" stroke="${tint(c, -0.3)}" stroke-width=".4"/></pattern>`;
   function tote(c, hd, id) { // body 0..100 × 4..100, handles up to ≈-30
     const b = 'M2,4 L98,4 L91,92 C90,97 86,100 80,100 L20,100 C14,100 10,97 9,92Z';
     return line('M22,8 C20,-34 80,-34 78,8', tint(hd, -0.3), 5) + P(b, c, ol(c)) + P(b, `url(#${id}-wv)`) +
@@ -219,7 +242,7 @@
   // 1 — striped oversized knit cardigan, sparkly mini skirt, clogs
   outfit('girl-striped-cardigan', 'Striped cardigan', ['#5b7fd0', '#2a2430', '#7b4f36', '#e2aa86', '#5d2c50'], ([t, b, sh, sk, st], id) => {
     const defs = lg(id + '-sk', sk) +
-      `<pattern id="${id}-st" width="10" height="26" patternUnits="userSpaceOnUse"><rect y="4" width="10" height="9" fill="${st}"/><rect y="13" width="10" height="1.6" fill="${tint(t, 0.35)}"/></pattern>` +
+      `<pattern id="${id}-st" width="10" height="26" patternUnits="userSpaceOnUse"><rect width="10" height="26" fill="${t}"/><rect y="4" width="10" height="9" fill="${st}"/><rect y="13" width="10" height="1.6" fill="${tint(t, 0.35)}"/></pattern>` +
       `<pattern id="${id}-sq" width="7" height="7" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.3" fill="${tint(b, 0.35)}"/><circle cx="5.5" cy="5.5" r="1.1" fill="${tint(b, 0.62)}"/></pattern>` +
       `<pattern id="${id}-rb" width="4" height="10" patternUnits="userSpaceOnUse"><rect width="1.5" height="10" fill="${tint(t, -0.3)}"/></pattern>`;
     const LL = [[135, 262], [133, 355], [133, 402], [132, 462]], LW = [30, 20, 22, 14];
@@ -230,15 +253,17 @@
       P('M136,240 L126,288 L142,289Z', tint(b, -0.4), op(0.6)) + P('M166,240 L176,288 L160,289Z', tint(b, -0.4), op(0.6));
     s += P('M136,34 L164,34 L151,120 L149,120Z', sk) + neck(sk) + line('M141,40 Q150,66 159,40', '#e2c37a', 0.9);
     const body = 'M137,36 L106,47 C96,51 90,58 89,70 L87,224 L150,224 L150,116Z';
-    s += both(body, t) + both(body, `url(#${id}-st)`) + both('M100,66 L118,68 L116,224 L96,224Z', tint(t, -0.45), op(0.3));
+    s += both(body, `url(#${id}-st)`) + both('M100,66 L118,68 L116,224 L96,224Z', tint(t, -0.45), op(0.3));
     const hem = 'M87,220 L213,220 L213,241 C180,246 120,246 87,241Z';
     s += P(hem, t, ol(t)) + P(hem, `url(#${id}-rb)`);
     s += line('M163,37 L149.5,117 L149.5,242', tint(t, 0.08), 8) + line('M137,37 L150.5,117 L150.5,242', tint(t, 0.12), 8) +
       line('M137.5,38 L150.5,116', tint(t, -0.3), 0.6);
     for (const y of [130, 156, 182, 208]) s += circ(150.5, y, 3.6, tint(st, 0.7), ol(st, 0.6, 0)) ;
-    const sl = sleeve([[97, 62], [88, 136], [82, 212]], [36, 44, 40]);
-    s += both(sl, t, ol(t)) + both(sl, `url(#${id}-st)`) + both(tube([[110, 78], [104, 140], [99, 206]], [5, 9, 7]), tint(t, -0.5), op(0.35)) +
-      bothL('M81,66 C88,60 100,58 112,60', tint(t, -0.35), 0.8);
+    const sl = tube([[106, 66], [90, 136], [82, 212]], [30, 44, 40]);
+    s += both(sl, `url(#${id}-st)`, ol(t)) + both(tube([[112, 80], [104, 140], [99, 206]], [5, 9, 7]), tint(t, -0.5), op(0.35));
+    const yoke = 'M137,36 L106,46 C96,50 90,60 89,75 C98,72 108,74 118,80 L126,40Z';
+    s += both(yoke, `url(#${id}-st)`) + bothL('M137,36 L106,46 C96,50 90,60 89,75', tint(t, -0.38), 0.8) +
+      bothL('M89,75 C98,72 108,74 118,80', tint(t, -0.3), 0.8);
     const cuff = tube([[82, 208], [81, 232]], [34, 31]);
     s += both(cuff, t, ol(t)) + both(cuff, `url(#${id}-rb)`);
     s += hand(81, 230, 3, sk, 1) + hand(219, 230, -3, sk, -1);
@@ -260,9 +285,6 @@
       dash('M84,484 L138,480', tint(b, -0.3));
     s += P('M112,196 L188,196 L192,250 C170,262 130,262 108,250Z', b);
     s += P('M136,34 L164,34 L156,122 L144,122Z', tee) + neck(sk) + line('M139,42 Q150,49 161,42', tint(tee, -0.25), 1.2);
-    // sleeve behind (left arm swings back)
-    s += P(sleeve([[104, 58], [95, 138], [90, 212]], [30, 28, 25]), `url(#${id}-t)`, ol(t)) +
-      line('M78,190 L102,192', tint(t, -0.3), 4) + hand(90, 210, 5, sk, 1);
     const half = 'M138,34 L105,46 C97,50 94,58 94,68 L98,168 L88,270 C110,277 130,279 150,279 L150,122Z';
     s += both(half, t, ol(t)) + both('M98,70 L112,74 L110,272 L90,270Z', tint(t, -0.4), op(0.3)) +
       both('M104,48 L132,44 L136,96 C122,100 110,100 102,98Z', tint(t, 0.04), ol(t, 0.7)) +
@@ -275,6 +297,9 @@
     for (const y of [138, 156, 196, 222]) s += circ(134, y, 3.2, tint(t, -0.5)) + circ(166, y, 3.2, tint(t, -0.5));
     s += line('M150,124 L150,278', tint(t, -0.38), 0.9) + both('M104,206 L124,202 L126,212 L106,216Z', tint(t, -0.06), ol(t, 0.7)) +
       dash('M91,266 C112,272 188,272 209,266', tint(t, -0.3));
+    // left arm swings back
+    s += P(sleeve([[104, 58], [95, 138], [90, 212]], [30, 28, 25]), `url(#${id}-t)`, ol(t)) +
+      line('M78,190 L102,192', tint(t, -0.3), 4) + hand(90, 210, 5, sk, 1);
     // front sleeve, arm swinging forward
     s += P(sleeve([[196, 58], [207, 134], [198, 206]], [30, 28, 25]), `url(#${id}-t)`, ol(t)) +
       line('M186,186 L211,191', tint(t, -0.3), 4) + `<rect x="186" y="185" width="6" height="7" rx="1" fill="none" stroke="${tint(t, -0.6)}" stroke-width="1.2"/>` +
@@ -292,13 +317,13 @@
       bothL('M113,252 L104,370 L95,480', gold, 0.8, ' stroke-dasharray="2.4 2"') + bothL('M93,477 L148,477', gold, 0.8, ' stroke-dasharray="2.4 2"') +
       bothL('M110,340 Q122,334 136,342 M104,420 Q116,414 130,422', tint(b, -0.3), 1) + bothL('M131,270 L124,470', tint(b, 0.3), 1.2);
     s += P('M136,34 L164,34 L157,156 L143,156Z', tee) + neck(sk);
-    // left arm
-    s += P(sleeve([[104, 58], [98, 140], [99, 222]], [30, 28, 24]), `url(#${id}-t)`, ol(t)) + dash('M88,212 L110,213', tint(t, 0.3)) + hand(99, 220, 2, sk, 1);
     const half = 'M139,36 L106,46 C98,50 95,58 95,68 L97,168 L92,262 C112,265 132,266 150,266 L150,152Z';
     s += both(half, t, ol(t)) + both('M98,70 L114,72 L112,262 L93,262Z', tint(t, -0.4), op(0.3));
     s += both('M139,35 L118,49 L126,58 L113,68 L148,156 L150,154Z', tint(t, 0.1), ol(t)) + bothL('M126,58 L144,130', tint(t, -0.25), 0.7) +
       both('M102,214 L134,212 L134,222 L102,224Z', tint(t, 0.06), ol(t, 0.7)) + line('M110,112 L130,110', tint(t, -0.4), 2.4) +
       line('M150,154 L150,236 C148,248 144,258 138,265', tint(t, -0.4), 0.9) + circ(153, 172, 3.4, tint(t, -0.55));
+    // left arm
+    s += P(sleeve([[104, 58], [98, 140], [99, 222]], [30, 28, 24]), `url(#${id}-t)`, ol(t)) + dash('M88,212 L110,213', tint(t, 0.3)) + hand(99, 220, 2, sk, 1);
     // scarf
     s += P('M139,28 C146,33 154,33 161,28 L163,40 C155,45 145,45 137,40Z', sc, ol(sc)) +
       P('M134,44 L117,64 L128,67 L139,48Z', sc, ol(sc)) + P('M138,46 L134,73 L144,71 L143,47Z', tint(sc, -0.18), ol(sc)) +
@@ -309,7 +334,7 @@
     s += G('translate(181,140)', cup());
     s += P(tube([[212, 136], [192, 124]], [26, 22]), tint(t, -0.05), ol(t)) + dash('M196,113 L190,134', tint(t, 0.3));
     s += P('M186,112 C194,110 200,116 199,124 C198,132 192,136 186,134Z', sk, ol(sk, 0.6, -0.3));
-    for (const y of [114, 119.5, 125, 130.5]) s += `<rect x="170" y="${y}" width="22" height="5.4" rx="2.7" fill="${sk}" stroke="${tint(sk, -0.3)}" stroke-width=".6"/>`;
+    s += fingers(172, 117, 18, 4, sk);
     return [defs, s];
   });
 
@@ -323,9 +348,6 @@
       bothL('M136,200 L134,250', tint(b, 0.2), 0.9) + bothL('M112,200 C118,214 122,226 124,236', tint(b, 0.25), 0.9);
     s += P('M134,34 L166,34 L163,226 L137,226Z', tee) + P('M136,34 L164,34 L160,226 L156,226Z', tint(tee, -0.08)) + neck(sk) +
       line('M138,42 Q150,50 162,42', tint(tee, -0.25), 1.3);
-    // right arm
-    s += P(sleeve([[197, 58], [204, 140], [200, 214]], [30, 28, 25]), `url(#${id}-t)`, ol(t)) + line('M188,204 L212,206', tint(t, -0.3), 1) +
-      hand(200, 212, -4, sk, -1);
     const half = 'M139,36 L104,46 C96,50 93,58 93,68 L96,212 L138,212 C137,160 137,120 140,60Z';
     s += both(half, t, ol(t)) + both('M96,70 L110,72 L110,212 L96,212Z', tint(t, -0.4), op(0.35)) +
       both('M96,208 L138,208 L138,226 L96,226Z', tint(t, -0.12), ol(t)) + both('M134,212 L140,212 L140,222 L134,222Z', '#c9b48a');
@@ -333,6 +355,9 @@
       both('M106,96 L131,94 L131,106 L106,108Z', tint(t, 0.05), ol(t, 0.7)) + circ(118.5, 102, 1.6, '#c9b48a') + circ(181.5, 102, 1.6, '#c9b48a') +
       bothL('M110,150 L122,196', tint(t, -0.6), 1.6) + bothL('M106,74 C112,58 124,52 134,52', tint(t, -0.3), 0.8) +
       bothL('M100,60 Q110,52 122,50 M108,118 C110,140 112,166 110,196', tint(t, 0.45), 1.4, op(0.6));
+    // right arm
+    s += P(sleeve([[197, 58], [204, 140], [200, 214]], [30, 28, 25]), `url(#${id}-t)`, ol(t)) + line('M188,204 L212,206', tint(t, -0.3), 1) +
+      hand(200, 212, -4, sk, -1);
     // left arm with mini bag
     s += P(sleeve([[104, 58], [97, 140], [100, 214]], [30, 28, 25]), `url(#${id}-t)`, ol(t)) + line('M88,204 L112,206', tint(t, -0.3), 1) +
       line('M94,124 C96,140 96,160 94,180', tint(t, 0.45), 1.4, op(0.6));
@@ -348,38 +373,34 @@
   // 5 — olive polka-dot oversized shirt, grey pleated midi skirt, taupe clogs (hand on hip)
   outfit('girl-polka-shirt', 'Polka-dot shirt & pleats', ['#6e7444', '#9c9ca0', '#a08c78', '#e3ad89', '#f2ecdc'], ([t, b, sh, sk, dt], id) => {
     const defs = lg(id + '-sk', sk) +
-      `<pattern id="${id}-pd" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="3.5" cy="3.5" r="2.1" fill="${dt}"/><circle cx="10.5" cy="10.5" r="2.1" fill="${dt}"/></pattern>`;
+      `<pattern id="${id}-pd" width="14" height="14" patternUnits="userSpaceOnUse"><rect width="14" height="14" fill="${t}"/><circle cx="3.5" cy="3.5" r="2.1" fill="${dt}"/><circle cx="10.5" cy="10.5" r="2.1" fill="${dt}"/></pattern>`;
     const LL = [[136, 392], [134, 430], [133, 462]], LW = [22, 21, 14];
     let s = P(tube(LL, LW), `url(#${id}-sk)`) + P(tube(mp(LL), LW), `url(#${id}-sk)`);
     s += feet(id, 'clog', 133, 167, 505, sh, { foot: `url(#${id}-sk)` });
     s += P('M116,196 L184,196 L212,412 C170,420 130,420 88,412Z', b, ol(b));
-    for (let i = 0; i < 10; i++) {
-      const x0 = 116 + i * 6.8, x1 = 88 + i * 12.4;
-      if (i % 2) s += P(`M${N(x0)},198 L${N(x0 + 6.8)},198 L${N(x1 + 12.4)},${N(412 + 6 * Math.sin((i + 0.5) / 10 * Math.PI))} L${N(x1)},${N(412 + 6 * Math.sin(i / 10 * Math.PI))}Z`, tint(b, -0.14));
-      s += line(`M${N(x0)},200 L${N(x1)},${N(412 + 6 * Math.sin(i / 10 * Math.PI))}`, tint(b, -0.3), 0.6);
-    }
+    s += pleats(id, 'M116,196 L184,196 L212,412 C170,420 130,420 88,412Z', 116, 184, 198, 88, 212, 412, 10, b);
     s += P('M138,34 L162,34 L150,60Z', sk) + neck(sk);
     const half = 'M139,34 L102,46 C94,50 90,58 90,68 L93,238 C100,246 114,250 128,246 C138,243 145,245 150,249 L150,40Z';
-    s += both(half, t, ol(t)) + both(half, `url(#${id}-pd)`) + both('M94,72 L110,74 L110,244 L94,240Z', tint(t, -0.45), op(0.35)) +
+    s += both(half, `url(#${id}-pd)`, ol(t)) + both('M94,72 L110,74 L110,244 L94,240Z', tint(t, -0.45), op(0.35)) +
       bothL('M112,180 C116,200 116,220 112,240 M132,200 L134,244', tint(t, -0.35), 1);
     s += P('M146,48 L154,48 L154,248 L146,248Z', t, ol(t, 0.6)) + P('M146,48 L154,48 L154,248 L146,248Z', `url(#${id}-pd)`, op(0.5));
     for (const y of [72, 102, 132, 162, 192, 222]) s += circ(150, y, 2.4, tint(dt, -0.1), ol(dt, 0.5, -0.4));
     const pk = 'M108,92 L132,92 L132,117 L120,121 L108,117Z';
-    s += P(pk, t, ol(t)) + P(pk, `url(#${id}-pd)`) + line('M108,97 L132,97', tint(t, -0.35), 0.7);
+    s += P(pk, `url(#${id}-pd)`, ol(t)) + line('M108,97 L132,97', tint(t, -0.35), 0.7);
     const cl = 'M140,31 L119,44 L132,66 L149,46Z';
-    s += both(cl, t, ol(t)) + both(cl, `url(#${id}-pd)`) + bothL('M125,56 L132,66', tint(t, -0.35), 1);
+    s += both(cl, `url(#${id}-pd)`, ol(t)) + bothL('M125,56 L132,66', tint(t, -0.35), 1);
     // left arm on hip
     const sl = sleeve([[104, 58], [86, 122]], [36, 32]);
     s += P(tube([[82, 128], [96, 168], [116, 190]], [17, 15, 13]), `url(#${id}-sk)`, ol(sk, 0.5, -0.25)) + hand(116, 189, -58, sk, -1);
-    s += P(sl, t, ol(t)) + P(sl, `url(#${id}-pd)`);
+    s += P(sl, `url(#${id}-pd)`, ol(t));
     const rl = tube([[87, 118], [83, 136]], [34, 31]);
-    s += P(rl, tint(t, 0.06), ol(t)) + P(rl, `url(#${id}-pd)`) + line('M70,126 L98,130', tint(t, -0.35), 0.8);
+    s += P(rl, `url(#${id}-pd)`, ol(t)) + line('M70,126 L98,130', tint(t, -0.35), 0.8);
     // right arm hanging
     s += P(tube([[212, 130], [212, 180], [208, 214]], [17, 15, 13]), `url(#${id}-sk)`, ol(sk, 0.5, -0.25)) + hand(208, 212, 5, sk, -1);
     const sr = sleeve([[196, 58], [210, 126]], [36, 32]);
-    s += P(sr, t, ol(t)) + P(sr, `url(#${id}-pd)`);
+    s += P(sr, `url(#${id}-pd)`, ol(t));
     const rr = tube([[210, 122], [212, 140]], [34, 31]);
-    s += P(rr, tint(t, 0.06), ol(t)) + P(rr, `url(#${id}-pd)`) + line('M196,131 L227,131', tint(t, -0.35), 0.8);
+    s += P(rr, `url(#${id}-pd)`, ol(t)) + line('M196,131 L227,131', tint(t, -0.35), 0.8);
     return [defs, s];
   });
 
@@ -391,16 +412,17 @@
       `<circle cx="8" cy="8" r="1.7" fill="${tint(fl, 0.7)}"/><ellipse cx="15" cy="15" rx="3.2" ry="1.4" transform="rotate(35 15 15)" fill="${tint(t, 0.4)}"/>` +
       `<g fill="${tint(fl, 0.45)}"><circle cx="23" cy="21" r="1.9"/><circle cx="25.6" cy="23.4" r="1.9"/><circle cx="23" cy="25.8" r="1.9"/><circle cx="20.4" cy="23.4" r="1.9"/></g>` +
       `<circle cx="23" cy="23.4" r="1.1" fill="${tint(fl, -0.3)}"/><circle cx="26" cy="7" r="1" fill="${tint(t, 0.5)}"/></pattern>` +
-      `<pattern id="${id}-wv" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,2 L4,2 M4,6 L8,6 M2,0 L2,4 M6,4 L6,8" stroke="${tint(st, -0.3)}" stroke-width="1.1"/></pattern>`;
+      weave(id, st);
     const LL = [[137, 370], [135, 420], [134, 462]], LW = [22, 22, 13];
     let s = P(tube(LL, LW), `url(#${id}-sk)`) + P(tube(mp(LL), LW), `url(#${id}-sk)`);
     s += feet(id, 'sandal', 134, 166, 505, sh, { foot: `url(#${id}-sk)`, skin: sk });
-    s += P('M134,36 C124,42 114,46 108,50 C104,54 103,60 104,66 L110,120 L190,120 L196,66 C197,60 196,54 192,50 C186,46 176,42 166,36Z', sk, ol(sk, 0.6, -0.25)) +
-      neck(sk) + bothL('M128,52 C134,54 140,54 145,52', tint(sk, -0.22), 0.8);
-    // arms; the right hand carries the tote by its handles
-    s += P(sleeve([[106, 60], [98, 140], [99, 220]], [24, 19, 14]), `url(#${id}-sk)`, ol(sk, 0.5, -0.25)) + hand(99, 218, 2, sk, 1);
+    // arms (under the shoulders); the right hand carries the tote by its handles
+    s += P(tube([[104, 62], [98, 140], [99, 220]], [24, 19, 14]), `url(#${id}-sk)`, ol(sk, 0.5, -0.25)) + hand(99, 218, 2, sk, 1);
     s += G('translate(172,240) scale(.6)', tote(st, tint(st, -0.55), id));
-    s += P(sleeve([[194, 60], [203, 140], [202, 214]], [24, 19, 14]), `url(#${id}-sk)`, ol(sk, 0.5, -0.25)) + hand(202, 212, -3, sk, -1);
+    s += P(tube([[196, 62], [203, 140], [201, 214]], [24, 19, 14]), `url(#${id}-sk)`, ol(sk, 0.5, -0.25)) + hand(201, 212, -3, sk, -1);
+    s += P('M134,36 C122,44 108,46 100,52 C94,56 90,64 92,76 L110,120 L190,120 L208,76 C210,64 206,56 200,52 C192,46 178,44 166,36Z', sk) +
+      bothL('M92,76 C90,64 94,56 100,52 C108,46 122,44 134,38', tint(sk, -0.3), 0.6) +
+      neck(sk) + bothL('M128,52 C134,54 140,54 145,52', tint(sk, -0.22), 0.8);
     const dr = 'M120,80 C132,92 168,92 180,80 L187,120 C187,140 179,158 176,176 C186,240 200,330 212,398 C180,410 120,410 88,398 C100,330 114,240 124,176 C121,158 113,140 113,120Z';
     s += P(dr, t, ol(t)) + P(dr, `url(#${id}-fl)`) +
       P('M134,190 C130,260 122,330 114,400 L126,402 C134,330 140,260 140,190Z', tint(t, 0.5), op(0.22)) +
@@ -424,18 +446,13 @@
     s += feet(id, 'mary', 132, 168, 505, sh, { foot: '#f7f5f0' });
     const sk1 = 'M116,196 L184,196 L201,278 C170,284 130,284 99,278Z';
     s += P(sk1, `url(#${id}-pl)`, ol(b));
-    for (let i = 0; i < 8; i++) {
-      const x0 = 116 + i * 8.5, x1 = 99 + i * 12.75;
-      s += line(`M${N(x0)},204 L${N(x1)},281`, tint(b, -0.55), 0.8);
-      if (i % 2) s += P(`M${N(x0)},204 L${N(x0 + 8.5)},204 L${N(x1 + 12.75)},281 L${N(x1)},281Z`, tint(b, -0.6), op(0.25));
-    }
+    s += pleats(id, sk1, 116, 184, 200, 99, 201, 278, 8, b);
     s += P('M108,196 L192,196 L194,212 C170,217 130,217 106,212Z', sht, ol(sht, 0.6, -0.25));
     s += P('M139,34 L104,46 C96,50 93,58 93,68 L96,200 L204,200 L207,68 C207,58 204,50 196,46 L161,34Z', `url(#${id}-sh)`, ol(sht, 0.6, -0.25)) + neck(sk);
     const half = 'M137,38 L122,42 C119,64 114,84 106,98 L108,202 L150,204 L150,114Z';
     s += both(half, t, ol(t, 0.7)) + both('M106,98 L120,104 L120,202 L108,202Z', tint(t, -0.3), op(0.35));
-    let cab = '';
-    for (let y = 104; y < 180; y += 12) cab += `M124,${y} C124,${y + 6} 131,${y + 6} 131,${y + 12} M131,${y} C131,${y + 4} 128,${y + 5} 127.5,${y + 6}`;
-    s += line(cab, tint(t, -0.28), 1.3) + line(mir(cab), tint(t, -0.28), 1.3) + bothL('M120,104 L121,184 M135,104 L136,184', tint(t, -0.18), 0.8);
+    const cab = 'M124,104' + 'c0,6 7,6 7,12m0,-12c0,4 -3,5 -3.5,6m-3.5,6'.repeat(7);
+    s += `<g id="${id}-cb">${line(cab, tint(t, -0.28), 1.3)}</g><use href="#${id}-cb" transform="matrix(-1 0 0 1 300 0)"/>` + bothL('M120,104 L121,184 M135,104 L136,184', tint(t, -0.18), 0.8);
     const hem = 'M107,186 L193,186 L193,204 L107,204Z';
     s += P(hem, t, ol(t, 0.7)) + P(hem, `url(#${id}-rb)`) +
       bothL('M138,40 L150,112', t, 6) + bothL('M138,40 L150,112', tint(t, -0.22), 6, ' stroke-dasharray="1.2 2.4"') +
@@ -444,12 +461,12 @@
     // arms
     s += P(sleeve([[101, 58], [93, 140], [95, 214]], [28, 26, 24]), `url(#${id}-sh)`, ol(sht, 0.6, -0.25)) +
       P(tube([[95, 206], [95, 222]], [25, 24]), sht, ol(sht, 0.6, -0.3)) + hand(95, 220, 2, sk, 1);
-    s += P(sleeve([[199, 58], [214, 134]], [28, 26]), `url(#${id}-sh)`, ol(sht, 0.6, -0.25)) + circ(214, 134, 12.6, tint(sht, -0.06)) +
-      P(tube([[214, 136], [194, 150]], [25, 22]), tint(sht, -0.04), ol(sht, 0.6, -0.25)) + P(tube([[198, 147], [192, 151]], [23, 22]), sht, ol(sht, 0.6, -0.3));
+    s += P(sleeve([[199, 58], [212, 126]], [28, 26]), `url(#${id}-sh)`, ol(sht, 0.6, -0.25)) + circ(212, 127, 12.4, tint(sht, -0.06)) +
+      P(tube([[213, 128], [194, 148]], [24, 21]), tint(sht, -0.03), ol(sht, 0.6, -0.25)) + line('M187,141 L200,154', tint(sht, -0.3), 0.8);
     s += `<rect x="166" y="104" width="27" height="50" rx="6" fill="${tint(b, 0.55)}" stroke="${tint(b, -0.2)}" stroke-width=".8"/>` +
       `<rect x="170" y="108" width="11" height="13" rx="3" fill="${tint(b, 0.3)}"/>` + circ(173.5, 111.5, 2, '#2a2a2e') + circ(173.5, 117.5, 2, '#2a2a2e') + circ(178.5, 114.5, 1.6, '#2a2a2e');
     s += P('M186,138 C194,136 196,148 192,156 C188,160 184,158 183,154Z', sk, ol(sk, 0.6, -0.3));
-    for (const y of [130, 136, 142, 148]) s += `<rect x="162" y="${y}" width="13" height="5.4" rx="2.7" fill="${sk}" stroke="${tint(sk, -0.3)}" stroke-width=".6"/>`;
+    s += fingers(164, 133, 9, 4, sk);
     return [defs, s];
   });
 
@@ -495,8 +512,8 @@
   const napPat = (id, c) => `<pattern id="${id}" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".5" fill="${tint(c, 0.18)}"/><circle cx="3.5" cy="3" r=".5" fill="${tint(c, -0.16)}"/></pattern>`;
   const shadow = (cx, cy, rx) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${N(rx * 0.06)}" fill="#000" opacity=".16"/>`;
 
-  item('shoe-suede-clog', 'Suede clog', 360, 190, ['#a9774c', '#c9a679', '#d8c08a'], ([c, so, ac], id) =>
-    [napPat(id + '-nap', c), shadow(178, 164, 150) + G('translate(28,166) rotate(-9) scale(2.9)', shoe('clog', c, { sole: so, acc: ac, inside: 1, nap: id + '-nap' }))]);
+  item('shoe-suede-clog', 'Suede clog', 360, 210, ['#a9774c', '#c9a679', '#d8c08a'], ([c, so, ac], id) =>
+    [napPat(id + '-nap', c), shadow(178, 186, 150) + G('translate(28,188) rotate(-9) scale(2.9)', shoe('clog', c, { sole: so, acc: ac, inside: 1, nap: id + '-nap' }))]);
 
   item('shoe-red-clog-pair', 'Red suede clogs', 360, 230, ['#c0392b', '#c9a679', '#d8c08a'], ([c, so, ac], id) =>
     [napPat(id + '-nap', c), shadow(180, 214, 158) +
@@ -516,7 +533,7 @@
     ['', shadow(160, 146, 140) + G('translate(16,144) scale(2.75)', shoe('mary', c, { acc: ln, inside: 1 }))]);
 
   item('bag-straw-tote', 'Straw tote', 240, 290, ['#d8b46a', '#7a4a2c'], ([c, hd], id) =>
-    [`<pattern id="${id}-wv" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0,2 L4,2 M4,6 L8,6 M2,0 L2,4 M6,4 L6,8" stroke="${tint(c, -0.3)}" stroke-width="1.1"/></pattern>`,
+    [weave(id, c),
       G('translate(20,78) scale(2)', tote(c, hd, id))]);
 
   item('bag-mini-baguette', 'Mini baguette bag', 280, 240, ['#b8492f', '#d6b56a'], ([c, hw]) =>
