@@ -76,12 +76,23 @@ Designs live in this browser's storage, so clearing site data removes them — d
 - **Film camera** template family (10): Contact sheet (strips of negatives with grease-pencil marks), Countdown leader (3-2-1 film leader into your clip), Film strip, Light table (slide mounts), Instant stack, Darkroom (prints drying under the safelight), Negative scan, Half frame (two pictures in one frame), Medium format and Photo booth.
 - Heavy looks on a video (bloom, halation, sharpen) are graded at a smaller size while previewing so playback keeps up; the export uses full size.
 
+## Photo effects and Paper & ID
+
+- **Photo effects** template family (19): Halftone scribble (halftone portrait with yellow marker scribbles), Shredded (photo cut into offset strips), How much can you see (red block with a scattered sentence), Mosaic grid, Mirror repeat (with a mirrored name), Eye strip, Then & now (childhood photos across the eyes), Note over face, Word grid (a sentence laid out word by word over a tinted photo), Brand fade, Face swap, Ghost blur, Retro phone screen, Signed booth (portraits with signatures), Red bar, Taped to the wall, Print on red, Studio backdrop and Grid paper portrait.
+- **Paper & ID** template family (10): Mugshot record (height chart, fingerprints, rubber stamps), Inquiry stamp, ID badge, A portrait of you, Certificate, Personal record, Pass card, Friendship application, About me note and Profile card. Field text, names and numbers are ordinary text layers.
+- New photo frames that cut the picture up: **Shredded strips** (number of strips, gap, how far they slide, *Shuffle*), **Mosaic grid** (tiles across, gap, how many tiles get a flat colour or slip out of line, *Shuffle*) and **Mirror repeat** (washed-out mirrored copies either side of the photo).
+- Rewordings from the reference board: “born to die” became “born to create”, the mugshot's charge reads “Stealing the show”, and real agency and brand names were replaced with made-up ones.
+
 ## Selecting layers
 
 - **Shift** + click adds a layer to the selection; **Shift** + drag draws a box that adds every layer it touches — even when you start the drag on top of a photo. A layer that surrounds the whole box (like a full-bleed background photo) is left out.
 - **Alt / Option** + click removes a layer from the selection; **Alt** + drag from an empty part of the canvas removes everything the box touches. Alt-dragging a selected layer still drops a copy.
 - **Measure distances**: with a layer selected — or while dragging it — hold **Alt / Option** to see red measurement lines with the distance in pixels to each canvas edge. Point at another layer while holding Alt to measure the gaps to that layer instead.
 - **⌘ / Ctrl** + click toggles a layer. The same Shift / Alt / ⌘ rules work in the Layers panel.
+- **Several text layers at once**: select them (Shift-click or box) and the inspector shows the text controls — font, weight, size, alignment, colour, spacing, background — which change all of them. Several shapes work the same way.
+- **Blend mode**: every layer (and every multi-selection) has a blend menu next to opacity at the top of the inspector — Normal, Darken, Multiply, Colour burn, Lighten, Screen, Colour dodge, Overlay, Soft light, Hard light, Difference, Exclusion, Hue, Saturation, Colour and Luminosity. Blends mix with the canvas background while you edit, not only in the export.
+- **Copy / paste properties**: **⌘⌥C** (Ctrl+Alt+C) copies a layer's whole look — font, size, weight, colours, background, effects, frame, filters, animation — and **⌘⌥V** (Ctrl+Alt+V) pastes it onto the selected layers. Between different kinds of layer, opacity, blend, shadow, blur, animation and fill colour carry over. Also in the right-click menu.
+- **Flip**: **⇧H** flips the selected layers horizontally, **⇧V** vertically — text, stickers, shapes, photos and everything else.
 
 ## Stop motion
 
@@ -125,7 +136,7 @@ Select a photo and choose **Remove background** (or **Cut out to layer** to keep
 
 ## Photo credits
 
-The speed-flash photo packs and the demo portraits in `flashes.js`, and the film photos in `filmphotos.js`, are from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license) (free to use, attribution not required). Image ids, for credit — each one is `https://images.unsplash.com/photo-<id>`:
+The speed-flash photo packs and the demo portraits in `flashes.js`, the film photos in `filmphotos.js` and the portraits in `portraits.js` are from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license) (free to use, attribution not required). Image ids, for credit — each one is `https://images.unsplash.com/photo-<id>`:
 `1461896836934-ffe607ba8211`,
 `1526676317768-d9b14f15615a`,
 `1696536823512-79d724454616`,
@@ -182,4 +193,22 @@ The speed-flash photo packs and the demo portraits in `flashes.js`, and the film
 `1733161214175-2108df3bf210`,
 `1552619809-37d77db7dffe`,
 `1709746242257-e7035f6b3c73`,
-`1636990536225-2eb22dfc12bc`.
+`1636990536225-2eb22dfc12bc`,
+`1681097561932-36d0df02b379`,
+`1518611540400-6b85a0704342`,
+`1512521743077-a42eeaaa963c`,
+`1587397845856-e6cf49176c70`,
+`1777969382035-88ff5ad401d2`,
+`1567186937675-a5131c8a89ea`,
+`1719603785926-84d214438120`,
+`1542909168-82c3e7fdca5c`,
+`1734830203034-a73cd8a8fd22`,
+`1783715209382-5a3ba8ea9eae`,
+`1734830268394-6c4a1f165af1`,
+`1523529831-3b6372bedacd`,
+`1719603785926-fa6c6e10fb90`,
+`1764069415137-756fbca30a17`,
+`1589220286904-3dcef62c68ee`,
+`1593183230686-69876b0cb240`,
+`1690237604597-d170faa1e40f`,
+`1662122071926-9dfd4e518dec`.

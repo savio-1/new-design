@@ -1870,6 +1870,7 @@
     film: 'Film', torn: 'Torn paper', papercut: 'Paper cut', border: 'Border', blob: 'Blob', heart: 'Heart', star: 'Star',
     scallop: 'Scallop', flower: 'Flower', ticket: 'Ticket', squircle: 'Squircle', sparkle: 'Sparkle', sticky: 'Sticky note',
     gate: 'Film gate', scan: 'Negative scan', slide: 'Slide mount', filed: 'Filed edge',
+    strips: 'Shredded strips', mosaic: 'Mosaic grid', mirror: 'Mirror repeat',
   };
   function frameGeometry(el) {
     const w = el.width, h = el.height, f = el.frame || {};
@@ -2020,6 +2021,72 @@
           if ('filter' in ctx) ctx.filter = `blur(${m * 0.004 * deviceScale(ctx)}px)`;
           ctx.globalAlpha *= 0.7; ctx.stroke(g.inner);
           ctx.restore();
+        };
+        break;
+      }
+      case 'strips': {
+        // the photo cut into paper strips, each slid sideways and tilted a touch
+        const n = clamp(Math.round(f.count || 6), 2, 30), gap = Math.max(0, size), amt = (f.amount ?? 50) / 100;
+        const r0 = rng(hashStr(el.id || 'strips') + (f.seed || 0) * 977), bh = (h - gap * (n - 1)) / n;
+        const bands = [];
+        for (let i = 0; i < n; i++) bands.push({ y: i * (bh + gap), dx: (r0() - 0.5) * w * 0.16 * amt, rot: (r0() - 0.5) * 2.4 * amt });
+        g.inner = rrect(new Path2D(), 0, 0, w, h, 0);
+        g.paint = (ctx, draw) => {
+          for (const b of bands) {
+            ctx.save();
+            ctx.translate(b.dx + w / 2, b.y + bh / 2); ctx.rotate(b.rot * Math.PI / 180); ctx.translate(-w / 2, -(b.y + bh / 2));
+            ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = Math.max(2, bh * 0.12) * deviceScale(ctx); ctx.shadowOffsetY = bh * 0.05;
+            ctx.fillStyle = f.color || '#ffffff'; ctx.fillRect(0, b.y, w, bh); ctx.restore();
+            ctx.beginPath(); ctx.rect(0, b.y, w, bh); ctx.clip();
+            ctx.translate(-b.dx, 0);
+            draw({ x: 0, y: 0, w, h });
+            ctx.restore();
+          }
+        };
+        break;
+      }
+      case 'mosaic': {
+        // the photo cut into a grid of tiles; a few are printed in a flat colour, a few slip out of line
+        const n = clamp(Math.round(f.count || 5), 2, 16), gap = Math.max(0, size), amt = (f.amount ?? 50) / 100;
+        const r0 = rng(hashStr(el.id || 'mosaic') + (f.seed || 0) * 977);
+        const rows = Math.max(2, Math.round(n * h / w)), tw = (w - gap * (n - 1)) / n, th = (h - gap * (rows - 1)) / rows;
+        const tints = f.tints || ['#f2d33c', '#d8312b', '#2b52c8'];
+        const tiles = [];
+        for (let j = 0; j < rows; j++) for (let i = 0; i < n; i++) {
+          const roll = r0();
+          tiles.push({ x: i * (tw + gap), y: j * (th + gap), tint: roll < 0.24 * amt ? tints[Math.floor(r0() * tints.length)] : null, dx: r0() < 0.12 * amt ? (r0() - 0.5) * tw * 0.3 : 0, dy: r0() < 0.12 * amt ? (r0() - 0.5) * th * 0.3 : 0 });
+        }
+        g.inner = rrect(new Path2D(), 0, 0, w, h, 0);
+        g.paint = (ctx, draw) => {
+          for (const t of tiles) {
+            ctx.save();
+            ctx.translate(t.dx, t.dy);
+            ctx.beginPath(); ctx.rect(t.x, t.y, tw, th); ctx.clip();
+            ctx.translate(-t.dx, -t.dy);
+            draw({ x: 0, y: 0, w, h });
+            if (t.tint) { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = t.tint; ctx.fillRect(t.x, t.y, tw, th); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha *= 0.25; ctx.fillRect(t.x, t.y, tw, th); }
+            ctx.restore();
+          }
+        };
+        break;
+      }
+      case 'mirror': {
+        // the photo in the middle with mirrored, washed-out copies running off both sides
+        const panel = clamp(1 - (f.amount ?? 50) / 100 * 0.8, 0.2, 1), pw = w * panel, px = (w - pw) / 2, line = Math.max(1, size * 0.15);
+        g.inner = rrect(new Path2D(), 0, 0, w, h, 0);
+        g.paint = (ctx, draw) => {
+          for (const side of [-1, 1]) {
+            ctx.save();
+            ctx.beginPath(); side < 0 ? ctx.rect(0, 0, px, h) : ctx.rect(px + pw, 0, px, h); ctx.clip();
+            // mirror about the panel's edge so the picture folds out from it
+            const ax = side < 0 ? px : px + pw;
+            ctx.translate(ax, 0); ctx.scale(-1, 1); ctx.translate(-ax, 0);
+            draw({ x: px, y: 0, w: pw, h });
+            ctx.fillStyle = 'rgba(255,255,255,0.32)'; ctx.fillRect(0, 0, w, h);
+            ctx.restore();
+          }
+          ctx.save(); ctx.beginPath(); ctx.rect(px, 0, pw, h); ctx.clip(); draw({ x: px, y: 0, w: pw, h }); ctx.restore();
+          ctx.save(); ctx.strokeStyle = f.color || '#ffffff'; ctx.lineWidth = line; ctx.strokeRect(px, -line, pw, h + line * 2); ctx.restore();
         };
         break;
       }
@@ -2415,6 +2482,13 @@
     if (el.outline && el.outline.on && el.outline.width > 0 && img && (f.style || 'none') === 'none') {
       const src = filteredSource(el.assetId, img, el.filters);
       drawOutlined(ctx, el, 'img:' + el.assetId + JSON.stringify(el.filters || {}) + JSON.stringify(el.crop || {}) + (el.flipX ? 1 : 0), (c, w, h) => drawCover(c, src, { x: 0, y: 0, w, h }, el));
+      return;
+    }
+    if (g.paint) {
+      // cut-up frames place the photo piece by piece themselves
+      const src = img ? filteredSource(el.assetId, img, el.filters) : null;
+      g.paint(ctx, r => { if (src) drawCover(ctx, src, r, el); else drawPlaceholder(ctx, r, el); overlays(ctx, r, el.filters || {}, null); });
+      if (g.extra) g.extra(ctx);
       return;
     }
     ctx.save();
@@ -3097,7 +3171,20 @@
     }
   }
 
+  // images, stickers and shapes flip their own content; everything else is mirrored as a whole
+  const SELF_FLIP = { image: 1, sticker: 1, shape: 1 };
   function drawCore(ctx, el, env) {
+    if ((el.flipX || el.flipY) && !SELF_FLIP[el.type]) {
+      ctx.save();
+      ctx.translate(el.flipX ? el.width : 0, el.flipY ? el.height : 0);
+      ctx.scale(el.flipX ? -1 : 1, el.flipY ? -1 : 1);
+      drawCoreInner(ctx, el, env);
+      ctx.restore();
+      return;
+    }
+    drawCoreInner(ctx, el, env);
+  }
+  function drawCoreInner(ctx, el, env) {
     switch (el.type) {
       case 'text': drawText(ctx, el, env); break;
       case 'image': drawImageEl(ctx, el, env); break;

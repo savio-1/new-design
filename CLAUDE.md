@@ -21,6 +21,7 @@ unless asked.
 - Video templates with words get a text box in the inspector (not on-canvas typing).
 - Match reference fonts with free Google Fonts look-alikes. Never commit commercial or trial fonts
   (Helvetica Neue, Druk, Neue Montreal, etc.); users can upload their own.
+- Real brand / agency names in references are replaced with made-up ones.
 - Rude or religious slogans in references have been softened ("…stuff", "Trust the work of your
   hands"); mention such rewordings when reporting.
 - After a change: test in the browser (Playwright, below), update `studio/README.md`, commit and
@@ -40,6 +41,7 @@ unless asked.
 | `nature.js` | Painted garden / sky / flower painters (`window.StudioNature`). |
 | `flashes.js` | Bundled photos as data URLs: speed-flash packs (`IMG`, `PACKS`), demo portraits (`DEMO`), text-slide backdrops. All from Unsplash (credited in README). |
 | `filmphotos.js` | Film-style demo photos (`window.StudioFilm.IMG`), registered as `film-<key>` assets for the Film looks / Film camera templates. |
+| `portraits.js` | Editorial portraits (`window.StudioPortraits.IMG`), registered as `ed-<key>` assets for the Photo effects / Paper & ID templates. |
 | `bgremove.js` | Background removal and the "studio look" cut-out (onnxruntime-web + RMBG-1.4 from Hugging Face). |
 | `video.js` | Video export: frame-by-frame render → WebCodecs → mp4-muxer / webm-muxer; MediaRecorder fallback. |
 | `studio.css` | All styling; colour tokens on `:root`, dark mode via `prefers-color-scheme`. |
@@ -78,7 +80,7 @@ Animation: `el.anim {enter, loop, delay, speed, amount}`; `el.time {start, end, 
 piece at a time.
 
 **Assets** are data URLs in `assets[id]` (app.js), never inside `doc`. Ids starting `demo-` and `img-`
-are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, registered at start-up so templates can use them.
+are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` from `portraits.js`, registered at start-up so templates can use them.
 `data:video/…` assets are videos (`R.isVideoAsset`); the renderer draws them through a muted
 `<video>` and `R.syncVideos` seeks frames exactly during export.
 
@@ -97,7 +99,11 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, register
   painted in `drawOverlay(ctx, doc, t)`; `overlay.weave` (gate weave) is applied in `camAt` like a
   camera move. `R.hasFilmMotion(doc)` (weave / flicker) makes a design count as a video.
 - Frames: add a case to `frameGeometry` (returns `outer`, `inner` clip, `rect`, optional `extra` painter; starting size and colour in `FRAME_START`, ui.js)
-  and a label in `R.FRAMES`.
+  and a label in `R.FRAMES`. Cut-up frames (`strips`, `mosaic`, `mirror`) set `g.paint(ctx, draw)` and place the
+  photo piece by piece by calling `draw(rect)`.
+- Flip: images, stickers and shapes flip their own content; `drawCore` mirrors every other type as a whole.
+- Blend: `el.blend` is any canvas composite op. In the editor, `placeBackground()` moves the background
+  onto the layers' canvas while any layer blends, so blends mix with it there too.
 - New element type: `DEFAULTS` + `S.elLabel` (app.js), a `drawCore` case and `bleedCore` (render.js),
   an inspector in the `fn` map in `renderInspector` (ui.js), an Elements panel entry if users add it.
 
@@ -116,6 +122,12 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, register
   left out of the snapshot. ui.js turns them into template-like objects (`myTpls`, `t.mine`) so
   `templateCard`, `useTemplate` and pieces work unchanged; a file with `kind: 'template'` opened through
   *Open file* is added to My templates instead of opening as a design. Event: `templates`.
+- Multi-select: `S.change('sel', …)` writes to every selected layer, so the inspector reuses `textInspector`
+  (`{ multi: true }`) / `shapeInspector` when all selected layers are text / shapes. Blend + opacity sit in
+  `layerRow()` under the inspector title.
+- Copy / paste properties: `S.copyStyle()` / `S.pasteStyle()` (⌘⌥C / ⌘⌥V, matched on `e.code`); `NOT_STYLE`
+  lists geometry and content keys that never copy, `SHARED_STYLE` what carries between different types.
+  ⇧H / ⇧V → `S.flip('x' | 'y')`.
 - Selection gestures: Shift adds (click or box), Alt removes, Cmd/Ctrl toggles; Alt-drag duplicates;
   holding Alt shows distance lines (`updateDistances`). Selection gestures set `noDrag`.
 - Full-canvas `flashes` layers don't listen to clicks so the photo under them stays reachable.
@@ -133,10 +145,10 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, register
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,
 `stk`, `shp`, `rib`, `nat`, `cam`. Text can be placed by centre (`cx`, `cy`); widths are measured on
 load. Put a new family's ids in `GROUPS` (order = display order); `video: true` adds the badge and hover
-preview. Families so far: Text slides (69), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
+preview. Families so far: Text slides (69), Photo effects (19), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
 reveal, Typing, Match cut, Kinetic headline, Sticky notes, Rolling numbers, Word by word, Letter
 bounce, Life-sim garden, Ribbon poster, Motion blur, Camera view, Meet the team, Grid-paper notes,
-Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 190 templates. Film templates build
+Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 217 templates. Film templates build
 filters with `LOOK('<preset>', overrides)` so they stay in step with the presets.
 
 When lining up words with inline photo chips, measure text widths first (create a text with `S.mk`,

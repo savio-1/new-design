@@ -521,12 +521,25 @@
     if (el.type === 'nature' || el.type === 'camera' || el.type === 'ribbon') return S.elLabel(el).replace(/ · .*/, '');
     return { text: 'Text', image: el.seq && el.seq.ids && el.seq.ids.length > 1 ? 'Stop motion' : el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo frame', flashes: 'Speed flashes', sticker: 'Sticker', shape: el.shape === 'line' ? 'Line' : 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
   }
+  // every blend mode the canvas can do, as in Figma / Photoshop
+  const BLEND_MODES = [['normal', 'Normal'], ['darken', 'Darken'], ['multiply', 'Multiply'], ['color-burn', 'Colour burn'], ['lighten', 'Lighten'], ['screen', 'Screen'],
+    ['color-dodge', 'Colour dodge'], ['overlay', 'Overlay'], ['soft-light', 'Soft light'], ['hard-light', 'Hard light'], ['difference', 'Difference'], ['exclusion', 'Exclusion'],
+    ['hue', 'Hue'], ['saturation', 'Saturation'], ['color', 'Colour'], ['luminosity', 'Luminosity']];
+  function blendCtl() {
+    const s = selectCtl('sel', 'blend', BLEND_MODES, { def: 'normal', label: 'Blend mode' });
+    s.classList.add('blend-sel'); s.title = 'Blend mode — how this layer mixes with what’s under it';
+    return s;
+  }
+  // blend mode and opacity, the "Layer" row under the inspector title
+  function layerRow() {
+    return h('div.layer-row', null, blendCtl(), h('div.insp-opacity', { title: 'Layer opacity' }, num('sel', 'opacity', { min: 0, max: 100, scale: 100, unit: '%', label: 'Opacity' })));
+  }
   function inspHead(el) {
-    return h('div.insp-head', null,
+    return [h('div.insp-head', null,
       h('h2', null, typeLabel(el)),
       el.locked ? h('span.pill', null, 'Locked') : null,
-      h('div.insp-opacity', { title: 'Layer opacity' }, num('sel', 'opacity', { min: 0, max: 100, scale: 100, unit: '%', label: 'Opacity' })),
-      h('button.icon-btn', { type: 'button', title: 'More actions', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); contextMenu({ x: r.left - 160, y: r.bottom + 4 }); } }, ic('more')));
+      h('button.icon-btn', { type: 'button', title: 'More actions', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); contextMenu({ x: r.left - 160, y: r.bottom + 4 }); } }, ic('more'))),
+      layerRow()];
   }
 
   // what an animated text layer does with its text, in plain words
@@ -567,7 +580,7 @@
     if (ta) { ta.focus(); ta.select(); ta.closest('.sec')?.scrollIntoView({ block: 'nearest' }); ta.classList.add('flash'); setTimeout(() => ta.classList.remove('flash'), 700); }
     if (matchMedia('(max-width: 920px)').matches) insp.classList.add('open');
   });
-  function textInspector(el) {
+  function textInspector(el, o = {}) {
     const T = 'sel';
     const bgStyle = (el.bg && el.bg.style) || 'none';
     const lineStyle = ['lines', 'select', 'marker', 'underline', 'rough'].includes(bgStyle);
@@ -577,7 +590,7 @@
     const styles = Object.entries(R.TEXT_BG).filter(([k]) => showAll || MAIN_STYLES.includes(k));
     const chips = h('div.chips.tight', null, styles.map(([k, l]) => h('button.chip' + (bgStyle === k ? '.on' : ''), { type: 'button', onclick: () => { S.change(T, 'bg.style', k, false); renderInspector(); } }, l)),
       showAll ? null : h('button.chip.ghost', { type: 'button', onclick: () => { moreOpen.set('text-styles-all', true); renderInspector(); } }, 'More…'));
-    const videoText = S.isVideoText(el);
+    const videoText = !o.multi && S.isVideoText(el);
     return [
       videoText ? sec('Text', [
         elTextBox(el, { onBlur: () => { if (el.typing) renderInspector(); } }),
@@ -780,7 +793,9 @@
   const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border', 'gate', 'scan', 'slide', 'filed'];
   const DARK_FRAMES = ['film', 'gate', 'scan', 'filed'];
   // starting border size and colour for the film frames, as a share of the photo's short side
-  const FRAME_START = { gate: [0.045, '#0b0b0b'], scan: [0.035, '#161412'], slide: [0.16, '#efebe2'], filed: [0.05, '#0b0b0b'] };
+  const FRAME_START = { gate: [0.045, '#0b0b0b'], scan: [0.035, '#161412'], slide: [0.16, '#efebe2'], filed: [0.05, '#0b0b0b'], strips: [0.012, '#ffffff'], mosaic: [0.012, '#ffffff'], mirror: [0.008, '#ffffff'] };
+  // frames that cut the photo up and place it piece by piece
+  const CUT_FRAMES = ['strips', 'mosaic', 'mirror'];
   function frameTiles(el, limit) {
     const grid = h('div.frame-grid');
     let entries = Object.entries(R.FRAMES);
@@ -991,7 +1006,10 @@
         full(frameTiles(el, allFrames ? 0 : 8)),
         allFrames ? null : full(h('button.link-btn', { type: 'button', onclick: () => { moreOpen.set('frames-all', true); renderInspector(); } }, `All ${Object.keys(R.FRAMES).length} frames`)),
         fs !== 'none' ? row('Colour', colorCtl(T, 'frame.color')) : null,
-        fs !== 'none' ? row(bordered ? 'Border' : 'Edge', num(T, 'frame.size', { min: 0, max: 200, slider: true })) : null,
+        fs !== 'none' ? row(CUT_FRAMES.includes(fs) ? (fs === 'mirror' ? 'Line' : 'Gap') : bordered ? 'Border' : 'Edge', num(T, 'frame.size', { min: 0, max: 200, slider: true })) : null,
+        fs === 'strips' || fs === 'mosaic' ? row(fs === 'strips' ? 'Strips' : 'Tiles across', num(T, 'frame.count', { min: 2, max: fs === 'strips' ? 30 : 16, slider: true, def: fs === 'strips' ? 6 : 5 })) : null,
+        CUT_FRAMES.includes(fs) ? row(fs === 'mirror' ? 'Copies' : 'Shift', num(T, 'frame.amount', { min: 0, max: 100, slider: true, def: 50 })) : null,
+        fs === 'strips' || fs === 'mosaic' ? full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'frame.seed', Math.floor(Math.random() * 1e5)) }, ic('shuffle'), fs === 'strips' ? 'Shuffle the strips' : 'Shuffle the tiles')) : null,
         fs !== 'none' ? more('frame-more', [
           ['rounded', 'border', 'polaroid', 'ticket'].includes(fs) ? row('Radius', num(T, 'frame.radius', { min: 0, max: 400, slider: true })) : null,
           fs === 'gate' ? row('Corners', num(T, 'frame.round', { min: -60, max: 200, slider: true, def: 0 })) : null,
@@ -1465,11 +1483,6 @@
           row('Direction', num(T, 'lblur.angle', { min: -90, max: 90, slider: true, unit: '°', def: 0 })),
         ],
       },
-      {
-        label: 'Blend mode', icon: 'palette', on: el.blend && el.blend !== 'normal',
-        add: () => set('blend', 'multiply'), remove: () => set('blend', 'normal'),
-        body: () => [row('Mode', selectCtl(T, 'blend', [['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-burn', 'Colour burn'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['luminosity', 'Luminosity']]))],
-      },
       el.erase && el.erase.length ? {
         label: 'Erased areas', on: true, remove: () => S.clearErase(el.id),
         body: () => [full(h('button.btn', { type: 'button', onclick: () => S.setTool('erase') }, ic('eraser'), 'Keep erasing'))],
@@ -1580,8 +1593,8 @@
       two(num(T, 'x', { label: 'X', step: 1, soft: true }), num(T, 'y', { label: 'Y', step: 1, soft: true })),
       two(num(T, 'width', { label: 'W', min: 4, set: setW }), sizeEditable ? num(T, 'height', { label: 'H', min: 4, set: setH }) : num(T, 'height', { label: 'H', set: () => {} })),
       two(num(T, 'rotation', { label: '∠', unit: '°', step: 1, soft: true, set: (v, live) => S.change(T, 'rotation', ((v % 360) + 360) % 360 > 180 ? ((v % 360) + 360) % 360 - 360 : ((v % 360) + 360) % 360, live) }),
-        h('div.btn-row', null, el.type !== 'text' ? h('button.btn.icon', { type: 'button', title: 'Flip horizontal', onclick: () => S.flip('x') }, ic('flipH')) : null,
-          el.type !== 'text' ? h('button.btn.icon', { type: 'button', title: 'Flip vertical', onclick: () => S.flip('y') }, ic('flipV')) : null)),
+        h('div.btn-row', null, h('button.btn.icon', { type: 'button', title: 'Flip horizontal (⇧H)', onclick: () => S.flip('x') }, ic('flipH')),
+          h('button.btn.icon', { type: 'button', title: 'Flip vertical (⇧V)', onclick: () => S.flip('y') }, ic('flipV')))),
       h('div.btn-row', null,
         h('button.btn.icon', { type: 'button', title: 'Bring to front (⇧⌘])', onclick: () => S.order('front') }, ic('front')),
         h('button.btn.icon', { type: 'button', title: 'Bring forward (⌘])', onclick: () => S.order('forward') }, ic('forward')),
@@ -1591,8 +1604,14 @@
   }
 
   function multiInspector(els) {
+    // all text (or all shapes): their controls change every selected layer at once
+    const one = els.every(e => e.type === els[0].type) ? els[0].type : null;
+    const shared = one === 'text' ? textInspector(els[0], { multi: true }) : one === 'shape' && els.every(e => e.shape !== 'line') === (els[0].shape !== 'line') ? shapeInspector(els[0]) : [];
     return [
-      h('div.insp-head', null, h('h2', null, `${els.length} layers`), h('div.insp-opacity', { title: 'Opacity' }, num('sel', 'opacity', { min: 0, max: 100, scale: 100, unit: '%', label: 'Opacity' }))),
+      h('div.insp-head', null, h('h2', null, one === 'text' ? `${els.length} text layers` : `${els.length} layers`)),
+      layerRow(),
+      one === 'text' ? h('p.hint.multi-hint', null, 'Changes apply to all selected text.') : null,
+      ...shared,
       sec('Arrange', [
         alignGrid(),
         els.length >= 3 ? h('div.btn-row', null, h('button.btn.grow', { type: 'button', onclick: () => S.distribute('x') }, ic('distH'), 'Space across'), h('button.btn.grow', { type: 'button', onclick: () => S.distribute('y') }, ic('distV'), 'Space down')) : null,
@@ -2551,6 +2570,10 @@
       { label: 'Duplicate', icon: 'copy', kbd: '⌘D', run: () => S.duplicate() },
       { label: 'Copy', icon: 'copy', kbd: '⌘C', run: () => S.copy() },
       { label: 'Paste', icon: 'paste', kbd: '⌘V', run: () => S.paste(), disabled: !S.hasClipboard() },
+      { label: 'Copy properties', icon: 'copy', kbd: '⌥⌘C', run: () => S.copyStyle() },
+      { label: 'Paste properties', icon: 'paste', kbd: '⌥⌘V', run: () => S.pasteStyle(), disabled: !S.hasStyleClip() },
+      { label: 'Flip horizontal', icon: 'flipH', kbd: '⇧H', run: () => S.flip('x') },
+      { label: 'Flip vertical', icon: 'flipV', kbd: '⇧V', run: () => S.flip('y') },
       '-',
       { label: 'Bring to front', icon: 'front', kbd: '⇧⌘]', run: () => S.order('front') },
       { label: 'Bring forward', icon: 'forward', kbd: '⌘]', run: () => S.order('forward') },
@@ -3107,7 +3130,7 @@
         k('E', 'Eraser (Esc to leave)'), k('[ ]', 'Eraser size'), k('P', 'Play / pause animation'),
         k('Arrows', 'Nudge 1px (Shift: 10px)'), k('Space drag', 'Pan the canvas'), k('⌘ scroll', 'Zoom'), k('⌘0', 'Fit to screen'),
         k('Dbl-click', 'Edit text · crop a photo'), k('T', 'Add text'), k('G', 'Toggle grid'),
-        k('⌘D', 'Duplicate'), k('⌘C ⌘V', 'Copy & paste'), k('⌘Z', 'Undo'), k('⇧⌘Z', 'Redo'), k('⌘] ⌘[', 'Forward / backward'),
+        k('⌘D', 'Duplicate'), k('⌘C ⌘V', 'Copy & paste'), k('⌥⌘C ⌥⌘V', 'Copy & paste properties (font, colours, effects…)'), k('⇧H ⇧V', 'Flip horizontal / vertical'), k('⌘Z', 'Undo'), k('⇧⌘Z', 'Redo'), k('⌘] ⌘[', 'Forward / backward'),
         k('⌘L', 'Lock'), k('⌘A', 'Select all'), k('⌫', 'Delete'), k('⌘E', 'Export'), k('Esc', 'Deselect / finish')),
     ], { small: true });
   }

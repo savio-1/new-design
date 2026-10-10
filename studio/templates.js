@@ -1186,6 +1186,278 @@
       }));
     })(),
 
+    // ── PHOTO EFFECTS: editorial poster treatments — halftone scribbles, shredded strips, mosaics, mirrors, censor blocks ──
+    ...(() => {
+      const P = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'ed-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
+      const BW = extra => Object.assign({ grayscale: 100, contrast: 16 }, extra || {});
+      const HALF = extra => Object.assign({ grayscale: 100, contrast: 38, brightness: 12, halftone: 16 }, extra || {});
+      const mono = (t, o) => txt(t, Object.assign({ fontFamily: 'Space Mono', fontSize: 20, fill: '#1d1b18', letterSpacing: 0.06 }, o));
+      const scrib = (path, x, y, w, h, o) => rib(path, x, y, w, h, Object.assign({ line: true, thickness: 16, color: '#f5d32a', text: '', name: 'Marker scribble' }, o));
+      const arrowL = (x, y, w, h, o) => rib('hook', x, y, w, h, Object.assign({ line: true, thickness: 3, color: '#1d1b18', text: '', arrowEnd: true, name: 'Arrow' }, o));
+      const T = (id, name, tags, build, o = {}) => ({ id, name, tags, width: o.w || 1080, height: o.h || 1350, build });
+      const doc = (bg, elements, overlay) => ({ width: 1080, height: 1350, background: bg, overlay: overlay || { grain: 14 }, elements });
+      const words = 'A film about turning life into a performance and calling it cinematic through humor and honesty this exposes the irony of chasing authenticity and the insecurity beneath the perfect frame'.split(' ');
+      return [
+        T('px-scribble', 'Halftone scribble', ['Photo', 'Paper'], () => doc({ color: '#ece9e2' }, [
+          P('youth', 0, 0, 1080, 1350, { filters: HALF() }),
+          scrib('circle', 250, 330, 260, 200, { rotation: -8 }),
+          scrib('cross', 610, 300, 230, 230, { rotation: 6 }),
+          scrib('scribble', 60, 940, 470, 330, { thickness: 20, rotation: -12 }),
+          scrib('swoosh', 390, 690, 300, 110, { thickness: 14, rotation: 4 }),
+          mono('@yourname  instagram', { x: 60, y: 1280, align: 'left', fontSize: 22, fill: '#1d1b18' }),
+        ], { grain: 10 })),
+        T('px-strips', 'Shredded', ['Photo'], () => doc({ color: '#c9302c', texture: 35 }, [
+          mono('YOUR NAME', { cx: 540, cy: 170, fill: '#ffffff', fontSize: 22, letterSpacing: 0.3 }),
+          P('plain', 170, 270, 740, 800, { filters: BW({ contrast: 22 }), frame: { style: 'strips', color: '#ffffff', size: 10, count: 7, amount: 65 } }),
+          txt('DO THAT AGAIN', { cx: 540, cy: 1180, fontFamily: 'Arimo', fontWeight: 700, fontSize: 24, letterSpacing: 0.1, fill: '#ffffff' }),
+          mono('SIDE A', { x: 50, y: 1280, align: 'left', fill: '#ffffff', fontSize: 16 }), mono('NO. 01', { x: 950, y: 1280, align: 'left', fill: '#ffffff', fontSize: 16 }),
+        ])),
+        T('px-mosaic', 'Mosaic grid', ['Photo'], () => doc({ color: '#f2efe9' }, [
+          P('youth', 50, 50, 980, 1250, { filters: BW({ contrast: 20 }), frame: { style: 'mosaic', color: '#ffffff', size: 6, count: 6, amount: 60 } }),
+          txt('Kids play while\nthe city sleeps.', { x: 120, y: 900, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 24, lineHeight: 1.2, fill: '#ffffff', bg: { style: 'box', color: '#2b52c8', padX: 18, padY: 12 } }),
+        ])),
+        T('px-mirror', 'Mirror repeat', ['Photo'], () => doc({ color: '#f4f4f2' }, [
+          mono('PORTRAIT SERIES', { x: 50, y: 70, align: 'left', fontSize: 18 }), mono('26/10/11', { x: 900, y: 70, align: 'left', fontSize: 18 }),
+          P('idman', 0, 200, 1080, 780, { filters: BW({ contrast: 10, brightness: 4 }), frame: { style: 'mirror', color: '#ffffff', size: 8, amount: 55 } }),
+          txt('the one who stayed', { x: 70, y: 1010, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 46, fill: '#1d1b18', rotation: -4 }),
+          arrowL(250, 960, 150, 70, { rotation: -150 }),
+          txt('YOUR NAME', { cx: 640, cy: 1150, fontFamily: 'Archivo Black', fontSize: 88, fill: '#1d1b18' }),
+          txt('YOUR NAME', { cx: 640, cy: 1240, fontFamily: 'Archivo Black', fontSize: 88, fill: '#1d1b18', opacity: 0.18, flipY: true, name: 'Reflection' }),
+        ], { grain: 12 })),
+        T('px-eyes', 'Eye strip', ['Photo', 'Paper'], () => doc({ color: '#c8241f', texture: 45 }, [
+          txt('A SLOW RETURN', { cx: 540, cy: 520, fontFamily: 'Permanent Marker', fontSize: 92, fill: '#f6f1ea', rotation: -2 }),
+          P('youth', 200, 600, 680, 170, { crop: { zoom: 1.05, x: 0.5, y: 0.43 }, filters: { contrast: 8, warmth: 6 } }),
+          txt('TO', { x: 210, y: 800, align: 'left', fontFamily: 'Permanent Marker', fontSize: 52, fill: '#f6f1ea' }),
+          txt('SKETCHING.', { cx: 580, cy: 900, fontFamily: 'Permanent Marker', fontSize: 104, fill: '#f6f1ea', rotation: 2 }),
+        ], { grain: 18 })),
+        T('px-childhood', 'Then & now', ['Photo'], () => doc({ color: '#0d0d0d' }, [
+          P('dark', 0, 0, 1080, 1350, { filters: BW({ contrast: 24, brightness: -6 }) }),
+          P('kid1', 300, 440, 150, 150, { filters: BW({ contrast: 10 }), name: 'Childhood photo' }),
+          P('kid2', 465, 440, 150, 150, { filters: BW({ contrast: 10 }), name: 'Childhood photo' }),
+          P('kid3', 630, 440, 150, 150, { filters: BW({ contrast: 10 }), name: 'Childhood photo' }),
+          txt('portrait of the artist as a young man', { cx: 540, cy: 1160, fontFamily: 'Courier Prime', fontSize: 26, fill: '#d0322b' }),
+          txt('a film by you\nshot on a tuesday', { cx: 540, cy: 1230, fontFamily: 'Courier Prime', fontSize: 18, lineHeight: 1.3, fill: '#d0322b', opacity: 0.8 }),
+        ], { grain: 22 })),
+        T('px-faceswap', 'Face swap', ['Photo', 'Paper'], () => doc({ color: '#8e1f1a', texture: 60 }, [
+          P('think', 0, 0, 1080, 1350, { filters: BW({ contrast: 18 }), opacity: 0.95 }),
+          P('kid1', 380, 300, 320, 360, { filters: { contrast: 6, warmth: 8 }, name: 'Face photo', shadow: { on: true, color: '#000000', opacity: 0.35, blur: 16, x: 0, y: 8 } }),
+        ], { grain: 16 })),
+        T('px-ghost', 'Ghost blur', ['Photo'], () => doc({ color: '#d9d7d2', texture: 55 }, [
+          P('plain', 120, 140, 840, 1080, { filters: { grayscale: 100, contrast: 14, motion: 70, motionAngle: 90, fade: 8 } }),
+          mono('STUDIO\nCOUTURE\nARCHIVE', { x: 780, y: 620, align: 'left', fontSize: 15, lineHeight: 1.3, fill: '#efece6' }),
+          mono('DIGITAL\nCONTENT\nSTUDIO', { x: 900, y: 620, align: 'left', fontSize: 15, lineHeight: 1.3, fill: '#efece6' }),
+        ], { grain: 40, vignette: 20 })),
+        T('px-censor', 'How much can you see', ['Photo'], () => doc({ color: '#cfcfcf' }, [
+          P('youth', 0, 0, 1080, 1350, { filters: BW({ contrast: 20 }) }),
+          shp('rect', 0, 130, 470, 560, { fill: '#d6262b', name: 'Red block' }),
+          txt('HOW\nMUCH\nCAN\nYOU\nSEE?', { x: 120, y: 190, align: 'left', fontFamily: 'Archivo Black', fontSize: 86, lineHeight: 0.98, fill: '#ffffff' }),
+          ...[['and', 860, 120], ['why', 700, 330], ['you', 880, 560], ['keep', 600, 900], ['looking', 880, 1180]].map(([w, x, y]) => txt(w, { cx: x, cy: y, fontFamily: 'Arimo', fontWeight: 700, fontSize: 34, fill: '#d6262b' })),
+        ], { grain: 14 })),
+        T('px-words', 'Word grid', ['Photo'], () => doc({ color: '#0f2b30' }, [
+          P('think', 0, 0, 1080, 1350, { filters: { saturation: -40, splitTone: 80, toneShadow: '#0e4f5c', toneHigh: '#9fd3d6', contrast: 8, exposure: -18 } }),
+          ...words.map((w, i) => txt(w.toUpperCase(), { cx: [130, 540, 950][i % 3], cy: 190 + Math.floor(i / 3) * 84, fontFamily: 'Arimo', fontWeight: 700, fontSize: 21, letterSpacing: 0.08, fill: '#f2f2ee', name: 'Word' })),
+        ], { grain: 20, vignette: 25 })),
+        T('px-brandfade', 'Brand fade', ['Photo'], () => doc({ color: '#000000' }, [
+          P('dark', 0, 0, 1080, 1350, { filters: BW({ contrast: 18 }) }),
+          shp('rect', 0, 760, 1080, 590, { fill: 'rgba(0,0,0,0)', fill2: '#000000', gradient: 'linear', gradAngle: 180, name: 'Fade to black' }),
+          mono('ART DIRECTION\nBRANDING\nDESIGN', { x: 820, y: 80, align: 'left', fontSize: 16, lineHeight: 1.3, fill: '#ffffff' }),
+          txt('Afterglow®', { cx: 540, cy: 760, fontFamily: 'Inter Tight', fontWeight: 700, fontSize: 132, letterSpacing: -0.02, fill: '#ffffff' }),
+          mono('yourstudio.co', { x: 820, y: 170, align: 'left', fontSize: 16, fill: '#ffffff', opacity: 0.7 }),
+        ], { grain: 16 })),
+        T('px-redbar', 'Red bar', ['Photo'], () => doc({ color: '#f1f0ec' }, [
+          P('youth', 300, 330, 480, 620, { filters: BW({ contrast: 12 }) }),
+          shp('rect', 286, 330, 18, 620, { fill: '#d6262b', name: 'Red bar' }),
+          txt('Your Name', { cx: 170, cy: 640, fontFamily: 'Inter', fontWeight: 500, fontSize: 22, fill: '#1d1b18' }),
+          txt('Studio', { cx: 900, cy: 640, fontFamily: 'Inter', fontWeight: 500, fontSize: 22, fill: '#1d1b18' }),
+        ], { grain: 8 })),
+        T('px-note', 'Note over face', ['Photo', 'Paper'], () => doc({ color: '#222222' }, [
+          P('dark', 0, 0, 1080, 1350, { filters: HALF({ brightness: 4, halftone: 12 }) }),
+          shp('rect', 330, 330, 420, 540, { fill: '#d9d5c4', texture: 55, rotation: -1, shadow: { on: true, color: '#000000', opacity: 0.4, blur: 26, x: 0, y: 12 }, name: 'Paper note' }),
+          stk('binder-clip', 495, 270, 90, 110, { name: 'Clip' }),
+          txt('YOUR NAME', { cx: 538, cy: 480, fontFamily: 'Special Elite', fontSize: 40, fill: '#1d1b18', rotation: -1 }),
+          txt('Portfolio', { cx: 540, cy: 640, fontFamily: 'Homemade Apple', fontSize: 66, fill: '#1d1b18', rotation: -8 }),
+        ], { grain: 14 })),
+        T('px-phone', 'Retro phone', ['Photo'], () => doc({ color: '#171614' }, [
+          shp('rounded', 70, 140, 940, 1070, { radius: 46, fill: '#f6a21e', fill2: '#e8601a', gradient: 'radial', name: 'Screen' }),
+          P('red', 120, 270, 840, 800, { filters: { grayscale: 100, contrast: 25, brightness: 10 }, blend: 'multiply' }),
+          txt('Tıl ✉', { x: 120, y: 172, align: 'left', fontFamily: 'VT323', fontSize: 64, fill: '#1d1208' }),
+          txt('10:34 ▮', { x: 790, y: 172, align: 'left', fontFamily: 'VT323', fontSize: 60, fill: '#1d1208' }),
+          txt('Menu', { x: 120, y: 1100, align: 'left', fontFamily: 'VT323', fontSize: 64, fill: '#1d1208' }),
+          txt('YourTune', { cx: 540, cy: 1135, fontFamily: 'VT323', fontSize: 64, fill: '#1d1208' }),
+          txt('Back', { x: 840, y: 1100, align: 'left', fontFamily: 'VT323', fontSize: 64, fill: '#1d1208' }),
+        ], { grain: 14, scanlines: 25, vignette: 30 })),
+        T('px-signed', 'Signed booth', ['Photo'], () => doc({ color: '#ffffff' }, [
+          ...[['youth', 30, 30], ['curls', 545, 30], ['smile', 30, 470], ['yellow', 545, 470], ['think', 30, 910]].map(([a, x, y], i) => P(a, x, y, 505, 430, { filters: { contrast: 6, saturation: -10 } })),
+          ...[[60, 50, -8], [580, 60, -12], [70, 490, -6], [600, 500, -10], [70, 930, -8]].map(([x, y, r], i) => txt(['Alex', 'Mira', 'Jonah', 'Sam', 'Kenji'][i], { x, y, align: 'left', fontFamily: 'Mrs Saint Delafield', fontSize: 92, fill: '#111111', rotation: r, name: 'Signature' })),
+          txt('Alex, Mira,\nJonah, Sam,\nKenji', { x: 580, y: 940, align: 'left', fontFamily: 'EB Garamond', fontSize: 34, lineHeight: 1.15, fill: '#1d1b18' }),
+          { type: 'badge', x: 930, y: 1200, width: 90, height: 90, shape: 'circle', fill: 'rgba(0,0,0,0)', borderWidth: 4, borderColor: '#1d1b18', ringText: '', center: 'text', centerText: 'YS', centerFont: 'Archivo Black', centerWeight: 400, centerSize: 0.34, centerColor: '#1d1b18', name: 'Logo' },
+        ], { grain: 6 })),
+        T('px-taped', 'Taped to the wall', ['Photo', 'Paper'], () => doc({ color: '#cbc8c2', texture: 75 }, [
+          P('suit', 390, 600, 300, 400, { filters: { contrast: 8, saturation: -10 }, frame: { style: 'border', color: '#f7f4ee', size: 10 }, shadow: { on: true, color: '#000000', opacity: 0.22, blur: 12, x: 0, y: 6 } }),
+          stk('tape-masking', 578, 545, 170, 70, { rotation: 90, name: 'Tape' }),
+        ], { grain: 16 })),
+        T('px-redprint', 'Print on red', ['Photo', 'Paper'], () => doc({ color: '#9e1119', texture: 30 }, [
+          P('curls', 330, 380, 420, 540, { filters: { contrast: 6, warmth: 4 }, frame: { style: 'border', color: '#f7f4ee', size: 22 }, shadow: { on: true, color: '#000000', opacity: 0.35, blur: 22, x: 0, y: 12 } }),
+          stk('tape-masking', 470, 330, 150, 70, { rotation: -6, name: 'Tape' }),
+        ], { grain: 14 })),
+        T('px-backdrop', 'Studio backdrop', ['Photo', 'Paper'], () => doc({ color: '#e9e6df', texture: 25 }, [
+          P('stool', 120, 120, 840, 980, { filters: BW({ contrast: 14 }), frame: { style: 'border', color: '#f7f5f0', size: 18 }, shadow: { on: true, color: '#000000', opacity: 0.12, blur: 20, x: 0, y: 8 } }),
+          arrowL(150, 560, 140, 60, { rotation: 200 }), arrowL(800, 520, 140, 60, { rotation: -20 }),
+          txt('quiet day', { x: 690, y: 400, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 52, fill: '#1d1b18', rotation: -6 }),
+          txt('Studio Notes', { cx: 540, cy: 1160, fontFamily: 'Playfair Display', fontWeight: 700, fontSize: 40, fill: '#1d1b18' }),
+          txt('Shot on the first cold morning.\nSoft light, one stool, no plan.', { cx: 540, cy: 1230, fontFamily: 'Inter', fontSize: 18, lineHeight: 1.35, fill: '#4a4640' }),
+        ], { grain: 10 })),
+        T('px-gridpaper', 'Grid paper portrait', ['Photo', 'Paper'], () => doc({ color: '#f5f5f2', pattern: { type: 'grid', color: 'rgba(40,40,40,0.08)', size: 40, thick: 1, opacity: 1 } }, [
+          shp('rect', 120, 330, 840, 600, { fill: '#ffffff', stroke: '#e8b4c8', strokeWidth: 3, shadow: { on: true, color: '#000000', opacity: 0.08, blur: 16, x: 0, y: 6 }, name: 'Card' }),
+          P('idwoman', 330, 380, 420, 550, { filters: BW({ contrast: 8 }) }),
+          ...['#f08ab8', '#7aa9e8', '#a98be8', '#f2d33c', '#8fd18a'].map((c, i) => shp('rounded', 690 + i * 50, 352, 40, 14, { radius: 7, fill: c, name: 'Tab' })),
+          txt('hi, I’m a…', { x: 160, y: 560, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 44, fill: '#1d1b18' }),
+          mono('Creative', { x: 230, y: 470, align: 'left', fontSize: 16 }), mono('Director', { x: 790, y: 560, align: 'left', fontSize: 16 }),
+          txt('living and working\nin NYC', { x: 780, y: 640, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 34, lineHeight: 1, fill: '#1d1b18' }),
+          mono('YOUR NAME  ·  2026', { x: 140, y: 350, align: 'left', fontSize: 14, fontWeight: 700 }),
+        ], { grain: 6 })),
+      ];
+    })(),
+
+    // ── PAPER & ID: documents, cards and stamps built around a portrait ──
+    ...(() => {
+      const P = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'ed-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
+      const BW = extra => Object.assign({ grayscale: 100, contrast: 16 }, extra || {});
+      const mono = (t, o) => txt(t, Object.assign({ fontFamily: 'Space Mono', fontSize: 22, fill: '#1d1b18', align: 'left' }, o));
+      const T = (id, name, tags, build) => ({ id, name, tags, width: 1080, height: 1350, build });
+      const doc = (bg, elements, overlay) => ({ width: 1080, height: 1350, background: bg, overlay: overlay || { grain: 14 }, elements });
+      const stamp = (text, x, y, s, color, o) => Object.assign({ type: 'badge', x, y, width: s, height: s, shape: 'circle', fill: 'rgba(0,0,0,0)', borderWidth: Math.round(s * 0.03), borderColor: color, innerRing: true, textColor: color,
+        ringText: text, ringFont: 'Courier Prime', ringWeight: 700, ringSize: 0.1, ringSpacing: 0.05, ringRadius: 0.76, ringFill: true, center: 'text', centerText: '★', centerFont: 'Archivo Black', centerWeight: 400, centerSize: 0.22, centerColor: color, blend: 'multiply', opacity: 0.8, name: 'Rubber stamp' }, o || {});
+      const rule = (x, y, w, h, o) => shp('rect', x, y, w, h, Object.assign({ fill: '#1d1b18', name: 'Rule' }, o || {}));
+      // ten fingerprint boxes: a frame with a loose spiral inside each
+      const prints = (x0, y0, size, gap, color) => [].concat(...Array.from({ length: 10 }, (_, i) => {
+        const x = x0 + (i % 5) * (size + gap), y = y0 + Math.floor(i / 5) * (size + gap);
+        return [shp('rect', x, y, size, size, { fill: 'rgba(0,0,0,0)', stroke: color, strokeWidth: 2, name: 'Print box' }),
+          rib('spiral', x + size * 0.18, y + size * 0.14, size * 0.64, size * 0.72, { line: true, thickness: 2.5, color, text: '', opacity: 0.75, rotation: (i * 37) % 30 - 15, name: 'Fingerprint' })];
+      }));
+      const chart = (x, y, w, h) => [shp('rect', x, y, w, h, { fill: '#e9e8e4', pattern: { type: 'lined', color: 'rgba(30,30,30,0.35)', size: 26, thick: 1.5, opacity: 1 }, name: 'Height chart' }),
+        txt(Array.from({ length: Math.floor(h / 52) }, (_, i) => 190 - i * 5).join('\n'), { x: x + w + 8, y: y + 4, align: 'left', fontFamily: 'Space Mono', fontSize: 14, lineHeight: 2.6, fill: '#3a3835', name: 'Heights' })];
+      return [
+        T('pid-certificate', 'Certificate', ['Photo', 'Paper'], () => doc({ color: '#e8e8e3', texture: 45 }, [
+          txt('CERTIFICATE OF RECOGNITION', { cx: 540, cy: 140, fontFamily: 'EB Garamond', fontWeight: 600, fontSize: 34, letterSpacing: 0.16, fill: '#1d1b18' }),
+          rule(90, 200, 900, 3), rule(90, 1030, 900, 3),
+          rule(870, 200, 3, 1100), txt('E', { x: 40, y: 560, align: 'left', fontFamily: 'EB Garamond', fontSize: 90, fill: '#1d1b18' }),
+          P('idman', 300, 290, 460, 620, { filters: BW({ contrast: 10 }), frame: { style: 'border', color: '#1d1b18', size: 2 } }),
+          txt('CERTIFICATE NO', { x: 150, y: 1060, align: 'left', fontFamily: 'EB Garamond', fontWeight: 700, fontSize: 52, fill: '#1d1b18' }),
+          txt('42608231', { x: 300, y: 1160, align: 'left', fontFamily: 'Courier Prime', fontWeight: 700, fontSize: 56, fill: '#1d1b18' }),
+        ], { grain: 10 })),
+        T('pid-mugshot', 'Mugshot record', ['Photo', 'Paper'], () => doc({ color: '#d9d7d2', texture: 55 }, [
+          txt('#K0383737171047291', { x: 60, y: 60, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 30, fill: '#1d1b18' }),
+          rule(60, 110, 420, 3),
+          mono('Name: Your Name\nRecord ID: 8Bc9013383612\nHeight: 5\'11"\nAge: 20\nCharge: Stealing the show', { x: 60, y: 140, fontSize: 24, lineHeight: 1.75 }),
+          ...chart(540, 60, 420, 600),
+          P('youth', 590, 120, 330, 540, { filters: BW({ contrast: 18 }), crop: { zoom: 1.1, x: 0.5, y: 0.3 } }),
+          stamp('RECORDS · OFFICE · FILED · ', 70, 470, 220, '#3a3a3a', { rotation: -14 }),
+          rule(60, 760, 960, 2), txt('Fingerprints:', { x: 60, y: 790, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 34, fill: '#1d1b18' }),
+          ...prints(60, 860, 150, 14, '#2c2a27'),
+          stamp('CENTRAL · RECORDS · OFFICE · ', 840, 1120, 170, '#1d1b18', { centerText: 'CRO', centerSize: 0.2, opacity: 0.85, rotation: 8 }),
+          mono('Office of Records and Archives', { x: 60, y: 1250, fontSize: 18, fill: '#4a4640' }),
+        ], { grain: 16 })),
+        T('pid-record', 'Personal record', ['Photo', 'Paper'], () => doc({ color: '#f4f3ef', texture: 20 }, [
+          stamp('CENTRAL · RECORDS · ', 60, 50, 110, '#1d1b18', { centerText: '✦', opacity: 0.9, blend: 'normal' }),
+          txt('Central Records Office\nPERSONAL RECORD', { x: 190, y: 70, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 24, lineHeight: 1.25, fill: '#1d1b18' }),
+          mono('FILE NUMBER   #59K2063-531\nPURPOSE       G-123874-9(F)\nORG ID        K007', { x: 600, y: 70, fontSize: 17, lineHeight: 1.6 }),
+          rule(60, 190, 960, 2),
+          mono('#KTT0903198900050807\nNAME: YOUR NAME\nRECORD ID: T13S912309\nPRONOUNS: SHE/HER\nAGE: SEVENTEEN\nNATIONALITY: ANYWHERE\nMBTI: INFJ-T', { x: 60, y: 220, fontSize: 21, lineHeight: 1.65, fontWeight: 700 }),
+          ...chart(600, 220, 330, 420),
+          P('idwoman', 630, 240, 270, 400, { filters: BW({ contrast: 12 }) }),
+          txt('FAVS...', { x: 60, y: 560, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 40, fill: '#1d1b18' }),
+          mono('BANDS — two of them, on repeat\nFILMS — anything with a train in it\nFOOD — noodles, always\nCOLOUR — the blue at 6pm', { x: 60, y: 630, fontSize: 19, lineHeight: 1.6 }),
+          txt('FINGERTIPS...', { x: 60, y: 830, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 40, fill: '#1d1b18' }),
+          ...prints(60, 900, 92, 10, '#2c2a27'),
+          txt('LIKES', { x: 600, y: 900, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 26, fill: '#1d1b18' }),
+          mono('slow mornings, film cameras,\nnotes in the margins', { x: 600, y: 940, fontSize: 17, lineHeight: 1.5 }),
+          txt('DISLIKES', { x: 600, y: 1030, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 26, fill: '#1d1b18' }),
+          mono('people who spoil endings,\ncold coffee', { x: 600, y: 1070, fontSize: 17, lineHeight: 1.5 }),
+          mono('[ made with care ]', { cx: 540, cy: 1270, align: 'center', fontSize: 18, fill: '#6b655b' }),
+        ], { grain: 8 })),
+        T('pid-badge', 'ID badge', ['Photo', 'Paper'], () => doc({ color: '#efefed' }, [
+          shp('rounded', 190, 120, 700, 1130, { radius: 42, fill: 'rgba(255,255,255,0.55)', stroke: '#c9c9c9', strokeWidth: 5, shadow: { on: true, color: '#000000', opacity: 0.18, blur: 30, x: 0, y: 14 }, name: 'Badge holder' }),
+          shp('pill', 450, 160, 180, 34, { fill: '#efefed', stroke: '#c9c9c9', strokeWidth: 4, name: 'Slot' }),
+          shp('ellipse', 300, 165, 26, 26, { fill: '#efefed', stroke: '#c9c9c9', strokeWidth: 4, name: 'Hole' }), shp('ellipse', 754, 165, 26, 26, { fill: '#efefed', stroke: '#c9c9c9', strokeWidth: 4, name: 'Hole' }),
+          shp('rect', 230, 240, 620, 960, { fill: '#ffffff', name: 'Card' }),
+          txt('THE\nPERFORMER', { x: 265, y: 280, align: 'left', fontFamily: 'Archivo Black', fontSize: 86, lineHeight: 0.86, fill: '#111111' }),
+          mono('DROP 23', { x: 720, y: 290, fontSize: 18, fontWeight: 700 }),
+          txt('STUDIO-FIRST FOUNDATION', { x: 265, y: 470, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 22, fill: '#111111' }),
+          P('curls', 335, 530, 410, 380, { filters: { contrast: 6 } }),
+          mono('NAME', { x: 265, y: 950, fontSize: 16 }), txt('Your Name', { x: 360, y: 925, align: 'left', fontFamily: 'Covered By Your Grace', fontSize: 64, fill: '#1c2f8f' }),
+          mono('OCCUPATION', { x: 265, y: 1030, fontSize: 16 }), txt('Model', { x: 430, y: 1005, align: 'left', fontFamily: 'Covered By Your Grace', fontSize: 60, fill: '#1c2f8f' }),
+          mono('SHADE', { x: 265, y: 1110, fontSize: 16 }), txt('L1 Neutral', { x: 360, y: 1085, align: 'left', fontFamily: 'Covered By Your Grace', fontSize: 60, fill: '#1c2f8f' }),
+          txt('45-12H', { x: 690, y: 1110, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 34, fill: '#111111' }),
+        ], { grain: 8 })),
+        T('pid-pass', 'Pass card', ['Photo', 'Paper'], () => doc({ color: '#ec5a24', texture: 20 }, [
+          txt('YS', { x: 60, y: 1190, align: 'left', fontFamily: 'Archivo Black', fontSize: 80, fill: '#111111' }),
+          mono('SEASON 26\nRUNWAY PASS\nNOT FOR RESALE', { x: 60, y: 60, fontSize: 16, lineHeight: 1.4 }),
+          shp('rounded', 190, 400, 700, 500, { radius: 26, fill: '#efe9dc', texture: 25, shadow: { on: true, color: '#000000', opacity: 0.3, blur: 30, x: 0, y: 16 }, name: 'Card' }),
+          txt('PASS CARD', { x: 480, y: 440, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 38, letterSpacing: 0.04, fill: '#111111' }),
+          P('stool', 230, 440, 220, 300, { filters: BW({ contrast: 14 }), crop: { zoom: 1.6, x: 0.5, y: 0.25 } }),
+          shp('rect', 230, 745, 220, 40, { fill: '#ec5a24', name: 'Look tag' }), txt('LOOK 05', { cx: 340, cy: 765, fontFamily: 'Arimo', fontWeight: 700, fontSize: 22, fill: '#111111' }),
+          mono('Brand:   Your Label\nSeason:  SS26\nStyle:   24/7\nType:    Daily wear', { x: 480, y: 510, fontSize: 21, lineHeight: 1.7 }),
+          ...Array.from({ length: 34 }, (_, i) => shp('rect', 480 + i * 11, 740, [3, 5, 2, 6, 3, 4][i % 6], 70, { fill: '#111111', name: 'Barcode' })),
+          mono('2580 4417 0093', { x: 480, y: 820, fontSize: 16 }),
+          ...[[190, 300, 120, 2], [890, 560, 120, 2], [400, 900, 2, 140], [890, 820, 110, 2]].map(([x, y, w, h]) => rule(x, y, w, h, { name: 'Callout' })),
+          mono('fit check', { x: 70, y: 280, fontSize: 16 }), mono('limited', { x: 920, y: 530, fontSize: 16 }), mono('scan me', { x: 920, y: 790, fontSize: 16 }), mono('front row', { x: 340, y: 1060, fontSize: 16 }),
+        ], { grain: 12 })),
+        T('pid-inquiry', 'Inquiry stamp', ['Photo', 'Paper'], () => doc({ color: '#d8d7dc', texture: 60 }, [
+          mono('xxxxx', { x: 60, y: 60, fontSize: 16 }), mono('xxxxx', { x: 960, y: 60, fontSize: 16 }),
+          txt('INQUIRY', { cx: 540, cy: 260, fontFamily: 'Playfair Display', fontWeight: 700, fontSize: 236, letterSpacing: 0.02, fill: '#6b58b8', opacity: 0.6, blend: 'multiply', rotation: -3 }),
+          P('yellow', 400, 520, 320, 400, { filters: { duotone: true, duoDark: '#2a2614', duoLight: '#f2d33c', contrast: 20 }, frame: { style: 'stamp', color: '#f4f1ea', size: 22 }, shadow: { on: true, color: '#000000', opacity: 0.15, blur: 10, x: 0, y: 4 } }),
+          stamp('RECEIVED · STUDIO · ARCHIVE · ', 230, 760, 260, '#5b46b0', { rotation: -14, centerText: '2026', centerSize: 0.16 }),
+          txt('Your Name', { cx: 690, cy: 860, fontFamily: 'Mrs Saint Delafield', fontSize: 150, fill: '#1d1b18', rotation: -12, name: 'Signature' }),
+          ...['no', 'rules', 'just', 'design', 'anymore'].map((w, i) => mono(w, { cx: 120 + i * 210, cy: 1270, align: 'center', fontSize: 18, fill: '#5b46b0' })),
+        ], { grain: 18 })),
+        T('pid-application', 'Friendship application', ['Photo', 'Paper'], () => doc({ color: '#e9e8e4', texture: 30 }, [
+          txt('FRIENDSHIP\nAPPLICATION', { cx: 540, cy: 170, fontFamily: 'Archivo Black', fontSize: 64, lineHeight: 0.95, fill: '#43507f' }),
+          mono('available until 15/26', { cx: 540, cy: 260, align: 'center', fontSize: 16, fill: '#43507f' }),
+          ...[[80, { fade: 30, grayscale: 100 }], [400, { grayscale: 100, contrast: 10 }], [720, { fade: 30, grayscale: 100 }]].map(([x, f], i) => P('idman', x, 330, 280, 340, { filters: f, name: i === 1 ? 'Your photo or video' : 'Side photo' })),
+          ...[[220, 330], [540, 330], [860, 330], [80, 500], [360, 500], [400, 500], [680, 500], [720, 500], [1000, 500], [220, 670], [540, 670], [860, 670]].map(([x, y]) => shp('ellipse', x - 9, y - 9, 18, 18, { fill: '#e9e8e4', stroke: '#43507f', strokeWidth: 2.5, name: 'Marker' })),
+          rule(80, 500, 920, 1.5, { fill: '#43507f', opacity: 0.6 }),
+          txt('Your Name. he/him | 22 years old.', { cx: 540, cy: 750, fontFamily: 'Space Mono', fontWeight: 700, fontSize: 22, fill: '#43507f' }),
+          txt('LOOKING FOR NEW MUTUALS TO GET ALONG AND FILL MY TIMELINE.\nTALKING ABOUT POP CULTURE, FILMS, FOOD AND MUSIC.\nHORROR MOVIES, TV SHOWS, LONG WALKS. ALSO A TAROT READER.\nI PLAY GAMES AND ALWAYS SAY YES TO KARAOKE.', { cx: 540, cy: 870, fontFamily: 'Space Mono', fontSize: 17, lineHeight: 1.55, fill: '#43507f' }),
+          txt('QUIZZES (ESPECIALLY ABOUT FILMS) GET FREE PASS', { cx: 540, cy: 1000, fontFamily: 'Space Mono', fontSize: 17, fill: '#43507f' }),
+          mono('friendship · mutuals · notes · season 26', { cx: 540, cy: 1250, align: 'center', fontSize: 15, fill: '#43507f' }),
+        ], { grain: 8 })),
+        T('pid-portrait', 'A portrait of you', ['Photo', 'Paper'], () => doc({ color: '#d9d4c8', texture: 30 }, [
+          shp('torn', 80, 70, 920, 1210, { fill: '#f4f0e6', texture: 55, shadow: { on: true, color: '#000000', opacity: 0.18, blur: 24, x: 0, y: 10 }, name: 'Paper' }),
+          txt('The untold stories', { x: 200, y: 180, align: 'left', fontFamily: 'Inter', fontSize: 20, fill: '#1d1b18' }),
+          txt('A PORTRAIT\nOF YOU,', { cx: 520, cy: 340, fontFamily: 'Covered By Your Grace', fontSize: 100, lineHeight: 1, fill: '#1d1b18', rotation: -2 }),
+          P('profile', 260, 480, 470, 500, { rotation: -3, filters: BW({ contrast: 14 }), frame: { style: 'border', color: '#f7f4ee', size: 16 }, shadow: { on: true, color: '#000000', opacity: 0.2, blur: 14, x: 0, y: 6 } }),
+          shp('rect', 470, 600, 170, 46, { fill: '#c9c4b9', rotation: -3, name: 'Censor bar' }),
+          stk('tape-masking', 210, 440, 200, 66, { rotation: -32, name: 'Tape' }),
+          txt('every moment\nyou keep', { x: 740, y: 560, align: 'left', fontFamily: 'Covered By Your Grace', fontSize: 40, lineHeight: 1, fill: '#1d1b18' }),
+          txt('is worth', { x: 740, y: 640, align: 'left', fontFamily: 'Covered By Your Grace', fontSize: 40, fill: '#c5261f' }),
+          txt('holding on to', { x: 740, y: 690, align: 'left', fontFamily: 'Covered By Your Grace', fontSize: 40, fill: '#1d1b18' }),
+          txt('born to create', { cx: 470, cy: 1020, fontFamily: 'Mrs Saint Delafield', fontSize: 130, fill: '#c5261f', rotation: -6 }),
+          txt('instagram.com/yourname', { cx: 540, cy: 1190, fontFamily: 'Inter', fontSize: 16, fill: '#4a4640' }),
+        ], { grain: 10 })),
+        T('pid-aboutme', 'About me note', ['Photo', 'Paper'], () => doc({ color: '#ececea' }, [
+          P('suit', 400, 190, 600, 920, { filters: BW({ contrast: 12 }) }),
+          shp('torn', 90, 330, 420, 640, { fill: '#efeae0', texture: 60, rotation: -2, shadow: { on: true, color: '#000000', opacity: 0.25, blur: 20, x: 0, y: 10 }, name: 'Note' }),
+          stk('clip-silver', 330, 270, 56, 150, { rotation: 6, name: 'Paper clip' }),
+          txt('ABOUT ME', { x: 150, y: 400, align: 'left', fontFamily: 'Special Elite', fontSize: 40, fill: '#2c3e9c', underline: true, rotation: -2 }),
+          txt('• Your Name\n• Interior designer\n• Based in Valencia\n\n• Loves retail\n• Curious mind\n• Always learning\n\n   And still building...', { x: 150, y: 480, align: 'left', fontFamily: 'Special Elite', fontSize: 27, lineHeight: 1.35, fill: '#2c3e9c', rotation: -2 }),
+          txt('stay tuned for more!', { x: 790, y: 1130, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 34, fill: '#1d1b18' }),
+        ], { grain: 8 })),
+        T('pid-profile', 'Profile card', ['Photo', 'Paper'], () => doc({ color: '#f7f6f3' }, [
+          shp('rect', 220, 220, 600, 820, { fill: '#ebe5da', texture: 45, rotation: -3, shadow: { on: true, color: '#000000', opacity: 0.18, blur: 24, x: 0, y: 12 }, name: 'Card' }),
+          txt('BEHIND THE NAME', { x: 270, y: 280, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 22, letterSpacing: 0.12, fill: '#1d1b18', rotation: -3 }),
+          mono('NAME\nYour Name\n\nFAVOURITE\nCOUNTRIES\nPortugal, Japan,\nNew Zealand', { x: 270, y: 340, fontSize: 18, lineHeight: 1.35, rotation: -3 }),
+          P('curls', 520, 300, 260, 330, { rotation: -3, filters: BW({ contrast: 10 }) }),
+          stk('clip-silver', 640, 250, 44, 120, { rotation: 4, name: 'Paper clip' }),
+          txt('TELL ME ABOUT YOUR STORY', { x: 270, y: 680, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 18, fill: '#1d1b18', rotation: -3 }),
+          txt('somewhere between\nthe first flight and\nthe last train home', { x: 280, y: 720, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 42, lineHeight: 1, fill: '#1c2f8f', rotation: -3 }),
+          shp('ticket', 160, 930, 380, 150, { fill: '#c8322a', rotation: -8, shadow: { on: true, color: '#000000', opacity: 0.2, blur: 12, x: 0, y: 6 }, name: 'Ticket' }),
+          txt('ADMIT ONE\n13 · 0545', { cx: 345, cy: 990, fontFamily: 'Space Mono', fontWeight: 700, fontSize: 24, lineHeight: 1.3, fill: '#f7efe3', rotation: -8 }),
+          shp('ticket', 800, 160, 110, 280, { fill: '#2b4f9a', rotation: 8, name: 'Ticket' }),
+        ], { grain: 8 })),
+      ];
+    })(),
+
     // ── FILM: looks — your photo or video graded like a film stock, with grain, halation, leaks and dust ──
     ...(() => {
       const LOOK = (k, extra) => Object.assign(JSON.parse(JSON.stringify(window.StudioRender.FILTER_PRESETS[k].f)), extra || {});
@@ -1966,6 +2238,8 @@
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
+    'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper'],
+    'Paper & ID': ['pid-mugshot', 'pid-inquiry', 'pid-badge', 'pid-portrait', 'pid-certificate', 'pid-record', 'pid-pass', 'pid-application', 'pid-aboutme', 'pid-profile'],
     'Film looks': ['fl-gold', 'fl-portrait', 'fl-night', 'fl-super8', 'fl-expired', 'fl-disposable', 'fl-burn', 'fl-vivid', 'fl-green', 'fl-cinema', 'fl-cross', 'fl-leak', 'fl-bleach', 'fl-twostrip', 'fl-pan400', 'fl-projector'],
     'Film camera': ['fc-contact', 'fc-leader', 'fc-strip', 'fc-slides', 'fc-instant', 'fc-darkroom', 'fc-negative', 'fc-halfframe', 'fc-medium', 'fc-booth'],
     'Stop motion': ['stop-classic', 'stop-polaroid', 'stop-reel'],

@@ -116,6 +116,7 @@
   if (window.StudioFlashes && window.StudioFlashes.DEMO) for (const [k, v] of Object.entries(window.StudioFlashes.DEMO)) assets['demo-' + k] = v.src;
   if (window.StudioFlashes && window.StudioFlashes.IMG) for (const [k, v] of Object.entries(window.StudioFlashes.IMG)) assets['img-' + k] = v.src;
   if (window.StudioFilm && window.StudioFilm.IMG) for (const [k, v] of Object.entries(window.StudioFilm.IMG)) assets['film-' + k] = v.src;
+  if (window.StudioPortraits && window.StudioPortraits.IMG) for (const [k, v] of Object.entries(window.StudioPortraits.IMG)) assets['ed-' + k] = v.src;
   let sel = [];
   let playing = false;
   let pathEdit = null;
@@ -466,7 +467,15 @@
     doc.elements.forEach((el, i) => { const n = nodes.get(el.id); if (n) n.zIndex(i); });
     overlayShape.moveToTop();
   }
-  function redraw() { layer.batchDraw(); bgLayer.batchDraw(); uiLayer.batchDraw(); }
+  // blend modes need the background on the same canvas as the layers, or they'd mix with nothing while editing
+  function placeBackground() {
+    const want = doc.elements.some(e => e.blend && e.blend !== 'normal' && e.blend !== 'source-over') ? layer : bgLayer;
+    if (bgFrame.getLayer() === want) return;
+    bgFrame.moveTo(want);
+    if (want === layer) bgFrame.moveToBottom();
+    bgLayer.batchDraw();
+  }
+  function redraw() { placeBackground(); layer.batchDraw(); bgLayer.batchDraw(); uiLayer.batchDraw(); }
   S.redraw = redraw;
 
   let lastFontsVersion = R.fontsVersion;
@@ -654,7 +663,7 @@
 
   // my templates: a design saved to start new ones from. Index under 'templates', data under 'template:<id>'
   // (the doc, the photos/videos it uses — bundled demo photos are left out — and any uploaded fonts)
-  const BUILT_IN = /^(demo|img|film)-/;
+  const BUILT_IN = /^(demo|img|film|ed)-/;
   let tplList = null;
   async function myTemplates() {
     if (tplList) return tplList;
@@ -1939,11 +1948,41 @@
     emit('values');
   };
   S.flip = function (axis) {
-    for (const el of S.selEls()) {
-      if (el.type === 'text') continue;
-      if (axis === 'x') el.flipX = !el.flipX; else el.flipY = !el.flipY;
-    }
+    const els = S.selEls();
+    if (!els.length) return;
+    for (const el of els) { if (axis === 'x') el.flipX = !el.flipX; else el.flipY = !el.flipY; syncNode(el); }
     redraw(); S.commit(); emit('values');
+  };
+  // copy / paste properties: the whole look of one layer (font, colours, effects, frame, filters…) onto others
+  let styleClip = null;
+  const NOT_STYLE = new Set(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'name', 'locked', 'hidden', 'text', 'assetId', 'crop', 'video', 'seq',
+    'points', 'images', 'stickerId', 'shape', 'kind', 'key', 'erase', 'time', 'studio', 'bgRemoved', 'placeholder', 'path', 'autoWidth', 'typing', 'flipX', 'flipY', 'cx', 'cy']);
+  // between different kinds of layer only these carry over
+  const SHARED_STYLE = ['opacity', 'blend', 'shadow', 'anim', 'lblur'];
+  S.copyStyle = function () {
+    const el = S.selEls()[0];
+    if (!el) { emit('toast', 'Select a layer to copy its properties'); return; }
+    const style = {};
+    for (const k of Object.keys(el)) if (!NOT_STYLE.has(k)) style[k] = clone(el[k]);
+    styleClip = { type: el.type, style };
+    emit('toast', `Copied the properties of ${S.elLabel(el)} — select layers and press ⌘⌥V`);
+  };
+  S.hasStyleClip = () => !!styleClip;
+  S.pasteStyle = function () {
+    if (!styleClip) { emit('toast', 'Copy properties first: select a layer and press ⌘⌥C'); return; }
+    const els = S.selEls().filter(e => !e.locked);
+    if (!els.length) { emit('toast', 'Select the layers to paste the properties onto'); return; }
+    for (const el of els) {
+      const same = el.type === styleClip.type;
+      for (const [k, v] of Object.entries(styleClip.style)) {
+        if (same || SHARED_STYLE.includes(k) || (k === 'fill' && el.fill !== undefined)) el[k] = clone(v);
+      }
+      autosize(el);
+      syncNode(el);
+    }
+    tr.forceUpdate(); redraw(); positionOverlays(); S.commit();
+    emit('values'); emit('selection');
+    emit('toast', `Pasted properties onto ${els.length} layer${els.length > 1 ? 's' : ''}`);
   };
   S.selectAll = () => S.select(doc.elements.filter(e => !e.hidden && !e.locked).map(e => e.id));
 
@@ -2156,6 +2195,9 @@
     if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? S.redo() : S.undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); S.redo(); return; }
     if (mod && k === 'd') { e.preventDefault(); S.duplicate(); return; }
+    // ⌘⌥C / ⌘⌥V copy and paste a layer's properties (e.code, because Option changes the letter on a Mac)
+    if (mod && e.altKey && e.code === 'KeyC') { e.preventDefault(); S.copyStyle(); return; }
+    if (mod && e.altKey && e.code === 'KeyV') { e.preventDefault(); S.pasteStyle(); return; }
     // ⌘C / ⌘X / ⌘V arrive as copy / cut / paste events below so the system clipboard is used too
     if (mod && (k === 'c' || k === 'x' || k === 'v')) return;
     if (mod && k === 'a') { e.preventDefault(); S.selectAll(); return; }
@@ -2171,6 +2213,7 @@
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }
     if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (spotEdit) endSpotEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
+    if (e.shiftKey && !e.altKey && (e.code === 'KeyH' || e.code === 'KeyV')) { if (sel.length) { e.preventDefault(); S.flip(e.code === 'KeyH' ? 'x' : 'y'); } return; }
     if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
     if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }
     if (k === 'h') { S.setTool(S.tool === 'hand' ? 'select' : 'hand'); return; }
