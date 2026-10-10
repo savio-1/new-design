@@ -53,9 +53,20 @@ Designs live in this browser's storage, so clearing site data removes them — d
 - **Studio look** (on any photo): the person is cut out once (with the background-removal model) and re-lit on a seamless studio backdrop — presets Ember, Spotlight, Blue hour, Clay, Studio grey, Lime, Noir and Blush, with light type (soft key, spotlight, side, top, flat), backdrop/shadow/light colours, brightness, how much the person takes on the backdrop colour, rim light and a soft wall shadow. It never changes the original photo and can be switched off. The *Studio portrait* templates use it.
 - **Blur** (its own section on any photo): None, Motion, Zoom, Spin, Soft, Tilt-shift or Double, with an amount slider and the controls that type needs — direction, the centre point, or the sharp focus band.
 - **Film gate frame** (Frame → *Film gate*): a projected-film border — dark gate, rounded corners and a soft burnt-in edge. Set its colour and border width, and under *More options* the corner roundness and how soft the edge is.
-- **Halation** (Look → *Halation*, or the slider under Adjust → Lens): the red-orange glow that bleeds around highlights on film — city lights, sun, white skies. Works on photos and the canvas background.
+- **Halation** (Look → *Halation*, or the slider under *Film effects*): the red-orange glow that bleeds around highlights on film — city lights, sun, white skies. Works on photos, videos and the canvas background; its colour can be changed under *More film effects*.
 - **Blur spots**: under Blur → *Where*, choose *Everywhere*, *On spots* (blur only around chosen points) or *Off spots* (keep those points sharp and blur the rest). *Place on photo* lets you click the photo to drop spots, drag a spot to move it, drag its ring handle to resize and double-click to remove (Esc when done). Each spot also has a size slider, *Softness* sets how gently the blur fades, and background photos get position sliders instead.
 - **Camera overlays**: phone camera interface, camcorder and viewfinder, with an optional wide-lens black edge and editable labels.
+
+## Film
+
+- **Looks** (Look section on any photo, video or background photo): presets in shelves — *Film*, *Colour*, *B&W*, *Print*, *Effects*. The Film shelf has film stocks and processes named for the look: Gold 200, Portrait 400, Vivid 100, Green 400, Tungsten 800, Halation, Slide 50, Expired, Disposable, Instant, Super 8, Cinema (teal & orange), Two-strip, Cross process, Bleach bypass, Overexposed, Pushed, Light leak, Negative and Vintage. B&W adds Pan 400 and Soft B&W.
+- **Adjust**: Exposure, Contrast, Highlights, Shadows, Temperature, Tint, Saturation and Vibrance up front; *More adjustments* has Brightness, Blacks, Fade, Hue, Sharpen, Clarity, Noise, Fisheye and the print effects (Mono, Sepia, Halftone, Photocopy, Duotone).
+- **Film effects**: Halation, Bloom, Film grain, Vignette, Light leak and Dust up front; *More film effects* has grain size, halation and leak colours, which edge the leak comes from, Colour fringe (chromatic aberration), Cross process and Split tone (a colour for the shadows, another for the highlights, and the balance between them). On a video, grain and dust change every frame.
+- **Film frames** (Frame section): *Negative scan* — a 35 mm strip with lit sprocket holes, amber edge print and frame numbers (edit the print, number and colour); *Slide mount* — a card slide mount with a printed label and number; *Filed edge* — the rough black border of a filed-out negative carrier (roughness and *New edge*); and *Film gate*.
+- **Canvas → Finish** adds film over the whole design: Film grain (with size), Dust & scratches, Film burn, Flicker, Gate weave (the picture hops slightly every frame, like film in a projector), Light leak, Vignette and more. Flicker and gate weave turn a design into a video; grain, dust, light leaks and burns move while it plays.
+- **Film looks** template family (16): Gold 200, Portrait 400, Night 800T, Super 8, Expired roll, Disposable, Film burn, Vivid 100, Green 400, Widescreen, Cross process, Light leak, Bleach bypass, Two-strip, Pan 400 and Projector reel (9:16). Each is one photo-or-video slot with the look already on, plus date stamps, captions or a projector gate.
+- **Film camera** template family (10): Contact sheet (strips of negatives with grease-pencil marks), Countdown leader (3-2-1 film leader into your clip), Film strip, Light table (slide mounts), Instant stack, Darkroom (prints drying under the safelight), Negative scan, Half frame (two pictures in one frame), Medium format and Photo booth.
+- Heavy looks on a video (bloom, halation, sharpen) are graded at a smaller size while previewing so playback keeps up; the export uses full size.
 
 ## Selecting layers
 
@@ -106,7 +117,7 @@ Select a photo and choose **Remove background** (or **Cut out to layer** to keep
 
 ## Photo credits
 
-The speed-flash photo packs and the demo portraits in `flashes.js` are from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license) (free to use, attribution not required). Image ids, for credit — each one is `https://images.unsplash.com/photo-<id>`:
+The speed-flash photo packs and the demo portraits in `flashes.js`, and the film photos in `filmphotos.js`, are from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license) (free to use, attribution not required). Image ids, for credit — each one is `https://images.unsplash.com/photo-<id>`:
 `1461896836934-ffe607ba8211`,
 `1526676317768-d9b14f15615a`,
 `1696536823512-79d724454616`,
@@ -146,4 +157,21 @@ The speed-flash photo packs and the demo portraits in `flashes.js` are from [Uns
 `1652995023370-15f2fe166652`,
 `1765710307817-db7fd96602d4`,
 `1636137351259-fbe4b2a94244`,
-`1463947628408-f8581a2f4aca`.
+`1463947628408-f8581a2f4aca`,
+`1447798084910-4d1dfb81b657`,
+`1585933654851-820691b3740f`,
+`1553670440-f4fa1dfeabf4`,
+`1602069758330-4779463aeae4`,
+`1633355419307-28c05d752002`,
+`1645513115508-131c8dd9a744`,
+`1642553214777-1ec5a8aae87f`,
+`1720662199662-a5c25d1e87b5`,
+`1729200656377-2b0eb28ea65d`,
+`1669846691726-1c0a23a6a31a`,
+`1646776186375-5263873b144b`,
+`1638632675309-eb183635f496`,
+`1628487536919-58ddf0766be4`,
+`1733161214175-2108df3bf210`,
+`1552619809-37d77db7dffe`,
+`1709746242257-e7035f6b3c73`,
+`1636990536225-2eb22dfc12bc`.

@@ -372,8 +372,8 @@
     const sw = h('span');
     const code = h('code');
     const btn = h('button.swatch-btn', { type: 'button' }, h('span.sw', null, sw), code);
-    const upd = () => { const v = val(t, path); sw.style.background = v || 'transparent'; code.textContent = (!v || v === 'transparent') ? 'None' : (v[0] === '#' ? v.toUpperCase() : v); };
-    btn.addEventListener('click', () => colorPopover(btn, val(t, path), (v, live) => (o.set ? o.set(v, live) : S.change(t, path, v, live)), o));
+    const upd = () => { const v = val(t, path) ?? o.def; sw.style.background = v || 'transparent'; code.textContent = (!v || v === 'transparent') ? 'None' : (v[0] === '#' ? v.toUpperCase() : v); };
+    btn.addEventListener('click', () => colorPopover(btn, val(t, path) ?? o.def, (v, live) => (o.set ? o.set(v, live) : S.change(t, path, v, live)), o));
     bindings.push(upd); upd();
     return btn;
   }
@@ -624,6 +624,8 @@
     return b;
   }
 
+  // looks, in shelves: film stocks first, then colour, black & white, print and effects
+  const lookShelf = new Map();
   function filterThumbs(el, target) {
     const grid = h('div.filter-strip');
     const img = target === 'doc' ? R.assetImage(S.doc.background.assetId) : R.assetImage(el.assetId);
@@ -637,7 +639,12 @@
     }
     const fpath = target === 'doc' ? 'background.filters' : 'filters';
     const cur = JSON.stringify(S.getPath(target === 'doc' ? S.doc : el, fpath) || {});
-    for (const [k, p] of Object.entries(R.FILTER_PRESETS)) {
+    const G = R.FILTER_GROUPS;
+    const isOn = k => JSON.stringify(R.FILTER_PRESETS[k].f) === cur;
+    const shelf = lookShelf.get(target) || Object.keys(G).find(g => G[g].keys.some(k => k !== 'original' && isOn(k))) || 'film';
+    const keys = (G[shelf].keys.includes('original') ? [] : ['original']).concat(G[shelf].keys);
+    for (const k of keys) {
+      const p = R.FILTER_PRESETS[k];
       const c = document.createElement('canvas');
       c.width = 96; c.height = 96;
       const x = c.getContext('2d');
@@ -646,30 +653,58 @@
         const sc = Math.max(96 / small.width, 96 / small.height);
         if (p.f.blur) x.filter = `blur(${p.f.blur / 6}px)`;
         x.drawImage(src, (96 - small.width * sc) / 2, (96 - small.height * sc) / 2, small.width * sc, small.height * sc);
+        x.filter = 'none';
+        R.photoFinish(x, { x: 0, y: 0, w: 96, h: 96 }, Object.assign({}, p.f, { grain: 0, dust: 0 }));
       } else { x.fillStyle = '#ddd'; x.fillRect(0, 0, 96, 96); }
-      const on = JSON.stringify(p.f) === cur;
-      grid.append(h('button.filter-tile' + (on ? '.on' : ''), { type: 'button', onclick: () => { S.change(target, fpath, S.clone(p.f)); renderInspector(); } }, c, p.label));
+      grid.append(h('button.filter-tile' + (isOn(k) ? '.on' : ''), { type: 'button', onclick: () => { S.change(target, fpath, S.clone(p.f)); renderInspector(); } }, c, p.label));
     }
-    return grid;
+    const tabs = h('div.chips.tight.look-tabs', null, Object.entries(G).map(([g, v]) =>
+      h('button.chip' + (g === shelf ? '.on' : ''), { type: 'button', onclick: () => { lookShelf.set(target, g); renderInspector(); } }, v.label)));
+    return h('div.looks', null, tabs, grid);
   }
-  function filterSliders(t, base) {
+  // one slider for one photo-look value
+  function lookSlider(t, base, k, l, a, b) {
+    return row(l, num(t, base + '.' + k, { min: a, max: b, slider: true, def: 0, set: (v, live) => { S.change(t, base + '.' + k, v, live); if (!live && ['motion', 'halftone', 'threshold', 'splitTone', 'leak', 'halation'].includes(k)) renderInspector(); } }));
+  }
+  // light and colour, like a photo app's edit tab: the everyday sliders up front, the rest one click away
+  function adjustSection(t, base) {
     const f = S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
-    const sl = (k, l, a, b) => row(l, num(t, base + '.' + k, { min: a, max: b, slider: true, def: 0, set: (v, live) => { S.change(t, base + '.' + k, v, live); if (!live && (k === 'motion' || k === 'halftone' || k === 'threshold')) renderInspector(); } }));
-    const out = [
-      label('Light & colour'),
-      sl('brightness', 'Brightness', -100, 100), sl('contrast', 'Contrast', -100, 100), sl('saturation', 'Saturation', -100, 100),
-      sl('warmth', 'Warmth', -100, 100), sl('fade', 'Fade', 0, 100),
-      label('Grain'),
-      sl('noise', 'Noise', 0, 100), sl('grain', 'Film grain', 0, 100), sl('vignette', 'Vignette', 0, 100),
-      label('Lens'),
-      sl('fisheye', 'Fisheye', 0, 100), sl('halation', 'Halation', 0, 100),
-      label('Print'),
-      sl('grayscale', 'Mono', 0, 100), sl('sepia', 'Sepia', 0, 100), sl('halftone', 'Halftone', 0, 100), sl('threshold', 'Photocopy', 0, 100),
-      toggle(t, base + '.duotone', 'Duotone', { set: v => { S.change(t, base + '.duotone', v); if (v && !f.duoDark) { S.change(t, base + '.duoDark', '#1b2a8f', true); S.change(t, base + '.duoLight', '#a9c4ff'); } renderInspector(); } }),
-    ];
-    if (f.duotone || f.threshold || f.halftone) out.push(row('Ink', colorCtl(t, base + '.duoDark')), row('Paper', colorCtl(t, base + '.duoLight')));
-    out.push(full(h('button.btn', { type: 'button', onclick: () => { S.change(t, base, {}); renderInspector(); } }, ic('undo'), 'Reset photo look')));
-    return out;
+    const sl = (k, l, a = -100, b = 100) => lookSlider(t, base, k, l, a, b);
+    return sec('Adjust', [
+      sl('exposure', 'Exposure'), sl('contrast', 'Contrast'), sl('highlights', 'Highlights'), sl('shadows', 'Shadows'),
+      sl('warmth', 'Temperature'), sl('tint', 'Tint'), sl('saturation', 'Saturation'), sl('vibrance', 'Vibrance'),
+      more('adjust-more', [
+        sl('brightness', 'Brightness'), sl('blacks', 'Blacks'), sl('fade', 'Fade', 0, 100), sl('hue', 'Hue', -180, 180),
+        sl('sharpen', 'Sharpen', 0, 100), sl('clarity', 'Clarity'), sl('noise', 'Noise', 0, 100), sl('fisheye', 'Fisheye', 0, 100),
+        label('Print'),
+        sl('grayscale', 'Mono', 0, 100), sl('sepia', 'Sepia', 0, 100), sl('halftone', 'Halftone', 0, 100), sl('threshold', 'Photocopy', 0, 100),
+        toggle(t, base + '.duotone', 'Duotone', { set: v => { S.change(t, base + '.duotone', v); if (v && !f.duoDark) { S.change(t, base + '.duoDark', '#1b2a8f', true); S.change(t, base + '.duoLight', '#a9c4ff'); } renderInspector(); } }),
+        f.duotone || f.threshold || f.halftone ? row('Ink', colorCtl(t, base + '.duoDark')) : null,
+        f.duotone || f.threshold || f.halftone ? row('Paper', colorCtl(t, base + '.duoLight')) : null,
+      ], 'More adjustments'),
+      full(h('button.btn', { type: 'button', onclick: () => { S.change(t, base, {}); renderInspector(); } }, ic('undo'), 'Reset photo look')),
+    ], true, { key: 'adjust' });
+  }
+  // what makes it feel like film: glow round the lights, grain, leaks, dust
+  function filmSection(t, base) {
+    const f = S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
+    const sl = (k, l, a = 0, b = 100) => lookSlider(t, base, k, l, a, b);
+    return sec('Film effects', [
+      sl('halation', 'Halation'), sl('bloom', 'Bloom'), sl('grain', 'Film grain'), sl('vignette', 'Vignette'),
+      sl('leak', 'Light leak'), sl('dust', 'Dust'),
+      more('film-more', [
+        sl('grainSize', 'Grain size'),
+        f.halation ? row('Halation colour', colorCtl(t, base + '.halColor', { def: '#ff4820' })) : null,
+        f.leak ? row('Leak colour', colorCtl(t, base + '.leakColor', { def: '#ff5a1f' })) : null,
+        f.leak ? row('Leak from', seg(t, base + '.leakSide', [['left', 'Left'], ['right', 'Right'], ['top', 'Top'], ['bottom', 'Bottom']], { get: () => (S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {}).leakSide || 'left' })) : null,
+        sl('chroma', 'Colour fringe'), sl('cross', 'Cross process'),
+        label('Split tone'),
+        sl('splitTone', 'Amount'),
+        f.splitTone ? row('Shadows', colorCtl(t, base + '.toneShadow', { def: '#1d6f78' })) : null,
+        f.splitTone ? row('Highlights', colorCtl(t, base + '.toneHigh', { def: '#ffa65c' })) : null,
+        f.splitTone ? sl('toneBalance', 'Balance', -100, 100) : null,
+      ], 'More film effects'),
+    ], true, { key: 'film-fx' });
   }
 
   // one place to pick a blur, see how strong it is and steer it
@@ -742,8 +777,10 @@
     ], type !== 'none', { key: 'blur-' + t });
   }
   const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
-  const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border', 'gate'];
-  const DARK_FRAMES = ['film', 'gate'];
+  const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border', 'gate', 'scan', 'slide', 'filed'];
+  const DARK_FRAMES = ['film', 'gate', 'scan', 'filed'];
+  // starting border size and colour for the film frames, as a share of the photo's short side
+  const FRAME_START = { gate: [0.045, '#0b0b0b'], scan: [0.035, '#161412'], slide: [0.16, '#efebe2'], filed: [0.05, '#0b0b0b'] };
   function frameTiles(el, limit) {
     const grid = h('div.frame-grid');
     let entries = Object.entries(R.FRAMES);
@@ -754,7 +791,7 @@
       entries = head;
     }
     for (const [k, l] of entries) {
-      const demo = S.mk('image', { assetId: el.assetId, width: 100, height: k === 'polaroid' ? 120 : 100, frame: { style: k, color: DARK_FRAMES.includes(k) ? '#0b0b0b' : el.frame.color === '#ffffff' && ROUND_FRAMES.includes(k) ? '#ffffff' : (el.frame.color || '#fff'), size: ROUND_FRAMES.includes(k) ? 0 : 7, radius: k === 'rounded' ? 14 : 0 }, crop: el.crop, filters: {}, placeholder: el.placeholder });
+      const demo = S.mk('image', { assetId: el.assetId, width: 100, height: k === 'polaroid' ? 120 : 100, frame: { style: k, color: FRAME_START[k] ? FRAME_START[k][1] : DARK_FRAMES.includes(k) ? '#0b0b0b' : el.frame.color === '#ffffff' && ROUND_FRAMES.includes(k) ? '#ffffff' : (el.frame.color || '#fff'), size: ROUND_FRAMES.includes(k) ? 0 : FRAME_START[k] ? Math.round(100 * FRAME_START[k][0]) : 7, radius: k === 'rounded' ? 14 : 0 }, crop: el.crop, filters: {}, placeholder: el.placeholder });
       demo.id = el.id;
       const c = elThumb(demo, 56, 56, 2);
       c.style.width = '100%';
@@ -766,10 +803,10 @@
           S.changeEl(e0, e => {
             e.frame.style = k;
             if (needsBorder && !(e.frame.size > 2)) e.frame.size = Math.round(Math.min(e.width, e.height) * 0.05);
-            if (k === 'gate') e.frame.size = Math.round(Math.min(e.width, e.height) * 0.045);
+            if (FRAME_START[k]) e.frame.size = Math.round(Math.min(e.width, e.height) * FRAME_START[k][0]);
             if (!needsBorder && ROUND_FRAMES.includes(k)) e.frame.size = 0;
-            if (DARK_FRAMES.includes(k) && e.frame.color === '#ffffff') e.frame.color = k === 'gate' ? '#0b0b0b' : '#1d1b18';
-            if (!DARK_FRAMES.includes(k) && (e.frame.color === '#1d1b18' || e.frame.color === '#0b0b0b')) e.frame.color = '#ffffff';
+            if (DARK_FRAMES.includes(k) && ['#ffffff', '#efebe2'].includes(e.frame.color)) e.frame.color = FRAME_START[k] ? FRAME_START[k][1] : '#1d1b18';
+            if (!DARK_FRAMES.includes(k) && ['#1d1b18', '#0b0b0b', '#161412'].includes(e.frame.color)) e.frame.color = k === 'slide' ? '#efebe2' : '#ffffff';
             if (k === 'rounded' && !e.frame.radius) e.frame.radius = Math.round(Math.min(e.width, e.height) * 0.08);
           });
           renderInspector();
@@ -946,7 +983,9 @@
     const bordered = BORDER_FRAMES.includes(fs);
     const allFrames = !!moreOpen.get('frames-all');
     return [
-      el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
+      el.assetId ? sec('Look', [full(filterThumbs(el, 'sel'))], true) : null,
+      el.assetId ? adjustSection(T, 'filters') : null,
+      el.assetId ? filmSection(T, 'filters') : null,
       blurSection(T, 'filters'),
       sec('Frame', [
         full(frameTiles(el, allFrames ? 0 : 8)),
@@ -958,6 +997,11 @@
           fs === 'gate' ? row('Corners', num(T, 'frame.round', { min: -60, max: 200, slider: true, def: 0 })) : null,
           fs === 'gate' ? row('Soft edge', num(T, 'frame.soft', { min: 0, max: 100, slider: true, def: 40 })) : null,
           fs === 'polaroid' ? row('Bottom', num(T, 'frame.bottom', { min: 1, max: 8, step: 0.1, slider: true, unit: '×' })) : null,
+          fs === 'scan' || fs === 'slide' ? row(fs === 'scan' ? 'Edge print' : 'Label', inputCtl(T, 'frame.label', { placeholder: fs === 'scan' ? 'FILM 400' : 'SUMMER · 1978' })) : null,
+          fs === 'scan' || fs === 'slide' ? row(fs === 'scan' ? 'Frame no.' : 'Slide no.', num(T, 'frame.num', { min: 0, max: 99, def: fs === 'scan' ? 14 : 12 })) : null,
+          fs === 'scan' || fs === 'slide' ? row('Print colour', colorCtl(T, 'frame.textColor', { def: fs === 'scan' ? '#f2a33a' : '#2d2822' })) : null,
+          fs === 'filed' ? row('Roughness', num(T, 'frame.rough', { min: 0, max: 300, scale: 100, slider: true, unit: '%', def: 1 })) : null,
+          fs === 'filed' ? full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'frame.seed', Math.floor(Math.random() * 1e5)) }, ic('shuffle'), 'New edge')) : null,
           bordered ? row('Paper', num(T, 'frame.texture', { min: 0, max: 100, slider: true })) : null,
         ]) : null,
       ], fs !== 'none' || !el.assetId),
@@ -1677,18 +1721,19 @@
       bg.assetId ? sec(R.isVideoAsset(bg.assetId) ? 'Background video' : 'Background photo', [
         full(h('button.btn.primary', { type: 'button', disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
         full(filterThumbs(null, 'doc')),
-        blurSection(T, 'background.filters'),
         more('bgphoto-more', [
           row('Opacity', num(T, 'background.imageOpacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           row('Zoom', num(T, 'background.crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
           row('Pan X', num(T, 'background.crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           row('Pan Y', num(T, 'background.crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
-          ...filterSliders(T, 'background.filters'),
-        ], 'Adjust photo'),
+        ], 'Opacity & position'),
         full(h('div.btn-row', null,
           h('button.btn.grow', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('replace'), 'Replace'),
           h('button.btn.grow.danger', { type: 'button', onclick: removeBgPhoto }, ic('trash'), R.isVideoAsset(bg.assetId) ? 'Remove video' : 'Remove photo'))),
       ], true) : null,
+      bg.assetId ? adjustSection(T, 'background.filters') : null,
+      bg.assetId ? filmSection(T, 'background.filters') : null,
+      bg.assetId ? blurSection(T, 'background.filters') : null,
       videoTextSection(),
       cameraSection(),
       addSec('Finish', [
@@ -1707,7 +1752,11 @@
         },
         fin('Paper texture', 'background.texture'),
         fin('Crumpled paper', 'background.crumple', 100, { def: 60, body: () => [full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'background.crumpleSeed', Math.floor(Math.random() * 1e6)) }, ic('shuffle'), 'New creases'))] }),
-        fin('Film grain', 'overlay.grain'),
+        fin('Film grain', 'overlay.grain', 100, { def: 30, body: () => [row('Grain size', num(T, 'overlay.grainSize', { min: 0, max: 100, slider: true, def: 0 }))] }),
+        fin('Dust & scratches', 'overlay.dust', 100, { def: 45 }),
+        fin('Film burn', 'overlay.burn', 100, { def: 60 }),
+        fin('Flicker', 'overlay.flicker', 100, { def: 50, body: () => [h('p.hint', null, 'Each frame a touch brighter or darker — shows while the video plays.')] }),
+        fin('Gate weave', 'overlay.weave', 100, { def: 50, body: () => [h('p.hint', null, 'The picture hops slightly every frame, like film in a projector — shows while the video plays.')] }),
         fin('Vignette', 'overlay.vignette'),
         {
           label: 'Colour tint', on: !!o.tintAmount, add: () => S.change(T, 'overlay.tintAmount', 30), remove: () => S.change(T, 'overlay.tintAmount', 0),
@@ -2218,9 +2267,9 @@
         const sz = W * 0.42;
         const bordered = BORDER_FRAMES.includes(k);
         return S.mk('image', {
-          width: sz, height: k === 'polaroid' ? sz * 1.2 : k === 'arch' ? sz * 1.3 : k === 'film' ? sz * 0.8 : k === 'gate' ? sz * 0.62 : sz,
+          width: sz, height: k === 'polaroid' ? sz * 1.2 : k === 'arch' ? sz * 1.3 : k === 'film' ? sz * 0.8 : k === 'gate' || k === 'filed' ? sz * 0.66 : k === 'scan' ? sz * 0.82 : sz,
           placeholder: tint,
-          frame: { style: k, color: k === 'film' ? '#1d1b18' : k === 'gate' ? '#0b0b0b' : k === 'stamp' ? '#9ab83e' : '#ffffff', size: bordered ? Math.round(sz * 0.05) : 0, radius: k === 'rounded' ? sz * 0.08 : 0 },
+          frame: { style: k, color: FRAME_START[k] ? FRAME_START[k][1] : k === 'film' ? '#1d1b18' : k === 'stamp' ? '#9ab83e' : '#ffffff', size: FRAME_START[k] ? Math.round(sz * FRAME_START[k][0]) : bordered ? Math.round(sz * 0.05) : 0, radius: k === 'rounded' ? sz * 0.08 : 0 },
           shadow: bordered ? { on: true, color: '#000000', opacity: 0.22, blur: 26, x: 0, y: 12 } : undefined,
         });
       };

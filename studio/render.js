@@ -260,11 +260,13 @@
     }
     return (paperTex = c);
   }
-  function fillTexture(ctx, kind, amount, w, h, scale = 1) {
+  function fillTexture(ctx, kind, amount, w, h, scale = 1, frame = null) {
     if (!amount) return;
     const tex = kind === 'paper' ? paper() : grain();
     const pat = ctx.createPattern(tex, 'repeat');
-    if (scale !== 1 && pat.setTransform) pat.setTransform(new DOMMatrix().scale(scale));
+    // moving grain: a fresh offset into the noise tile every frame, so it dances like real film
+    if (frame != null && pat.setTransform) { const r = rng(frame * 2654435761 + 17); pat.setTransform(new DOMMatrix().scale(scale).translate(Math.floor(r() * 256), Math.floor(r() * 256))); }
+    else if (scale !== 1 && pat.setTransform) pat.setTransform(new DOMMatrix().scale(scale));
     ctx.save();
     ctx.globalCompositeOperation = kind === 'paper' ? 'multiply' : 'overlay';
     ctx.globalAlpha *= kind === 'paper' ? clamp(amount / 100, 0, 1) : clamp(amount / 100, 0, 1) * 0.55;
@@ -1463,9 +1465,39 @@
     double: { label: 'Double', f: { ghost: 45, motionAngle: 20, fade: 10 } },
     fisheye: { label: 'Fisheye', f: { fisheye: 45, contrast: 6, saturation: 8 } },
     lens: { label: 'Lens', f: { fisheye: 35, warmth: 12, fade: 10, vignette: 30 } },
+    // film stocks and processes (named for the look, not the brand)
+    gold: { label: 'Gold 200', f: { warmth: 22, saturation: 12, contrast: 8, fade: 10, highlights: -15, splitTone: 30, toneShadow: '#5a3a2a', toneHigh: '#ffc46b', grain: 30, vignette: 18 } },
+    portrait: { label: 'Portrait 400', f: { contrast: -8, saturation: -10, warmth: 12, tint: 6, fade: 18, shadows: 20, highlights: -20, splitTone: 25, toneShadow: '#3d6a6e', toneHigh: '#ffcfa8', grain: 25 } },
+    vivid100: { label: 'Vivid 100', f: { contrast: 18, saturation: 30, vibrance: 20, warmth: 6, sharpen: 30, grain: 12 } },
+    green400: { label: 'Green 400', f: { tint: -14, warmth: -4, contrast: 10, saturation: 8, splitTone: 35, toneShadow: '#1f6b5a', toneHigh: '#f3e6c0', fade: 12, grain: 35 } },
+    tungsten: { label: 'Tungsten 800', f: { warmth: -24, tint: 4, contrast: 12, halation: 70, shadows: 10, splitTone: 30, toneShadow: '#14425a', toneHigh: '#ffd2a0', grain: 40 } },
+    slide: { label: 'Slide 50', f: { contrast: 28, saturation: 38, vibrance: 15, blacks: -20, warmth: -4, tint: -6, vignette: 25 } },
+    expired: { label: 'Expired', f: { fade: 35, tint: 22, warmth: 20, contrast: -14, saturation: -18, splitTone: 40, toneShadow: '#5b2d6b', toneHigh: '#ffe08a', grain: 55, dust: 35, vignette: 30 } },
+    disposable: { label: 'Disposable', f: { contrast: 22, saturation: 10, tint: -10, warmth: 10, vignette: 45, chroma: 40, grain: 45, highlights: 15, sharpen: 20 } },
+    instant: { label: 'Instant', f: { fade: 28, contrast: -12, saturation: -15, warmth: 14, tint: 10, highlights: -25, splitTone: 35, toneShadow: '#2d5d7a', toneHigh: '#ffe6b3', bloom: 25, vignette: 22 } },
+    super8: { label: 'Super 8', f: { warmth: 26, fade: 22, contrast: 10, saturation: -6, bloom: 30, blur: 0.6, vignette: 50, grain: 60, grainSize: 40, chroma: 25, halation: 30 } },
+    cinema: { label: 'Cinema', f: { splitTone: 70, toneShadow: '#0e6b7a', toneHigh: '#ffa155', contrast: 16, saturation: 6, shadows: 8, vignette: 20, grain: 20 } },
+    twostrip: { label: 'Two-strip', f: { saturation: -35, splitTone: 90, toneShadow: '#0f7a86', toneHigh: '#ff6a3d', contrast: 14, grain: 25 } },
+    crossp: { label: 'Cross process', f: { cross: 80, saturation: 20, contrast: 6, grain: 20 } },
+    bleach: { label: 'Bleach bypass', f: { saturation: -55, contrast: 40, clarity: 40, blacks: -10, sharpen: 25, grain: 25 } },
+    overexposed: { label: 'Overexposed', f: { exposure: 25, highlights: -30, fade: 15, saturation: -10, warmth: 10, contrast: -10, bloom: 40, grain: 30 } },
+    pushed: { label: 'Pushed', f: { exposure: -12, contrast: 25, shadows: -10, grain: 70, grainSize: 30, saturation: -10, vignette: 25 } },
+    lightleak: { label: 'Light leak', f: { warmth: 16, fade: 16, contrast: 4, leak: 70, grain: 35, vignette: 20 } },
+    pan400: { label: 'Pan 400', f: { grayscale: 100, contrast: 30, clarity: 25, grain: 55, blacks: -10, vignette: 20 } },
+    softbw: { label: 'Soft B&W', f: { grayscale: 100, contrast: 6, fade: 20, grain: 40, bloom: 20 } },
+    negative: { label: 'Negative', f: { negative: 100, contrast: -10, grain: 25 } },
+  };
+  // preset shelves in the inspector
+  R.FILTER_GROUPS = {
+    film: { label: 'Film', keys: ['film', 'gold', 'portrait', 'vivid100', 'green400', 'tungsten', 'halation', 'slide', 'expired', 'disposable', 'instant', 'super8', 'cinema', 'twostrip', 'crossp', 'bleach', 'overexposed', 'pushed', 'lightleak', 'negative', 'vintage'] },
+    colour: { label: 'Colour', keys: ['original', 'vivid', 'warm', 'cool', 'fade', 'dreamy', 'punch'] },
+    mono: { label: 'B&W', keys: ['bw', 'pan400', 'softbw', 'noir', 'sepia', 'xerox'] },
+    print: { label: 'Print', keys: ['halftone', 'halftoneFine', 'duoBlue', 'duoPink', 'duoDots', 'photocopy', 'riso'] },
+    fx: { label: 'Effects', keys: ['motion', 'grit', 'ghost', 'noisy', 'haze', 'zoomburst', 'spin', 'tilt', 'double', 'fisheye', 'lens'] },
   };
   const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone', 'noise', 'motion', 'motionAngle', 'fisheye',
-    'zoomBlur', 'spinBlur', 'tiltShift', 'ghost', 'blurX', 'blurY', 'tiltY', 'tiltSize', 'halation'];
+    'zoomBlur', 'spinBlur', 'tiltShift', 'ghost', 'blurX', 'blurY', 'tiltY', 'tiltSize', 'halation',
+    'highlights', 'shadows', 'tint', 'vibrance', 'hue', 'sharpen', 'clarity', 'bloom', 'chroma', 'splitTone', 'exposure', 'blacks', 'cross', 'negative'];
   const filterCache = new LRU(40);
   function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
   const vidFilterCache = new Map();
@@ -1474,19 +1506,21 @@
     const spots = f.blurArea && f.blurArea !== 'all' && (f.blurPts || []).length ? f.blurArea : null;
     const isVid = typeof HTMLVideoElement !== 'undefined' && img instanceof HTMLVideoElement;
     const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',') + '|' + (f.duotone || f.threshold || f.halftone ? (f.duoDark || '') + (f.duoLight || '') : '') +
+      (f.splitTone ? (f.toneShadow || '') + (f.toneHigh || '') + (f.toneBalance || 0) : '') + (f.halation ? f.halColor || '' : '') +
       (spots ? '|' + spots + JSON.stringify(f.blurPts) + (f.blurFeather ?? 60) + '|' + (f.blur || 0) : '') + (isVid ? '@' + img.currentTime.toFixed(3) : '');
     // video frames change constantly: keep only the latest filtered frame per video
     // mid-seek, currentTime already shows the new time but the pixels are still the old frame
     if (isVid && img.seeking) { const prev = vidFilterCache.get(id); if (prev) return prev.out; }
     const hit = isVid ? ((vidFilterCache.get(id) || {}).key === key ? vidFilterCache.get(id).out : null) : filterCache.get(key);
     if (hit) return hit;
-    const ds = isVid ? Math.min(1, 1280 / Math.max(iwOf(img), ihOf(img))) : 1;
+    // video frames are graded smaller: 1280 px for export, 720 px while previewing so playback keeps up
+    const ds = isVid ? Math.min(1, (R.playing ? 720 : 1280) / Math.max(iwOf(img), ihOf(img))) : 1;
     const c = canvas(Math.max(1, Math.round(iwOf(img) * ds)), Math.max(1, Math.round(ihOf(img) * ds))), x = c.getContext('2d', { willReadFrequently: true });
     x.drawImage(img, 0, 0, c.width, c.height);
     let d;
     try { d = x.getImageData(0, 0, c.width, c.height); } catch (e) { return img; }
     const a = d.data;
-    const br = 1 + (f.brightness || 0) / 100;
+    const br = (1 + (f.brightness || 0) / 100) * Math.pow(2, (f.exposure || 0) / 50);
     const cv = (f.contrast || 0) * 2.55, cf = (259 * (cv + 255)) / (255 * (259 - cv));
     const sat = 1 + (f.saturation || 0) / 100;
     const wa = (f.warmth || 0) * 0.35;
@@ -1499,17 +1533,60 @@
     const tone = f.halftone ? new Float32Array(a.length / 4) : null;
     // luminance noise is baked into the pixels, so it stays fine-grained at any size
     const nz = (f.noise || 0) / 100 * 120;
+    // tone and colour grading: highlights / shadows / blacks, tint, vibrance, hue, split toning, cross-processing
+    const hl = (f.highlights || 0) / 100, shd = (f.shadows || 0) / 100, blk = (f.blacks || 0) / 100;
+    const tn = (f.tint || 0) / 100 * 30, vib = (f.vibrance || 0) / 100;
+    const hue = (f.hue || 0) * Math.PI / 180, hc = Math.cos(hue), hs = Math.sin(hue);
+    const HM = hue ? [0.213 + 0.787 * hc - 0.213 * hs, 0.715 - 0.715 * hc - 0.715 * hs, 0.072 - 0.072 * hc + 0.928 * hs,
+      0.213 - 0.213 * hc + 0.143 * hs, 0.715 + 0.285 * hc + 0.140 * hs, 0.072 - 0.072 * hc - 0.283 * hs,
+      0.213 - 0.213 * hc - 0.787 * hs, 0.715 - 0.715 * hc + 0.715 * hs, 0.072 + 0.928 * hc + 0.072 * hs] : null;
+    const st = (f.splitTone || 0) / 100;
+    // only the hue of each tone colour is used (its own brightness taken out), so toning never darkens or washes out
+    const hueOnly = c => { const v = hexRgb(c), L = 0.299 * v[0] + 0.587 * v[1] + 0.114 * v[2]; return [v[0] - L, v[1] - L, v[2] - L]; };
+    const tS = st ? hueOnly(f.toneShadow || '#1d6f78') : null, tH = st ? hueOnly(f.toneHigh || '#ffa65c') : null;
+    const tb = 0.5 + (f.toneBalance || 0) / 200;
+    const xp = (f.cross || 0) / 100, ng = (f.negative || 0) / 100;
     let seed = 0x9e3779b9;
     for (let i = 0; i < a.length; i += 4) {
       let r = a[i] * br, g = a[i + 1] * br, b = a[i + 2] * br;
       r = cf * (r - 128) + 128; g = cf * (g - 128) + 128; b = cf * (b - 128) + 128;
+      if (hl || shd || blk) {
+        // shadows lift the darks and highlights pull the brights, leaving pure black and white where they are
+        const L = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255, 0, 1), iL = 1 - L;
+        const add = shd * L * iL * iL * 4 * 70 + hl * L * L * iL * 6.75 * 60 + blk * iL * iL * iL * 60;
+        r += add; g += add; b += add;
+      }
       const l = 0.299 * r + 0.587 * g + 0.114 * b;
       r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
+      if (vib) {
+        // vibrance boosts the muted colours most and leaves already-strong ones (and skin) gentler
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), k = 1 + vib * (1 - clamp((mx - mn) / 255, 0, 1)) * 1.3;
+        r = l + (r - l) * k; g = l + (g - l) * k; b = l + (b - l) * k;
+      }
+      if (HM) { const r0 = r, g0 = g, b0 = b; r = r0 * HM[0] + g0 * HM[1] + b0 * HM[2]; g = r0 * HM[3] + g0 * HM[4] + b0 * HM[5]; b = r0 * HM[6] + g0 * HM[7] + b0 * HM[8]; }
       r += wa; b -= wa; g += wa * 0.15;
+      if (tn) { r += tn * 0.5; g -= tn; b += tn * 0.5; }
+      if (xp) {
+        // cross-processed slide film: punchy S-curve in red and green, blues lifted in the shadows and crushed in the highlights
+        const sc = v => { const x = clamp(v / 255, 0, 1); return 255 * (x < 0.5 ? 2 * x * x : 1 - 2 * (1 - x) * (1 - x)); };
+        r += (sc(r) - r) * xp * 0.8; g += (sc(g) * 1.04 - g) * xp * 0.6; b += ((b * 0.78 + 26) - b) * xp;
+      }
+      if (st) {
+        // split toning: one colour washed into the shadows, another into the highlights
+        const L = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255, 0, 1);
+        const a1 = clamp((tb - L) / tb, 0, 1), a2 = clamp((L - tb) / (1 - tb), 0, 1);
+        const ws = a1 * (2 - a1) * st * 0.75, wh = a2 * (2 - a2) * st * 0.65;
+        r += tS[0] * ws + tH[0] * wh; g += tS[1] * ws + tH[1] * wh; b += tS[2] * ws + tH[2] * wh;
+      }
       if (gs) { const L2 = 0.299 * r + 0.587 * g + 0.114 * b; r += (L2 - r) * gs; g += (L2 - g) * gs; b += (L2 - b) * gs; }
       if (sp) {
         const sr = r * 0.393 + g * 0.769 + b * 0.189, sg = r * 0.349 + g * 0.686 + b * 0.168, sb = r * 0.272 + g * 0.534 + b * 0.131;
         r += (sr - r) * sp; g += (sg - g) * sp; b += (sb - b) * sp;
+      }
+      if (ng) {
+        // a colour negative: tones flipped, sitting on the film's orange base
+        r += (255 - 2 * r) * ng; g += (255 - 2 * g) * ng; b += (255 - 2 * b) * ng;
+        r = r * (1 - 0.12 * ng) + 40 * ng; g = g * (1 - 0.3 * ng) + 12 * ng; b = b * (1 - 0.55 * ng);
       }
       if (fade) { r = r * (1 - fade) + 255 * fade * 0.42; g = g * (1 - fade) + 255 * fade * 0.4; b = b * (1 - fade) + 255 * fade * 0.38; }
       if (tone) tone[i >> 2] = clamp((0.299 * r + 0.587 * g + 0.114 * b) / 255, 0, 1);
@@ -1528,7 +1605,10 @@
     x.putImageData(d, 0, 0);
     let out = c;
     if (f.halftone) out = halftone(c, tone, f);
-    if (f.halation) out = halation(out, f.halation);
+    if (f.sharpen || f.clarity) out = unsharp(out, f.sharpen || 0, f.clarity || 0);
+    if (f.bloom) out = bloom(out, f.bloom);
+    if (f.halation) out = halation(out, f.halation, f.halColor);
+    if (f.chroma) out = chromaAb(out, f.chroma);
     const sharp = out;
     if (f.motion) out = motionBlur(out, f.motion, f.motionAngle || 0);
     if (f.ghost) out = ghostBlur(out, f.ghost, f.motionAngle || 0);
@@ -1545,7 +1625,8 @@
     return out;
   }
   // halation: on film, bright light bleeds through the emulsion as a red-orange glow around highlights
-  function halation(src, amt) {
+  function halation(src, amt, color) {
+    const hc = color ? hexRgb(color) : [255, 72, 30];
     const w = src.width, h = src.height, k = clamp(amt / 100, 0, 1);
     // work at up to ~800px so even small lights survive into the glow
     const sc = Math.min(1, 800 / Math.max(w, h)), sw = Math.max(1, Math.round(w * sc)), sh = Math.max(1, Math.round(h * sc));
@@ -1557,7 +1638,7 @@
     for (let i = 0; i < a.length; i += 4) {
       const l = Math.max(a[i], a[i + 1], a[i + 2]) * 0.6 + (0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]) * 0.4;
       const v = Math.pow(clamp((l - thr) / (255 - thr), 0, 1), 0.8);
-      a[i] = 255 * v; a[i + 1] = 72 * v; a[i + 2] = 30 * v; a[i + 3] = 255;
+      a[i] = hc[0] * v; a[i + 1] = hc[1] * v; a[i + 2] = hc[2] * v; a[i + 3] = 255;
     }
     sx.putImageData(d, 0, 0);
     // blur the highlight mask into a tight red halo and a wider bloom, boosting each so small lights still glow
@@ -1578,6 +1659,74 @@
     x.drawImage(halo(m * (0.003 + k * 0.007), 2 + Math.round(k * 2)), 0, 0);
     x.globalAlpha = 0.35 + k * 0.4;
     x.drawImage(halo(m * (0.012 + k * 0.02), 2 + Math.round(k * 3)), 0, 0);
+    return out;
+  }
+  // bloom: highlights glow softly in their own colour, like a diffusion filter on the lens
+  function bloom(src, amt) {
+    const w = src.width, h = src.height, k = clamp(amt / 100, 0, 1);
+    const sc = Math.min(1, 640 / Math.max(w, h)), sw = Math.max(1, Math.round(w * sc)), sh = Math.max(1, Math.round(h * sc));
+    const small = canvas(sw, sh), sx = small.getContext('2d', { willReadFrequently: true });
+    sx.drawImage(src, 0, 0, sw, sh);
+    let d;
+    try { d = sx.getImageData(0, 0, sw, sh); } catch (e) { return src; }
+    const a = d.data, thr = 255 * (0.62 - k * 0.22);
+    for (let i = 0; i < a.length; i += 4) {
+      const l = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
+      const v = clamp((l - thr) / (255 - thr), 0, 1);
+      a[i] *= v; a[i + 1] *= v; a[i + 2] *= v; a[i + 3] = 255;
+    }
+    sx.putImageData(d, 0, 0);
+    const m = Math.max(w, h), g = canvas(w, h), gx = g.getContext('2d');
+    gx.filter = `blur(${m * (0.012 + k * 0.025)}px)`;
+    gx.drawImage(small, 0, 0, w, h);
+    gx.filter = 'none';
+    const out = canvas(w, h), x = out.getContext('2d');
+    x.drawImage(src, 0, 0);
+    x.globalCompositeOperation = 'screen';
+    x.globalAlpha = 0.5 + k * 0.5;
+    x.drawImage(g, 0, 0);
+    if (k > 0.5) { x.globalAlpha = (k - 0.5) * 1.2; x.drawImage(g, 0, 0); }
+    x.globalCompositeOperation = 'destination-in'; x.globalAlpha = 1; x.drawImage(src, 0, 0);
+    return out;
+  }
+  // sharpen (fine detail) and clarity (midtone punch) are both unsharp masks: the photo pushed away from a blurred copy
+  function unsharp(src, sharpen, clarity) {
+    const w = src.width, h = src.height, m = Math.max(w, h);
+    const sx = canvas(w, h).getContext('2d', { willReadFrequently: true });
+    sx.drawImage(src, 0, 0);
+    let D;
+    try { D = sx.getImageData(0, 0, w, h); } catch (e) { return src; }
+    const blurred = r => { const c = canvas(w, h).getContext('2d', { willReadFrequently: true }); c.filter = `blur(${r}px)`; c.drawImage(src, 0, 0); return c.getImageData(0, 0, w, h).data; };
+    const a = D.data;
+    if (sharpen) {
+      const b = blurred(Math.max(0.8, m / 1100)), k = sharpen / 100 * 1.6;
+      for (let i = 0; i < a.length; i += 4) for (let c = 0; c < 3; c++) a[i + c] = a[i + c] + (a[i + c] - b[i + c]) * k;
+    }
+    if (clarity) {
+      const b = blurred(Math.max(2, m * 0.018)), k = clarity / 100 * (clarity > 0 ? 0.9 : 0.75);
+      for (let i = 0; i < a.length; i += 4) {
+        const L = (0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]) / 255, wm = 1 - Math.abs(2 * clamp(L, 0, 1) - 1) * 0.7;
+        for (let c = 0; c < 3; c++) a[i + c] = a[i + c] + (a[i + c] - b[i + c]) * k * wm;
+      }
+    }
+    const out = canvas(w, h);
+    out.getContext('2d').putImageData(D, 0, 0);
+    return out;
+  }
+  // chromatic aberration: red spreads out and blue pulls in toward the edges, like a cheap lens
+  function chromaAb(src, amt) {
+    const w = src.width, h = src.height, e = amt / 100 * 0.012;
+    const out = canvas(w, h), x = out.getContext('2d');
+    const ch = (col, k) => {
+      const c = canvas(w, h), cx = c.getContext('2d');
+      cx.drawImage(src, 0, 0);
+      cx.globalCompositeOperation = 'multiply'; cx.fillStyle = col; cx.fillRect(0, 0, w, h);
+      x.drawImage(c, -w * k / 2, -h * k / 2, w * (1 + k), h * (1 + k));
+    };
+    x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+    x.globalCompositeOperation = 'lighter';
+    ch('#ff0000', e); ch('#00ff00', e * 0.45); ch('#0000ff', 0);
+    x.globalCompositeOperation = 'destination-in'; x.drawImage(src, 0, 0);
     return out;
   }
   // directional blur: the photo averaged with copies of itself slid along the angle
@@ -1720,7 +1869,7 @@
     none: 'None', rounded: 'Rounded', circle: 'Circle', arch: 'Arch', polaroid: 'Polaroid', stamp: 'Stamp',
     film: 'Film', torn: 'Torn paper', papercut: 'Paper cut', border: 'Border', blob: 'Blob', heart: 'Heart', star: 'Star',
     scallop: 'Scallop', flower: 'Flower', ticket: 'Ticket', squircle: 'Squircle', sparkle: 'Sparkle', sticky: 'Sticky note',
-    gate: 'Film gate',
+    gate: 'Film gate', scan: 'Negative scan', slide: 'Slide mount', filed: 'Filed edge',
   };
   function frameGeometry(el) {
     const w = el.width, h = el.height, f = el.frame || {};
@@ -1788,6 +1937,88 @@
           ctx.lineWidth = soft * 1.2;
           ctx.globalAlpha *= 0.5;
           ctx.stroke(g.inner);
+          ctx.restore();
+        };
+        break;
+      }
+      case 'scan': {
+        // a 35mm negative scanned with its rebate: edge print, lit sprocket holes, then the picture
+        const m = Math.min(w, h), rb = Math.max(size * 2.6, m * 0.1), sd = Math.max(2, size * 0.6);
+        g.outer = rrect(new Path2D(), 0, 0, w, h, 0);
+        g.rect = inset(sd, rb, sd, rb);
+        g.inner = rrect(new Path2D(), g.rect.x, g.rect.y, g.rect.w, g.rect.h, m * 0.006);
+        g.extra = ctx => {
+          ctx.save();
+          const hh = rb * 0.4, hw = hh * 0.74, pitch = hw * 1.9, n = Math.max(2, Math.floor(w / pitch));
+          const off = (w - n * pitch) / 2 + (pitch - hw) / 2, hy = rb * 0.3;
+          ctx.fillStyle = f.holeColor || '#f4efe4';
+          for (let i = 0; i < n; i++) for (const y of [hy, h - hy - hh]) ctx.fill(rrect(new Path2D(), off + i * pitch, y, hw, hh, hw * 0.2));
+          const fs = rb * 0.19, mono = `"Space Mono", ui-monospace, Menlo, monospace`;
+          ctx.fillStyle = f.textColor || '#f2a33a';
+          ctx.textBaseline = 'middle';
+          if ('letterSpacing' in ctx) ctx.letterSpacing = fs * 0.12 + 'px';
+          ctx.font = `700 ${fs}px ${mono}`;
+          const label = (f.label ?? 'FILM 400').toUpperCase(), num = f.num ?? 14;
+          for (let x = w * 0.04; x < w - fs * 4; x += w * 0.5) ctx.fillText(label, x, hy * 0.5);
+          ctx.fillText(String(num), w * 0.05, h - hy * 0.5);
+          ctx.fillText('▸ ' + num + 'A', w * 0.52, h - hy * 0.5);
+          ctx.restore();
+        };
+        break;
+      }
+      case 'slide': {
+        // a 35mm slide in its card mount: a thick border, a small window, a label printed on top
+        const m = Math.min(w, h), mg = Math.max(size, m * 0.06);
+        g.outer = rrect(new Path2D(), 0, 0, w, h, f.radius || m * 0.05);
+        g.rect = inset(mg, mg, mg, mg);
+        g.inner = rrect(new Path2D(), g.rect.x, g.rect.y, g.rect.w, g.rect.h, m * 0.02);
+        g.extra = ctx => {
+          ctx.save();
+          const b = m * 0.008, r = g.rect;
+          // pressed bevel round the window, light from the top left
+          ctx.lineWidth = b;
+          ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.stroke(rrect(new Path2D(), r.x - b / 2, r.y - b / 2, r.w + b, r.h + b, m * 0.024));
+          ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.stroke(rrect(new Path2D(), r.x - b * 1.5, r.y - b * 1.5, r.w + b * 3, r.h + b * 3, m * 0.03));
+          ctx.fillStyle = f.textColor || 'rgba(45,40,34,0.78)';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          const fs = Math.min(mg * 0.24, m * 0.05);
+          if ('letterSpacing' in ctx) ctx.letterSpacing = fs * 0.2 + 'px';
+          ctx.font = `700 ${fs}px "Space Mono", ui-monospace, Menlo, monospace`;
+          ctx.fillText((f.label ?? 'SUMMER · 1978').toUpperCase(), w / 2, mg / 2);
+          ctx.font = `400 ${fs * 0.8}px "Space Mono", ui-monospace, Menlo, monospace`;
+          ctx.fillText(String(f.num ?? 12).padStart(2, '0'), w / 2, h - mg / 2);
+          ctx.restore();
+        };
+        break;
+      }
+      case 'filed': {
+        // a filed-out negative carrier: the black edge printed around the picture, rough and uneven
+        const m = Math.min(w, h), bw = Math.max(2, size), r0 = rng(hashStr(el.id || 'filed') + (f.seed || 0) * 977);
+        const amp = m * 0.011 * (f.rough ?? 1);
+        g.outer = rrect(new Path2D(), 0, 0, w, h, 0);
+        g.rect = inset(bw, bw, bw, bw);
+        const R0 = g.rect, pts = [];
+        // each edge wanders on a few slow waves, with fine grit and the odd notch where the carrier was filed
+        const edge = (x0, y0, x1, y1, nx, ny) => {
+          const L = Math.hypot(x1 - x0, y1 - y0), steps = Math.max(8, Math.round(L / (m * 0.01)));
+          const ph = [r0() * TAU, r0() * TAU, r0() * TAU], notch = r0() < 0.8 ? r0() : -1, nw = 0.04 + r0() * 0.06;
+          for (let i = 0; i < steps; i++) {
+            const t = i / steps;
+            let d = (Math.sin(t * 5 + ph[0]) * 0.45 + Math.sin(t * 13 + ph[1]) * 0.3 + Math.sin(t * 31 + ph[2]) * 0.15) * amp + (r0() - 0.5) * amp * 0.5;
+            if (notch >= 0 && Math.abs(t - notch) < nw) d -= amp * 2.4 * Math.cos((t - notch) / nw * Math.PI / 2);
+            pts.push([x0 + (x1 - x0) * t + nx * d, y0 + (y1 - y0) * t + ny * d]);
+          }
+        };
+        edge(R0.x, R0.y, R0.x + R0.w, R0.y, 0, 1);
+        edge(R0.x + R0.w, R0.y, R0.x + R0.w, R0.y + R0.h, -1, 0);
+        edge(R0.x + R0.w, R0.y + R0.h, R0.x, R0.y + R0.h, 0, -1);
+        edge(R0.x, R0.y + R0.h, R0.x, R0.y, 1, 0);
+        g.inner = polyPath(pts);
+        g.extra = ctx => {
+          ctx.save(); ctx.clip(g.inner);
+          ctx.strokeStyle = f.color || '#0b0b0b'; ctx.lineWidth = m * 0.012;
+          if ('filter' in ctx) ctx.filter = `blur(${m * 0.004 * deviceScale(ctx)}px)`;
+          ctx.globalAlpha *= 0.7; ctx.stroke(g.inner);
           ctx.restore();
         };
         break;
@@ -1905,16 +2136,111 @@
     ctx.restore();
   }
 
-  function overlays(ctx, r, f) {
+  function overlays(ctx, r, f, t = null) {
+    if (f.leak) { ctx.save(); ctx.translate(r.x, r.y); lightLeak(ctx, r.w, r.h, f.leak, f.leakColor, f.leakSide || 'left', t); ctx.restore(); }
     if (f.vignette) {
       const g = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, Math.min(r.w, r.h) * 0.25, r.x + r.w / 2, r.y + r.h / 2, Math.hypot(r.w, r.h) / 2);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${f.vignette / 100 * 0.75})`);
       ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h);
     }
     if (f.grain) {
-      ctx.save(); ctx.translate(r.x, r.y); fillTexture(ctx, 'grain', f.grain, r.w, r.h); ctx.restore();
+      ctx.save(); ctx.translate(r.x, r.y); fillTexture(ctx, 'grain', f.grain, r.w, r.h, grainScale(f.grainSize), t != null ? Math.floor(t * 24) : null); ctx.restore();
     }
+    if (f.dust) { ctx.save(); ctx.translate(r.x, r.y); dustScratches(ctx, r.w, r.h, f.dust, t != null ? Math.floor(t * 12) : null, 5); ctx.restore(); }
   }
+  const grainScale = v => 1 + clamp(v || 0, 0, 100) / 100 * 3;
+  R.photoFinish = overlays;
+
+  /* ───────────────────────── film effects ─────────────────────────
+     Painted over a photo (filters) or the whole canvas (overlay). With a time they move
+     like projected film; without one they hold a single, steady frame. */
+  // light leak: warm light spilling in from one edge of the frame
+  function lightLeak(ctx, w, h, amt, color, side, t) {
+    const k = clamp(amt / 100, 0, 1), M = Math.max(w, h), c = hexRgb(color || '#ff5a1f');
+    ctx.save();
+    if (side === 'right') { ctx.translate(w, 0); ctx.scale(-1, 1); }
+    else if (side === 'top' || side === 'bottom') { ctx.translate(side === 'top' ? w : 0, side === 'top' ? 0 : h); ctx.rotate(side === 'top' ? Math.PI / 2 : -Math.PI / 2); [w, h] = [h, w]; }
+    ctx.globalCompositeOperation = 'screen';
+    const d = t ?? 0, pulse = t != null ? 0.78 + 0.22 * Math.sin(t * 1.3) : 1;
+    ctx.globalAlpha *= k * pulse;
+    const blob = (x, y, rx, ry, stops) => {
+      ctx.save(); ctx.translate(x, y); ctx.scale(rx / M, ry / M);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, M);
+      for (const [p, col, a] of stops) g.addColorStop(p, `rgba(${col[0]},${col[1]},${col[2]},${a})`);
+      ctx.fillStyle = g; ctx.fillRect(-M, -M, M * 2, M * 2); ctx.restore();
+    };
+    const y1 = h * (0.36 + Math.sin(d * 0.45) * 0.12), y2 = h * (0.78 + Math.sin(d * 0.6 + 2) * 0.08);
+    blob(-w * 0.04, y1, w * 0.62, h * 0.7, [[0, c, 0.95], [0.45, c, 0.4], [1, c, 0]]);
+    blob(-w * 0.02, y2, w * 0.45, h * 0.4, [[0, [255, 40, 90], 0.7], [0.5, [255, 40, 90], 0.22], [1, [255, 40, 90], 0]]);
+    blob(-w * 0.03, y1 + h * 0.04, w * 0.2, h * 0.32, [[0, [255, 236, 190], 0.95], [0.6, [255, 190, 120], 0.35], [1, [255, 190, 120], 0]]);
+    ctx.restore();
+  }
+  // dust specks, a stray hair and long scratches; specks change every frame, scratches linger and wander
+  function dustScratches(ctx, w, h, amt, frame, seed) {
+    const k = clamp(amt / 100, 0, 1), M = Math.max(w, h);
+    const r = rng(seed * 977 + (frame ?? 3) * 7919);
+    ctx.save();
+    const n = Math.round(k * (10 + 34 * (w * h) / (1080 * 1350)));
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * h, sz = M * (0.0007 + Math.pow(r(), 3) * 0.0045), white = r() < 0.6;
+      ctx.fillStyle = white ? `rgba(255,252,240,${0.45 + r() * 0.5})` : `rgba(14,10,6,${0.4 + r() * 0.5})`;
+      ctx.beginPath(); ctx.ellipse(x, y, sz, sz * (0.5 + r() * 0.7), r() * Math.PI, 0, TAU); ctx.fill();
+    }
+    const hairs = Math.round(k * 2.2 + r() * k);
+    ctx.lineCap = 'round';
+    for (let i = 0; i < hairs; i++) {
+      const x = r() * w, y = r() * h, L = M * (0.025 + r() * 0.05), a = r() * TAU;
+      ctx.strokeStyle = r() < 0.5 ? 'rgba(255,250,235,0.7)' : 'rgba(12,8,5,0.6)'; ctx.lineWidth = M * 0.0011;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x + Math.cos(a + 1) * L * 0.5, y + Math.sin(a + 1) * L * 0.5, x + Math.cos(a - 0.8) * L * 0.8, y + Math.sin(a - 0.8) * L * 0.8, x + Math.cos(a) * L, y + Math.sin(a) * L);
+      ctx.stroke();
+    }
+    // scratches run down the film and stay for a few frames, wobbling sideways
+    const block = frame == null ? 1 : Math.floor(frame / 9), rs = rng(seed * 131 + block * 104729);
+    const lines = Math.round(k * 2.5 + rs() * 1.2);
+    for (let i = 0; i < lines; i++) {
+      const x = rs() * w + (frame == null ? 0 : (r() - 0.5) * M * 0.003), lw = M * (0.0006 + rs() * 0.0012);
+      ctx.strokeStyle = rs() < 0.75 ? `rgba(255,252,240,${0.2 + rs() * 0.3})` : `rgba(10,8,6,${0.2 + rs() * 0.25})`; ctx.lineWidth = lw;
+      let y = -10;
+      ctx.beginPath();
+      while (y < h) { const seg = h * (0.15 + rs() * 0.5); ctx.moveTo(x + (rs() - 0.5) * lw * 3, y); ctx.lineTo(x + (rs() - 0.5) * lw * 3, y + seg); y += seg + h * rs() * 0.12; }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // film burn: the frame scorching orange and white from one edge, flaring up and dying back
+  function filmBurn(ctx, w, h, amt, t) {
+    const k = clamp(amt / 100, 0, 1), M = Math.max(w, h);
+    // in a video it flares every few seconds, swelling across the frame and dying back; a still holds a steady burn at the edge
+    let p = 0.75;
+    if (t != null) { const c = ((t + 1.2) % 4) / 4, s = Math.max(0, Math.sin(c * Math.PI)); p = Math.pow(s, 1.6) + Math.sin(t * 23) * 0.03; }
+    p = clamp(p, 0, 1);
+    if (p < 0.02) return;
+    const d = t ?? 0;
+    const blob = (y, i, comp, stops, grow) => {
+      const rad = M * (0.2 + grow * p) * (0.85 + 0.15 * Math.sin(d * 0.9 + i));
+      ctx.save(); ctx.globalCompositeOperation = comp; ctx.translate(w + M * 0.04, y); ctx.scale(0.8, 1.2);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
+      for (const [o, c] of stops) g.addColorStop(o, c);
+      ctx.fillStyle = g; ctx.fillRect(-rad, -rad, rad * 2, rad * 2); ctx.restore();
+    };
+    ctx.save();
+    ctx.globalAlpha *= k;
+    for (let i = 0; i < 3; i++) {
+      const y = h * (0.15 + i * 0.35) + Math.sin(d * 0.8 + i * 2.1) * h * 0.08;
+      // burnt orange stains the picture, then a white-hot core blows it out
+      blob(y, i, 'source-over', [[0, `rgba(255,120,20,${0.85 * p})`], [0.45, `rgba(230,60,0,${0.6 * p})`], [0.8, `rgba(150,15,0,${0.25 * p})`], [1, 'rgba(120,0,0,0)']], 0.55);
+      blob(y, i, 'screen', [[0, 'rgba(255,250,235,1)'], [0.25, `rgba(255,214,120,${0.9 * p})`], [0.6, `rgba(255,120,30,${0.4 * p})`], [1, 'rgba(255,90,0,0)']], 0.35);
+    }
+    ctx.restore();
+  }
+  // projector flicker: each frame a touch brighter or darker than the last
+  function flicker(ctx, w, h, amt, t) {
+    if (t == null) return;
+    const r = rng(Math.floor(t * 24) * 31 + 3), v = ((r() - 0.5) * 2 * 0.1 + Math.sin(t * 9) * 0.025) * clamp(amt / 100, 0, 1);
+    ctx.save(); ctx.globalAlpha *= Math.abs(v); ctx.fillStyle = v > 0 ? '#fff6e6' : '#000'; ctx.fillRect(0, 0, w, h); ctx.restore();
+  }
+  R.hasFilmMotion = doc => !!(doc && doc.overlay && (doc.overlay.weave > 0 || doc.overlay.flicker > 0));
 
   /* ───────────────────────── studio look ─────────────────────────
      el.studio = { on, preset, color, color2, glow, light, lx, ly, size, intensity, grade, rim, shadow, backdrop, cutId, src }
@@ -2098,7 +2424,7 @@
     if (img) drawCover(ctx, filteredSource(el.assetId, img, el.filters), g.rect, el);
     else drawPlaceholder(ctx, g.rect, el);
     ctx.globalCompositeOperation = 'source-over';
-    overlays(ctx, g.rect, el.filters || {});
+    overlays(ctx, g.rect, el.filters || {}, R.isTimeVarying(el) ? ('time' in env ? env.time : R.playTime) : null);
     ctx.restore();
     if (g.stroke) { ctx.lineWidth = g.stroke.w; ctx.strokeStyle = f.color || '#fff'; ctx.lineJoin = 'round'; ctx.stroke(g.stroke.path); }
     if (g.extra) g.extra(ctx);
@@ -3097,7 +3423,7 @@
         ctx.globalAlpha *= bg.imageOpacity ?? 1;
         const el = { crop: bg.crop, filters: bg.filters, flipX: bg.flipX };
         drawCover(ctx, filteredSource(bg.assetId, img, bg.filters), { x: 0, y: 0, w, h }, el);
-        overlays(ctx, { x: 0, y: 0, w, h }, bg.filters || {});
+        overlays(ctx, { x: 0, y: 0, w, h }, bg.filters || {}, isVideoAsset(bg.assetId) ? (opts.time ?? R.playTime ?? null) : null);
         ctx.restore();
       }
     }
@@ -3107,11 +3433,15 @@
   }
   R.drawBackground = drawBackground;
 
-  function drawOverlay(ctx, doc) {
+  function drawOverlay(ctx, doc, t) {
     const o = doc.overlay || {};
     const w = doc.width, h = doc.height;
+    if (t === undefined) t = R.playTime ?? null;
+    if (o.burn) filmBurn(ctx, w, h, o.burn, t);
+    if (o.flicker) flicker(ctx, w, h, o.flicker, t);
     if (o.vignette) overlays(ctx, { x: 0, y: 0, w, h }, { vignette: o.vignette });
-    if (o.grain) fillTexture(ctx, 'grain', o.grain, w, h);
+    if (o.grain) fillTexture(ctx, 'grain', o.grain, w, h, grainScale(o.grainSize), t != null ? Math.floor(t * 24) : null);
+    if (o.dust) dustScratches(ctx, w, h, o.dust, t != null ? Math.floor(t * 12) : null, 1);
     if (o.tint && o.tintAmount) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.globalAlpha *= o.tintAmount / 100; ctx.fillStyle = o.tint; ctx.fillRect(0, 0, w, h); ctx.restore(); }
     if (o.paper) fillTexture(ctx, 'paper', o.paper, w, h);
     if (o.leak) {
@@ -3119,7 +3449,8 @@
       ctx.save();
       ctx.globalCompositeOperation = 'screen';
       ctx.globalAlpha *= o.leak / 100;
-      for (const [x, y, c] of [[0, 0, '255,120,40'], [w, h * 0.85, '255,60,120']]) {
+      const dr = t != null ? Math.sin(t * 0.5) * 0.08 : 0;
+      for (const [x, y, c] of [[w * dr, h * dr, '255,120,40'], [w, h * (0.85 - dr), '255,60,120']]) {
         const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(w, h) * 0.6);
         g.addColorStop(0, `rgba(${c},0.85)`); g.addColorStop(0.5, `rgba(${c},0.25)`); g.addColorStop(1, `rgba(${c},0)`);
         ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
@@ -3202,8 +3533,9 @@
     return elCentre(el);
   }
   function camAt(doc, t) {
-    const c = doc.camera;
-    if (!c || !c.move || c.move === 'none' || t == null) return null;
+    const c0 = doc.camera, weave = (doc.overlay && doc.overlay.weave) || 0;
+    if (t == null || (!weave && (!c0 || !c0.move || c0.move === 'none'))) return null;
+    const c = c0 && c0.move && c0.move !== 'none' ? c0 : { move: 'none' };
     const W = doc.width, H = doc.height, C = { x: W / 2, y: H / 2 };
     const D = Math.max(0.5, (doc.anim && doc.anim.duration) || 5);
     const T0 = focusAt(doc, c, t) || C;
@@ -3237,6 +3569,13 @@
         f = { x: T0.x + (rr() - 0.5) * W * 0.05 * wd, y: T0.y + (rr() - 0.5) * H * 0.04 * wd };
         break;
       }
+    }
+    if (weave) {
+      // gate weave: film never sits perfectly still in the gate — it hops a little every frame
+      const a = weave / 100, rr = rng(Math.floor(t * 18) * 131 + 7);
+      z *= 1 + 0.014 * a;
+      f = { x: f.x + (rr() - 0.5) * W * 0.005 * a / z, y: f.y + (rr() - 0.5) * H * 0.007 * a / z };
+      r += (rr() - 0.5) * 0.25 * a;
     }
     if (c.shake) {
       const a = c.shake;
@@ -3356,7 +3695,7 @@
     }
     ctx.restore();
     // motion blur: smear the frame along the camera's own movement during a short shutter
-    const blur = cam && doc.camera.blur > 0 ? doc.camera.blur : 0;
+    const blur = cam && doc.camera && doc.camera.blur > 0 ? doc.camera.blur : 0;
     if (blur) {
       const sh = blur * 0.045;
       const prev = camAt(doc, Math.max(0, t - sh));
@@ -3389,7 +3728,7 @@
     }
     ctx.save();
     ctx.scale(sx, sy);
-    drawOverlay(ctx, doc);
+    drawOverlay(ctx, doc, t);
     ctx.restore();
     return c;
   };

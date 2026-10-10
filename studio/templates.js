@@ -1186,6 +1186,231 @@
       }));
     })(),
 
+    // ── FILM: looks — your photo or video graded like a film stock, with grain, halation, leaks and dust ──
+    ...(() => {
+      const LOOK = (k, extra) => Object.assign(JSON.parse(JSON.stringify(window.StudioRender.FILTER_PRESETS[k].f)), extra || {});
+      const slot = (asset, filters, o = {}) => img(o.x ?? 0, o.y ?? 0, o.w ?? 1080, o.h ?? 1350, Object.assign({ assetId: asset, filters, name: 'Your photo or video', placeholder: ['#5a4a3a', '#1d1712'] }, o.more || {}));
+      // the orange date stamp a point-and-shoot burns into the corner
+      const stamp = (text, cx, cy, o) => txt(text, Object.assign({ cx, cy, fontFamily: 'VT323', fontSize: 68, letterSpacing: 0.08, fill: '#ff8f2e', opacity: 0.92, shadow: { on: true, color: '#ff4d00', opacity: 0.9, blur: 16, x: 0, y: 0 }, name: 'Date stamp' }, o || {}));
+      const mono = (text, o) => txt(text, Object.assign({ fontFamily: 'Space Mono', fontWeight: 700, fontSize: 26, letterSpacing: 0.14, fill: '#f2e7c9' }, o));
+      const shade = { on: true, color: '#000000', opacity: 0.45, blur: 18, x: 0, y: 3 };
+      const vid = { duration: 6, fps: 24 };
+      const T = (id, name, tags, build, o = {}) => ({ id, name, tags, width: o.w || 1080, height: o.h || 1350, video: !!o.video, build });
+      return [
+        T('fl-gold', 'Gold 200', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#2a1d10' }, overlay: { grain: 16 },
+          elements: [slot('film-golden', LOOK('gold')), stamp('’98  8  14', 860, 1262)],
+        })),
+        T('fl-portrait', 'Portrait 400', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#3b2f27' }, overlay: { grain: 12 },
+          elements: [slot('film-portrait', LOOK('portrait')), mono('PORTRAIT 400  ·  36 EXP', { x: 56, y: 1262, align: 'left', fontSize: 24, opacity: 0.85 })],
+        })),
+        T('fl-night', 'Night 800T', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#0d0a0a' }, overlay: { grain: 26, vignette: 25 },
+          elements: [
+            slot('film-lanterns', LOOK('tungsten', { halation: 85 })),
+            txt('night walks', { cx: 540, cy: 1130, fontFamily: 'Instrument Serif', italic: true, fontSize: 132, fill: '#fff1e2', shadow: shade }),
+            mono('11:42 PM  ·  800T', { cx: 540, cy: 1235, fontSize: 24, opacity: 0.85 }),
+          ],
+        })),
+        T('fl-expired', 'Expired roll', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#2b2228' }, overlay: { grain: 18, dust: 35 },
+          elements: [slot('film-friends', LOOK('expired', { dust: 0 })), stamp('’04  9  12', 860, 1262)],
+        })),
+        T('fl-disposable', 'Disposable', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#1b1a14' }, overlay: { grain: 20, vignette: 20 },
+          elements: [slot('film-picnic', LOOK('disposable')), stamp('’26  7  19', 860, 1262), mono('27', { x: 980, y: 52, align: 'left', fontSize: 30, fill: '#ffffff', opacity: 0.7, name: 'Frames left' })],
+        })),
+        T('fl-vivid', 'Vivid 100', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#3a2a1a' }, overlay: { grain: 10 },
+          elements: [slot('img-desert', LOOK('vivid100')), txt('out west', { cx: 540, cy: 1150, fontFamily: 'Caveat', fontWeight: 600, fontSize: 150, fill: '#fffaf0', rotation: -4, shadow: shade })],
+        })),
+        T('fl-green', 'Green 400', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#10201a' }, overlay: { grain: 24 },
+          elements: [slot('film-tram', LOOK('green400')), mono('GREEN 400  ·  PRAGUE', { x: 56, y: 1262, align: 'left', fontSize: 24, opacity: 0.85 }), stamp('’11  3  02', 860, 1262)],
+        })),
+        T('fl-cross', 'Cross process', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#1f2a12' }, overlay: { grain: 15 },
+          elements: [slot('film-grass', LOOK('crossp')), txt('summer in\nslide film', { cx: 540, cy: 230, fontFamily: 'Instrument Serif', fontSize: 104, lineHeight: 0.95, fill: '#13261c' })],
+        })),
+        T('fl-bleach', 'Bleach bypass', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#1a1a1a' }, overlay: { grain: 22, vignette: 30 },
+          elements: [
+            slot('film-canyon', LOOK('bleach', { exposure: -22, highlights: -60 })),
+            txt('THE LONG ROAD', { cx: 540, cy: 1110, fontFamily: 'League Gothic', fontSize: 190, letterSpacing: 0.04, fill: '#f4f1ea', shadow: shade }),
+            mono('A SHORT FILM', { cx: 540, cy: 1225, fontSize: 24, letterSpacing: 0.4 }),
+          ],
+        })),
+        T('fl-twostrip', 'Two-strip', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#1d1210' }, overlay: { grain: 22, vignette: 35 },
+          elements: [
+            slot('film-lamp', LOOK('twostrip')),
+            txt('Chapter One', { cx: 540, cy: 1130, fontFamily: 'Playfair Display', italic: true, fontSize: 120, fill: '#f6e7cf', shadow: shade }),
+          ],
+        })),
+        T('fl-pan400', 'Pan 400', ['Photo', 'Film', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#ece8df', texture: 30 }, overlay: { grain: 10 },
+          elements: [
+            txt('us, unposed.', { cx: 540, cy: 205, fontFamily: 'Instrument Serif', fontSize: 120, fill: '#1d1b18' }),
+            slot('film-kiss', LOOK('pan400'), { x: 60, y: 330, w: 960, h: 720, more: { frame: { style: 'scan', color: '#161412', size: 16, label: 'PAN 400', num: 14 }, shadow: { on: true, color: '#000000', opacity: 0.2, blur: 24, x: 0, y: 10 } } }),
+            mono('ROLL 03  ·  FRAME 14', { cx: 540, cy: 1130, fontSize: 24, fill: '#5a544a', fontWeight: 400 }),
+          ],
+        })),
+        T('fl-super8', 'Super 8', ['Video', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#0b0a09' }, overlay: { weave: 70, flicker: 45, dust: 55, grain: 30 }, anim: vid,
+          elements: [
+            slot('film-road', LOOK('super8'), { x: 40, y: 190, w: 1000, h: 900, more: { frame: { style: 'gate', color: '#0b0a09', size: 26, soft: 75, round: 80 } } }),
+            txt('SUPER 8', { x: 60, y: 92, align: 'left', fontFamily: 'VT323', fontSize: 64, fill: '#f2e7c9' }),
+            txt('▶ PLAY', { x: 830, y: 92, align: 'left', fontFamily: 'VT323', fontSize: 64, fill: '#f2e7c9', anim: { loop: 'blink', speed: 0.8 } }),
+            txt('summer road trip', { cx: 540, cy: 1200, fontFamily: 'Instrument Serif', italic: true, fontSize: 84, fill: '#f2e7c9', anim: { enter: 'fade', delay: 0.6 } }),
+          ],
+        }), { video: true }),
+        T('fl-cinema', 'Widescreen', ['Video', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#000000' }, overlay: { weave: 20, grain: 22 }, anim: vid,
+          elements: [
+            slot('film-station', LOOK('cinema'), { y: 380, h: 590 }),
+            mono('A FILM BY YOU', { cx: 540, cy: 300, fontSize: 22, letterSpacing: 0.5, fill: '#bdb7aa', fontWeight: 400, anim: { enter: 'fade', delay: 0.3 } }),
+            txt('I always knew we’d end up here.', { cx: 540, cy: 1050, fontFamily: 'Arimo', fontSize: 40, fill: '#ffffff', anim: { enter: 'fade', delay: 1.2 } }),
+          ],
+        }), { video: true }),
+        T('fl-burn', 'Film burn', ['Video', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#1a120c' }, overlay: { burn: 90, flicker: 30, dust: 35, grain: 22 }, anim: vid,
+          elements: [slot('film-beach', LOOK('gold')), txt('end of the roll', { cx: 470, cy: 260, fontFamily: 'Instrument Serif', italic: true, fontSize: 120, fill: '#2b1a0e', anim: { enter: 'fade', delay: 1 } })],
+        }), { video: true }),
+        T('fl-leak', 'Light leak', ['Video', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#20160f' }, overlay: { leak: 70, grain: 20, dust: 20 }, anim: vid,
+          elements: [
+            slot('film-coast', LOOK('portrait')),
+            mono('35MM', { x: 56, y: 60, align: 'left', fontSize: 26, fill: '#ffffff', opacity: 0.85 }),
+            txt('golden days', { cx: 540, cy: 1130, fontFamily: 'Instrument Serif', italic: true, fontSize: 140, fill: '#fff4e4', shadow: shade, anim: { enter: 'rise', delay: 0.5 } }),
+          ],
+        }), { video: true }),
+        T('fl-projector', 'Projector reel', ['Video', 'Film', 'Reel'], () => ({
+          width: 1080, height: 1920, background: { color: '#0a0908' }, overlay: { weave: 80, flicker: 60, dust: 60, grain: 34, vignette: 30 }, anim: vid,
+          elements: [
+            mono('NOW SHOWING', { cx: 540, cy: 240, fontSize: 28, letterSpacing: 0.5 }),
+            slot('film-neon', LOOK('tungsten'), { x: 60, y: 330, w: 960, h: 1260, more: { frame: { style: 'gate', color: '#0a0908', size: 24, soft: 70, round: 60 } } }),
+            txt('the city after dark', { cx: 540, cy: 1700, fontFamily: 'Instrument Serif', italic: true, fontSize: 92, fill: '#f2e7c9', anim: { enter: 'fade', delay: 0.8 } }),
+          ],
+        }), { w: 1080, h: 1920, video: true }),
+      ];
+    })(),
+
+    // ── FILM: the camera and darkroom — contact sheets, strips, slides, instant prints, the countdown leader ──
+    ...(() => {
+      const LOOK = (k, extra) => Object.assign(JSON.parse(JSON.stringify(window.StudioRender.FILTER_PRESETS[k].f)), extra || {});
+      const photo = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: asset, name: 'Your photo or video', placeholder: ['#5a4a3a', '#1d1712'] }, o));
+      const mono = (text, o) => txt(text, Object.assign({ fontFamily: 'Space Mono', fontWeight: 700, fontSize: 26, letterSpacing: 0.14, fill: '#2a2620' }, o));
+      const drop = { on: true, color: '#000000', opacity: 0.25, blur: 22, x: 0, y: 10 };
+      const T = (id, name, tags, build, o = {}) => ({ id, name, tags, width: o.w || 1080, height: o.h || 1350, video: !!o.video, build });
+      // frames laid end to end along a tilted line, like one cut strip of negatives
+      const strip = (assets, x0, y0, w, h, deg, o) => assets.map((a, i) => photo(a, x0 + i * w * Math.cos(deg * Math.PI / 180), y0 + i * w * Math.sin(deg * Math.PI / 180), w, h, Object.assign({ rotation: deg },
+        { frame: Object.assign({ style: 'scan', color: '#161412', size: 12, label: 'FILM 400', num: (o.num || 10) + i }, o.frame || {}), filters: o.filters ? JSON.parse(JSON.stringify(o.filters)) : {} })));
+      return [
+        T('fc-contact', 'Contact sheet', ['Photo', 'Film', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#f1eee8', texture: 25 }, overlay: { grain: 8 },
+          elements: [
+            txt('ROLL 07', { x: 60, y: 46, align: 'left', fontFamily: 'Permanent Marker', fontSize: 72, fill: '#d42a2a', rotation: -3 }),
+            ...strip(['film-golden', 'film-road', 'film-beach'], 30, 160, 340, 300, -0.6, { num: 4, filters: LOOK('film') }),
+            ...strip(['film-grass', 'film-friends', 'film-picnic'], 32, 490, 340, 300, 0.4, { num: 7, filters: LOOK('film') }),
+            ...strip(['film-coast', 'film-window', 'film-portrait'], 28, 820, 340, 300, -0.3, { num: 10, filters: LOOK('film') }),
+            shp('ellipse', 382, 520, 320, 250, { fill: 'rgba(0,0,0,0)', stroke: '#d42a2a', strokeWidth: 7, rotation: -4, name: 'Grease pencil circle' }),
+            txt('✕', { cx: 540, cy: 975, fontFamily: 'Permanent Marker', fontSize: 150, fill: '#d42a2a', opacity: 0.9 }),
+            txt('keeper!', { x: 760, y: 70, align: 'left', fontFamily: 'Permanent Marker', fontSize: 56, fill: '#d42a2a', rotation: 4 }),
+            mono('CONTACT SHEET  ·  2026', { cx: 540, cy: 1230, fontSize: 22, fontWeight: 400, fill: '#6b655b', letterSpacing: 0.3 }),
+          ],
+        })),
+        T('fc-strip', 'Film strip', ['Photo', 'Film', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#e9e3d6', texture: 40 }, overlay: { grain: 10 },
+          elements: [
+            txt('frames from june', { cx: 540, cy: 290, fontFamily: 'Instrument Serif', italic: true, fontSize: 110, fill: '#1d1b18' }),
+            ...strip(['film-tram', 'film-neon', 'film-lanterns'], -70, 610, 420, 340, -7, { num: 21, filters: LOOK('tungsten') }).map(e => Object.assign(e, { shadow: drop })),
+            stk('tape-masking', 60, 560, 200, 70, { rotation: -14, name: 'Tape' }),
+            stk('tape-masking', 860, 400, 200, 70, { rotation: 8, name: 'Tape' }),
+            mono('35MM  ·  24 EXP', { cx: 540, cy: 1180, fontSize: 24, fontWeight: 400, fill: '#5a544a', letterSpacing: 0.3 }),
+          ],
+        })),
+        T('fc-slides', 'Light table', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#fdfcf9', gradient: 'radial', color2: '#d9d5cc' }, overlay: { grain: 6 },
+          elements: [
+            txt('the good ones', { cx: 540, cy: 120, fontFamily: 'Caveat', fontWeight: 600, fontSize: 104, fill: '#2a2620', rotation: -2 }),
+            ...[['film-canyon', 80, 230, -3, 'ARIZONA · 1978', 3], ['film-beach', 580, 215, 2.5, 'CAPRI · 1978', 7], ['film-golden', 95, 735, 2, 'TUSCANY · 1979', 12], ['film-coast', 585, 725, -2, 'BIG SUR · 1979', 18]]
+              .map(([a, x, y, r, l, n]) => photo(a, x, y, 410, 410, { rotation: r, filters: LOOK('slide'), frame: { style: 'slide', color: '#efebe2', size: 66, label: l, num: n }, shadow: { on: true, color: '#000000', opacity: 0.18, blur: 18, x: 0, y: 8 } })),
+            shp('ellipse', 700, 900, 300, 300, { fill: 'rgba(255,255,255,0.08)', stroke: '#2a2620', strokeWidth: 16, shadow: { on: true, color: '#000000', opacity: 0.3, blur: 24, x: 0, y: 14 }, name: 'Loupe' }),
+          ],
+        })),
+        T('fc-instant', 'Instant stack', ['Photo', 'Film', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#d8cdbd', texture: 45 }, overlay: { grain: 10 },
+          elements: [
+            photo('film-window', 520, 170, 470, 570, { rotation: 8, filters: LOOK('instant'), frame: { style: 'polaroid', color: '#fbf8f1', size: 28, bottom: 4.2 }, shadow: drop }),
+            photo('film-friends', 110, 420, 560, 680, { rotation: -5, filters: LOOK('instant'), frame: { style: 'polaroid', color: '#fbf8f1', size: 34, bottom: 4.2 }, shadow: drop }),
+            txt('best day ☺', { cx: 400, cy: 1010, fontFamily: 'Caveat', fontWeight: 600, fontSize: 76, fill: '#2a2a2a', rotation: -5 }),
+            stk('tape-masking', 300, 390, 220, 74, { rotation: -10, name: 'Tape' }),
+          ],
+        })),
+        T('fc-negative', 'Negative scan', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#fbfaf6', gradient: 'radial', color2: '#e3e0d8' }, overlay: { grain: 8 },
+          elements: [
+            mono('HOW IT LOOKED ON THE ROLL', { cx: 540, cy: 170, fontSize: 24, letterSpacing: 0.3, fill: '#4a453d', fontWeight: 400 }),
+            photo('film-tram', 60, 290, 960, 760, { filters: LOOK('negative'), frame: { style: 'scan', color: '#3a2214', size: 18, label: 'FILM 200', num: 31, textColor: '#ffb35c' }, shadow: { on: true, color: '#000000', opacity: 0.15, blur: 20, x: 0, y: 8 } }),
+            txt('develop me', { cx: 540, cy: 1170, fontFamily: 'Instrument Serif', italic: true, fontSize: 100, fill: '#1d1b18' }),
+          ],
+        })),
+        T('fc-halfframe', 'Half frame', ['Photo', 'Film', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#ece7dc', texture: 25 }, overlay: { grain: 8 },
+          elements: [
+            txt('half frame,\ndouble the memories', { cx: 540, cy: 240, fontFamily: 'Instrument Serif', fontSize: 92, lineHeight: 0.98, fill: '#1d1b18' }),
+            img(60, 420, 960, 600, { frame: { style: 'scan', color: '#161412', size: 14, label: 'HALF 72', num: 36 }, placeholder: ['#161412', '#161412'], name: 'Film border', shadow: { on: true, color: '#000000', opacity: 0.18, blur: 22, x: 0, y: 10 } }),
+            photo('film-window', 68.4, 480, 467, 480, { filters: LOOK('portrait') }),
+            photo('film-coast', 544, 480, 467.6, 480, { filters: LOOK('portrait') }),
+            txt('36 / 72', { cx: 540, cy: 1130, fontFamily: 'Space Mono', fontSize: 24, letterSpacing: 0.3, fill: '#5a544a' }),
+          ],
+        })),
+        T('fc-medium', 'Medium format', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#11100e' }, overlay: { grain: 18 },
+          elements: [
+            photo('film-neon', 90, 170, 900, 900, { filters: LOOK('portrait', { halation: 40 }), frame: { style: 'filed', color: '#0b0a09', size: 38 } }),
+            mono('120  ·  6×6  ·  NO. 9', { x: 96, y: 1100, align: 'left', fontSize: 22, fill: '#f2a33a' }),
+            txt('square, slow, on purpose.', { cx: 540, cy: 1220, fontFamily: 'Instrument Serif', italic: true, fontSize: 70, fill: '#f2e7c9' }),
+          ],
+        })),
+        T('fc-booth', 'Photo booth', ['Photo', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#8f2622', pattern: { type: 'stripes', color: 'rgba(0,0,0,0.16)', size: 60, thick: 26, opacity: 1 } }, overlay: { grain: 12, vignette: 30 },
+          elements: [
+            shp('rect', 330, 40, 420, 1270, { fill: '#f7f4ee', texture: 30, rotation: 0, shadow: { on: true, color: '#000000', opacity: 0.35, blur: 30, x: 0, y: 16 }, name: 'Strip' }),
+            ...['film-smile', 'film-kiss', 'film-friends', 'film-portrait'].map((a, i) => photo(a, 360, 70 + i * 290, 360, 270, { filters: LOOK('pan400') })),
+            txt('02 · 14 · 26', { cx: 540, cy: 1250, fontFamily: 'Special Elite', fontSize: 30, fill: '#3a3530' }),
+          ],
+        })),
+        T('fc-darkroom', 'Darkroom', ['Video', 'Film'], () => ({
+          width: 1080, height: 1350, background: { color: '#3a0806', gradient: 'radial', color2: '#120302' }, overlay: { tint: '#ff2a1a', tintAmount: 40, grain: 26, vignette: 35 }, anim: { duration: 5, fps: 24 },
+          elements: [
+            rib('arc', -20, 205, 1120, 30, { points: [[0, 0.1], [0.5, 0.9], [1, 0.1]], line: true, thickness: 3, color: '#cbb89e', text: '', name: 'Line' }),
+            ...[['film-smile', 70, 250, -4], ['film-kiss', 395, 245, 2], ['film-station', 720, 252, -2]].map(([a, x, y, r]) => photo(a, x, y, 290, 380, { rotation: r, filters: LOOK('pan400'), frame: { style: 'border', color: '#f5f2ea', size: 16 }, shadow: { on: true, color: '#000000', opacity: 0.4, blur: 18, x: 0, y: 10 }, anim: { loop: 'sway', amount: 0.3, speed: 0.5 } })),
+            ...[160, 485, 810].map((x, i) => stk('clip-silver', x, 190, 50, 140, { rotation: [-4, 2, -2][i], anim: { loop: 'sway', amount: 0.3, speed: 0.5 } })),
+            txt('developing…', { cx: 540, cy: 1060, fontFamily: 'Special Elite', fontSize: 80, fill: '#ffb3a3', anim: { enter: 'typewriter', delay: 0.4, speed: 0.8 } }),
+          ],
+        }), { video: true }),
+        T('fc-leader', 'Countdown leader', ['Video', 'Film'], () => {
+          const lead = { start: 0, end: 3 };
+          return {
+            width: 1080, height: 1350, background: { color: '#14110e' }, overlay: { weave: 60, flicker: 50, dust: 60, grain: 34, vignette: 25 }, anim: { duration: 7, fps: 24 },
+            elements: [
+              photo('film-window', 0, 0, 1080, 1350, { filters: LOOK('gold') }),
+              txt('and… action.', { cx: 540, cy: 1150, fontFamily: 'Instrument Serif', italic: true, fontSize: 110, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.45, blur: 18, x: 0, y: 3 }, time: { start: 3.4 }, anim: { enter: 'fade', speed: 0.8 } }),
+              shp('rect', 0, 0, 1080, 1350, { fill: '#8b877f', time: lead, name: 'Leader' }),
+              shp('rect', 0, 673, 1080, 4, { fill: '#2a2724', time: lead, name: 'Cross line' }),
+              shp('rect', 538, 0, 4, 1350, { fill: '#2a2724', time: lead, name: 'Cross line' }),
+              shp('rect', 160, 671, 760, 8, { fill: '#2a2724', time: lead, anim: { loop: 'spin', speed: 6, sync: true }, name: 'Sweep' }),
+              shp('ellipse', 160, 295, 760, 760, { fill: 'rgba(0,0,0,0)', stroke: '#f4f1ea', strokeWidth: 12, time: lead, name: 'Ring' }),
+              shp('ellipse', 230, 365, 620, 620, { fill: 'rgba(0,0,0,0)', stroke: '#2a2724', strokeWidth: 6, time: lead, name: 'Ring' }),
+              ...['3', '2', '1'].map((n, i) => txt(n, { cx: 540, cy: 675, fontFamily: 'Arimo', fontWeight: 700, fontSize: 520, fill: '#1d1b18', time: { start: i, end: i + 1 }, name: 'Count ' + n })),
+            ],
+          };
+        }, { video: true }),
+      ];
+    })(),
+
     // ── VIDEO: stop motion — a handful of photos played frame by frame ──
     ...[
       { id: 'stop-classic', name: 'Stop motion', frames: ['run1', 'run2', 'run3', 'run4', 'run5', 'run6'], fps: 6, jitter: 45 },
@@ -1741,6 +1966,8 @@
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
+    'Film looks': ['fl-gold', 'fl-portrait', 'fl-night', 'fl-super8', 'fl-expired', 'fl-disposable', 'fl-burn', 'fl-vivid', 'fl-green', 'fl-cinema', 'fl-cross', 'fl-leak', 'fl-bleach', 'fl-twostrip', 'fl-pan400', 'fl-projector'],
+    'Film camera': ['fc-contact', 'fc-leader', 'fc-strip', 'fc-slides', 'fc-instant', 'fc-darkroom', 'fc-negative', 'fc-halfframe', 'fc-medium', 'fc-booth'],
     'Stop motion': ['stop-classic', 'stop-polaroid', 'stop-reel'],
     'Speed flashes': ['flash-mindset', 'flash-grind', 'flash-race', 'flash-premium'],
     'Studio portrait': ['studio-stat', 'studio-circle', 'studio-rhythm', 'studio-data'],

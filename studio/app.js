@@ -115,6 +115,7 @@
   // built-in demo photos (speed-flash templates) are always available under fixed ids
   if (window.StudioFlashes && window.StudioFlashes.DEMO) for (const [k, v] of Object.entries(window.StudioFlashes.DEMO)) assets['demo-' + k] = v.src;
   if (window.StudioFlashes && window.StudioFlashes.IMG) for (const [k, v] of Object.entries(window.StudioFlashes.IMG)) assets['img-' + k] = v.src;
+  if (window.StudioFilm && window.StudioFilm.IMG) for (const [k, v] of Object.entries(window.StudioFilm.IMG)) assets['film-' + k] = v.src;
   let sel = [];
   let playing = false;
   let pathEdit = null;
@@ -1547,7 +1548,7 @@
 
   let playStart = 0, raf = 0;
   S.isPlaying = () => playing;
-  S.hasAnimation = () => doc.elements.some(R.hasAnim) || R.hasCamera(doc) || R.hasVideo(doc);
+  S.hasAnimation = () => doc.elements.some(R.hasAnim) || R.hasCamera(doc) || R.hasVideo(doc) || R.hasFilmMotion(doc);
   function applyCamera(t) {
     const cam = t != null ? R.camAt(doc, t) : null;
     const a = cam ? { x: doc.width / 2, y: doc.height / 2, offsetX: cam.fx, offsetY: cam.fy, scaleX: cam.z, scaleY: cam.z, rotation: cam.r }

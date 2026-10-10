@@ -39,6 +39,7 @@ unless asked.
 | `stickers.js`, `stickers-game.js`, `outfits-*.js` | SVG sticker library (`window.STICKERS`). |
 | `nature.js` | Painted garden / sky / flower painters (`window.StudioNature`). |
 | `flashes.js` | Bundled photos as data URLs: speed-flash packs (`IMG`, `PACKS`), demo portraits (`DEMO`), text-slide backdrops. All from Unsplash (credited in README). |
+| `filmphotos.js` | Film-style demo photos (`window.StudioFilm.IMG`), registered as `film-<key>` assets for the Film looks / Film camera templates. |
 | `bgremove.js` | Background removal and the "studio look" cut-out (onnxruntime-web + RMBG-1.4 from Hugging Face). |
 | `video.js` | Video export: frame-by-frame render → WebCodecs → mp4-muxer / webm-muxer; MediaRecorder fallback. |
 | `studio.css` | All styling; colour tokens on `:root`, dark mode via `prefers-color-scheme`. |
@@ -77,7 +78,7 @@ Animation: `el.anim {enter, loop, delay, speed, amount}`; `el.time {start, end, 
 piece at a time.
 
 **Assets** are data URLs in `assets[id]` (app.js), never inside `doc`. Ids starting `demo-` and `img-`
-are the bundled photos from `flashes.js`, registered at start-up so templates can use them.
+are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, registered at start-up so templates can use them.
 `data:video/…` assets are videos (`R.isVideoAsset`); the renderer draws them through a muted
 `<video>` and `R.syncVideos` seeks frames exactly during export.
 
@@ -88,9 +89,14 @@ are the bundled photos from `flashes.js`, registered at start-up so templates ca
 - The editor wraps each element in a `Konva.Shape` whose `sceneFunc` calls `R.drawElement(ctx, el, { editor: true })`.
   Background and overlay are separate shapes. Camera moves transform the `art` / `bgCam` groups.
 - Photo filters are pixel operations cached in `filteredSource` (key = asset + filter values; video
-  frames use a single-slot cache). Add new filter keys to `FILTER_KEYS`, then show them in
-  `filterSliders` / `R.FILTER_PRESETS`.
-- Frames: add a case to `frameGeometry` (returns `outer`, `inner` clip, `rect`, optional `extra` painter)
+  frames use a single-slot cache, graded at 720 px while previewing and 1280 px for export). Add new
+  filter keys to `FILTER_KEYS`, then show them in `adjustSection` / `filmSection` (ui.js) and, for
+  presets, `R.FILTER_PRESETS` + a shelf in `R.FILTER_GROUPS`. Draw-time photo finishes (vignette, grain,
+  light leak, dust) live in `overlays()` (`R.photoFinish`) and get a time only for time-varying layers.
+- Film effects over the whole canvas (`doc.overlay`: grain + grainSize, dust, burn, flicker, leak) are
+  painted in `drawOverlay(ctx, doc, t)`; `overlay.weave` (gate weave) is applied in `camAt` like a
+  camera move. `R.hasFilmMotion(doc)` (weave / flicker) makes a design count as a video.
+- Frames: add a case to `frameGeometry` (returns `outer`, `inner` clip, `rect`, optional `extra` painter; starting size and colour in `FRAME_START`, ui.js)
   and a label in `R.FRAMES`.
 - New element type: `DEFAULTS` + `S.elLabel` (app.js), a `drawCore` case and `bleedCore` (render.js),
   an inspector in the `fn` map in `renderInspector` (ui.js), an Elements panel entry if users add it.
@@ -122,10 +128,11 @@ are the bundled photos from `flashes.js`, registered at start-up so templates ca
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,
 `stk`, `shp`, `rib`, `nat`, `cam`. Text can be placed by centre (`cx`, `cy`); widths are measured on
 load. Put a new family's ids in `GROUPS` (order = display order); `video: true` adds the badge and hover
-preview. Families so far: Text slides (69), Stop motion, Speed flashes, Studio portrait, Newspaper
+preview. Families so far: Text slides (69), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
 reveal, Typing, Match cut, Kinetic headline, Sticky notes, Rolling numbers, Word by word, Letter
 bounce, Life-sim garden, Ribbon poster, Motion blur, Camera view, Meet the team, Grid-paper notes,
-Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 160 templates.
+Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 190 templates. Film templates build
+filters with `LOOK('<preset>', overrides)` so they stay in step with the presets.
 
 When lining up words with inline photo chips, measure text widths first (create a text with `S.mk`,
 `S.autosize`, read `width` after fonts load) and hard-code positions.
