@@ -1437,6 +1437,7 @@
     fade: { label: 'Fade', f: { fade: 45, contrast: -12, saturation: -10 } },
     vintage: { label: 'Vintage', f: { sepia: 35, fade: 30, warmth: 18, contrast: -6, vignette: 35, grain: 30 } },
     film: { label: 'Film', f: { fade: 22, warmth: 10, contrast: 10, saturation: -8, grain: 45 } },
+    halation: { label: 'Halation', f: { halation: 55, warmth: 14, fade: 10, contrast: 8, grain: 30, vignette: 20 } },
     dreamy: { label: 'Dreamy', f: { brightness: 10, fade: 25, saturation: -12, blur: 0 } },
     punch: { label: 'Punch', f: { contrast: 30, saturation: 25, brightness: -4 } },
     bw: { label: 'B&W', f: { grayscale: 100, contrast: 12 } },
@@ -1463,7 +1464,7 @@
     lens: { label: 'Lens', f: { fisheye: 35, warmth: 12, fade: 10, vignette: 30 } },
   };
   const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone', 'noise', 'motion', 'motionAngle', 'fisheye',
-    'zoomBlur', 'spinBlur', 'tiltShift', 'ghost', 'blurX', 'blurY', 'tiltY', 'tiltSize'];
+    'zoomBlur', 'spinBlur', 'tiltShift', 'ghost', 'blurX', 'blurY', 'tiltY', 'tiltSize', 'halation'];
   const filterCache = new LRU(40);
   function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
   const vidFilterCache = new Map();
@@ -1526,6 +1527,7 @@
     x.putImageData(d, 0, 0);
     let out = c;
     if (f.halftone) out = halftone(c, tone, f);
+    if (f.halation) out = halation(out, f.halation);
     const sharp = out;
     if (f.motion) out = motionBlur(out, f.motion, f.motionAngle || 0);
     if (f.ghost) out = ghostBlur(out, f.ghost, f.motionAngle || 0);
@@ -1539,6 +1541,42 @@
     }
     if (f.fisheye) out = barrel(out, f.fisheye);
     if (isVid) { if (!img.seeking) vidFilterCache.set(id, { key, out }); } else filterCache.set(key, out);
+    return out;
+  }
+  // halation: on film, bright light bleeds through the emulsion as a red-orange glow around highlights
+  function halation(src, amt) {
+    const w = src.width, h = src.height, k = clamp(amt / 100, 0, 1);
+    // work at up to ~800px so even small lights survive into the glow
+    const sc = Math.min(1, 800 / Math.max(w, h)), sw = Math.max(1, Math.round(w * sc)), sh = Math.max(1, Math.round(h * sc));
+    const small = canvas(sw, sh), sx = small.getContext('2d', { willReadFrequently: true });
+    sx.drawImage(src, 0, 0, sw, sh);
+    let d;
+    try { d = sx.getImageData(0, 0, sw, sh); } catch (e) { return src; }
+    const a = d.data, thr = 255 * (0.72 - k * 0.2);
+    for (let i = 0; i < a.length; i += 4) {
+      const l = Math.max(a[i], a[i + 1], a[i + 2]) * 0.6 + (0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]) * 0.4;
+      const v = Math.pow(clamp((l - thr) / (255 - thr), 0, 1), 0.8);
+      a[i] = 255 * v; a[i + 1] = 72 * v; a[i + 2] = 30 * v; a[i + 3] = 255;
+    }
+    sx.putImageData(d, 0, 0);
+    // blur the highlight mask into a tight red halo and a wider bloom, boosting each so small lights still glow
+    const halo = (radius, gain) => {
+      const g = canvas(w, h), gx = g.getContext('2d');
+      gx.filter = `blur(${radius}px)`;
+      gx.drawImage(small, 0, 0, w, h);
+      gx.filter = 'none';
+      gx.globalCompositeOperation = 'lighter';
+      for (let i = 1; i < gain; i++) gx.drawImage(g, 0, 0);
+      return g;
+    };
+    const m = Math.max(w, h);
+    const out = canvas(w, h), x = out.getContext('2d');
+    x.drawImage(src, 0, 0);
+    x.globalCompositeOperation = 'screen';
+    x.globalAlpha = 0.45 + k * 0.55;
+    x.drawImage(halo(m * (0.003 + k * 0.007), 2 + Math.round(k * 2)), 0, 0);
+    x.globalAlpha = 0.35 + k * 0.4;
+    x.drawImage(halo(m * (0.012 + k * 0.02), 2 + Math.round(k * 3)), 0, 0);
     return out;
   }
   // directional blur: the photo averaged with copies of itself slid along the angle
@@ -1681,6 +1719,7 @@
     none: 'None', rounded: 'Rounded', circle: 'Circle', arch: 'Arch', polaroid: 'Polaroid', stamp: 'Stamp',
     film: 'Film', torn: 'Torn paper', papercut: 'Paper cut', border: 'Border', blob: 'Blob', heart: 'Heart', star: 'Star',
     scallop: 'Scallop', flower: 'Flower', ticket: 'Ticket', squircle: 'Squircle', sparkle: 'Sparkle', sticky: 'Sticky note',
+    gate: 'Film gate',
   };
   function frameGeometry(el) {
     const w = el.width, h = el.height, f = el.frame || {};
@@ -1723,6 +1762,32 @@
             ctx.fill(rrect(new Path2D(), x, (bw - hh) / 2, hw, hh, hw * 0.2));
             ctx.fill(rrect(new Path2D(), x, h - bw + (bw - hh) / 2, hw, hh, hw * 0.2));
           }
+        };
+        break;
+      }
+      case 'gate': {
+        // a projected film frame: dark gate around the picture, rounded corners, soft burnt-in edge
+        const m = Math.min(w, h), bw = Math.max(2, size);
+        g.outer = rrect(new Path2D(), 0, 0, w, h, f.radius ?? 0);
+        g.rect = inset(bw, bw, bw, bw);
+        const rad = Math.min(g.rect.w, g.rect.h) * 0.06 + (f.round ?? 0) * m * 0.001;
+        g.inner = rrect(new Path2D(), g.rect.x, g.rect.y, g.rect.w, g.rect.h, rad);
+        const soft = Math.max(1, (f.soft ?? 40) / 100 * m * 0.05);
+        g.extra = ctx => {
+          ctx.save();
+          ctx.strokeStyle = f.color || '#0b0b0b';
+          // a crisp core straddling the cut (outside the clip) so no light leaks along the edge
+          ctx.lineWidth = Math.max(3, soft * 0.8);
+          ctx.stroke(g.inner);
+          ctx.clip(g.inner);
+          ctx.lineWidth = soft * 2.4;
+          if ('filter' in ctx) ctx.filter = `blur(${soft * 0.7 * deviceScale(ctx)}px)`;
+          ctx.stroke(g.inner);
+          // the gate's edge is never perfectly even: a slightly darker band hugs the top and bottom
+          ctx.lineWidth = soft * 1.2;
+          ctx.globalAlpha *= 0.5;
+          ctx.stroke(g.inner);
+          ctx.restore();
         };
         break;
       }

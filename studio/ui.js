@@ -662,7 +662,7 @@
       label('Grain'),
       sl('noise', 'Noise', 0, 100), sl('grain', 'Film grain', 0, 100), sl('vignette', 'Vignette', 0, 100),
       label('Lens'),
-      sl('fisheye', 'Fisheye', 0, 100),
+      sl('fisheye', 'Fisheye', 0, 100), sl('halation', 'Halation', 0, 100),
       label('Print'),
       sl('grayscale', 'Mono', 0, 100), sl('sepia', 'Sepia', 0, 100), sl('halftone', 'Halftone', 0, 100), sl('threshold', 'Photocopy', 0, 100),
       toggle(t, base + '.duotone', 'Duotone', { set: v => { S.change(t, base + '.duotone', v); if (v && !f.duoDark) { S.change(t, base + '.duoDark', '#1b2a8f', true); S.change(t, base + '.duoLight', '#a9c4ff'); } renderInspector(); } }),
@@ -742,7 +742,8 @@
     ], type !== 'none', { key: 'blur-' + t });
   }
   const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
-  const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border'];
+  const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border', 'gate'];
+  const DARK_FRAMES = ['film', 'gate'];
   function frameTiles(el, limit) {
     const grid = h('div.frame-grid');
     let entries = Object.entries(R.FRAMES);
@@ -753,7 +754,7 @@
       entries = head;
     }
     for (const [k, l] of entries) {
-      const demo = S.mk('image', { assetId: el.assetId, width: 100, height: k === 'polaroid' ? 120 : 100, frame: { style: k, color: k === 'film' ? '#1d1b18' : el.frame.color === '#ffffff' && ROUND_FRAMES.includes(k) ? '#ffffff' : (el.frame.color || '#fff'), size: ROUND_FRAMES.includes(k) ? 0 : 7, radius: k === 'rounded' ? 14 : 0 }, crop: el.crop, filters: {}, placeholder: el.placeholder });
+      const demo = S.mk('image', { assetId: el.assetId, width: 100, height: k === 'polaroid' ? 120 : 100, frame: { style: k, color: DARK_FRAMES.includes(k) ? '#0b0b0b' : el.frame.color === '#ffffff' && ROUND_FRAMES.includes(k) ? '#ffffff' : (el.frame.color || '#fff'), size: ROUND_FRAMES.includes(k) ? 0 : 7, radius: k === 'rounded' ? 14 : 0 }, crop: el.crop, filters: {}, placeholder: el.placeholder });
       demo.id = el.id;
       const c = elThumb(demo, 56, 56, 2);
       c.style.width = '100%';
@@ -765,9 +766,10 @@
           S.changeEl(e0, e => {
             e.frame.style = k;
             if (needsBorder && !(e.frame.size > 2)) e.frame.size = Math.round(Math.min(e.width, e.height) * 0.05);
+            if (k === 'gate') e.frame.size = Math.round(Math.min(e.width, e.height) * 0.045);
             if (!needsBorder && ROUND_FRAMES.includes(k)) e.frame.size = 0;
-            if (k === 'film' && e.frame.color === '#ffffff') e.frame.color = '#1d1b18';
-            if (k !== 'film' && e.frame.color === '#1d1b18') e.frame.color = '#ffffff';
+            if (DARK_FRAMES.includes(k) && e.frame.color === '#ffffff') e.frame.color = k === 'gate' ? '#0b0b0b' : '#1d1b18';
+            if (!DARK_FRAMES.includes(k) && (e.frame.color === '#1d1b18' || e.frame.color === '#0b0b0b')) e.frame.color = '#ffffff';
             if (k === 'rounded' && !e.frame.radius) e.frame.radius = Math.round(Math.min(e.width, e.height) * 0.08);
           });
           renderInspector();
@@ -877,6 +879,8 @@
         fs !== 'none' ? row(bordered ? 'Border' : 'Edge', num(T, 'frame.size', { min: 0, max: 200, slider: true })) : null,
         fs !== 'none' ? more('frame-more', [
           ['rounded', 'border', 'polaroid', 'ticket'].includes(fs) ? row('Radius', num(T, 'frame.radius', { min: 0, max: 400, slider: true })) : null,
+          fs === 'gate' ? row('Corners', num(T, 'frame.round', { min: -60, max: 200, slider: true, def: 0 })) : null,
+          fs === 'gate' ? row('Soft edge', num(T, 'frame.soft', { min: 0, max: 100, slider: true, def: 40 })) : null,
           fs === 'polaroid' ? row('Bottom', num(T, 'frame.bottom', { min: 1, max: 8, step: 0.1, slider: true, unit: '×' })) : null,
           bordered ? row('Paper', num(T, 'frame.texture', { min: 0, max: 100, slider: true })) : null,
         ]) : null,
@@ -2138,9 +2142,9 @@
         const sz = W * 0.42;
         const bordered = BORDER_FRAMES.includes(k);
         return S.mk('image', {
-          width: sz, height: k === 'polaroid' ? sz * 1.2 : k === 'arch' ? sz * 1.3 : k === 'film' ? sz * 0.8 : sz,
+          width: sz, height: k === 'polaroid' ? sz * 1.2 : k === 'arch' ? sz * 1.3 : k === 'film' ? sz * 0.8 : k === 'gate' ? sz * 0.62 : sz,
           placeholder: tint,
-          frame: { style: k, color: k === 'film' ? '#1d1b18' : k === 'stamp' ? '#9ab83e' : '#ffffff', size: bordered ? Math.round(sz * 0.05) : 0, radius: k === 'rounded' ? sz * 0.08 : 0 },
+          frame: { style: k, color: k === 'film' ? '#1d1b18' : k === 'gate' ? '#0b0b0b' : k === 'stamp' ? '#9ab83e' : '#ffffff', size: bordered ? Math.round(sz * 0.05) : 0, radius: k === 'rounded' ? sz * 0.08 : 0 },
           shadow: bordered ? { on: true, color: '#000000', opacity: 0.22, blur: 26, x: 0, y: 12 } : undefined,
         });
       };
