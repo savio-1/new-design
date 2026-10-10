@@ -59,7 +59,8 @@
     await R.preload(doc);
     const enc = await pickEncoder(width, height, fps, bitrate, format);
     if (!enc) return recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal });
-    await loadScript(LIBS[enc.kind]);
+    // the single-file build already carries the muxers; otherwise fetch the one we need
+    if (!(enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer)) await loadScript(LIBS[enc.kind]);
     const Lib = enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer;
     const muxer = enc.kind === 'mp4'
       ? new Lib.Muxer({ target: new Lib.ArrayBufferTarget(), video: { codec: 'avc', width, height }, fastStart: 'in-memory' })
