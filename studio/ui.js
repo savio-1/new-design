@@ -2865,7 +2865,7 @@
       h('p.lead', null, 'Snapping: elements snap to the canvas edges and centre lines (pink), to other elements (orange) and to the grid when grid-snap is on.'),
       h('div.help-grid', null,
         k('Drag', 'Move — snaps to guides'), k('Hold Shift while moving', 'Move along one axis'), k('Alt drag a selected layer', 'Duplicate while dragging'), k('Ctrl drag', 'Move without snapping'),
-        k('Shift click / Shift drag', 'Add layers to the selection (works over photos too)'), k('Alt click / Alt drag', 'Remove layers from the selection'), k('⌘ click', 'Toggle a layer in or out'),
+        k('Shift click / Shift drag', 'Add layers to the selection (works over photos too)'), k('Alt click / Alt drag', 'Remove layers from the selection'), k('Hold Alt', 'Show distances to the canvas edges, or to the layer under the pointer'), k('⌘ click', 'Toggle a layer in or out'),
         k('E', 'Eraser (Esc to leave)'), k('[ ]', 'Eraser size'), k('P', 'Play / pause animation'),
         k('Arrows', 'Nudge 1px (Shift: 10px)'), k('Space drag', 'Pan the canvas'), k('⌘ scroll', 'Zoom'), k('⌘0', 'Fit to screen'),
         k('Dbl-click', 'Edit text · crop a photo'), k('T', 'Add text'), k('G', 'Toggle grid'),

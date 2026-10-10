@@ -237,6 +237,50 @@
     sceneFunc: (c) => { const ctx = c._context; if (doc.overlay && doc.overlay.rgb > 0) R.rgbSplit(ctx, doc.overlay.rgb / 100 * doc.width * 0.006 * Math.hypot(ctx.getTransform().a, ctx.getTransform().b)); ctx.save(); R.drawOverlay(ctx, doc); ctx.restore(); },
   });
 
+  // Alt/Option distances: red lines with pixel values between the selection and the canvas or the layer under the pointer
+  let distLines = [], distTarget = null;
+  const DIST_RED = '#f24822';
+  function drawDistances(ctx, s) {
+    ctx.save();
+    if (distTarget) { ctx.lineWidth = 1 / s; ctx.strokeStyle = DIST_RED; ctx.strokeRect(distTarget.x, distTarget.y, distTarget.width, distTarget.height); }
+    ctx.lineWidth = 1 / s; ctx.strokeStyle = DIST_RED; ctx.fillStyle = DIST_RED;
+    const fs = 11 / s, pad = 4 / s, tick = 4 / s;
+    ctx.font = `600 ${fs}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const d of distLines) {
+      ctx.beginPath(); ctx.moveTo(d.x1, d.y1); ctx.lineTo(d.x2, d.y2);
+      // little end caps across the line
+      if (d.y1 === d.y2) { ctx.moveTo(d.x1, d.y1 - tick); ctx.lineTo(d.x1, d.y1 + tick); ctx.moveTo(d.x2, d.y2 - tick); ctx.lineTo(d.x2, d.y2 + tick); }
+      else { ctx.moveTo(d.x1 - tick, d.y1); ctx.lineTo(d.x1 + tick, d.y1); ctx.moveTo(d.x2 - tick, d.y2); ctx.lineTo(d.x2 + tick, d.y2); }
+      ctx.stroke();
+      if (d.ext) { ctx.save(); ctx.setLineDash([3 / s, 3 / s]); ctx.beginPath(); ctx.moveTo(d.ext.x1, d.ext.y1); ctx.lineTo(d.ext.x2, d.ext.y2); ctx.stroke(); ctx.restore(); }
+      const label = String(d.v), tw = ctx.measureText(label).width + pad * 2, th = fs + pad * 1.4;
+      const mx = (d.x1 + d.x2) / 2, my = (d.y1 + d.y2) / 2;
+      const lx = d.y1 === d.y2 ? mx : mx + tw / 2 + 3 / s, ly = d.y1 === d.y2 ? my + th / 2 + 3 / s : my;
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(lx - tw / 2, ly - th / 2, tw, th, 3 / s) : ctx.rect(lx - tw / 2, ly - th / 2, tw, th); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillText(label, lx, ly + 0.5 / s); ctx.fillStyle = DIST_RED;
+    }
+    ctx.restore();
+  }
+  // the gaps between box a (the selection) and box b (another layer, or the canvas itself)
+  function measureBetween(a, b) {
+    const out = [];
+    const ax0 = a.x, ax1 = a.x + a.width, ay0 = a.y, ay1 = a.y + a.height;
+    const bx0 = b.x, bx1 = b.x + b.width, by0 = b.y, by1 = b.y + b.height;
+    const acx = (ax0 + ax1) / 2, acy = (ay0 + ay1) / 2;
+    const push = (x1, y1, x2, y2, ext) => { const v = Math.round(Math.hypot(x2 - x1, y2 - y1)); if (v >= 1) out.push({ x1, y1, x2, y2, v, ext }); };
+    // horizontal: measured along the middle of the shared rows, else through the selection's centre with a dashed lead-in
+    const oy0 = Math.max(ay0, by0), oy1 = Math.min(ay1, by1), hy = oy1 > oy0 ? (oy0 + oy1) / 2 : acy;
+    const hExt = oy1 > oy0 ? null : (x) => ({ x1: x, y1: acy, x2: x, y2: acy < by0 ? by0 : by1 });
+    if (ax1 <= bx0) push(ax1, hy, bx0, hy, hExt && hExt(bx0));
+    else if (bx1 <= ax0) push(bx1, hy, ax0, hy, hExt && hExt(bx1));
+    else { if (Math.abs(ax0 - bx0) >= 1) push(Math.min(ax0, bx0), acy, Math.max(ax0, bx0), acy); if (Math.abs(ax1 - bx1) >= 1) push(Math.min(ax1, bx1), acy, Math.max(ax1, bx1), acy); }
+    const ox0 = Math.max(ax0, bx0), ox1 = Math.min(ax1, bx1), vx = ox1 > ox0 ? (ox0 + ox1) / 2 : acx;
+    const vExt = ox1 > ox0 ? null : (y) => ({ x1: acx, y1: y, x2: acx < bx0 ? bx0 : bx1, y2: y });
+    if (ay1 <= by0) push(vx, ay1, vx, by0, vExt && vExt(by0));
+    else if (by1 <= ay0) push(vx, by1, vx, ay0, vExt && vExt(by1));
+    else { if (Math.abs(ay0 - by0) >= 1) push(acx, Math.min(ay0, by0), acx, Math.max(ay0, by0)); if (Math.abs(ay1 - by1) >= 1) push(acx, Math.min(ay1, by1), acx, Math.max(ay1, by1)); }
+    return out;
+  }
   // grid + guides drawn in one shape so they stay crisp at any zoom
   let guideLines = [];
   let showMid = false;
@@ -263,6 +307,7 @@
         ctx.moveTo(0, doc.height / 2); ctx.lineTo(doc.width, doc.height / 2);
         ctx.stroke(); ctx.setLineDash([]);
       }
+      if (distLines.length) drawDistances(ctx, s);
       for (const g of guideLines) {
         ctx.beginPath(); ctx.moveTo(g.x1, g.y1); ctx.lineTo(g.x2, g.y2);
         ctx.lineWidth = (g.kind === 'center' ? 1.5 : 1) / s;
@@ -796,6 +841,8 @@
     return null;
   }
   window.addEventListener('mousemove', e => {
+    if (keys.alt !== e.altKey) keys.alt = e.altKey;
+    if (keys.alt || distLines.length) updateDistances();
     if (panning) {
       S.view.x = panning.vx + (e.clientX - panning.x);
       S.view.y = panning.vy + (e.clientY - panning.y);
@@ -940,6 +987,32 @@
     }
     return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
   }
+  function distanceTargetBox() {
+    const p = stage.getPointerPosition();
+    if (!p) return null;
+    let best = -1;
+    for (const n of stage.getAllIntersections(p)) {
+      const id = n.id && n.id();
+      if (!id || !elMap.has(id) || sel.includes(id)) continue;
+      const el = elMap.get(id);
+      if (el.hidden) continue;
+      best = Math.max(best, doc.elements.indexOf(el));
+    }
+    return best < 0 ? null : unionRect([nodes.get(doc.elements[best].id)]);
+  }
+  function updateDistances() {
+    const was = distLines.length > 0;
+    distLines = []; distTarget = null;
+    const ns = sel.map(id => nodes.get(id)).filter(n => n && n.visible());
+    if (keys.alt && ns.length && !textEdit && !cropState && !marqueeStart && R.playTime == null) {
+      const a = unionRect(ns);
+      distTarget = distanceTargetBox();
+      distLines = measureBetween(a, distTarget || { x: 0, y: 0, width: doc.width, height: doc.height });
+    }
+    if (was || distLines.length) uiLayer.batchDraw();
+  }
+  S.updateDistances = updateDistances;
+  S.on('selection', () => updateDistances());
   function onDragStart(e) {
     const n = e.target;
     altPending = null;
@@ -993,6 +1066,7 @@
     for (const [m, x, y] of dragging.start) if (m !== n) m.position({ x: x + fdx, y: y + fdy });
     void ddx; void ddy;
     showMeasure(`X ${Math.round(box.x)}  Y ${Math.round(box.y)}`, box);
+    if (keys.alt) updateDistances();
     uiLayer.batchDraw();
     positionOverlays(true);
   }
@@ -1978,7 +2052,11 @@
     // the editor sits behind the home page; its shortcuts wait until a design is open
     if (document.body.classList.contains('at-home')) return;
     if (e.key === ' ' ) keys.space = !isTyping(e);
+    const altWas = keys.alt;
     keys.alt = e.altKey; keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey || e.metaKey;
+    if (keys.alt !== altWas) updateDistances();
+    // Alt on its own would focus the browser menu on some systems
+    if (e.key === 'Alt' && !isTyping(e)) e.preventDefault();
     if (keys.space && !panning) area.style.cursor = 'grab';
     if (isTyping(e)) return;
     if (document.querySelector('.modal-back')) return;
@@ -2025,9 +2103,11 @@
   });
   window.addEventListener('keyup', e => {
     if (e.key === ' ') { keys.space = false; if (!panning) area.style.cursor = S.tool === 'erase' ? 'none' : ''; }
+    const altWas = keys.alt;
     keys.alt = e.altKey; keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey || e.metaKey;
+    if (keys.alt !== altWas) updateDistances();
   });
-  window.addEventListener('blur', () => { keys.space = keys.alt = keys.shift = keys.ctrl = false; });
+  window.addEventListener('blur', () => { keys.space = keys.alt = keys.shift = keys.ctrl = false; updateDistances(); });
   function isTyping(e) {
     const t = e.target;
     return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
