@@ -49,6 +49,9 @@ Designs live in this browser's storage, so clearing site data removes them — d
 
 ## Video templates and camera
 
+- **Speed flashes** (template family + an element): fast, motion-blurred action shots cut over your own photo or video, like the hustle-edit reels. Four templates — *Against the world* (serif quote over a side profile), *No days off* (mono gym flashes with a white pop on every cut), *Run your race* (orange-tinted running shots, word by word) and *Built different* (supercars and city lights, letterboxed). Add flashes to any design from **Elements → Speed flashes**. Pick a photo pack (Hustle mix, Run, Gym, Fight, Drive, Play, Rise) or add your own photos, then set cuts per second, blur amount and direction, strength and blend (Light, Punchy, Soft, Solid), colour / mono / tint, and under *More*: drift, push-in, overlap (two photos at once), flash on cut, gaps that let your shot breathe, contrast and shuffle.
+- **Videos as photos**: anywhere a photo goes — a photo layer's *Replace*, the Photos panel, drag and drop, or the canvas background — you can drop in a video (mp4 / mov / webm, up to 120 MB). It plays with the design when you preview, and video export seeks it frame by frame so it stays in sync. *Playback* sets where it starts, its speed and whether it loops; the design's length grows to match the clip (up to 30 s). Videos play muted and export without sound. Your browser has to be able to play the file (iPhone HEVC .mov files may need converting to H.264 first).
+
 - **Template families**: variations of one idea show as a single card with a style count; click it to see every style. Video templates carry a *Video* badge and play when you hover them.
 - **Newspaper reveal** (pull-back, crash zoom, snap zoom, hard cuts, slow push-in), **Typing** (type & follow, typed note, crash zoom, terminal), **Match cut** (keyword, night edition, newsprint flicker), **Kinetic headline** (good news, big reveal, pop words), **Sticky notes** (colour cut, stack, flip-book) with photos printed onto the notes, **Rolling numbers** (years, countdown, price drop), **Word by word** (italic VHS, bold statement, soft whisper) and **Letter bounce** (everyone, glitch hello, pastel).
 - **Text entrances**: letters slam / rise / drop / fade in one by one; slide-ins get motion blur automatically; *Captions* shows one line of a text layer at a time for subtitles; *Roll through lines* rolls them up like a counter (optionally speeding up); *Word by word* pops one word at a time; *Letters bounce in* types with each letter landing low and snapping up.
@@ -74,3 +77,41 @@ Select a photo and choose **Remove background** (or **Cut out to layer** to keep
 
 - **Your fonts**: upload `.otf`, `.ttf`, `.woff`, `.woff2` files or a `.zip` from the font picker or the Text tab. They are registered with the FontFace API, kept in this browser only, and packed into saved project files. Commercial fonts are deliberately not bundled in this repo.
 - **Outfits** (`outfits-girls.js`, `outfits-boys.js`): neck-down outfit bodies plus shoes, bags and accessories. Adding one also adds an oversized face slot; a selfie dropped into it is cut out and trimmed to the head automatically for the "big head" look.
+
+## Photo credits
+
+The speed-flash photo packs and the demo portraits in `flashes.js` are from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license) (free to use, attribution not required). Image ids, for credit — each one is `https://images.unsplash.com/photo-<id>`:
+`1461896836934-ffe607ba8211`,
+`1526676317768-d9b14f15615a`,
+`1696536823512-79d724454616`,
+`1698671823406-035c77ff6fcd`,
+`1758922769578-68c5ba000d87`,
+`1766970096346-937852c7d350`,
+`1517836357463-d25dfeac3438`,
+`1521804906057-1df8fdb718b7`,
+`1526506118085-60ce8714f8c5`,
+`1541534741688-6078c6bfb5c5`,
+`1581009146145-b5ef050c2e1e`,
+`1599058917212-d750089bc07e`,
+`1605296867304-46d5465a13f1`,
+`1509563268479-0f004cf3f58b`,
+`1517438322307-e67111335449`,
+`1622599511051-16f55a1234d0`,
+`1506719040632-7d586470c936`,
+`1555532686-d0fccaccadcf`,
+`1589240508375-8ad32cfcfcf4`,
+`1690984651796-6bbb102fbf30`,
+`1505811210036-052144988918`,
+`1611416457332-946853cc75d6`,
+`1452573992436-6d508f200b30`,
+`1508087625439-de3978963553`,
+`1560272564-c83b66b1ad12`,
+`1715900677967-fb67cee16359`,
+`1574629810360-7efbbe195018`,
+`1634040843188-5ca36cf26cc1`,
+`1639938794001-bcc9e3770fd4`,
+`1761027436967-63584b301a77`,
+`1607017137021-5dc7e8cd4317`,
+`1633106485777-eaa336fb40df`,
+`1770664612860-1f69b26b1682`,
+`1614010966237-74489a16848b`.

@@ -46,10 +46,105 @@
   }
   function assetImage(id) {
     if (!id || !assets[id]) return null;
+    if (isVideoAsset(id)) { const v = assetVideo(id); return v && v.ok ? v.v : null; }
     const e = loadImage(assets[id], imgCache, id);
     return e.ok ? e.img : null;
   }
   R.assetImage = assetImage;
+  // photos, canvases and video frames all report their size differently
+  const iwOf = s => s.videoWidth || s.naturalWidth || s.width;
+  const ihOf = s => s.videoHeight || s.naturalHeight || s.height;
+  R.mediaSize = s => (s ? { w: iwOf(s), h: ihOf(s) } : null);
+
+  /* ── video assets: a muted <video> per asset, drawn like a photo ── */
+  const vidCache = new Map();
+  function isVideoAsset(id) { const a = id && assets[id]; return typeof a === 'string' && a.startsWith('data:video'); }
+  R.isVideoAsset = isVideoAsset;
+  function dataToBlobUrl(src) {
+    const i = src.indexOf(','), mime = src.slice(5, src.indexOf(';'));
+    const bin = atob(src.slice(i + 1)), u = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) u[k] = bin.charCodeAt(k);
+    return URL.createObjectURL(new Blob([u], { type: mime }));
+  }
+  function assetVideo(id) {
+    const src = assets[id];
+    if (!src) return null;
+    let e = vidCache.get(id);
+    if (e && e.src === src) return e;
+    const v = document.createElement('video');
+    v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto'; v.loop = false;
+    v.setAttribute('muted', ''); v.setAttribute('playsinline', '');
+    e = { v, ok: false, failed: false, src };
+    e.promise = new Promise(res => {
+      v.addEventListener('loadeddata', () => { e.ok = true; requestRedraw(); res(); }, { once: true });
+      v.addEventListener('error', () => { e.failed = true; res(); }, { once: true });
+    });
+    v.addEventListener('seeked', () => requestRedraw());
+    try { v.src = dataToBlobUrl(src); } catch (err) { e.failed = true; }
+    vidCache.set(id, e);
+    return e;
+  }
+  R.assetVideo = assetVideo;
+  // the moment of a video that belongs at design time t (null = the still frame used while editing)
+  R.videoTarget = function (vd, t, v, start) {
+    vd = vd || {};
+    const dur = v && v.duration;
+    if (!dur || !isFinite(dur)) return 0;
+    const ts = clamp(vd.trim || 0, 0, Math.max(0, dur - 0.05)), len = Math.max(0.05, dur - ts);
+    if (t == null) return Math.min(dur - 0.02, ts + (vd.poster || 0));
+    const lt = Math.max(0, t - (start || 0)) * (vd.speed || 1);
+    return Math.min(dur - 0.02, ts + (vd.loop === false ? Math.min(lt, len - 0.02) : lt % len));
+  };
+  // every place a video is shown: image layers and the canvas background
+  function videoUsers(doc) {
+    const out = [];
+    const bg = doc.background || {};
+    if (isVideoAsset(bg.assetId)) out.push({ id: bg.assetId, vd: bg.video, start: 0 });
+    for (const el of doc.elements || []) if (el.type === 'image' && !el.hidden && isVideoAsset(el.assetId)) out.push({ id: el.assetId, vd: el.video, start: (el.time && el.time.start) || 0 });
+    return out;
+  }
+  R.hasVideo = doc => videoUsers(doc).length > 0;
+  R.playing = false;
+  // editor preview: let the video run and only correct it when it drifts
+  function liveSync(v, vd, t, start) {
+    const target = R.videoTarget(vd, t, v, start);
+    if (t == null || !R.playing) {
+      if (!v.paused) v.pause();
+      if (Math.abs(v.currentTime - target) > 0.04 && !v.seeking) v.currentTime = target;
+      return;
+    }
+    v.playbackRate = (vd && vd.speed) || 1;
+    if (v.paused) { if (!v.seeking) v.currentTime = target; v.play().catch(() => {}); }
+    else if (Math.abs(v.currentTime - target) > 0.3 && !v.seeking) v.currentTime = target;
+  }
+  R.liveSyncVideos = function (doc, t) {
+    for (const u of videoUsers(doc)) { const e = assetVideo(u.id); if (e && e.ok) liveSync(e.v, u.vd, t, u.start); }
+  };
+  R.pauseVideos = function () { for (const e of vidCache.values()) if (!e.v.paused) e.v.pause(); };
+  // export: seek every video to its exact frame before the frame is drawn
+  R.syncVideos = async function (doc, t, force) {
+    const jobs = [];
+    for (const u of videoUsers(doc)) {
+      const e = assetVideo(u.id);
+      if (!e) continue;
+      if (!e.ok) await e.promise;
+      if (!e.ok) continue;
+      const v = e.v;
+      if (!v.paused) v.pause();
+      // a seek still in flight (from the editor) would leave its old frame on screen
+      if (v.seeking) await new Promise(res => { const fin = () => { v.removeEventListener('seeked', fin); res(); }; v.addEventListener('seeked', fin); setTimeout(fin, 1500); });
+      const target = R.videoTarget(u.vd, t, v, u.start);
+      if (!force && Math.abs(v.currentTime - target) < 0.0005) continue;
+      jobs.push(new Promise(res => {
+        let done = false;
+        const fin = () => { if (done) return; done = true; v.removeEventListener('seeked', fin); res(); };
+        v.addEventListener('seeked', fin);
+        setTimeout(fin, 2000);
+        v.currentTime = target;
+      }));
+    }
+    await Promise.all(jobs);
+  };
 
   let stickerMap = null;
   function stickerDef(id) {
@@ -1336,15 +1431,21 @@
     'zoomBlur', 'spinBlur', 'tiltShift', 'ghost', 'blurX', 'blurY', 'tiltY', 'tiltSize'];
   const filterCache = new LRU(40);
   function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
+  const vidFilterCache = new Map();
   function filteredSource(id, img, f) {
     if (!f || !(FILTER_KEYS.some(k => f[k]) || (f.blur && f.blurArea && f.blurArea !== 'all'))) return img;
     const spots = f.blurArea && f.blurArea !== 'all' && (f.blurPts || []).length ? f.blurArea : null;
+    const isVid = typeof HTMLVideoElement !== 'undefined' && img instanceof HTMLVideoElement;
     const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',') + '|' + (f.duotone || f.threshold || f.halftone ? (f.duoDark || '') + (f.duoLight || '') : '') +
-      (spots ? '|' + spots + JSON.stringify(f.blurPts) + (f.blurFeather ?? 60) + '|' + (f.blur || 0) : '');
-    const hit = filterCache.get(key);
+      (spots ? '|' + spots + JSON.stringify(f.blurPts) + (f.blurFeather ?? 60) + '|' + (f.blur || 0) : '') + (isVid ? '@' + img.currentTime.toFixed(3) : '');
+    // video frames change constantly: keep only the latest filtered frame per video
+    // mid-seek, currentTime already shows the new time but the pixels are still the old frame
+    if (isVid && img.seeking) { const prev = vidFilterCache.get(id); if (prev) return prev.out; }
+    const hit = isVid ? ((vidFilterCache.get(id) || {}).key === key ? vidFilterCache.get(id).out : null) : filterCache.get(key);
     if (hit) return hit;
-    const c = canvas(img.naturalWidth || img.width, img.naturalHeight || img.height), x = c.getContext('2d', { willReadFrequently: true });
-    x.drawImage(img, 0, 0);
+    const ds = isVid ? Math.min(1, 1280 / Math.max(iwOf(img), ihOf(img))) : 1;
+    const c = canvas(Math.max(1, Math.round(iwOf(img) * ds)), Math.max(1, Math.round(ihOf(img) * ds))), x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, c.width, c.height);
     let d;
     try { d = x.getImageData(0, 0, c.width, c.height); } catch (e) { return img; }
     const a = d.data;
@@ -1402,7 +1503,7 @@
       if (out !== sharp) out = blurSpots(sharp, out, f.blurPts, spots === 'sharp', (f.blurFeather ?? 60) / 100);
     }
     if (f.fisheye) out = barrel(out, f.fisheye);
-    filterCache.set(key, out);
+    if (isVid) { if (!img.seeking) vidFilterCache.set(id, { key, out }); } else filterCache.set(key, out);
     return out;
   }
   // directional blur: the photo averaged with copies of itself slid along the angle
@@ -1655,7 +1756,7 @@
   R.imageBoxMap = function (el) {
     const img = assetImage(el.assetId);
     if (!img) return null;
-    const r = frameGeometry(el).rect, iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, c = el.crop || {};
+    const r = frameGeometry(el).rect, iw = iwOf(img), ih = ihOf(img), c = el.crop || {};
     const sc = Math.max(r.w / iw, r.h / ih) * (c.zoom || 1), dw = iw * sc, dh = ih * sc;
     const dx = r.x + (r.w - dw) * (c.x ?? 0.5), dy = r.y + (r.h - dh) * (c.y ?? 0.5);
     const fx = u => el.flipX ? 1 - u : u, fy = v => el.flipY ? 1 - v : v;
@@ -1684,7 +1785,7 @@
   }
 
   function drawCover(ctx, src, r, el) {
-    const iw = src.naturalWidth || src.width, ih = src.naturalHeight || src.height;
+    const iw = iwOf(src), ih = ihOf(src);
     if (!iw || !ih) return;
     const c = el.crop || {};
     const sc = Math.max(r.w / iw, r.h / ih) * (c.zoom || 1);
@@ -1855,6 +1956,7 @@
       if (f.texture) { ctx.save(); ctx.clip(g.outer); fillTexture(ctx, 'paper', f.texture, el.width, el.height); ctx.restore(); }
     }
     const img = assetImage(el.assetId);
+    if (img && env.editor && isVideoAsset(el.assetId)) liveSync(img, el.video, 'time' in env ? env.time : R.playTime, (el.time && el.time.start) || 0);
     if (el.outline && el.outline.on && el.outline.width > 0 && img && (f.style || 'none') === 'none') {
       const src = filteredSource(el.assetId, img, el.filters);
       drawOutlined(ctx, el, 'img:' + el.assetId + JSON.stringify(el.filters || {}) + JSON.stringify(el.crop || {}) + (el.flipX ? 1 : 0), (c, w, h) => drawCover(c, src, { x: 0, y: 0, w, h }, el));
@@ -2443,6 +2545,83 @@
     ctx.restore();
   }
 
+  /* ───────────────────────── speed flashes ─────────────────────────
+     el = { pack, images[], rate, blur, angle, drift, zoom, overlap, strobe, gaps, tone, tint, contrast, seed, still }
+     Full-frame action photos, motion-blurred, cutting fast over whatever sits below the layer. */
+  function flashSources(el) {
+    const F = window.StudioFlashes, out = [];
+    const pk = F && el.pack !== 'mine' ? (F.PACKS[el.pack || 'hustle'] || F.PACKS.hustle) : null;
+    if (pk) for (const id of pk.ids) if (F.IMG[id]) out.push({ key: 'fl:' + id, src: F.IMG[id].src });
+    for (const a of el.images || []) if (assets[a]) out.push({ key: a, src: assets[a] });
+    return out;
+  }
+  R.flashSources = flashSources;
+  R.isTimeVarying = el => el.type === 'flashes' || (el.type === 'image' && R.isVideoAsset(el.assetId));
+  const permCache = new Map();
+  function flashPerm(seed, n) {
+    const key = seed + ':' + n;
+    let p = permCache.get(key);
+    if (!p) {
+      p = [...Array(n).keys()];
+      const r = rng(seed);
+      for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+      permCache.set(key, p);
+    }
+    return p;
+  }
+  function flashFilters(el) {
+    const tone = el.tone || 'color';
+    return {
+      motion: (el.blur ?? 60) * 2, motionAngle: el.angle || 0, contrast: el.contrast || 0,
+      grayscale: tone === 'mono' ? 100 : 0, duotone: tone === 'tint', duoDark: '#050505', duoLight: el.tint || '#ff5a1f',
+      saturation: tone === 'color' ? (el.saturation || 0) : 0,
+    };
+  }
+  function drawFlashFrame(ctx, el, item, p, k, alpha) {
+    const e = loadImage(item.src, imgCache, item.key);
+    if (!e.ok) return;
+    const src = filteredSource(item.key, e.img, flashFilters(el));
+    const w = el.width, h = el.height, iw = iwOf(src), ih = ihOf(src);
+    // each cut drifts along the blur direction (alternating sides) while pushing in a touch
+    const sc = Math.max(w / iw, h / ih) * (1.12 + (el.zoom ?? 30) / 100 * 0.22 * p);
+    const a = (el.angle || 0) * Math.PI / 180, dir = k % 2 ? -1 : 1;
+    const d = (p - 0.5) * (el.drift ?? 50) / 100 * Math.max(w, h) * 0.12 * dir;
+    const dw = iw * sc, dh = ih * sc;
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    ctx.drawImage(src, (w - dw) / 2 + Math.cos(a) * d, (h - dh) / 2 + Math.sin(a) * d, dw, dh);
+    ctx.restore();
+  }
+  function drawFlashes(ctx, el, env) {
+    const list = flashSources(el), n = list.length, w = el.width, h = el.height;
+    if (!n) {
+      if (env.editor) {
+        ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 3; ctx.setLineDash([14, 10]); ctx.strokeRect(6, 6, w - 12, h - 12);
+        ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = fontFor('Inter', 600, false, Math.max(18, w * 0.03)); ctx.textAlign = 'center';
+        ctx.fillText('Speed flashes — add photos or pick a pack', w / 2, h / 2); ctx.restore();
+      }
+      return;
+    }
+    const t = 'time' in env ? env.time : R.playTime;
+    const rate = clamp(el.rate || 8, 1, 30);
+    let k, p;
+    if (t == null) { k = el.still || 0; p = 0.5; } else { const u = Math.max(0, t) * rate; k = Math.floor(u); p = u - k; }
+    const seed = hashStr(el.id || 'flash') + (el.seed || 0) * 7919;
+    const perm = flashPerm(seed, n), at = j => list[perm[((j % n) + n) % n]];
+    // gaps leave some beats empty so the photo underneath breathes
+    const gap = j => t != null && (el.gaps || 0) > 0 && rng(seed + j * 104729)() < el.gaps / 100;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+    if (!gap(k)) drawFlashFrame(ctx, el, at(k), p, k, 1);
+    const ov = (el.overlap || 0) / 100;
+    if (t != null && ov > 0 && p > 1 - ov && !gap(k + 1)) drawFlashFrame(ctx, el, at(k + 1), p - 1, k + 1, ((p - (1 - ov)) / ov) * 0.85);
+    if (t != null && (el.strobe || 0) > 0 && p < 0.3 && !gap(k)) {
+      ctx.globalAlpha *= el.strobe / 100 * (1 - p / 0.3);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+    }
+    ctx.restore();
+  }
+
   /* ───────────────────────── element dispatch ───────────────────────── */
 
   function bleed(el) {
@@ -2458,6 +2637,7 @@
       case 'ribbon': return Math.max(el.thickness || 0, (el.fontSize || 0) * 1.2) / 2 + ((el.border && el.border.width) || 0) + ribbonHead(el) * 0.6 + 8;
       case 'camera': return 6;
       case 'nature': return 4;
+      case 'flashes': return 2;
       default: return m * 0.05 + 6;
     }
   }
@@ -2474,6 +2654,7 @@
       case 'ribbon': drawRibbon(ctx, el, env); break;
       case 'camera': drawCamera(ctx, el, env); break;
       case 'nature': if (window.StudioNature) window.StudioNature.draw(ctx, el); break;
+      case 'flashes': drawFlashes(ctx, el, env); break;
     }
   }
 
@@ -2501,7 +2682,7 @@
     if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
     return n * (p -= 2.625 / d) * p + 0.984375;
   };
-  R.hasAnim = el => !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
+  R.hasAnim = el => el.type === 'flashes' || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
   R.hasTiming = el => !!(el.time && ((el.time.start || 0) > 0 || el.time.end != null || (el.time.cycle && el.time.cycle.count > 1)));
   // cuts: a layer can be shown only for part of the video, or take turns with others
   R.visibleAt = function (el, t) {
@@ -2707,7 +2888,8 @@
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
     const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
-    const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion;
+    // layers that change every frame (speed flashes, video) can't reuse a cached bitmap across time
+    const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion + (R.isTimeVarying(el) ? '|' + ('time' in env ? env.time : R.playTime) : '');
     let c = layerCache.get(key);
     if (!c || c.dirty) {
       const W = (el.width + b * 2) * s, H = (el.height + b * 2) * s;
@@ -2780,6 +2962,7 @@
     }
     if (bg.assetId) {
       const img = assetImage(bg.assetId);
+      if (img && opts.editor && isVideoAsset(bg.assetId)) liveSync(img, bg.video, R.playTime, 0);
       if (img) {
         ctx.save();
         ctx.globalAlpha *= bg.imageOpacity ?? 1;
@@ -2965,9 +3148,10 @@
     for (const el of doc.elements || []) {
       if (el.type === 'image' && el.assetId) ids.add(el.assetId);
       if (el.type === 'image' && el.studio && el.studio.cutId) ids.add(el.studio.cutId);
+      if (el.type === 'flashes') for (const it of flashSources(el)) jobs.push(loadImage(it.src, imgCache, it.key).promise);
       if (el.type === 'sticker') { const svg = stickerSvg(el); if (svg) jobs.push(loadImage(R.svgDataUrl(svg), svgCache, svg).promise); }
     }
-    for (const id of ids) if (assets[id]) jobs.push(loadImage(assets[id], imgCache, id).promise);
+    for (const id of ids) if (assets[id]) jobs.push(isVideoAsset(id) ? assetVideo(id).promise : loadImage(assets[id], imgCache, id).promise);
     await Promise.all(jobs);
     R.fontsVersion++;
     requestRedraw();

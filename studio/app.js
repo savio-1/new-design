@@ -73,6 +73,10 @@
       rec: 'REC', timecode: '00:12:47', date: 'OCT 10 2026', mode: 'SP ▶', scanlines: true, fontFamily: '',
     },
     nature: { kind: 'hill', colors: null, seed: 1, density: 1, params: {}, flipX: false },
+    flashes: {
+      pack: 'hustle', images: [], rate: 8, blur: 60, angle: 0, drift: 50, zoom: 30, overlap: 0, strobe: 0, gaps: 0,
+      tone: 'color', tint: '#ff5a1f', contrast: 10, saturation: 0, seed: 0, still: 0,
+    },
     checklist: {
       items: '[x] Morning walk\n[ ] Water the plants\n[ ] Call grandma\n[ ] Finish moodboard', fontFamily: 'Caveat', fontSize: 48,
       fontWeight: 500, italic: false, fill: '#1d1b18', lineHeight: 1.55, boxStyle: 'square', boxColor: '#1d1b18', checkColor: '#e4572e',
@@ -108,6 +112,8 @@
 
   let doc = blankDoc(1080, 1350, '#f6f1e7');
   let assets = {};
+  // built-in demo photos (speed-flash templates) are always available under fixed ids
+  if (window.StudioFlashes && window.StudioFlashes.DEMO) for (const [k, v] of Object.entries(window.StudioFlashes.DEMO)) assets['demo-' + k] = v.src;
   let sel = [];
   let playing = false;
   let pathEdit = null;
@@ -145,7 +151,7 @@
     switch (el.type) {
       case 'text': return (el.text || 'Text').split('\n')[0].slice(0, 28) || 'Text';
       case 'sticker': { const d = R.stickerDef(el.stickerId); return d ? d.name : 'Sticker'; }
-      case 'image': return el.assetId ? 'Photo' : 'Photo placeholder';
+      case 'image': return el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo placeholder';
       case 'shape': return (R.SHAPES[el.shape] || {}).label || 'Shape';
       case 'calendar': return R.MONTHS[el.month] + ' calendar';
       case 'badge': return 'Badge · ' + (el.ringText || '').slice(0, 16);
@@ -153,6 +159,7 @@
       case 'ribbon': return el.line ? 'Curved line' : (el.text ? 'Ribbon · ' + el.text.slice(0, 18) : 'Ribbon');
       case 'camera': return (R.CAMERA_STYLES[el.style] || 'Camera') + ' overlay';
       case 'nature': { const N = window.StudioNature; return (N && N.KINDS[el.kind] && N.KINDS[el.kind].label) || 'Nature'; }
+      case 'flashes': { const P = window.StudioFlashes && window.StudioFlashes.PACKS[el.pack]; return 'Speed flashes' + (P ? ' · ' + P.label : el.pack === 'mine' ? ' · your photos' : ''); }
     }
     return el.type;
   };
@@ -211,7 +218,7 @@
     sceneFunc: (c) => {
       const ctx = c._context;
       ctx.save(); ctx.beginPath(); ctx.rect(0, 0, doc.width, doc.height); ctx.clip();
-      R.drawBackground(ctx, doc); ctx.restore();
+      R.drawBackground(ctx, doc, { editor: true }); ctx.restore();
     },
   });
   // the camera moves an inner group; the outer one clips to the canvas frame
@@ -482,6 +489,7 @@
       if (el.assetId) ids.add(el.assetId);
       if (el.studio && el.studio.cutId) ids.add(el.studio.cutId);
       if (el.bgRemoved && el.bgRemoved.assetId) ids.add(el.bgRemoved.assetId);
+      if (el.type === 'flashes') for (const a of el.images || []) ids.add(a);
     }
     for (const id of S.uploads) ids.add(id);
     const out = {};
@@ -1408,7 +1416,7 @@
 
   let playStart = 0, raf = 0;
   S.isPlaying = () => playing;
-  S.hasAnimation = () => doc.elements.some(R.hasAnim) || R.hasCamera(doc);
+  S.hasAnimation = () => doc.elements.some(R.hasAnim) || R.hasCamera(doc) || R.hasVideo(doc);
   function applyCamera(t) {
     const cam = t != null ? R.camAt(doc, t) : null;
     const a = cam ? { x: doc.width / 2, y: doc.height / 2, offsetX: cam.fx, offsetY: cam.fy, scaleX: cam.z, scaleY: cam.z, rotation: cam.r }
@@ -1422,6 +1430,7 @@
     if (textEdit) finishTextEdit();
     endCrop();
     playing = true;
+    R.playing = true;
     const D = doc.anim.duration;
     playStart = performance.now() - ((R.playTime || 0) % D) * 1000;
     for (const el of doc.elements) syncNode(el);
@@ -1433,6 +1442,7 @@
       R.playTime = t;
       applyCamera(t);
       layer.batchDraw();
+      if (R.isVideoAsset(doc.background.assetId)) bgLayer.batchDraw();
       emit('time', t);
       raf = requestAnimationFrame(tick);
     };
@@ -1442,6 +1452,8 @@
   S.pause = function () {
     if (!playing) return;
     playing = false;
+    R.playing = false;
+    R.pauseVideos();
     cancelAnimationFrame(raf);
     for (const el of doc.elements) syncNode(el);
     tr.visible(true);
@@ -1452,10 +1464,10 @@
   S.seek = function (t) {
     R.playTime = t;
     applyCamera(t);
-    layer.batchDraw();
+    layer.batchDraw(); bgLayer.batchDraw();
     emit('time', t);
   };
-  S.stopPreview = function () { S.pause(); R.playTime = null; applyCamera(null); layer.batchDraw(); emit('time', null); };
+  S.stopPreview = function () { S.pause(); R.playTime = null; applyCamera(null); layer.batchDraw(); bgLayer.batchDraw(); emit('time', null); };
 
   /* ───────────────────────── crop mode ───────────────────────── */
 
@@ -1492,7 +1504,7 @@
     const img = R.assetImage(el.assetId);
     if (!img) return null;
     const g = R.frameGeometry(el);
-    const iw = img.naturalWidth, ih = img.naturalHeight, r = g.rect;
+    const { w: iw, h: ih } = R.mediaSize(img), r = g.rect;
     const sc = Math.max(r.w / iw, r.h / ih) * (el.crop.zoom || 1);
     return { ox: iw * sc - r.w, oy: ih * sc - r.h };
   }
@@ -1747,29 +1759,67 @@
       img.src = url;
     });
   }
+  // videos are kept whole (muted, like on Instagram) so they can sit under the design
+  const VIDEO_MAX_MB = 120;
+  function readVideo(file) {
+    return new Promise((res, rej) => {
+      if (file.size > VIDEO_MAX_MB * 1048576) { rej(new Error(`Videos up to ${VIDEO_MAX_MB} MB work best — trim this one first`)); return; }
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.muted = true; v.preload = 'metadata';
+      v.onloadedmetadata = () => {
+        const w = v.videoWidth, h = v.videoHeight, duration = v.duration;
+        URL.revokeObjectURL(url);
+        if (!w || !h) { rej(new Error('This browser can’t play that video')); return; }
+        const fr = new FileReader();
+        fr.onload = () => {
+          let src = String(fr.result);
+          // some systems report no type for .mov; browsers read it as mp4
+          if (src.startsWith('data:;') || src.startsWith('data:application/octet-stream')) src = 'data:video/mp4;' + src.slice(src.indexOf('base64'));
+          if (src.startsWith('data:video/quicktime')) src = 'data:video/mp4;' + src.slice(src.indexOf('base64'));
+          res({ src, w, h, duration, video: true });
+        };
+        fr.onerror = () => rej(new Error('Could not read video'));
+        fr.readAsDataURL(file);
+      };
+      v.onerror = () => { URL.revokeObjectURL(url); rej(new Error('This browser can’t play that video')); };
+      v.src = url;
+    });
+  }
+  const isVideoFile = f => f.type.startsWith('video/') || /\.(mp4|mov|m4v|webm)$/i.test(f.name);
+  // a design should run as long as its video, within the 30 s export limit
+  function fitDurationToVideo(dur) {
+    if (!dur || !isFinite(dur)) return;
+    const want = Math.min(30, Math.round(dur * 10) / 10);
+    if (want > doc.anim.duration + 0.05) { doc.anim.duration = want; emit('toast', `Design length set to ${want}s to match the video`); emit('values'); }
+  }
   S.addAsset = function (src) { const id = uid('a'); assets[id] = src; return id; };
   S.importFiles = async function (files, opts = {}) {
-    const imgs = files.filter(f => f.type.startsWith('image/'));
+    const imgs = files.filter(f => f.type.startsWith('image/') || (!opts.imagesOnly && isVideoFile(f)));
     if (!imgs.length) return;
     const added = [];
     for (const f of imgs) {
       try {
-        const { src, w, h } = await readImage(f);
+        const vid = isVideoFile(f);
+        if (vid) emit('toast', 'Loading video…');
+        const { src, w, h, duration } = vid ? await readVideo(f) : await readImage(f);
         const id = S.addAsset(src);
+        if (vid) await R.assetVideo(id).promise;
         S.uploads.unshift(id);
-        added.push({ id, w, h });
-      } catch (e) { emit('toast', 'Couldn’t open ' + f.name); }
+        added.push({ id, w, h, video: vid, duration });
+      } catch (e) { emit('toast', (e && e.message && !/^Could not read image$/.test(e.message) ? e.message : 'Couldn’t open ' + f.name)); }
     }
     if (!added.length) return;
     emit('uploads');
-    if (opts.uploadOnly) { scheduleSave(); return added; }
+    if (opts.uploadOnly) { scheduleSave(); if (opts.onAdded) opts.onAdded(added); return added; }
     if (opts.startFromPhoto) {
       const a = added[0];
       const long = 1440, s = long / Math.max(a.w, a.h);
       const W = Math.round(a.w * s), H = Math.round(a.h * s);
       const d = blankDoc(W, H, '#ffffff');
       d.background.assetId = a.id;
-      S.loadDoc(d, null, { name: 'Photo edit', project: opts.newProject ? 'new' : undefined });
+      if (a.video) d.anim = { duration: Math.min(30, Math.round(a.duration * 10) / 10) || 5, fps: 30 };
+      S.loadDoc(d, null, { name: a.video ? 'Video edit' : 'Photo edit', project: opts.newProject ? 'new' : undefined });
       if (opts.newProject) { S.uploads.splice(0, 0, ...added.map(x => x.id)); scheduleSave(); }
       if (opts.onStart) opts.onStart();
       return added;
@@ -1778,6 +1828,7 @@
     if (opts.replaceId && elMap.get(opts.replaceId)) {
       const el = elMap.get(opts.replaceId);
       el.assetId = added[0].id; el.crop = { zoom: 1, x: 0.5, y: 0.5 };
+      if (added[0].video) { el.video = { trim: 0, speed: 1 }; fitDurationToVideo(added[0].duration); if (el.studio) el.studio.on = false; }
       redraw(); S.commit(); emit('doc'); positionOverlays();
       emit('replaced', el);
       return added;
@@ -1787,6 +1838,7 @@
       const box = Math.min(doc.width, doc.height) * 0.6;
       const s = Math.min(box / a.w, box / a.h);
       const el = S.mk('image', { assetId: a.id, width: a.w * s, height: a.h * s });
+      if (a.video) { el.video = { trim: 0, speed: 1 }; fitDurationToVideo(a.duration); }
       const at = opts.at || { x: doc.width / 2, y: doc.height / 2 };
       el.x = at.x - el.width / 2 + i * 30; el.y = at.y - el.height / 2 + i * 30;
       ids.push(S.addElement(el, { select: false, commit: false, center: false }).id);
@@ -1798,13 +1850,16 @@
   S.setBackgroundImage = function (assetId) {
     doc.background.assetId = assetId;
     doc.background.crop = { zoom: 1, x: 0.5, y: 0.5 };
+    if (R.isVideoAsset(assetId)) fitDurationToVideo(R.assetVideo(assetId).v.duration);
     redraw(); S.commit(); emit('values'); emit('doc');
   };
   S.addImageFromAsset = function (assetId) {
     const img = R.assetImage(assetId);
-    const w = img ? img.naturalWidth : 800, h = img ? img.naturalHeight : 800;
+    const m = R.mediaSize(img) || { w: 800, h: 800 }, w = m.w, h = m.h;
     const box = Math.min(doc.width, doc.height) * 0.6, s = Math.min(box / w, box / h);
-    return S.addElement(S.mk('image', { assetId, width: w * s, height: h * s }));
+    const el = S.addElement(S.mk('image', { assetId, width: w * s, height: h * s }));
+    if (R.isVideoAsset(assetId)) fitDurationToVideo(R.assetVideo(assetId).v.duration);
+    return el;
   };
 
   // drag & drop: files from the desktop, stickers / presets from the panels

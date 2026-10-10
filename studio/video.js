@@ -71,10 +71,14 @@
     c.width = width; c.height = height;
     const frames = Math.max(1, Math.round(duration * fps));
     const us = 1e6 / fps;
+    const hasVid = R.hasVideo(doc);
+    R.playing = false; R.pauseVideos();
     try {
       for (let i = 0; i < frames; i++) {
         if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
         if (failure) throw failure;
+        // video layers are seeked to their exact frame first
+        if (hasVid) await R.syncVideos(doc, i / fps, i === 0);
         R.renderDoc(doc, { canvas: c, time: i / fps });
         const frame = new VideoFrame(c, { timestamp: Math.round(i * us), duration: Math.round(us) });
         encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
@@ -105,6 +109,8 @@
     const chunks = [];
     rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
     const done = new Promise(res => { rec.onstop = res; });
+    await R.syncVideos(S.doc, 0, true);
+    R.playing = true;
     R.renderDoc(S.doc, { canvas: c, time: 0 });
     rec.start();
     const t0 = performance.now();
@@ -112,6 +118,7 @@
       const step = () => {
         const t = (performance.now() - t0) / 1000;
         if (t >= duration || (signal && signal.aborted)) return res();
+        R.liveSyncVideos(S.doc, t);
         R.renderDoc(S.doc, { canvas: c, time: t });
         onProgress(t / duration, 'render');
         requestAnimationFrame(step);
@@ -119,6 +126,7 @@
       step();
     });
     rec.stop();
+    R.playing = false; R.pauseVideos();
     await done;
     if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
     const type = (mime || 'video/webm').split(';')[0];

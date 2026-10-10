@@ -753,6 +753,55 @@
       },
     })),
 
+    // ── VIDEO: speed flashes — motion-blurred action shots cut fast over your own photo or video ──
+    ...[
+      {
+        id: 'flash-mindset', name: 'Against the world', pack: 'hustle', ph: ['#3b3029', '#0d0b0a'], base: { contrast: 14, brightness: -12, saturation: -15 },
+        fl: { opacity: 0.5, blend: 'normal', rate: 8, blur: 62, angle: 0, overlap: 30, contrast: 12 }, overlay: { grain: 28, vignette: 38 },
+        text: () => [txt('just me and my\n“Everything happens\nfor a reason”\nmindset against the\nworld', { cx: 540, cy: 960, align: 'center', fontFamily: 'Instrument Serif', fontSize: 74, lineHeight: 0.98, letterSpacing: -0.01, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.45, blur: 14, x: 0, y: 3 } })],
+      },
+      {
+        id: 'flash-grind', name: 'No days off', pack: 'gym', ph: ['#5a5a5a', '#121212'], base: { grayscale: 100, contrast: 24, brightness: -14 },
+        fl: { opacity: 0.72, blend: 'screen', rate: 10, blur: 70, angle: -12, tone: 'mono', contrast: 40, strobe: 35, gaps: 15 }, overlay: { grain: 45, vignette: 45 },
+        text: () => [
+          txt('NO DAYS\nOFF', { cx: 540, cy: 900, align: 'center', fontFamily: 'Anton', fontSize: 250, lineHeight: 0.92, letterSpacing: 0.01, fill: '#ffffff', anim: { enter: 'slam', delay: 0.3, speed: 1 } }),
+          txt('5:00 AM  ·  EVERY  DAY', { cx: 540, cy: 1250, align: 'center', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 34, letterSpacing: 0.18, fill: '#e9ff5a', anim: { enter: 'typewriter', delay: 1.4, speed: 1.2 } }),
+        ],
+      },
+      {
+        id: 'flash-race', name: 'Run your race', pack: 'run', ph: ['#5b2c1a', '#120806'], base: { contrast: 26, brightness: -30, warmth: 20 },
+        fl: { opacity: 0.62, blend: 'screen', rate: 9, blur: 72, angle: 0, tone: 'tint', tint: '#ff6a2a', contrast: 25, drift: 70, zoom: 45 }, overlay: { grain: 30, vignette: 35 },
+        text: () => [
+          txt('RUN\nYOUR\nOWN\nRACE', { cx: 540, cy: 960, autoWidth: false, width: 960, align: 'center', fontFamily: 'Bebas Neue', fontSize: 300, lineHeight: 0.9, letterSpacing: 0.02, fill: '#ffffff', anim: { enter: 'words', delay: 0.2, speed: 0.75 }, name: 'Words (one at a time)' }),
+          txt('keep moving forward', { cx: 540, cy: 1560, align: 'center', fontFamily: 'Instrument Serif', italic: true, fontSize: 56, fill: '#ffd6c2', anim: { enter: 'fade', delay: 2, speed: 0.8 } }),
+        ],
+      },
+      {
+        id: 'flash-premium', name: 'Built different', pack: 'drive', ph: ['#2a2a30', '#07070a'], base: { contrast: 16, brightness: -14, saturation: -30 },
+        fl: { opacity: 0.55, blend: 'screen', rate: 7, blur: 80, angle: 4, overlap: 45, contrast: 15, saturation: -20 }, overlay: { grain: 22, vignette: 50, rgb: 25 },
+        text: () => [
+          shp('rect', 0, 0, 1080, 170, { fill: '#000000', name: 'Letterbox bar' }),
+          shp('rect', 0, 1750, 1080, 170, { fill: '#000000', name: 'Letterbox bar' }),
+          txt('Built\ndifferent.', { cx: 540, cy: 900, align: 'center', fontFamily: 'Instrument Serif', italic: true, fontSize: 190, lineHeight: 0.88, letterSpacing: -0.02, fill: '#f1e3bd', anim: { enter: 'lettersFade', delay: 0.4, speed: 0.9 } }),
+          txt('SUCCESS ISN’T OWNED — IT’S RENTED DAILY', { cx: 540, cy: 1180, align: 'center', fontFamily: 'Inter', fontWeight: 600, fontSize: 26, letterSpacing: 0.3, fill: 'rgba(241,227,189,0.8)', anim: { enter: 'fade', delay: 1.8, speed: 0.7 } }),
+        ],
+      },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Sport', 'Photo'], width: 1080, height: 1920, video: true,
+      build: () => ({
+        width: 1080, height: 1920,
+        background: { color: '#0b0b0b' },
+        overlay: v.overlay,
+        anim: { duration: 6, fps: 30 },
+        camera: v.cam || null,
+        elements: [
+          img(0, 0, 1080, 1920, { assetId: 'demo-' + v.id.replace('flash-', ''), placeholder: v.ph, filters: v.base, name: 'Your photo or video — replace with yours' }),
+          { type: 'flashes', x: 0, y: 0, width: 1080, height: 1920, pack: v.pack, name: 'Speed flashes', ...v.fl },
+          ...v.text(),
+        ],
+      }),
+    })),
+
     // ── VIDEO: kinetic headline — small words whoosh in, the big word's letters slam down ──
     ...[
       { id: 'kinetic-news', name: 'Good news', small: ['but the', 'good'], big: 'NEWS', caps: 'we’re creative.\nBut the good news\nis that', paper: '#1d8a68', grid: 'rgba(255,255,255,0.32)', ink: '#e9e9e4', line: '#d8384a', letters: 'slam', cam: { move: 'drift', zoom: 1.12, rotate: 1.2, shake: 0.4, blur: 0.3 }, blinds: 55 },
@@ -1219,6 +1268,7 @@
 
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
+    'Speed flashes': ['flash-mindset', 'flash-grind', 'flash-race', 'flash-premium'],
     'Studio portrait': ['studio-stat', 'studio-circle', 'studio-rhythm', 'studio-data'],
     'Newspaper reveal': ['news-pullback', 'news-crash', 'news-snap', 'news-cuts', 'news-push'],
     'Typing': ['type-follow', 'type-marker', 'type-crash', 'type-terminal'],

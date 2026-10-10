@@ -507,7 +507,7 @@
     else {
       const el = els[0];
       parts.push(inspHead(el));
-      const fn = { text: textInspector, image: imageInspector, sticker: stickerInspector, shape: shapeInspector, calendar: calendarInspector, badge: badgeInspector, checklist: checklistInspector, ribbon: ribbonInspector, camera: cameraInspector, nature: natureInspector }[el.type];
+      const fn = { text: textInspector, image: imageInspector, sticker: stickerInspector, shape: shapeInspector, calendar: calendarInspector, badge: badgeInspector, checklist: checklistInspector, ribbon: ribbonInspector, camera: cameraInspector, nature: natureInspector, flashes: flashesInspector }[el.type];
       if (fn) parts.push(...fn(el));
       parts.push(effectsSection(el), motionSection(el), arrangeSection(el));
     }
@@ -519,7 +519,7 @@
   S.renderInspector = renderInspector;
   function typeLabel(el) {
     if (el.type === 'nature' || el.type === 'camera' || el.type === 'ribbon') return S.elLabel(el).replace(/ · .*/, '');
-    return { text: 'Text', image: el.assetId ? 'Photo' : 'Photo frame', sticker: 'Sticker', shape: el.shape === 'line' ? 'Line' : 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
+    return { text: 'Text', image: el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo frame', flashes: 'Speed flashes', sticker: 'Sticker', shape: el.shape === 'line' ? 'Line' : 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
   }
   function inspHead(el) {
     return h('div.insp-head', null,
@@ -631,8 +631,8 @@
     let small = null;
     if (img) {
       small = document.createElement('canvas');
-      const s = 120 / Math.max(img.naturalWidth, img.naturalHeight);
-      small.width = Math.max(1, Math.round(img.naturalWidth * s)); small.height = Math.max(1, Math.round(img.naturalHeight * s));
+      const m = R.mediaSize(img), s = 120 / Math.max(m.w, m.h);
+      small.width = Math.max(1, Math.round(m.w * s)); small.height = Math.max(1, Math.round(m.h * s));
       small.getContext('2d').drawImage(img, 0, 0, small.width, small.height);
     }
     const fpath = target === 'doc' ? 'background.filters' : 'filters';
@@ -833,17 +833,27 @@
       !el.assetId && on ? h('p.hint', null, 'Add a photo — the person is cut out automatically (the first time downloads a 44 MB model).') : null,
     ], on, { key: 'studio-look' });
   }
+  function videoSection(el) {
+    const T = 'sel', ve = R.assetVideo(el.assetId), dur = ve && ve.v && isFinite(ve.v.duration) ? ve.v.duration : 0;
+    return sec('Playback', [
+      dur ? row('Start at', num(T, 'video.trim', { min: 0, max: Math.max(0.1, Math.floor((dur - 0.2) * 10) / 10), step: 0.1, slider: true, unit: 's', def: 0 })) : null,
+      row('Speed', seg(T, 'video.speed', [[0.5, '0.5×'], [1, '1×'], [1.5, '1.5×'], [2, '2×']], { get: () => (S.selEls()[0].video || {}).speed || 1 })),
+      toggle(T, 'video.loop', 'Loop when it ends', { get: () => (S.selEls()[0].video || {}).loop !== false }),
+      h('p.hint', null, `${dur ? dur.toFixed(1) + 's clip · ' : ''}plays muted and exports without sound. Press play to preview it with your design.`),
+    ], true, { collapsible: false });
+  }
   function imageInspector(el) {
     const T = 'sel';
     const fs = el.frame.style || 'none';
     const bordered = BORDER_FRAMES.includes(fs);
     const allFrames = !!moreOpen.get('frames-all');
+    const isVid = R.isVideoAsset(el.assetId);
     return [
-      sec('Photo', [
+      sec(isVid ? 'Video' : 'Photo', [
         full(h('div.btn-row', null,
-          h('button.btn.grow', { type: 'button', onclick: () => S.pickImages({ replaceId: el.id }) }, ic('replace'), el.assetId ? 'Replace' : 'Add photo'),
+          h('button.btn.grow', { type: 'button', title: 'Photos and videos both work', onclick: () => S.pickImages({ replaceId: el.id }) }, ic('replace'), el.assetId ? 'Replace' : 'Add photo or video'),
           el.assetId ? h('button.btn.grow', { type: 'button', onclick: () => S.startCrop(el.id) }, ic('crop'), 'Crop') : null)),
-        el.assetId ? bgRemovalControls(el) : null,
+        el.assetId && !isVid ? bgRemovalControls(el) : null,
         el.assetId ? null : row('Tint', colorCtl(T, 'placeholder.0', { set: (v, live) => S.changeEl(S.selEls()[0], e => { e.placeholder = [v, (e.placeholder || [])[1] || '#cfc5b1']; }, live) })),
         el.assetId ? more('photo-pos', [
           row('Zoom', num(T, 'crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
@@ -852,7 +862,7 @@
           full(h('button.btn', { type: 'button', onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'Use as canvas background')),
         ], 'Zoom & position') : null,
       ], true, { collapsible: false }),
-      studioSection(el),
+      isVid ? videoSection(el) : studioSection(el),
       el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
       blurSection(T, 'filters'),
       sec('Frame', [
@@ -1117,6 +1127,51 @@
     ];
   }
 
+  function flashesInspector(el) {
+    const T = 'sel', F = window.StudioFlashes || { PACKS: {}, IMG: {} };
+    const packTile = (k, label, src) => h('button.flash-pack' + ((el.pack || 'hustle') === k ? '.on' : ''), { type: 'button', title: label, onclick: () => { S.change(T, 'pack', k); renderInspector(); } },
+      h('span.flash-pack-img', { style: src ? { backgroundImage: `url(${src})` } : null }, src ? null : ic('image')), h('span', null, label));
+    const packs = Object.entries(F.PACKS).map(([k, p]) => packTile(k, p.label, (F.IMG[p.ids[0]] || {}).src));
+    packs.push(packTile('mine', 'Only mine', (el.images || []).length ? S.assets[el.images[0]] : null));
+    const mine = (el.images || []).filter(id => S.assets[id]);
+    const addMine = () => S.pickImages({ uploadOnly: true, imagesOnly: true, onAdded: added => {
+      const cur = S.selEls()[0];
+      if (!cur || cur.type !== 'flashes') return;
+      S.changeEl(cur, e => { e.images = [...(e.images || []), ...added.filter(a => !a.video).map(a => a.id)]; });
+      renderInspector();
+    } });
+    const mineRow = h('div.flash-mine', null,
+      mine.map(id => h('span.flash-mine-item', { style: { backgroundImage: `url(${S.assets[id]})` } },
+        h('button', { type: 'button', title: 'Remove from the flashes', onclick: () => { S.changeEl(S.selEls()[0], e => { e.images = (e.images || []).filter(x => x !== id); }); renderInspector(); } }, ic('x')))),
+      h('button.flash-mine-add', { type: 'button', title: 'Add your own photos to the flashes', onclick: addMine }, ic('plus')));
+    const tone = el.tone || 'color';
+    return [sec('Speed flashes', [
+      label('Photos'),
+      full(h('div.flash-packs', null, packs)),
+      h('div.sub-label', null, (el.pack === 'mine' ? 'Your photos' : 'Add your own to the mix')),
+      full(mineRow),
+      label('Motion'),
+      row('Speed', num(T, 'rate', { min: 2, max: 20, slider: true, unit: '/s' })),
+      row('Blur', num(T, 'blur', { min: 0, max: 100, slider: true })),
+      row('Direction', num(T, 'angle', { min: -90, max: 90, slider: true, unit: '°' })),
+      label('Mix'),
+      row('Strength', num(T, 'opacity', { min: 5, max: 100, scale: 100, slider: true, unit: '%' })),
+      full(seg(T, 'blend', [['screen', 'Light'], ['overlay', 'Punchy'], ['soft-light', 'Soft'], ['normal', 'Solid']], { get: () => S.selEls()[0].blend || 'normal' })),
+      full(seg(T, 'tone', [['color', 'Colour'], ['mono', 'Mono'], ['tint', 'Tint']], { set: v => { S.change(T, 'tone', v); renderInspector(); } })),
+      tone === 'tint' ? row('Tint', colorCtl(T, 'tint')) : null,
+      more('flash-more', [
+        row('Drift', num(T, 'drift', { min: 0, max: 100, slider: true })),
+        row('Push in', num(T, 'zoom', { min: 0, max: 100, slider: true })),
+        row('Overlap', num(T, 'overlap', { min: 0, max: 80, slider: true, unit: '%' })),
+        row('Flash', num(T, 'strobe', { min: 0, max: 100, slider: true, unit: '%' })),
+        row('Gaps', num(T, 'gaps', { min: 0, max: 80, slider: true, unit: '%' })),
+        row('Contrast', num(T, 'contrast', { min: -50, max: 80, slider: true })),
+        row('Still shows', num(T, 'still', { min: 0, max: 40, step: 1, slider: true })),
+        full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'seed', ((S.selEls()[0].seed || 0) + 1) % 1000) }, ic('shuffle'), 'Shuffle the order')),
+      ], 'More'),
+      h('p.hint', null, 'Plays when you preview or export a video. Keep it above your photo or video and under the text. Overlap blends two photos at once; Flash adds a white pop on every cut; Gaps let your own shot show through.'),
+    ], true, { collapsible: false })];
+  }
   function cameraInspector(el) {
     const T = 'sel';
     const st = el.style || 'iphone';
@@ -1921,6 +1976,20 @@
       cls: 'preset.dark', tw: 96, th: 110, caption: true, tags: 'camera overlay phone screen ui',
       onAdd: () => S.addElement(S.mk('camera', Object.assign({ x: 0, y: 0, width: S.doc.width, height: S.doc.height, name }, o)), { center: false }),
     }));
+    const F = window.StudioFlashes;
+    if (F) {
+      const flashAdd = k => () => {
+        const top = S.doc.elements.reduce((m, e, i) => (e.type === 'image' && e.width >= S.doc.width * 0.6 ? i : m), -1);
+        S.addElement(S.mk('flashes', { x: 0, y: 0, width: S.doc.width, height: S.doc.height, pack: k, opacity: 0.55, blend: 'screen' }), { center: false, index: top + 1 });
+        toast('Speed flashes added — press play to see them');
+      };
+      const flashes = Object.entries(F.PACKS).map(([k, p]) => ({
+        name: p.label, tags: 'speed flash motion blur overlay video ' + p.sub,
+        node: () => h('button.preset.flash-tile', { type: 'button', title: `${p.label} — ${p.sub}`, onclick: flashAdd(k) },
+          h('span.flash-tile-img', { style: { backgroundImage: `url(${(F.IMG[p.ids[0]] || {}).src})` } }), h('div.cap', null, p.label)),
+      }));
+      out.push({ title: 'Speed flashes', items: flashes, grid: 'preset-grid', limit: 4, note: 'Fast motion-blurred action shots that flash over your photo or video.' });
+    }
     out.push({ title: 'Camera overlays', items: cams, grid: 'preset-grid', limit: 2, note: 'Covers the whole canvas — put it on top of a photo.' });
     const all = window.STICKERS || [];
     const cats = [...new Set(all.map(s => s.cat))];
@@ -1996,16 +2065,25 @@
   }
 
   /* photos */
+  // uploads can be photos or videos; videos show their first frame with a play mark
+  function assetThumb(id) {
+    if (!R.isVideoAsset(id)) return h('img', { src: S.assets[id], alt: '' });
+    const c = h('canvas.vid-thumb');
+    const ve = R.assetVideo(id);
+    const paint = () => { const v = ve.v, m = R.mediaSize(v); if (!m || !m.w) return; const s = 160 / Math.max(m.w, m.h); c.width = Math.round(m.w * s); c.height = Math.round(m.h * s); c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); };
+    if (ve) { if (ve.ok) paint(); else ve.promise.then(paint); ve.v.addEventListener('seeked', paint, { once: true }); }
+    return h('span.vid-wrap', null, c, h('span.vid-badge', null, ic('play')));
+  }
   function photosPanel() {
     const W = S.doc.width;
-    const dz = h('div.drop-zone', { onclick: () => S.pickImages({}) }, ic('upload'), h('div', null, h('b', null, 'Upload photos'), h('div.hint', null, 'or drop them here · paste with ⌘V')));
+    const dz = h('div.drop-zone', { onclick: () => S.pickImages({}) }, ic('upload'), h('div', null, h('b', null, 'Upload photos or videos'), h('div.hint', null, 'or drop them here · paste with ⌘V')));
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('over'));
     dz.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('over'); S.importFiles([...e.dataTransfer.files], { uploadOnly: true }); });
     const ups = S.uploads.filter(id => S.assets[id]).map(id => ({
       name: 'Upload',
       node: () => {
-        const b = h('button.upl', { type: 'button', title: 'Add to canvas', onclick: () => S.addImageFromAsset(id) }, h('img', { src: S.assets[id], alt: '' }),
+        const b = h('button.upl', { type: 'button', title: 'Add to canvas', onclick: () => S.addImageFromAsset(id) }, assetThumb(id),
           h('span.upl-bg', { onclick: e => { e.stopPropagation(); S.setBackgroundImage(id); toast('Set as background'); } }, 'Background'));
         dragPayload(b, { kind: 'asset', id });
         return b;
