@@ -696,6 +696,70 @@
       },
     })),
 
+    // ── VIDEO: kinetic headline — small words whoosh in, the big word's letters slam down ──
+    ...[
+      { id: 'kinetic-news', name: 'Good news', small: ['but the', 'good'], big: 'NEWS', caps: 'we’re creative.\nBut the good news\nis that', paper: '#1d8a68', grid: 'rgba(255,255,255,0.32)', ink: '#e9e9e4', line: '#d8384a', letters: 'slam', cam: { move: 'drift', zoom: 1.12, rotate: 1.2, shake: 0.4, blur: 0.3 }, blinds: 55 },
+      { id: 'kinetic-reveal', name: 'Big reveal', small: ['and the', 'winner is'], sx: [150, 520], ss: 78, big: 'YOU', caps: 'drumroll please…\nand the winner is\nyou!', paper: '#141414', grid: 'rgba(255,255,255,0.08)', ink: '#f5f2ea', line: '#f7d046', letters: 'lettersDrop', cam: { move: 'snap', target: 'big', zoom: 1.5, start: 1.25, dur: 3.5, rotate: -2, shake: 0.5, blur: 0.6 }, blinds: 25 },
+      { id: 'kinetic-pop', name: 'Pop words', small: ['this is', 'your'], big: 'SIGN', caps: 'if you needed one…\nthis is your sign\nto start today', paper: '#ff7ab6', grid: 'rgba(255,255,255,0.35)', ink: '#fff4b8', line: '#1f3fd1', letters: 'lettersUp', cam: { move: 'pushin', target: 'big', zoom: 1.3, start: 0, dur: 5, blur: 0.2, shake: 0.2 }, blinds: 35 },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Quote'], width: 1080, height: 1350, video: true,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.paper, pattern: { type: 'grid', color: v.grid, size: 54, thick: 1.6, opacity: 1 }, texture: 22, crumple: 18, crumpleSeed: 5 },
+        overlay: { grain: 34, vignette: 40, blinds: v.blinds },
+        anim: { duration: 5, fps: 30 },
+        camera: Object.assign({ target: 'big' }, v.cam),
+        elements: [
+          txt(v.small[0], { x: v.sx ? v.sx[0] : 210, y: 470, align: 'left', fontFamily: 'Archivo', fontWeight: 800, fontSize: v.ss || 92, letterSpacing: -0.04, fill: v.ink, anim: { enter: 'left', delay: 0.15, speed: 0.9 } }),
+          txt(v.small[1], { x: v.sx ? v.sx[1] : 600, y: 470, align: 'left', fontFamily: 'Archivo', fontWeight: 800, fontSize: v.ss || 92, letterSpacing: -0.04, fill: v.ink, anim: { enter: 'right', delay: 0.4, speed: 0.9 } }),
+          txt(v.big, { key: 'big', cx: 540, cy: 660, fontFamily: 'Archivo Black', fontSize: 200, letterSpacing: -0.03, fill: v.ink, anim: { enter: v.letters, delay: 0.9, speed: 1 } }),
+          rib('straight', 200, 760, 680, 30, { line: true, thickness: 12, color: v.line, text: '', ends: 'flat', anim: { enter: 'draw', delay: 1.8, speed: 1.1 }, name: 'Underline' }),
+          txt(v.caps, { cx: 540, cy: 1040, autoWidth: false, width: 900, fontFamily: 'Inter', fontWeight: 600, fontSize: 38, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.5, blur: 8, x: 0, y: 2 }, anim: { enter: 'captions', delay: 0, speed: 0.55 }, name: 'Captions (one line at a time)' }),
+        ],
+      }),
+    })),
+
+    // ── VIDEO: photos printed on sticky notes, stop-motion wobble and a colour cut ──
+    ...[
+      { id: 'sticky-cut', name: 'Sticky notes', words: ['STICKY', 'NOTES'], notes: [['#f5b82e', '#6b3d06'], ['#3ab6e6', '#0b2f4a']], caps: 'it’s actually\na lot easier\nthan you think', titleInk: '#f5c33b', bgPh: ['#5b4632', '#1a140f'], cut: 2.1, layout: 'cut' },
+      { id: 'sticky-stack', name: 'Sticky stack', words: ['WEEKEND', 'RECAP'], notes: [['#ff8fb1', '#5c1430'], ['#f7e463', '#4d4208'], ['#8fe0a8', '#0f4a26']], caps: 'friday night\nsaturday market\nsunday reset', titleInk: '#ffffff', bgPh: ['#3c3f52', '#14151d'], layout: 'stack' },
+      { id: 'sticky-flip', name: 'Sticky flip-book', words: ['MEET', 'THE TEAM'], notes: [['#f5b82e', '#6b3d06'], ['#ff8fb1', '#5c1430'], ['#3ab6e6', '#0b2f4a'], ['#8fe0a8', '#0f4a26']], caps: 'design\ncode\ncoffee\nmore coffee', titleInk: '#f5c33b', bgPh: ['#2d3a4a', '#0d1218'], layout: 'flip' },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Photo'], width: 1080, height: 1350, video: true,
+      build: () => {
+        const note = (x, y, w, c, o = {}) => img(x, y, w, w * 1.04, Object.assign({
+          frame: { style: 'sticky', color: c[0], size: w * 0.055, radius: 0 }, placeholder: ['#d9d2c5', '#9b9284'],
+          filters: { contrast: 18, duotone: true, duoDark: c[1], duoLight: '#ffffff' },
+          shadow: { on: true, color: '#000000', opacity: 0.45, blur: 30, x: 0, y: 18 }, name: 'Sticky note photo — double-click to add yours',
+        }, o));
+        const els = [img(0, 0, 1080, 1350, { placeholder: v.bgPh, filters: { blur: 16, brightness: -35, saturation: -10 }, name: 'Background photo (blurred)' })];
+        const t1 = { start: 0, end: 0.75 }, t2 = { start: 0.75 };
+        els.push(
+          txt(v.words[0], { cx: 540, cy: 230, fontFamily: 'Archivo Black', fontSize: 120, letterSpacing: 0.01, fill: v.titleInk, time: t1, shadow: { on: true, color: '#000000', opacity: 0.4, blur: 18, x: 0, y: 6 } }),
+          txt(v.words[1], { cx: 540, cy: 230, fontFamily: 'Archivo Black', fontSize: 120, letterSpacing: 0.01, fill: v.titleInk, time: t2, shadow: { on: true, color: '#000000', opacity: 0.4, blur: 18, x: 0, y: 6 } }),
+        );
+        if (v.layout === 'cut') {
+          els.push(
+            note(250, 360, 580, v.notes[0], { rotation: -2, time: { start: 0, end: v.cut }, anim: { loop: 'wiggle', amount: 0.7 } }),
+            note(230, 360, 620, v.notes[1], { rotation: 1.5, time: { start: v.cut }, anim: { loop: 'swing', amount: 0.25, speed: 0.6 } }),
+          );
+        } else if (v.layout === 'stack') {
+          v.notes.forEach((c, i) => els.push(note(170 + i * 120, 380 + i * 70, 470, c, { rotation: [-8, 4, -3][i], anim: { enter: 'drop', delay: 0.5 + i * 0.7, loop: 'wiggle', amount: 0.4 } })));
+        } else {
+          v.notes.forEach((c, i) => els.push(note(240, 380, 600, c, { rotation: [-2, 2, -1, 1.5][i], time: { start: 0, cycle: { slot: 0.55, index: i, count: v.notes.length } }, anim: { loop: 'wiggle', amount: 0.6 } })));
+        }
+        els.push(txt(v.caps, { cx: 540, cy: 1110, autoWidth: false, width: 900, fontFamily: 'Space Mono', fontWeight: 700, fontSize: 38, fill: v.titleInk, shadow: { on: true, color: '#000000', opacity: 0.6, blur: 8, x: 0, y: 2 }, anim: { enter: 'captions', delay: 0.8, speed: v.layout === 'flip' ? 1.45 : 0.6 }, name: 'Captions (one line at a time)' }));
+        return {
+          width: 1080, height: 1350,
+          background: { color: v.bgPh[1] },
+          overlay: { grain: 22, vignette: 35 },
+          anim: { duration: 5, fps: 30 },
+          camera: { move: v.layout === 'flip' ? 'jolt' : 'drift', zoom: v.layout === 'flip' ? 1.12 : 1.08, rotate: 1.5, shake: 0.35, blur: 0.3, cut: 0.55, wander: 0.4 },
+          elements: els,
+        };
+      },
+    })),
+
     // ── life-sim garden: cut-out photo on a painted lawn with game-menu choices ──
     ...[
       { id: 'garden-menu', name: 'Choose an action', sky: ['#1f6dd0', '#bfe7f6'], hill: ['#b5d65e', '#5fae37', '#2c6a1f', '#cdea7c'], profile: 'left', flower: ['#e3262c', '#8e0d15', '#3d7a2c', '#163c13', '#4d0a0c'], bloom: 'cluster', gem: ['#2fd16a', '#0c7a3c', '#a6ffbf'], ink: '#22307a', pill: '#f3eee6',
@@ -1042,6 +1106,8 @@
     'Newspaper reveal': ['news-pullback', 'news-crash', 'news-snap', 'news-cuts', 'news-push'],
     'Typing': ['type-follow', 'type-marker', 'type-crash', 'type-terminal'],
     'Match cut': ['match-highlight', 'match-dark', 'match-news'],
+    'Kinetic headline': ['kinetic-news', 'kinetic-reveal', 'kinetic-pop'],
+    'Sticky notes': ['sticky-cut', 'sticky-stack', 'sticky-flip'],
     'Life-sim garden': ['garden-menu', 'garden-golden', 'garden-dusk'],
     'Ribbon poster': ['ribbon-fest', 'ribbon-sounds', 'ribbon-market'],
     'Motion blur': ['first-squat', 'run-club', 'dance-studio'],

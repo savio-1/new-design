@@ -36,7 +36,9 @@ Work is autosaved to the browser (IndexedDB). Use **Project → Save project fil
 ## Video templates and camera
 
 - **Template families**: variations of one idea show as a single card with a style count; click it to see every style. Video templates carry a *Video* badge and play when you hover them.
-- **Newspaper reveal** (pull-back, crash zoom, snap zoom, hard cuts, slow push-in), **Typing** (type & follow, typed note, crash zoom, terminal) and **Match cut** (keyword, night edition, newsprint flicker).
+- **Newspaper reveal** (pull-back, crash zoom, snap zoom, hard cuts, slow push-in), **Typing** (type & follow, typed note, crash zoom, terminal), **Match cut** (keyword, night edition, newsprint flicker), **Kinetic headline** (good news, big reveal, pop words) and **Sticky notes** (colour cut, stack, flip-book) with photos printed onto the notes.
+- **Text entrances**: letters slam / rise / drop / fade in one by one; slide-ins get motion blur automatically; *Captions* shows one line of a text layer at a time for subtitles.
+- **Sticky note frame** prints a photo onto the note like ink; **Window-blind shadows** is a canvas finish.
 - **Camera** (Canvas panel on the right with nothing selected, or Animate → Camera): push-in, pull-back reveal, whip, snap, crash in & out, follow the typing, hard cuts, handheld drift, pan, Dutch tilt, jolt cuts and spiral. Pick what it focuses on, zoom, timing, tilt, handheld shake and motion blur. The camera only frames the layout; it never moves your layers.
 - **Typing** (Motion → Typing on a text layer): types at a steady pace with a cursor; tap words to highlight them as a text selection, marker or underline.
 - **Show / hide timing** (Motion): make a layer appear and leave at set times. Layers that take turns create match cuts.

@@ -854,6 +854,7 @@
       if (A) ctx.translate(L.boxW / 2 - (A.x0 + A.x1) / 2, 0);
     }
     textBackground(ctx, el, L);
+    if (el._yShift) ctx.translate(0, el._yShift);
     const TY = el.typing && !L.curved ? typingBoxes(el, L) : null;
     if (TY) typingUnder(ctx, el, L, TY);
     ctx.font = L.font;
@@ -872,7 +873,32 @@
       ctx.translate(dx, dy);
       if (mode === 'stroke') { ctx.lineWidth = lineWidth; ctx.strokeStyle = style; }
       else ctx.fillStyle = style;
-      if (L.curved) {
+      if (el._letters && !L.curved) {
+        // per-letter entrance: each glyph lands on its own, staggered
+        const LT = el._letters, meas = measurer(mctx, L.font, 0);
+        const stag = 0.055 / LT.spd, dur = 0.42 / LT.spd;
+        let g = 0;
+        for (const ln of L.lines) {
+          const chars = [...ln.text];
+          let prefix = '';
+          for (let i = 0; i < chars.length; i++, g++) {
+            const ch = chars[i], x = ln.x + meas.raw(prefix) + L.ls * i, cw = meas.raw(prefix + ch) - meas.raw(prefix);
+            prefix += ch;
+            const q = clamp((LT.t - g * stag) / dur, 0, 1);
+            if (q <= 0 || ch === ' ') continue;
+            ctx.save();
+            ctx.translate(x + cw / 2, ln.base - L.cap / 2);
+            if (LT.style === 'slam') {
+              const k = easeBack(q), sc = 2.1 - 1.1 * k;
+              ctx.rotate((1 - q) * (g % 2 ? 0.35 : -0.35)); ctx.scale(sc, sc); ctx.globalAlpha *= Math.min(1, q * 3);
+            } else if (LT.style === 'lettersUp') { ctx.translate(0, (1 - easeOut(q)) * L.size * 0.9); ctx.globalAlpha *= q; }
+            else if (LT.style === 'lettersDrop') { ctx.translate(0, -(1 - easeBounce(q)) * L.size * 1.3); ctx.globalAlpha *= Math.min(1, q * 4); }
+            else { ctx.globalAlpha *= q; ctx.scale(0.9 + 0.1 * q, 0.9 + 0.1 * q); }
+            mode === 'stroke' ? ctx.strokeText(ch, -cw / 2, L.cap / 2) : ctx.fillText(ch, -cw / 2, L.cap / 2);
+            ctx.restore();
+          }
+        }
+      } else if (L.curved) {
         for (const g of L.glyphs) {
           ctx.save();
           if (L.sign > 0) { ctx.translate(L.cx + L.r * Math.sin(g.phi), L.cy - L.r * Math.cos(g.phi)); ctx.rotate(g.phi); }
@@ -1436,7 +1462,7 @@
   R.FRAMES = {
     none: 'None', rounded: 'Rounded', circle: 'Circle', arch: 'Arch', polaroid: 'Polaroid', stamp: 'Stamp',
     film: 'Film', torn: 'Torn paper', papercut: 'Paper cut', border: 'Border', blob: 'Blob', heart: 'Heart', star: 'Star',
-    scallop: 'Scallop', flower: 'Flower', ticket: 'Ticket', squircle: 'Squircle', sparkle: 'Sparkle',
+    scallop: 'Scallop', flower: 'Flower', ticket: 'Ticket', squircle: 'Squircle', sparkle: 'Sparkle', sticky: 'Sticky note',
   };
   function frameGeometry(el) {
     const w = el.width, h = el.height, f = el.frame || {};
@@ -1503,6 +1529,30 @@
         const sx = Math.max(0.1, (w / 2 - size) / (w / 2)), sy = Math.max(0.1, (h / 2 - size) / (h / 2));
         g.inner = polyPath(outerPts.map(([x, y]) => [cx + (x - cx) * sx, cy + (y - cy) * sy]));
         g.rect = { x: 0, y: 0, w, h };
+        break;
+      }
+      case 'sticky': {
+        // a sticky note: the photo printed on the paper, glue strip on top, the bottom edge curling up
+        const lift = h * 0.025;
+        const p = new Path2D();
+        p.moveTo(0, 0); p.lineTo(w, 0); p.lineTo(w, h - lift); p.quadraticCurveTo(w * 0.55, h + lift * 0.4, 0, h - lift * 0.3); p.closePath();
+        g.outer = p;
+        g.rect = inset(size, size * 1.1, size, size * 1.3);
+        g.inner = rrect(new Path2D(), g.rect.x, g.rect.y, g.rect.w, g.rect.h, 0);
+        g.print = true;
+        g.extra = ctx => {
+          ctx.save(); ctx.clip(p);
+          const gl = ctx.createLinearGradient(0, 0, 0, h * 0.14);
+          gl.addColorStop(0, 'rgba(0,0,0,0.10)'); gl.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = gl; ctx.fillRect(0, 0, w, h * 0.14);
+          const cl = ctx.createLinearGradient(0, h * 0.72, 0, h);
+          cl.addColorStop(0, 'rgba(255,255,255,0)'); cl.addColorStop(0.7, 'rgba(255,255,255,0.10)'); cl.addColorStop(1, 'rgba(0,0,0,0.18)');
+          ctx.fillStyle = cl; ctx.fillRect(0, h * 0.72, w, h * 0.28);
+          const sd = ctx.createLinearGradient(0, 0, w, 0);
+          sd.addColorStop(0, 'rgba(0,0,0,0.06)'); sd.addColorStop(0.15, 'rgba(0,0,0,0)'); sd.addColorStop(0.85, 'rgba(0,0,0,0)'); sd.addColorStop(1, 'rgba(0,0,0,0.08)');
+          ctx.fillStyle = sd; ctx.fillRect(0, 0, w, h);
+          ctx.restore();
+        };
         break;
       }
       case 'ticket':
@@ -1583,8 +1633,11 @@
     }
     ctx.save();
     ctx.clip(g.inner);
+    // printed frames lay the photo into the paper like ink
+    if (g.print) ctx.globalCompositeOperation = 'multiply';
     if (img) drawCover(ctx, filteredSource(el.assetId, img, el.filters), g.rect, el);
     else drawPlaceholder(ctx, g.rect, el);
+    ctx.globalCompositeOperation = 'source-over';
     overlays(ctx, g.rect, el.filters || {});
     ctx.restore();
     if (g.stroke) { ctx.lineWidth = g.stroke.w; ctx.strokeStyle = f.color || '#fff'; ctx.lineJoin = 'round'; ctx.stroke(g.stroke.path); }
@@ -2206,6 +2259,7 @@
   R.ANIM_ENTER = {
     none: 'None', pop: 'Pop in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
     right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
+    slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', captions: 'Captions (line by line)',
   };
   const LOOP_PERIOD = { float: 3, jiggle: 0.9, sway: 3, swing: 2.2, spin: 6, pulse: 1.6, bounce: 1.2, shake: 0.5, orbit: 4, blink: 1.4, flow: 4 };
   const easeOut = p => 1 - Math.pow(1 - p, 3);
@@ -2235,7 +2289,7 @@
   };
   function animState(el, t, doc) {
     const an = el.anim || {}, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
-    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null };
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0 };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
     const loop = an.loop || 'none';
@@ -2273,10 +2327,14 @@
       switch (enter) {
         case 'pop': st.sc *= Math.max(0, easeBack(p)); st.alpha *= Math.min(1, p * 3); break;
         case 'fade': st.alpha *= e; break;
-        case 'rise': st.dy += (1 - e) * m * 0.4; st.alpha *= e; break;
-        case 'drop': st.dy -= (1 - easeBounce(p)) * m * 1.2; st.alpha *= Math.min(1, p * 4); break;
-        case 'left': st.dx -= (1 - e) * m * 1.2; st.alpha *= e; break;
-        case 'right': st.dx += (1 - e) * m * 1.2; st.alpha *= e; break;
+        case 'rise': st.dy += (1 - e) * m * 0.4; st.alpha *= e; st.mblur = (1 - e) * m * 0.25; st.mang = 90; break;
+        case 'drop': st.dy -= (1 - easeBounce(p)) * m * 1.2; st.alpha *= Math.min(1, p * 4); st.mblur = (1 - p) * m * 0.4; st.mang = 90; break;
+        case 'left': st.dx -= (1 - e) * m * 1.2; st.alpha *= e; st.mblur = (1 - e) * m * 0.6; break;
+        case 'right': st.dx += (1 - e) * m * 1.2; st.alpha *= e; st.mblur = (1 - e) * m * 0.6; break;
+        case 'slam': case 'lettersUp': case 'lettersDrop': case 'lettersFade':
+          if (el.type === 'text') st.letters = { t: tl - (an.delay || 0), spd, style: enter }; else st.alpha *= e;
+          break;
+        case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
         case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p; break;
@@ -2316,6 +2374,18 @@
       e._caretOn = on;
     }
     if (A.flow != null || A.draw != null) e = Object.assign({}, e, A.flow != null ? { flowShift: ((A.flow % 1) + 1) % 1 } : {}, A.draw != null ? { drawFrac: A.draw } : {});
+    if (A.letters) e = Object.assign({}, e, { _letters: A.letters });
+    if (A.mblur > 1.5) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { motion: ((e.lblur && e.lblur.motion) || 0) + A.mblur, angle: A.mang }) });
+    if (A.caption != null && el.type === 'text') {
+      // captions: one line of the text at a time, centred in the layer's box
+      const lines = String(el.text || '').split('\n').filter(x => x.trim());
+      if (lines.length) {
+        const line = lines[Math.min(lines.length - 1, A.caption)];
+        const one = Object.assign({}, e, { text: line, autoWidth: false, width: el.width });
+        one._yShift = (el.height - layoutText(one).boxH) / 2;
+        e = one;
+      }
+    }
     drawLayered(ctx, e, env);
     ctx.restore();
   }
@@ -2456,6 +2526,18 @@
         const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(w, h) * 0.6);
         g.addColorStop(0, `rgba(${c},0.85)`); g.addColorStop(0.5, `rgba(${c},0.25)`); g.addColorStop(1, `rgba(${c},0)`);
         ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      }
+      ctx.restore();
+    }
+    if (o.blinds) {
+      // soft diagonal shadows, like sun through window blinds
+      const a = o.blinds / 100, period = Math.max(w, h) * 0.34;
+      ctx.save();
+      ctx.translate(w / 2, h / 2); ctx.rotate(-0.62); ctx.translate(-w, -h);
+      for (let x = 0; x < w * 2.4; x += period) {
+        const gg = ctx.createLinearGradient(x, 0, x + period, 0);
+        gg.addColorStop(0, 'rgba(0,0,0,0)'); gg.addColorStop(0.3, `rgba(0,0,0,${0.32 * a})`); gg.addColorStop(0.5, `rgba(0,0,0,${0.36 * a})`); gg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gg; ctx.fillRect(x, 0, period, h * 2.4);
       }
       ctx.restore();
     }

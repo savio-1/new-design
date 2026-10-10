@@ -1107,7 +1107,8 @@
     const setA = (k, v, live) => { S.change(T, 'anim.' + k, v, live); if (!live && (k === 'loop' || k === 'enter')) renderInspector(); updateTimeline(); };
     const isPath = el.type === 'ribbon';
     const loops = Object.entries(R.ANIM_LOOPS).filter(([k]) => k !== 'none' && (k !== 'flow' || isPath));
-    const enters = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'none' && (k !== 'typewriter' || el.type === 'text') && (k !== 'draw' || isPath));
+    const TEXT_ONLY = ['typewriter', 'slam', 'lettersUp', 'lettersDrop', 'lettersFade', 'captions'];
+    const enters = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'none' && (!TEXT_ONLY.includes(k) || el.type === 'text') && (k !== 'draw' || isPath));
     const start = (k, v) => { S.change(T, 'anim', Object.assign({ speed: 1, amount: 1, delay: 0 }, S.selEls()[0].anim || {}, { [k]: v })); updateTimeline(); S.play(); };
     const tm = el.time || {};
     const words = [...new Set((el.text || '').split(/\s+/).map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')).filter(w => w.length > 1))].slice(0, 40);
@@ -1351,6 +1352,7 @@
         fin('Paper on top', 'overlay.paper'),
         fin('Poster folds', 'overlay.creases', 100, { def: 60 }),
         fin('Light leak', 'overlay.leak', 100, { def: 45 }),
+        fin('Window-blind shadows', 'overlay.blinds', 100, { def: 50 }),
       ], 'canvas-finish'),
       h('p.insp-empty', null, 'Select a layer to edit it. Double-click text to type, a photo to crop, a ribbon to bend it.'),
     ];
