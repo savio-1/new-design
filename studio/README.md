@@ -76,6 +76,23 @@ Designs live in this browser's storage, so clearing site data removes them — d
 - **Film camera** template family (10): Contact sheet (strips of negatives with grease-pencil marks), Countdown leader (3-2-1 film leader into your clip), Film strip, Light table (slide mounts), Instant stack, Darkroom (prints drying under the safelight), Negative scan, Half frame (two pictures in one frame), Medium format and Photo booth.
 - Heavy looks on a video (bloom, halation, sharpen) are graded at a smaller size while previewing so playback keeps up; the export uses full size.
 
+## Moving layouts (any orientation)
+
+Eight template families where photos and videos move in a layout. Each comes in **Story 9:16, Portrait 4:5, Square 1:1 and Landscape 16:9**, and opening a family puts the one that fits your canvas first — plus a **Your canvas** version built for any other size (Pinterest pin, A4, custom…). **Resize the canvas later and the layout re-flows** to the new shape, keeping the photos and videos you added and any text or stickers on top.
+
+- **Scrolling wall** — rows (or more rows on tall canvases) of rounded, slightly bulging screens gliding sideways.
+- **Card trail** — cards pop up one after another along a winding path (across on wide canvases, down on tall ones); the oldest drop away as it moves on.
+- **Grid build** — a mixed-size grid fills one photo at a time, a few cells left dark.
+- **Photo drop** — white-bordered prints tossed onto a pile one by one.
+- **Fan stack** — a fan of prints opens out from the middle, then more land on top.
+- **Strip conveyor** — video strips of different widths slide past, some split into stacked tiles; on tall canvases they run as bands going up.
+- **Zoom wall** — a wall of photos fades in, then the camera pushes in to the one in the middle.
+- **Slide-in panels** — panels slide in from alternating sides (columns, rows or a 2×2 grid depending on the shape).
+
+**Fill photo slots** (Canvas inspector, when nothing is selected): pick several photos or videos at once and they go into the slots in the order they appear; with fewer files than slots they repeat. Select several photos and *Replace these with your photos* does the same for just those.
+
+New motion: **Drift across** (Motion → Loop) glides a layer steadily over the whole video by a set distance across and down; **Toss in** (Motion → Entrance) drops a layer in big and turned, settling flat like a print landing on a pile.
+
 ## Photo effects and Paper & ID
 
 - **Photo effects** template family (19): Halftone scribble (halftone portrait with yellow marker scribbles), Shredded (photo cut into offset strips), How much can you see (red block with a scattered sentence), Mosaic grid, Mirror repeat (with a mirrored name), Eye strip, Then & now (childhood photos across the eyes), Note over face, Word grid (a sentence laid out word by word over a tinted photo), Brand fade, Face swap, Ghost blur, Retro phone screen, Signed booth (portraits with signatures), Red bar, Taped to the wall, Print on red, Studio backdrop and Grid paper portrait.

@@ -145,11 +145,20 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,
 `stk`, `shp`, `rib`, `nat`, `cam`. Text can be placed by centre (`cx`, `cy`); widths are measured on
 load. Put a new family's ids in `GROUPS` (order = display order); `video: true` adds the badge and hover
-preview. Families so far: Text slides (69), Photo effects (19), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
+preview. Families so far: eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (19), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
 reveal, Typing, Match cut, Kinetic headline, Sticky notes, Rolling numbers, Word by word, Letter
 bounce, Life-sim garden, Ribbon poster, Motion blur, Camera view, Meet the team, Grid-paper notes,
-Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 217 templates. Film templates build
+Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 249 templates. Film templates build
 filters with `LOOK('<preset>', overrides)` so they stay in step with the presets.
+
+**Moving layouts** (`mv-<layout>-<orientation>`): generator functions in the "LAYOUTS IN MOTION" block of
+templates.js build a layout for any `(W, H)`; each family lists itself in `GROUPS` (one member per orientation:
+story / portrait / square / wide) via `t.family`. Built docs carry `doc.layout = { key }`, the images get
+`layoutSlot: true`, and `window.STUDIO_LAYOUTS[key].build(W, H)` lets `S.relayout()` re-flow the layout when the
+canvas is resized (photos carry over in slot order; other layers stay). `orientationMembers` (ui.js) sorts a
+family by closeness to the canvas and adds a "Your canvas" member. `S.photoSlots()` / `S.fillSlots()` fill many
+slots at once (`importFiles` `fillIds`). Motions: loop `drift` (`anim.dx`, `anim.dy` over the whole video) and
+entrance `land` (`anim.spin`).
 
 When lining up words with inline photo chips, measure text widths first (create a text with `S.mk`,
 `S.autosize`, read `width` after fonts load) and hard-code positions.

@@ -1544,8 +1544,11 @@
         add: () => start('loop', isPath && el.text ? 'flow' : el.type === 'text' ? 'sway' : 'float'), remove: () => setA('loop', 'none'),
         body: () => [
           row('Style', selectCtl(T, 'anim.loop', loops, { def: 'float', set: v => setA('loop', v) })),
-          row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })),
-          loop !== 'spin' && loop !== 'blink' && loop !== 'flow' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
+          loop === 'drift' ? h('p.hint', null, 'Glides steadily over the whole video — how far across and down it travels:') : null,
+          loop === 'drift' ? row('Across', num(T, 'anim.dx', { min: -4000, max: 4000, step: 10, slider: true, def: -300, unit: 'px', set: (v, l) => setA('dx', v, l) })) : null,
+          loop === 'drift' ? row('Down', num(T, 'anim.dy', { min: -4000, max: 4000, step: 10, slider: true, def: 0, unit: 'px', set: (v, l) => setA('dy', v, l) })) : null,
+          loop !== 'drift' ? row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })) : null,
+          loop !== 'spin' && loop !== 'blink' && loop !== 'flow' && loop !== 'drift' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
           more('motion-more', [
             loop === 'spin' || loop === 'flow' ? toggle(T, 'anim.reverse', 'Reverse direction') : null,
             toggle(T, 'anim.sync', 'Start in sync with other layers'),
@@ -1611,6 +1614,7 @@
       h('div.insp-head', null, h('h2', null, one === 'text' ? `${els.length} text layers` : `${els.length} layers`)),
       layerRow(),
       one === 'text' ? h('p.hint.multi-hint', null, 'Changes apply to all selected text.') : null,
+      one === 'image' ? sec('Photos', [full(h('button.btn.primary', { type: 'button', onclick: () => S.fillSlots(S.selEls()) }, ic('image'), `Replace these ${els.length} with your photos`))], true, { collapsible: false }) : null,
       ...shared,
       sec('Arrange', [
         alignGrid(),
@@ -1753,6 +1757,10 @@
       bg.assetId ? adjustSection(T, 'background.filters') : null,
       bg.assetId ? filmSection(T, 'background.filters') : null,
       bg.assetId ? blurSection(T, 'background.filters') : null,
+      S.photoSlots().length >= 2 ? sec('Photo slots', [
+        h('p.hint', null, `${S.photoSlots().length} photo slots. Pick several photos or videos at once — they go in in order.`),
+        full(h('button.btn.primary', { type: 'button', onclick: () => S.fillSlots() }, ic('image'), 'Fill photo slots')),
+      ], true, { key: 'photo-slots' }) : null,
       videoTextSection(),
       cameraSection(),
       addSec('Finish', [
@@ -1952,10 +1960,12 @@
     S.touchAll(); S.commit(); renderInspector();
     toast(`Using the background from “${t.name}”`);
   }
+  // a design started from a layout family is named after the family, not the orientation
+  const tplName = t => t.family ? `${t.family} · ${t.name}` : t.name;
   function replaceWithTemplate(t) {
     closeModal();
     templateFonts(t);
-    S.loadDoc(prepDoc(t.build()), null, { name: t.name });
+    S.loadDoc(prepDoc(t.build()), null, { name: tplName(t) });
     toast(`“${t.name}” loaded — make it yours`);
   }
   function useTemplate(t) {
@@ -2007,13 +2017,26 @@
     ];
   }
   let tplGroup = null;
+  // moving layouts come in every orientation; the one closest to your canvas goes first, and any other size can be built to fit
+  function orientationMembers(members, W, H) {
+    if (!members[0].layout) return members;
+    const ar = W / H, near = t => Math.abs(Math.log((t.width / t.height) / ar));
+    const sorted = members.slice().sort((a, b) => near(a) - near(b));
+    const exact = members.some(t => t.width === W && t.height === H);
+    if (!exact && window.STUDIO_LAYOUTS && window.STUDIO_LAYOUTS[members[0].layout]) {
+      const L = window.STUDIO_LAYOUTS[members[0].layout];
+      sorted.unshift({ id: `mv-${members[0].layout}-fit-${W}x${H}`, name: `Your canvas ${W} × ${H}`, family: members[0].family, layout: members[0].layout, width: W, height: H, video: true, tags: [], build: () => L.build(W, H) });
+    }
+    return sorted;
+  }
   function familyPanel(g, members) {
-    const grid = h('div.tpl-grid', null, members.map(t => templateCard(t, useTemplate, 260, { pieces: true })));
+    members = orientationMembers(members, S.doc.width, S.doc.height);
+    const grid = h('div.tpl-grid', null, members.map((t, i) => templateCard(t, useTemplate, 260, { pieces: !/-fit-/.test(t.id), label: members[0].layout && i === 0 ? (/-fit-/.test(t.id) ? 'Your canvas' : `${t.name} · fits`) : undefined })));
     return [
       panelHead('Templates'),
       h('button.back-link', { type: 'button', onclick: () => { tplGroup = null; renderPanel(); } }, ic('chevLeft'), 'All templates'),
       h('h2.drill-title', null, g),
-      h('p.hint', { style: { marginBottom: '12px' } }, members[0].video
+      members[0].layout ? h('p.hint', { style: { marginBottom: '12px' } }, 'Every orientation is here, the one that fits your canvas first. Resize the canvas later and the layout re-flows to the new shape, keeping your photos and videos.') : h('p.hint', { style: { marginBottom: '12px' } }, members[0].video
         ? `${members.length} styles, each with its own camera move. Hover to preview — after choosing, change the move under Camera on the right.`
         : `${members.length} styles — pick one, then make it yours.`),
       grid,
@@ -2798,7 +2821,7 @@
     S.fit(); updateTop(); renderInspector(); renderPanel();
   }
   function startBlank(w, hh, color) { S.newDoc(w, hh, color || '#ffffff', {}, { project: 'new' }); leaveHome(); }
-  function startTemplate(t) { templateFonts(t); S.loadDoc(prepDoc(t.build()), null, { name: t.name, project: 'new' }); leaveHome(); }
+  function startTemplate(t) { templateFonts(t); S.loadDoc(prepDoc(t.build()), null, { name: tplName(t), project: 'new' }); leaveHome(); }
   function startPhoto(files) {
     const opts = { startFromPhoto: true, newProject: true, onStart: () => { if (isHome()) leaveHome(); } };
     if (files) S.importFiles(files, opts); else S.pickImages(opts);

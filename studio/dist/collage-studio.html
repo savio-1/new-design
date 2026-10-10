@@ -10801,10 +10801,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   R.animDoc = null;
   R.ANIM_LOOPS = {
     none: 'None', wiggle: 'Stop-motion wiggle', float: 'Float', jiggle: 'Jiggle', sway: 'Sway', swing: 'Swing',
-    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink', flow: 'Text flow (paths)',
+    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink', drift: 'Drift across', flow: 'Text flow (paths)',
   };
   R.ANIM_ENTER = {
-    none: 'None', pop: 'Pop in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
+    none: 'None', pop: 'Pop in', land: 'Toss in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
     right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
     slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', lettersBounce: 'Letters bounce in',
     captions: 'Captions (line by line)', roll: 'Roll through lines', words: 'Word by word',
@@ -10843,7 +10843,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const loop = an.loop || 'none';
     if (loop !== 'none') {
       const phase = an.sync ? 0 : (hashStr(el.id || 'a') % 1000) / 1000;
-      if (loop === 'wiggle') {
+      if (loop === 'drift') {
+        // a steady glide across the whole video (scrolling walls, conveyor strips)
+        const k = tl / D;
+        st.dx = (an.dx ?? -300) * k * amt; st.dy = (an.dy ?? 0) * k * amt;
+      } else if (loop === 'wiggle') {
         const N = Math.max(1, Math.round(D * 8 * spd));
         const k = Math.floor(tl / D * N) % N;
         const r = rng(hashStr(el.id || 'w') + k * 7919);
@@ -10885,6 +10889,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
         case 'roll': case 'words': if (el.type === 'text') st.seq = seqState(el, tl - (an.delay || 0), spd, enter, an.accel); break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
+        case 'land': {
+          // tossed onto a pile: comes in big and turned, settles flat with a little bounce
+          const q = clamp((tl - (an.delay || 0)) / (0.45 / spd), 0, 1), k = easeOut(q);
+          st.sc *= 1 + (1 - k) * 0.5 + Math.sin(Math.min(1, q * 1.2) * Math.PI) * 0.015; st.rot += (1 - k) * (an.spin ?? 14); st.alpha *= Math.min(1, q * 4);
+          st.dy -= (1 - k) * m * 0.08;
+          break;
+        }
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
         case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p; break;
         case 'wipe': st.reveal = e; break;
@@ -13946,6 +13957,167 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }));
     })(),
 
+    // ── LAYOUTS IN MOTION: photo & video layouts that move, each built for four orientations ──
+    ...(() => {
+      const SIZES = [['story', 1080, 1920, 'Story 9:16'], ['portrait', 1080, 1350, 'Portrait 4:5'], ['square', 1080, 1080, 'Square 1:1'], ['wide', 1920, 1080, 'Landscape 16:9']];
+      const POOL = ['film-golden', 'ed-curls', 'film-road', 'film-friends', 'ed-yellow', 'film-beach', 'film-neon', 'ed-smile', 'film-grass', 'film-picnic', 'ed-red', 'film-tram',
+        'film-lanterns', 'ed-stool', 'film-coast', 'film-window', 'ed-think', 'film-canyon', 'film-lamp', 'film-station', 'ed-suit', 'film-portrait', 'ed-youth', 'film-kiss'];
+      const asset = (i, seed = 0) => POOL[(i * 5 + seed) % POOL.length];
+      const slot = (i, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: asset(i, o && o.seed || 0), name: 'Photo or video ' + (i + 1), placeholder: ['#3a3632', '#1d1b18'] }, o || {}));
+      const rnd = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+      const soft = { on: true, color: '#000000', opacity: 0.35, blur: 24, x: 0, y: 12 };
+      const LAYOUTS = [
+        {
+          // rows of rounded, slightly bulging tiles gliding past like a wall of screens
+          key: 'wall', name: 'Scrolling wall', D: 8,
+          build(W, H) {
+            const rows = H > W * 1.5 ? 4 : H > W ? 3 : W > H ? 2 : 3, pad = Math.min(W, H) * 0.06, gap = Math.min(W, H) * 0.035;
+            const th = (H - pad * 2 - gap * (rows - 1)) / rows, travel = W * 0.45, els = [];
+            let n = 0;
+            for (let r = 0; r < rows; r++) {
+              let x = r % 2 ? -th * 0.45 : -gap;
+              while (x < W + travel + th) {
+                const tw = th * [0.95, 1.18, 0.82, 1.05][(n + r) % 4];
+                els.push(slot(n, x, pad + r * (th + gap), tw, th, { frame: { style: 'rounded', radius: th * 0.12, size: 0 }, filters: { fisheye: 22, contrast: 6 }, anim: { loop: 'drift', dx: -travel, dy: 0, sync: true } }));
+                x += tw + gap; n++;
+              }
+            }
+            return { background: { color: '#060606' }, overlay: { vignette: 45, grain: 10 }, elements: els };
+          },
+        },
+        {
+          // cards pop up one after another along a winding path; the oldest drop away as the trail moves on
+          key: 'trail', name: 'Card trail', D: 7,
+          build(W, H) {
+            const n = 16, s = Math.min(W, H) * (W > H ? 0.4 : 0.36), r = rnd(11), els = [];
+            for (let i = 0; i < n; i++) {
+              const u = i / (n - 1), land = r() < 0.5;
+              const w = land ? s * 1.3 : s * 0.82, h = land ? s * 0.9 : s * 1.1;
+              const cx = W >= H ? W * (0.16 + 0.68 * u) + Math.sin(u * Math.PI * 2.2) * W * 0.04 : W * (0.5 + 0.2 * Math.sin(u * Math.PI * 2.4));
+              const cy = W >= H ? H * (0.42 + 0.18 * Math.sin(u * Math.PI * 1.6 + 0.4)) : H * (0.18 + 0.64 * u);
+              const start = i * 0.32, last = i >= n - 4;
+              els.push(slot(i, cx - w / 2 + (r() - 0.5) * s * 0.3, cy - h / 2 + (r() - 0.5) * s * 0.3, w, h, { shadow: soft, time: { start, end: last ? null : start + 2.6 }, anim: { enter: 'pop', delay: start, speed: 1.6 } }));
+            }
+            return { background: { color: '#050505' }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // a grid that fills up one photo at a time, a few cells left dark
+          key: 'grid', name: 'Grid build', D: 6,
+          build(W, H) {
+            const cell = Math.min(W, H) / (W > H ? 3.1 : 3.6), gap = Math.min(W, H) * 0.012, pad = Math.min(W, H) * 0.05;
+            const cols = Math.max(2, Math.round((W - pad * 2) / cell)), rows = Math.max(2, Math.round((H - pad * 2) / cell));
+            const cw = (W - pad * 2 - gap * (cols - 1)) / cols, ch = (H - pad * 2 - gap * (rows - 1)) / rows;
+            const used = new Set(), r = rnd(5), tiles = [];
+            for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+              if (used.has(i + ',' + j)) continue;
+              let sw = 1, sh = 1;
+              if (r() < 0.28 && i + 1 < cols && !used.has((i + 1) + ',' + j)) sw = 2;
+              else if (r() < 0.25 && j + 1 < rows) sh = 2;
+              for (let a = 0; a < sw; a++) for (let b = 0; b < sh; b++) used.add((i + a) + ',' + (j + b));
+              if (r() < 0.14) continue;
+              tiles.push({ x: pad + i * (cw + gap), y: pad + j * (ch + gap), w: cw * sw + gap * (sw - 1), h: ch * sh + gap * (sh - 1) });
+            }
+            const order = tiles.map((t, k) => [r(), k]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+            const els = tiles.map((t, k) => { const d = order.indexOf(k) * (3.6 / tiles.length); return slot(k, t.x, t.y, t.w, t.h, { anim: { enter: 'fade', delay: d, speed: 3 }, time: { start: d } }); });
+            return { background: { color: '#000000' }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // prints tossed onto a pile, one after another
+          key: 'drop', name: 'Photo drop', D: 6,
+          build(W, H) {
+            const n = 8, ch = Math.min(H * 0.72, W * 0.66 * 1.35), cw = ch * 0.74, r = rnd(23), els = [];
+            for (let i = 0; i < n; i++) {
+              const d = 0.15 + i * 0.62, rot = (r() - 0.5) * 12;
+              els.push(slot(i, W / 2 - cw / 2 + (r() - 0.5) * cw * 0.12, H / 2 - ch / 2 + (r() - 0.5) * ch * 0.06, cw, ch, { rotation: rot,
+                frame: { style: 'border', color: '#fbfaf7', size: Math.round(cw * 0.035) }, shadow: { on: true, color: '#000000', opacity: 0.22, blur: 18, x: 0, y: 8 },
+                anim: { enter: 'land', delay: d, spin: i % 2 ? 16 : -16 }, time: { start: d } }));
+            }
+            return { background: { color: '#e9e8e4', texture: 20 }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // a fan of prints opens out from the middle, then the front ones land on top
+          key: 'fan', name: 'Fan stack', D: 6,
+          build(W, H) {
+            const wide = W > H, n = wide ? 7 : 5, ch = Math.min(H * (wide ? 0.62 : 0.5), W * 0.6), cw = ch * 0.72, spread = wide ? W * 0.11 : W * 0.13, els = [];
+            const mid = (n - 1) / 2;
+            for (let k = 0; k < n; k++) {
+              const off = k - mid, d = 0.2 + Math.abs(off) * 0.08 + (off === 0 ? 0 : 0);
+              els.push(slot(k, W / 2 - cw / 2 + off * spread, H / 2 - ch / 2 + Math.abs(off) * ch * 0.04, cw, ch, { rotation: off * (wide ? 5 : 7),
+                frame: { style: 'border', color: '#fbfaf7', size: Math.round(cw * 0.035) }, shadow: { on: true, color: '#000000', opacity: 0.2, blur: 16, x: 0, y: 8 },
+                anim: { enter: off < 0 ? 'left' : off > 0 ? 'right' : 'zoom', delay: d, speed: 1.4 } }));
+            }
+            // fan out from the centre: outer cards sit underneath
+            els.sort((a, b) => Math.abs(b.x - (W / 2 - cw / 2)) - Math.abs(a.x - (W / 2 - cw / 2)));
+            for (let i = 0; i < 3; i++) {
+              const d = 1.6 + i * 0.75;
+              els.push(slot(n + i, W / 2 - cw * 0.55, H / 2 - ch * 0.55, cw * 1.1, ch * 1.1, { rotation: [-4, 5, -1.5][i], frame: { style: 'border', color: '#fbfaf7', size: Math.round(cw * 0.04) },
+                shadow: { on: true, color: '#000000', opacity: 0.25, blur: 20, x: 0, y: 10 }, anim: { enter: 'land', delay: d, spin: i % 2 ? -14 : 14 }, time: { start: d } }));
+            }
+            return { background: { color: '#ebe9e3', texture: 20 }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // video strips of different widths glide past; a few split into stacked tiles. Tall canvases run in bands going up.
+          key: 'strips', name: 'Strip conveyor', D: 7,
+          build(W, H) {
+            const vertical = H > W * 1.2, along = vertical ? H : W, across = vertical ? W : H;
+            const margin = W >= H ? across * 0.12 : 0, gap = Math.max(4, across * 0.006), travel = along * 1.1, r = rnd(9), els = [];
+            let p = 0, n = 0;
+            while (p < along + travel) {
+              const len = along * (0.12 + r() * 0.16), split = r() < 0.22 ? (r() < 0.5 ? 2 : 3) : 1;
+              const span = across - margin * 2, piece = (span - gap * (split - 1)) / split;
+              for (let k = 0; k < split; k++) {
+                const a = margin + k * (piece + gap);
+                els.push(slot(n, vertical ? a : p, vertical ? p : a, vertical ? piece : len, vertical ? len : piece, { anim: { loop: 'drift', dx: vertical ? 0 : -travel, dy: vertical ? -travel : 0, sync: true } }));
+                n++;
+              }
+              p += len + gap;
+            }
+            return { background: { color: '#000000' }, overlay: { grain: 10 }, elements: els };
+          },
+        },
+        {
+          // a wall of photos fades in, then the camera pushes in to the one in the middle
+          key: 'zoom', name: 'Zoom wall', D: 6,
+          build(W, H) {
+            const cols = W > H ? 5 : 3, rows = H > W * 1.5 ? 5 : H > W ? 4 : 3, gap = Math.min(W, H) * 0.014;
+            const cw = (W - gap * (cols + 1)) / cols, ch = (H - gap * (rows + 1)) / rows, els = [], mid = [Math.floor(cols / 2), Math.floor(rows / 2)];
+            let k = 0;
+            for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+              const focus = i === mid[0] && j === mid[1], d = (Math.abs(i - mid[0]) + Math.abs(j - mid[1])) * 0.12;
+              els.push(slot(k++, gap + i * (cw + gap), gap + j * (ch + gap), cw, ch, Object.assign({ anim: { enter: 'fade', delay: d, speed: 2 } }, focus ? { key: 'focus', name: 'The photo the camera zooms to' } : {})));
+            }
+            return { background: { color: '#0a0a0a' }, overlay: { grain: 8, vignette: 25 }, camera: { move: 'pushin', target: 'focus', zoom: Math.min(cols, rows) * 0.92, start: 1.4, dur: 2.6, blur: 0.5 }, elements: els };
+          },
+        },
+        {
+          // panels slide in from alternating sides until the frame is full
+          key: 'panels', name: 'Slide-in panels', D: 5,
+          build(W, H) {
+            const wide = W > H * 1.2, tall = H > W * 1.2, gap = Math.min(W, H) * 0.012, els = [];
+            const cells = wide ? [[0, 0, 1 / 3, 1], [1 / 3, 0, 1 / 3, 1], [2 / 3, 0, 1 / 3, 1]]
+              : tall ? [[0, 0, 1, 1 / 3], [0, 1 / 3, 1, 1 / 3], [0, 2 / 3, 1, 1 / 3]]
+              : [[0, 0, 0.5, 0.55], [0.5, 0, 0.5, 0.55], [0, 0.55, 0.62, 0.45], [0.62, 0.55, 0.38, 0.45]];
+            cells.forEach(([x, y, w, h], i) => {
+              const dir = wide ? (i % 2 ? 'rise' : 'drop') : (i % 2 ? 'right' : 'left');
+              els.push(slot(i, x * W + gap / 2, y * H + gap / 2, w * W - gap, h * H - gap, { anim: { enter: dir, delay: 0.1 + i * 0.3, speed: 1.2, loop: 'float', amount: 0.12 } }));
+            });
+            return { background: { color: '#0a0a0a' }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+      ];
+      // any size: the editor can re-flow a layout to the canvas it's on
+      const buildAt = (L, W, H) => Object.assign({ width: W, height: H, anim: { duration: L.D, fps: 30 }, layout: { key: L.key } }, L.build(W, H));
+      window.STUDIO_LAYOUTS = Object.fromEntries(LAYOUTS.map(L => [L.key, { name: L.name, build: (W, H) => buildAt(L, W, H) }]));
+      return LAYOUTS.flatMap(L => SIZES.map(([k, W, H, label]) => ({
+        id: `mv-${L.key}-${k}`, name: label, family: L.name, layout: L.key, orientation: k, tags: ['Video', 'Photo', 'Layout'], width: W, height: H, video: true,
+        build: () => buildAt(L, W, H),
+      })));
+    })(),
+
     // ── PHOTO EFFECTS: editorial poster treatments — halftone scribbles, shredded strips, mosaics, mirrors, censor blocks ──
     ...(() => {
       const P = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'ed-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
@@ -14997,6 +15169,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
+    'Scrolling wall': [], 'Card trail': [], 'Grid build': [], 'Photo drop': [], 'Fan stack': [], 'Strip conveyor': [], 'Zoom wall': [], 'Slide-in panels': [],
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
     'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper'],
     'Paper & ID': ['pid-mugshot', 'pid-inquiry', 'pid-badge', 'pid-portrait', 'pid-certificate', 'pid-record', 'pid-pass', 'pid-application', 'pid-aboutme', 'pid-profile'],
@@ -15024,6 +15197,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     'Notebook tip': ['tip-green', 'tip-pink', 'tip-lilac'],
     'Outfit line-up': ['zapato', 'jacket-mood', 'what-we-wore'],
   };
+  // families made by a layout generator list themselves (one member per orientation)
+  for (const t of TEMPLATES) if (t.family && GROUPS[t.family]) GROUPS[t.family].push(t.id);
   const ORDER = ['every-shade', ...Object.values(GROUPS).flat()];
   for (const [g, ids] of Object.entries(GROUPS)) for (const id of ids) { const t = TEMPLATES.find(x => x.id === id); if (t) t.group = g; }
   const rank = t => ORDER.includes(t.id) ? ORDER.indexOf(t.id) : 1000;
@@ -15801,6 +15976,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const base = blankDoc(d.width || 1080, d.height || 1350, (d.background && d.background.color) || '#ffffff');
     doc = deepMerge(base, { ...d, elements: [] });
     doc.elements = (d.elements || []).map(normalize);
+    if (d.layout && !doc.elements.some(e => e.layoutSlot)) for (const e of doc.elements) if (e.type === 'image') e.layoutSlot = true;
     R.animDoc = doc;
     if (newAssets) Object.assign(assets, newAssets);
     for (const el of doc.elements) autosize(el, false);
@@ -15825,6 +16001,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     deepMerge(d, extra);
     S.loadDoc(d, null, Object.assign({ name: 'Untitled design' }, opts));
   };
+  // a moving layout rebuilt for the canvas it's on now; photos and videos already placed carry over in order
+  S.relayout = function () {
+    const L = doc.layout && window.STUDIO_LAYOUTS && window.STUDIO_LAYOUTS[doc.layout.key];
+    if (!L) return false;
+    const old = S.photoSlots(doc.elements.filter(e => e.type === 'image' && e.layoutSlot));
+    const fresh = L.build(doc.width, doc.height);
+    const imgs = fresh.elements.map((e, i) => {
+      const n = normalize(Object.assign({}, e, { layoutSlot: true }));
+      const o = old.length ? old[i % old.length] : null;
+      if (o) { n.assetId = o.assetId; n.video = o.video ? clone(o.video) : undefined; n.filters = clone(o.filters || n.filters); }
+      return n;
+    });
+    // anything the user added on top (text, stickers…) stays where it is
+    doc.elements = imgs.concat(doc.elements.filter(e => !e.layoutSlot));
+    if (fresh.camera) doc.camera = fresh.camera;
+    rebuild(); S.fit(); S.commit(); emit('doc'); emit('selection');
+    return true;
+  };
   S.resizeCanvas = function (w, h, scaleContent) {
     const sx = w / doc.width, sy = h / doc.height;
     if (scaleContent) {
@@ -15839,6 +16033,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       for (const el of doc.elements) { el.x += ox; el.y += oy; }
     }
     doc.width = w; doc.height = h;
+    if (doc.layout && S.relayout()) return;
     rebuild();
     S.fit();
     S.commit();
@@ -17030,6 +17225,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   const fileInput = $('#file-input');
   let pickOpts = {};
+  // photo slots in the order they appear in the video, then reading order
+  S.photoSlots = function (els) {
+    const when = e => ((e.time && e.time.start) || 0) + ((e.anim && e.anim.enter && e.anim.enter !== 'none' && e.anim.delay) || 0);
+    return (els || doc.elements).filter(e => e.type === 'image' && !e.locked && !e.hidden && e.name !== 'Film border')
+      .sort((a, b) => when(a) - when(b) || a.y - b.y || a.x - b.x);
+  };
+  S.fillSlots = function (els) { const slots = S.photoSlots(els); if (slots.length) S.pickImages({ fillIds: slots.map(e => e.id) }); };
   S.pickImages = function (opts = {}) { pickOpts = opts; fileInput.value = ''; fileInput.click(); };
   fileInput.addEventListener('change', () => { if (fileInput.files.length) S.importFiles([...fileInput.files], pickOpts); });
 
@@ -17126,6 +17328,21 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (added[0].video) { el.video = { trim: 0, speed: 1 }; fitDurationToVideo(added[0].duration); if (el.studio) el.studio.on = false; }
       redraw(); S.commit(); emit('doc'); positionOverlays();
       emit('replaced', el);
+      return added;
+    }
+    if (opts.fillIds && opts.fillIds.length) {
+      // many photo slots at once: files go in in order, and repeat if there are fewer files than slots
+      const slots = opts.fillIds.map(id => elMap.get(id)).filter(Boolean);
+      slots.forEach((el, i) => {
+        const a = added[i % added.length];
+        el.assetId = a.id; el.crop = { zoom: 1, x: 0.5, y: 0.5 };
+        if (a.video) el.video = { trim: 0, speed: 1 }; else delete el.video;
+        if (el.seq) el.seq = null;
+        if (el.studio) el.studio.on = false;
+        syncNode(el);
+      });
+      redraw(); S.commit(); emit('doc'); positionOverlays();
+      emit('toast', added.length < slots.length ? `Filled ${slots.length} slots — your ${added.length} repeat in order` : `Filled ${slots.length} photo slots`);
       return added;
     }
     const ids = [];
@@ -19442,8 +19659,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         add: () => start('loop', isPath && el.text ? 'flow' : el.type === 'text' ? 'sway' : 'float'), remove: () => setA('loop', 'none'),
         body: () => [
           row('Style', selectCtl(T, 'anim.loop', loops, { def: 'float', set: v => setA('loop', v) })),
-          row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })),
-          loop !== 'spin' && loop !== 'blink' && loop !== 'flow' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
+          loop === 'drift' ? h('p.hint', null, 'Glides steadily over the whole video — how far across and down it travels:') : null,
+          loop === 'drift' ? row('Across', num(T, 'anim.dx', { min: -4000, max: 4000, step: 10, slider: true, def: -300, unit: 'px', set: (v, l) => setA('dx', v, l) })) : null,
+          loop === 'drift' ? row('Down', num(T, 'anim.dy', { min: -4000, max: 4000, step: 10, slider: true, def: 0, unit: 'px', set: (v, l) => setA('dy', v, l) })) : null,
+          loop !== 'drift' ? row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })) : null,
+          loop !== 'spin' && loop !== 'blink' && loop !== 'flow' && loop !== 'drift' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
           more('motion-more', [
             loop === 'spin' || loop === 'flow' ? toggle(T, 'anim.reverse', 'Reverse direction') : null,
             toggle(T, 'anim.sync', 'Start in sync with other layers'),
@@ -19509,6 +19729,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       h('div.insp-head', null, h('h2', null, one === 'text' ? `${els.length} text layers` : `${els.length} layers`)),
       layerRow(),
       one === 'text' ? h('p.hint.multi-hint', null, 'Changes apply to all selected text.') : null,
+      one === 'image' ? sec('Photos', [full(h('button.btn.primary', { type: 'button', onclick: () => S.fillSlots(S.selEls()) }, ic('image'), `Replace these ${els.length} with your photos`))], true, { collapsible: false }) : null,
       ...shared,
       sec('Arrange', [
         alignGrid(),
@@ -19651,6 +19872,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       bg.assetId ? adjustSection(T, 'background.filters') : null,
       bg.assetId ? filmSection(T, 'background.filters') : null,
       bg.assetId ? blurSection(T, 'background.filters') : null,
+      S.photoSlots().length >= 2 ? sec('Photo slots', [
+        h('p.hint', null, `${S.photoSlots().length} photo slots. Pick several photos or videos at once — they go in in order.`),
+        full(h('button.btn.primary', { type: 'button', onclick: () => S.fillSlots() }, ic('image'), 'Fill photo slots')),
+      ], true, { key: 'photo-slots' }) : null,
       videoTextSection(),
       cameraSection(),
       addSec('Finish', [
@@ -19850,10 +20075,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     S.touchAll(); S.commit(); renderInspector();
     toast(`Using the background from “${t.name}”`);
   }
+  // a design started from a layout family is named after the family, not the orientation
+  const tplName = t => t.family ? `${t.family} · ${t.name}` : t.name;
   function replaceWithTemplate(t) {
     closeModal();
     templateFonts(t);
-    S.loadDoc(prepDoc(t.build()), null, { name: t.name });
+    S.loadDoc(prepDoc(t.build()), null, { name: tplName(t) });
     toast(`“${t.name}” loaded — make it yours`);
   }
   function useTemplate(t) {
@@ -19905,13 +20132,26 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     ];
   }
   let tplGroup = null;
+  // moving layouts come in every orientation; the one closest to your canvas goes first, and any other size can be built to fit
+  function orientationMembers(members, W, H) {
+    if (!members[0].layout) return members;
+    const ar = W / H, near = t => Math.abs(Math.log((t.width / t.height) / ar));
+    const sorted = members.slice().sort((a, b) => near(a) - near(b));
+    const exact = members.some(t => t.width === W && t.height === H);
+    if (!exact && window.STUDIO_LAYOUTS && window.STUDIO_LAYOUTS[members[0].layout]) {
+      const L = window.STUDIO_LAYOUTS[members[0].layout];
+      sorted.unshift({ id: `mv-${members[0].layout}-fit-${W}x${H}`, name: `Your canvas ${W} × ${H}`, family: members[0].family, layout: members[0].layout, width: W, height: H, video: true, tags: [], build: () => L.build(W, H) });
+    }
+    return sorted;
+  }
   function familyPanel(g, members) {
-    const grid = h('div.tpl-grid', null, members.map(t => templateCard(t, useTemplate, 260, { pieces: true })));
+    members = orientationMembers(members, S.doc.width, S.doc.height);
+    const grid = h('div.tpl-grid', null, members.map((t, i) => templateCard(t, useTemplate, 260, { pieces: !/-fit-/.test(t.id), label: members[0].layout && i === 0 ? (/-fit-/.test(t.id) ? 'Your canvas' : `${t.name} · fits`) : undefined })));
     return [
       panelHead('Templates'),
       h('button.back-link', { type: 'button', onclick: () => { tplGroup = null; renderPanel(); } }, ic('chevLeft'), 'All templates'),
       h('h2.drill-title', null, g),
-      h('p.hint', { style: { marginBottom: '12px' } }, members[0].video
+      members[0].layout ? h('p.hint', { style: { marginBottom: '12px' } }, 'Every orientation is here, the one that fits your canvas first. Resize the canvas later and the layout re-flows to the new shape, keeping your photos and videos.') : h('p.hint', { style: { marginBottom: '12px' } }, members[0].video
         ? `${members.length} styles, each with its own camera move. Hover to preview — after choosing, change the move under Camera on the right.`
         : `${members.length} styles — pick one, then make it yours.`),
       grid,
@@ -20696,7 +20936,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     S.fit(); updateTop(); renderInspector(); renderPanel();
   }
   function startBlank(w, hh, color) { S.newDoc(w, hh, color || '#ffffff', {}, { project: 'new' }); leaveHome(); }
-  function startTemplate(t) { templateFonts(t); S.loadDoc(prepDoc(t.build()), null, { name: t.name, project: 'new' }); leaveHome(); }
+  function startTemplate(t) { templateFonts(t); S.loadDoc(prepDoc(t.build()), null, { name: tplName(t), project: 'new' }); leaveHome(); }
   function startPhoto(files) {
     const opts = { startFromPhoto: true, newProject: true, onStart: () => { if (isHome()) leaveHome(); } };
     if (files) S.importFiles(files, opts); else S.pickImages(opts);

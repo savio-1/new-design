@@ -761,6 +761,7 @@
     const base = blankDoc(d.width || 1080, d.height || 1350, (d.background && d.background.color) || '#ffffff');
     doc = deepMerge(base, { ...d, elements: [] });
     doc.elements = (d.elements || []).map(normalize);
+    if (d.layout && !doc.elements.some(e => e.layoutSlot)) for (const e of doc.elements) if (e.type === 'image') e.layoutSlot = true;
     R.animDoc = doc;
     if (newAssets) Object.assign(assets, newAssets);
     for (const el of doc.elements) autosize(el, false);
@@ -785,6 +786,24 @@
     deepMerge(d, extra);
     S.loadDoc(d, null, Object.assign({ name: 'Untitled design' }, opts));
   };
+  // a moving layout rebuilt for the canvas it's on now; photos and videos already placed carry over in order
+  S.relayout = function () {
+    const L = doc.layout && window.STUDIO_LAYOUTS && window.STUDIO_LAYOUTS[doc.layout.key];
+    if (!L) return false;
+    const old = S.photoSlots(doc.elements.filter(e => e.type === 'image' && e.layoutSlot));
+    const fresh = L.build(doc.width, doc.height);
+    const imgs = fresh.elements.map((e, i) => {
+      const n = normalize(Object.assign({}, e, { layoutSlot: true }));
+      const o = old.length ? old[i % old.length] : null;
+      if (o) { n.assetId = o.assetId; n.video = o.video ? clone(o.video) : undefined; n.filters = clone(o.filters || n.filters); }
+      return n;
+    });
+    // anything the user added on top (text, stickers…) stays where it is
+    doc.elements = imgs.concat(doc.elements.filter(e => !e.layoutSlot));
+    if (fresh.camera) doc.camera = fresh.camera;
+    rebuild(); S.fit(); S.commit(); emit('doc'); emit('selection');
+    return true;
+  };
   S.resizeCanvas = function (w, h, scaleContent) {
     const sx = w / doc.width, sy = h / doc.height;
     if (scaleContent) {
@@ -799,6 +818,7 @@
       for (const el of doc.elements) { el.x += ox; el.y += oy; }
     }
     doc.width = w; doc.height = h;
+    if (doc.layout && S.relayout()) return;
     rebuild();
     S.fit();
     S.commit();
@@ -1990,6 +2010,13 @@
 
   const fileInput = $('#file-input');
   let pickOpts = {};
+  // photo slots in the order they appear in the video, then reading order
+  S.photoSlots = function (els) {
+    const when = e => ((e.time && e.time.start) || 0) + ((e.anim && e.anim.enter && e.anim.enter !== 'none' && e.anim.delay) || 0);
+    return (els || doc.elements).filter(e => e.type === 'image' && !e.locked && !e.hidden && e.name !== 'Film border')
+      .sort((a, b) => when(a) - when(b) || a.y - b.y || a.x - b.x);
+  };
+  S.fillSlots = function (els) { const slots = S.photoSlots(els); if (slots.length) S.pickImages({ fillIds: slots.map(e => e.id) }); };
   S.pickImages = function (opts = {}) { pickOpts = opts; fileInput.value = ''; fileInput.click(); };
   fileInput.addEventListener('change', () => { if (fileInput.files.length) S.importFiles([...fileInput.files], pickOpts); });
 
@@ -2086,6 +2113,21 @@
       if (added[0].video) { el.video = { trim: 0, speed: 1 }; fitDurationToVideo(added[0].duration); if (el.studio) el.studio.on = false; }
       redraw(); S.commit(); emit('doc'); positionOverlays();
       emit('replaced', el);
+      return added;
+    }
+    if (opts.fillIds && opts.fillIds.length) {
+      // many photo slots at once: files go in in order, and repeat if there are fewer files than slots
+      const slots = opts.fillIds.map(id => elMap.get(id)).filter(Boolean);
+      slots.forEach((el, i) => {
+        const a = added[i % added.length];
+        el.assetId = a.id; el.crop = { zoom: 1, x: 0.5, y: 0.5 };
+        if (a.video) el.video = { trim: 0, speed: 1 }; else delete el.video;
+        if (el.seq) el.seq = null;
+        if (el.studio) el.studio.on = false;
+        syncNode(el);
+      });
+      redraw(); S.commit(); emit('doc'); positionOverlays();
+      emit('toast', added.length < slots.length ? `Filled ${slots.length} slots — your ${added.length} repeat in order` : `Filled ${slots.length} photo slots`);
       return added;
     }
     const ids = [];

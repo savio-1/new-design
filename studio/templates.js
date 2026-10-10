@@ -1186,6 +1186,167 @@
       }));
     })(),
 
+    // ── LAYOUTS IN MOTION: photo & video layouts that move, each built for four orientations ──
+    ...(() => {
+      const SIZES = [['story', 1080, 1920, 'Story 9:16'], ['portrait', 1080, 1350, 'Portrait 4:5'], ['square', 1080, 1080, 'Square 1:1'], ['wide', 1920, 1080, 'Landscape 16:9']];
+      const POOL = ['film-golden', 'ed-curls', 'film-road', 'film-friends', 'ed-yellow', 'film-beach', 'film-neon', 'ed-smile', 'film-grass', 'film-picnic', 'ed-red', 'film-tram',
+        'film-lanterns', 'ed-stool', 'film-coast', 'film-window', 'ed-think', 'film-canyon', 'film-lamp', 'film-station', 'ed-suit', 'film-portrait', 'ed-youth', 'film-kiss'];
+      const asset = (i, seed = 0) => POOL[(i * 5 + seed) % POOL.length];
+      const slot = (i, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: asset(i, o && o.seed || 0), name: 'Photo or video ' + (i + 1), placeholder: ['#3a3632', '#1d1b18'] }, o || {}));
+      const rnd = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+      const soft = { on: true, color: '#000000', opacity: 0.35, blur: 24, x: 0, y: 12 };
+      const LAYOUTS = [
+        {
+          // rows of rounded, slightly bulging tiles gliding past like a wall of screens
+          key: 'wall', name: 'Scrolling wall', D: 8,
+          build(W, H) {
+            const rows = H > W * 1.5 ? 4 : H > W ? 3 : W > H ? 2 : 3, pad = Math.min(W, H) * 0.06, gap = Math.min(W, H) * 0.035;
+            const th = (H - pad * 2 - gap * (rows - 1)) / rows, travel = W * 0.45, els = [];
+            let n = 0;
+            for (let r = 0; r < rows; r++) {
+              let x = r % 2 ? -th * 0.45 : -gap;
+              while (x < W + travel + th) {
+                const tw = th * [0.95, 1.18, 0.82, 1.05][(n + r) % 4];
+                els.push(slot(n, x, pad + r * (th + gap), tw, th, { frame: { style: 'rounded', radius: th * 0.12, size: 0 }, filters: { fisheye: 22, contrast: 6 }, anim: { loop: 'drift', dx: -travel, dy: 0, sync: true } }));
+                x += tw + gap; n++;
+              }
+            }
+            return { background: { color: '#060606' }, overlay: { vignette: 45, grain: 10 }, elements: els };
+          },
+        },
+        {
+          // cards pop up one after another along a winding path; the oldest drop away as the trail moves on
+          key: 'trail', name: 'Card trail', D: 7,
+          build(W, H) {
+            const n = 16, s = Math.min(W, H) * (W > H ? 0.4 : 0.36), r = rnd(11), els = [];
+            for (let i = 0; i < n; i++) {
+              const u = i / (n - 1), land = r() < 0.5;
+              const w = land ? s * 1.3 : s * 0.82, h = land ? s * 0.9 : s * 1.1;
+              const cx = W >= H ? W * (0.16 + 0.68 * u) + Math.sin(u * Math.PI * 2.2) * W * 0.04 : W * (0.5 + 0.2 * Math.sin(u * Math.PI * 2.4));
+              const cy = W >= H ? H * (0.42 + 0.18 * Math.sin(u * Math.PI * 1.6 + 0.4)) : H * (0.18 + 0.64 * u);
+              const start = i * 0.32, last = i >= n - 4;
+              els.push(slot(i, cx - w / 2 + (r() - 0.5) * s * 0.3, cy - h / 2 + (r() - 0.5) * s * 0.3, w, h, { shadow: soft, time: { start, end: last ? null : start + 2.6 }, anim: { enter: 'pop', delay: start, speed: 1.6 } }));
+            }
+            return { background: { color: '#050505' }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // a grid that fills up one photo at a time, a few cells left dark
+          key: 'grid', name: 'Grid build', D: 6,
+          build(W, H) {
+            const cell = Math.min(W, H) / (W > H ? 3.1 : 3.6), gap = Math.min(W, H) * 0.012, pad = Math.min(W, H) * 0.05;
+            const cols = Math.max(2, Math.round((W - pad * 2) / cell)), rows = Math.max(2, Math.round((H - pad * 2) / cell));
+            const cw = (W - pad * 2 - gap * (cols - 1)) / cols, ch = (H - pad * 2 - gap * (rows - 1)) / rows;
+            const used = new Set(), r = rnd(5), tiles = [];
+            for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+              if (used.has(i + ',' + j)) continue;
+              let sw = 1, sh = 1;
+              if (r() < 0.28 && i + 1 < cols && !used.has((i + 1) + ',' + j)) sw = 2;
+              else if (r() < 0.25 && j + 1 < rows) sh = 2;
+              for (let a = 0; a < sw; a++) for (let b = 0; b < sh; b++) used.add((i + a) + ',' + (j + b));
+              if (r() < 0.14) continue;
+              tiles.push({ x: pad + i * (cw + gap), y: pad + j * (ch + gap), w: cw * sw + gap * (sw - 1), h: ch * sh + gap * (sh - 1) });
+            }
+            const order = tiles.map((t, k) => [r(), k]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+            const els = tiles.map((t, k) => { const d = order.indexOf(k) * (3.6 / tiles.length); return slot(k, t.x, t.y, t.w, t.h, { anim: { enter: 'fade', delay: d, speed: 3 }, time: { start: d } }); });
+            return { background: { color: '#000000' }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // prints tossed onto a pile, one after another
+          key: 'drop', name: 'Photo drop', D: 6,
+          build(W, H) {
+            const n = 8, ch = Math.min(H * 0.72, W * 0.66 * 1.35), cw = ch * 0.74, r = rnd(23), els = [];
+            for (let i = 0; i < n; i++) {
+              const d = 0.15 + i * 0.62, rot = (r() - 0.5) * 12;
+              els.push(slot(i, W / 2 - cw / 2 + (r() - 0.5) * cw * 0.12, H / 2 - ch / 2 + (r() - 0.5) * ch * 0.06, cw, ch, { rotation: rot,
+                frame: { style: 'border', color: '#fbfaf7', size: Math.round(cw * 0.035) }, shadow: { on: true, color: '#000000', opacity: 0.22, blur: 18, x: 0, y: 8 },
+                anim: { enter: 'land', delay: d, spin: i % 2 ? 16 : -16 }, time: { start: d } }));
+            }
+            return { background: { color: '#e9e8e4', texture: 20 }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // a fan of prints opens out from the middle, then the front ones land on top
+          key: 'fan', name: 'Fan stack', D: 6,
+          build(W, H) {
+            const wide = W > H, n = wide ? 7 : 5, ch = Math.min(H * (wide ? 0.62 : 0.5), W * 0.6), cw = ch * 0.72, spread = wide ? W * 0.11 : W * 0.13, els = [];
+            const mid = (n - 1) / 2;
+            for (let k = 0; k < n; k++) {
+              const off = k - mid, d = 0.2 + Math.abs(off) * 0.08 + (off === 0 ? 0 : 0);
+              els.push(slot(k, W / 2 - cw / 2 + off * spread, H / 2 - ch / 2 + Math.abs(off) * ch * 0.04, cw, ch, { rotation: off * (wide ? 5 : 7),
+                frame: { style: 'border', color: '#fbfaf7', size: Math.round(cw * 0.035) }, shadow: { on: true, color: '#000000', opacity: 0.2, blur: 16, x: 0, y: 8 },
+                anim: { enter: off < 0 ? 'left' : off > 0 ? 'right' : 'zoom', delay: d, speed: 1.4 } }));
+            }
+            // fan out from the centre: outer cards sit underneath
+            els.sort((a, b) => Math.abs(b.x - (W / 2 - cw / 2)) - Math.abs(a.x - (W / 2 - cw / 2)));
+            for (let i = 0; i < 3; i++) {
+              const d = 1.6 + i * 0.75;
+              els.push(slot(n + i, W / 2 - cw * 0.55, H / 2 - ch * 0.55, cw * 1.1, ch * 1.1, { rotation: [-4, 5, -1.5][i], frame: { style: 'border', color: '#fbfaf7', size: Math.round(cw * 0.04) },
+                shadow: { on: true, color: '#000000', opacity: 0.25, blur: 20, x: 0, y: 10 }, anim: { enter: 'land', delay: d, spin: i % 2 ? -14 : 14 }, time: { start: d } }));
+            }
+            return { background: { color: '#ebe9e3', texture: 20 }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+        {
+          // video strips of different widths glide past; a few split into stacked tiles. Tall canvases run in bands going up.
+          key: 'strips', name: 'Strip conveyor', D: 7,
+          build(W, H) {
+            const vertical = H > W * 1.2, along = vertical ? H : W, across = vertical ? W : H;
+            const margin = W >= H ? across * 0.12 : 0, gap = Math.max(4, across * 0.006), travel = along * 1.1, r = rnd(9), els = [];
+            let p = 0, n = 0;
+            while (p < along + travel) {
+              const len = along * (0.12 + r() * 0.16), split = r() < 0.22 ? (r() < 0.5 ? 2 : 3) : 1;
+              const span = across - margin * 2, piece = (span - gap * (split - 1)) / split;
+              for (let k = 0; k < split; k++) {
+                const a = margin + k * (piece + gap);
+                els.push(slot(n, vertical ? a : p, vertical ? p : a, vertical ? piece : len, vertical ? len : piece, { anim: { loop: 'drift', dx: vertical ? 0 : -travel, dy: vertical ? -travel : 0, sync: true } }));
+                n++;
+              }
+              p += len + gap;
+            }
+            return { background: { color: '#000000' }, overlay: { grain: 10 }, elements: els };
+          },
+        },
+        {
+          // a wall of photos fades in, then the camera pushes in to the one in the middle
+          key: 'zoom', name: 'Zoom wall', D: 6,
+          build(W, H) {
+            const cols = W > H ? 5 : 3, rows = H > W * 1.5 ? 5 : H > W ? 4 : 3, gap = Math.min(W, H) * 0.014;
+            const cw = (W - gap * (cols + 1)) / cols, ch = (H - gap * (rows + 1)) / rows, els = [], mid = [Math.floor(cols / 2), Math.floor(rows / 2)];
+            let k = 0;
+            for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+              const focus = i === mid[0] && j === mid[1], d = (Math.abs(i - mid[0]) + Math.abs(j - mid[1])) * 0.12;
+              els.push(slot(k++, gap + i * (cw + gap), gap + j * (ch + gap), cw, ch, Object.assign({ anim: { enter: 'fade', delay: d, speed: 2 } }, focus ? { key: 'focus', name: 'The photo the camera zooms to' } : {})));
+            }
+            return { background: { color: '#0a0a0a' }, overlay: { grain: 8, vignette: 25 }, camera: { move: 'pushin', target: 'focus', zoom: Math.min(cols, rows) * 0.92, start: 1.4, dur: 2.6, blur: 0.5 }, elements: els };
+          },
+        },
+        {
+          // panels slide in from alternating sides until the frame is full
+          key: 'panels', name: 'Slide-in panels', D: 5,
+          build(W, H) {
+            const wide = W > H * 1.2, tall = H > W * 1.2, gap = Math.min(W, H) * 0.012, els = [];
+            const cells = wide ? [[0, 0, 1 / 3, 1], [1 / 3, 0, 1 / 3, 1], [2 / 3, 0, 1 / 3, 1]]
+              : tall ? [[0, 0, 1, 1 / 3], [0, 1 / 3, 1, 1 / 3], [0, 2 / 3, 1, 1 / 3]]
+              : [[0, 0, 0.5, 0.55], [0.5, 0, 0.5, 0.55], [0, 0.55, 0.62, 0.45], [0.62, 0.55, 0.38, 0.45]];
+            cells.forEach(([x, y, w, h], i) => {
+              const dir = wide ? (i % 2 ? 'rise' : 'drop') : (i % 2 ? 'right' : 'left');
+              els.push(slot(i, x * W + gap / 2, y * H + gap / 2, w * W - gap, h * H - gap, { anim: { enter: dir, delay: 0.1 + i * 0.3, speed: 1.2, loop: 'float', amount: 0.12 } }));
+            });
+            return { background: { color: '#0a0a0a' }, overlay: { grain: 8 }, elements: els };
+          },
+        },
+      ];
+      // any size: the editor can re-flow a layout to the canvas it's on
+      const buildAt = (L, W, H) => Object.assign({ width: W, height: H, anim: { duration: L.D, fps: 30 }, layout: { key: L.key } }, L.build(W, H));
+      window.STUDIO_LAYOUTS = Object.fromEntries(LAYOUTS.map(L => [L.key, { name: L.name, build: (W, H) => buildAt(L, W, H) }]));
+      return LAYOUTS.flatMap(L => SIZES.map(([k, W, H, label]) => ({
+        id: `mv-${L.key}-${k}`, name: label, family: L.name, layout: L.key, orientation: k, tags: ['Video', 'Photo', 'Layout'], width: W, height: H, video: true,
+        build: () => buildAt(L, W, H),
+      })));
+    })(),
+
     // ── PHOTO EFFECTS: editorial poster treatments — halftone scribbles, shredded strips, mosaics, mirrors, censor blocks ──
     ...(() => {
       const P = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'ed-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
@@ -2237,6 +2398,7 @@
 
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
+    'Scrolling wall': [], 'Card trail': [], 'Grid build': [], 'Photo drop': [], 'Fan stack': [], 'Strip conveyor': [], 'Zoom wall': [], 'Slide-in panels': [],
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
     'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper'],
     'Paper & ID': ['pid-mugshot', 'pid-inquiry', 'pid-badge', 'pid-portrait', 'pid-certificate', 'pid-record', 'pid-pass', 'pid-application', 'pid-aboutme', 'pid-profile'],
@@ -2264,6 +2426,8 @@
     'Notebook tip': ['tip-green', 'tip-pink', 'tip-lilac'],
     'Outfit line-up': ['zapato', 'jacket-mood', 'what-we-wore'],
   };
+  // families made by a layout generator list themselves (one member per orientation)
+  for (const t of TEMPLATES) if (t.family && GROUPS[t.family]) GROUPS[t.family].push(t.id);
   const ORDER = ['every-shade', ...Object.values(GROUPS).flat()];
   for (const [g, ids] of Object.entries(GROUPS)) for (const id of ids) { const t = TEMPLATES.find(x => x.id === id); if (t) t.group = g; }
   const rank = t => ORDER.includes(t.id) ? ORDER.indexOf(t.id) : 1000;

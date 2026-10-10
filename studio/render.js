@@ -3206,10 +3206,10 @@
   R.animDoc = null;
   R.ANIM_LOOPS = {
     none: 'None', wiggle: 'Stop-motion wiggle', float: 'Float', jiggle: 'Jiggle', sway: 'Sway', swing: 'Swing',
-    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink', flow: 'Text flow (paths)',
+    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink', drift: 'Drift across', flow: 'Text flow (paths)',
   };
   R.ANIM_ENTER = {
-    none: 'None', pop: 'Pop in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
+    none: 'None', pop: 'Pop in', land: 'Toss in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
     right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
     slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', lettersBounce: 'Letters bounce in',
     captions: 'Captions (line by line)', roll: 'Roll through lines', words: 'Word by word',
@@ -3248,7 +3248,11 @@
     const loop = an.loop || 'none';
     if (loop !== 'none') {
       const phase = an.sync ? 0 : (hashStr(el.id || 'a') % 1000) / 1000;
-      if (loop === 'wiggle') {
+      if (loop === 'drift') {
+        // a steady glide across the whole video (scrolling walls, conveyor strips)
+        const k = tl / D;
+        st.dx = (an.dx ?? -300) * k * amt; st.dy = (an.dy ?? 0) * k * amt;
+      } else if (loop === 'wiggle') {
         const N = Math.max(1, Math.round(D * 8 * spd));
         const k = Math.floor(tl / D * N) % N;
         const r = rng(hashStr(el.id || 'w') + k * 7919);
@@ -3290,6 +3294,13 @@
         case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
         case 'roll': case 'words': if (el.type === 'text') st.seq = seqState(el, tl - (an.delay || 0), spd, enter, an.accel); break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
+        case 'land': {
+          // tossed onto a pile: comes in big and turned, settles flat with a little bounce
+          const q = clamp((tl - (an.delay || 0)) / (0.45 / spd), 0, 1), k = easeOut(q);
+          st.sc *= 1 + (1 - k) * 0.5 + Math.sin(Math.min(1, q * 1.2) * Math.PI) * 0.015; st.rot += (1 - k) * (an.spin ?? 14); st.alpha *= Math.min(1, q * 4);
+          st.dy -= (1 - k) * m * 0.08;
+          break;
+        }
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
         case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p; break;
         case 'wipe': st.reveal = e; break;
