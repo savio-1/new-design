@@ -19,6 +19,14 @@ Open `studio/index.html` in a browser, or serve the folder with any static serve
 
 Work is autosaved to the browser (IndexedDB). Use **Menu → Download project file** to keep a portable `.studio.json`.
 
+## Use it on another computer
+
+1. **Get the app**: copy `studio/dist/collage-studio.html` (one file, about 2.4 MB) to the other laptop — USB stick, email, Drive, AirDrop, anything. Double-click it; it opens in Chrome, Edge, Brave or Arc (Safari and Firefox mostly work, but video export and background removal are best in Chrome/Edge). Keep it in the same folder so the browser keeps its saved designs together.
+2. **Move your designs**: designs are saved inside the browser, so they don't travel with the HTML file. On the home page use a design's **⋯ → Download project file** (a `.studio.json` with its photos, videos and uploaded fonts inside), copy that file across, then on the other laptop click **Open file** on the home page. It lands in *Your designs* there.
+3. **Internet**: needed for fonts, the canvas library and video export the first time they load, and for background removal (a one-off ~40 MB model download). Everything else, including your photos, works from the file.
+
+To refresh the file after changing the code: `python3 studio/tools/build_single_file.py`.
+
 ## Home page and your designs
 
 The app opens on a home page:
