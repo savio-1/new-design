@@ -1132,6 +1132,13 @@
     ];
   }
 
+  // take the photo or video off the canvas background (undo brings it back)
+  function removeBgPhoto() {
+    const vid = R.isVideoAsset(S.doc.background.assetId);
+    S.change('doc', 'background.assetId', null);
+    renderInspector(); renderPanel();
+    toast(vid ? 'Background video removed' : 'Background photo removed', { label: 'Undo', run: () => { S.undo(); renderInspector(); renderPanel(); } });
+  }
   // the photo or video an overlay plays over: the nearest big photo layer below it, else the canvas background
   function baseUnder(el) {
     const els = S.doc.elements, i = els.findIndex(e => e.id === el.id), area = S.doc.width * S.doc.height;
@@ -1152,7 +1159,8 @@
           h('small', null, id ? (base && /^demo-/.test(id) ? 'Swap in your own photo or video' : 'Plays under the flashes') : 'It plays under the flashes'))),
       full(h('div.btn-row', null,
         h('button.btn.primary.grow', { type: 'button', onclick: replace }, ic('replace'), id ? 'Replace photo or video' : 'Add photo or video'),
-        base ? h('button.btn', { type: 'button', title: 'Select it to crop, filter or trim', onclick: () => S.select([base.id]) }, ic('cursor'), 'Edit') : null)),
+        base ? h('button.btn', { type: 'button', title: 'Select it to crop, filter or trim', onclick: () => S.select([base.id]) }, ic('cursor'), 'Edit') : null,
+        !base && bgId ? h('button.btn', { type: 'button', title: 'Remove the background photo', 'aria-label': 'Remove the background photo', onclick: removeBgPhoto }, ic('trash')) : null)),
     ], true, { collapsible: false });
   }
   function flashesInspector(el) {
@@ -1572,7 +1580,8 @@
         row('Colour', colorCtl(T, 'background.color')),
         full(h('div.btn-row', null,
           h('button.btn.grow', { type: 'button', onclick: () => setTab('background') }, ic('palette'), 'Backgrounds'),
-          h('button.btn.grow', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), bg.assetId ? 'Replace photo' : 'Photo'))),
+          h('button.btn.grow', { type: 'button', title: 'Photos and videos both work', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), bg.assetId ? 'Replace' : 'Photo'),
+          bg.assetId ? h('button.btn', { type: 'button', title: 'Remove the background photo', 'aria-label': 'Remove the background photo', onclick: removeBgPhoto }, ic('trash')) : null)),
         more('canvas-grad', [
           row('Gradient', selectCtl(T, 'background.gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'background.gradient', v); renderInspector(); } })),
           grad ? row('To', colorCtl(T, 'background.color2')) : null,
@@ -1585,7 +1594,7 @@
           h('button.btn.grow', { type: 'button', onclick: () => { S.change(T, 'background.scene', Object.assign({}, bg.scene, { seed: Math.floor(Math.random() * 1e5) })); } }, ic('shuffle'), 'Shuffle'),
           h('button.btn', { type: 'button', onclick: () => { S.change(T, 'background.scene', null); renderInspector(); } }, ic('trash'), 'Remove'))),
       ], true) : null,
-      bg.assetId ? sec('Background photo', [
+      bg.assetId ? sec(R.isVideoAsset(bg.assetId) ? 'Background video' : 'Background photo', [
         full(h('button.btn.primary', { type: 'button', disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
         full(filterThumbs(null, 'doc')),
         blurSection(T, 'background.filters'),
@@ -1595,8 +1604,10 @@
           row('Pan X', num(T, 'background.crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           row('Pan Y', num(T, 'background.crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           ...filterSliders(T, 'background.filters'),
-          full(h('button.btn', { type: 'button', onclick: () => { S.change(T, 'background.assetId', null); renderInspector(); } }, ic('trash'), 'Remove photo')),
         ], 'Adjust photo'),
+        full(h('div.btn-row', null,
+          h('button.btn.grow', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('replace'), 'Replace'),
+          h('button.btn.grow.danger', { type: 'button', onclick: removeBgPhoto }, ic('trash'), R.isVideoAsset(bg.assetId) ? 'Remove video' : 'Remove photo'))),
       ], true) : null,
       videoTextSection(),
       cameraSection(),
@@ -2201,7 +2212,11 @@
       h('div.shelf', null, h('div.shelf-head', null, h('h3', null, 'Colour')), sw),
       h('div.shelf', null, h('div.shelf-head', null, h('h3', null, 'Gradient')), grads),
       ...order.filter(g => groups.has(g)).map(g => shelf(g, groups.get(g).map(item), { grid: 'tpl-grid.bg-grid', limit: 4 })),
-      h('button.list-btn', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), 'Use a photo as the background'),
+      S.doc.background.assetId
+        ? h('div.btn-row.bg-photo-row', null,
+          h('button.list-btn.grow', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), 'Replace photo'),
+          h('button.list-btn.danger', { type: 'button', title: 'Remove the background photo', onclick: removeBgPhoto }, ic('trash'), 'Remove'))
+        : h('button.list-btn', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), 'Use a photo or video as the background'),
     ];
   }
 
