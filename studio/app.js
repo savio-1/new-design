@@ -152,7 +152,7 @@
     switch (el.type) {
       case 'text': return (el.text || 'Text').split('\n')[0].slice(0, 28) || 'Text';
       case 'sticker': { const d = R.stickerDef(el.stickerId); return d ? d.name : 'Sticker'; }
-      case 'image': return el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo placeholder';
+      case 'image': return R.isSeq(el) ? `Stop motion · ${el.seq.ids.length} photos` : el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo placeholder';
       case 'shape': return (R.SHAPES[el.shape] || {}).label || 'Shape';
       case 'calendar': return R.MONTHS[el.month] + ' calendar';
       case 'badge': return 'Badge · ' + (el.ringText || '').slice(0, 16);
@@ -538,6 +538,7 @@
       if (el.studio && el.studio.cutId) ids.add(el.studio.cutId);
       if (el.bgRemoved && el.bgRemoved.assetId) ids.add(el.bgRemoved.assetId);
       if (el.type === 'flashes') for (const a of el.images || []) ids.add(a);
+      if (el.seq && el.seq.ids) for (const a of el.seq.ids) ids.add(a);
     }
     for (const id of S.uploads) ids.add(id);
     const out = {};
@@ -1635,7 +1636,7 @@
     if (!img) return null;
     const g = R.frameGeometry(el);
     const { w: iw, h: ih } = R.mediaSize(img), r = g.rect;
-    const sc = Math.max(r.w / iw, r.h / ih) * (el.crop.zoom || 1);
+    const sc = (el.crop.fit ? Math.min : Math.max)(r.w / iw, r.h / ih) * (el.crop.zoom || 1);
     return { ox: iw * sc - r.w, oy: ih * sc - r.h };
   }
   function cropDragStart(evt) {

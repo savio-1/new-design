@@ -1186,6 +1186,45 @@
       }));
     })(),
 
+    // ── VIDEO: stop motion — a handful of photos played frame by frame ──
+    ...[
+      { id: 'stop-classic', name: 'Stop motion', frames: ['run1', 'run2', 'run3', 'run4', 'run5', 'run6'], fps: 6, jitter: 45 },
+      { id: 'stop-polaroid', name: 'Polaroid flip-book', frames: ['rise1', 'rise2', 'rise3', 'play1', 'play3'], fps: 4, jitter: 70 },
+      { id: 'stop-reel', name: 'Film reel', frames: ['drive1', 'drive2', 'drive3', 'drive4', 'drive5', 'drive6'], fps: 8, jitter: 30 },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Photo'], width: 1080, height: 1350, video: true,
+      build: () => {
+        const seq = { ids: v.frames.map(k => 'img-' + k), fps: v.fps, mode: 'loop', jitter: v.jitter, still: 0 };
+        const frames = { assetId: seq.ids[0], seq, placeholder: ['#d8d2c4', '#a89f8c'], name: 'Stop motion — choose your photos' };
+        const dur = Math.round(v.frames.length / v.fps * 2 * 10) / 10;
+        if (v.id === 'stop-classic') return {
+          width: 1080, height: 1350, background: { color: '#111111' }, overlay: { grain: 40, vignette: 30 }, anim: { duration: dur, fps: 30 },
+          elements: [
+            img(0, 0, 1080, 1350, Object.assign({ filters: { contrast: 10, fade: 8, warmth: 8 } }, frames)),
+            txt('frame by frame', { x: 60, y: 1240, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 30, letterSpacing: 0.06, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.5, blur: 8, x: 0, y: 2 } }),
+            txt('● REC', { x: 60, y: 60, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 28, fill: '#ff3b30', anim: { loop: 'blink', speed: 1 } }),
+          ],
+        };
+        if (v.id === 'stop-polaroid') return {
+          width: 1080, height: 1350, background: { color: '#ece4d4', texture: 45 }, overlay: { grain: 25 }, anim: { duration: dur, fps: 30 },
+          elements: [
+            img(150, 190, 780, 940, Object.assign({ rotation: -3, frame: { style: 'polaroid', color: '#fbf8f1', size: 38, bottom: 4.2 }, filters: { fade: 12, warmth: 12, contrast: 6 }, shadow: { on: true, color: '#000000', opacity: 0.25, blur: 30, x: 0, y: 16 } }, frames)),
+            txt('summer ’26', { cx: 530, cy: 1035, fontFamily: 'Caveat', fontWeight: 600, fontSize: 84, fill: '#2a2a2a', rotation: -3 }),
+            stk('tape-masking', 420, 150, 240, 80, { rotation: -6, name: 'Tape' }),
+          ],
+        };
+        return {
+          width: 1080, height: 1350, background: { color: '#0b0b0b' }, overlay: { grain: 45 }, anim: { duration: dur, fps: 30 },
+          elements: [
+            img(40, 230, 1000, 760, Object.assign({ frame: { style: 'gate', color: '#0b0b0b', size: 34, soft: 45 }, filters: { halation: 45, warmth: 10, fade: 10, contrast: 8 } }, frames)),
+            txt('REEL 01', { x: 60, y: 110, align: 'left', fontFamily: 'VT323', fontSize: 64, fill: '#f2e7c9' }),
+            txt('▶ 00:00:0' + Math.round(dur) + ':00', { x: 60, y: 1080, align: 'left', fontFamily: 'VT323', fontSize: 48, fill: '#f2e7c9', anim: { loop: 'blink', speed: 0.8 } }),
+            txt('shot frame by frame', { x: 60, y: 1150, align: 'left', fontFamily: 'Instrument Serif', italic: true, fontSize: 56, fill: '#f2e7c9' }),
+          ],
+        };
+      },
+    })),
+
     // ── VIDEO: speed flashes — motion-blurred action shots cut fast over your own photo or video ──
     ...[
       {
@@ -1702,6 +1741,7 @@
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
+    'Stop motion': ['stop-classic', 'stop-polaroid', 'stop-reel'],
     'Speed flashes': ['flash-mindset', 'flash-grind', 'flash-race', 'flash-premium'],
     'Studio portrait': ['studio-stat', 'studio-circle', 'studio-rhythm', 'studio-data'],
     'Newspaper reveal': ['news-pullback', 'news-crash', 'news-snap', 'news-cuts', 'news-push'],

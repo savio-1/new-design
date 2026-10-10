@@ -90,10 +90,11 @@
     vd = vd || {};
     const dur = v && v.duration;
     if (!dur || !isFinite(dur)) return 0;
-    const ts = clamp(vd.trim || 0, 0, Math.max(0, dur - 0.05)), len = Math.max(0.05, dur - ts);
+    const end = vd.end > 0 ? Math.min(dur, vd.end) : dur;
+    const ts = clamp(vd.trim || 0, 0, Math.max(0, end - 0.05)), len = Math.max(0.05, end - ts);
     if (t == null) return Math.min(dur - 0.02, ts + (vd.poster || 0));
     const lt = Math.max(0, t - (start || 0)) * (vd.speed || 1);
-    return Math.min(dur - 0.02, ts + (vd.loop === false ? Math.min(lt, len - 0.02) : lt % len));
+    return Math.min(end - 0.02, ts + (vd.loop === false ? Math.min(lt, len - 0.02) : lt % len));
   };
   // every place a video is shown: image layers and the canvas background
   function videoUsers(doc) {
@@ -1857,7 +1858,7 @@
     const img = assetImage(el.assetId);
     if (!img) return null;
     const r = frameGeometry(el).rect, iw = iwOf(img), ih = ihOf(img), c = el.crop || {};
-    const sc = Math.max(r.w / iw, r.h / ih) * (c.zoom || 1), dw = iw * sc, dh = ih * sc;
+    const sc = (c.fit ? Math.min : Math.max)(r.w / iw, r.h / ih) * (c.zoom || 1), dw = iw * sc, dh = ih * sc;
     const dx = r.x + (r.w - dw) * (c.x ?? 0.5), dy = r.y + (r.h - dh) * (c.y ?? 0.5);
     const fx = u => el.flipX ? 1 - u : u, fy = v => el.flipY ? 1 - v : v;
     return {
@@ -1888,7 +1889,7 @@
     const iw = iwOf(src), ih = ihOf(src);
     if (!iw || !ih) return;
     const c = el.crop || {};
-    const sc = Math.max(r.w / iw, r.h / ih) * (c.zoom || 1);
+    const sc = (c.fit ? Math.min : Math.max)(r.w / iw, r.h / ih) * (c.zoom || 1);
     const dw = iw * sc, dh = ih * sc;
     const fx = c.x ?? 0.5, fy = c.y ?? 0.5;
     const dx = r.x + (r.w - dw) * fx, dy = r.y + (r.h - dh) * fy;
@@ -2041,7 +2042,35 @@
     ctx.restore();
   }
 
+  /* ── stop motion: an image layer can hold a sequence of photos played frame by frame ──
+     el.seq = { ids: [assetId…], fps, mode: 'loop'|'bounce'|'once', jitter, still } */
+  function seqFrame(el, t) {
+    const sq = el.seq, n = sq.ids.length;
+    if (t == null) return { k: clamp(sq.still || 0, 0, n - 1), i: clamp(sq.still || 0, 0, n - 1) };
+    const k = Math.max(0, Math.floor((t - ((el.time && el.time.start) || 0)) * clamp(sq.fps || 8, 1, 30) + 1e-6));
+    let i;
+    if (sq.mode === 'once') i = Math.min(k, n - 1);
+    else if (sq.mode === 'bounce' && n > 1) { const p = 2 * n - 2, m = k % p; i = m < n ? m : p - m; }
+    else i = k % n;
+    return { k, i };
+  }
+  R.isSeq = el => !!(el && el.type === 'image' && el.seq && el.seq.ids && el.seq.ids.length > 1);
+  R.seqFrame = seqFrame;
   function drawImageEl(ctx, el, env) {
+    if (el.seq && el.seq.ids && el.seq.ids.length) {
+      const t = 'time' in env ? env.time : R.playTime;
+      const { k, i } = seqFrame(el, t);
+      const id = el.seq.ids[i];
+      const j = (el.seq.jitter ?? 35) / 100;
+      // hand-made wobble: every frame sits a touch off, like each was placed by hand
+      if (t != null && j > 0 && el.seq.ids.length > 1) {
+        const r = rng(hashStr(el.id || 'seq') + k * 7919), m = Math.min(el.width, el.height);
+        ctx.translate(el.width / 2 + (r() - 0.5) * m * 0.02 * j, el.height / 2 + (r() - 0.5) * m * 0.02 * j);
+        ctx.rotate((r() - 0.5) * 1.6 * j * Math.PI / 180);
+        ctx.translate(-el.width / 2, -el.height / 2);
+      }
+      if (id && id !== el.assetId) el = Object.assign({}, el, { assetId: id });
+    }
     const g = frameGeometry(el);
     const f = el.frame || {};
     if (el.studio && el.studio.on) {
@@ -2656,7 +2685,7 @@
     return out;
   }
   R.flashSources = flashSources;
-  R.isTimeVarying = el => el.type === 'flashes' || (el.type === 'image' && R.isVideoAsset(el.assetId));
+  R.isTimeVarying = el => el.type === 'flashes' || R.isSeq(el) || (el.type === 'image' && R.isVideoAsset(el.assetId));
   const permCache = new Map();
   function flashPerm(seed, n) {
     const key = seed + ':' + n;
@@ -2782,7 +2811,7 @@
     if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
     return n * (p -= 2.625 / d) * p + 0.984375;
   };
-  R.hasAnim = el => el.type === 'flashes' || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
+  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
   R.hasTiming = el => !!(el.time && ((el.time.start || 0) > 0 || el.time.end != null || (el.time.cycle && el.time.cycle.count > 1)));
   // cuts: a layer can be shown only for part of the video, or take turns with others
   R.visibleAt = function (el, t) {
@@ -3247,6 +3276,7 @@
     if (doc.background && doc.background.assetId) ids.add(doc.background.assetId);
     for (const el of doc.elements || []) {
       if (el.type === 'image' && el.assetId) ids.add(el.assetId);
+      if (el.type === 'image' && el.seq && el.seq.ids) for (const a of el.seq.ids) ids.add(a);
       if (el.type === 'image' && el.studio && el.studio.cutId) ids.add(el.studio.cutId);
       if (el.type === 'flashes') for (const it of flashSources(el)) jobs.push(loadImage(it.src, imgCache, it.key).promise);
       if (el.type === 'sticker') { const svg = stickerSvg(el); if (svg) jobs.push(loadImage(R.svgDataUrl(svg), svgCache, svg).promise); }

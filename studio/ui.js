@@ -519,7 +519,7 @@
   S.renderInspector = renderInspector;
   function typeLabel(el) {
     if (el.type === 'nature' || el.type === 'camera' || el.type === 'ribbon') return S.elLabel(el).replace(/ · .*/, '');
-    return { text: 'Text', image: el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo frame', flashes: 'Speed flashes', sticker: 'Sticker', shape: el.shape === 'line' ? 'Line' : 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
+    return { text: 'Text', image: el.seq && el.seq.ids && el.seq.ids.length > 1 ? 'Stop motion' : el.assetId ? (R.isVideoAsset(el.assetId) ? 'Video' : 'Photo') : 'Photo frame', flashes: 'Speed flashes', sticker: 'Sticker', shape: el.shape === 'line' ? 'Line' : 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
   }
   function inspHead(el) {
     return h('div.insp-head', null,
@@ -839,9 +839,73 @@
     const T = 'sel', ve = R.assetVideo(el.assetId), dur = ve && ve.v && isFinite(ve.v.duration) ? ve.v.duration : 0;
     return sec('Playback', [
       dur ? row('Start at', num(T, 'video.trim', { min: 0, max: Math.max(0.1, Math.floor((dur - 0.2) * 10) / 10), step: 0.1, slider: true, unit: 's', def: 0 })) : null,
+      dur ? row('End at', num(T, 'video.end', { min: 0.2, max: Math.round(dur * 10) / 10, step: 0.1, slider: true, unit: 's', get: () => { const v = S.selEls()[0].video || {}; return v.end > 0 ? v.end : Math.round(dur * 10) / 10; } })) : null,
+      full(h('div.btn-row', null,
+        h('button.btn.grow', { type: 'button', title: 'Drag to choose which part of the video shows; scroll to zoom', onclick: () => S.startCrop(el.id) }, ic('crop'), 'Crop & position'),
+        h('button.btn.grow', { type: 'button', onclick: () => { const v = S.selEls()[0].video || {}; const len = ((v.end > 0 ? v.end : dur) - (v.trim || 0)) / (v.speed || 1); S.change('doc', 'anim.duration', Math.min(30, Math.max(1, Math.round(len * 10) / 10))); updateTimeline(); toast(`Design length set to ${S.doc.anim.duration}s`); } }, ic('film'), 'Fit length to clip'))),
       row('Speed', seg(T, 'video.speed', [[0.5, '0.5×'], [1, '1×'], [1.5, '1.5×'], [2, '2×']], { get: () => (S.selEls()[0].video || {}).speed || 1 })),
       toggle(T, 'video.loop', 'Loop when it ends', { get: () => (S.selEls()[0].video || {}).loop !== false }),
       h('p.hint', null, `${dur ? dur.toFixed(1) + 's clip · ' : ''}plays muted and exports without sound. Press play to preview it with your design.`),
+    ], true, { collapsible: false });
+  }
+  // stop motion: photos picked here become the frames, in the order they were chosen (file name order)
+  function pickFrames(el, replace) {
+    S.pickImages({ uploadOnly: true, imagesOnly: true, onAdded: added => {
+      const cur = S.doc.elements.find(e => e.id === el.id);
+      if (!cur) return;
+      const ids = added.filter(a => !a.video).map(a => a.id);
+      if (!ids.length) return;
+      S.changeEl(cur, e => {
+        const prev = replace ? [] : ((e.seq && e.seq.ids) || (e.assetId ? [e.assetId] : []));
+        e.seq = Object.assign({ fps: 6, mode: 'loop', jitter: 35, still: 0 }, e.seq || {}, { ids: [...prev, ...ids] });
+        e.assetId = e.seq.ids[0];
+      });
+      fitLengthToFrames(cur);
+      renderInspector();
+      toast(`${ids.length} photo${ids.length > 1 ? 's' : ''} added — press play to watch`);
+    } });
+  }
+  function makeStopMotion(el) {
+    S.changeEl(el, e => { e.seq = { ids: [e.assetId], fps: 6, mode: 'loop', jitter: 35, still: 0 }; });
+    renderInspector();
+    pickFrames(el, false);
+  }
+  // one pass through the frames (twice for short sequences) sets the video length, within 30 s
+  function fitLengthToFrames(el, force) {
+    const sq = el.seq, n = sq.ids.length;
+    const pass = (sq.mode === 'bounce' ? 2 * n - 2 : n) / clamp(sq.fps || 6, 1, 30);
+    const want = Math.min(30, Math.max(2, Math.round((pass < 2 ? pass * 2 : pass) * 10) / 10));
+    if (force || S.doc.anim.duration < want) { S.change('doc', 'anim.duration', want); updateTimeline(); }
+  }
+  function stopMotionSection(el) {
+    const T = 'sel', sq = el.seq, ids = sq.ids.filter(id => S.assets[id]);
+    const setIds = list => { S.changeEl(S.selEls()[0], e => { e.seq = Object.assign({}, e.seq, { ids: list }); e.assetId = list[0]; }); renderInspector(); };
+    const move = (i, d) => { const l = ids.slice(), j = i + d; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; setIds(l); };
+    const strip = h('div.seq-strip', null,
+      ids.map((id, i) => h('div.seq-frame', { title: `Frame ${i + 1}` },
+        h('span.seq-img', { style: { backgroundImage: `url(${S.assets[id]})` } }), h('b', null, i + 1),
+        h('div.seq-tools', null,
+          i > 0 ? h('button', { type: 'button', title: 'Move earlier', onclick: () => move(i, -1) }, ic('chevLeft')) : null,
+          ids.length > 1 ? h('button', { type: 'button', title: 'Remove this frame', onclick: () => setIds(ids.filter((_, j) => j !== i)) }, ic('x')) : null,
+          i < ids.length - 1 ? h('button', { type: 'button', title: 'Move later', onclick: () => move(i, 1) }, ic('chevRight')) : null))),
+      h('button.seq-add', { type: 'button', title: 'Add more photos', onclick: () => pickFrames(el, false) }, ic('plus')));
+    const secs = (ids.length / (sq.fps || 6)).toFixed(1);
+    return sec('Stop motion', [
+      full(h('div.btn-row', null,
+        h('button.btn.primary.grow', { type: 'button', title: 'Pick all your photos at once — they play in file-name order', onclick: () => pickFrames(el, true) }, ic('image'), 'Choose photos'),
+        h('button.btn', { type: 'button', title: 'Add more photos to the end', onclick: () => pickFrames(el, false) }, ic('plus'), 'Add'),
+        h('button.btn', { type: 'button', title: 'Crop all frames the same way', onclick: () => S.startCrop(el.id) }, ic('crop')))),
+      h('div.sub-label', null, `${ids.length} frame${ids.length === 1 ? '' : 's'} · ${secs}s per pass`),
+      full(strip),
+      row('Speed', num(T, 'seq.fps', { min: 1, max: 24, slider: true, unit: 'fps', def: 6, set: (v, live) => { S.change(T, 'seq.fps', v, live); if (!live) renderInspector(); } })),
+      full(seg(T, 'seq.mode', [['loop', 'Loop'], ['bounce', 'Back & forth'], ['once', 'Play once']], { get: () => S.selEls()[0].seq.mode || 'loop' })),
+      row('Jiggle', num(T, 'seq.jitter', { min: 0, max: 100, slider: true, def: 35 })),
+      more('seq-more', [
+        row('Still shows', num(T, 'seq.still', { min: 0, max: Math.max(0, ids.length - 1), step: 1, slider: true, def: 0 })),
+        full(h('button.btn', { type: 'button', onclick: () => { fitLengthToFrames(S.selEls()[0], true); toast(`Video length set to ${S.doc.anim.duration}s`); } }, ic('film'), 'Fit video length to the frames')),
+        full(h('button.btn', { type: 'button', onclick: () => { S.changeEl(S.selEls()[0], e => { e.assetId = e.seq.ids[0]; delete e.seq; }); renderInspector(); } }, ic('undo'), 'Back to a single photo')),
+      ], 'More'),
+      h('p.hint', null, 'Tip: pick all your photos in one go — they play in the order of their file names. Jiggle shifts each frame a hair, like it was placed by hand.'),
     ], true, { collapsible: false });
   }
   function imageInspector(el) {
@@ -850,6 +914,7 @@
     const bordered = BORDER_FRAMES.includes(fs);
     const allFrames = !!moreOpen.get('frames-all');
     const isVid = R.isVideoAsset(el.assetId);
+    if (el.seq && el.seq.ids && el.seq.ids.length) return [stopMotionSection(el), ...imageLookSections(el)];
     return [
       sec(isVid ? 'Video' : 'Photo', [
         full(h('div.btn-row', null,
@@ -861,6 +926,7 @@
           row('Zoom', num(T, 'crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
           row('Pan X', num(T, 'crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           row('Pan Y', num(T, 'crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          toggle(T, 'crop.fit', isVid ? 'Show the whole video (fit)' : 'Show the whole photo (fit)'),
           full(h('button.btn', { type: 'button', onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'Use as canvas background')),
         ], 'Zoom & position') : null,
         (() => {
@@ -868,8 +934,18 @@
           const fl = els.slice(i + 1).find(e => e.type === 'flashes' && baseUnder(e) === el);
           return fl ? full(h('button.link-btn.flash-link', { type: 'button', onclick: () => S.select([fl.id]) }, ic('film'), 'Edit the speed flashes on top')) : null;
         })(),
+        el.assetId && !isVid ? full(h('button.link-btn.flash-link', { type: 'button', title: 'Add more photos to this layer and play them frame by frame', onclick: () => makeStopMotion(el) }, ic('film'), 'Make it a stop motion')) : null,
       ], true, { collapsible: false }),
       isVid ? videoSection(el) : studioSection(el),
+      ...imageLookSections(el),
+    ];
+  }
+  function imageLookSections(el) {
+    const T = 'sel';
+    const fs = el.frame.style || 'none';
+    const bordered = BORDER_FRAMES.includes(fs);
+    const allFrames = !!moreOpen.get('frames-all');
+    return [
       el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
       blurSection(T, 'filters'),
       sec('Frame', [
@@ -2688,7 +2764,7 @@
         h('div.start-art', null, h('div.start-ratio', { style: { width: w * sc + 'px', height: hh * sc + 'px' } })), h('b', null, n), h('small', null, `${w} × ${hh}`));
     };
     const photoCard = h('button.start-card.photo', { type: 'button', onclick: () => startPhoto() },
-      h('div.start-art', null, ic('image')), h('b', null, 'From a photo'), h('small', null, 'Click or drop one here'));
+      h('div.start-art', null, ic('image')), h('b', null, 'From a photo or video'), h('small', null, 'Click or drop one here'));
     photoCard.addEventListener('dragover', e => { e.preventDefault(); photoCard.classList.add('over'); });
     photoCard.addEventListener('dragleave', () => photoCard.classList.remove('over'));
     photoCard.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); photoCard.classList.remove('over'); startPhoto([...e.dataTransfer.files]); });
