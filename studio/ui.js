@@ -1866,7 +1866,7 @@
       h('h2.drill-title', null, g),
       h('p.hint', { style: { marginBottom: '12px' } }, members[0].video
         ? `${members.length} styles, each with its own camera move. Hover to preview — after choosing, change the move under Camera on the right.`
-        : `${members.length} variations of the same idea. Pick one, then make it yours.`),
+        : `${members.length} styles — pick one, then make it yours.`),
       grid,
     ];
   }
@@ -2571,7 +2571,7 @@
   function familyModal(g, members) {
     const box = modal([
       h('h1', null, g),
-      h('p.lead', null, members[0].video ? `${members.length} styles — hover one to preview its motion.` : `${members.length} variations of the same idea.`),
+      h('p.lead', null, members[0].video ? `${members.length} styles — hover one to preview its motion.` : `${members.length} styles — pick one, then make it yours.`),
       h('div.home-tpls', null, members.map(t => templateCard(t, tt => { closeModal(); startTemplate(tt); }, 220))),
     ]);
     box.style.width = 'min(900px, 100%)';
