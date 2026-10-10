@@ -744,22 +744,57 @@
       if (t.id && t.id() === cropState.id) { cropDragStart(evt); return; }
       endCrop();
     }
-    if (t === stage) {
-      if (!evt.shiftKey) S.select([]);
+    // selection box: Shift adds what it touches, Alt/Option takes it away, plain replaces
+    const startBox = (onId, mode) => {
       const p = layer.getRelativePointerPosition();
-      marqueeStart = { x: p.x, y: p.y, add: evt.shiftKey, base: sel.slice() };
+      marqueeStart = { x: p.x, y: p.y, mode, base: sel.slice(), onId };
       marquee.setAttrs({ x: p.x, y: p.y, width: 0, height: 0, visible: false });
+    };
+    if (t === stage) {
+      const mode = evt.shiftKey ? 'add' : evt.altKey ? 'sub' : 'replace';
+      if (mode === 'replace') S.select([]);
+      startBox(null, mode);
       return;
     }
-    if (t.getParent && t.getParent() && t.getParent().className === 'Transformer') return;
+    if (t.getParent && t.getParent() && t.getParent().className === 'Transformer') {
+      // Shift-dragging inside the selection draws a box instead of moving it
+      if (evt.shiftKey) { setTimeout(() => { for (const n of tr.nodes()) n.stopDrag(); }, 0); startBox(null, 'add'); }
+      // Alt/Option-click inside the selection takes out the layer under the pointer
+      else if (evt.altKey) altPending = selectedAt(stage.getPointerPosition());
+      return;
+    }
     const id = t.id && t.id();
     if (!id || !elMap.has(id)) return;
-    if (evt.shiftKey || evt.metaKey || evt.ctrlKey) {
+    if (evt.shiftKey) {
+      // Shift: click adds this layer, drag draws a box that adds everything it touches
+      setTimeout(() => t.stopDrag && t.stopDrag(), 0);
+      startBox(id, 'add');
+      return;
+    }
+    if (evt.altKey) {
+      // Alt/Option: a click takes this layer out of the selection; dragging a selected layer still leaves a copy behind
+      altPending = sel.includes(id) ? id : null;
+      if (!sel.includes(id)) setTimeout(() => t.stopDrag && t.stopDrag(), 0);
+      return;
+    }
+    if (evt.metaKey || evt.ctrlKey) {
       S.toggleSelect(id);
       // a node removed from the selection shouldn't drag
       if (!sel.includes(id)) t.stopDrag && setTimeout(() => t.stopDrag(), 0);
     } else if (!sel.includes(id)) S.select([id]);
   });
+  let altPending = null;
+  // the topmost selected layer under a screen point (clicks inside the selection hit the transformer, not the layer)
+  function selectedAt(p) {
+    if (!p) return null;
+    for (let i = doc.elements.length - 1; i >= 0; i--) {
+      const el = doc.elements[i], n = nodes.get(el.id);
+      if (!sel.includes(el.id) || !n || !n.visible()) continue;
+      const r = n.getClientRect();
+      if (p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height) return el.id;
+    }
+    return null;
+  }
   window.addEventListener('mousemove', e => {
     if (panning) {
       S.view.x = panning.vx + (e.clientX - panning.x);
@@ -781,9 +816,13 @@
         for (const el of doc.elements) {
           if (el.hidden || el.locked) continue;
           const r = nodes.get(el.id).getClientRect({ relativeTo: art });
-          if (r.x < x + w && r.x + r.width > x && r.y < y + h && r.y + r.height > y) hits.push(el.id);
+          const touches = r.x < x + w && r.x + r.width > x && r.y < y + h && r.y + r.height > y;
+          // a layer that surrounds the whole box (a background photo, say) isn't what the box is aiming at
+          const surrounds = r.x <= x && r.y <= y && r.x + r.width >= x + w && r.y + r.height >= y + h;
+          if (touches && !surrounds) hits.push(el.id);
         }
-        const ids = marqueeStart.add ? [...new Set([...marqueeStart.base, ...hits])] : hits;
+        const m = marqueeStart.mode, base = marqueeStart.base;
+        const ids = m === 'add' ? [...new Set([...base, ...hits])] : m === 'sub' ? base.filter(x => !hits.includes(x)) : hits;
         sel = ids; attachTransformer();
         uiLayer.batchDraw();
       }
@@ -793,9 +832,16 @@
     if (panning) { panning = null; area.style.cursor = keys.space || S.tool === 'hand' ? 'grab' : ''; }
     if (cropDrag) { cropDrag = null; S.commit(); }
     if (erasing) { erasing = null; S.commit(); emit('values'); }
+    if (altPending) {
+      const id = altPending;
+      altPending = null;
+      if (!dragging && sel.includes(id)) S.select(sel.filter(x => x !== id));
+    }
     if (marqueeStart) {
+      const ms = marqueeStart;
       marqueeStart = null;
       if (marquee.visible()) { marquee.visible(false); uiLayer.batchDraw(); emit('selection'); }
+      else if (ms.onId && !sel.includes(ms.onId)) S.select([...sel, ms.onId]);
     }
   });
   stage.on('contextmenu', e => {
@@ -896,6 +942,9 @@
   }
   function onDragStart(e) {
     const n = e.target;
+    altPending = null;
+    // dragging a multi-selection fires dragstart on every node; the first one leads the gesture
+    if (dragging) return;
     if (!sel.includes(n.id())) S.select([n.id()]);
     if (e.evt && e.evt.altKey) leaveCopiesBehind();
     const ns = sel.map(id => nodes.get(id)).filter(Boolean);

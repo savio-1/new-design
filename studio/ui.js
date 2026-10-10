@@ -2235,7 +2235,14 @@
       const nameSpan = h('span', null, S.elLabel(el));
       const item = h('div.layer' + (sel.has(el.id) ? '.sel' : '') + (el.hidden ? '.hidden-el' : ''), {
         draggable: true,
-        onclick: e => { if (e.target.closest('.lbtn')) return; if (e.shiftKey || e.metaKey) S.toggleSelect(el.id); else S.select([el.id]); },
+        onclick: e => {
+          if (e.target.closest('.lbtn')) return;
+          // Shift adds, Alt/Option removes, Cmd/Ctrl toggles, a plain click selects just this layer
+          if (e.shiftKey) S.select([...new Set([...S.sel, el.id])]);
+          else if (e.altKey) S.select(S.sel.filter(x => x !== el.id));
+          else if (e.metaKey || e.ctrlKey) S.toggleSelect(el.id);
+          else S.select([el.id]);
+        },
         onmouseenter: () => S.hover(el.id), onmouseleave: () => S.hover(null),
         ondblclick: e => {
           if (e.target.closest('.lbtn')) return;
@@ -2857,7 +2864,8 @@
       h('h1', null, 'Shortcuts'),
       h('p.lead', null, 'Snapping: elements snap to the canvas edges and centre lines (pink), to other elements (orange) and to the grid when grid-snap is on.'),
       h('div.help-grid', null,
-        k('Drag', 'Move — snaps to guides'), k('Shift drag', 'Move along one axis'), k('Alt drag', 'Duplicate while dragging'), k('Ctrl drag', 'Move without snapping'),
+        k('Drag', 'Move — snaps to guides'), k('Hold Shift while moving', 'Move along one axis'), k('Alt drag a selected layer', 'Duplicate while dragging'), k('Ctrl drag', 'Move without snapping'),
+        k('Shift click / Shift drag', 'Add layers to the selection (works over photos too)'), k('Alt click / Alt drag', 'Remove layers from the selection'), k('⌘ click', 'Toggle a layer in or out'),
         k('E', 'Eraser (Esc to leave)'), k('[ ]', 'Eraser size'), k('P', 'Play / pause animation'),
         k('Arrows', 'Nudge 1px (Shift: 10px)'), k('Space drag', 'Pan the canvas'), k('⌘ scroll', 'Zoom'), k('⌘0', 'Fit to screen'),
         k('Dbl-click', 'Edit text · crop a photo'), k('T', 'Add text'), k('G', 'Toggle grid'),
