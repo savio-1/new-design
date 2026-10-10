@@ -589,6 +589,113 @@
       }),
     })),
 
+    // ── VIDEO: newspaper clipping — the photo gets circled while the camera moves ──
+    ...[
+      { id: 'news-pullback', name: 'Pull-back reveal', head: 'That’s me!', last: 'me!', mark: 'circle', caption: 'That’s me!', cam: { move: 'pullback', zoom: 4.2, start: 0, dur: 1.9, rotate: 8, blur: 0.8, shake: 0.25 }, markAt: 1.7, headAt: 2.2 },
+      { id: 'news-crash', name: 'Crash zoom', head: 'Front page!', last: 'page!', mark: 'arrow', caption: 'I made the papers', cam: { move: 'crash', zoom: 2.6, start: 0.5, dur: 2.6, rotate: 5, blur: 0.9, shake: 0.2 }, markAt: 1.2, headAt: 0.1 },
+      { id: 'news-snap', name: 'Snap zoom', head: 'Spotted!', last: 'Spotted!', mark: 'circle', caption: 'Guess who…', cam: { move: 'snap', zoom: 2.1, start: 1.3, dur: 3.5, rotate: -3, blur: 0.6, shake: 0.6 }, markAt: 1.6, headAt: 0.1 },
+      { id: 'news-cuts', name: 'Hard cuts', head: 'Breaking: me', last: 'me', mark: 'tick', caption: 'Plot twist', cam: { move: 'cuts', zoom: 3.6, start: 0, dur: 1.6, rotate: 6, blur: 0, shake: 0.35 }, markAt: 1.75, headAt: 2.1 },
+      { id: 'news-push', name: 'Slow push-in', head: 'Local legend', last: 'legend', mark: 'scribble', caption: 'Small town, big dreams', cam: { move: 'pushin', zoom: 1.7, start: 0, dur: 5, rotate: 3, blur: 0.3, shake: 0.2 }, markAt: 1.4, headAt: 0.3 },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Photo'], width: 1080, height: 1350, video: true,
+      build: () => {
+        const R2 = -3, red = '#dc2626';
+        const filler = 'A random line of text to fill this newspaper, because every page needs a story. This one starts with a photo nobody expected to see again, a date scribbled on the back, and a face that looks a lot like mine. ';
+        const col = (x, y, w, h, n) => txt((filler + filler + filler).slice(0, n), { x, y, width: w, autoWidth: false, align: 'left', fontFamily: 'Newsreader', fontSize: 23, lineHeight: 1.22, fill: '#2a2826', rotation: R2, name: 'Column' });
+        const markEl = {
+          circle: rib('scribble', 105, 350, 430, 470, { key: 'mark', line: true, thickness: 13, color: red, opacity: 0.92, text: '', rotation: R2, anim: { enter: 'draw', delay: v.markAt, speed: 0.75 } }),
+          scribble: rib('scribble', 85, 330, 470, 520, { key: 'mark', line: true, thickness: 10, color: red, opacity: 0.9, text: '', rotation: R2 - 4, anim: { enter: 'draw', delay: v.markAt, speed: 0.6 } }),
+          arrow: rib('bend', 470, 300, 260, 200, { key: 'mark', line: true, thickness: 11, color: red, text: '', arrowStart: true, rotation: R2 + 8, anim: { enter: 'draw', delay: v.markAt, speed: 0.9 } }),
+          tick: rib('tick', 400, 420, 180, 150, { key: 'mark', line: true, thickness: 16, color: red, opacity: 0.92, text: '', rotation: R2, anim: { enter: 'draw', delay: v.markAt, speed: 1 } }),
+        }[v.mark];
+        return {
+          width: 1080, height: 1350,
+          background: { color: '#1e1c1a' },
+          overlay: { vignette: 45, grain: 18 },
+          anim: { duration: 5, fps: 30 },
+          camera: Object.assign({ target: 'photo' }, v.cam),
+          elements: [
+            shp('rect', -90, -70, 1260, 1500, { fill: '#e8e5de', texture: 70, crumple: 24, seed: 3, rotation: R2, name: 'Newspaper' }),
+            shp('line', 20, 60, 1060, 20, { stroke: '#1d1b18', strokeWidth: 3, rotation: R2 }),
+            txt(v.head, { key: 'head', x: 40, y: 95, align: 'left', fontFamily: 'Libre Caslon Display', fontSize: 150, fill: '#141414', rotation: R2, anim: { enter: 'typewriter', delay: v.headAt, speed: 1.4 } }),
+            shp('line', 30, 280, 1060, 20, { stroke: '#1d1b18', strokeWidth: 3, rotation: R2 }),
+            rib('swipe', 640, 228, 380, 60, { line: true, thickness: 22, color: red, opacity: 0.88, text: '', rotation: R2, anim: { enter: 'draw', delay: v.headAt + 0.9, speed: 1.2 }, name: 'Marker underline' }),
+            img(40, 330, 560, 640, { key: 'photo', rotation: R2, filters: { saturation: -35, contrast: 12, fade: 8, noise: 25 }, placeholder: ['#7b746a', '#3b3631'], name: 'Your photo' }),
+            markEl,
+            col(640, 330, 390, 640, 520),
+            col(40, 1010, 320, 330, 260),
+            col(385, 995, 320, 330, 260),
+            col(730, 975, 320, 330, 260),
+            txt(v.caption, { cx: 540, cy: 1185, fontFamily: 'Inter', fontWeight: 600, fontSize: 36, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.6, blur: 10, x: 0, y: 2 }, name: 'Caption' }),
+          ],
+        };
+      },
+    })),
+
+    // ── VIDEO: typing with a caret, highlighted words and a camera that rides along ──
+    ...[
+      { id: 'type-follow', name: 'Type & follow', text: 'SHE HELPED CREATE THE TECHNOLOGY WE USE EVERY DAY', marks: ['TECHNOLOGY'], style: 'select', font: 'Archivo', weight: 700, size: 30, ink: '#2b2b2b', bg: { color: '#d8d2c2', pattern: { type: 'graph', color: 'rgba(60,70,90,0.14)', size: 60, thick: 1.2 }, texture: 40, crumple: 18 }, overlay: { grain: 25, vignette: 25 }, cam: { move: 'follow', zoom: 4.2, start: 0.9, dur: 0.45, shake: 0.15, blur: 0.5 }, cx: 540, cy: 675 },
+      { id: 'type-marker', name: 'Typed note', text: 'I didn’t plan to start a business.\nI just wanted to make something I loved.', marks: ['something I loved'], style: 'marker', color: '#f6e05e', speed: 1.5, font: 'Instrument Serif', weight: 400, size: 66, ink: '#1d1b18', align: 'left', width: 820, bg: { color: '#f5f1e6', pattern: { type: 'lined', color: 'rgba(70,110,160,0.25)', size: 54, thick: 1.4 }, texture: 45 }, overlay: { grain: 12 }, cam: { move: 'pushin', zoom: 1.35, start: 0, dur: 5, shake: 0.2, blur: 0.2 }, cx: 540, cy: 640 },
+      { id: 'type-crash', name: 'Type & crash zoom', text: 'Nobody talks about\nthe quiet part.', marks: ['quiet'], style: 'underline', color: '#ef4444', font: 'Inter', weight: 800, size: 78, ink: '#111111', bg: { color: '#fafafa', texture: 20 }, overlay: { grain: 10 }, cam: { move: 'crash', zoom: 2.6, start: 1.7, dur: 2.4, rotate: 4, blur: 0.8 }, cx: 540, cy: 660 },
+      { id: 'type-terminal', name: 'Terminal', text: '> booting creativity…\n> loading ideas: 100%\n> ready to make something new', marks: ['something new'], style: 'select', color: 'rgba(93,255,138,0.25)', handle: '#5dff8a', speed: 1.5, font: 'VT323', weight: 400, size: 62, ink: '#5dff8a', align: 'left', width: 860, bg: { color: '#0b0f0c' }, overlay: { grain: 30, vignette: 45 }, cam: { move: 'drift', zoom: 1.18, rotate: 1, shake: 0.5, blur: 0.3 }, cx: 540, cy: 660 },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Quote'], width: 1080, height: 1350, video: true,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: v.bg, overlay: v.overlay,
+        anim: { duration: 5, fps: 30 },
+        camera: Object.assign({ target: 'type' }, v.cam),
+        elements: [
+          txt(v.text, Object.assign({
+            key: 'type', cx: v.cx, cy: v.cy, align: v.align || 'center', fontFamily: v.font, fontWeight: v.weight, fontSize: v.size, lineHeight: 1.2, fill: v.ink,
+            anim: { enter: 'typewriter', delay: 0.35, speed: v.speed || 1 },
+            typing: { caret: true, marks: v.marks, style: v.style, color: v.color, handle: v.handle, caretColor: v.handle },
+          }, v.width ? { autoWidth: false, width: v.width } : {})),
+        ],
+      }),
+    })),
+
+    // ── VIDEO: match cut — one word stays put while everything around it changes ──
+    ...[
+      { id: 'match-highlight', name: 'Keyword match cut', paper: '#ecebe7', crumple: 50, ink: '#2a2a2a', dim: '#6a6a6a', style: 'marker', color: '#f2df45', slot: 0.2, cam: { move: 'jolt', zoom: 1.3, rotate: 2, cut: 0.2, wander: 0, blur: 0.4 } },
+      { id: 'match-dark', name: 'Night edition', paper: '#121212', crumple: 0, ink: '#ececec', dim: '#8a8a8a', style: 'marker', color: '#ff4fa3', slot: 0.25, cam: { move: 'pushin', zoom: 1.6, start: 0, dur: 5, shake: 0.4, blur: 0.4 } },
+      { id: 'match-news', name: 'Newsprint flicker', paper: '#e8e2d2', crumple: 20, ink: '#1f1c17', dim: '#5e574b', style: 'underline', color: '#d62828', slot: 0.14, serif: true, cam: { move: 'jolt', zoom: 1.45, rotate: 3, cut: 0.14, wander: 0, blur: 0.5, shake: 0.2 } },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Quote'], width: 1080, height: 1350, video: true,
+      build: () => {
+        const KW = 'motivation';
+        const A = [
+          ['The Impact of Motivation\non Athletic Performance', 'In this piece, we explore motivation for athletes', 'potential. The discussion covers the different types of', 'Archivo Black', 'Inter'],
+          ['Understanding Motivation\nin the Workplace', 'The piece delves into how motivation and habit', 'influence productivity. It also considers how teams', 'Fraunces', 'Newsreader'],
+          ['The Role of Motivation\nin Achieving Goals', 'It examines how motivation acts as a quiet engine', 'behind achievement. It discusses the role of habits', 'Space Grotesk', 'DM Sans'],
+          ['Motivation and Learning:\nWhat Really Works', 'A closer look at intrinsic motivation in education', 'explores the concept of curiosity and its effect on', 'Newsreader', 'Instrument Sans'],
+          ['Why Motivation Fades\n(and How to Keep It)', 'Research shows motivation is less about willpower', 'and more about small, repeatable systems that make', 'Bricolage Grotesque', 'Space Grotesk'],
+          ['Finding Motivation\nin Hard Seasons', 'Small wins build motivation in ways that last', 'longer than any pep talk. The article highlights practical', 'DM Serif Display', 'Fraunces'],
+        ];
+        const body = 'resilience and focus over time. It also covers the psychological strategies coaches use to boost confidence, and the importance of rest in sustaining performance. Recent studies suggest that steady routines matter more than bursts of energy, especially when the goal is far away.';
+        const els = [];
+        A.forEach(([title, line, after, tf, bf], i) => {
+          const time = { start: 0, cycle: { slot: v.slot, index: i, count: A.length } };
+          const f = v.serif ? ['Newsreader', 'Newsreader'] : [tf, bf];
+          els.push(
+            txt('Home / Articles', { x: 60, y: 300, align: 'left', fontFamily: f[1], fontWeight: 500, fontSize: 30, fill: v.dim, time, lblur: { motion: 10 } }),
+            txt(title, { x: 60, y: 360, align: 'left', fontFamily: f[0], fontWeight: f[0] === 'Fraunces' || f[0] === 'Newsreader' ? 700 : f[0] === 'Bricolage Grotesque' ? 800 : f[0] === 'Space Grotesk' ? 700 : 400, fontSize: 60, lineHeight: 1.05, fill: v.ink, time, lblur: { motion: 7 } }),
+            txt(line, { cx: 540, cy: 675, autoWidth: false, width: 2400, align: 'center', anchor: KW, fontFamily: f[1], fontWeight: 600, fontSize: 48, fill: v.ink, time, typing: { caret: false, blink: false, marks: [KW], style: v.style, color: v.color }, name: 'Keyword line' }),
+            txt(after, { cx: 540, cy: 745, autoWidth: false, width: 2400, align: 'center', fontFamily: f[1], fontWeight: 500, fontSize: 44, fill: v.ink, time, lblur: { motion: 5 } }),
+            txt(body, { x: -40, y: 790, autoWidth: false, width: 1160, align: 'left', fontFamily: f[1], fontWeight: 500, fontSize: 40, lineHeight: 1.3, fill: v.dim, time, lblur: { motion: 16, gauss: 1.5 } }),
+          );
+        });
+        return {
+          width: 1080, height: 1350,
+          background: { color: v.paper, crumple: v.crumple, crumpleSeed: 8, texture: v.crumple ? 25 : 0 },
+          overlay: { vignette: 38, grain: 20 },
+          anim: { duration: 5, fps: 30 },
+          camera: v.cam,
+          elements: els,
+        };
+      },
+    })),
+
     // ── life-sim garden: cut-out photo on a painted lawn with game-menu choices ──
     ...[
       { id: 'garden-menu', name: 'Choose an action', sky: ['#1f6dd0', '#bfe7f6'], hill: ['#b5d65e', '#5fae37', '#2c6a1f', '#cdea7c'], profile: 'left', flower: ['#e3262c', '#8e0d15', '#3d7a2c', '#163c13', '#4d0a0c'], bloom: 'cluster', gem: ['#2fd16a', '#0c7a3c', '#a6ffbf'], ink: '#22307a', pill: '#f3eee6',
@@ -930,9 +1037,25 @@
     { name: 'Plus grid', bg: { color: '#1d1b18', pattern: { type: 'plus', color: 'rgba(255,255,255,0.3)', size: 60, thick: 2 } } },
   ];
 
-  // newest looks first (after the starter design)
-  const FRESH = ['garden-menu', 'ribbon-fest', 'first-squat', 'pov-camera', 'garden-golden', 'ribbon-sounds', 'run-club', 'pov-tapes', 'garden-dusk', 'ribbon-market', 'dance-studio', 'pov-behind'];
-  const rank = t => t.id === 'every-shade' ? -1 : FRESH.includes(t.id) ? FRESH.indexOf(t.id) : 100;
+  // families of variations show as one card in the panel and open into all their styles
+  const GROUPS = {
+    'Newspaper reveal': ['news-pullback', 'news-crash', 'news-snap', 'news-cuts', 'news-push'],
+    'Typing': ['type-follow', 'type-marker', 'type-crash', 'type-terminal'],
+    'Match cut': ['match-highlight', 'match-dark', 'match-news'],
+    'Life-sim garden': ['garden-menu', 'garden-golden', 'garden-dusk'],
+    'Ribbon poster': ['ribbon-fest', 'ribbon-sounds', 'ribbon-market'],
+    'Motion blur': ['first-squat', 'run-club', 'dance-studio'],
+    'Camera view': ['pov-camera', 'pov-tapes', 'pov-behind'],
+    'Meet the team': ['meet-women', 'meet-team', 'our-story'],
+    'Grid-paper notes': ['note-blue', 'note-green', 'note-pink'],
+    'Polaroid POV': ['pov-red', 'pov-blue', 'pov-green'],
+    'Wall calendar': ['date-green', 'date-pink', 'date-blue'],
+    'Notebook tip': ['tip-green', 'tip-pink', 'tip-lilac'],
+    'Outfit line-up': ['zapato', 'jacket-mood', 'what-we-wore'],
+  };
+  const ORDER = ['every-shade', ...Object.values(GROUPS).flat()];
+  for (const [g, ids] of Object.entries(GROUPS)) for (const id of ids) { const t = TEMPLATES.find(x => x.id === id); if (t) t.group = g; }
+  const rank = t => ORDER.includes(t.id) ? ORDER.indexOf(t.id) : 1000;
   TEMPLATES.sort((a, b) => rank(a) - rank(b));
   window.STUDIO_TEMPLATES = TEMPLATES;
   window.STUDIO_TEXT_PRESETS = TEXT_PRESETS;

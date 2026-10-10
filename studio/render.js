@@ -784,10 +784,78 @@
     }
   }
 
+  // char ranges of the highlighted words, mapped onto the laid-out lines
+  function typingBoxes(el, L) {
+    const tp = el.typing || {};
+    const up = s => el.uppercase ? s.toUpperCase() : s;
+    const shown = up(el.text || '');
+    const full = up(el._full != null ? el._full : (el.text || ''));
+    const meas = measurer(mctx, L.font, 0);
+    const starts = [];
+    let i = 0;
+    for (const ln of L.lines) { const idx = ln.text ? shown.indexOf(ln.text, i) : i; const at = idx < 0 ? i : idx; starts.push(at); i = at + ln.text.length; }
+    const xAt = (li, off) => { const ln = L.lines[li]; return ln.x + meas.raw(ln.text.slice(0, off)) + L.ls * off; };
+    const boxes = [];
+    const F = full.toLowerCase();
+    for (const raw of (tp.marks || [])) {
+      const m = String(raw || '').trim().toLowerCase();
+      if (!m) continue;
+      let from = 0, a;
+      while ((a = F.indexOf(m, from)) >= 0) {
+        const b = Math.min(a + m.length, shown.length);
+        from = a + m.length;
+        if (b <= a) continue;
+        L.lines.forEach((ln, li) => {
+          const s0 = Math.max(a, starts[li]), e0 = Math.min(b, starts[li] + ln.text.length);
+          if (e0 > s0) boxes.push({ li, x0: xAt(li, s0 - starts[li]), x1: xAt(li, e0 - starts[li]) - (e0 - starts[li] > 0 ? L.ls * 0.5 : 0), base: ln.base, first: s0 === a, last: e0 === a + m.length || e0 === shown.length });
+        });
+      }
+    }
+    const last = L.lines[L.lines.length - 1];
+    const caret = last ? { x: last.x + meas.raw(last.text) + L.ls * [...last.text].length, base: last.base } : { x: 0, base: L.size };
+    return { boxes, caret };
+  }
+  R.typingBoxes = typingBoxes;
+  function typingUnder(ctx, el, L, T) {
+    const tp = el.typing;
+    const st = tp.style || 'select';
+    for (const b of T.boxes) {
+      const y0 = b.base - L.cap * 1.32, y1 = b.base + L.size * 0.2;
+      const px = st === 'marker' ? L.size * 0.12 : L.size * 0.03;
+      if (st === 'underline') { ctx.fillStyle = tp.color || '#ff3b30'; ctx.fillRect(b.x0, b.base + L.size * 0.08, b.x1 - b.x0, Math.max(2, L.size * 0.09)); continue; }
+      ctx.fillStyle = tp.color || (st === 'marker' ? '#f4e04d' : 'rgba(52,130,246,0.32)');
+      if (st === 'marker') ctx.fill(rrect(new Path2D(), b.x0 - px, y0, b.x1 - b.x0 + px * 2, y1 - y0, L.size * 0.04));
+      else ctx.fillRect(b.x0 - px, y0, b.x1 - b.x0 + px * 2, y1 - y0);
+    }
+  }
+  function typingOver(ctx, el, L, T) {
+    const tp = el.typing;
+    if ((tp.style || 'select') === 'select') {
+      const hc = tp.handle || '#1f7ae0', lw = Math.max(1.5, L.size * 0.05), kr = Math.max(3, L.size * 0.1);
+      ctx.fillStyle = hc; ctx.strokeStyle = hc; ctx.lineWidth = lw; ctx.lineCap = 'butt';
+      for (const b of T.boxes) {
+        const px = L.size * 0.03, y0 = b.base - L.cap * 1.32, y1 = b.base + L.size * 0.2;
+        if (b.first) { ctx.beginPath(); ctx.moveTo(b.x0 - px, y0 - kr); ctx.lineTo(b.x0 - px, y1); ctx.stroke(); ctx.beginPath(); ctx.arc(b.x0 - px, y0 - kr, kr, 0, TAU); ctx.fill(); }
+        if (b.last) { ctx.beginPath(); ctx.moveTo(b.x1 + px, y0); ctx.lineTo(b.x1 + px, y1 + kr); ctx.stroke(); ctx.beginPath(); ctx.arc(b.x1 + px, y1 + kr, kr, 0, TAU); ctx.fill(); }
+      }
+    }
+    if (tp.caret !== false && el._caretOn !== false) {
+      ctx.fillStyle = tp.caretColor || (isClear(el.fill) ? '#111' : el.fill);
+      const w = Math.max(1.5, L.size * (tp.caretWidth || 0.06));
+      ctx.fillRect(T.caret.x + L.size * 0.04, T.caret.base - L.cap * 1.22, w, L.cap * 1.22 + L.size * 0.2);
+    }
+  }
   function drawText(ctx, el, env) {
     const L = layoutText(el);
     const bg = el.bg || {};
+    // anchor: slide the line so one chosen word sits dead centre (match cuts keep it still)
+    if (el.anchor && !L.curved) {
+      const A = typingBoxes(Object.assign({}, el, { typing: { marks: [el.anchor] } }), L).boxes[0];
+      if (A) ctx.translate(L.boxW / 2 - (A.x0 + A.x1) / 2, 0);
+    }
     textBackground(ctx, el, L);
+    const TY = el.typing && !L.curved ? typingBoxes(el, L) : null;
+    if (TY) typingUnder(ctx, el, L, TY);
     ctx.font = L.font;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
@@ -844,6 +912,7 @@
         if (el.strike) ctx.fillRect(ln.x, ln.base - L.cap * 0.42 - t / 2, ln.w, t);
       }
     }
+    if (TY) typingOver(ctx, el, L, TY);
   }
   /* ───────────────────────── checklist ───────────────────────── */
 
@@ -1302,6 +1371,12 @@
       x.globalAlpha = 1 / (i + 1); // running average keeps every copy equally weighted
       x.drawImage(src, dx * t, dy * t);
     }
+    return o;
+  }
+  function motionBlurPx(src, L, angle) {
+    const w = src.width, h = src.height, o = canvas(w, h), x = o.getContext('2d');
+    const N = clamp(Math.round(L / 2.5), 4, 36), a = angle * Math.PI / 180, dx = Math.cos(a) * L, dy = Math.sin(a) * L;
+    for (let i = 0; i < N; i++) { const t = i / (N - 1) - 0.5; x.globalAlpha = 1 / (i + 1); x.drawImage(src, dx * t, dy * t); }
     return o;
   }
   // barrel distortion: the centre swells, edges bow out and the corners fall away
@@ -1810,6 +1885,10 @@
     circle: { label: 'Circle', closed: true, pts: (() => { const o = []; for (let i = 0; i < 12; i++) { const t = i / 12 * TAU - Math.PI / 2; o.push([0.5 + Math.cos(t) * 0.5, 0.5 + Math.sin(t) * 0.5]); } return o; })() },
     straight: { label: 'Straight', pts: [[0, 0.5], [1, 0.5]] },
     hook: { label: 'Hook arrow', pts: [[0.02, 0], [0.06, 0.55], [0.3, 0.92], [1, 0.97]] },
+    scribble: { label: 'Scribble circle', pts: (() => { const o = []; for (let i = 0; i <= 16; i++) { const t = -1.75 + i / 16 * TAU * 1.12, r = 0.47 + (i === 0 || i === 16 ? 0.05 : 0) - Math.sin(i * 1.7) * 0.012; o.push([0.5 + Math.cos(t) * r, 0.5 + Math.sin(t) * r * 0.98]); } o.unshift([0.5 + Math.cos(-1.9) * 0.62, 0.5 + Math.sin(-1.9) * 0.6]); return o; })() },
+    swipe: { label: 'Marker swipe', pts: [[0, 0.62], [0.35, 0.5], [0.7, 0.42], [1, 0.36]] },
+    tick: { label: 'Tick', sharp: true, pts: [[0, 0.55], [0.34, 1], [1, 0]] },
+    cross: { label: 'Cross-out', sharp: true, pts: [[0, 0.1], [1, 0.9], [0.98, 0.08], [0.02, 0.95]] },
     bend: { label: 'Bend arrow', pts: [[0, 0.85], [0.45, 0.1], [1, 0.3]] },
   };
   const ribbonCache = new LRU(60);
@@ -1869,6 +1948,7 @@
     const th = Math.max(0.5, el.thickness || 60);
     const L = g.L;
     const frac = el.drawFrac == null ? 1 : clamp(el.drawFrac, 0, 1);
+    if (frac <= 0.004) return;
     const head = ribbonHead(el);
     const end = L * frac;
     const d0 = el.arrowStart && !g.closed ? head * 0.85 : 0;
@@ -2084,6 +2164,10 @@
   /* ───────────────────────── element dispatch ───────────────────────── */
 
   function bleed(el) {
+    const lb = el.lblur || {};
+    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6;
+  }
+  function bleedCore(el) {
     const m = Math.max(el.width, el.height);
     switch (el.type) {
       case 'text': return ((el.bg && el.bg.padX) || 0) + ((el.stroke && el.stroke.width) || 0) * 2 + (el.echo && el.echo.on ? el.fontSize * 0.4 : 0) + 8;
@@ -2133,9 +2217,24 @@
     if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
     return n * (p -= 2.625 / d) * p + 0.984375;
   };
-  R.hasAnim = el => !!(el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none')));
+  R.hasAnim = el => !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
+  R.hasTiming = el => !!(el.time && ((el.time.start || 0) > 0 || el.time.end != null || (el.time.cycle && el.time.cycle.count > 1)));
+  // cuts: a layer can be shown only for part of the video, or take turns with others
+  R.visibleAt = function (el, t) {
+    const tm = el.time;
+    if (!tm || t == null) return true;
+    const s0 = tm.start || 0, e0 = tm.end;
+    if (t < s0 - 1e-6) return false;
+    if (e0 != null && e0 > s0 && t >= e0) return false;
+    const cy = tm.cycle;
+    if (cy && cy.count > 1) {
+      const k = Math.floor((t - s0) / Math.max(0.02, cy.slot || 0.15));
+      return ((k % cy.count) + cy.count) % cy.count === (cy.index || 0) % cy.count;
+    }
+    return true;
+  };
   function animState(el, t, doc) {
-    const an = el.anim, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
+    const an = el.anim || {}, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
     const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
@@ -2168,7 +2267,9 @@
     }
     const enter = an.enter || 'none';
     if (enter !== 'none') {
-      const dur = 0.6 / spd, p = clamp((tl - (an.delay || 0)) / dur, 0, 1), e = easeOut(p);
+      // typing runs at a steady characters-per-second rate; other entrances take ~0.6 s
+      const nch = enter === 'typewriter' && el.type === 'text' ? [...(el.text || '')].length : 0;
+      const dur = nch ? Math.max(0.2, nch / (14 * spd)) : 0.6 / spd, p = clamp((tl - (an.delay || 0)) / dur, 0, 1), e = easeOut(p);
       switch (enter) {
         case 'pop': st.sc *= Math.max(0, easeBack(p)); st.alpha *= Math.min(1, p * 3); break;
         case 'fade': st.alpha *= e; break;
@@ -2178,7 +2279,7 @@
         case 'right': st.dx += (1 - e) * m * 1.2; st.alpha *= e; break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
-        case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * [...(el.text || '')].length); else st.reveal = p; break;
+        case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p; break;
         case 'wipe': st.reveal = e; break;
         case 'draw': if (el.type === 'ribbon') st.draw = e; else st.reveal = e; break;
       }
@@ -2189,6 +2290,7 @@
 
   function drawElement(ctx, el, env = {}) {
     const t = 'time' in env ? env.time : R.playTime;
+    if (t != null && !R.visibleAt(el, t)) return;
     if (t == null || !R.hasAnim(el)) { drawLayered(ctx, el, env); return; }
     const A = animState(el, t, env.doc || R.animDoc);
     if (A.alpha <= 0.001 || A.sc <= 0.001 || A.reveal <= 0) return;
@@ -2205,7 +2307,13 @@
     let e = el;
     if (A.chars != null) {
       const chars = [...(el.text || '')];
-      if (A.chars < chars.length) e = Object.assign({}, el, { text: chars.slice(0, A.chars).join(''), autoWidth: false, width: el.width });
+      if (A.chars < chars.length) e = Object.assign({}, el, { text: chars.slice(0, A.chars).join(''), autoWidth: false, width: el.width, _full: el.text, _typing: true });
+    }
+    if (el.typing && el.typing.caret !== false) {
+      // solid while typing, blinking once the text is complete
+      const on = e._typing || el.typing.blink === false || ((t % 1) + 1) % 1 < 0.55;
+      if (e === el) e = Object.assign({}, el);
+      e._caretOn = on;
     }
     if (A.flow != null || A.draw != null) e = Object.assign({}, e, A.flow != null ? { flowShift: ((A.flow % 1) + 1) % 1 } : {}, A.draw != null ? { drawFrac: A.draw } : {});
     drawLayered(ctx, e, env);
@@ -2239,7 +2347,8 @@
   function drawLayered(ctx, el, env) {
     const sh = el.shadow;
     const erased = el.erase && el.erase.length;
-    if ((!sh || !sh.on) && !erased) { drawCore(ctx, el, env); return; }
+    const lb = el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0) ? el.lblur : null;
+    if ((!sh || !sh.on) && !erased && !lb) { drawCore(ctx, el, env); return; }
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
     const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
@@ -2263,6 +2372,10 @@
         x2.setTransform(1, 0, 0, 1, 0, 0);
         x2.globalCompositeOperation = 'destination-in';
         x2.drawImage(mk, 0, 0);
+      }
+      if (lb && lb.motion > 0) {
+        const sm = motionBlurPx(c, lb.motion * s, lb.angle || 0);
+        sm.dirty = c.dirty; c = sm;
       }
       // async resources may still be loading; don't cache an incomplete render
       if (!isComplete(el)) c.dirty = true;
@@ -2290,6 +2403,7 @@
       ctx.shadowOffsetX = (sh.x ?? 0) * ds;
       ctx.shadowOffsetY = (sh.y ?? 12) * ds;
     }
+    if (lb && lb.gauss > 0 && 'filter' in ctx) ctx.filter = `blur(${lb.gauss * ds}px)`;
     ctx.drawImage(c, -b, -b, el.width + b * 2, el.height + b * 2);
     ctx.restore();
   }
@@ -2366,6 +2480,102 @@
   }
   R.drawOverlay = drawOverlay;
 
+  /* ───────────────────────── camera ─────────────────────────
+     doc.camera moves a virtual camera over the finished layout while the video
+     plays: { move, target, zoom, start, dur, rotate, shake, blur, cut }.
+     It never changes the layout itself, only how the frame is viewed. */
+
+  R.CAMERA_MOVES = {
+    none: 'Still', pushin: 'Slow push-in', pullback: 'Pull-back reveal', whip: 'Whip zoom', snap: 'Snap zoom', crash: 'Crash zoom in & out',
+    follow: 'Follow the typing', cuts: 'Hard cuts (close → wide)', drift: 'Handheld drift', pan: 'Pan across', tilt: 'Dutch tilt', jolt: 'Jolt cuts', spiral: 'Spiral in',
+  };
+  const eio = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+  const eoExpo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
+  const eioExpo = p => p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2;
+  function findEl(doc, key) { return key ? (doc.elements || []).find(e => e.id === key || e.key === key) : null; }
+  function elCentre(el) {
+    const a = (el.rotation || 0) * Math.PI / 180, w = el.width / 2, h = el.height / 2;
+    return { x: el.x + w * Math.cos(a) - h * Math.sin(a), y: el.y + w * Math.sin(a) + h * Math.cos(a) };
+  }
+  // where the typing caret sits (in canvas coordinates) at time t
+  R.caretAt = function (el, t, doc) {
+    let e = el;
+    if (t != null && el.anim && el.anim.enter === 'typewriter') {
+      const A = animState(el, t, doc);
+      const chars = [...(el.text || '')];
+      if (A.chars != null && A.chars < chars.length) e = Object.assign({}, el, { text: chars.slice(0, A.chars).join(''), autoWidth: false, width: el.width, _full: el.text });
+    }
+    const L = layoutText(e), T = typingBoxes(e, L);
+    const lx = T.caret.x, ly = T.caret.base - L.cap * 0.5;
+    const a = (el.rotation || 0) * Math.PI / 180;
+    return { x: el.x + lx * Math.cos(a) - ly * Math.sin(a), y: el.y + lx * Math.sin(a) + ly * Math.cos(a) };
+  };
+  function focusAt(doc, c, t) {
+    const el = findEl(doc, c.target);
+    if (!el) return null;
+    if (c.move === 'follow' && el.type === 'text') {
+      // ease toward the caret instead of locking onto every keystroke
+      let x = 0, y = 0, wsum = 0;
+      for (let k = 0; k < 6; k++) { const p = R.caretAt(el, Math.max(0, t - k * 0.05), doc), w = 6 - k; x += p.x * w; y += p.y * w; wsum += w; }
+      return { x: x / wsum, y: y / wsum };
+    }
+    return elCentre(el);
+  }
+  function camAt(doc, t) {
+    const c = doc.camera;
+    if (!c || !c.move || c.move === 'none' || t == null) return null;
+    const W = doc.width, H = doc.height, C = { x: W / 2, y: H / 2 };
+    const D = Math.max(0.5, (doc.anim && doc.anim.duration) || 5);
+    const T0 = focusAt(doc, c, t) || C;
+    const Z = Math.max(1, c.zoom || 2), s0 = c.start || 0, d = Math.max(0.05, c.dur || 1.5), rot = c.rotate || 0;
+    const p = clamp((t - s0) / d, 0, 1);
+    const mix = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
+    let f = C, z = 1, r = 0;
+    switch (c.move) {
+      case 'pushin': { const k = eio(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = rot * k; break; }
+      case 'pullback': { const k = 1 - Math.pow(1 - p, 2.6); f = mix(T0, C, k); z = Z + (1 - Z) * k; r = rot * (1 - k); break; }
+      case 'whip': { const k = eioExpo(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = rot * Math.sin(Math.PI * p) + rot * 0.15 * k; break; }
+      case 'snap': { const q = clamp((t - s0) / 0.14, 0, 1), k = q <= 0 ? 0 : easeBack(q); f = mix(C, T0, Math.min(1, k)); z = (1 + (Z - 1) * k) * (1 + 0.06 * p); r = rot * Math.min(1, k); break; }
+      case 'crash': { const k = p < 0.5 ? eioExpo(p * 2) : 1 - eioExpo((p - 0.5) * 2); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = rot * k; break; }
+      case 'follow': { const k = eio(clamp((t - s0) / Math.min(d, 0.45), 0, 1)); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = rot * k; break; }
+      case 'drift': { const k = t / D; z = 1 + (Z - 1) * k; f = { x: C.x + (T0.x - C.x) * k + Math.sin(t * 0.9) * W * 0.01, y: C.y + (T0.y - C.y) * k + Math.cos(t * 0.7) * H * 0.008 }; r = Math.sin(t * 0.6) * (rot || 1.5); break; }
+      case 'pan': { const k = eio(p); z = Z; f = { x: W / 2 / z + (W - W / z) * k, y: T0.y }; r = rot; break; }
+      case 'tilt': { const k = eio(p); z = Z; f = mix(C, T0, 0.5); r = -(rot || 8) + 2 * (rot || 8) * k; break; }
+      case 'cuts': {
+        // three hard cuts from a tight close-up out to the full frame, each shot creeping in
+        const shot = p >= 1 ? 3 : Math.floor(p * 3), q = p >= 1 ? clamp((t - s0 - d) / Math.max(0.5, D - s0 - d), 0, 1) : (p * 3) % 1;
+        const zs = [Z, 1 + (Z - 1) * 0.45, 1.12, 1];
+        f = shot === 0 ? T0 : shot === 1 ? mix(T0, C, 0.35) : shot === 2 ? mix(T0, C, 0.8) : C;
+        z = zs[shot] * (1 + 0.05 * q); r = shot === 1 ? rot * 0.6 : shot === 0 ? -rot * 0.4 : 0;
+        break;
+      }
+      case 'spiral': { const k = eio(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = (rot || 25) * (1 - k); break; }
+      case 'jolt': {
+        const slot = Math.max(0.05, c.cut || 0.15), n = Math.floor(t / slot), rr = rng(n * 7919 + 101);
+        z = 1 + (Z - 1) * (0.35 + rr() * 0.65); r = (rr() - 0.5) * 2 * (rot || 3);
+        const wd = c.wander ?? 1;
+        f = { x: T0.x + (rr() - 0.5) * W * 0.05 * wd, y: T0.y + (rr() - 0.5) * H * 0.04 * wd };
+        break;
+      }
+    }
+    if (c.shake) {
+      const a = c.shake;
+      f = { x: f.x + (Math.sin(t * 7.3) + 0.6 * Math.sin(t * 13.1 + 1.7)) * W * 0.004 * a / z, y: f.y + (Math.cos(t * 6.1) + 0.6 * Math.sin(t * 11.3 + 0.4)) * H * 0.004 * a / z };
+      r += Math.sin(t * 5.3 + 0.8) * 0.5 * a;
+    }
+    // never show past the canvas edge: zoom enough to cover the rotation, keep the view inside
+    const ar = Math.abs(r) * Math.PI / 180, asp = Math.max(W / H, H / W);
+    z = Math.max(z, Math.cos(ar) + Math.sin(ar) * asp);
+    const hw = W / 2 / z, hh = H / 2 / z;
+    f = { x: clamp(f.x, hw, W - hw), y: clamp(f.y, hh, H - hh) };
+    return { fx: f.x, fy: f.y, z, r };
+  }
+  R.camAt = camAt;
+  R.hasCamera = doc => !!(doc && doc.camera && doc.camera.move && doc.camera.move !== 'none');
+  function camMatrix(doc, cam) {
+    return new DOMMatrix().translate(doc.width / 2, doc.height / 2).rotate(cam.r).scale(cam.z).translate(-cam.fx, -cam.fy);
+  }
+
   /* ───────────────────────── whole-document render ───────────────────────── */
 
   function fontsOf(doc) {
@@ -2394,13 +2604,18 @@
     requestRedraw();
   };
 
+  let blurBuf = null;
   R.renderDoc = function (doc, opts = {}) {
     const scale = opts.scale || 1;
     const c = opts.canvas || canvas(doc.width * scale, doc.height * scale);
     const ctx = c.getContext('2d');
     if (opts.canvas) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); }
+    const t = opts.time ?? null;
+    const cam = t != null ? camAt(doc, t) : null;
+    const sx = c.width / doc.width, sy = c.height / doc.height;
     ctx.save();
-    ctx.scale(c.width / doc.width, c.height / doc.height);
+    ctx.scale(sx, sy);
+    if (cam) ctx.transform(...(m => [m.a, m.b, m.c, m.d, m.e, m.f])(camMatrix(doc, cam)));
     drawBackground(ctx, doc, opts);
     const env = Object.assign({}, opts, { time: opts.time ?? null, doc });
     for (const el of doc.elements || []) {
@@ -2413,6 +2628,36 @@
       drawElement(ctx, el, env);
       ctx.restore();
     }
+    ctx.restore();
+    // motion blur: smear the frame along the camera's own movement during a short shutter
+    const blur = cam && doc.camera.blur > 0 ? doc.camera.blur : 0;
+    if (blur) {
+      const sh = blur * 0.045;
+      const prev = camAt(doc, Math.max(0, t - sh));
+      if (prev) {
+        const M = camMatrix(doc, cam), Mi = M.inverse();
+        const S0 = new DOMMatrix().scale(sx, sy), S0i = S0.inverse();
+        const rel = k => { const ck = camAt(doc, Math.max(0, t - sh * k)); return S0.multiply(camMatrix(doc, ck)).multiply(Mi).multiply(S0i); };
+        const R1 = rel(1);
+        const pts = [[0, 0], [c.width, 0], [0, c.height], [c.width, c.height], [c.width / 2, c.height / 2]];
+        const disp = Math.max(...pts.map(([x, y]) => { const q = R1.transformPoint(new DOMPoint(x, y)); return Math.hypot(q.x - x, q.y - y); }));
+        if (disp > 1.5) {
+          const N = clamp(Math.ceil(disp / 3), 2, 14);
+          if (!blurBuf || blurBuf.width !== c.width || blurBuf.height !== c.height) blurBuf = canvas(c.width, c.height);
+          const bx = blurBuf.getContext('2d');
+          bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalAlpha = 1; bx.clearRect(0, 0, c.width, c.height);
+          bx.drawImage(c, 0, 0);
+          for (let i = 1; i <= N; i++) {
+            bx.setTransform(rel(i / N)); bx.globalAlpha = 1 / (i + 1);
+            bx.drawImage(c, 0, 0);
+          }
+          ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+          ctx.drawImage(blurBuf, 0, 0);
+        }
+      }
+    }
+    ctx.save();
+    ctx.scale(sx, sy);
     drawOverlay(ctx, doc);
     ctx.restore();
     return c;

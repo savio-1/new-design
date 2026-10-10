@@ -211,10 +211,16 @@
       R.drawBackground(ctx, doc); ctx.restore();
     },
   });
-  bgLayer.add(artShadow, bgShape);
+  // the camera moves an inner group; the outer one clips to the canvas frame
+  const bgFrame = new Konva.Group({ clipX: 0, clipY: 0, clipWidth: 1080, clipHeight: 1350 });
+  const bgCam = new Konva.Group();
+  bgCam.add(bgShape); bgFrame.add(bgCam);
+  bgLayer.add(artShadow, bgFrame);
 
-  const art = new Konva.Group({ clipX: 0, clipY: 0, clipWidth: 1080, clipHeight: 1350 });
-  layer.add(art);
+  const artFrame = new Konva.Group({ clipX: 0, clipY: 0, clipWidth: 1080, clipHeight: 1350 });
+  const art = new Konva.Group();
+  artFrame.add(art);
+  layer.add(artFrame);
   const overlayShape = new Konva.Shape({
     listening: false,
     sceneFunc: (c) => { const ctx = c._context; ctx.save(); R.drawOverlay(ctx, doc); ctx.restore(); },
@@ -383,14 +389,16 @@
       nodes.set(el.id, n);
       art.add(n);
     }
-    art.add(overlayShape);
+    artFrame.add(overlayShape);
+    overlayShape.moveToTop();
     sizeArt();
     sel = sel.filter(id => elMap.has(id));
     attachTransformer();
     layer.batchDraw();
   }
   function sizeArt() {
-    art.clip({ x: 0, y: 0, width: doc.width, height: doc.height });
+    artFrame.clip({ x: 0, y: 0, width: doc.width, height: doc.height });
+    bgFrame.clip({ x: 0, y: 0, width: doc.width, height: doc.height });
     artShadow.size({ width: doc.width, height: doc.height });
     artShadow.fill(doc.background.color || '#fff');
     bgLayer.batchDraw();
@@ -602,7 +610,8 @@
       return;
     }
     if (evt.button === 2) return;
-    if (playing) S.pause();
+    // editing always happens on the still layout, not mid-animation
+    if (R.playTime != null) S.stopPreview();
     const t = e.target;
     if (S.tool === 'erase') { eraseStart(evt, t); return; }
     if (cropState) {
@@ -1202,7 +1211,15 @@
 
   let playStart = 0, raf = 0;
   S.isPlaying = () => playing;
-  S.hasAnimation = () => doc.elements.some(R.hasAnim);
+  S.hasAnimation = () => doc.elements.some(R.hasAnim) || R.hasCamera(doc);
+  function applyCamera(t) {
+    const cam = t != null ? R.camAt(doc, t) : null;
+    const a = cam ? { x: doc.width / 2, y: doc.height / 2, offsetX: cam.fx, offsetY: cam.fy, scaleX: cam.z, scaleY: cam.z, rotation: cam.r }
+      : { x: 0, y: 0, offsetX: 0, offsetY: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+    art.setAttrs(a); bgCam.setAttrs(a);
+    bgLayer.batchDraw();
+  }
+  S.applyCamera = applyCamera;
   S.play = function () {
     if (playing) return;
     if (textEdit) finishTextEdit();
@@ -1217,6 +1234,7 @@
       if (!playing) return;
       const t = ((now - playStart) / 1000) % doc.anim.duration;
       R.playTime = t;
+      applyCamera(t);
       layer.batchDraw();
       emit('time', t);
       raf = requestAnimationFrame(tick);
@@ -1236,10 +1254,11 @@
   // show one moment of the animation without playing (null = the finished layout used for editing)
   S.seek = function (t) {
     R.playTime = t;
+    applyCamera(t);
     layer.batchDraw();
     emit('time', t);
   };
-  S.stopPreview = function () { S.pause(); R.playTime = null; layer.batchDraw(); emit('time', null); };
+  S.stopPreview = function () { S.pause(); R.playTime = null; applyCamera(null); layer.batchDraw(); emit('time', null); };
 
   /* ───────────────────────── crop mode ───────────────────────── */
 
@@ -1316,7 +1335,7 @@
         syncNode(o);
       }
     }
-    if (target === 'doc') { if (path.startsWith('background.color')) artShadow.fill(doc.background.color); }
+    if (target === 'doc') { if (path.startsWith('background.color')) artShadow.fill(doc.background.color); if (path.startsWith('camera') && R.playTime != null) applyCamera(R.playTime); }
     if (target !== 'doc' && /^(curve|type|locked|shape)$/.test(path)) attachTransformer();
     tr.forceUpdate();
     redraw();

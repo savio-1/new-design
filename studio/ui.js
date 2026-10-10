@@ -1079,6 +1079,15 @@
         ],
       } : null,
       {
+        label: 'Layer blur', icon: 'circle', on: !!(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0)), hidden: el.type === 'camera',
+        add: () => S.change(T, 'lblur', { gauss: 6, motion: 0, angle: 0 }), remove: () => S.change(T, 'lblur', null),
+        body: () => [
+          row('Blur', num(T, 'lblur.gauss', { min: 0, max: 60, step: 0.5, slider: true, def: 0 })),
+          row('Motion', num(T, 'lblur.motion', { min: 0, max: 200, slider: true, def: 0 })),
+          row('Direction', num(T, 'lblur.angle', { min: -90, max: 90, slider: true, unit: '°', def: 0 })),
+        ],
+      },
+      {
         label: 'Blend mode', icon: 'palette', on: el.blend && el.blend !== 'normal',
         add: () => set('blend', 'multiply'), remove: () => set('blend', 'normal'),
         body: () => [row('Mode', selectCtl(T, 'blend', [['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-burn', 'Colour burn'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['luminosity', 'Luminosity']]))],
@@ -1100,7 +1109,33 @@
     const loops = Object.entries(R.ANIM_LOOPS).filter(([k]) => k !== 'none' && (k !== 'flow' || isPath));
     const enters = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'none' && (k !== 'typewriter' || el.type === 'text') && (k !== 'draw' || isPath));
     const start = (k, v) => { S.change(T, 'anim', Object.assign({ speed: 1, amount: 1, delay: 0 }, S.selEls()[0].anim || {}, { [k]: v })); updateTimeline(); S.play(); };
+    const tm = el.time || {};
+    const words = [...new Set((el.text || '').split(/\s+/).map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')).filter(w => w.length > 1))].slice(0, 40);
+    const marks = (el.typing && el.typing.marks) || [];
+    const isMarked = w => marks.some(m => m.toLowerCase() === w.toLowerCase());
+    const toggleMark = w => { const cur = (S.selEls()[0].typing.marks || []).slice(); const i = cur.findIndex(m => m.toLowerCase() === w.toLowerCase()); if (i >= 0) cur.splice(i, 1); else cur.push(w); S.change(T, 'typing.marks', cur); renderInspector(); };
     return addSec('Motion', [
+      el.type === 'text' ? {
+        label: 'Typing', icon: 'type', on: !!el.typing,
+        add: () => { S.change(T, 'typing', { caret: true, marks: [], style: 'select' }, true); if ((S.selEls()[0].anim || {}).enter !== 'typewriter') start('enter', 'typewriter'); else S.commit(); },
+        remove: () => { S.change(T, 'typing', null); if (enter === 'typewriter') setA('enter', 'none'); },
+        body: () => [
+          h('div.sub-label', null, 'Highlight words — tap to pick'),
+          words.length ? h('div.chips.tight.word-chips', null, words.map(w => h('button.chip' + (isMarked(w) ? '.on' : ''), { type: 'button', onclick: () => toggleMark(w) }, w))) : h('p.hint', null, 'Type some text first.'),
+          row('Style', seg(T, 'typing.style', [['select', 'Select'], ['marker', 'Marker'], ['underline', 'Line']], { set: v => { S.change(T, 'typing.style', v); S.change(T, 'typing.color', null); renderInspector(); } })),
+          row('Colour', colorCtl(T, 'typing.color', { allowNone: true })),
+          toggle(T, 'typing.caret', 'Blinking cursor', { get: () => S.selEls()[0].typing && S.selEls()[0].typing.caret !== false, set: v => S.change(T, 'typing.caret', v) }),
+          more('typing-more', [
+            row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })),
+            row('Starts at', num(T, 'anim.delay', { min: 0, max: 20, step: 0.05, slider: true, def: 0, unit: 's', set: (v, l) => setA('delay', v, l) })),
+            row('Phrase', inputCtl(T, 'typing.marksText', { placeholder: 'e.g. every day' })),
+            h('p.hint', null, 'Type a phrase above (comma between several) to highlight more than one word at a time.'),
+            row('Handles', colorCtl(T, 'typing.handle')),
+            row('Cursor', colorCtl(T, 'typing.caretColor')),
+            full(h('button.btn', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview')),
+          ], 'Speed, phrases & colours'),
+        ],
+      } : null,
       {
         label: 'Entrance', icon: 'forward', on: enter !== 'none',
         add: () => start('enter', isPath ? 'draw' : el.type === 'text' ? 'rise' : 'pop'), remove: () => setA('enter', 'none'),
@@ -1122,8 +1157,29 @@
           ]),
         ],
       },
+      {
+        label: 'Show / hide timing', icon: 'film', on: R.hasTiming(el),
+        add: () => { S.change(T, 'time', { start: 1, end: null }); updateTimeline(); }, remove: () => { S.change(T, 'time', null); updateTimeline(); },
+        body: () => [
+          row('Appears at', num(T, 'time.start', { min: 0, max: 60, step: 0.05, slider: true, def: 0, unit: 's' })),
+          row('Leaves at', num(T, 'time.end', { min: 0, max: 60, step: 0.05, slider: true, def: 0, unit: 's', set: (v, l) => S.change(T, 'time.end', v > 0 ? v : null, l) })),
+          tm.cycle && tm.cycle.count > 1 ? h('p.hint', null, `Takes turns with ${tm.cycle.count - 1} other layer${tm.cycle.count > 2 ? 's' : ''}, ${Math.round((tm.cycle.slot || 0.15) * 100) / 100}s each — this is how match cuts flicker.`) : null,
+          tm.cycle && tm.cycle.count > 1 ? row('Each shot', num(T, 'time.cycle.slot', { min: 0.04, max: 2, step: 0.01, slider: true, unit: 's' })) : null,
+          h('p.hint', null, 'Leave “Leaves at” at 0 to keep it until the end. Great for cuts: show one layer, then swap it for another.'),
+        ],
+      },
     ]);
   }
+  // Typing phrases typed in the "Phrase" box become highlight marks too
+  S.on('values', path => {
+    if (path !== 'typing.marksText') return;
+    const el = S.selEls()[0];
+    if (!el || !el.typing) return;
+    const extra = String(el.typing.marksText || '').split(',').map(x => x.trim()).filter(Boolean);
+    const words = (el.typing.marks || []).filter(m => !/\s/.test(m));
+    el.typing.marks = [...words, ...extra];
+    S.redraw();
+  });
 
   function alignGrid() {
     return h('div.align-grid', null,
@@ -1175,6 +1231,57 @@
     ], false);
   }
 
+  const CAM_DEFAULTS = {
+    pushin: { zoom: 1.6, start: 0, dur: 5, blur: 0.2 }, pullback: { zoom: 3.5, start: 0, dur: 1.8, rotate: 6, blur: 0.8 },
+    whip: { zoom: 2.4, start: 0.8, dur: 0.5, rotate: 5, blur: 1 }, snap: { zoom: 2, start: 1.2, dur: 3, blur: 0.6, shake: 0.4 },
+    crash: { zoom: 2.6, start: 0.6, dur: 2.4, rotate: 4, blur: 0.9 }, follow: { zoom: 3.5, start: 0.8, dur: 0.45, blur: 0.5, shake: 0.15 },
+    cuts: { zoom: 3.4, start: 0, dur: 1.6, rotate: 5, blur: 0, shake: 0.3 }, drift: { zoom: 1.15, rotate: 1.5, shake: 0.5, blur: 0.2 },
+    pan: { zoom: 1.4, start: 0, dur: 5, blur: 0.4 }, tilt: { zoom: 1.2, start: 0, dur: 5, rotate: 7, blur: 0.2 },
+    jolt: { zoom: 1.3, rotate: 2, cut: 0.2, wander: 1, blur: 0.4 }, spiral: { zoom: 2, start: 0, dur: 2, rotate: 25, blur: 0.6 },
+  };
+  function camTargetDefault(move) {
+    const els = S.doc.elements;
+    const typed = els.find(e => e.type === 'text' && (e.typing || (e.anim && e.anim.enter === 'typewriter')));
+    const pick = (move === 'follow' && typed) || els.filter(e => e.type === 'image' && e.width < S.doc.width * 0.95).sort((a, b) => b.width * b.height - a.width * a.height)[0] || typed || null;
+    return pick ? (pick.key || pick.id) : '';
+  }
+  function setCameraMove(move) {
+    if (move === 'none') { S.change('doc', 'camera', null); }
+    else {
+      const prev = S.doc.camera || {};
+      S.change('doc', 'camera', Object.assign({ move, target: prev.target || camTargetDefault(move), start: 0, dur: 1.5, zoom: 2, rotate: 0, shake: 0, blur: 0.5 }, CAM_DEFAULTS[move] || {}, { move }, prev.target ? { target: prev.target } : {}));
+      S.seek(0); S.play();
+    }
+    renderInspector(); updateTimeline(); updateTop();
+  }
+  S.setCameraMove = setCameraMove;
+  function cameraSection() {
+    const c = S.doc.camera;
+    const moves = Object.entries(R.CAMERA_MOVES).filter(([k]) => k !== 'none');
+    const add = h('button.sec-add', { type: 'button', title: 'Add a camera move', onclick: e => menu(e.currentTarget, moves.map(([k, l]) => ({ label: l, icon: 'film', run: () => setCameraMove(k) }))) }, ic(c && c.move ? 'more' : 'plus'));
+    if (!c || !c.move || c.move === 'none') return sec('Camera', [], true, { collapsible: false, actions: add });
+    const D = S.doc.anim.duration;
+    const focusOpts = [['', 'Centre of the canvas'], ...S.doc.elements.slice().reverse().filter(e => !e.hidden).map(e => [e.key || e.id, S.elLabel(e).slice(0, 30)])];
+    const T = 'doc';
+    return sec('Camera', [
+      row('Move', selectCtl(T, 'camera.move', moves, { set: v => setCameraMove(v) })),
+      row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })),
+      row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })),
+      !['drift', 'jolt'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
+      !['drift', 'jolt', 'follow'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
+      c.move === 'jolt' ? row('Cut every', num(T, 'camera.cut', { min: 0.05, max: 2, step: 0.01, slider: true, unit: 's' })) : null,
+      more('camera-more', [
+        row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
+        row('Handheld', num(T, 'camera.shake', { min: 0, max: 3, step: 0.05, slider: true, def: 0 })),
+        row('Motion blur', num(T, 'camera.blur', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 0 })),
+        c.move === 'jolt' ? row('Wander', num(T, 'camera.wander', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 1 })) : null,
+        row('Video length', num(T, 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change(T, 'anim.duration', v, live); updateTimeline(); } })),
+      ], 'Tilt, shake & blur'),
+      full(h('div.btn-row', null,
+        h('button.btn.grow', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview'),
+        h('button.btn', { type: 'button', onclick: () => setCameraMove('none') }, ic('trash'), 'Remove'))),
+    ], true, { collapsible: false, actions: null });
+  }
   function sizeName(w, hh) { const m = SIZES.find(([, a, b]) => a === w && b === hh); return m ? m[0] : 'Custom'; }
   function canvasInspector() {
     const T = 'doc';
@@ -1218,6 +1325,7 @@
           full(h('button.btn', { type: 'button', onclick: () => { S.change(T, 'background.assetId', null); renderInspector(); } }, ic('trash'), 'Remove photo')),
         ], 'Adjust photo'),
       ], true) : null,
+      cameraSection(),
       addSec('Finish', [
         {
           label: 'Pattern', on: bg.pattern && bg.pattern.type !== 'none',
@@ -1345,15 +1453,36 @@
   let tplTag = 'All';
   function templateCard(t, onPick, width = 260, opts = {}) {
     const thumb = h('div.thumb.skeleton', { style: { aspectRatio: `${t.width} / ${t.height}` } });
-    const card = h('div.tpl', null,
-      h('button.tpl-main', { type: 'button', onclick: () => onPick(t), title: `Use “${t.name}”` }, thumb, opts.meta === false ? null : h('div.meta', null, t.name)),
+    const main = h('button.tpl-main', { type: 'button', onclick: () => onPick(t), title: opts.title || `Use “${t.name}”` }, thumb, opts.meta === false ? null : h('div.meta', null, opts.label || t.name));
+    const card = h('div.tpl' + (opts.family ? '.family' : ''), null, main,
+      t.video ? h('span.tpl-badge', null, ic('play'), 'Video') : null,
+      opts.count ? h('span.tpl-count', null, `${opts.count} styles`) : null,
       opts.pieces ? h('button.tpl-pieces', { type: 'button', title: `Browse the layers in “${t.name}” and add the ones you want`, onclick: () => openPieces(t) }, ic('layers'), 'Pieces') : null);
+    let still = null;
     docThumb('tpl:' + t.id, templateDoc(t), width).then(c => {
-      const img = new Image();
-      img.src = c.toDataURL('image/jpeg', 0.85);
+      still = new Image();
+      still.src = c.toDataURL('image/jpeg', 0.85);
       thumb.classList.remove('skeleton');
-      thumb.replaceChildren(img);
+      thumb.replaceChildren(still);
     });
+    if (t.video) {
+      // hovering a video template plays it in the thumbnail
+      let raf = 0, cv = null, wait = 0;
+      // start after a short hover so quick clicks and taps aren't disturbed by the swap
+      main.addEventListener('pointerenter', e => {
+        if (e.pointerType === 'touch') return;
+        wait = setTimeout(() => {
+          const d = templateDoc(t);
+          if (!cv) { cv = document.createElement('canvas'); cv.width = width; cv.height = Math.round(width * t.height / t.width); }
+          const t0 = performance.now();
+          R.renderDoc(d, { canvas: cv, time: 0 });
+          thumb.replaceChildren(cv);
+          const tick = now => { R.renderDoc(d, { canvas: cv, time: ((now - t0) / 1000) % ((d.anim && d.anim.duration) || 5) }); raf = requestAnimationFrame(tick); };
+          raf = requestAnimationFrame(tick);
+        }, 250);
+      });
+      main.addEventListener('pointerleave', () => { clearTimeout(wait); cancelAnimationFrame(raf); if (still && cv && cv.isConnected) thumb.replaceChildren(still); });
+    }
     return card;
   }
   const tplDocs = new Map();
@@ -1440,15 +1569,39 @@
       grid,
     ];
   }
+  let tplGroup = null;
+  function familyPanel(g, members) {
+    const grid = h('div.tpl-grid', null, members.map(t => templateCard(t, useTemplate, 260, { pieces: true })));
+    return [
+      panelHead('Templates'),
+      h('button.back-link', { type: 'button', onclick: () => { tplGroup = null; renderPanel(); } }, ic('chevLeft'), 'All templates'),
+      h('h2.drill-title', null, g),
+      h('p.hint', { style: { marginBottom: '12px' } }, members[0].video
+        ? `${members.length} styles, each with its own camera move. Hover to preview — after choosing, change the move under Camera on the right.`
+        : `${members.length} variations of the same idea. Pick one, then make it yours.`),
+      grid,
+    ];
+  }
   function templatesPanel() {
     const T = window.STUDIO_TEMPLATES || [];
     if (piecesOf) { const t = T.find(x => x.id === piecesOf); if (t) return piecesPanel(t); piecesOf = null; }
-    const tags = ['All', ...new Set(T.flatMap(t => t.tags || []))];
+    if (tplGroup) { const m = T.filter(t => t.group === tplGroup); if (m.length) return familyPanel(tplGroup, m); tplGroup = null; }
+    const tags = ['All', 'Video', ...[...new Set(T.flatMap(t => t.tags || []))].filter(x => x !== 'Video')];
     const grid = h('div.tpl-grid');
     const draw = () => {
       const q = (queries.templates || '').trim().toLowerCase();
-      const list = T.filter(t => (tplTag === 'All' || (t.tags || []).includes(tplTag)) && (!q || t.name.toLowerCase().includes(q) || (t.tags || []).some(g => g.toLowerCase().includes(q))));
-      grid.replaceChildren(...list.map(t => templateCard(t, useTemplate, 260, { pieces: true })));
+      const list = T.filter(t => (tplTag === 'All' || (t.tags || []).includes(tplTag)) && (!q || t.name.toLowerCase().includes(q) || (t.group || '').toLowerCase().includes(q) || (t.tags || []).some(g => g.toLowerCase().includes(q))));
+      // one card per family; searching shows every match individually
+      const seen = new Set(), cards = [];
+      for (const t of list) {
+        if (t.group && !q) {
+          if (seen.has(t.group)) continue;
+          seen.add(t.group);
+          const members = T.filter(x => x.group === t.group);
+          cards.push(templateCard(t, () => { tplGroup = t.group; renderPanel(); panel.scrollTop = 0; }, 260, { family: true, count: members.length, label: t.group, title: `See all ${members.length} styles of “${t.group}”` }));
+        } else cards.push(templateCard(t, useTemplate, 260, { pieces: true }));
+      }
+      grid.replaceChildren(...cards);
       if (!list.length) grid.append(h('p.hint', null, 'No templates match.'));
       hydrateIcons(grid);
     };
@@ -1545,6 +1698,11 @@
       ['Wavy', { wavy: true }], ['Wavy arrow', { wavy: true, arrowEnd: true }], ['Dotted', { dash: 0.5 }], ['Thick', { strokeWidth: 18 }],
     ].map(([name, o]) => elTile(name, () => S.mk('shape', Object.assign({ shape: 'line', stroke: '#1d1b18', strokeWidth: 8, width: W * 0.4, height: 60 }, o)), { tags: 'line arrow', th: 40 }));
     out.push({ title: 'Lines & arrows', items: [...curves.slice(0, 4), ...lineDefs.slice(0, 4), ...curves.slice(4), ...lineDefs.slice(4)] });
+    const marks = [
+      ['Circle it', 'scribble', 0.32, 0.34], ['Underline swipe', 'swipe', 0.4, 0.07], ['Tick', 'tick', 0.18, 0.15], ['Cross it out', 'cross', 0.25, 0.25],
+      ['Pointing arrow', 'bend', 0.26, 0.2, { arrowEnd: true }], ['Hook arrow', 'hook', 0.26, 0.22, { arrowEnd: true }],
+    ].map(([name, path, w, hh, o]) => elTile(name, () => S.mk('ribbon', Object.assign({ path, line: true, thickness: Math.max(6, W * 0.012), color: '#dc2626', opacity: 0.92, text: '', width: W * w, height: W * hh, anim: { enter: 'draw', delay: 0.5, speed: 0.8 } }, o || {})), { tags: 'mark circle underline red marker annotate scribble' }));
+    out.push({ title: 'Marks & scribbles', items: marks, note: 'Red-pen marks that draw themselves on in videos.' });
     const colors = ['#7fa88a', '#f7d046', '#ff8a3d', '#c9b6f2', '#ff7ab6', '#5aa9e6', '#d7ef5a', '#e84a5f'];
     let ci = 0;
     const shapes = Object.entries(R.SHAPES).filter(([k]) => k !== 'line').map(([k, s]) => {
@@ -2229,11 +2387,12 @@
       h('div.btn-row', null,
         h('button.btn.primary.grow', { type: 'button', onclick: () => { closePop(); if (!S.hasAnimation()) { toast('Pick a look below first'); return; } playing ? S.pause() : S.play(); } }, ic(playing ? 'pause' : 'play'), playing ? 'Pause' : 'Play'),
         h('button.btn.grow', { type: 'button', onclick: () => { closePop(); openExport('video'); } }, ic('film'), 'Export video')),
+      row('Camera', (() => { const sl = h('select.sel', { onchange: e => { closePop(); setCameraMove(e.target.value); S.select([]); } }, Object.entries(R.CAMERA_MOVES).map(([k, l]) => h('option', { value: k, selected: ((S.doc.camera && S.doc.camera.move) || 'none') === k }, l))); return sl; })()),
       h('div.sub-label', null, 'Animate everything'),
       h('div.anim-presets', null, ANIM_PRESETS.map(p => h('button.anim-preset', { type: 'button', onclick: () => { closePop(); applyAnimPreset(p); } }, h('b', null, p.name), h('small', null, p.sub)))),
       row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); updateTimeline(); } })),
       S.hasAnimation() ? h('button.link-btn.danger', { type: 'button', onclick: () => { closePop(); S.doc.elements.forEach(e => { delete e.anim; }); S.stopPreview(); S.touchAll(); S.commit(); renderInspector(); updateTimeline(); updateTop(); toast('Animations removed'); } }, 'Remove all animation') : null,
-      h('p.hint', null, 'To animate one layer, select it and use Motion on the right.'),
+      h('p.hint', null, 'To animate one layer, select it and use Motion on the right. Camera settings live on the right when nothing is selected.'),
     ].filter(Boolean), { cls: 'anim-pop' });
     hydrateIcons(el);
   }
