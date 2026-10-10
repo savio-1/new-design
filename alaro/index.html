@@ -1,0 +1,1527 @@
+<title>Alaro Smart Camera</title>
+<meta name="description" content="Alaro is a smart camera that understands what's happening at home, not just records it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout concept: a gallery-lit product on quiet paper, and real life shown through
+   the camera's own eye — photographs framed by on-screen tracking, timestamps and moments. */
+:root{
+  --paper:#f4f5f2;          /* page ground, faint green-grey bias */
+  --surface:#e9ebe6;        /* panels */
+  --surface-2:#dde0da;      /* deeper panels, rails */
+  --raised:#ffffff;         /* chat window, cards on panels */
+  --ink:#121412;            /* text, primary buttons */
+  --ink-2:#3a3f3a;
+  --muted:#6a7069;
+  --line:rgba(18,20,18,.12);
+  --accent:#1f3d2e;         /* evergreen: Ask Alaro, focus, active state */
+  --on-accent:#f4f5f2;
+  --wall:#e4e5e1;           /* 3D stage wall */
+  --wall-shadow:rgba(20,24,22,.22);
+  --spot:#ffffff;           /* hero spotlight */
+  /* constant dark world (intelligence, care, footer) */
+  --night:#0a0b0a;
+  --night-2:#161816;
+  --night-3:#202320;
+  --night-ink:#eff1ed;
+  --night-muted:#9aa19a;
+  --night-line:rgba(239,241,237,.12);
+  --black:#000000;
+  /* camera overlay */
+  --signal:#8ff0b4;
+  --osd-bg:rgba(10,12,10,.55);
+  --osd-ink:#ffffff;
+  --live:#ff5a4e;
+
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Figtree",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --fs-hero:clamp(2.7rem,6.6vw,5.9rem);
+  --fs-h2:clamp(2rem,4.4vw,3.6rem);
+  --fs-h3:clamp(1.3rem,1.9vw,1.7rem);
+  --fs-lead:clamp(1.05rem,1.3vw,1.2rem);
+  --fs-body:1.0625rem;
+  --fs-small:.875rem;
+  --fs-mono:.7rem;
+
+  --r-l:28px; --r-m:20px; --r-s:12px;
+  --ease:cubic-bezier(.2,.7,.1,1);
+  --gutter:clamp(16px,4vw,40px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0d0e0d; --surface:#171917; --surface-2:#1f221f; --raised:#1b1d1b;
+  --ink:#eef0ec; --ink-2:#c7ccc5; --muted:#8f968e; --line:rgba(238,240,236,.13);
+  --accent:#a8dcbc; --on-accent:#0d0e0d;
+  --wall:#191b19; --wall-shadow:rgba(0,0,0,.55); --spot:#262926;
+  --night:#000000; --night-2:#111311; --night-3:#1b1e1b;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#0d0e0d; --surface:#171917; --surface-2:#1f221f; --raised:#1b1d1b;
+  --ink:#eef0ec; --ink-2:#c7ccc5; --muted:#8f968e; --line:rgba(238,240,236,.13);
+  --accent:#a8dcbc; --on-accent:#0d0e0d;
+  --wall:#191b19; --wall-shadow:rgba(0,0,0,.55); --spot:#262926;
+  --night:#000000; --night-2:#111311; --night-3:#1b1e1b;
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:var(--fs-body);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1240px;margin-inline:auto;padding-inline:var(--gutter)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+h1,h2,h3{font-family:var(--f-display);font-stretch:116%;font-weight:620;letter-spacing:-.025em;line-height:1.02;margin:0;text-wrap:balance}
+h2{font-size:var(--fs-h2)}
+h3{font-size:var(--fs-h3);letter-spacing:-.015em;line-height:1.15;font-stretch:108%}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:var(--fs-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.lead{font-size:var(--fs-lead);color:var(--ink-2);max-width:34ch;text-wrap:pretty}
+.soft{color:var(--muted)}
+.two-tone .dim{color:var(--muted)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.55em;height:52px;padding:0 28px;border-radius:999px;border:1px solid transparent;font-weight:600;font-size:.98rem;text-decoration:none;transition:transform .35s var(--ease),background-color .3s,color .3s,border-color .3s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn--solid{background:var(--ink);color:var(--paper)}
+.btn--solid:hover{background:var(--ink-2)}
+.btn--ghost{border-color:color-mix(in srgb,var(--ink) 35%,transparent);background:transparent}
+.btn--ghost:hover{border-color:var(--ink)}
+.btn--light{background:var(--night-ink);color:var(--night)}
+.btn--light:hover{background:#fff}
+.btn--sm{height:40px;padding:0 18px;font-size:.88rem}
+.link{font-weight:600;text-underline-offset:4px;text-decoration-thickness:1px}
+
+/* reveal: visible at rest, animated only once the observer sees it */
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.rv.in{animation:rise .9s var(--ease) both;animation-delay:var(--d,0s)}
+
+/* ───────── nav ───────── */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:color-mix(in srgb,var(--paper) 78%,transparent);backdrop-filter:saturate(1.6) blur(18px);-webkit-backdrop-filter:saturate(1.6) blur(18px);border-bottom:1px solid transparent;transition:border-color .3s}
+.nav.scrolled{border-bottom-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:24px;height:64px}
+.logo{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font-family:var(--f-display);font-stretch:118%;font-weight:680;font-size:1.15rem;letter-spacing:-.02em}
+.logo svg{width:22px;height:22px}
+.nav ul{list-style:none;margin:0 0 0 auto;padding:0;display:flex;gap:4px}
+.nav ul a{display:block;padding:8px 12px;border-radius:999px;text-decoration:none;font-size:.9rem;font-weight:500;color:var(--ink-2);transition:background-color .2s,color .2s}
+.nav ul a:hover{background:var(--surface);color:var(--ink)}
+.nav-actions{display:flex;align-items:center;gap:10px}
+.cart{display:inline-flex;align-items:center;gap:6px;background:none;border:0;padding:8px 6px;font-size:.9rem;font-weight:500}
+.cart svg{width:20px;height:20px}
+.cart .count{font-variant-numeric:tabular-nums;display:inline-block;min-width:1ch}
+.cart.bump .count{animation:bump .5s var(--ease)}
+@keyframes bump{40%{transform:scale(1.6)}}
+.menu-btn{display:none;background:none;border:0;width:40px;height:40px;border-radius:999px;align-items:center;justify-content:center}
+.menu-btn span{display:block;width:18px;height:1.5px;background:var(--ink);position:relative}
+.menu-btn span::before,.menu-btn span::after{content:"";position:absolute;left:0;width:18px;height:1.5px;background:var(--ink);transition:transform .3s}
+.menu-btn span::before{top:-6px}.menu-btn span::after{top:6px}
+@media (max-width:920px){
+  .nav ul{position:absolute;left:0;right:0;top:64px;flex-direction:column;gap:0;padding:8px var(--gutter) 20px;background:var(--paper);border-bottom:1px solid var(--line);display:none}
+  .nav.open ul{display:flex}
+  .nav ul a{padding:14px 4px;font-size:1.05rem;border-radius:0;border-bottom:1px solid var(--line)}
+  .menu-btn{display:inline-flex;margin-left:auto}
+  .nav-actions{margin-left:0}
+}
+
+/* ───────── hero ───────── */
+.hero{position:relative;padding-block:clamp(40px,6vw,72px) clamp(56px,8vw,96px);text-align:center;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-10% -20% auto;height:120%;background:radial-gradient(48% 42% at 50% 52%,var(--spot),transparent 70%);pointer-events:none}
+.hero .wrap{position:relative;display:flex;flex-direction:column;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 10px;border-radius:999px;background:var(--surface);font-family:var(--f-mono);font-size:var(--fs-mono);letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--ink-2)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 18%,transparent);animation:pulse 2.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 4%,transparent)}}
+.hero h1{font-size:var(--fs-hero);margin-top:22px;font-weight:640}
+.hero h1 .grad{display:block;background:linear-gradient(100deg,var(--ink) 8%,var(--muted) 46%,color-mix(in srgb,var(--muted) 55%,var(--paper)) 70%,var(--ink) 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sheen 9s ease-in-out infinite alternate}
+@keyframes sheen{from{background-position:100% 0}to{background-position:0 0}}
+.hero-stage{position:relative;width:min(560px,92%);margin-top:clamp(8px,2vw,24px);aspect-ratio:1318/1193;max-width:100%}
+.hero-stage img{width:100%;height:100%;object-fit:contain;position:relative;z-index:1;will-change:transform;transform-origin:50% 100%}
+.hero-stage .floor{position:absolute;left:12%;right:12%;bottom:-1%;height:9%;background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.28),transparent 70%);filter:blur(8px)}
+.callout{position:absolute;z-index:2;display:flex;align-items:center;gap:10px;font-size:.82rem;color:var(--ink-2);white-space:nowrap}
+.callout::before{content:"";width:40px;height:1px;background:color-mix(in srgb,var(--ink) 30%,transparent)}
+.callout b{font-weight:600;color:var(--ink)}
+.callout--l{right:84%;top:34%;flex-direction:row-reverse}
+.callout--r{left:83%;top:58%}
+@media (max-width:1060px){.callout{display:none}}
+.hero .lead{margin-top:clamp(18px,2.4vw,28px);max-width:40ch;color:var(--ink-2)}
+.cta-row{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:28px}
+.fine{margin-top:16px;font-size:.82rem;color:var(--muted)}
+.fine span+span::before{content:"·";margin-inline:.6em}
+
+/* ───────── shared frame for tracked photos ───────── */
+.shot{position:relative;overflow:hidden;container-type:size;background:var(--surface-2)}
+.shot .frame{--fw:max(100cqw,calc(100cqh * var(--ar)));--fh:max(100cqh,calc(100cqw / var(--ar)));position:absolute;width:var(--fw);height:var(--fh);left:calc((100cqw - var(--fw)) * var(--fx,.5));top:calc((100cqh - var(--fh)) * var(--fy,.5));transition:transform 1.4s var(--ease)}
+.shot .frame img{width:100%;height:100%;object-fit:cover}
+.track{position:absolute;pointer-events:none}
+.track i{position:absolute;width:14px;height:14px;border-color:var(--signal);border-style:solid;border-width:0;filter:drop-shadow(0 0 6px rgba(0,0,0,.35))}
+.track i:nth-child(1){left:0;top:0;border-left-width:2px;border-top-width:2px;border-top-left-radius:5px}
+.track i:nth-child(2){right:0;top:0;border-right-width:2px;border-top-width:2px;border-top-right-radius:5px}
+.track i:nth-child(3){left:0;bottom:0;border-left-width:2px;border-bottom-width:2px;border-bottom-left-radius:5px}
+.track i:nth-child(4){right:0;bottom:0;border-right-width:2px;border-bottom-width:2px;border-bottom-right-radius:5px}
+.track b{position:absolute;left:0;bottom:calc(100% + 6px);font:500 10.5px/1 var(--f-mono);letter-spacing:.06em;color:#0b1a12;background:var(--signal);padding:4px 6px;border-radius:5px;white-space:nowrap}
+.track.below b{bottom:auto;top:calc(100% + 6px)}
+@keyframes lock{0%{opacity:0;transform:scale(1.35)}60%{opacity:1}100%{opacity:1;transform:scale(1)}}
+@keyframes breathe{50%{transform:translate(var(--bx,1.5%),var(--by,-1%)) scale(1.02)}}
+.in .track{animation:lock .9s var(--ease) both,breathe 5s ease-in-out 1s infinite;animation-delay:var(--td,.25s),calc(var(--td,.25s) + 1s)}
+.osd{position:absolute;left:14px;right:14px;top:12px;display:flex;justify-content:space-between;gap:8px;font:500 10px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--osd-ink);text-shadow:0 1px 6px rgba(0,0,0,.45);pointer-events:none}
+.osd .rec{display:inline-flex;align-items:center;gap:6px}
+.osd .rec::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--live);animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* ───────── moments ───────── */
+.moments{padding-block:clamp(64px,9vw,120px)}
+.sec-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px}
+.sec-head h2{max-width:20ch}
+.seg{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:4px;margin-top:14px;border-radius:999px;background:var(--surface)}
+.seg button{position:relative;z-index:1;border:0;background:none;padding:10px 22px;border-radius:999px;font-size:.9rem;font-weight:600;color:var(--muted);transition:color .3s}
+.seg button[aria-selected="true"]{color:var(--paper)}
+.seg .thumb{position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:999px;background:var(--ink);transition:transform .5s var(--ease)}
+.seg[data-active="business"] .thumb{transform:translateX(100%)}
+.bento{display:grid;grid-template-columns:1.12fr 1fr 1fr;grid-template-rows:repeat(2,clamp(230px,25vw,330px));gap:12px;margin-top:clamp(32px,4vw,48px)}
+.bento[hidden]{display:none}
+.bento.swap{animation:rise .7s var(--ease) both}
+.tile{border-radius:var(--r-m);margin:0}
+.tile--tall{grid-row:span 2}
+.tile:hover .frame{transform:scale(1.035)}
+.tile figcaption{position:absolute;left:16px;right:16px;bottom:16px;color:#fff;text-shadow:0 1px 12px rgba(0,0,0,.35);pointer-events:none}
+.tile figcaption q{display:block;font-family:var(--f-display);font-stretch:112%;font-weight:600;font-size:clamp(1.05rem,1.6vw,1.45rem);line-height:1.15;letter-spacing:-.01em;quotes:"\201C" "\201D"}
+.tile figcaption small{display:block;margin-top:8px;font:500 10.5px/1.3 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+.tile .scrim{position:absolute;inset:auto 0 0;height:55%;background:linear-gradient(transparent,rgba(0,0,0,.5));pointer-events:none}
+.note{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:20px;padding:28px;border-radius:var(--r-m);background:linear-gradient(170deg,var(--surface) 0%,var(--surface-2) 100%)}
+.note p{font-size:1.08rem;max-width:24ch;color:var(--ink-2);text-wrap:balance}
+@media (max-width:820px){
+  .bento{grid-template-columns:1fr 1fr;grid-template-rows:none}
+  .bento > *{aspect-ratio:1;max-width:100%}
+  .tile--tall{grid-column:span 2;grid-row:auto;aspect-ratio:4/5}
+  .bento .note{grid-column:span 2;aspect-ratio:auto}
+}
+
+/* ───────── design / 3D ───────── */
+.design{position:relative;background:var(--wall);overflow:hidden;isolation:isolate}
+.design::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(115deg,transparent 0 52%,var(--wall-shadow) 52.2%,transparent 86%),linear-gradient(115deg,transparent 0 62%,color-mix(in srgb,var(--wall-shadow) 60%,transparent) 62.4%,transparent 92%);filter:blur(10px);opacity:.9}
+.design::after{content:"";position:absolute;inset:0;z-index:-1;opacity:.35;background-image:radial-gradient(rgba(0,0,0,.07) 1px,transparent 1px);background-size:3px 3px;mix-blend-mode:multiply}
+.design .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);align-items:center;gap:24px;padding-block:clamp(56px,8vw,110px)}
+.design h2{font-size:clamp(2.2rem,4.6vw,3.9rem)}
+.design .copy{display:flex;flex-direction:column;gap:22px}
+.stage{position:relative;aspect-ratio:1/1;max-width:100%;touch-action:pan-y;cursor:grab;user-select:none}
+.stage.dragging{cursor:grabbing}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage .fallback{position:absolute;inset:8%;width:84%;height:84%;object-fit:contain;transition:opacity .6s}
+.stage.ready .fallback{opacity:0}
+.stage .hint{position:absolute;left:50%;bottom:2%;transform:translateX(-50%);font:500 10px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.stage .hint svg{width:16px;height:16px}
+.finishes{display:flex;flex-direction:column;gap:12px}
+.swatches{display:flex;gap:10px;flex-wrap:wrap}
+.swatch{width:38px;height:38px;border-radius:50%;border:0;padding:0;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),0 0 0 2px var(--paper),0 0 0 3px transparent;transition:box-shadow .3s,transform .3s var(--ease)}
+.design .swatch{box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),0 0 0 2px var(--wall),0 0 0 3px transparent}
+.swatch:hover{transform:scale(1.08)}
+.swatch[aria-pressed="true"]{box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),0 0 0 3px var(--paper),0 0 0 4.5px var(--ink)}
+.design .swatch[aria-pressed="true"]{box-shadow:inset 0 0 0 1px rgba(0,0,0,.14),0 0 0 3px var(--wall),0 0 0 4.5px var(--ink)}
+.swatch[data-c="moonstone"]{--c:linear-gradient(135deg,#f4f5f7,#b9bdc2 55%,#8d9096)}
+.swatch[data-c="porcelain"]{--c:linear-gradient(135deg,#ffffff,#ece9e2)}
+.swatch[data-c="obsidian"]{--c:linear-gradient(135deg,#55585d,#1e2023)}
+.swatch[data-c="sage"]{--c:linear-gradient(135deg,#cfd7c8,#97a38f)}
+.finish-name{font-size:.92rem;color:var(--ink-2)}
+.finish-name b{font-weight:600;color:var(--ink)}
+.toggle{display:inline-flex;align-items:center;gap:12px;border:0;background:none;padding:0;font-size:.95rem;font-weight:500;text-align:left}
+.toggle .sw{position:relative;flex:none;width:46px;height:28px;border-radius:999px;background:color-mix(in srgb,var(--ink) 18%,transparent);transition:background-color .3s}
+.toggle .sw::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:var(--raised);box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .35s var(--ease)}
+.toggle[aria-pressed="true"] .sw{background:var(--accent)}
+.toggle[aria-pressed="true"] .sw::after{transform:translateX(18px)}
+.toggle small{display:block;color:var(--muted);font-size:.82rem;font-weight:400}
+.specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding-top:22px;border-top:1px solid var(--line)}
+.specs div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.specs b{font-family:var(--f-display);font-stretch:112%;font-weight:600;font-size:1.5rem;letter-spacing:-.02em}
+.specs span{font-size:.82rem;color:var(--muted)}
+@media (max-width:860px){.design .wrap{grid-template-columns:1fr}.stage{order:-1;max-width:560px;width:100%;margin-inline:auto}}
+
+/* ───────── intelligence (dark) ───────── */
+.intel{background:var(--night);color:var(--night-ink);padding-block:clamp(64px,9vw,120px)}
+.intel .head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:20px 40px;margin-bottom:clamp(28px,4vw,48px)}
+.intel .eyebrow{color:var(--night-muted)}
+.intel h2{max-width:16ch;margin-top:14px}
+.intel .head p{max-width:36ch;color:var(--night-muted)}
+.intel-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.live{display:flex;flex-direction:column;gap:12px;min-width:0}
+.live .shot{flex:1;min-height:360px;border-radius:var(--r-m);background:var(--night-3)}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;background:var(--osd-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--osd-ink);font:500 11px/1 var(--f-mono);letter-spacing:.04em;border:1px solid rgba(255,255,255,.14);white-space:nowrap}
+.live .chip{position:absolute}
+.live .c-play{left:16px;top:18%}
+.live .c-who{right:16px;top:50%}
+.live .c-room{left:16px;bottom:16px}
+.live .c-room::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--live);animation:blink 1.6s infinite}
+.live .c-time{right:16px;bottom:16px;font-variant-numeric:tabular-nums}
+.live .btn{width:100%}
+.cards{display:grid;gap:12px;min-width:0}
+.card{position:relative;border-radius:var(--r-m);padding:clamp(22px,2.6vw,32px);background:radial-gradient(120% 140% at 0% 0%,var(--night-3),var(--night-2) 60%);border:1px solid var(--night-line);overflow:hidden;min-height:200px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card h3{color:var(--night-ink);max-width:18ch}
+.card p{color:var(--night-muted);font-size:.95rem}
+.card .big{font-size:clamp(1.15rem,1.6vw,1.4rem);line-height:1.4;color:var(--night-ink);max-width:30ch;font-weight:500}
+.sees{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto}
+.sees span{display:inline-flex;align-items:center;gap:8px;padding:8px 12px 8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--night-line);font-size:.85rem;color:var(--night-ink)}
+.sees svg{width:16px;height:16px;color:var(--signal)}
+.reel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:center}
+.reel-view{position:relative;aspect-ratio:16/11;border-radius:14px;overflow:hidden;background:var(--night-3)}
+.reel-view img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transform:scale(1.06);transition:opacity .8s,transform 3.2s linear}
+.reel-view img.on{opacity:1;transform:scale(1)}
+.reel-bars{position:absolute;left:10px;right:10px;top:9px;display:flex;gap:4px}
+.reel-bars i{flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.3);overflow:hidden}
+.reel-bars i::after{content:"";display:block;height:100%;width:var(--p,0%);background:#fff}
+.reel-cap{position:absolute;left:10px;right:10px;bottom:9px;display:flex;justify-content:space-between;gap:8px;font:500 10px/1.2 var(--f-mono);letter-spacing:.06em;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+.reel-play{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid var(--night-line);color:var(--night-ink);border-radius:999px;padding:8px 14px;font-size:.85rem;font-weight:500}
+.reel-play svg{width:14px;height:14px}
+.marquee{margin-inline:calc(-1 * clamp(22px,2.6vw,32px));margin-top:auto;display:grid;gap:8px;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.marquee .row{display:flex;gap:8px;width:max-content;animation:slide 38s linear infinite}
+.marquee .row:nth-child(2){animation-direction:reverse;animation-duration:46s}
+.marquee span{padding:8px 13px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid var(--night-line);font-size:.82rem;color:var(--night-ink);white-space:nowrap}
+@keyframes slide{to{transform:translateX(-50%)}}
+@media (max-width:900px){.intel-grid{grid-template-columns:1fr}.live .shot{min-height:0;aspect-ratio:4/3;flex:none}.reel{grid-template-columns:1fr}}
+
+/* ───────── ask ───────── */
+.ask{padding-block:clamp(64px,9vw,120px) 0}
+.ask-panel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:clamp(28px,5vw,72px);align-items:center;padding:clamp(28px,6vw,80px);border-radius:var(--r-l);background:var(--surface)}
+.ask-copy{display:flex;flex-direction:column;gap:20px;min-width:0}
+.ask-copy .eyebrow{color:var(--accent)}
+.try{display:flex;flex-direction:column;gap:12px}
+.try .label{font-size:.88rem;color:var(--muted)}
+.prompts{display:flex;flex-wrap:wrap;gap:8px}
+.prompt{border:1px solid var(--line);background:var(--raised);border-radius:999px;padding:9px 15px;font-size:.88rem;font-weight:500;transition:background-color .25s,color .25s,border-color .25s}
+.prompt:hover{border-color:var(--accent)}
+.prompt[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.chat{background:var(--raised);border-radius:var(--r-m);box-shadow:0 30px 80px -30px rgba(20,30,24,.35),0 0 0 1px var(--line);display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.chat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);font-size:.85rem}
+.chat-top b{display:inline-flex;align-items:center;gap:9px;font-weight:600}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:var(--on-accent)}
+.avatar svg{width:14px;height:14px}
+.chat-top span{color:var(--muted);font-size:.78rem}
+.chat-body{height:390px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+.msg-me{align-self:flex-end;max-width:80%;background:var(--surface);padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:.92rem}
+.msg-ai{display:flex;flex-direction:column;gap:10px;font-size:.92rem;animation:rise .6s var(--ease) both}
+.msg-ai .who{display:inline-flex;align-items:center;gap:6px;font:600 10.5px/1 var(--f-mono);letter-spacing:.12em;color:var(--accent)}
+.msg-ai .who svg{width:13px;height:13px}
+.thumbs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.thumbs figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0;animation:rise .6s var(--ease) both;animation-delay:var(--d,0s)}
+.thumbs img{aspect-ratio:4/3;width:100%;object-fit:cover;border-radius:10px;background:var(--surface-2)}
+.thumbs figcaption{font-size:.72rem;color:var(--muted);line-height:1.3}
+.typing{display:inline-flex;gap:4px;padding:12px 14px;border-radius:14px;background:var(--surface);align-self:flex-start}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:dot 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{40%{transform:translateY(-4px);opacity:.5}}
+.chat-form{display:flex;gap:8px;padding:12px 12px 12px 18px;border-top:1px solid var(--line);align-items:center}
+.chat-form input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:.9rem;padding:8px 0}
+.chat-form input::placeholder{color:var(--muted)}
+.send{width:36px;height:36px;border-radius:50%;border:0;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;flex:none;transition:transform .3s var(--ease)}
+.send:hover{transform:scale(1.08)}
+.send svg{width:16px;height:16px}
+@media (max-width:900px){.ask-panel{grid-template-columns:1fr}.chat-body{height:360px}}
+
+/* ───────── control carousel ───────── */
+.control{padding-block:clamp(72px,10vw,130px) 0}
+.control .head{display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.control h2{margin-top:12px}
+.arrows{display:flex;gap:8px}
+.arrow{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;transition:background-color .25s,opacity .25s}
+.arrow:hover:not(:disabled){background:var(--surface-2)}
+.arrow:disabled{opacity:.35;cursor:default}
+.arrow svg{width:18px;height:18px}
+.rail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(280px,30%);gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:var(--gutter);padding:32px var(--gutter) 8px;margin-top:8px;scrollbar-width:none;max-width:1240px;margin-inline:auto}
+.rail::-webkit-scrollbar{display:none}
+.rail .item{scroll-snap-align:start;display:flex;flex-direction:column;gap:14px;min-width:0}
+.rail .shot{aspect-ratio:1/1;border-radius:var(--r-m);width:100%}
+.rail h3{font-size:1.2rem;font-stretch:104%}
+.rail p{font-size:.92rem;color:var(--muted);max-width:36ch}
+@media (max-width:700px){.rail{grid-auto-columns:82%}}
+.pan{background:radial-gradient(80% 80% at 50% 40%,var(--raised),var(--surface-2))}
+.pan img{position:absolute;left:18%;top:14%;width:64%;height:auto;z-index:1}
+.pan .cone{position:absolute;left:50%;top:41%;width:150%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(var(--a,0deg));background:conic-gradient(from -28deg,color-mix(in srgb,var(--accent) 22%,transparent),transparent 56deg);border-radius:50%;mask-image:radial-gradient(circle,#000 20%,transparent 66%);-webkit-mask-image:radial-gradient(circle,#000 20%,transparent 66%);animation:sweep 7s ease-in-out infinite alternate}
+@keyframes sweep{from{transform:translate(-50%,-50%) rotate(110deg)}to{transform:translate(-50%,-50%) rotate(250deg)}}
+.pan .deg{position:absolute;right:14px;top:12px;z-index:2;font:500 10px/1 var(--f-mono);letter-spacing:.1em;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.pad{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:2;display:flex;gap:6px}
+.pad span{width:32px;height:32px;border-radius:50%;background:var(--raised);box-shadow:0 0 0 1px var(--line);display:grid;place-items:center}
+.pad svg{width:14px;height:14px}
+.zone{position:absolute;inset:0;width:100%;height:100%}
+.notif{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--raised) 86%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 10px 30px -10px rgba(0,0,0,.4);font-size:.8rem;line-height:1.3;color:var(--ink)}
+.notif .ic{flex:none;width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--paper);display:grid;place-items:center}
+.notif .ic svg{width:15px;height:15px}
+.notif small{display:block;color:var(--muted);font-size:.72rem}
+
+/* ───────── app + buy ───────── */
+.app{padding-block:clamp(72px,10vw,130px)}
+.app .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(32px,6vw,88px);align-items:start}
+.app-visual{position:sticky;top:calc(env(safe-area-inset-top,0px) + 88px);aspect-ratio:4/5;max-width:100%;border-radius:var(--r-l);overflow:hidden;background:radial-gradient(90% 70% at 20% 10%,color-mix(in srgb,var(--raised) 70%,#f3e9da),color-mix(in srgb,var(--surface-2) 70%,#c9bba6) 90%)}
+.app-visual::before{content:"";position:absolute;inset:0;background:linear-gradient(125deg,transparent 30%,rgba(60,40,20,.14) 30.5%,transparent 60%);filter:blur(14px)}
+.app-visual .shelf{position:absolute;left:-4%;width:64%;top:62%;height:9%;border-radius:0 18px 18px 0;background:linear-gradient(180deg,color-mix(in srgb,var(--raised) 60%,#e8decf),color-mix(in srgb,var(--surface-2) 50%,#cbbfae));box-shadow:0 26px 40px -16px rgba(60,40,20,.4)}
+.app-visual .cam{position:absolute;left:6%;top:31%;width:46%;z-index:1}
+.phone{position:absolute;right:7%;bottom:6%;width:46%;aspect-ratio:9/19;border-radius:34px;background:#0c0d0c;padding:7px;box-shadow:0 40px 70px -25px rgba(30,20,10,.55),inset 0 0 0 1.5px #3a3c3a;z-index:2}
+.screen{position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:#f6f7f4;color:#121412;font-size:10px}
+.screen .bar{display:flex;justify-content:space-between;padding:10px 16px 6px;font:600 9px/1 var(--f-body)}
+.screen .island{position:absolute;left:50%;top:7px;width:30%;height:14px;border-radius:999px;background:#0c0d0c;transform:translateX(-50%)}
+.scr{position:absolute;inset:28px 0 0;padding:6px 12px 12px;display:flex;flex-direction:column;gap:8px;opacity:0;transform:translateY(10px);transition:opacity .5s,transform .6s var(--ease);pointer-events:none}
+.scr.on{opacity:1;transform:none}
+.scr h4{margin:0;font:650 13px/1.15 var(--f-display);font-stretch:110%;letter-spacing:-.01em}
+.scr .k{font:500 7.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:#6a7069}
+.scr .ph{border-radius:12px;overflow:hidden;position:relative;background:#dde0da}
+.scr .ph img{width:100%;height:100%;object-fit:cover}
+.scr .row{display:flex;gap:8px;align-items:center;padding:7px;border-radius:10px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.05)}
+.scr .row img{width:30px;height:30px;border-radius:7px;object-fit:cover;flex:none}
+.scr .row b{display:block;font-size:9.5px}
+.scr .row small{color:#6a7069;font-size:8.5px}
+.scr .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.scr .g3 img{aspect-ratio:1;border-radius:7px;object-fit:cover;width:100%}
+.scr .ctrls{display:flex;justify-content:center;gap:10px;margin-top:auto}
+.scr .ctrls span{width:30px;height:30px;border-radius:50%;background:#e9ebe6;display:grid;place-items:center}
+.scr .ctrls span.main{background:#1f3d2e;color:#fff}
+.scr .ctrls svg{width:13px;height:13px}
+.scr .bub{align-self:flex-end;background:#e9ebe6;border-radius:10px 10px 3px 10px;padding:6px 8px;max-width:85%}
+.scr .ans{background:#fff;border-radius:10px;padding:8px;box-shadow:0 0 0 1px rgba(0,0,0,.05);line-height:1.35}
+.app-copy{display:flex;flex-direction:column;gap:22px;min-width:0}
+.features{list-style:none;margin:6px 0 0;padding:0;border-top:1px solid var(--line)}
+.features li{border-bottom:1px solid var(--line)}
+.features button{position:relative;display:grid;grid-template-columns:34px 1fr 20px;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;padding:18px 0;font-size:1rem;font-weight:500;color:var(--muted);transition:color .3s}
+.features button[aria-selected="true"]{color:var(--ink)}
+.features .n{font:500 11px/1 var(--f-mono);letter-spacing:.06em}
+.features svg{width:16px;height:16px;transition:transform .3s}
+.features button[aria-selected="true"] svg{transform:rotate(90deg)}
+.features .prog{position:absolute;left:0;bottom:-1px;height:1.5px;width:0;background:var(--ink)}
+.features button[aria-selected="true"] .prog{width:var(--p,0%)}
+.buy{margin-top:18px;border-radius:var(--r-m);background:var(--surface);padding:clamp(22px,3vw,32px);display:flex;flex-direction:column;gap:16px;scroll-margin-top:96px}
+.buy .top{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
+.buy .name{font-weight:600}
+.price{font-family:var(--f-display);font-stretch:112%;font-weight:640;font-size:2rem;letter-spacing:-.02em;margin-top:2px}
+.price small{font-family:var(--f-body);font-size:.8rem;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:6px}
+.buy .incl{font-size:.86rem;color:var(--muted)}
+.buy .swatches .swatch{width:30px;height:30px}
+.ticks{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;font-size:.85rem;color:var(--ink-2)}
+.ticks li{display:flex;gap:8px;align-items:baseline}
+.ticks li::before{content:"";flex:none;width:12px;height:7px;border-left:1.5px solid var(--accent);border-bottom:1.5px solid var(--accent);transform:rotate(-45deg) translateY(-2px)}
+.setup{font-size:.8rem;color:var(--muted)}
+.add.added{background:var(--accent);color:var(--on-accent)}
+@media (max-width:900px){.app .wrap{grid-template-columns:1fr}.app-visual{position:relative;top:0;aspect-ratio:1/1}}
+@media (max-width:480px){.ticks{grid-template-columns:1fr}}
+
+/* ───────── uses ───────── */
+.uses{padding-block:0 clamp(72px,10vw,130px)}
+.uses-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:clamp(32px,4vw,48px)}
+.use{position:relative;aspect-ratio:1/1;max-width:100%;border-radius:var(--r-l);overflow:hidden;text-decoration:none;color:#fff;display:block}
+.use img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.4s var(--ease)}
+.use:hover img{transform:scale(1.05)}
+.use::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.62))}
+.use .txt{position:absolute;z-index:1;left:clamp(20px,3vw,32px);right:clamp(20px,3vw,32px);bottom:clamp(20px,3vw,32px);display:flex;justify-content:space-between;align-items:end;gap:16px}
+.use h3{font-size:clamp(1.6rem,3vw,2.4rem)}
+.use p{margin-top:8px;opacity:.88;max-width:28ch;font-size:.95rem}
+.use .go{flex:none;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.16);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:grid;place-items:center;transition:background-color .3s,transform .4s var(--ease)}
+.use:hover .go{background:#fff;color:#111;transform:rotate(-45deg)}
+.use .go svg{width:18px;height:18px}
+@media (max-width:700px){.uses-grid{grid-template-columns:1fr}.use{aspect-ratio:4/5}}
+
+/* ───────── care (black) ───────── */
+.care{background:var(--black);color:var(--night-ink);overflow:hidden}
+.care .wrap{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);align-items:center;gap:24px;padding-block:clamp(64px,8vw,110px)}
+.care h2{color:var(--night-ink)}
+.care-tabs{list-style:none;padding:0;margin:clamp(28px,4vw,48px) 0 0;display:flex;flex-direction:column}
+.care-tabs li{border-top:1px solid var(--night-line)}
+.care-tabs li:last-child{border-bottom:1px solid var(--night-line)}
+.care-tabs button{position:relative;display:flex;gap:14px;align-items:baseline;width:100%;text-align:left;background:none;border:0;padding:18px 0;color:var(--night-muted);font-family:var(--f-display);font-stretch:112%;font-weight:600;font-size:1.15rem;letter-spacing:-.01em;transition:color .3s}
+.care-tabs button .n{font:500 11px/1 var(--f-mono);letter-spacing:.06em}
+.care-tabs button[aria-selected="true"]{color:var(--night-ink)}
+.care-tabs .prog{position:absolute;left:0;top:-1px;height:1.5px;width:0;background:var(--night-ink)}
+.care-tabs button[aria-selected="true"] .prog{width:var(--p,0%)}
+.care-panel{display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s var(--ease)}
+.care-panel>div{overflow:hidden}
+.care-tabs li.open .care-panel{grid-template-rows:1fr}
+.care-panel p{color:var(--night-muted);max-width:38ch;padding-left:32px}
+.care-chips{display:flex;flex-wrap:wrap;gap:8px;padding:16px 0 22px 32px}
+.care-chips span{padding:8px 13px;border-radius:999px;border:1px solid var(--night-line);background:rgba(255,255,255,.05);font-size:.82rem}
+.care-visual{position:relative;aspect-ratio:1318/1193;max-width:100%;overflow:hidden}
+.care-visual img{width:100%;height:100%;object-fit:cover;transition:transform 1.6s var(--ease),filter 1.6s;transform-origin:var(--o,50% 50%);transform:scale(var(--s,1))}
+.care-visual::after{content:"";position:absolute;inset:0;background:radial-gradient(70% 70% at 50% 45%,transparent 55%,var(--black) 100%);pointer-events:none}
+@media (max-width:860px){.care .wrap{grid-template-columns:1fr}.care-visual{order:-1}}
+
+/* ───────── faq ───────── */
+.faq{padding-block:clamp(72px,10vw,130px)}
+.faq .wrap{max-width:820px}
+.faq h2{text-align:center;font-size:clamp(1.9rem,3.6vw,2.8rem)}
+.qs{display:flex;flex-direction:column;gap:8px;margin-top:clamp(28px,4vw,44px)}
+.qs details{border-radius:var(--r-s);background:var(--surface);overflow:hidden}
+.qs summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 20px;font-weight:600;cursor:pointer}
+.qs summary::-webkit-details-marker{display:none}
+.qs summary .pm{position:relative;flex:none;width:14px;height:14px}
+.qs summary .pm::before,.qs summary .pm::after{content:"";position:absolute;left:0;top:6.25px;width:14px;height:1.5px;background:var(--ink);transition:transform .35s var(--ease)}
+.qs summary .pm{transition:transform .35s var(--ease)}
+.qs summary .pm::after{transform:rotate(90deg)}
+.qs details[open] summary .pm{transform:rotate(45deg)}
+.qs .a{padding:0 20px 20px;color:var(--ink-2);max-width:64ch}
+.qs details[open] .a{animation:rise .5s var(--ease) both}
+.faq .more{text-align:center;margin-top:28px;color:var(--muted);font-size:.92rem}
+
+/* ───────── final cta ───────── */
+.final{padding-block:0 clamp(64px,8vw,100px)}
+.final-panel{position:relative;overflow:hidden;border-radius:var(--r-l);padding:clamp(48px,8vw,100px) clamp(20px,4vw,48px);text-align:center;background:linear-gradient(180deg,var(--surface-2),var(--surface) 70%);display:flex;flex-direction:column;align-items:center;gap:16px}
+.final-panel h2{max-width:16ch}
+.final-panel .peek{width:min(180px,40%);margin-bottom:6px}
+.final .cta-row{margin-top:12px;align-items:center}
+
+/* ───────── footer ───────── */
+.foot{background:var(--night);color:var(--night-ink);padding-block:56px 32px}
+.foot .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr);gap:32px;align-items:start}
+.foot .logo{color:var(--night-ink)}
+.foot .tag{margin-top:10px;color:var(--night-muted);font-size:.9rem}
+.notify{display:flex;flex-direction:column;gap:10px}
+.notify .fields{display:flex;gap:8px;flex-wrap:wrap}
+.notify label{font-size:.85rem;color:var(--night-muted)}
+.notify input{flex:1 1 200px;min-width:0;height:48px;border-radius:999px;border:1px solid var(--night-line);background:var(--night-2);color:var(--night-ink);padding:0 20px;outline:none;transition:border-color .2s}
+.notify input:focus{border-color:var(--night-ink)}
+.notify input::placeholder{color:var(--night-muted)}
+.notify .btn{height:48px;border:1px solid var(--night-line);background:transparent;color:var(--night-ink)}
+.notify .btn:hover{background:var(--night-ink);color:var(--night)}
+.notify .msg{font-size:.85rem;min-height:1.3em;color:var(--signal)}
+.notify .msg.err{color:#ffb4a8}
+.foot nav ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px 22px}
+.foot nav a{color:var(--night-muted);text-decoration:none;font-size:.9rem}
+.foot nav a:hover{color:var(--night-ink)}
+.foot .base{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:48px;padding-top:20px;border-top:1px solid var(--night-line);font-size:.8rem;color:var(--night-muted)}
+@media (max-width:860px){.foot .grid{grid-template-columns:1fr}.foot nav ul{justify-content:flex-start}}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:80;transform:translate(-50%,140%);display:flex;align-items:center;gap:12px;padding:12px 14px 12px 18px;border-radius:999px;background:var(--ink);color:var(--paper);box-shadow:0 20px 50px -20px rgba(0,0,0,.5);font-size:.9rem;transition:transform .5s var(--ease),visibility 0s .5s;max-width:calc(100% - 32px);visibility:hidden}
+.toast.show{transform:translate(-50%,0);visibility:visible;transition:transform .5s var(--ease)}
+.toast a{color:inherit;font-weight:600;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+  .marquee .row{animation:none}
+}
+</style>
+
+<!-- ───────── NAV ───────── -->
+<header class="nav" id="top">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="Alaro home">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2c4.6 0 8.2 5.2 8.2 11.1 0 4.9-3.6 8.5-8.2 8.5s-8.2-3.6-8.2-8.5C3.8 7.4 7.4 2.2 12 2.2Z" fill="currentColor"/><ellipse cx="11" cy="11.6" rx="4.4" ry="5" fill="var(--paper)"/><circle cx="11" cy="11.6" r="1.7" fill="currentColor"/></svg>
+      Alaro
+    </a>
+    <button class="menu-btn" aria-label="Open menu" aria-expanded="false" aria-controls="navlinks"><span></span></button>
+    <ul id="navlinks">
+      <li><a href="#design">Products</a></li>
+      <li><a href="#moments" data-tab-link="family">For Home</a></li>
+      <li><a href="#moments" data-tab-link="business">For Business</a></li>
+      <li><a href="#care">Our Story</a></li>
+      <li><a href="#faq">Support</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a class="btn btn--solid btn--sm" href="#buy">Buy</a>
+      <button class="cart" id="cartBtn" aria-label="Cart, 0 items">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.2 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg>
+        <span>Cart(<span class="count" id="cartCount">0</span>)</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ───────── HERO ───────── -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap">
+    <span class="pill"><i></i>Meet Alaro</span>
+    <h1 id="hero-title">The intelligence <span class="grad">behind your space.</span></h1>
+    <div class="hero-stage" id="heroStage">
+      <span class="floor"></span>
+      <img src="assets/alaro-cutout.webp" alt="Alaro smart camera in Moonstone: a sculpted silver egg with a black glass face, resting on a white plinth" width="1318" height="1193" fetchpriority="high">
+      <span class="callout callout--l"><span><b>Pans to follow</b> what matters</span></span>
+      <span class="callout callout--r"><span><b>Ask in plain words,</b> see the moment</span></span>
+    </div>
+    <p class="lead">Alaro is a smart camera that understands what's happening at home, not just records it. Ask what you missed and see only what matters.</p>
+    <div class="cta-row">
+      <a class="btn btn--solid" href="#buy">Buy Alaro · from ₹X,XXX</a>
+      <a class="btn btn--ghost" href="#intelligence">See how it works</a>
+    </div>
+    <p class="fine"><span>Free returns</span><span>Warranty included</span><span>No monthly fee</span></p>
+  </div>
+</section>
+
+<!-- ───────── MOMENTS ───────── -->
+<section class="moments" id="moments" aria-labelledby="moments-title">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">A day, beautifully understood</span>
+      <h2 id="moments-title" class="two-tone">You can't be everywhere. <span class="dim">But you can still be part of it.</span></h2>
+      <div class="seg" role="tablist" aria-label="Show moments for" data-active="family">
+        <span class="thumb" aria-hidden="true"></span>
+        <button role="tab" id="tab-family" aria-selected="true" aria-controls="panel-family" data-tab="family">For Family</button>
+        <button role="tab" id="tab-business" aria-selected="false" aria-controls="panel-business" data-tab="business" tabindex="-1">For Business</button>
+      </div>
+    </div>
+
+    <div class="bento" id="panel-family" role="tabpanel" aria-labelledby="tab-family">
+      <figure class="tile tile--tall shot rv">
+        <div class="frame" style="--ar:.667">
+          <img src="assets/home-nani.webp" alt="A girl and her grandmother read a picture book together on the sofa" loading="lazy">
+          <span class="track" style="left:27%;top:40%;width:22%;height:16%;--td:.3s"><i></i><i></i><i></i><i></i><b>Anaya</b></span>
+          <span class="track" style="left:57%;top:39%;width:22%;height:16%;--td:.5s;--bx:-1%"><i></i><i></i><i></i><i></i><b>Nani</b></span>
+        </div>
+        <div class="osd"><span>Cam 02 · Reading nook</span><span class="rec">11:20</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Story time with Nani</q><small>11:20 AM · Saved to Today</small></figcaption>
+      </figure>
+      <figure class="tile shot rv" style="--d:.08s">
+        <div class="frame" style="--ar:.949;--fy:.3">
+          <img src="assets/home-firststep.webp" alt="A toddler stands holding the side of her crib, smiling" loading="lazy">
+          <span class="track" style="left:61%;top:22%;width:21%;height:21%;--td:.4s"><i></i><i></i><i></i><i></i><b>Mira</b></span>
+        </div>
+        <div class="osd"><span>Cam 01 · Nursery</span><span class="rec">10:42</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Mira's first step today</q><small>10:42 AM · Alaro captured this moment</small></figcaption>
+      </figure>
+      <figure class="tile shot rv" style="--d:.16s">
+        <div class="frame" style="--ar:1.778">
+          <img src="assets/home-dino.webp" alt="A father kneels on the living room rug playing with toy dinosaurs" loading="lazy">
+          <span class="track below" style="left:40%;top:4%;width:30%;height:62%;--td:.5s"><i></i><i></i><i></i><i></i><b>Papa</b></span>
+        </div>
+        <div class="osd"><span>Cam 03 · Living room</span><span class="rec">18:10</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Dinosaur battles</q><small>6:10 PM · Playtime</small></figcaption>
+      </figure>
+      <figure class="tile shot rv" style="--d:.1s">
+        <div class="frame" style="--ar:.563;--fy:.55">
+          <img src="assets/home-nap.webp" alt="A golden retriever naps with its head on the arm of a blue sofa" loading="lazy">
+          <span class="track" style="left:51%;top:47%;width:24%;height:14%;--td:.45s"><i></i><i></i><i></i><i></i><b>Bruno</b></span>
+        </div>
+        <div class="osd"><span>Cam 03 · Living room</span><span class="rec">14:05</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Bruno's long afternoon nap</q><small>2:05 PM · Pet activity</small></figcaption>
+      </figure>
+      <div class="note rv" style="--d:.18s">
+        <p>The moments you'd never want to miss, captured, remembered and shared just for you.</p>
+        <a class="btn btn--solid btn--sm" href="#intelligence">See a day with Alaro</a>
+      </div>
+    </div>
+
+    <div class="bento" id="panel-business" role="tabpanel" aria-labelledby="tab-business" hidden>
+      <figure class="tile tile--tall shot">
+        <div class="frame" style="--ar:1.501;--fx:.56">
+          <img src="assets/biz-counter.webp" alt="A shop owner smiles while a customer pays at the counter tablet" loading="lazy">
+          <span class="track" style="left:51%;top:20%;width:12%;height:20%;--td:.3s"><i></i><i></i><i></i><i></i><b>Priya</b></span>
+          <span class="track below" style="left:21%;top:55%;width:22%;height:32%;--td:.55s"><i></i><i></i><i></i><i></i><b>Sale · ₹1,240</b></span>
+        </div>
+        <div class="osd"><span>Cam 01 · Counter</span><span class="rec">08:02</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>First customer of the day</q><small>8:02 AM · Counter</small></figcaption>
+      </figure>
+      <figure class="tile shot">
+        <div class="frame" style="--ar:1.777">
+          <img src="assets/biz-cafe.webp" alt="A barista works behind a café counter lined with shelves and pendant lights" loading="lazy">
+          <span class="track" style="left:39%;top:47%;width:12%;height:28%;--td:.4s"><i></i><i></i><i></i><i></i><b>Opening shift</b></span>
+        </div>
+        <div class="osd"><span>Cam 02 · Café floor</span><span class="rec">07:15</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Doors open on time</q><small>7:15 AM · Opening</small></figcaption>
+      </figure>
+      <figure class="tile shot">
+        <div class="frame" style="--ar:1.333">
+          <img src="assets/biz-produce.webp" alt="Shelves of fresh peppers, lettuce and cabbage in a grocery store" loading="lazy">
+          <span class="track" style="left:38%;top:17%;width:15%;height:32%;--td:.45s"><i></i><i></i><i></i><i></i><b>Restocked</b></span>
+        </div>
+        <div class="osd"><span>Cam 04 · Fresh aisle</span><span class="rec">06:40</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Morning delivery shelved</q><small>6:40 AM · Stock</small></figcaption>
+      </figure>
+      <figure class="tile shot">
+        <div class="frame" style="--ar:1.51;--fx:.3">
+          <img src="assets/biz-storefront.webp" alt="A blue shopfront with lamps in the window and a bicycle parked outside" loading="lazy">
+          <span class="track" style="left:14%;top:64%;width:32%;height:32%;--td:.5s"><i></i><i></i><i></i><i></i><b>Bicycle · 2 h</b></span>
+        </div>
+        <div class="osd"><span>Cam 05 · Entrance</span><span class="rec">21:12</span></div>
+        <span class="scrim"></span>
+        <figcaption><q>Closed up safely</q><small>9:12 PM · Entrance</small></figcaption>
+      </figure>
+      <div class="note">
+        <p>Every opening, delivery and closing, gathered into one calm feed.</p>
+        <a class="btn btn--solid btn--sm" href="#uses">See Alaro for business</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── DESIGN / 3D ───────── -->
+<section class="design" id="design" aria-labelledby="design-title">
+  <div class="wrap">
+    <div class="copy rv">
+      <span class="eyebrow">Designed to belong</span>
+      <h2 id="design-title" class="two-tone">The intelligence <span class="dim">behind every moment.</span></h2>
+      <p class="lead">A sculpted shell that sits on a shelf like an object you chose, not a device you tolerate. Turn it. Move your cursor. It notices.</p>
+      <div class="finishes">
+        <div class="swatches" role="group" aria-label="Finish">
+          <button class="swatch" data-c="moonstone" aria-pressed="true" aria-label="Moonstone"></button>
+          <button class="swatch" data-c="porcelain" aria-pressed="false" aria-label="Porcelain"></button>
+          <button class="swatch" data-c="obsidian" aria-pressed="false" aria-label="Obsidian"></button>
+          <button class="swatch" data-c="sage" aria-pressed="false" aria-label="Sage"></button>
+        </div>
+        <span class="finish-name">Finish: <b data-finish-name>Moonstone</b></span>
+      </div>
+      <button class="toggle" id="privacyBtn" aria-pressed="false">
+        <span class="sw" aria-hidden="true"></span>
+        <span>Privacy mode<small>The lens turns to face the wall</small></span>
+      </button>
+      <div class="specs">
+        <div><b>360°</b><span>Pan to see the whole room</span></div>
+        <div><b>1 tap</b><span>To turn the lens away</span></div>
+        <div><b>4</b><span>Finishes to suit your space</span></div>
+      </div>
+    </div>
+    <div class="stage" id="stage" aria-label="Interactive 3D model of Alaro. Drag to turn it.">
+      <img class="fallback" src="assets/alaro-cutout.webp" alt="" aria-hidden="true">
+      <span class="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 12h16M4 12l3-3M4 12l3 3M20 12l-3-3M20 12l-3 3"/></svg>Drag to turn</span>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── INTELLIGENCE ───────── -->
+<section class="intel" id="intelligence" aria-labelledby="intel-title">
+  <div class="wrap">
+    <div class="head rv">
+      <div>
+        <span class="eyebrow">Visual intelligence</span>
+        <h2 id="intel-title">It knows who's who, and what matters.</h2>
+      </div>
+      <p>Alaro recognises the people and pets you name, follows the moment as it moves, and lets the rest of the day stay quiet.</p>
+    </div>
+    <div class="intel-grid">
+      <div class="live rv">
+        <div class="shot">
+          <div class="frame" style="--ar:1">
+            <img src="assets/home-play.webp" alt="A toddler lies on a rug playing with a fluffy white dog in a sunlit living room" loading="lazy">
+            <span class="track" style="left:9%;top:41%;width:44%;height:40%;--td:.3s;--bx:2%"><i></i><i></i><i></i><i></i><b>Milo</b></span>
+            <span class="track below" style="left:62%;top:60%;width:26%;height:22%;--td:.55s;--bx:-1.5%"><i></i><i></i><i></i><i></i><b>Mira</b></span>
+          </div>
+          <span class="chip c-play">↗ Playtime · 4:08 PM</span>
+          <span class="chip c-who">✦ Mira and Milo</span>
+          <span class="chip c-room">Living room · Live</span>
+          <span class="chip c-time" id="liveClock">16:08:00</span>
+        </div>
+        <a class="btn btn--light" href="#ask">Experience Alaro</a>
+      </div>
+      <div class="cards">
+        <article class="card rv" style="--d:.06s">
+          <p class="big">Alaro uses visual intelligence to understand people, pets, objects and activity around your space.</p>
+          <div class="sees">
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 3.8-5.4 7-5.4s5.8 1.8 7 5.4"/></svg>People</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="6" cy="10" r="1.8"/><circle cx="10" cy="6" r="1.8"/><circle cx="14" cy="6" r="1.8"/><circle cx="18" cy="10" r="1.8"/><path d="M8 17.5c0-2.6 1.8-4.5 4-4.5s4 1.9 4 4.5c0 1.6-1.4 2-4 2s-4-.4-4-2Z"/></svg>Pets</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg>Objects</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 12h4l2.5-6 5 12L17 12h4"/></svg>Activity</span>
+          </div>
+        </article>
+        <article class="card rv" style="--d:.12s">
+          <div class="reel">
+            <div>
+              <h3>Your day, in 5 minutes.</h3>
+              <p style="margin-top:10px">See the moments that mattered while you were away.</p>
+            </div>
+            <div class="reel-view" id="reel" aria-live="polite">
+              <div class="reel-bars" aria-hidden="true"></div>
+              <div class="reel-cap"><span data-reel-title>First steps</span><span data-reel-time>10:42 AM</span></div>
+            </div>
+          </div>
+          <button class="reel-play" id="reelPlay" aria-pressed="true"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><span>Pause</span></button>
+        </article>
+        <article class="card rv" style="--d:.18s">
+          <h3>Intelligence that notices the little things.</h3>
+          <div class="marquee" aria-hidden="true">
+            <div class="row"></div>
+            <div class="row"></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── ASK ───────── -->
+<section class="ask" id="ask" aria-labelledby="ask-title">
+  <div class="wrap">
+    <div class="ask-panel">
+      <div class="ask-copy rv">
+        <span class="eyebrow">Ask Alaro</span>
+        <h2 id="ask-title">Just ask. <br>Feel right at home.</h2>
+        <p class="lead">No searching through hours of video. Ask what happened, and get the moments that matter.</p>
+        <div class="try">
+          <span class="label">Try asking:</span>
+          <div class="prompts">
+            <button class="prompt" aria-pressed="true">What happened while I was away?</button>
+            <button class="prompt" aria-pressed="false">Did everyone get home?</button>
+            <button class="prompt" aria-pressed="false">Show me today's moments</button>
+            <button class="prompt" aria-pressed="false">How was Bruno today?</button>
+          </div>
+        </div>
+      </div>
+      <div class="chat rv" style="--d:.1s">
+        <div class="chat-top">
+          <b><span class="avatar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"/></svg></span>Ask Alaro</b>
+          <span>Your home, in a conversation</span>
+        </div>
+        <div class="chat-body" id="chatBody" aria-live="polite">
+          <div class="msg-me">What happened while I was away?</div>
+          <div class="msg-ai">
+            <span class="who"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"/></svg>ALARO</span>
+            <p>A lovely day at home. Here are the moments you might want to see.</p>
+            <div class="thumbs">
+              <figure><img src="assets/home-firststep.webp" alt="Mira standing at her crib" loading="lazy"><figcaption>First steps · 10:42 AM</figcaption></figure>
+              <figure><img src="assets/home-nani.webp" alt="Nani reading with Anaya" loading="lazy"><figcaption>Nani arrived · 2:15 PM</figcaption></figure>
+              <figure><img src="assets/home-school.webp" alt="Anaya home from school, greeted by the dog" loading="lazy"><figcaption>Back from school · 4:08 PM</figcaption></figure>
+            </div>
+          </div>
+        </div>
+        <form class="chat-form" id="chatForm" autocomplete="off">
+          <label class="sr" for="chatInput">Ask anything about your day</label>
+          <input id="chatInput" name="q" placeholder="Ask anything about your day…" maxlength="120">
+          <button class="send" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4 18-7Z"/></svg></button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── CONTROL ───────── -->
+<section class="control" aria-labelledby="control-title">
+  <div class="wrap">
+    <div class="head rv">
+      <div>
+        <span class="eyebrow">All. Beautiful. Connected.</span>
+        <h2 id="control-title">Your space. Your control.</h2>
+      </div>
+      <div class="arrows">
+        <button class="arrow" id="railPrev" aria-label="Previous" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="arrow" id="railNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+  </div>
+  <div class="rail" id="rail">
+    <article class="item">
+      <div class="shot pan">
+        <span class="cone" aria-hidden="true"></span>
+        <img src="assets/alaro-cutout.webp" alt="Alaro panning across a room" loading="lazy">
+        <span class="deg" id="panDeg">PAN 180°</span>
+        <div class="pad" aria-hidden="true">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></span>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span>
+        </div>
+      </div>
+      <h3>Look around, remotely</h3>
+      <p>Move the view from the app and see more of what matters.</p>
+    </article>
+    <article class="item">
+      <div class="shot"><div class="frame" style="--ar:1"><img src="assets/app-hand.webp" alt="A hand holding a phone showing a live camera view of a front path" loading="lazy"></div></div>
+      <h3>Control the camera from the app</h3>
+      <p>Check in, view live footage and manage your camera without being tied to the room.</p>
+    </article>
+    <article class="item">
+      <div class="shot">
+        <div class="frame" style="--ar:1.782;--fx:.55">
+          <img src="assets/space-hallway.webp" alt="An evening hallway with the front door and a lit living room beyond" loading="lazy">
+          <svg class="zone" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="54,64 80,60 92,92 52,96" fill="rgba(143,240,180,.18)" stroke="#8ff0b4" stroke-width=".5" stroke-dasharray="2 1.4" vector-effect="non-scaling-stroke"/></svg>
+          <span class="track" style="left:55%;top:52%;width:20%;height:1%;opacity:1"><b>Front door zone</b></span>
+        </div>
+      </div>
+      <h3>Choose what Alaro watches for</h3>
+      <p>Draw a zone, pick the people and pets that matter, and shape alerts around your space.</p>
+    </article>
+    <article class="item">
+      <div class="shot">
+        <div class="frame" style="--ar:.563;--fy:.5"><img src="assets/home-nap.webp" alt="Golden retriever resting on a sofa" loading="lazy"></div>
+        <div class="notif"><span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.2c4.6 0 8.2 5.2 8.2 11.1 0 4.9-3.6 8.5-8.2 8.5s-8.2-3.6-8.2-8.5C3.8 7.4 7.4 2.2 12 2.2Z"/></svg></span><span><b>Bruno is napping on the sofa</b><small>Living room · just now</small></span></div>
+      </div>
+      <h3>Check in anytime, from anywhere</h3>
+      <p>Whether you're across the room or across the city, your space is always within reach.</p>
+    </article>
+  </div>
+</section>
+
+<!-- ───────── APP + BUY ───────── -->
+<section class="app" aria-labelledby="app-title">
+  <div class="wrap">
+    <div class="app-visual rv">
+      <span class="shelf" aria-hidden="true"></span>
+      <img class="cam" src="assets/alaro-cutout.webp" alt="" aria-hidden="true" loading="lazy">
+      <div class="phone" aria-label="Alaro app preview">
+        <div class="screen">
+          <span class="island" aria-hidden="true"></span>
+          <div class="bar"><span>9:41</span><span>●●●</span></div>
+          <div class="scr on" data-scr="0">
+            <span class="k">Living room · Live</span>
+            <h4>Mira and Milo</h4>
+            <div class="ph" style="aspect-ratio:3/4"><img src="assets/home-play.webp" alt="" loading="lazy"></div>
+            <div class="ctrls"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></span><span class="main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v10M8 9a4 4 0 0 0 8 0M12 17v4"/></svg></span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></span></div>
+          </div>
+          <div class="scr" data-scr="1">
+            <span class="k">Alerts</span>
+            <h4>Only what's worth it</h4>
+            <div class="row"><img src="assets/home-school.webp" alt=""><span><b>Anaya is home</b><small>Front door · 4:08 PM</small></span></div>
+            <div class="row"><img src="assets/home-nani.webp" alt=""><span><b>Nani arrived</b><small>Front door · 2:15 PM</small></span></div>
+            <div class="row"><img src="assets/home-firststep.webp" alt=""><span><b>A moment in the nursery</b><small>Nursery · 10:42 AM</small></span></div>
+            <div class="row"><img src="assets/home-nap.webp" alt=""><span><b>Bruno is on the sofa</b><small>Living room · 2:05 PM</small></span></div>
+          </div>
+          <div class="scr" data-scr="2">
+            <span class="k">Today at home</span>
+            <h4>Everyone's home.</h4>
+            <small style="color:#6a7069">3 moments to catch up on</small>
+            <div class="ph" style="aspect-ratio:4/3"><img src="assets/home-firststep.webp" alt="" loading="lazy"></div>
+            <div class="g3"><img src="assets/home-nani.webp" alt=""><img src="assets/home-school.webp" alt=""><img src="assets/home-dino.webp" alt=""></div>
+          </div>
+          <div class="scr" data-scr="3">
+            <span class="k">Ask Alaro</span>
+            <h4>Just ask.</h4>
+            <div class="bub">Did everyone get home?</div>
+            <div class="ans">Yes. Anaya got home at 4:08 PM and Papa at 6:02 PM.</div>
+            <div class="g3"><img src="assets/home-school.webp" alt=""><img src="assets/home-dino.webp" alt=""><img src="assets/home-play.webp" alt=""></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-copy">
+      <span class="eyebrow rv">The Alaro experience</span>
+      <h2 id="app-title" class="rv">Everything you need, right from your phone.</h2>
+      <p class="lead rv">One beautiful, connected experience for everything that matters, right in your hand.</p>
+      <ul class="features" role="tablist" aria-label="App features">
+        <li><button role="tab" aria-selected="true" data-f="0"><span class="n">01</span>Live view, whenever you need it<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg><span class="prog"></span></button></li>
+        <li><button role="tab" aria-selected="false" data-f="1"><span class="n">02</span>Smart alerts worth your attention<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg><span class="prog"></span></button></li>
+        <li><button role="tab" aria-selected="false" data-f="2"><span class="n">03</span>Meaningful moments, all in one place<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg><span class="prog"></span></button></li>
+        <li><button role="tab" aria-selected="false" data-f="3"><span class="n">04</span>Answers, simply by asking<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg><span class="prog"></span></button></li>
+      </ul>
+
+      <div class="buy rv" id="buy">
+        <div class="top">
+          <div>
+            <div class="name">Alaro Smart Camera</div>
+            <div class="price">₹X,XXX<small>incl. taxes</small></div>
+          </div>
+          <div class="finishes">
+            <div class="swatches" role="group" aria-label="Finish">
+              <button class="swatch" data-c="moonstone" aria-pressed="true" aria-label="Moonstone"></button>
+              <button class="swatch" data-c="porcelain" aria-pressed="false" aria-label="Porcelain"></button>
+              <button class="swatch" data-c="obsidian" aria-pressed="false" aria-label="Obsidian"></button>
+              <button class="swatch" data-c="sage" aria-pressed="false" aria-label="Sage"></button>
+            </div>
+            <span class="finish-name">Finish: <b data-finish-name>Moonstone</b></span>
+          </div>
+        </div>
+        <p class="incl">Includes camera, power adapter, mount and quick-start card. The Alaro app is free, with no monthly fee.</p>
+        <div><button class="btn btn--solid add" id="addCart"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.2 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6"/><circle cx="9.5" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg><span>Add to cart</span></button></div>
+        <ul class="ticks">
+          <li>Delivery in [X] days</li>
+          <li>Free returns within [X] days</li>
+          <li>[X]-year warranty</li>
+          <li>Secure payment: UPI, cards, EMI</li>
+        </ul>
+        <p class="setup">Set up in minutes: plug in, scan, name your people. Questions? <a class="link" href="#faq">Talk to us</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── USES ───────── -->
+<section class="uses" id="uses" aria-labelledby="uses-title">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow">Choose your way</span>
+      <h2 id="uses-title">Built for the way you use it.</h2>
+    </div>
+    <div class="uses-grid">
+      <a class="use rv" href="#moments" data-tab-link="family">
+        <img src="assets/home-family.webp" alt="A father lifts his laughing toddler in the kitchen" loading="lazy">
+        <div class="txt"><div><h3>For Family</h3><p>The people and everyday moments you never want to miss.</p></div><span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span></div>
+      </a>
+      <a class="use rv" style="--d:.1s" href="#moments" data-tab-link="business">
+        <img src="assets/biz-shopkeeper.webp" alt="A smiling shopkeeper behind the counter of a well-stocked general store" loading="lazy">
+        <div class="txt"><div><h3>For Business</h3><p>Stay connected to the place you've built.</p></div><span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span></div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── CARE ───────── -->
+<section class="care" id="care" aria-labelledby="care-title">
+  <div class="wrap">
+    <div class="rv">
+      <h2 id="care-title">Built with care.</h2>
+      <ul class="care-tabs" role="tablist" aria-label="Built with care">
+        <li class="open">
+          <button role="tab" aria-selected="true" data-care="0"><span class="n">01</span>Thoughtful design<span class="prog"></span></button>
+          <div class="care-panel"><div>
+            <p>Every intelligent feature is designed to make your everyday life simpler, safer and more connected.</p>
+            <div class="care-chips"><span>Sculpted metal shell</span><span>Black glass face</span><span>Made for a shelf, not a ceiling</span></div>
+          </div></div>
+        </li>
+        <li>
+          <button role="tab" aria-selected="false" data-care="1"><span class="n">02</span>Private by design<span class="prog"></span></button>
+          <div class="care-panel"><div>
+            <p>You decide who sees your footage, and any moment can be deleted the second you want it gone.</p>
+            <div class="care-chips"><span>You control who sees your footage</span><span>Delete anytime</span><span>Privacy mode turns the lens away</span></div>
+          </div></div>
+        </li>
+        <li>
+          <button role="tab" aria-selected="false" data-care="2"><span class="n">03</span>People who pick up<span class="prog"></span></button>
+          <div class="care-panel"><div>
+            <p>Setup takes minutes. If you ever need a hand, a real person is there to help, day or night.</p>
+            <div class="care-chips"><span>Real support 24/7</span><span>Set up in minutes</span><span>Updates that add features</span></div>
+          </div></div>
+        </li>
+      </ul>
+    </div>
+    <div class="care-visual" id="careVisual">
+      <img src="assets/alaro-black.webp" alt="Alaro in Moonstone photographed against black" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- ───────── FAQ ───────── -->
+<section class="faq" id="faq" aria-labelledby="faq-title">
+  <div class="wrap">
+    <h2 id="faq-title" class="rv">Frequently asked questions</h2>
+    <div class="qs">
+      <details open><summary>What exactly is Alaro?<span class="pm" aria-hidden="true"></span></summary><p class="a">Alaro is an AI-powered smart camera that understands what's happening around your space. It can recognise people, pets, objects and activities, helping you stay connected to the moments that matter.</p></details>
+      <details><summary>Can I get a free trial?<span class="pm" aria-hidden="true"></span></summary><p class="a">Every Alaro comes with free returns. Live with it at home, and if it isn't right for your space, send it back.</p></details>
+      <details><summary>Do you have a monthly plan?<span class="pm" aria-hidden="true"></span></summary><p class="a">You don't need one. Live view, smart alerts, moments and Ask Alaro all come with the camera, with no monthly fee.</p></details>
+      <details><summary>Do you have discounts for students and educators?<span class="pm" aria-hidden="true"></span></summary><p class="a">Write to our support team with your institution ID and we'll tell you about any current education offers.</p></details>
+      <details><summary>What forms of payment do you accept?<span class="pm" aria-hidden="true"></span></summary><p class="a">UPI, credit and debit cards, net banking and EMI on eligible cards.</p></details>
+      <details><summary>Can I cancel my subscription?<span class="pm" aria-hidden="true"></span></summary><p class="a">Yes. If you add an optional plan, cancel it any time from the Alaro app under Settings › Plan. Your camera keeps working and your moments stay yours.</p></details>
+    </div>
+    <p class="more">Still have questions? Find answers in our <a class="link" href="#faq">help center</a>.</p>
+  </div>
+</section>
+
+<!-- ───────── FINAL CTA ───────── -->
+<section class="final" aria-labelledby="final-title">
+  <div class="wrap">
+    <div class="final-panel rv">
+      <img class="peek" src="assets/alaro-cutout.webp" alt="" aria-hidden="true" loading="lazy">
+      <h2 id="final-title">Ready to bring Alaro into your space?</h2>
+      <p class="soft">Wherever life takes you, home never feels far away.</p>
+      <div class="cta-row">
+        <a class="btn btn--solid" href="#buy">Buy Alaro · from ₹X,XXX</a>
+        <a class="btn btn--ghost" href="#intelligence">See how it works</a>
+      </div>
+      <p class="fine"><span>Free returns</span><span>Warranty included</span><span>No monthly fee</span></p>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ───────── FOOTER ───────── -->
+<footer class="foot">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <a class="logo" href="#top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2c4.6 0 8.2 5.2 8.2 11.1 0 4.9-3.6 8.5-8.2 8.5s-8.2-3.6-8.2-8.5C3.8 7.4 7.4 2.2 12 2.2Z" fill="currentColor"/><ellipse cx="11" cy="11.6" rx="4.4" ry="5" fill="var(--night)"/><circle cx="11" cy="11.6" r="1.7" fill="currentColor"/></svg>Alaro</a>
+        <p class="tag">Stay close to what matters.</p>
+      </div>
+      <form class="notify" id="notify" novalidate>
+        <label for="email">Email for setup tips and updates</label>
+        <div class="fields">
+          <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email">
+          <button class="btn">Notify me</button>
+        </div>
+        <span class="msg" id="notifyMsg" role="status"></span>
+      </form>
+      <nav aria-label="Footer"><ul>
+        <li><a href="#moments">Moments</a></li>
+        <li><a href="#intelligence">Intelligence</a></li>
+        <li><a href="#ask">Ask Alaro</a></li>
+        <li><a href="#care">Privacy</a></li>
+      </ul></nav>
+    </div>
+    <div class="base"><span>© 2026 Alaro. All rights reserved.</span><span>Made for the moments that matter.</span></div>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg">Added to cart</span><a href="#buy">View cart</a></div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* nav */
+  const nav = $('.nav');
+  const onScroll = () => nav.classList.toggle('scrolled', scrollY > 8);
+  addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  const menuBtn = $('.menu-btn');
+  menuBtn.addEventListener('click', () => {
+    const open = nav.classList.toggle('open');
+    menuBtn.setAttribute('aria-expanded', open);
+  });
+  $$('#navlinks a').forEach(a => a.addEventListener('click', () => { nav.classList.remove('open'); menuBtn.setAttribute('aria-expanded', false); }));
+
+  /* reveal */
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -6% 0px' });
+  const observe = el => io.observe(el);
+  $$('.rv, .shot').forEach(observe);
+
+  /* hero parallax */
+  const heroImg = $('#heroStage img');
+  if (!reduce) addEventListener('scroll', () => {
+    const y = Math.min(scrollY, 900);
+    heroImg.style.transform = `scale(${1 - y * 0.00009})`;
+  }, { passive: true });
+
+  /* moments tabs */
+  const seg = $('.seg');
+  const setTab = (key, focus) => {
+    seg.dataset.active = key;
+    $$('[role=tab]', seg).forEach(b => {
+      const on = b.dataset.tab === key;
+      b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1;
+      if (on && focus) b.focus();
+    });
+    ['family', 'business'].forEach(k => {
+      const p = $('#panel-' + k), on = k === key;
+      if (p.hidden === !on) return;
+      p.hidden = !on;
+      if (on) {
+        p.classList.remove('swap'); void p.offsetWidth; p.classList.add('swap');
+        $$('.shot', p).forEach(s => { s.classList.remove('in'); requestAnimationFrame(() => s.classList.add('in')); });
+      }
+    });
+  };
+  $$('[role=tab]', seg).forEach(b => {
+    b.addEventListener('click', () => setTab(b.dataset.tab));
+    b.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') setTab(b.dataset.tab === 'family' ? 'business' : 'family', true);
+    });
+  });
+  $$('[data-tab-link]').forEach(a => a.addEventListener('click', () => setTab(a.dataset.tabLink)));
+
+  /* finish swatches — shared state with the 3D stage and buy box */
+  const FINISHES = { moonstone: 'Moonstone', porcelain: 'Porcelain', obsidian: 'Obsidian', sage: 'Sage' };
+  let finish = 'moonstone';
+  const setFinish = key => {
+    finish = key;
+    $$('.swatch').forEach(s => s.setAttribute('aria-pressed', s.dataset.c === key));
+    $$('[data-finish-name]').forEach(n => n.textContent = FINISHES[key]);
+    dispatchEvent(new CustomEvent('alaro:finish', { detail: key }));
+  };
+  $$('.swatch').forEach(s => s.addEventListener('click', () => setFinish(s.dataset.c)));
+
+  /* privacy toggle */
+  const priv = $('#privacyBtn');
+  priv.addEventListener('click', () => {
+    const on = priv.getAttribute('aria-pressed') !== 'true';
+    priv.setAttribute('aria-pressed', on);
+    dispatchEvent(new CustomEvent('alaro:privacy', { detail: on }));
+  });
+
+  /* live clock */
+  const clock = $('#liveClock');
+  const tick = () => { const d = new Date(); clock.textContent = 'REC ' + d.toLocaleTimeString('en-GB'); };
+  tick(); setInterval(tick, 1000);
+
+  /* reel: your day in 5 minutes */
+  const MOMENTS = [
+    { src: 'home-firststep', t: 'First steps', at: '10:42 AM' },
+    { src: 'home-nani', t: 'Story time with Nani', at: '11:20 AM' },
+    { src: 'home-nap', t: "Bruno's nap", at: '2:05 PM' },
+    { src: 'home-school', t: 'Back from school', at: '4:08 PM' },
+    { src: 'home-play', t: 'Playtime with Milo', at: '4:30 PM' },
+    { src: 'home-dino', t: 'Dinosaur battles', at: '6:10 PM' },
+  ];
+  const reel = $('#reel'), bars = $('.reel-bars', reel);
+  MOMENTS.forEach((m, i) => {
+    const img = new Image(); img.src = `assets/${m.src}.webp`; img.alt = m.t; img.loading = 'lazy';
+    if (i === 0) img.className = 'on';
+    reel.insertBefore(img, bars);
+    bars.appendChild(document.createElement('i'));
+  });
+  const rImgs = $$('img', reel), rBars = $$('i', bars);
+  let rIdx = 0, rT = 0, rPlaying = !reduce, rLast = performance.now();
+  const DUR = 2800;
+  const showReel = i => {
+    rIdx = (i + MOMENTS.length) % MOMENTS.length; rT = 0;
+    rImgs.forEach((im, k) => im.classList.toggle('on', k === rIdx));
+    rBars.forEach((b, k) => b.style.setProperty('--p', k < rIdx ? '100%' : '0%'));
+    $('[data-reel-title]', reel).textContent = MOMENTS[rIdx].t;
+    $('[data-reel-time]', reel).textContent = MOMENTS[rIdx].at;
+  };
+  const playBtn = $('#reelPlay');
+  const setPlay = on => {
+    rPlaying = on; playBtn.setAttribute('aria-pressed', on);
+    playBtn.querySelector('span').textContent = on ? 'Pause' : 'Play';
+    playBtn.querySelector('svg').innerHTML = on
+      ? '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>'
+      : '<path d="M7 4.5v15l13-7.5-13-7.5Z"/>';
+  };
+  setPlay(rPlaying);
+  playBtn.addEventListener('click', () => setPlay(!rPlaying));
+  reel.addEventListener('click', () => showReel(rIdx + 1));
+
+  /* marquee */
+  const NOTICED = ['Mira laughed 20 times today.', 'She took her first steps.', 'Your dog waited by the door for you.', 'Nani stayed for chai.', 'Anaya finished her homework early.', 'Bruno found the sunny spot again.', 'Papa read two bedtime stories.', 'The plants got watered.', 'Milo shared his toy.', 'Everyone was home by 7.'];
+  $$('.marquee .row').forEach((row, r) => {
+    const list = r ? [...NOTICED].reverse() : NOTICED;
+    row.innerHTML = [...list, ...list].map(t => `<span>${t}</span>`).join('');
+  });
+
+  /* app features */
+  const fBtns = $$('.features button'), screens = $$('.scr');
+  let fIdx = 0, fT = 0, fAuto = !reduce;
+  const FDUR = 4200;
+  const showF = (i, user) => {
+    fIdx = i; fT = 0;
+    if (user) fAuto = false;
+    fBtns.forEach((b, k) => { b.setAttribute('aria-selected', k === i); b.style.setProperty('--p', user && k === i ? '100%' : '0%'); });
+    screens.forEach((s, k) => s.classList.toggle('on', k === i));
+  };
+  fBtns.forEach((b, i) => b.addEventListener('click', () => showF(i, true)));
+
+  /* care tabs */
+  const careBtns = $$('[data-care]'), careImg = $('#careVisual img');
+  const CARE_VIEW = [{ s: 1, o: '50% 50%' }, { s: 1.9, o: '30% 42%' }, { s: 1.7, o: '62% 12%' }];
+  let cIdx = 0, cT = 0, cAuto = !reduce;
+  const CDUR = 6000;
+  const showCare = (i, user) => {
+    cIdx = i; cT = 0;
+    if (user) cAuto = false;
+    careBtns.forEach((b, k) => {
+      b.setAttribute('aria-selected', k === i);
+      b.closest('li').classList.toggle('open', k === i);
+      b.style.setProperty('--p', user && k === i ? '100%' : '0%');
+    });
+    careImg.style.setProperty('--s', CARE_VIEW[i].s);
+    careImg.style.setProperty('--o', CARE_VIEW[i].o);
+  };
+  careBtns.forEach((b, i) => b.addEventListener('click', () => showCare(i, true)));
+
+  /* visibility-gated timers driven by one rAF loop */
+  const visible = new Map();
+  const vio = new IntersectionObserver(es => es.forEach(e => visible.set(e.target, e.isIntersecting)), { threshold: 0.25 });
+  const reelCard = reel.closest('.card'), featList = $('.features'), careSec = $('#care');
+  [reelCard, featList, careSec].forEach(el => vio.observe(el));
+  const loop = now => {
+    const dt = Math.min(now - rLast, 100); rLast = now;
+    if (rPlaying && visible.get(reelCard)) {
+      rT += dt; rBars[rIdx].style.setProperty('--p', Math.min(100, rT / DUR * 100) + '%');
+      if (rT >= DUR) showReel(rIdx + 1);
+    }
+    if (fAuto && visible.get(featList)) {
+      fT += dt; fBtns[fIdx].style.setProperty('--p', Math.min(100, fT / FDUR * 100) + '%');
+      if (fT >= FDUR) showF((fIdx + 1) % fBtns.length);
+    }
+    if (cAuto && visible.get(careSec)) {
+      cT += dt; careBtns[cIdx].style.setProperty('--p', Math.min(100, cT / CDUR * 100) + '%');
+      if (cT >= CDUR) showCare((cIdx + 1) % careBtns.length);
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+
+  /* rail */
+  const rail = $('#rail'), prev = $('#railPrev'), next = $('#railNext');
+  const step = () => rail.querySelector('.item').getBoundingClientRect().width + 16;
+  prev.addEventListener('click', () => rail.scrollBy({ left: -step(), behavior: 'smooth' }));
+  next.addEventListener('click', () => rail.scrollBy({ left: step(), behavior: 'smooth' }));
+  const railState = () => {
+    prev.disabled = rail.scrollLeft < 4;
+    next.disabled = rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 4;
+  };
+  rail.addEventListener('scroll', railState, { passive: true }); addEventListener('resize', railState); railState();
+  const panDeg = $('#panDeg'), cone = $('.pan .cone');
+  setInterval(() => {
+    const m = getComputedStyle(cone).transform;
+    if (m && m !== 'none') {
+      const [a, b] = m.slice(7, -1).split(',').map(parseFloat);
+      const deg = Math.round(((Math.atan2(b, a) * 180 / Math.PI) + 360) % 360);
+      panDeg.textContent = 'PAN ' + String(deg).padStart(3, '0') + '°';
+    }
+  }, 120);
+
+  /* Ask Alaro */
+  const IMG = k => `assets/${k}.webp`;
+  const ANSWERS = [
+    { test: /away|happen|miss/i, text: 'A lovely day at home. Here are the moments you might want to see.',
+      shots: [['home-firststep', 'First steps · 10:42 AM'], ['home-nani', 'Nani arrived · 2:15 PM'], ['home-school', 'Back from school · 4:08 PM']] },
+    { test: /home|everyone|arrive|back/i, text: "Yes, everyone's home. Anaya walked in at 4:08 PM, and Papa got back at 6:02 PM.",
+      shots: [['home-school', 'Anaya home · 4:08 PM'], ['home-dino', 'Papa home · 6:02 PM'], ['home-play', 'Mira and Milo · 4:30 PM']] },
+    { test: /moment|today|day|highlight/i, text: 'Six moments today. These three stood out.',
+      shots: [['home-firststep', 'First steps · 10:42 AM'], ['home-play', 'Playtime with Milo · 4:30 PM'], ['home-nani', 'Story time · 11:20 AM']] },
+    { test: /bruno|dog|pet|milo/i, text: 'Bruno spent most of the afternoon napping on the sofa. Milo kept Mira company at playtime.',
+      shots: [['home-nap', 'Bruno napping · 2:05 PM'], ['home-play', 'Milo and Mira · 4:30 PM'], ['home-school', 'Greeting Anaya · 4:08 PM']] },
+    { test: /mira|baby|step|walk/i, text: 'Mira took her first steps at 10:42 AM, holding the edge of her crib. She laughed a lot today.',
+      shots: [['home-firststep', 'First steps · 10:42 AM'], ['home-play', 'Playtime · 4:30 PM'], ['home-family', 'With Papa · 6:20 PM']] },
+  ];
+  const FALLBACK = { text: "I looked through today at home. Nothing unusual, just a few moments you might like.",
+    shots: [['home-nani', 'Story time · 11:20 AM'], ['home-nap', 'Bruno napping · 2:05 PM'], ['home-dino', 'Dinosaur battles · 6:10 PM']] };
+  const body = $('#chatBody'), form = $('#chatForm'), input = $('#chatInput');
+  const promptBtns = $$('.prompt');
+  const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Z"/></svg>';
+  let busy = false;
+  const ask = q => {
+    if (busy || !q.trim()) return;
+    busy = true;
+    const me = document.createElement('div'); me.className = 'msg-me'; me.textContent = q;
+    body.appendChild(me);
+    const typing = document.createElement('div'); typing.className = 'typing'; typing.innerHTML = '<i></i><i></i><i></i>';
+    body.appendChild(typing); body.scrollTop = body.scrollHeight;
+    const a = ANSWERS.find(x => x.test.test(q)) || FALLBACK;
+    setTimeout(() => {
+      typing.remove();
+      const ai = document.createElement('div'); ai.className = 'msg-ai';
+      ai.innerHTML = `<span class="who">${STAR}ALARO</span><p>${esc(a.text)}</p><div class="thumbs">${a.shots.map(([k, c], i) =>
+        `<figure style="--d:${0.1 + i * 0.08}s"><img src="${IMG(k)}" alt="${esc(c)}"><figcaption>${esc(c)}</figcaption></figure>`).join('')}</div>`;
+      body.appendChild(ai); body.scrollTop = body.scrollHeight; busy = false;
+    }, reduce ? 50 : 1000);
+  };
+  promptBtns.forEach(b => b.addEventListener('click', () => {
+    promptBtns.forEach(x => x.setAttribute('aria-pressed', x === b)); ask(b.textContent);
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); const q = input.value; input.value = ''; promptBtns.forEach(x => x.setAttribute('aria-pressed', false)); ask(q); });
+
+  /* cart */
+  let cart = 0;
+  const cartBtn = $('#cartBtn'), cartCount = $('#cartCount'), add = $('#addCart'), toast = $('#toast');
+  let toastT;
+  add.addEventListener('click', () => {
+    cart++; cartCount.textContent = cart; cartBtn.setAttribute('aria-label', `Cart, ${cart} item${cart > 1 ? 's' : ''}`);
+    cartBtn.classList.remove('bump'); void cartBtn.offsetWidth; cartBtn.classList.add('bump');
+    add.classList.add('added'); add.querySelector('span').textContent = 'Added to cart';
+    $('#toastMsg').textContent = `Alaro in ${FINISHES[finish]} added to your cart.`;
+    toast.classList.add('show'); clearTimeout(toastT);
+    toastT = setTimeout(() => { toast.classList.remove('show'); add.classList.remove('added'); add.querySelector('span').textContent = 'Add to cart'; }, 2800);
+  });
+  cartBtn.addEventListener('click', () => $('#buy').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' }));
+
+  /* faq: one open at a time */
+  const ds = $$('.qs details');
+  ds.forEach(d => d.addEventListener('toggle', () => { if (d.open) ds.forEach(o => o !== d && (o.open = false)); }));
+
+  /* notify */
+  const nf = $('#notify'), msg = $('#notifyMsg');
+  nf.addEventListener('submit', e => {
+    e.preventDefault();
+    const v = $('#email').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { msg.textContent = 'Enter an email address like name@example.com.'; msg.classList.add('err'); return; }
+    msg.classList.remove('err'); msg.textContent = `Thanks. We'll send setup tips to ${v}.`; nf.reset();
+  });
+})();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const stage = document.getElementById('stage');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// if WebGL is unavailable this throws, and the static product image stays in place
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 100);
+camera.position.set(0, 0.9, 10.2);
+camera.lookAt(0, -0.1, 0);
+
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-4, 6, 5); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffffff, 0.8); rim.position.set(5, 3, -4); scene.add(rim);
+
+/* ── egg surface ── */
+const R = 1, H = 1.28, K = 0.13;
+const rOfTheta = t => R * Math.sin(t) * (1 + K * Math.cos(t));
+const yOfTheta = t => -Math.cos(t) * H;
+const rOfY = y => { const t = Math.acos(Math.max(-1, Math.min(1, -y / H))); return rOfTheta(t); };
+const F = (x, y, z) => Math.hypot(x, z) - rOfY(y) + (Math.abs(y) > H ? Math.abs(y) - H : 0);
+const grad = (x, y, z) => {
+  const e = 1e-4;
+  return new THREE.Vector3(F(x + e, y, z) - F(x - e, y, z), F(x, y + e, z) - F(x, y - e, z), F(x, y, z + e) - F(x, y, z - e)).normalize();
+};
+/* ray from an inside origin to the shell, by bisection */
+const hit = (o, d) => {
+  let lo = 0, hi = 3;
+  for (let i = 0; i < 40; i++) {
+    const m = (lo + hi) / 2;
+    F(o.x + d.x * m, o.y + d.y * m, o.z + d.z * m) < 0 ? lo = m : hi = m;
+  }
+  return o.clone().addScaledVector(d, (lo + hi) / 2);
+};
+const patch = (fn, nu, nv, offset) => {
+  const pos = [], nor = [], idx = [];
+  for (let i = 0; i <= nu; i++) for (let j = 0; j <= nv; j++) {
+    const { o, d } = fn(i / nu, j / nv);
+    const p = hit(o, d), n = grad(p.x, p.y, p.z);
+    p.addScaledVector(n, offset);
+    pos.push(p.x, p.y, p.z); nor.push(n.x, n.y, n.z);
+  }
+  for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) {
+    const a = i * (nv + 1) + j, b = a + nv + 1;
+    idx.push(a, b, a + 1, b, b + 1, a + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setIndex(idx);
+  return g;
+};
+/* elliptical patch centred on the front (+z), superellipse edge */
+const facePatch = (A, B, b0, offset, n = 2.6) => patch((s, u) => {
+  const al = u * Math.PI * 2, c = Math.cos(al), si = Math.sin(al);
+  const k = s / Math.pow(Math.pow(Math.abs(c), n) + Math.pow(Math.abs(si), n), 1 / n);
+  const a = A * k * c, b = b0 + B * k * si;
+  return { o: new THREE.Vector3(0, 0.1, 0), d: new THREE.Vector3(Math.sin(a) * Math.cos(b), Math.sin(b), Math.cos(a) * Math.cos(b)) };
+}, 28, 96, offset);
+
+const profile = [];
+for (let i = 0; i <= 120; i++) { const t = i / 120 * Math.PI; profile.push(new THREE.Vector2(Math.max(rOfTheta(t), 1e-4), yOfTheta(t))); }
+const bodyGeo = new THREE.LatheGeometry(profile, 160);
+
+const shellMat = new THREE.MeshPhysicalMaterial({ color: 0xc9ccd0, metalness: 1, roughness: 0.3, clearcoat: 0.3, clearcoatRoughness: 0.25 });
+const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x050506, metalness: 0.1, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.3, side: THREE.DoubleSide });
+const lensMat = new THREE.MeshPhysicalMaterial({ color: 0x08080d, metalness: 0.4, roughness: 0.08, iridescence: 1, iridescenceIOR: 1.7, iridescenceThicknessRange: [180, 520], clearcoat: 1, side: THREE.DoubleSide });
+const ringMat = new THREE.MeshStandardMaterial({ color: 0x1a1b1e, metalness: 0.9, roughness: 0.35, side: THREE.DoubleSide });
+const ledMat = new THREE.MeshBasicMaterial({ color: 0x8ff0b4 });
+
+const head = new THREE.Group();
+head.add(new THREE.Mesh(bodyGeo, shellMat));
+head.add(new THREE.Mesh(facePatch(0.66, 0.6, 0.26, 0.004), glassMat));
+head.add(new THREE.Mesh(facePatch(0.2, 0.2, 0.3, 0.008, 2), ringMat));
+head.add(new THREE.Mesh(facePatch(0.15, 0.15, 0.3, 0.012, 2), lensMat));
+/* visor: a glossy band from the face over the crown to the back */
+const visor = patch((s, u) => {
+  const b0 = 0.9, b1 = 2.75, beta = b0 + (b1 - b0) * u;
+  const m = (u - 0.5) * 2;
+  const w = 0.5 * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(m), 6)), 0.25);
+  const x = (s - 0.5) * 2 * w;
+  return { o: new THREE.Vector3(x, 0.2, 0), d: new THREE.Vector3(0, Math.sin(beta), Math.cos(beta)) };
+}, 24, 90, 0.006);
+head.add(new THREE.Mesh(visor, glassMat));
+const led = new THREE.Mesh(new THREE.SphereGeometry(0.022, 16, 16), ledMat);
+{ const p = hit(new THREE.Vector3(0, 0.1, 0), new THREE.Vector3(Math.sin(0.42) * Math.cos(0.62), Math.sin(0.62), Math.cos(0.42) * Math.cos(0.62)));
+  led.position.copy(p); }
+head.add(led);
+
+const base = new THREE.Mesh(new RoundedBoxGeometry(2.9, 0.42, 2.3, 6, 0.05), new THREE.MeshPhysicalMaterial({ color: 0xf3f3f0, roughness: 0.55, clearcoat: 0.2 }));
+base.position.y = -H - 0.21;
+
+/* soft contact shadows */
+const shadowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+})();
+const ao = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.7), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.8 }));
+ao.rotation.x = -Math.PI / 2; ao.position.y = -H + 0.002;
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 3.8), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.55 }));
+floor.rotation.x = -Math.PI / 2; floor.position.y = -H - 0.425;
+
+const turntable = new THREE.Group();
+turntable.add(base, ao, floor, head);
+turntable.position.y = 0.15;
+scene.add(turntable);
+
+/* finishes */
+const FIN = {
+  moonstone: { color: 0xc9ccd0, metalness: 1, roughness: 0.3, clearcoat: 0.3 },
+  porcelain: { color: 0xf2f0ea, metalness: 0, roughness: 0.36, clearcoat: 0.6 },
+  obsidian: { color: 0x2a2c30, metalness: 0.55, roughness: 0.32, clearcoat: 0.9 },
+  sage: { color: 0xaeb9a6, metalness: 0, roughness: 0.44, clearcoat: 0.35 },
+};
+let finFrom = { ...FIN.moonstone, color: new THREE.Color(FIN.moonstone.color) }, finTo = finFrom, finT = 1;
+addEventListener('alaro:finish', e => {
+  finFrom = { color: shellMat.color.clone(), metalness: shellMat.metalness, roughness: shellMat.roughness, clearcoat: shellMat.clearcoat };
+  const f = FIN[e.detail]; finTo = { ...f, color: new THREE.Color(f.color) }; finT = 0; wake();
+});
+
+/* interaction */
+let privacy = false;
+addEventListener('alaro:privacy', e => { privacy = e.detail; wake(); });
+let yaw = -0.5, yawVel = 0, dragging = false, lastX = 0, idle = 0;
+let look = { x: 0, y: 0 }, headYaw = 0, headPitch = 0;
+stage.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; stage.classList.add('dragging'); stage.setPointerCapture(e.pointerId); idle = 0; });
+stage.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX; lastX = e.clientX;
+  yawVel = dx * 0.008; yaw += yawVel; idle = 0; wake();
+});
+const end = () => { dragging = false; stage.classList.remove('dragging'); };
+stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+addEventListener('pointermove', e => {
+  const r = stage.getBoundingClientRect();
+  look.x = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width * 0.9)));
+  look.y = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height * 0.45)) / (r.height * 0.9)));
+  if (visible) wake();
+}, { passive: true });
+
+/* size */
+const resize = () => {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+};
+new ResizeObserver(() => { resize(); wake(); }).observe(stage);
+resize();
+
+/* run only while on screen */
+let visible = false, running = false, lastT = performance.now();
+new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) wake(); }, { threshold: 0.01 }).observe(stage);
+function wake() { if (!running && visible) { running = true; lastT = performance.now(); requestAnimationFrame(frame); } }
+
+let first = true;
+function frame(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
+  idle += dt;
+  if (!dragging) {
+    yawVel *= Math.pow(0.04, dt); yaw += yawVel;
+    if (!reduce && idle > 2.5) yaw += dt * 0.12;
+  }
+  /* scroll adds a gentle turn as the section passes */
+  const r = stage.getBoundingClientRect();
+  const prog = Math.max(-1, Math.min(1, (r.top + r.height / 2 - innerHeight / 2) / innerHeight));
+  turntable.rotation.y = yaw + prog * 0.6;
+
+  /* head follows the cursor, or turns away in privacy mode */
+  const Y = turntable.rotation.y;
+  const tYaw = privacy ? Math.PI - Y : look.x * 0.55 - Y * 0.35;
+  const tPitch = privacy ? 0.12 : look.y * 0.12;
+  const dYaw = Math.atan2(Math.sin(tYaw - headYaw), Math.cos(tYaw - headYaw));
+  headYaw += dYaw * (1 - Math.pow(0.002, dt));
+  headPitch += (tPitch - headPitch) * (1 - Math.pow(0.002, dt));
+  head.rotation.set(headPitch, headYaw, 0, 'YXZ');
+
+  if (finT < 1) {
+    finT = Math.min(1, finT + dt * 2.2);
+    const k = 1 - Math.pow(1 - finT, 3);
+    shellMat.color.copy(finFrom.color).lerp(finTo.color, k);
+    shellMat.metalness = THREE.MathUtils.lerp(finFrom.metalness, finTo.metalness, k);
+    shellMat.roughness = THREE.MathUtils.lerp(finFrom.roughness, finTo.roughness, k);
+    shellMat.clearcoat = THREE.MathUtils.lerp(finFrom.clearcoat, finTo.clearcoat, k);
+  }
+  const pulse = privacy ? 0 : 0.55 + 0.45 * Math.sin(now / 520);
+  ledMat.color.setRGB(0.56 * pulse + 0.05, 0.94 * pulse + 0.05, 0.71 * pulse + 0.05);
+
+  renderer.render(scene, camera);
+  if (first) { first = false; stage.classList.add('ready'); }
+  if (visible) requestAnimationFrame(frame); else running = false;
+}
+wake();
+</script>
