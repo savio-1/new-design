@@ -803,7 +803,7 @@
     }
     if (t.getParent && t.getParent() && t.getParent().className === 'Transformer') {
       // Shift-dragging inside the selection draws a box instead of moving it
-      if (evt.shiftKey) { setTimeout(() => { for (const n of tr.nodes()) n.stopDrag(); }, 0); startBox(null, 'add'); }
+      if (evt.shiftKey) { noDrag = true; startBox(null, 'add'); }
       // Alt/Option-click inside the selection takes out the layer under the pointer
       else if (evt.altKey) altPending = selectedAt(stage.getPointerPosition());
       return;
@@ -812,14 +812,14 @@
     if (!id || !elMap.has(id)) return;
     if (evt.shiftKey) {
       // Shift: click adds this layer, drag draws a box that adds everything it touches
-      setTimeout(() => t.stopDrag && t.stopDrag(), 0);
+      noDrag = true;
       startBox(id, 'add');
       return;
     }
     if (evt.altKey) {
       // Alt/Option: a click takes this layer out of the selection; dragging a selected layer still leaves a copy behind
       altPending = sel.includes(id) ? id : null;
-      if (!sel.includes(id)) setTimeout(() => t.stopDrag && t.stopDrag(), 0);
+      if (!sel.includes(id)) noDrag = true;
       return;
     }
     if (evt.metaKey || evt.ctrlKey) {
@@ -829,6 +829,8 @@
     } else if (!sel.includes(id)) S.select([id]);
   });
   let altPending = null;
+  // set for gestures that select rather than move: any drag that tries to start is cancelled on the spot
+  let noDrag = false;
   // the topmost selected layer under a screen point (clicks inside the selection hit the transformer, not the layer)
   function selectedAt(p) {
     if (!p) return null;
@@ -879,6 +881,7 @@
     if (panning) { panning = null; area.style.cursor = keys.space || S.tool === 'hand' ? 'grab' : ''; }
     if (cropDrag) { cropDrag = null; S.commit(); }
     if (erasing) { erasing = null; S.commit(); emit('values'); }
+    noDrag = false;
     if (altPending) {
       const id = altPending;
       altPending = null;
@@ -1015,6 +1018,7 @@
   S.on('selection', () => updateDistances());
   function onDragStart(e) {
     const n = e.target;
+    if (noDrag) { n.stopDrag(); return; }
     altPending = null;
     // dragging a multi-selection fires dragstart on every node; the first one leads the gesture
     if (dragging) return;
