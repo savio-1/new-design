@@ -30,7 +30,8 @@ Work is autosaved to the browser (IndexedDB). Use **Project → Save project fil
 
 - **Ribbons**: bands or thin lines with text running along a path (wave, loop, swoosh, arc, S-curve, spiral, circle…). Double-click one to drag its points, add points from the midpoints, or double-click a point to remove it. *Text flow* makes the words travel along the ribbon; *Draw on* grows lines and arrows in.
 - **Garden**: painted lawns, flower beds and clouds are layers you can stack behind a cut-out photo; add a **Ground shadow** to the photo to stand it on the grass.
-- **Photo looks**: Motion blur (with direction), Noise, Fisheye, plus presets such as Gym grit, Ghost, Haze and Lens.
+- **Photo looks**: Noise, Fisheye, plus presets such as Gym grit, Ghost, Haze and Lens.
+- **Blur** (its own section on any photo): None, Motion, Zoom, Spin, Soft, Tilt-shift or Double, with an amount slider and the controls that type needs — direction, the centre point, or the sharp focus band.
 - **Camera overlays**: phone camera interface, camcorder and viewfinder, with an optional wide-lens black edge and editable labels.
 
 ## Video templates and camera

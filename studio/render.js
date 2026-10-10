@@ -1325,10 +1325,15 @@
     ghost: { label: 'Ghost', f: { motion: 70, motionAngle: 90, fade: 18, saturation: -20 } },
     noisy: { label: 'Noise', f: { noise: 60, contrast: 10, fade: 8 } },
     haze: { label: 'Haze', f: { blur: 6, fade: 22, brightness: 8, noise: 30 } },
+    zoomburst: { label: 'Zoom burst', f: { zoomBlur: 55, contrast: 10 } },
+    spin: { label: 'Spin', f: { spinBlur: 45, contrast: 6 } },
+    tilt: { label: 'Tilt-shift', f: { tiltShift: 60, saturation: 20, contrast: 8 } },
+    double: { label: 'Double', f: { ghost: 45, motionAngle: 20, fade: 10 } },
     fisheye: { label: 'Fisheye', f: { fisheye: 45, contrast: 6, saturation: 8 } },
     lens: { label: 'Lens', f: { fisheye: 35, warmth: 12, fade: 10, vignette: 30 } },
   };
-  const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone', 'noise', 'motion', 'motionAngle', 'fisheye'];
+  const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone', 'noise', 'motion', 'motionAngle', 'fisheye',
+    'zoomBlur', 'spinBlur', 'tiltShift', 'ghost', 'blurX', 'blurY', 'tiltY', 'tiltSize'];
   const filterCache = new LRU(40);
   function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
   function filteredSource(id, img, f) {
@@ -1384,6 +1389,10 @@
     let out = c;
     if (f.halftone) out = halftone(c, tone, f);
     if (f.motion) out = motionBlur(out, f.motion, f.motionAngle || 0);
+    if (f.ghost) out = ghostBlur(out, f.ghost, f.motionAngle || 0);
+    if (f.zoomBlur) out = radialBlur(out, f.zoomBlur, f.blurX ?? 0.5, f.blurY ?? 0.5, 'zoom');
+    if (f.spinBlur) out = radialBlur(out, f.spinBlur, f.blurX ?? 0.5, f.blurY ?? 0.5, 'spin');
+    if (f.tiltShift) out = tiltShift(out, f.tiltShift, f.tiltY ?? 0.5, f.tiltSize ?? 0.25);
     if (f.fisheye) out = barrel(out, f.fisheye);
     filterCache.set(key, out);
     return out;
@@ -1407,6 +1416,48 @@
     const w = src.width, h = src.height, o = canvas(w, h), x = o.getContext('2d');
     const N = clamp(Math.round(L / 2.5), 4, 36), a = angle * Math.PI / 180, dx = Math.cos(a) * L, dy = Math.sin(a) * L;
     for (let i = 0; i < N; i++) { const t = i / (N - 1) - 0.5; x.globalAlpha = 1 / (i + 1); x.drawImage(src, dx * t, dy * t); }
+    return o;
+  }
+  // zoom blur streaks out from a centre point; spin blur swirls around it
+  function radialBlur(src, amt, cx, cy, kind) {
+    const w = src.width, h = src.height, o = canvas(w, h), x = o.getContext('2d');
+    const px = cx * w, py = cy * h, a = amt / 100;
+    const N = clamp(Math.round(10 + a * 26), 8, 36);
+    x.drawImage(src, 0, 0);
+    for (let i = 1; i < N; i++) {
+      const t = i / (N - 1);
+      x.save(); x.globalAlpha = 1 / (i + 1);
+      x.translate(px, py);
+      if (kind === 'zoom') { const k = 1 + a * 0.32 * t; x.scale(k, k); }
+      else x.rotate((t - 0.5) * a * 0.22);
+      x.translate(-px, -py);
+      x.drawImage(src, 0, 0);
+      x.restore();
+    }
+    return o;
+  }
+  // tilt-shift: a sharp band across the photo, blurring away above and below
+  function tiltShift(src, amt, cy, size) {
+    const w = src.width, h = src.height, o = canvas(w, h), x = o.getContext('2d');
+    x.filter = `blur(${Math.max(1, amt / 100 * Math.max(w, h) * 0.018)}px)`;
+    x.drawImage(src, 0, 0); x.filter = 'none';
+    const sharp = canvas(w, h), sx = sharp.getContext('2d');
+    sx.drawImage(src, 0, 0);
+    sx.globalCompositeOperation = 'destination-in';
+    const g = sx.createLinearGradient(0, 0, 0, h), c = clamp(cy, 0, 1), half = clamp(size, 0.02, 1) / 2, soft = 0.12;
+    const st = (p, al) => g.addColorStop(clamp(p, 0, 1), `rgba(0,0,0,${al})`);
+    st(0, c - half - soft <= 0 ? 1 : 0); st(c - half - soft, 0); st(c - half, 1); st(c + half, 1); st(c + half + soft, 0); st(1, c + half + soft >= 1 ? 1 : 0);
+    sx.fillStyle = g; sx.fillRect(0, 0, w, h);
+    x.drawImage(sharp, 0, 0);
+    return o;
+  }
+  // double exposure: a faint second copy slid along the direction
+  function ghostBlur(src, amt, angle) {
+    const w = src.width, h = src.height, o = canvas(w, h), x = o.getContext('2d');
+    const L = Math.max(w, h) * amt / 100 * 0.12, a = angle * Math.PI / 180;
+    x.drawImage(src, 0, 0);
+    x.globalAlpha = 0.42; x.drawImage(src, Math.cos(a) * L, Math.sin(a) * L);
+    x.globalAlpha = 0.2; x.drawImage(src, Math.cos(a) * L * 2, Math.sin(a) * L * 2);
     return o;
   }
   // barrel distortion: the centre swells, edges bow out and the corners fall away

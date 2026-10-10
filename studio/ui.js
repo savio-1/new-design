@@ -654,9 +654,7 @@
       label('Light & colour'),
       sl('brightness', 'Brightness', -100, 100), sl('contrast', 'Contrast', -100, 100), sl('saturation', 'Saturation', -100, 100),
       sl('warmth', 'Warmth', -100, 100), sl('fade', 'Fade', 0, 100),
-      label('Blur & grain'),
-      sl('blur', 'Blur', 0, 40), sl('motion', 'Motion blur', 0, 100),
-      f.motion ? sl('motionAngle', 'Direction', -90, 90) : null,
+      label('Grain'),
       sl('noise', 'Noise', 0, 100), sl('grain', 'Film grain', 0, 100), sl('vignette', 'Vignette', 0, 100),
       label('Lens'),
       sl('fisheye', 'Fisheye', 0, 100),
@@ -669,6 +667,39 @@
     return out;
   }
 
+  // one place to pick a blur, see how strong it is and steer it
+  const BLUR_TYPES = [['none', 'None'], ['motion', 'Motion'], ['zoom', 'Zoom'], ['spin', 'Spin'], ['soft', 'Soft'], ['tilt', 'Tilt-shift'], ['ghost', 'Double']];
+  const BLUR_KEY = { motion: 'motion', zoom: 'zoomBlur', spin: 'spinBlur', soft: 'blur', tilt: 'tiltShift', ghost: 'ghost' };
+  const BLUR_HINT = {
+    motion: 'Streaks in one direction, like a fast pan.', zoom: 'Rushes out from a point, like zooming the lens mid-shot.',
+    spin: 'Swirls around a point.', soft: 'An even, dreamy softness.', tilt: 'A sharp band with the rest blurred — the miniature look.',
+    ghost: 'A faint second copy, like a double exposure.',
+  };
+  function blurSection(t, base) {
+    const get = () => S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
+    const typeOf = ff => Object.keys(BLUR_KEY).find(k => (ff[BLUR_KEY[k]] || 0) > 0) || 'none';
+    const type = typeOf(get());
+    const amountOf = ff => type === 'soft' ? (ff.blur || 0) * 2.5 : (ff[BLUR_KEY[type]] || 0);
+    const setType = nt => {
+      const cur = get(), amt = type !== 'none' ? amountOf(cur) : 50;
+      const nf = Object.assign({}, cur);
+      for (const k of Object.values(BLUR_KEY)) delete nf[k];
+      if (nt !== 'none') nf[BLUR_KEY[nt]] = nt === 'soft' ? Math.round(amt / 2.5 * 10) / 10 : amt;
+      S.change(t, base, nf);
+      renderInspector();
+    };
+    const pct = (k, l, def) => row(l, num(t, base + '.' + k, { min: 0, max: 100, scale: 100, slider: true, unit: '%', def }));
+    return sec('Blur', [
+      full(h('div.chips.tight', null, BLUR_TYPES.map(([k, l]) => h('button.chip' + (type === k ? '.on' : ''), { type: 'button', onclick: () => setType(k) }, l)))),
+      type !== 'none' ? h('p.hint', null, BLUR_HINT[type]) : null,
+      type !== 'none' ? row('Amount', num(t, base + '.' + BLUR_KEY[type], { min: 0, max: 100, slider: true, get: () => amountOf(get()), set: (v, live) => S.change(t, base + '.' + BLUR_KEY[type], type === 'soft' ? v / 2.5 : v, live) })) : null,
+      type === 'motion' || type === 'ghost' ? row('Direction', num(t, base + '.motionAngle', { min: -90, max: 90, slider: true, unit: '°', def: 0 })) : null,
+      type === 'zoom' || type === 'spin' ? pct('blurX', 'Centre X', 0.5) : null,
+      type === 'zoom' || type === 'spin' ? pct('blurY', 'Centre Y', 0.5) : null,
+      type === 'tilt' ? pct('tiltY', 'Focus line', 0.5) : null,
+      type === 'tilt' ? pct('tiltSize', 'Focus size', 0.25) : null,
+    ], type !== 'none', { key: 'blur-' + t });
+  }
   const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
   const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border'];
   function frameTiles(el, limit) {
@@ -735,6 +766,7 @@
         ], 'Zoom & position') : null,
       ], true, { collapsible: false }),
       el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
+      blurSection(T, 'filters'),
       sec('Frame', [
         full(frameTiles(el, allFrames ? 0 : 8)),
         allFrames ? null : full(h('button.link-btn', { type: 'button', onclick: () => { moreOpen.set('frames-all', true); renderInspector(); } }, `All ${Object.keys(R.FRAMES).length} frames`)),
@@ -1385,6 +1417,7 @@
       bg.assetId ? sec('Background photo', [
         full(h('button.btn.primary', { type: 'button', disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
         full(filterThumbs(null, 'doc')),
+        blurSection(T, 'background.filters'),
         more('bgphoto-more', [
           row('Opacity', num(T, 'background.imageOpacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           row('Zoom', num(T, 'background.crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
