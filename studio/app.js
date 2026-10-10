@@ -111,6 +111,7 @@
   let sel = [];
   let playing = false;
   let pathEdit = null;
+  let spotEdit = null;
   const elMap = new Map();
   S.view = { scale: 1, x: 0, y: 0, fit: true };
   S.settings = { grid: false, snapGrid: false, guides: true, gridSize: 40 };
@@ -377,7 +378,7 @@
     if (!n) return;
     n.setAttrs({
       x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation || 0, scaleX: 1, scaleY: 1,
-      opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && !(pathEdit && pathEdit.id === el.id) && S.tool === 'select' && !playing,
+      opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && !(pathEdit && pathEdit.id === el.id) && !(spotEdit && spotEdit.id === el.id) && S.tool === 'select' && !playing,
       globalCompositeOperation: el.blend && el.blend !== 'normal' ? el.blend : 'source-over',
     });
   }
@@ -569,7 +570,7 @@
       anchors = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     }
     if (anyLocked || cropState || S.tool === 'erase') anchors = [];
-    if (pathEdit) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
+    if (pathEdit || spotEdit) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
     tr.setAttrs({
       enabledAnchors: anchors, keepRatio, rotateEnabled: !anyLocked && !cropState && S.tool !== 'erase',
       shouldOverdrawWholeArea: ns.length > 1, borderDash: anyLocked ? [4, 4] : null,
@@ -584,6 +585,7 @@
     if (textEdit && !(ids.length === 1 && ids[0] === textEdit.id)) finishTextEdit();
     if (cropState && !(ids.length === 1 && ids[0] === cropState.id)) endCrop();
     if (pathEdit && !(ids.length === 1 && ids[0] === pathEdit.id)) endPathEdit();
+    if (spotEdit && !(ids.length === 1 && ids[0] === spotEdit.id)) endSpotEdit();
     sel = ids.filter(id => elMap.has(id));
     attachTransformer();
     if (!opts.silent) emit('selection');
@@ -620,6 +622,11 @@
     if (R.playTime != null) S.stopPreview();
     const t = e.target;
     if (S.tool === 'erase') { eraseStart(evt, t); return; }
+    if (spotEdit) {
+      if (t.getParent && t.getParent() === spotGroup) return;
+      if (t.id && t.id() === spotEdit.id) { addSpotAt(layer.getRelativePointerPosition()); return; }
+      endSpotEdit();
+    }
     if (cropState) {
       if (t.id && t.id() === cropState.id) { cropDragStart(evt); return; }
       endCrop();
@@ -1045,6 +1052,80 @@
   }
   S.on('view', () => { if (pathEdit) buildPathHandles(); });
   S.on('values', () => { if (pathEdit && !pathGroup.findOne('Circle')?.isDragging()) buildPathHandles(); });
+
+  /* ───────────────────────── blur spots (photos) ───────────────────────── */
+
+  const spotGroup = new Konva.Group();
+  uiLayer.add(spotGroup);
+  function spotEl() { return spotEdit && elMap.get(spotEdit.id); }
+  S.startBlurSpots = function (id) {
+    const el = elMap.get(id);
+    if (!el || el.type !== 'image' || !el.assetId || el.locked) return;
+    if (textEdit) finishTextEdit();
+    endCrop(); endPathEdit();
+    if (R.playTime != null) S.stopPreview();
+    spotEdit = { id };
+    if (!sel.includes(id) || sel.length !== 1) { sel = [id]; emit('selection'); }
+    syncNode(el);
+    buildSpotHandles();
+    attachTransformer();
+    S.hint('Click the photo to add a blur spot · drag a spot to move it · drag its ring handle to resize · double-click to remove · Esc when done', 4500);
+    emit('spotedit', true);
+  };
+  function endSpotEdit() {
+    if (!spotEdit) return;
+    const el = spotEl();
+    spotEdit = null;
+    spotGroup.destroyChildren();
+    if (el) syncNode(el);
+    attachTransformer();
+    uiLayer.batchDraw();
+    emit('spotedit', false);
+  }
+  S.endBlurSpots = endSpotEdit;
+  S.isEditingSpots = () => !!spotEdit;
+  function spotPts(el) {
+    if (!el.filters) el.filters = {};
+    if (!el.filters.blurPts) el.filters.blurPts = [];
+    if (!el.filters.blurArea || el.filters.blurArea === 'all') el.filters.blurArea = 'spots';
+    return el.filters.blurPts;
+  }
+  function addSpotAt(p) {
+    const el = spotEl(), n = nodes.get(el.id), map = R.imageBoxMap(el);
+    if (!map) return;
+    const lp = n.getTransform().copy().invert().point(p), q = map.toImg(lp.x, lp.y);
+    if (q.u < 0 || q.u > 1 || q.v < 0 || q.v > 1) return;
+    spotPts(el).push({ x: q.u, y: q.v, r: 0.12 });
+    el.filters = Object.assign({}, el.filters);
+    layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); emit('spotedit', true);
+  }
+  function buildSpotHandles() {
+    spotGroup.destroyChildren();
+    const el = spotEl(), n = el && nodes.get(el.id), map = el && R.imageBoxMap(el);
+    if (!el || !n || !map) return;
+    const s = S.view.scale, T = n.getTransform();
+    const pts = (el.filters && el.filters.blurPts) || [];
+    const commit = () => { el.filters = Object.assign({}, el.filters, { blurPts: pts.map(p => Object.assign({}, p)) }); layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); };
+    pts.forEach((p, i) => {
+      const bc = map.toBox(p.x, p.y), c = T.point(bc), rr = p.r * map.unit;
+      const ring = new Konva.Circle({ x: c.x, y: c.y, radius: rr, stroke: '#ffffff', strokeWidth: 2 / s, dash: [6 / s, 5 / s], shadowColor: '#000', shadowBlur: 3, shadowOpacity: 0.6, listening: false });
+      const dot = new Konva.Circle({ x: c.x, y: c.y, radius: 8 / s, fill: '#5b4cf5', stroke: '#fff', strokeWidth: 2 / s, draggable: true, hitStrokeWidth: 10 / s });
+      const knob = new Konva.Circle({ x: c.x + rr, y: c.y, radius: 6 / s, fill: '#ffffff', stroke: '#5b4cf5', strokeWidth: 2 / s, draggable: true, hitStrokeWidth: 10 / s });
+      dot.on('mousedown touchstart', ev => { ev.cancelBubble = true; });
+      knob.on('mousedown touchstart', ev => { ev.cancelBubble = true; });
+      dot.on('dragmove', () => { ring.position(dot.position()); knob.position({ x: dot.x() + ring.radius(), y: dot.y() }); uiLayer.batchDraw(); });
+      dot.on('dragend', () => { const lp = T.copy().invert().point(dot.position()), q = map.toImg(lp.x, lp.y); pts[i] = Object.assign({}, p, { x: Math.min(1, Math.max(0, q.u)), y: Math.min(1, Math.max(0, q.v)) }); commit(); });
+      knob.on('dragmove', () => { const r2 = Math.max(10 / s, Math.hypot(knob.x() - dot.x(), knob.y() - dot.y())); ring.radius(r2); uiLayer.batchDraw(); });
+      knob.on('dragend', () => { pts[i] = Object.assign({}, p, { r: Math.max(0.01, ring.radius() / map.unit) }); commit(); });
+      dot.on('dblclick dbltap', () => { pts.splice(i, 1); commit(); emit('spotedit', true); });
+      dot.on('mouseenter', () => { area.style.cursor = 'move'; }); dot.on('mouseleave', () => { area.style.cursor = ''; });
+      knob.on('mouseenter', () => { area.style.cursor = 'ew-resize'; }); knob.on('mouseleave', () => { area.style.cursor = ''; });
+      spotGroup.add(ring, dot, knob);
+    });
+    uiLayer.batchDraw();
+  }
+  S.on('view', () => { if (spotEdit) buildSpotHandles(); });
+  S.on('values', () => { if (spotEdit && !spotGroup.find('Circle').some(c => c.isDragging())) buildSpotHandles(); });
 
   /* ───────────────────────── text editing ───────────────────────── */
 
@@ -1708,7 +1789,7 @@
     if (mod && k === 'e') { e.preventDefault(); emit('export'); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }
-    if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
+    if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (spotEdit) endSpotEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
     if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
     if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }
     if (k === 'h') { S.setTool(S.tool === 'hand' ? 'select' : 'hand'); return; }

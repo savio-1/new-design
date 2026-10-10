@@ -11,6 +11,7 @@
 
   const ICONS = {
     plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+    target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
     undo: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11', redo: 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
     grid: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM3 9h18M3 15h18M9 3v18M15 3v18',
     magnet: 'M6 4v8a6 6 0 0 0 12 0V4h-4v8a2 2 0 0 1-4 0V4zM6 8h4M14 8h4',
@@ -689,6 +690,41 @@
       renderInspector();
     };
     const pct = (k, l, def) => row(l, num(t, base + '.' + k, { min: 0, max: 100, scale: 100, slider: true, unit: '%', def }));
+    // where the blur lands: the whole photo, only around chosen spots, or everywhere except them
+    const area = get().blurArea || 'all', pts = get().blurPts || [];
+    const selEl = t === 'doc' ? null : S.selEls()[0];
+    const canPlace = !!(selEl && selEl.type === 'image' && selEl.assetId);
+    const editing = canPlace && S.isEditingSpots();
+    const setPts = list => { S.change(t, base + '.blurPts', list); renderInspector(); };
+    const setArea = a => {
+      S.change(t, base + '.blurArea', a, a !== 'all' && !pts.length);
+      if (a !== 'all' && !pts.length) S.change(t, base + '.blurPts', [{ x: 0.5, y: 0.5, r: 0.15 }]);
+      if (a === 'all' && editing) S.endBlurSpots();
+      if (a !== 'all' && canPlace && !editing) S.startBlurSpots(selEl.id);
+      renderInspector();
+    };
+    const where = type === 'none' ? [] : [
+      label('Where'),
+      full(seg(t, base + '.blurArea', [['all', 'Everywhere', 'Blur the whole photo'], ['spots', 'On spots', 'Blur only around the spots'], ['sharp', 'Off spots', 'Keep the spots sharp, blur the rest']], { get: () => get().blurArea || 'all', set: setArea })),
+    ];
+    if (type !== 'none' && area !== 'all') {
+      where.push(h('p.hint', null, area === 'spots' ? 'Blur fades out from each spot — the rest stays sharp.' : 'Each spot stays in focus — everything around it is blurred.'));
+      where.push(full(h('div.btn-row', null,
+        canPlace ? h('button.btn.grow' + (editing ? '.primary' : ''), { type: 'button', onclick: () => { editing ? S.endBlurSpots() : S.startBlurSpots(selEl.id); renderInspector(); } }, ic(editing ? 'check' : 'target'), editing ? 'Done placing' : 'Place on photo') : null,
+        h('button.btn.grow', { type: 'button', onclick: () => setPts(pts.concat([{ x: 0.3 + Math.random() * 0.4, y: 0.3 + Math.random() * 0.4, r: 0.12 }])) }, ic('plus'), 'Add spot'))));
+      pts.forEach((p, i) => {
+        const P = base + '.blurPts.' + i;
+        const sl = (k, l, a, b, unit) => row(l, num(t, P + '.' + k, { min: a, max: b, scale: 100, slider: true, unit, def: k === 'r' ? 0.12 : 0.5 }));
+        where.push(h('div.spot-item', null,
+          h('div.spot-head', null, h('span.spot-dot'), h('b', null, 'Spot ' + (i + 1)),
+            h('button.icon-btn', { type: 'button', title: 'Remove spot', onclick: () => setPts(pts.filter((_, j) => j !== i)) }, ic('trash'))),
+          sl('r', 'Size', 1, 60, '%'),
+          canPlace ? null : sl('x', 'Across', 0, 100, '%'),
+          canPlace ? null : sl('y', 'Down', 0, 100, '%')));
+      });
+      if (!pts.length) where.push(h('p.hint', null, 'No spots yet — add one, or click the photo while placing.'));
+      where.push(row('Softness', num(t, base + '.blurFeather', { min: 0, max: 100, slider: true, unit: '%', def: 60 })));
+    }
     return sec('Blur', [
       full(h('div.chips.tight', null, BLUR_TYPES.map(([k, l]) => h('button.chip' + (type === k ? '.on' : ''), { type: 'button', onclick: () => setType(k) }, l)))),
       type !== 'none' ? h('p.hint', null, BLUR_HINT[type]) : null,
@@ -698,6 +734,7 @@
       type === 'zoom' || type === 'spin' ? pct('blurY', 'Centre Y', 0.5) : null,
       type === 'tilt' ? pct('tiltY', 'Focus line', 0.5) : null,
       type === 'tilt' ? pct('tiltSize', 'Focus size', 0.25) : null,
+      ...where,
     ], type !== 'none', { key: 'blur-' + t });
   }
   const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
@@ -2605,6 +2642,7 @@
   }
   S.on('tool', updateEraserBar);
   S.on('selection', () => { if (S.tool === 'erase') updateEraserBar(); });
+  S.on('spotedit', () => renderInspector());
   S.on('values', () => { if (S.tool === 'erase') { const c = S.selEls()[0]; const has = !!(c && c.erase && c.erase.length); if (has !== !!$('#eraser-bar .btn:not(.primary)')) updateEraserBar(); } });
 
   /* ───────────────────────── wiring ───────────────────────── */

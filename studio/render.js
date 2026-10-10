@@ -1337,8 +1337,10 @@
   const filterCache = new LRU(40);
   function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
   function filteredSource(id, img, f) {
-    if (!f || !FILTER_KEYS.some(k => f[k])) return img;
-    const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',') + '|' + (f.duotone || f.threshold || f.halftone ? (f.duoDark || '') + (f.duoLight || '') : '');
+    if (!f || !(FILTER_KEYS.some(k => f[k]) || (f.blur && f.blurArea && f.blurArea !== 'all'))) return img;
+    const spots = f.blurArea && f.blurArea !== 'all' && (f.blurPts || []).length ? f.blurArea : null;
+    const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',') + '|' + (f.duotone || f.threshold || f.halftone ? (f.duoDark || '') + (f.duoLight || '') : '') +
+      (spots ? '|' + spots + JSON.stringify(f.blurPts) + (f.blurFeather ?? 60) + '|' + (f.blur || 0) : '');
     const hit = filterCache.get(key);
     if (hit) return hit;
     const c = canvas(img.naturalWidth || img.width, img.naturalHeight || img.height), x = c.getContext('2d', { willReadFrequently: true });
@@ -1388,11 +1390,17 @@
     x.putImageData(d, 0, 0);
     let out = c;
     if (f.halftone) out = halftone(c, tone, f);
+    const sharp = out;
     if (f.motion) out = motionBlur(out, f.motion, f.motionAngle || 0);
     if (f.ghost) out = ghostBlur(out, f.ghost, f.motionAngle || 0);
     if (f.zoomBlur) out = radialBlur(out, f.zoomBlur, f.blurX ?? 0.5, f.blurY ?? 0.5, 'zoom');
     if (f.spinBlur) out = radialBlur(out, f.spinBlur, f.blurX ?? 0.5, f.blurY ?? 0.5, 'spin');
     if (f.tiltShift) out = tiltShift(out, f.tiltShift, f.tiltY ?? 0.5, f.tiltSize ?? 0.25);
+    if (spots) {
+      // soft blur is normally applied while drawing; bake it here so it can be masked too
+      if (f.blur) { const b = canvas(out.width, out.height), bx = b.getContext('2d'); bx.filter = `blur(${f.blur * Math.max(out.width, out.height) / 1000}px)`; bx.drawImage(out, 0, 0); out = b; }
+      if (out !== sharp) out = blurSpots(sharp, out, f.blurPts, spots === 'sharp', (f.blurFeather ?? 60) / 100);
+    }
     if (f.fisheye) out = barrel(out, f.fisheye);
     filterCache.set(key, out);
     return out;
@@ -1416,6 +1424,25 @@
     const w = src.width, h = src.height, o = canvas(w, h), x = o.getContext('2d');
     const N = clamp(Math.round(L / 2.5), 4, 36), a = angle * Math.PI / 180, dx = Math.cos(a) * L, dy = Math.sin(a) * L;
     for (let i = 0; i < N; i++) { const t = i / (N - 1) - 0.5; x.globalAlpha = 1 / (i + 1); x.drawImage(src, dx * t, dy * t); }
+    return o;
+  }
+  // blur only around chosen spots (or everywhere except them), with soft edges
+  function blurSpots(sharp, blurred, pts, invert, feather) {
+    const w = sharp.width, h = sharp.height, M = Math.max(w, h);
+    const mask = canvas(w, h), mx = mask.getContext('2d');
+    const paint = () => {
+      for (const p of pts) {
+        const cx = p.x * w, cy = p.y * h, r = Math.max(2, (p.r || 0.12) * M);
+        const g = mx.createRadialGradient(cx, cy, r * (1 - clamp(feather, 0, 0.98)), cx, cy, r);
+        g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+        mx.fillStyle = g; mx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
+    };
+    if (invert) { mx.fillStyle = '#000'; mx.fillRect(0, 0, w, h); mx.globalCompositeOperation = 'destination-out'; paint(); }
+    else paint();
+    const o = canvas(w, h), x = o.getContext('2d');
+    x.drawImage(blurred, 0, 0); x.globalCompositeOperation = 'destination-in'; x.drawImage(mask, 0, 0);
+    x.globalCompositeOperation = 'destination-over'; x.drawImage(sharp, 0, 0);
     return o;
   }
   // zoom blur streaks out from a centre point; spin blur swirls around it
@@ -1624,6 +1651,20 @@
   }
 
   R.frameGeometry = frameGeometry;
+  // where image coordinates (0–1) land inside an image element's box, matching drawCover
+  R.imageBoxMap = function (el) {
+    const img = assetImage(el.assetId);
+    if (!img) return null;
+    const r = frameGeometry(el).rect, iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, c = el.crop || {};
+    const sc = Math.max(r.w / iw, r.h / ih) * (c.zoom || 1), dw = iw * sc, dh = ih * sc;
+    const dx = r.x + (r.w - dw) * (c.x ?? 0.5), dy = r.y + (r.h - dh) * (c.y ?? 0.5);
+    const fx = u => el.flipX ? 1 - u : u, fy = v => el.flipY ? 1 - v : v;
+    return {
+      toBox: (u, v) => ({ x: dx + fx(u) * dw, y: dy + fy(v) * dh }),
+      toImg: (x, y) => ({ u: fx((x - dx) / dw), v: fy((y - dy) / dh) }),
+      unit: Math.max(dw, dh),
+    };
+  };
   R.filteredSource = filteredSource;
 
   function drawPlaceholder(ctx, r, el) {
@@ -1657,7 +1698,7 @@
       ctx.translate(-(r.x + r.w / 2), -(r.y + r.h / 2));
     }
     const f = el.filters || {};
-    if (f.blur && 'filter' in ctx) ctx.filter = `blur(${f.blur * deviceScale(ctx) * Math.max(dw, dh) / 1000}px)`;
+    if (f.blur && 'filter' in ctx && !(f.blurArea && f.blurArea !== 'all' && (f.blurPts || []).length)) ctx.filter = `blur(${f.blur * deviceScale(ctx) * Math.max(dw, dh) / 1000}px)`;
     ctx.drawImage(src, dx, dy, dw, dh);
     ctx.restore();
   }
