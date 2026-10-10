@@ -760,6 +760,65 @@
       },
     })),
 
+    // ── VIDEO: rolling sequence — values roll up one after another (years, countdowns, prices) ──
+    ...[
+      { id: 'roll-years', name: 'Through the years', seq: Array.from({ length: 18 }, (_, i) => String(1940 + i * 5)).join('\n'), sub: '', font: 'Playfair Display', weight: 500, italic: true, size: 150, ink: '#1c1c22', bg: '#cfcfcc', vhs: true, accel: true, speed: 1.4 },
+      { id: 'roll-countdown', name: 'Countdown', seq: '10\n9\n8\n7\n6\n5\n4\n3\n2\n1\nGO!', sub: 'LAUNCHING SOON', font: 'Space Mono', weight: 700, size: 230, ink: '#ff3b30', bg: '#0e0e0e', vhs: true, speed: 2.1 },
+      { id: 'roll-price', name: 'Price drop', seq: '$129\n$99\n$79\n$59\n$39', sub: 'TODAY ONLY', font: 'Archivo Black', weight: 400, size: 220, ink: '#1d1b18', bg: '#f7d046', vhs: false, accel: true, speed: 0.9 },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Sale'], width: 1080, height: 1350, video: true,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.bg, texture: v.vhs ? 10 : 30 },
+        overlay: v.vhs ? { scanlines: 55, rgb: 45, grain: 30, vignette: 30 } : { grain: 18, vignette: 15 },
+        anim: { duration: 5, fps: 30 },
+        camera: { move: 'drift', zoom: 1.06, rotate: 0.6, shake: 0.35, blur: 0.2 },
+        elements: [
+          txt(v.seq, { key: 'roll', cx: 540, cy: 675, autoWidth: false, width: 1000, fontFamily: v.font, fontWeight: v.weight, italic: !!v.italic, fontSize: v.size, letterSpacing: v.italic ? -0.03 : 0, fill: v.ink, anim: { enter: 'roll', delay: 0.6, speed: v.speed, accel: !!v.accel }, name: 'Rolling values (one per line)' }),
+          v.sub ? txt(v.sub, { cx: 540, cy: 1080, fontFamily: 'Space Mono', fontWeight: 700, fontSize: 36, letterSpacing: 0.18, fill: v.ink }) : null,
+        ].filter(Boolean),
+      }),
+    })),
+
+    // ── VIDEO: word by word — one word at a time, popping up in the middle ──
+    ...[
+      { id: 'words-films', name: 'Word by word', text: 'It wasn’t just making films.', font: 'Playfair Display', weight: 500, italic: true, size: 130, ink: '#1c1c22', bg: '#cfcfcc', overlay: { scanlines: 55, rgb: 40, grain: 28, vignette: 30 }, speed: 1, cam: { move: 'drift', zoom: 1.05, shake: 0.3 } },
+      { id: 'words-bold', name: 'Bold statement', text: 'STOP WAITING FOR THE PERFECT MOMENT.', font: 'Archivo Black', weight: 400, size: 170, ink: '#ffffff', bg: '#0d0d0d', overlay: { grain: 30, vignette: 35 }, speed: 1.3, cam: { move: 'jolt', zoom: 1.18, rotate: 2.5, cut: 0.42 / 1.3, wander: 0, blur: 0.3 } },
+      { id: 'words-soft', name: 'Soft whisper', text: 'slow mornings are a love language', font: 'Instrument Serif', weight: 400, italic: true, size: 150, ink: '#5a3e2b', bg: '#f3e9dc', overlay: { grain: 16, leak: 25, vignette: 15 }, speed: 0.8, cam: { move: 'pushin', zoom: 1.15, start: 0, dur: 5 } },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Quote'], width: 1080, height: 1350, video: true,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.bg, texture: 15 },
+        overlay: v.overlay,
+        anim: { duration: 5, fps: 30 },
+        camera: v.cam,
+        elements: [
+          txt(v.text, { key: 'words', cx: 540, cy: 675, autoWidth: false, width: 1000, fontFamily: v.font, fontWeight: v.weight, italic: !!v.italic, fontSize: v.size, letterSpacing: -0.02, fill: v.ink, anim: { enter: 'words', delay: 0.3, speed: v.speed }, name: 'Words (shown one at a time)' }),
+        ],
+      }),
+    })),
+
+    // ── VIDEO: letters bounce in one by one after a play button ──
+    ...[
+      { id: 'bounce-everyone', name: 'Letter bounce', word: 'EVERYONE', font: 'Archivo', weight: 800, size: 130, ink: '#e8e6ea', bg: '#0b0b0d', crumple: 70, overlay: { rgb: 55, scanlines: 30, grain: 35, vignette: 45 }, play: true, cam: { move: 'crash', zoom: 1.25, start: 2.4, dur: 1.2, blur: 0.8, shake: 0.3 } },
+      { id: 'bounce-hello', name: 'Glitch hello', word: 'HELLO WORLD', font: 'Space Grotesk', weight: 700, size: 110, ink: '#ffffff', bg: '#1f3fd1', crumple: 30, overlay: { rgb: 80, scanlines: 45, grain: 25 }, play: false, cam: { move: 'jolt', zoom: 1.12, rotate: 1.5, cut: 0.22, wander: 0.3, blur: 0.4 } },
+      { id: 'bounce-pastel', name: 'Pastel bounce', word: 'yay, friday!', font: 'Fredoka', weight: 700, size: 150, ink: '#ff4f8b', bg: '#ffe3ef', crumple: 0, overlay: { grain: 10 }, play: false, cam: { move: 'pushin', zoom: 1.12, start: 0, dur: 5 } },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Video', 'Quote'], width: 1080, height: 1350, video: true,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.bg, crumple: v.crumple, crumpleSeed: 17, texture: v.crumple ? 20 : 0 },
+        overlay: v.overlay,
+        anim: { duration: 5, fps: 30 },
+        camera: Object.assign({ target: 'word' }, v.cam),
+        elements: [
+          v.play ? shp('triangle', 548, 600, 110, 130, { fill: '#cfcfd4', radius: 18, rotation: 90, time: { start: 0, end: 0.75 }, name: 'Play button' }) : null,
+          txt(v.word, { key: 'word', cx: 540, cy: 675, fontFamily: v.font, fontWeight: v.weight, fontSize: v.size, letterSpacing: 0.01, fill: v.ink, anim: { enter: 'lettersBounce', delay: v.play ? 0.75 : 0.3, speed: 0.85 } }),
+        ].filter(Boolean),
+      }),
+    })),
+
     // ── life-sim garden: cut-out photo on a painted lawn with game-menu choices ──
     ...[
       { id: 'garden-menu', name: 'Choose an action', sky: ['#1f6dd0', '#bfe7f6'], hill: ['#b5d65e', '#5fae37', '#2c6a1f', '#cdea7c'], profile: 'left', flower: ['#e3262c', '#8e0d15', '#3d7a2c', '#163c13', '#4d0a0c'], bloom: 'cluster', gem: ['#2fd16a', '#0c7a3c', '#a6ffbf'], ink: '#22307a', pill: '#f3eee6',
@@ -1108,6 +1167,9 @@
     'Match cut': ['match-highlight', 'match-dark', 'match-news'],
     'Kinetic headline': ['kinetic-news', 'kinetic-reveal', 'kinetic-pop'],
     'Sticky notes': ['sticky-cut', 'sticky-stack', 'sticky-flip'],
+    'Rolling numbers': ['roll-years', 'roll-countdown', 'roll-price'],
+    'Word by word': ['words-films', 'words-bold', 'words-soft'],
+    'Letter bounce': ['bounce-everyone', 'bounce-hello', 'bounce-pastel'],
     'Life-sim garden': ['garden-menu', 'garden-golden', 'garden-dusk'],
     'Ribbon poster': ['ribbon-fest', 'ribbon-sounds', 'ribbon-market'],
     'Motion blur': ['first-squat', 'run-club', 'dance-studio'],

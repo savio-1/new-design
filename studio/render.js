@@ -876,7 +876,8 @@
       if (el._letters && !L.curved) {
         // per-letter entrance: each glyph lands on its own, staggered
         const LT = el._letters, meas = measurer(mctx, L.font, 0);
-        const stag = 0.055 / LT.spd, dur = 0.42 / LT.spd;
+        const bounce = LT.style === 'lettersBounce';
+        const stag = (bounce ? 0.11 : 0.055) / LT.spd, dur = (bounce ? 0.24 : 0.42) / LT.spd;
         let g = 0;
         for (const ln of L.lines) {
           const chars = [...ln.text];
@@ -891,6 +892,9 @@
             if (LT.style === 'slam') {
               const k = easeBack(q), sc = 2.1 - 1.1 * k;
               ctx.rotate((1 - q) * (g % 2 ? 0.35 : -0.35)); ctx.scale(sc, sc); ctx.globalAlpha *= Math.min(1, q * 3);
+            } else if (LT.style === 'lettersBounce') {
+              // each new letter lands low, then snaps up onto the line
+              ctx.translate(0, (1 - easeBack(q)) * L.size * 0.5); ctx.scale(0.86 + 0.14 * q, 0.86 + 0.14 * q);
             } else if (LT.style === 'lettersUp') { ctx.translate(0, (1 - easeOut(q)) * L.size * 0.9); ctx.globalAlpha *= q; }
             else if (LT.style === 'lettersDrop') { ctx.translate(0, -(1 - easeBounce(q)) * L.size * 1.3); ctx.globalAlpha *= Math.min(1, q * 4); }
             else { ctx.globalAlpha *= q; ctx.scale(0.9 + 0.1 * q, 0.9 + 0.1 * q); }
@@ -2259,7 +2263,8 @@
   R.ANIM_ENTER = {
     none: 'None', pop: 'Pop in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
     right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
-    slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', captions: 'Captions (line by line)',
+    slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', lettersBounce: 'Letters bounce in',
+    captions: 'Captions (line by line)', roll: 'Roll through lines', words: 'Word by word',
   };
   const LOOP_PERIOD = { float: 3, jiggle: 0.9, sway: 3, swing: 2.2, spin: 6, pulse: 1.6, bounce: 1.2, shake: 0.5, orbit: 4, blink: 1.4, flow: 4 };
   const easeOut = p => 1 - Math.pow(1 - p, 3);
@@ -2289,7 +2294,7 @@
   };
   function animState(el, t, doc) {
     const an = el.anim || {}, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
-    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0 };
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, seq: null };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
     const loop = an.loop || 'none';
@@ -2331,10 +2336,11 @@
         case 'drop': st.dy -= (1 - easeBounce(p)) * m * 1.2; st.alpha *= Math.min(1, p * 4); st.mblur = (1 - p) * m * 0.4; st.mang = 90; break;
         case 'left': st.dx -= (1 - e) * m * 1.2; st.alpha *= e; st.mblur = (1 - e) * m * 0.6; break;
         case 'right': st.dx += (1 - e) * m * 1.2; st.alpha *= e; st.mblur = (1 - e) * m * 0.6; break;
-        case 'slam': case 'lettersUp': case 'lettersDrop': case 'lettersFade':
+        case 'slam': case 'lettersUp': case 'lettersDrop': case 'lettersFade': case 'lettersBounce':
           if (el.type === 'text') st.letters = { t: tl - (an.delay || 0), spd, style: enter }; else st.alpha *= e;
           break;
         case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
+        case 'roll': case 'words': if (el.type === 'text') st.seq = seqState(el, tl - (an.delay || 0), spd, enter, an.accel); break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
         case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p; break;
@@ -2345,10 +2351,41 @@
     return st;
   }
   R.animState = animState;
+  // sequence modes show one piece of the text at a time: lines (captions, roll) or words
+  const SEQ = new Set(['captions', 'roll', 'words']);
+  R.seqPieces = function (el) {
+    if (el.type !== 'text' || !el.anim || !SEQ.has(el.anim.enter)) return null;
+    const t = String(el.text || '');
+    const out = el.anim.enter === 'words' ? t.split(/\s+/) : t.split('\n');
+    return out.map(x => x.trim()).filter(Boolean);
+  };
+  function seqState(el, tt, spd, mode, accel) {
+    const pieces = R.seqPieces(el) || [];
+    const n = pieces.length;
+    if (!n) return null;
+    const base = (mode === 'words' ? 0.42 : 0.7) / spd;
+    // optional acceleration: early pieces linger, later ones fly past
+    const slotOf = i => base * (accel ? Math.max(0.28, 1.6 - i * 0.22) : 1);
+    let acc = 0, i = 0;
+    if (tt < 0) return { pieces, i: 0, k: 0, enterK: 1 };
+    while (i < n - 1 && acc + slotOf(i) <= tt) { acc += slotOf(i); i++; }
+    const slot = slotOf(i), frac = clamp((tt - acc) / slot, 0, 1);
+    const tw = mode === 'roll' ? Math.min(0.45, 0.12 / slot + 0.15) : 0;
+    const k = mode === 'roll' && i < n - 1 && frac > 1 - tw ? (frac - (1 - tw)) / tw : 0;
+    const enterK = mode === 'words' ? clamp((tt - acc) / Math.min(slot * 0.5, 0.2), 0, 1) : 1;
+    return { pieces, i, k, enterK, first: i === 0 };
+  }
 
+  function onePiece(el, piece) {
+    const one = Object.assign({}, el, { text: piece, autoWidth: false, width: el.width });
+    one._yShift = (el.height - layoutText(one).boxH) / 2;
+    return one;
+  }
   function drawElement(ctx, el, env = {}) {
     const t = 'time' in env ? env.time : R.playTime;
     if (t != null && !R.visibleAt(el, t)) return;
+    const pcs = R.seqPieces(el);
+    if (t == null && pcs && pcs.length) { drawLayered(ctx, onePiece(el, pcs[0]), env); return; }
     if (t == null || !R.hasAnim(el)) { drawLayered(ctx, el, env); return; }
     const A = animState(el, t, env.doc || R.animDoc);
     if (A.alpha <= 0.001 || A.sc <= 0.001 || A.reveal <= 0) return;
@@ -2376,6 +2413,29 @@
     if (A.flow != null || A.draw != null) e = Object.assign({}, e, A.flow != null ? { flowShift: ((A.flow % 1) + 1) % 1 } : {}, A.draw != null ? { drawFrac: A.draw } : {});
     if (A.letters) e = Object.assign({}, e, { _letters: A.letters });
     if (A.mblur > 1.5) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { motion: ((e.lblur && e.lblur.motion) || 0) + A.mblur, angle: A.mang }) });
+    if (A.seq) {
+      const Q = A.seq, cur = onePiece(e, Q.pieces[Q.i]);
+      if (el.anim.enter === 'roll') {
+        // the old line rolls up and away while the next one rolls in from below
+        const lh = (el.fontSize || 48) * 1.05, k = easeOut(Q.k);
+        const draw1 = (piece, dy, al, bl) => {
+          const x = bl > 1 ? Object.assign({}, piece, { lblur: { motion: bl, angle: 90 } }) : piece;
+          ctx.save(); ctx.translate(0, dy); ctx.globalAlpha *= al; drawLayered(ctx, x, env); ctx.restore();
+        };
+        draw1(cur, -k * lh, 1 - k * 0.85, Q.k > 0 ? Math.sin(Math.PI * Q.k) * lh * 0.6 : 0);
+        if (Q.k > 0) draw1(onePiece(e, Q.pieces[Q.i + 1]), (1 - k) * lh, Math.min(1, k * 1.4), Math.sin(Math.PI * Q.k) * lh * 0.6);
+      } else {
+        // word by word: each word pops up from a little smaller
+        const kk = easeBack(Q.enterK), sc = 0.72 + 0.28 * kk;
+        ctx.save();
+        ctx.translate(el.width / 2, el.height / 2); ctx.scale(sc, sc); ctx.translate(-el.width / 2, -el.height / 2);
+        ctx.globalAlpha *= Math.min(1, Q.enterK * 2.5);
+        drawLayered(ctx, Q.enterK < 0.5 ? Object.assign({}, cur, { lblur: { gauss: (0.5 - Q.enterK) * 8 } }) : cur, env);
+        ctx.restore();
+      }
+      ctx.restore();
+      return;
+    }
     if (A.caption != null && el.type === 'text') {
       // captions: one line of the text at a time, centred in the layer's box
       const lines = String(el.text || '').split('\n').filter(x => x.trim());
@@ -2529,6 +2589,7 @@
       }
       ctx.restore();
     }
+    if (o.scanlines) scanlines(ctx, w, h, o.scanlines);
     if (o.blinds) {
       // soft diagonal shadows, like sun through window blinds
       const a = o.blinds / 100, period = Math.max(w, h) * 0.34;
@@ -2647,7 +2708,7 @@
     }
     // never show past the canvas edge: zoom enough to cover the rotation, keep the view inside
     const ar = Math.abs(r) * Math.PI / 180, asp = Math.max(W / H, H / W);
-    z = Math.max(z, Math.cos(ar) + Math.sin(ar) * asp);
+    z = Math.max(z, Math.cos(ar) + Math.sin(ar) * asp) * (z > 1.0001 || ar ? 1.004 : 1);
     const hw = W / 2 / z, hh = H / 2 / z;
     f = { x: clamp(f.x, hw, W - hw), y: clamp(f.y, hh, H - hh) };
     return { fx: f.x, fy: f.y, z, r };
@@ -2686,6 +2747,49 @@
     requestRedraw();
   };
 
+  // chromatic aberration: the red channel spreads a little wider than green and blue
+  let rgbA = null, rgbB = null;
+  function rgbSplit(ctx, src, px) {
+    const w = src.width, h = src.height;
+    if (!rgbA || rgbA.width !== w || rgbA.height !== h) { rgbA = canvas(w, h); rgbB = canvas(w, h); }
+    const a = rgbA.getContext('2d'), b = rgbB.getContext('2d');
+    const tint = (x, col) => {
+      x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1;
+      x.globalCompositeOperation = 'copy'; x.drawImage(src, 0, 0);
+      x.globalCompositeOperation = 'multiply'; x.fillStyle = col; x.fillRect(0, 0, w, h);
+      x.globalCompositeOperation = 'destination-in'; x.drawImage(src, 0, 0);
+      x.globalCompositeOperation = 'source-over';
+    };
+    tint(a, '#ff0000'); tint(b, '#00ffff');
+    const k = (w + px * 3) / w, kh = (h + px * 1.8) / h;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'copy'; ctx.globalAlpha = 1;
+    // both channels are drawn slightly enlarged so the frame edges stay covered
+    const k0 = (w + px) / w;
+    ctx.drawImage(rgbB, -(w * k0 - w) / 2, -(h * k0 - h) / 2, w * k0, h * k0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(rgbA, -(w * k - w) / 2, -(h * kh - h) / 2, w * k, h * kh);
+    ctx.restore();
+  }
+  R.rgbSplit = function (ctx, px) {
+    const c = ctx.canvas;
+    if (!c || !(px > 0.3)) return;
+    const copy = canvas(c.width, c.height);
+    copy.getContext('2d').drawImage(c, 0, 0);
+    rgbSplit(ctx, copy, px);
+  };
+  let scanTile = null;
+  function scanlines(ctx, w, h, amt) {
+    if (!scanTile) {
+      scanTile = canvas(4, 4);
+      const x = scanTile.getContext('2d');
+      x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(0, 0, 4, 1.4);
+      x.fillStyle = 'rgba(255,255,255,0.18)'; x.fillRect(0, 2, 4, 0.8);
+    }
+    const pat = ctx.createPattern(scanTile, 'repeat');
+    ctx.save(); ctx.globalAlpha *= clamp(amt / 100, 0, 1) * 0.6; ctx.fillStyle = pat; ctx.fillRect(0, 0, w, h); ctx.restore();
+  }
   let blurBuf = null;
   R.renderDoc = function (doc, opts = {}) {
     const scale = opts.scale || 1;
@@ -2737,6 +2841,11 @@
           ctx.drawImage(blurBuf, 0, 0);
         }
       }
+    }
+    const ov = doc.overlay || {};
+    if (ov.rgb > 0) {
+      const copy = canvas(c.width, c.height); copy.getContext('2d').drawImage(c, 0, 0);
+      rgbSplit(ctx, copy, ov.rgb / 100 * c.width * 0.006);
     }
     ctx.save();
     ctx.scale(sx, sy);

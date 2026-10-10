@@ -166,7 +166,9 @@
   // text is aligned to so typing grows the box the way you'd expect.
   function autosize(el, keep = true) {
     if (el.type === 'text') {
-      const L = R.layoutText(el);
+      // sequence modes (captions, roll, word by word) only ever show one piece: size the box to the longest
+      const pcs = R.seqPieces(el);
+      const L = pcs && pcs.length ? R.layoutText(Object.assign({}, el, { text: pcs.reduce((a, b) => (R.layoutText(Object.assign({}, el, { text: b, autoWidth: true })).boxW > R.layoutText(Object.assign({}, el, { text: a, autoWidth: true })).boxW ? b : a)) })) : R.layoutText(el);
       const nw = (el.autoWidth || L.curved) ? L.boxW : el.width;
       const nh = L.boxH;
       if (el.cx != null || el.cy != null) { placeCentre(el, nw, nh); keep = false; }
@@ -223,7 +225,7 @@
   layer.add(artFrame);
   const overlayShape = new Konva.Shape({
     listening: false,
-    sceneFunc: (c) => { const ctx = c._context; ctx.save(); R.drawOverlay(ctx, doc); ctx.restore(); },
+    sceneFunc: (c) => { const ctx = c._context; if (doc.overlay && doc.overlay.rgb > 0) R.rgbSplit(ctx, doc.overlay.rgb / 100 * doc.width * 0.006 * Math.hypot(ctx.getTransform().a, ctx.getTransform().b)); ctx.save(); R.drawOverlay(ctx, doc); ctx.restore(); },
   });
 
   // grid + guides drawn in one shape so they stay crisp at any zoom
