@@ -861,6 +861,11 @@
           row('Pan Y', num(T, 'crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           full(h('button.btn', { type: 'button', onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'Use as canvas background')),
         ], 'Zoom & position') : null,
+        (() => {
+          const els = S.doc.elements, i = els.findIndex(e => e.id === el.id);
+          const fl = els.slice(i + 1).find(e => e.type === 'flashes' && baseUnder(e) === el);
+          return fl ? full(h('button.link-btn.flash-link', { type: 'button', onclick: () => S.select([fl.id]) }, ic('film'), 'Edit the speed flashes on top')) : null;
+        })(),
       ], true, { collapsible: false }),
       isVid ? videoSection(el) : studioSection(el),
       el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
@@ -1127,6 +1132,29 @@
     ];
   }
 
+  // the photo or video an overlay plays over: the nearest big photo layer below it, else the canvas background
+  function baseUnder(el) {
+    const els = S.doc.elements, i = els.findIndex(e => e.id === el.id), area = S.doc.width * S.doc.height;
+    for (let j = i - 1; j >= 0; j--) { const e = els[j]; if (e.type === 'image' && !e.hidden && e.width * e.height >= area * 0.35) return e; }
+    return null;
+  }
+  function underneathSection(el) {
+    const base = baseUnder(el), bgId = S.doc.background.assetId;
+    const id = base ? base.assetId : bgId;
+    const vid = id && R.isVideoAsset(id);
+    const thumb = id ? assetThumb(id) : h('span.under-ph', { style: base && base.placeholder ? { background: `linear-gradient(135deg, ${base.placeholder[0]}, ${base.placeholder[1]})` } : null }, ic('image'));
+    const replace = () => (base ? S.pickImages({ replaceId: base.id }) : S.pickImages({ asBackground: true }));
+    return sec('Underneath', [
+      h('button.under-card', { type: 'button', title: 'Replace with your own photo or video', onclick: replace },
+        h('span.under-thumb', null, thumb),
+        h('span.under-text', null,
+          h('b', null, id ? (vid ? 'Your video' : base && /^demo-/.test(id) ? 'Demo photo' : 'Your photo') : 'Add your photo or video'),
+          h('small', null, id ? (base && /^demo-/.test(id) ? 'Swap in your own photo or video' : 'Plays under the flashes') : 'It plays under the flashes'))),
+      full(h('div.btn-row', null,
+        h('button.btn.primary.grow', { type: 'button', onclick: replace }, ic('replace'), id ? 'Replace photo or video' : 'Add photo or video'),
+        base ? h('button.btn', { type: 'button', title: 'Select it to crop, filter or trim', onclick: () => S.select([base.id]) }, ic('cursor'), 'Edit') : null)),
+    ], true, { collapsible: false });
+  }
   function flashesInspector(el) {
     const T = 'sel', F = window.StudioFlashes || { PACKS: {}, IMG: {} };
     const packTile = (k, label, src) => h('button.flash-pack' + ((el.pack || 'hustle') === k ? '.on' : ''), { type: 'button', title: label, onclick: () => { S.change(T, 'pack', k); renderInspector(); } },
@@ -1145,7 +1173,7 @@
         h('button', { type: 'button', title: 'Remove from the flashes', onclick: () => { S.changeEl(S.selEls()[0], e => { e.images = (e.images || []).filter(x => x !== id); }); renderInspector(); } }, ic('x')))),
       h('button.flash-mine-add', { type: 'button', title: 'Add your own photos to the flashes', onclick: addMine }, ic('plus')));
     const tone = el.tone || 'color';
-    return [sec('Speed flashes', [
+    return [underneathSection(el), sec('Speed flashes', [
       label('Photos'),
       full(h('div.flash-packs', null, packs)),
       h('div.sub-label', null, (el.pack === 'mine' ? 'Your photos' : 'Add your own to the mix')),

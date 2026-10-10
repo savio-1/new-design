@@ -387,6 +387,8 @@
       x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation || 0, scaleX: 1, scaleY: 1,
       opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && !(pathEdit && pathEdit.id === el.id) && !(spotEdit && spotEdit.id === el.id) && S.tool === 'select' && !playing,
       globalCompositeOperation: el.blend && el.blend !== 'normal' ? el.blend : 'source-over',
+      // full-canvas overlays let clicks through to the photo or video underneath (pick them in Layers)
+      listening: el.type !== 'flashes',
     });
   }
   function rebuild() {
