@@ -56,6 +56,9 @@
     shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
     bgimg: 'M3 15l6-6 4 4 3-3 5 5M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',
     paste: 'M9 4h6v3H9zM15 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2',
+    chevDown: 'M6 9l6 6 6-6', chevRight: 'M9 6l6 6-6 6', chevLeft: 'M15 6l-6 6 6 6',
+    cursor: 'M5 3l14 7-6.5 1.8L10.5 19z', hand: 'M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V12M14 11.5V6.5a1.5 1.5 0 0 1 3 0v7c0 4-2.5 7-6.5 7-2.8 0-4.3-1.4-5.8-3.8L3.3 13.6a1.5 1.5 0 0 1 2.4-1.7L8 14.5',
+    path: 'M3 17c3-7 6-9 9-5s6 3 9-5', sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   };
   const FILLED_DOTS = new Set(['more']);
   function icon(name) {
@@ -415,7 +418,7 @@
   }
   function fontCtl(t, famPath, weightPath) {
     const label = h('span');
-    const btn = h('button.font-btn', { type: 'button' }, label, ic('backward'));
+    const btn = h('button.font-btn', { type: 'button' }, label, ic('chevDown'));
     const upd = () => { const f = val(t, famPath); label.textContent = f; label.style.fontFamily = `"${f}"`; };
     btn.addEventListener('click', () => fontPopover(btn, val(t, famPath), fam => {
       if (weightPath) {
@@ -438,12 +441,53 @@
   const full = (...ctl) => h('div.row.full', null, ...ctl);
   const two = (a, b) => h('div.row.two', null, a, b);
 
+  // sections: a title row that folds, an optional action on the right
   const secOpen = new Map();
-  function sec(title, kids, open = true) {
-    const key = title;
-    const d = h('details.sec', { open: secOpen.has(key) ? secOpen.get(key) : open }, h('summary', null, title), h('div.sec-body', null, kids));
-    d.addEventListener('toggle', () => secOpen.set(key, d.open));
+  function sec(title, kids, open = true, opts = {}) {
+    const key = opts.key || title;
+    const fixed = opts.collapsible === false;
+    const isOpen = fixed || (secOpen.has(key) ? secOpen.get(key) : open);
+    const list = (kids || []).flat().filter(Boolean);
+    const d = h('section.sec' + (isOpen ? '.open' : '') + (fixed ? '.fixed' : '') + (list.length ? '' : '.empty'));
+    const title$ = fixed
+      ? h('div.sec-title', null, h('span', null, title))
+      : h('button.sec-title', { type: 'button', onclick: () => { const o = !d.classList.contains('open'); d.classList.toggle('open', o); secOpen.set(key, o); } }, h('span', null, title), ic('chevDown'));
+    d.append(h('div.sec-head', null, title$, opts.actions || null), h('div.sec-body', null, list));
     return d;
+  }
+  // "More options" disclosure inside a section — rarely used controls live here
+  const moreOpen = new Map();
+  function more(key, kids, label = 'More options') {
+    const list = (kids || []).flat().filter(Boolean);
+    if (!list.length) return null;
+    const open = !!moreOpen.get(key);
+    const box = h('div.more-body', { hidden: !open }, list);
+    const btn = h('button.more-btn' + (open ? '.on' : ''), { type: 'button', onclick: () => { const o = box.hidden; box.hidden = !o; moreOpen.set(key, o); btn.classList.toggle('on', o); } }, ic('chevRight'), h('span', null, label));
+    return h('div.more', null, btn, box);
+  }
+  // Figma-style list: nothing shows until you add it with +
+  function addSec(title, items, key) {
+    const active = items.filter(i => i && i.on);
+    const avail = items.filter(i => i && !i.on && !i.hidden);
+    const addBtn = avail.length ? h('button.sec-add', {
+      type: 'button', title: 'Add ' + title.toLowerCase(),
+      onclick: e => menu(e.currentTarget, avail.map(i => ({ label: i.label, icon: i.icon || 'plus', run: () => { i.add(); renderInspector(); } }))),
+    }, ic('plus')) : null;
+    const rows = active.map(i => h('div.fx', null,
+      h('div.fx-head', null, h('span', null, i.label), i.remove ? h('button.fx-x', { type: 'button', title: 'Remove ' + i.label.toLowerCase(), onclick: () => { i.remove(); renderInspector(); } }, ic('minus')) : null),
+      h('div.fx-body', null, (i.body ? i.body() : []).flat().filter(Boolean))));
+    return sec(title, rows, true, { key: key || title, collapsible: false, actions: addBtn });
+  }
+  const label = t => h('div.sub-label', null, t);
+  function swatchRow(items) {
+    // items: [title, getter, setter]
+    return h('div.swatches', null, items.map(([title, get, set]) => {
+      const b = h('button.swatch', { type: 'button', title });
+      const upd = () => { b.style.background = get() || 'transparent'; };
+      b.addEventListener('click', () => colorPopover(b, get(), (v, live) => { set(v, live); upd(); }));
+      bindings.push(upd); upd();
+      return b;
+    }));
   }
 
   /* ───────────────────────── inspector ───────────────────────── */
@@ -457,83 +501,75 @@
     else if (els.length > 1) parts.push(...multiInspector(els));
     else {
       const el = els[0];
-      const head = h('div.insp-head', null, h('h2', null, typeLabel(el)), el.locked ? h('span.pill', null, 'Locked') : null);
-      parts.push(head);
-      if (el.type === 'text') parts.push(...textInspector());
-      if (el.type === 'image') parts.push(...imageInspector(el));
-      if (el.type === 'sticker') parts.push(...stickerInspector(el));
-      if (el.type === 'shape') parts.push(...shapeInspector(el));
-      if (el.type === 'calendar') parts.push(...calendarInspector(el));
-      if (el.type === 'badge') parts.push(...badgeInspector());
-      if (el.type === 'checklist') parts.push(...checklistInspector());
-      parts.push(animSection(el), effectsSection(el), arrangeSection(el));
+      parts.push(inspHead(el));
+      const fn = { text: textInspector, image: imageInspector, sticker: stickerInspector, shape: shapeInspector, calendar: calendarInspector, badge: badgeInspector, checklist: checklistInspector, ribbon: ribbonInspector, camera: cameraInspector, nature: natureInspector }[el.type];
+      if (fn) parts.push(...fn(el));
+      parts.push(effectsSection(el), motionSection(el), arrangeSection(el));
     }
     const top = insp.scrollTop;
-    insp.replaceChildren(...parts.filter(Boolean));
+    insp.replaceChildren(...parts.flat().filter(Boolean));
     insp.scrollTop = top;
     hydrateIcons(insp);
   }
   S.renderInspector = renderInspector;
   function typeLabel(el) {
-    return { text: 'Text', image: el.assetId ? 'Photo' : 'Photo placeholder', sticker: 'Sticker', shape: 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
+    if (el.type === 'nature' || el.type === 'camera' || el.type === 'ribbon') return S.elLabel(el).replace(/ · .*/, '');
+    return { text: 'Text', image: el.assetId ? 'Photo' : 'Photo frame', sticker: 'Sticker', shape: el.shape === 'line' ? 'Line' : 'Shape', calendar: 'Calendar', badge: 'Badge', checklist: 'Checklist' }[el.type] || 'Element';
+  }
+  function inspHead(el) {
+    return h('div.insp-head', null,
+      h('h2', null, typeLabel(el)),
+      el.locked ? h('span.pill', null, 'Locked') : null,
+      h('div.insp-opacity', { title: 'Layer opacity' }, num('sel', 'opacity', { min: 0, max: 100, scale: 100, unit: '%', label: 'Opacity' })),
+      h('button.icon-btn', { type: 'button', title: 'More actions', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); contextMenu({ x: r.left - 160, y: r.bottom + 4 }); } }, ic('more')));
   }
 
-  function textInspector() {
+  function textInspector(el) {
     const T = 'sel';
-    const el = S.selEls()[0];
-    const curved = el.curve && Math.abs(el.curve) >= 1;
-    const styleChips = h('div.chips', { style: { margin: '0' } });
-    const drawChips = () => styleChips.replaceChildren(...Object.entries(R.TEXT_BG).map(([k, l]) => h('button.chip' + ((S.selEls()[0]?.bg?.style || 'none') === k ? '.on' : ''), { onclick: () => { S.change(T, 'bg.style', k, false); drawChips(); renderInspector(); } }, l)));
-    drawChips();
-    const bgStyle = el.bg.style || 'none';
-    const lineStyle = ['lines', 'select', 'marker', 'underline'].includes(bgStyle);
-    const fills = [
-      row('Colour', colorCtl(T, 'fill', { allowNone: true })),
-      row('Gradient', selectCtl(T, 'gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'gradient', v); renderInspector(); } })),
-    ];
-    if (el.gradient && el.gradient !== 'none') fills.push(row('To', colorCtl(T, 'fill2')), row('Angle', num(T, 'gradAngle', { min: 0, max: 360, slider: true, unit: '°' })));
-    const out = [
-      sec('Text', [
-        full(textCtl(T, 'text', { rows: 3 })),
+    const bgStyle = (el.bg && el.bg.style) || 'none';
+    const lineStyle = ['lines', 'select', 'marker', 'underline', 'rough'].includes(bgStyle);
+    const grad = el.gradient && el.gradient !== 'none';
+    const MAIN_STYLES = ['none', 'box', 'pill', 'lines', 'select', 'marker', 'sticker', 'glossy'];
+    const showAll = !!moreOpen.get('text-styles-all') || !MAIN_STYLES.includes(bgStyle);
+    const styles = Object.entries(R.TEXT_BG).filter(([k]) => showAll || MAIN_STYLES.includes(k));
+    const chips = h('div.chips.tight', null, styles.map(([k, l]) => h('button.chip' + (bgStyle === k ? '.on' : ''), { type: 'button', onclick: () => { S.change(T, 'bg.style', k, false); renderInspector(); } }, l)),
+      showAll ? null : h('button.chip.ghost', { type: 'button', onclick: () => { moreOpen.set('text-styles-all', true); renderInspector(); } }, 'More…'));
+    return [
+      sec('Typography', [
         full(fontCtl(T, 'fontFamily', 'fontWeight')),
-        two(num(T, 'fontSize', { label: 'Size', min: 4, max: 2000, step: 1 }), weightCtl(T, 'fontFamily', 'fontWeight')),
-        full(h('div.btn-row', null,
+        two(weightCtl(T, 'fontFamily', 'fontWeight'), num(T, 'fontSize', { label: 'Size', min: 4, max: 2000, step: 1 })),
+        full(h('div.btn-row.tools', null,
           seg(T, 'align', [['left', 'tl', 'Align left'], ['center', 'tc', 'Align centre'], ['right', 'tr', 'Align right']]),
-          styleToggle('italic', 'italic', 'Italic'), styleToggle('underline', 'underline', 'Underline'),
-          styleToggle('strike', 'strike', 'Strikethrough'), styleToggle('uppercase', 'upper', 'Uppercase'))),
-        ...fills,
-        row('Line height', num(T, 'lineHeight', { min: 0.5, max: 3, step: 0.05, slider: true })),
-        row('Spacing', num(T, 'letterSpacing', { min: -10, max: 60, step: 0.5, scale: 100, slider: true, unit: '%' })),
-        row('Curve', num(T, 'curve', { min: -100, max: 100, step: 1, slider: true, set: (v, live) => { S.change(T, 'curve', v, live); if (!live) S.attachTransformer(); } })),
-        el.autoWidth || curved ? null : toggle(T, 'autoWidth', 'Auto width (no wrapping)'),
-      ]),
-      sec('Text style', [
-        full(styleChips),
+          styleToggle('italic', 'italic', 'Italic'), styleToggle('uppercase', 'upper', 'Uppercase'), styleToggle('underline', 'underline', 'Underline'))),
+        row('Colour', colorCtl(T, 'fill', { allowNone: true })),
+        more('text-more', [
+          row('Line height', num(T, 'lineHeight', { min: 0.5, max: 3, step: 0.05, slider: true })),
+          row('Letters', num(T, 'letterSpacing', { min: -10, max: 60, step: 0.5, scale: 100, slider: true, unit: '%' })),
+          row('Curve', num(T, 'curve', { min: -100, max: 100, step: 1, slider: true, set: (v, live) => { S.change(T, 'curve', v, live); if (!live) S.attachTransformer(); } })),
+          row('Gradient', selectCtl(T, 'gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'gradient', v); renderInspector(); } })),
+          grad ? row('To', colorCtl(T, 'fill2')) : null,
+          grad ? row('Angle', num(T, 'gradAngle', { min: 0, max: 360, slider: true, unit: '°' })) : null,
+          styleToggle('strike', 'strike', 'Strikethrough', 'Strikethrough'),
+          !el.autoWidth && !(el.curve && Math.abs(el.curve) >= 1) ? toggle(T, 'autoWidth', 'Fit width to text') : null,
+        ], 'Spacing, curve & gradient'),
+      ], true, { collapsible: false }),
+      sec('Background', [
+        full(chips),
         bgStyle !== 'none' ? row(bgStyle === 'sticker' ? 'Outline' : 'Fill', colorCtl(T, 'bg.color', { allowNone: true })) : null,
-        bgStyle !== 'none' ? row(bgStyle === 'sticker' ? 'Thickness' : 'Padding X', num(T, 'bg.padX', { min: 0, max: 200, slider: true })) : null,
-        bgStyle !== 'none' && bgStyle !== 'sticker' ? row('Padding Y', num(T, 'bg.padY', { min: 0, max: 200, slider: true })) : null,
-        ['box', 'lines', 'ticket', 'speech'].includes(bgStyle) ? row('Radius', num(T, 'bg.radius', { min: 0, max: 200, slider: true })) : null,
-        lineStyle ? row('Line gap', num(T, 'bg.gap', { min: -40, max: 120, slider: true })) : null,
-        bgStyle !== 'none' ? row(bgStyle === 'select' ? 'Accent' : 'Border', colorCtl(T, 'bg.borderColor')) : null,
-        bgStyle !== 'none' ? row(bgStyle === 'select' ? 'Line' : 'Border W', num(T, 'bg.borderWidth', { min: 0, max: 40, slider: true, step: 0.5 })) : null,
-        ['box', 'pill', 'lines'].includes(bgStyle) ? toggle(T, 'bg.stitch', 'Stitched dashed edge') : null,
-      ]),
-      sec('Outline & 3D', [
-        row('Outline', num(T, 'stroke.width', { min: 0, max: 40, step: 0.5, slider: true })),
-        row('Colour', colorCtl(T, 'stroke.color')),
-        toggle(T, 'echo.on', 'Hard shadow / 3D', { set: v => { S.change(T, 'echo.on', v); renderInspector(); } }),
-        ...(el.echo.on ? [
-          row('Shadow', colorCtl(T, 'echo.color')),
-          row('Offset X', num(T, 'echo.dx', { min: -50, max: 50, step: 0.5, scale: 100, slider: true, unit: '%' })),
-          row('Offset Y', num(T, 'echo.dy', { min: -50, max: 50, step: 0.5, scale: 100, slider: true, unit: '%' })),
-          row('Depth', num(T, 'echo.steps', { min: 1, max: 30, step: 1, slider: true })),
-        ] : []),
-      ], false),
+        bgStyle !== 'none' ? row(bgStyle === 'sticker' ? 'Thickness' : 'Padding', num(T, 'bg.padX', { min: 0, max: 200, slider: true })) : null,
+        bgStyle !== 'none' ? more('text-bg-more', [
+          bgStyle !== 'sticker' ? row('Padding Y', num(T, 'bg.padY', { min: 0, max: 200, slider: true })) : null,
+          ['box', 'lines', 'ticket', 'speech', 'glossy'].includes(bgStyle) ? row('Radius', num(T, 'bg.radius', { min: 0, max: 200, slider: true })) : null,
+          lineStyle ? row('Line gap', num(T, 'bg.gap', { min: -40, max: 120, slider: true })) : null,
+          row(bgStyle === 'select' ? 'Accent' : 'Border', colorCtl(T, 'bg.borderColor')),
+          row(bgStyle === 'select' ? 'Line' : 'Border W', num(T, 'bg.borderWidth', { min: 0, max: 40, slider: true, step: 0.5 })),
+          ['box', 'pill', 'lines'].includes(bgStyle) ? toggle(T, 'bg.stitch', 'Stitched edge') : null,
+        ]) : null,
+      ], bgStyle !== 'none'),
     ];
-    return out;
   }
-  function styleToggle(path, iconName, title) {
-    const b = h('button.btn.icon', { type: 'button', title }, ic(iconName));
+  function styleToggle(path, iconName, title, text) {
+    const b = h('button.btn' + (text ? '' : '.icon'), { type: 'button', title }, ic(iconName), text || null);
     const upd = () => b.classList.toggle('on', !!val('sel', path));
     b.addEventListener('click', () => { S.change('sel', path, !val('sel', path)); upd(); });
     bindings.push(upd); upd();
@@ -541,7 +577,7 @@
   }
 
   function filterThumbs(el, target) {
-    const grid = h('div.filter-grid');
+    const grid = h('div.filter-strip');
     const img = target === 'doc' ? R.assetImage(S.doc.background.assetId) : R.assetImage(el.assetId);
     const assetId = target === 'doc' ? S.doc.background.assetId : el.assetId;
     let small = null;
@@ -560,42 +596,61 @@
       if (small) {
         const src = R.filteredSource('thumb:' + assetId, small, p.f);
         const sc = Math.max(96 / small.width, 96 / small.height);
+        if (p.f.blur) x.filter = `blur(${p.f.blur / 6}px)`;
         x.drawImage(src, (96 - small.width * sc) / 2, (96 - small.height * sc) / 2, small.width * sc, small.height * sc);
       } else { x.fillStyle = '#ddd'; x.fillRect(0, 0, 96, 96); }
       const on = JSON.stringify(p.f) === cur;
-      grid.append(h('button.filter-tile' + (on ? '.on' : ''), { onclick: () => { S.change(target, fpath, S.clone(p.f)); renderInspector(); } }, c, p.label));
+      grid.append(h('button.filter-tile' + (on ? '.on' : ''), { type: 'button', onclick: () => { S.change(target, fpath, S.clone(p.f)); renderInspector(); } }, c, p.label));
     }
     return grid;
   }
   function filterSliders(t, base) {
-    const items = [['brightness', 'Brightness', -100, 100], ['contrast', 'Contrast', -100, 100], ['saturation', 'Saturation', -100, 100],
-      ['warmth', 'Warmth', -100, 100], ['fade', 'Fade', 0, 100], ['grayscale', 'Mono', 0, 100], ['sepia', 'Sepia', 0, 100],
-      ['vignette', 'Vignette', 0, 100], ['grain', 'Grain', 0, 100], ['blur', 'Blur', 0, 40]];
-    const out = items.map(([k, l, a, b]) => row(l, num(t, base + '.' + k, { min: a, max: b, slider: true, def: 0 })));
     const f = S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
-    out.push(h('div.hint', { style: { marginTop: '6px' } }, 'Print effects'),
-      row('Halftone', num(t, base + '.halftone', { min: 0, max: 100, slider: true, def: 0 })),
-      row('Photocopy', num(t, base + '.threshold', { min: 0, max: 100, slider: true, def: 0 })),
-      toggle(t, base + '.duotone', 'Duotone', { set: v => { S.change(t, base + '.duotone', v); if (v && !f.duoDark) { S.change(t, base + '.duoDark', '#1b2a8f', true); S.change(t, base + '.duoLight', '#a9c4ff'); } renderInspector(); } }));
+    const sl = (k, l, a, b) => row(l, num(t, base + '.' + k, { min: a, max: b, slider: true, def: 0, set: (v, live) => { S.change(t, base + '.' + k, v, live); if (!live && (k === 'motion' || k === 'halftone' || k === 'threshold')) renderInspector(); } }));
+    const out = [
+      label('Light & colour'),
+      sl('brightness', 'Brightness', -100, 100), sl('contrast', 'Contrast', -100, 100), sl('saturation', 'Saturation', -100, 100),
+      sl('warmth', 'Warmth', -100, 100), sl('fade', 'Fade', 0, 100),
+      label('Blur & grain'),
+      sl('blur', 'Blur', 0, 40), sl('motion', 'Motion blur', 0, 100),
+      f.motion ? sl('motionAngle', 'Direction', -90, 90) : null,
+      sl('noise', 'Noise', 0, 100), sl('grain', 'Film grain', 0, 100), sl('vignette', 'Vignette', 0, 100),
+      label('Lens'),
+      sl('fisheye', 'Fisheye', 0, 100),
+      label('Print'),
+      sl('grayscale', 'Mono', 0, 100), sl('sepia', 'Sepia', 0, 100), sl('halftone', 'Halftone', 0, 100), sl('threshold', 'Photocopy', 0, 100),
+      toggle(t, base + '.duotone', 'Duotone', { set: v => { S.change(t, base + '.duotone', v); if (v && !f.duoDark) { S.change(t, base + '.duoDark', '#1b2a8f', true); S.change(t, base + '.duoLight', '#a9c4ff'); } renderInspector(); } }),
+    ];
     if (f.duotone || f.threshold || f.halftone) out.push(row('Ink', colorCtl(t, base + '.duoDark')), row('Paper', colorCtl(t, base + '.duoLight')));
+    out.push(full(h('button.btn', { type: 'button', onclick: () => { S.change(t, base, {}); renderInspector(); } }, ic('undo'), 'Reset photo look')));
     return out;
   }
 
-  function frameTiles(el) {
+  const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
+  const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border'];
+  function frameTiles(el, limit) {
     const grid = h('div.frame-grid');
-    for (const [k, l] of Object.entries(R.FRAMES)) {
-      const demo = S.mk('image', { assetId: el.assetId, width: 100, height: k === 'polaroid' ? 120 : 100, frame: { style: k, color: k === 'film' ? '#1d1b18' : el.frame.color === '#ffffff' && ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'].includes(k) ? '#ffffff' : (el.frame.color || '#fff'), size: ['none', 'rounded', 'circle', 'arch', 'blob', 'heart', 'star', 'scallop', 'flower', 'ticket', 'squircle', 'sparkle'].includes(k) ? 0 : 7, radius: k === 'rounded' ? 14 : 0 }, crop: el.crop, filters: el.filters, placeholder: el.placeholder });
+    let entries = Object.entries(R.FRAMES);
+    const cur = el.frame.style || 'none';
+    if (limit && entries.length > limit) {
+      const head = entries.slice(0, limit);
+      if (!head.some(([k]) => k === cur)) head[limit - 1] = entries.find(([k]) => k === cur);
+      entries = head;
+    }
+    for (const [k, l] of entries) {
+      const demo = S.mk('image', { assetId: el.assetId, width: 100, height: k === 'polaroid' ? 120 : 100, frame: { style: k, color: k === 'film' ? '#1d1b18' : el.frame.color === '#ffffff' && ROUND_FRAMES.includes(k) ? '#ffffff' : (el.frame.color || '#fff'), size: ROUND_FRAMES.includes(k) ? 0 : 7, radius: k === 'rounded' ? 14 : 0 }, crop: el.crop, filters: {}, placeholder: el.placeholder });
       demo.id = el.id;
       const c = elThumb(demo, 56, 56, 2);
       c.style.width = '100%';
-      grid.append(h('button.frame-tile' + ((el.frame.style || 'none') === k ? '.on' : ''), {
+      grid.append(h('button.frame-tile' + (cur === k ? '.on' : ''), {
+        type: 'button',
         onclick: () => {
-          const cur = S.selEls()[0];
-          const needsBorder = ['polaroid', 'stamp', 'film', 'torn', 'border'].includes(k);
-          S.changeEl(cur, e => {
+          const e0 = S.selEls()[0];
+          const needsBorder = BORDER_FRAMES.includes(k);
+          S.changeEl(e0, e => {
             e.frame.style = k;
             if (needsBorder && !(e.frame.size > 2)) e.frame.size = Math.round(Math.min(e.width, e.height) * 0.05);
-            if (!needsBorder && ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch'].includes(k)) e.frame.size = 0;
+            if (!needsBorder && ROUND_FRAMES.includes(k)) e.frame.size = 0;
             if (k === 'film' && e.frame.color === '#ffffff') e.frame.color = '#1d1b18';
             if (k !== 'film' && e.frame.color === '#1d1b18') e.frame.color = '#ffffff';
             if (k === 'rounded' && !e.frame.radius) e.frame.radius = Math.round(Math.min(e.width, e.height) * 0.08);
@@ -609,53 +664,45 @@
 
   function bgRemovalControls(el) {
     const busy = S.isRemovingBackground();
-    if (el.bgRemoved) {
-      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-        h('div.btn-row', null,
-          h('button.btn', { onclick: () => S.restoreBackground(el.id) }, ic('undo'), 'Restore background'),
-          h('button.btn' + (el.outline && el.outline.on ? '.on' : ''), { onclick: () => { S.change('sel', 'outline.on', !(el.outline && el.outline.on)); renderInspector(); } }, ic('sticker'), 'Sticker border')));
-    }
-    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
-      h('div.btn-row', null,
-        h('button.btn.primary', { disabled: busy, onclick: () => S.removeBackground(el.id, 'replace') }, ic('wand'), busy ? 'Working…' : 'Remove background'),
-        h('button.btn', { disabled: busy, title: 'Keep the photo and add the cut-out subject as a new layer on top', onclick: () => S.removeBackground(el.id, 'layer') }, ic('layers'), 'Cut out to layer')),
-      h('div.hint', null, 'Finds the subject automatically. Runs on your device — the first use downloads a 44 MB model.'));
+    if (el.bgRemoved) return full(h('button.btn', { type: 'button', onclick: () => S.restoreBackground(el.id) }, ic('undo'), 'Restore background'));
+    return [
+      full(h('div.btn-row', null,
+        h('button.btn.primary.grow', { type: 'button', disabled: busy, onclick: () => S.removeBackground(el.id, 'replace') }, ic('wand'), busy ? 'Working…' : 'Remove background'),
+        h('button.btn.icon', { type: 'button', disabled: busy, title: 'Cut the subject out onto a new layer and keep this photo', onclick: () => S.removeBackground(el.id, 'layer') }, ic('layers')))),
+    ];
   }
 
   function imageInspector(el) {
     const T = 'sel';
     const fs = el.frame.style || 'none';
-    const bordered = ['polaroid', 'stamp', 'film', 'torn', 'border'].includes(fs);
+    const bordered = BORDER_FRAMES.includes(fs);
+    const allFrames = !!moreOpen.get('frames-all');
     return [
       sec('Photo', [
         full(h('div.btn-row', null,
-          h('button.btn', { onclick: () => S.pickImages({ replaceId: el.id }) }, ic('replace'), el.assetId ? 'Replace' : 'Add photo'),
-          el.assetId ? h('button.btn', { onclick: () => S.startCrop(el.id) }, ic('crop'), 'Crop') : null,
-          el.assetId ? h('button.btn', { onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'As bg') : null)),
+          h('button.btn.grow', { type: 'button', onclick: () => S.pickImages({ replaceId: el.id }) }, ic('replace'), el.assetId ? 'Replace' : 'Add photo'),
+          el.assetId ? h('button.btn.grow', { type: 'button', onclick: () => S.startCrop(el.id) }, ic('crop'), 'Crop') : null)),
         el.assetId ? bgRemovalControls(el) : null,
-        el.assetId ? row('Zoom', num(T, 'crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })) : null,
-        el.assetId ? row('Pan X', num(T, 'crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })) : null,
-        el.assetId ? row('Pan Y', num(T, 'crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })) : null,
         el.assetId ? null : row('Tint', colorCtl(T, 'placeholder.0', { set: (v, live) => S.changeEl(S.selEls()[0], e => { e.placeholder = [v, (e.placeholder || [])[1] || '#cfc5b1']; }, live) })),
-        h('div.hint', null, 'Double-click the photo to crop. Drop a file onto it to replace.'),
-      ]),
+        el.assetId ? more('photo-pos', [
+          row('Zoom', num(T, 'crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
+          row('Pan X', num(T, 'crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          row('Pan Y', num(T, 'crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          full(h('button.btn', { type: 'button', onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'Use as canvas background')),
+        ], 'Zoom & position') : null,
+      ], true, { collapsible: false }),
+      el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
       sec('Frame', [
-        full(frameTiles(el)),
-        fs !== 'none' ? row('Frame', colorCtl(T, 'frame.color')) : null,
+        full(frameTiles(el, allFrames ? 0 : 8)),
+        allFrames ? null : full(h('button.link-btn', { type: 'button', onclick: () => { moreOpen.set('frames-all', true); renderInspector(); } }, `All ${Object.keys(R.FRAMES).length} frames`)),
+        fs !== 'none' ? row('Colour', colorCtl(T, 'frame.color')) : null,
         fs !== 'none' ? row(bordered ? 'Border' : 'Edge', num(T, 'frame.size', { min: 0, max: 200, slider: true })) : null,
-        ['none', 'rounded', 'border', 'polaroid', 'ticket'].includes(fs) ? row('Radius', num(T, 'frame.radius', { min: 0, max: 400, slider: true })) : null,
-        fs === 'polaroid' ? row('Bottom', num(T, 'frame.bottom', { min: 1, max: 8, step: 0.1, slider: true, unit: '×' })) : null,
-        bordered ? row('Paper', num(T, 'frame.texture', { min: 0, max: 100, slider: true })) : null,
-      ]),
-      el.assetId ? sec('Filters', [full(filterThumbs(el, 'sel')), ...filterSliders(T, 'filters'),
-        full(h('button.btn', { onclick: () => { S.change(T, 'filters', {}); renderInspector(); } }, 'Reset adjustments'))]) : null,
-      fs === 'none' && el.assetId ? sec('Cut-out border', [
-        toggle(T, 'outline.on', 'Sticker border'),
-        row('Style', selectCtl(T, 'outline.style', Object.entries(R.OUTLINE_STYLES), { def: 'smooth' })),
-        row('Colour', colorCtl(T, 'outline.color')),
-        row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
-        h('div.hint', null, 'Follows the subject’s shape on cut-outs (after Remove background) and transparent PNGs.'),
-      ], !!(el.outline && el.outline.on) || !!el.bgRemoved) : null,
+        fs !== 'none' ? more('frame-more', [
+          ['rounded', 'border', 'polaroid', 'ticket'].includes(fs) ? row('Radius', num(T, 'frame.radius', { min: 0, max: 400, slider: true })) : null,
+          fs === 'polaroid' ? row('Bottom', num(T, 'frame.bottom', { min: 1, max: 8, step: 0.1, slider: true, unit: '×' })) : null,
+          bordered ? row('Paper', num(T, 'frame.texture', { min: 0, max: 100, slider: true })) : null,
+        ]) : null,
+      ], fs !== 'none' || !el.assetId),
     ];
   }
 
@@ -663,66 +710,62 @@
     const T = 'sel';
     const def = R.stickerDef(el.stickerId);
     const cols = def ? def.colors : [];
-    const colorRows = cols.map((c, i) => row(i === 0 ? 'Colour' : `Colour ${i + 1}`, colorCtl(T, 'colors.' + i, {
-      set: (v, live) => S.changeEl(S.selEls()[0], e => { if (!e.colors || e.colors.length !== cols.length) e.colors = cols.slice(); e.colors[i] = v; }, live),
-    })));
-    // the getter falls back to defaults until the sticker is recoloured
     if (!el.colors || el.colors.length !== cols.length) el.colors = cols.slice();
-    return [
-      sec('Sticker', [
-        h('div.hint', null, def ? def.name : el.stickerId),
-        ...colorRows,
-        cols.length ? full(h('button.btn', { onclick: () => { S.change(T, 'colors', cols.slice()); } }, 'Reset colours')) : h('div.hint', null, 'This sticker keeps its original colours.'),
-      ]),
-      sec('Die-cut outline', [
-        toggle(T, 'outline.on', 'Sticker border'),
-        row('Style', selectCtl(T, 'outline.style', Object.entries(R.OUTLINE_STYLES), { def: 'smooth' })),
-        row('Colour', colorCtl(T, 'outline.color')),
-        row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
-      ], !!el.outline.on),
-    ];
+    if (!cols.length) return [];
+    return [sec('Colours', [
+      h('div.swatch-line', null, swatchRow(cols.map((c, i) => [`Colour ${i + 1}`, () => (S.selEls()[0].colors || cols)[i],
+        (v, live) => S.changeEl(S.selEls()[0], e => { if (!e.colors || e.colors.length !== cols.length) e.colors = cols.slice(); e.colors[i] = v; }, live)])),
+      h('button.link-btn', { type: 'button', onclick: () => { S.change(T, 'colors', cols.slice()); renderInspector(); } }, 'Reset')),
+    ], true, { collapsible: false })];
   }
 
   function shapeInspector(el) {
     const T = 'sel';
     const k = el.shape;
-    const opts = Object.entries(R.SHAPES).map(([v, s]) => [v, s.label]);
     if (k === 'line') {
       return [sec('Line', [
         row('Colour', colorCtl(T, 'stroke')),
         row('Weight', num(T, 'strokeWidth', { min: 1, max: 80, slider: true })),
-        row('Dashes', num(T, 'dash', { min: 0, max: 6, step: 0.5, slider: true })),
-        toggle(T, 'arrowEnd', 'Arrow at end'),
-        toggle(T, 'arrowStart', 'Arrow at start'),
-        toggle(T, 'wavy', 'Wavy line'),
-      ])];
+        full(h('div.btn-row', null,
+          styleToggle('arrowStart', 'backward', 'Arrow at start', 'Start arrow'),
+          styleToggle('arrowEnd', 'forward', 'Arrow at end', 'End arrow'))),
+        more('line-more', [row('Dashes', num(T, 'dash', { min: 0, max: 6, step: 0.5, slider: true })), toggle(T, 'wavy', 'Wavy line')]),
+      ], true, { collapsible: false })];
     }
-    const fill = [
-      row('Shape', selectCtl(T, 'shape', opts.filter(o => o[0] !== 'line'), { set: v => { S.change(T, 'shape', v); renderInspector(); } })),
-      row('Fill', colorCtl(T, 'fill', { allowNone: true })),
-      row('Gradient', selectCtl(T, 'gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'gradient', v); renderInspector(); } })),
-    ];
-    if (el.gradient && el.gradient !== 'none') fill.push(row('To', colorCtl(T, 'fill2')), row('Angle', num(T, 'gradAngle', { min: 0, max: 360, slider: true, unit: '°' })));
-    fill.push(row('Stroke', colorCtl(T, 'stroke', { allowNone: true })), row('Stroke W', num(T, 'strokeWidth', { min: 0, max: 60, step: 0.5, slider: true })), row('Dashes', num(T, 'dash', { min: 0, max: 6, step: 0.5, slider: true })));
-    if (['rect', 'rounded', 'triangle', 'pentagon', 'hexagon', 'star', 'ticket', 'speech'].includes(k)) fill.push(row('Corners', num(T, 'radius', { min: 0, max: 400, slider: true })));
-    if (['star', 'burst', 'scallop', 'flower'].includes(k)) fill.push(row('Points', num(T, 'points', { min: 3, max: 40, slider: true })));
-    if (['star', 'burst'].includes(k)) fill.push(row('Inner', num(T, 'inner', { min: 10, max: 95, scale: 100, slider: true, unit: '%' })));
-    if (['scallop', 'flower'].includes(k)) fill.push(row('Depth', num(T, 'depth', { min: 1, max: 50, scale: 100, slider: true, unit: '%' })));
+    const opts = Object.entries(R.SHAPES).filter(([v]) => v !== 'line').map(([v, s]) => [v, s.label]);
+    const grad = el.gradient && el.gradient !== 'none';
+    const extra = [];
+    if (['rect', 'rounded', 'triangle', 'pentagon', 'hexagon', 'star', 'ticket', 'speech'].includes(k)) extra.push(row('Corners', num(T, 'radius', { min: 0, max: 400, slider: true })));
+    if (['star', 'burst', 'scallop', 'flower'].includes(k)) extra.push(row('Points', num(T, 'points', { min: 3, max: 40, slider: true })));
+    if (['star', 'burst'].includes(k)) extra.push(row('Inner', num(T, 'inner', { min: 10, max: 95, scale: 100, slider: true, unit: '%' })));
+    if (['scallop', 'flower'].includes(k)) extra.push(row('Depth', num(T, 'depth', { min: 1, max: 50, scale: 100, slider: true, unit: '%' })));
     if (k === 'torn') {
       const sides = (el.tornSides || 'trbl');
-      fill.push(row('Torn edges', h('div.seg', null, [['t', 'Top'], ['r', 'Right'], ['b', 'Bottom'], ['l', 'Left']].map(([c, l]) => h('button' + (sides.includes(c) ? '.on' : ''), {
-        onclick: () => { const cur = S.selEls()[0].tornSides || 'trbl'; let nx = cur.includes(c) ? cur.replace(c, '') : cur + c; if (!nx) nx = c; S.change(T, 'tornSides', 'trbl'.split('').filter(x => nx.includes(x)).join('')); renderInspector(); },
+      extra.push(row('Torn edges', h('div.seg', null, [['t', 'Top'], ['r', 'Right'], ['b', 'Bottom'], ['l', 'Left']].map(([c, l]) => h('button' + (sides.includes(c) ? '.on' : ''), {
+        type: 'button', onclick: () => { const cur = S.selEls()[0].tornSides || 'trbl'; let nx = cur.includes(c) ? cur.replace(c, '') : cur + c; if (!nx) nx = c; S.change(T, 'tornSides', 'trbl'.split('').filter(x => nx.includes(x)).join('')); renderInspector(); },
       }, l)))));
     }
-    if (['torn', 'notebook'].includes(k)) fill.push(row('Torn rim', colorCtl(T, 'rim', { allowNone: true })));
-    if (['blob', 'torn', 'notebook'].includes(k)) fill.push(full(h('button.btn', { onclick: () => S.change(T, 'seed', Math.floor(Math.random() * 1000)) }, ic('shuffle'), 'Shuffle shape')));
+    if (['torn', 'notebook'].includes(k)) extra.push(row('Torn rim', colorCtl(T, 'rim', { allowNone: true })));
+    if (['blob', 'torn', 'notebook'].includes(k)) extra.push(full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'seed', Math.floor(Math.random() * 1000)) }, ic('shuffle'), 'Shuffle shape')));
     return [
-      sec('Shape', fill),
-      sec('Pattern & paper', [
-        row('Pattern', selectCtl(T, 'pattern.type', Object.entries(R.PATTERNS))),
-        row('Colour', colorCtl(T, 'pattern.color')),
-        row('Size', num(T, 'pattern.size', { min: 4, max: 300, slider: true })),
-        row('Line', num(T, 'pattern.thick', { min: 0.5, max: 12, step: 0.5, slider: true })),
+      sec('Shape', [
+        row('Shape', selectCtl(T, 'shape', opts, { set: v => { S.change(T, 'shape', v); renderInspector(); } })),
+        row('Fill', colorCtl(T, 'fill', { allowNone: true })),
+        ...extra.slice(0, 2),
+        more('shape-more', [
+          ...extra.slice(2),
+          row('Gradient', selectCtl(T, 'gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'gradient', v); renderInspector(); } })),
+          grad ? row('To', colorCtl(T, 'fill2')) : null,
+          grad ? row('Angle', num(T, 'gradAngle', { min: 0, max: 360, slider: true, unit: '°' })) : null,
+          row('Stroke', colorCtl(T, 'stroke', { allowNone: true })),
+          row('Stroke W', num(T, 'strokeWidth', { min: 0, max: 60, step: 0.5, slider: true })),
+          row('Dashes', num(T, 'dash', { min: 0, max: 6, step: 0.5, slider: true })),
+        ], 'Gradient & stroke'),
+      ], true, { collapsible: false }),
+      sec('Texture', [
+        row('Pattern', selectCtl(T, 'pattern.type', Object.entries(R.PATTERNS), { set: v => { S.change(T, 'pattern.type', v); renderInspector(); } })),
+        el.pattern && el.pattern.type !== 'none' ? row('Colour', colorCtl(T, 'pattern.color')) : null,
+        el.pattern && el.pattern.type !== 'none' ? row('Size', num(T, 'pattern.size', { min: 4, max: 300, slider: true })) : null,
         row('Paper grain', num(T, 'texture', { min: 0, max: 100, slider: true })),
         row('Crumpled', num(T, 'crumple', { min: 0, max: 100, slider: true, def: 0 })),
       ], !!(el.texture || el.crumple || (el.pattern && el.pattern.type !== 'none'))),
@@ -745,6 +788,7 @@
       for (let d = 1; d <= days; d++) {
         const on = (lay === 'grid' || lay === 'minimal') ? marked.has(d) : (lay === 'strip' || lay === 'page') ? e.day === d : false;
         grid.append(h('button' + (on ? '.on' : ''), {
+          type: 'button',
           onclick: () => {
             if (lay === 'page' || lay === 'strip') {
               if (lay === 'strip' && e.day !== d) S.change(T, 'day', d);
@@ -766,42 +810,42 @@
       sec('Calendar', [
         full(seg(T, 'layout', [['grid', 'Grid'], ['minimal', 'Minimal'], ['strip', 'Week'], ['page', 'Date']], { set: relayout })),
         two(selectCtl(T, 'month', months, { number: true, set: v => { S.change(T, 'month', v); calHolder.replaceChildren(miniCal()); } }), num(T, 'year', { min: 1900, max: 2200, step: 1, set: (v, live) => { S.change(T, 'year', Math.round(v), live); if (!live) calHolder.replaceChildren(miniCal()); } })),
-        h('div.hint', null, lay === 'page' ? 'Pick the date to show:' : lay === 'strip' ? 'Pick the highlighted day (click again to add a dot):' : 'Tap days to mark them:'),
+        h('div.hint', null, lay === 'page' ? 'Pick the date to show' : lay === 'strip' ? 'Pick the highlighted day — click again to add a dot' : 'Tap days to mark them'),
         full(calHolder),
         lay !== 'page' ? row('Mark', selectCtl(T, 'markStyle', [['circle', 'Filled circle'], ['ring', 'Ring'], ['scribble', 'Scribble circle'], ['heart', 'Heart'], ['star', 'Star'], ['flower', 'Flower'], ['square', 'Square'], ['cross', 'Cross out']])) : null,
-        lay !== 'page' ? toggle(T, 'startMonday', 'Week starts Monday', { set: v => { S.change(T, 'startMonday', v); calHolder.replaceChildren(miniCal()); } }) : null,
-      ]),
-      sec('Colours', [
-        row('Text', colorCtl(T, 'color')),
-        row('Accent', colorCtl(T, 'accent')),
-        row('On accent', colorCtl(T, 'accentText')),
-        lay === 'grid' ? row('Grid lines', colorCtl(T, 'lineColor', { allowNone: true })) : null,
-        row('Cells', colorCtl(T, 'cellColor', { allowNone: true })),
-        row('Background', colorCtl(T, 'bgColor', { allowNone: true })),
-        row('Radius', num(T, 'radius', { min: 0, max: 200, slider: true })),
-      ]),
+        h('div.swatch-line', null, h('span.sub-label', null, 'Colours'), swatchRow([
+          ['Text', () => val(T, 'color'), (v, l) => S.change(T, 'color', v, l)],
+          ['Accent', () => val(T, 'accent'), (v, l) => S.change(T, 'accent', v, l)],
+          ['On accent', () => val(T, 'accentText'), (v, l) => S.change(T, 'accentText', v, l)],
+          ['Cells', () => val(T, 'cellColor'), (v, l) => S.change(T, 'cellColor', v, l)],
+          ['Background', () => val(T, 'bgColor'), (v, l) => S.change(T, 'bgColor', v, l)],
+        ])),
+      ], true, { collapsible: false }),
       sec('Typography', [
-        h('div.hint', null, 'Title / numbers font'),
+        label('Title & numbers'),
         full(fontCtl(T, 'titleFont', 'titleWeight')),
-        h('div.hint', null, 'Labels / days font'),
+        label('Labels & days'),
         full(fontCtl(T, 'bodyFont', 'bodyWeight')),
         lay !== 'page' ? toggle(T, 'showTitle', 'Show month title') : null,
         lay !== 'page' ? toggle(T, 'showYear', 'Show year') : null,
         lay !== 'page' ? row('Title', seg(T, 'titleAlign', [['left', 'tl', 'Left'], ['center', 'tc', 'Centre']])) : null,
         row('Case', seg(T, 'monthCase', [['normal', 'Aa'], ['upper', 'AA']])),
-        lay === 'grid' || lay === 'minimal' ? row('Weekdays', seg(T, 'dayFormat', [['initial', 'M'], ['short', 'MON'], ['long', 'Monday']])) : null,
+        lay === 'grid' || lay === 'minimal' ? row('Weekdays', seg(T, 'dayFormat', [['initial', 'M'], ['short', 'MON'], ['long', 'Mon…']])) : null,
         lay === 'grid' || lay === 'minimal' ? row('Title size', num(T, 'titleSize', { min: 5, max: 40, scale: 100, slider: true, unit: '%' })) : null,
-        row('Title track', num(T, 'titleSpacing', { min: -10, max: 60, scale: 100, slider: true, unit: '%' })),
+        row('Tracking', num(T, 'titleSpacing', { min: -10, max: 60, scale: 100, slider: true, unit: '%' })),
       ], false),
       lay === 'grid' || lay === 'minimal' ? sec('Grid', [
         lay === 'grid' ? toggle(T, 'showLines', 'Grid lines') : null,
+        lay === 'grid' ? row('Lines', colorCtl(T, 'lineColor', { allowNone: true })) : null,
         toggle(T, 'showWeekdays', 'Weekday names', { get: () => S.selEls()[0].showWeekdays !== false }),
+        toggle(T, 'startMonday', 'Week starts Monday', { set: v => { S.change(T, 'startMonday', v); renderInspector(); } }),
         toggle(T, 'headerLine', 'Rule under weekdays'),
         toggle(T, 'weekendAccent', 'Accent weekends'),
         toggle(T, 'showAdjacent', 'Show neighbouring days'),
-        lay === 'grid' ? row('Numbers', seg(T, 'numberPos', [['center', 'Centre'], ['corner', 'Top left'], ['corner-right', 'Top right']])) : null,
+        lay === 'grid' ? row('Numbers', seg(T, 'numberPos', [['center', 'Centre'], ['corner', 'Left'], ['corner-right', 'Right']])) : null,
         row('Number size', num(T, 'numberScale', { min: 20, max: 200, scale: 100, slider: true, unit: '%', def: 1 })),
         row('Cell radius', num(T, 'cellRadius', { min: 0, max: 50, scale: 100, slider: true, unit: '%' })),
+        row('Corner', num(T, 'radius', { min: 0, max: 200, slider: true })),
       ], false) : null,
     ];
   }
@@ -815,27 +859,29 @@
         full(fontCtl(T, 'ringFont', 'ringWeight')),
         row('Colour', colorCtl(T, 'textColor')),
         row('Size', num(T, 'ringSize', { min: 3, max: 25, step: 0.5, scale: 100, slider: true, unit: '%' })),
-        row('Spacing', num(T, 'ringSpacing', { min: -10, max: 80, scale: 100, slider: true, unit: '%' })),
-        row('Radius', num(T, 'ringRadius', { min: 30, max: 100, scale: 100, slider: true, unit: '%' })),
-        row('Rotate', num(T, 'ringStart', { min: -180, max: 180, slider: true, unit: '°' })),
-        toggle(T, 'ringFill', 'Spread around full circle'),
-        toggle(T, 'ringRepeat', 'Repeat text'),
-        toggle(T, 'ringUpper', 'Uppercase'),
-      ]),
+        more('badge-ring', [
+          row('Spacing', num(T, 'ringSpacing', { min: -10, max: 80, scale: 100, slider: true, unit: '%' })),
+          row('Radius', num(T, 'ringRadius', { min: 30, max: 100, scale: 100, slider: true, unit: '%' })),
+          row('Rotate', num(T, 'ringStart', { min: -180, max: 180, slider: true, unit: '°' })),
+          toggle(T, 'ringFill', 'Spread around full circle'),
+          toggle(T, 'ringRepeat', 'Repeat text'),
+          toggle(T, 'ringUpper', 'Uppercase'),
+        ]),
+      ], true, { collapsible: false }),
       sec('Badge', [
         row('Shape', selectCtl(T, 'shape', [['circle', 'Circle'], ['scallop', 'Scallop'], ['flower', 'Flower'], ['burst', 'Starburst'], ['none', 'None']])),
         row('Fill', colorCtl(T, 'fill', { allowNone: true })),
-        row('Border', colorCtl(T, 'borderColor')),
-        row('Border W', num(T, 'borderWidth', { min: 0, max: 40, slider: true })),
-        toggle(T, 'innerRing', 'Inner ring line'),
-      ]),
-      sec('Centre', [
         row('Centre', selectCtl(T, 'center', [['asterisk', 'Asterisk'], ['star', 'Star'], ['sparkle', 'Sparkle'], ['heart', 'Heart'], ['flower', 'Flower'], ['text', 'Text'], ['none', 'Nothing']], { set: v => { S.change(T, 'center', v); renderInspector(); } })),
         el.center === 'text' ? full(textCtl(T, 'centerText', { rows: 2 })) : null,
-        el.center === 'text' ? full(fontCtl(T, 'centerFont', 'centerWeight')) : null,
-        row('Size', num(T, 'centerSize', { min: 5, max: 80, scale: 100, slider: true, unit: '%' })),
-        row('Colour', colorCtl(T, 'centerColor')),
-      ]),
+        more('badge-more', [
+          el.center === 'text' ? full(fontCtl(T, 'centerFont', 'centerWeight')) : null,
+          row('Centre size', num(T, 'centerSize', { min: 5, max: 80, scale: 100, slider: true, unit: '%' })),
+          row('Centre col.', colorCtl(T, 'centerColor')),
+          row('Border', colorCtl(T, 'borderColor')),
+          row('Border W', num(T, 'borderWidth', { min: 0, max: 40, slider: true })),
+          toggle(T, 'innerRing', 'Inner ring line'),
+        ]),
+      ], false),
     ];
   }
 
@@ -847,48 +893,243 @@
         h('div.hint', null, 'One item per line. Start a line with [x] to tick it.'),
         full(fontCtl(T, 'fontFamily', 'fontWeight')),
         two(num(T, 'fontSize', { label: 'Size', min: 6, max: 400 }), num(T, 'lineHeight', { label: 'Line', min: 1, max: 4, step: 0.05 })),
-        row('Text', colorCtl(T, 'fill')),
         row('Boxes', seg(T, 'boxStyle', [['square', '□'], ['round', '▢'], ['circle', '○'], ['heart', '♡'], ['star', '☆']])),
-        row('Box colour', colorCtl(T, 'boxColor')),
-        row('Tick', colorCtl(T, 'checkColor')),
-        toggle(T, 'fillChecked', 'Fill ticked boxes'),
-        toggle(T, 'strikeChecked', 'Strike through done items'),
-        toggle(T, 'dimChecked', 'Fade done items'),
-        toggle(T, 'ruled', 'Ruled lines'),
-      ]),
+        h('div.swatch-line', null, h('span.sub-label', null, 'Colours'), swatchRow([
+          ['Text', () => val(T, 'fill'), (v, l) => S.change(T, 'fill', v, l)],
+          ['Boxes', () => val(T, 'boxColor'), (v, l) => S.change(T, 'boxColor', v, l)],
+          ['Tick', () => val(T, 'checkColor'), (v, l) => S.change(T, 'checkColor', v, l)],
+        ])),
+        more('check-more', [
+          toggle(T, 'fillChecked', 'Fill ticked boxes'),
+          toggle(T, 'strikeChecked', 'Strike through done items'),
+          toggle(T, 'dimChecked', 'Fade done items'),
+          toggle(T, 'ruled', 'Ruled lines'),
+        ]),
+      ], true, { collapsible: false }),
     ];
   }
 
+  function ribbonInspector(el) {
+    const T = 'sel';
+    const custom = !!el.points;
+    const presets = Object.entries(R.RIBBON_PATHS);
+    const pathTiles = h('div.path-grid', null, presets.map(([k, p]) => {
+      const demo = S.mk('ribbon', { path: k, width: 72, height: 40, thickness: el.line ? 3 : 9, line: false, text: '', color: 'currentColor' });
+      demo.color = '#5b4cf5';
+      const c = elThumb(demo, 64, 36, 6);
+      return h('button.path-tile' + (!custom && el.path === k ? '.on' : ''), { type: 'button', title: p.label, onclick: () => { S.changeEl(S.selEls()[0], e => { e.path = k; e.points = null; e.closed = false; e.sharp = false; }); renderInspector(); } }, c);
+    }));
+    return [
+      sec('Path', [
+        full(pathTiles),
+        full(h('div.btn-row', null,
+          h('button.btn.grow', { type: 'button', onclick: () => S.startPathEdit(el.id) }, ic('edit'), 'Edit points'),
+          custom ? h('button.btn', { type: 'button', title: 'Back to the preset shape', onclick: () => { S.changeEl(S.selEls()[0], e => { e.points = null; }); renderInspector(); } }, ic('undo'), 'Reset') : null)),
+        row('Style', seg(T, 'line', [[false, 'Band'], [true, 'Line']], { set: v => { S.changeEl(S.selEls()[0], e => { e.line = v; if (v && e.thickness > 20) e.thickness = 4; if (!v && e.thickness < 20) e.thickness = 80; }); renderInspector(); } })),
+        row('Colour', colorCtl(T, 'color', { allowNone: true })),
+        row(el.line ? 'Weight' : 'Thickness', num(T, 'thickness', { min: 0.5, max: 400, slider: true })),
+        more('rib-more', [
+          full(h('div.btn-row', null, styleToggle('arrowStart', 'backward', 'Arrow at start', 'Start arrow'), styleToggle('arrowEnd', 'forward', 'Arrow at end', 'End arrow'))),
+          row('Ends', seg(T, 'ends', [['round', 'Round'], ['flat', 'Flat']])),
+          row('Dashes', num(T, 'dash', { min: 0, max: 6, step: 0.25, slider: true })),
+          el.line ? null : row('Border', colorCtl(T, 'border.color')),
+          el.line ? null : row('Border W', num(T, 'border.width', { min: 0, max: 40, slider: true })),
+        ], 'Arrows, ends & border'),
+      ], true, { collapsible: false }),
+      sec('Text on path', [
+        full(textCtl(T, 'text', { rows: 2, placeholder: 'Type the words that run along the path' })),
+        full(fontCtl(T, 'fontFamily', 'fontWeight')),
+        two(weightCtl(T, 'fontFamily', 'fontWeight'), num(T, 'fontSize', { label: 'Size', min: 4, max: 600 })),
+        row('Colour', colorCtl(T, 'textColor')),
+        toggle(T, 'repeat', 'Repeat along the whole path'),
+        more('rib-text', [
+          row('Letters', num(T, 'letterSpacing', { min: -10, max: 80, step: 0.5, scale: 100, slider: true, unit: '%' })),
+          row('Slide', num(T, 'offset', { min: -100, max: 100, scale: 100, slider: true, unit: '%' })),
+          row('Raise', num(T, 'textShift', { min: -100, max: 100, scale: 100, slider: true, unit: '%' })),
+          el.repeat ? row('Between', inputCtl(T, 'sep', { placeholder: '   ✦   ' })) : null,
+          toggle(T, 'uppercase', 'Uppercase'),
+          toggle(T, 'flip', 'Run the other way'),
+        ], 'Spacing & direction'),
+      ], !!el.text || !el.line),
+    ];
+  }
+
+  function cameraInspector(el) {
+    const T = 'sel';
+    const st = el.style || 'iphone';
+    return [sec('Overlay', [
+      full(seg(T, 'style', [['iphone', 'Phone'], ['camcorder', 'Camcorder'], ['minimal', 'Viewfinder']], { set: v => { S.change(T, 'style', v); renderInspector(); } })),
+      toggle(T, 'grid', 'Grid lines'),
+      toggle(T, 'lens', 'Wide-lens black edge'),
+      h('div.swatch-line', null, h('span.sub-label', null, 'Colours'), swatchRow([
+        ['Interface', () => val(T, 'color'), (v, l) => S.change(T, 'color', v, l)],
+        ['Highlight', () => val(T, 'accent'), (v, l) => S.change(T, 'accent', v, l)],
+        ['Lens edge', () => val(T, 'lensColor'), (v, l) => S.change(T, 'lensColor', v, l)],
+      ])),
+      more('cam-more', st === 'iphone' ? [
+        row('Modes', inputCtl(T, 'modes', { placeholder: 'VIDEO, PHOTO, PORTRAIT' })),
+        row('Selected', num(T, 'activeMode', { min: 0, max: 10, step: 1 })),
+        row('Zooms', inputCtl(T, 'zooms', { placeholder: '0.5, 1×, 2' })),
+        row('Selected', num(T, 'activeZoom', { min: 0, max: 10, step: 1 })),
+        toggle(T, 'brackets', 'Frame corners'),
+        toggle(T, 'thumb', 'Last-photo thumbnail'),
+      ] : st === 'camcorder' ? [
+        row('Top left', inputCtl(T, 'rec')), row('Top right', inputCtl(T, 'timecode')),
+        row('Bottom left', inputCtl(T, 'date')), row('Bottom right', inputCtl(T, 'mode')),
+        toggle(T, 'scanlines', 'Scan lines'),
+      ] : [row('Label', inputCtl(T, 'zoomLabel', { placeholder: '1×' }))], 'Labels'),
+      h('div.hint', null, 'Tip: give the photo underneath the Fisheye look for the wide-lens feel.'),
+    ], true, { collapsible: false })];
+  }
+
+  function natureInspector(el) {
+    const T = 'sel';
+    const N = window.StudioNature;
+    const def = N && N.KINDS[el.kind];
+    if (!def) return [];
+    const cols = def.colors || [];
+    if (!el.colors || el.colors.length !== cols.length) el.colors = cols.slice();
+    const names = def.colorNames || [];
+    const P = def.params || {};
+    const pget = k => (S.selEls()[0][k] ?? P[k]);
+    const params = [];
+    const NAMES = { profile: 'Shape', bloom: 'Flowers', blooms: 'Blooms', clouds: 'Clouds', grain: 'Grain', softness: 'Softness' };
+    const OPT_NAMES = { left: 'Rises left', right: 'Rises right', dome: 'Dome', double: 'Rolling', flat: 'Flat', cluster: 'Clusters', daisy: 'Daisies', spike: 'Spikes' };
+    for (const k of Object.keys(P)) {
+      const lbl = NAMES[k] || (k[0].toUpperCase() + k.slice(1));
+      const opts = def.options && def.options[k];
+      if (opts) params.push(row(lbl, selectCtl(T, k, opts.map(o => [o, OPT_NAMES[o] || o]), { def: P[k], set: v => S.change(T, k, v) })));
+      else if (typeof P[k] === 'number') {
+        const big = P[k] > 1;
+        params.push(row(lbl, num(T, k, { min: 0, max: 100, scale: big ? 1 : 100, slider: true, unit: big ? '' : '%', get: () => pget(k) })));
+      }
+    }
+    return [sec(def.label, [
+      h('div.swatch-line', null, swatchRow(cols.map((c, i) => [names[i] || `Colour ${i + 1}`, () => (S.selEls()[0].colors || cols)[i],
+        (v, live) => S.changeEl(S.selEls()[0], e => { if (!e.colors || e.colors.length !== cols.length) e.colors = cols.slice(); e.colors[i] = v; }, live)])),
+      h('button.link-btn', { type: 'button', onclick: () => { S.change(T, 'colors', cols.slice()); renderInspector(); } }, 'Reset')),
+      ...params,
+      row('Density', num(T, 'density', { min: 20, max: 200, scale: 100, slider: true, unit: '%', def: 1 })),
+      full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'seed', Math.floor(Math.random() * 1e5)) }, ic('shuffle'), 'Shuffle')),
+    ], true, { collapsible: false })];
+  }
+
   const SHADOWS = {
-    none: { on: false },
-    soft: { on: true, color: '#000000', opacity: 0.22, blur: 30, x: 0, y: 14 },
-    lifted: { on: true, color: '#000000', opacity: 0.35, blur: 12, x: 0, y: 6 },
-    hard: { on: true, color: '#1d1b18', opacity: 1, blur: 0, x: 10, y: 10 },
-    glow: { on: true, color: '#fff36b', opacity: 0.9, blur: 30, x: 0, y: 0 },
+    soft: { on: true, style: 'drop', color: '#000000', opacity: 0.22, blur: 30, x: 0, y: 14 },
+    lifted: { on: true, style: 'drop', color: '#000000', opacity: 0.35, blur: 12, x: 0, y: 6 },
+    hard: { on: true, style: 'drop', color: '#1d1b18', opacity: 1, blur: 0, x: 10, y: 10 },
+    glow: { on: true, style: 'drop', color: '#fff36b', opacity: 0.9, blur: 30, x: 0, y: 0 },
   };
   function effectsSection(el) {
     const T = 'sel';
-    const presetOf = () => { const s = S.selEls()[0]?.shadow || {}; if (!s.on) return 'none'; for (const [k, p] of Object.entries(SHADOWS)) if (p.on && p.blur === s.blur && p.x === s.x && p.y === s.y && p.opacity === s.opacity) return k; return 'custom'; };
-    return sec('Effects', [
-      el.erase && el.erase.length ? full(h('div.btn-row', null, h('button.btn', { onclick: () => { S.clearErase(el.id); renderInspector(); } }, ic('eraser'), 'Restore erased areas'), h('button.btn', { onclick: () => S.setTool('erase') }, ic('eraser'), 'Keep erasing'))) : null,
-      row('Opacity', num(T, 'opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
-      row('Blend', selectCtl(T, 'blend', [['normal', 'Normal'], ['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-burn', 'Colour burn'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['luminosity', 'Luminosity']])),
-      row('Shadow', seg(T, 'shadow', [['none', 'None'], ['soft', 'Soft'], ['lifted', 'Lift'], ['hard', 'Hard'], ['glow', 'Glow']], { get: presetOf, set: v => { S.change(T, 'shadow', Object.assign({}, S.selEls()[0].shadow, SHADOWS[v])); renderInspector(); } })),
-      ...(el.shadow.on ? [
-        row('Colour', colorCtl(T, 'shadow.color')),
-        row('Strength', num(T, 'shadow.opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
-        row('Blur', num(T, 'shadow.blur', { min: 0, max: 120, slider: true })),
-        row('Offset X', num(T, 'shadow.x', { min: -100, max: 100, slider: true })),
-        row('Offset Y', num(T, 'shadow.y', { min: -100, max: 100, slider: true })),
-      ] : []),
-    ], el.shadow.on || el.opacity < 1);
+    const sh = el.shadow || {};
+    const isCast = sh.on && sh.style === 'cast';
+    const presetOf = () => { const s = S.selEls()[0]?.shadow || {}; for (const [k, p] of Object.entries(SHADOWS)) if (p.blur === s.blur && p.x === s.x && p.y === s.y && p.opacity === s.opacity) return k; return 'custom'; };
+    const set = (path, v) => S.change(T, path, v);
+    const items = [
+      {
+        label: 'Drop shadow', icon: 'square', on: sh.on && !isCast,
+        add: () => S.change(T, 'shadow', Object.assign({}, sh, SHADOWS.soft)), remove: () => set('shadow.on', false),
+        body: () => [
+          full(seg(T, 'shadow', [['soft', 'Soft'], ['lifted', 'Lift'], ['hard', 'Hard'], ['glow', 'Glow']], { get: presetOf, set: v => { S.change(T, 'shadow', Object.assign({}, S.selEls()[0].shadow, SHADOWS[v])); renderInspector(); } })),
+          row('Colour', colorCtl(T, 'shadow.color')),
+          more('fx-shadow', [
+            row('Strength', num(T, 'shadow.opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+            row('Blur', num(T, 'shadow.blur', { min: 0, max: 120, slider: true })),
+            row('Offset X', num(T, 'shadow.x', { min: -100, max: 100, slider: true })),
+            row('Offset Y', num(T, 'shadow.y', { min: -100, max: 100, slider: true })),
+          ], 'Blur & offset'),
+        ],
+      },
+      {
+        label: 'Ground shadow', icon: 'sun', on: isCast, hidden: el.type === 'text' || el.type === 'camera',
+        add: () => S.change(T, 'shadow', { on: true, style: 'cast', color: '#000000', angle: 50, length: 0.45, blur: 12, opacity: 0.4, x: 0, y: 0 }), remove: () => set('shadow.on', false),
+        body: () => [
+          row('Angle', num(T, 'shadow.angle', { min: -80, max: 80, slider: true, unit: '°', def: 50 })),
+          row('Length', num(T, 'shadow.length', { min: 5, max: 150, scale: 100, slider: true, unit: '%', def: 0.45 })),
+          row('Softness', num(T, 'shadow.blur', { min: 0, max: 80, slider: true })),
+          row('Strength', num(T, 'shadow.opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          row('Lift', num(T, 'shadow.y', { min: -400, max: 400, slider: true })),
+        ],
+      },
+      el.type === 'text' ? {
+        label: 'Outline', icon: 'circle', on: el.stroke && el.stroke.width > 0,
+        add: () => S.change(T, 'stroke.width', Math.max(2, Math.round(el.fontSize * 0.04))), remove: () => set('stroke.width', 0),
+        body: () => [row('Colour', colorCtl(T, 'stroke.color')), row('Width', num(T, 'stroke.width', { min: 0.5, max: 40, step: 0.5, slider: true }))],
+      } : null,
+      el.type === 'text' ? {
+        label: '3D / hard shadow', icon: 'layers', on: el.echo && el.echo.on,
+        add: () => set('echo.on', true), remove: () => set('echo.on', false),
+        body: () => [
+          row('Colour', colorCtl(T, 'echo.color')),
+          row('Depth', num(T, 'echo.steps', { min: 1, max: 30, step: 1, slider: true })),
+          more('fx-echo', [
+            row('Offset X', num(T, 'echo.dx', { min: -50, max: 50, step: 0.5, scale: 100, slider: true, unit: '%' })),
+            row('Offset Y', num(T, 'echo.dy', { min: -50, max: 50, step: 0.5, scale: 100, slider: true, unit: '%' })),
+          ], 'Offset'),
+        ],
+      } : null,
+      el.type === 'sticker' || (el.type === 'image' && (el.frame.style || 'none') === 'none' && el.assetId) ? {
+        label: 'Die-cut border', icon: 'sticker', on: el.outline && el.outline.on,
+        add: () => set('outline.on', true), remove: () => set('outline.on', false),
+        body: () => [
+          row('Style', selectCtl(T, 'outline.style', Object.entries(R.OUTLINE_STYLES), { def: 'smooth' })),
+          row('Colour', colorCtl(T, 'outline.color')),
+          row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
+        ],
+      } : null,
+      {
+        label: 'Blend mode', icon: 'palette', on: el.blend && el.blend !== 'normal',
+        add: () => set('blend', 'multiply'), remove: () => set('blend', 'normal'),
+        body: () => [row('Mode', selectCtl(T, 'blend', [['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'], ['color-burn', 'Colour burn'], ['soft-light', 'Soft light'], ['difference', 'Difference'], ['luminosity', 'Luminosity']]))],
+      },
+      el.erase && el.erase.length ? {
+        label: 'Erased areas', on: true, remove: () => S.clearErase(el.id),
+        body: () => [full(h('button.btn', { type: 'button', onclick: () => S.setTool('erase') }, ic('eraser'), 'Keep erasing'))],
+      } : null,
+    ];
+    return addSec('Effects', items.filter(Boolean));
+  }
+
+  function motionSection(el) {
+    const T = 'sel';
+    const an = el.anim || {};
+    const loop = an.loop || 'none', enter = an.enter || 'none';
+    const setA = (k, v, live) => { S.change(T, 'anim.' + k, v, live); if (!live && (k === 'loop' || k === 'enter')) renderInspector(); updateTimeline(); };
+    const isPath = el.type === 'ribbon';
+    const loops = Object.entries(R.ANIM_LOOPS).filter(([k]) => k !== 'none' && (k !== 'flow' || isPath));
+    const enters = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'none' && (k !== 'typewriter' || el.type === 'text') && (k !== 'draw' || isPath));
+    const start = (k, v) => { S.change(T, 'anim', Object.assign({ speed: 1, amount: 1, delay: 0 }, S.selEls()[0].anim || {}, { [k]: v })); updateTimeline(); S.play(); };
+    return addSec('Motion', [
+      {
+        label: 'Entrance', icon: 'forward', on: enter !== 'none',
+        add: () => start('enter', isPath ? 'draw' : el.type === 'text' ? 'rise' : 'pop'), remove: () => setA('enter', 'none'),
+        body: () => [
+          row('Style', selectCtl(T, 'anim.enter', enters, { def: 'pop', set: v => setA('enter', v) })),
+          row('Delay', num(T, 'anim.delay', { min: 0, max: 10, step: 0.05, slider: true, def: 0, unit: 's', set: (v, l) => setA('delay', v, l) })),
+        ],
+      },
+      {
+        label: 'Loop', icon: 'shuffle', on: loop !== 'none',
+        add: () => start('loop', isPath && el.text ? 'flow' : el.type === 'text' ? 'sway' : 'float'), remove: () => setA('loop', 'none'),
+        body: () => [
+          row('Style', selectCtl(T, 'anim.loop', loops, { def: 'float', set: v => setA('loop', v) })),
+          row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })),
+          loop !== 'spin' && loop !== 'blink' && loop !== 'flow' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
+          more('motion-more', [
+            loop === 'spin' || loop === 'flow' ? toggle(T, 'anim.reverse', 'Reverse direction') : null,
+            toggle(T, 'anim.sync', 'Start in sync with other layers'),
+          ]),
+        ],
+      },
+    ]);
   }
 
   function alignGrid() {
     return h('div.align-grid', null,
       [['left', 'alignL', 'Align left'], ['hcenter', 'alignC', 'Centre horizontally'], ['right', 'alignR', 'Align right'],
         ['top', 'alignT', 'Align top'], ['vcenter', 'alignM', 'Centre vertically'], ['bottom', 'alignB', 'Align bottom']]
-        .map(([op, i, t]) => h('button', { title: t, onclick: () => S.align(op) }, ic(i))));
+        .map(([op, i, t]) => h('button', { type: 'button', title: t, onclick: () => S.align(op) }, ic(i))));
   }
   function arrangeSection(el) {
     const T = 'sel';
@@ -896,138 +1137,217 @@
     const setW = (v, live) => S.changeEl(S.selEls()[0], e => { const r = e.height / e.width; if (e.type === 'text') { e.autoWidth = false; } e.width = Math.max(4, v); if (ratioLocked) e.height = e.width * r; }, live);
     const setH = (v, live) => S.changeEl(S.selEls()[0], e => { const r = e.width / e.height; e.height = Math.max(4, v); if (ratioLocked) e.width = e.height * r; }, live);
     const sizeEditable = el.type !== 'text' && el.type !== 'checklist';
-    return sec('Position & layer', [
-      h('div.hint', null, 'Align to canvas'),
+    return sec('Position', [
       alignGrid(),
       two(num(T, 'x', { label: 'X', step: 1, soft: true }), num(T, 'y', { label: 'Y', step: 1, soft: true })),
       two(num(T, 'width', { label: 'W', min: 4, set: setW }), sizeEditable ? num(T, 'height', { label: 'H', min: 4, set: setH }) : num(T, 'height', { label: 'H', set: () => {} })),
       two(num(T, 'rotation', { label: '∠', unit: '°', step: 1, soft: true, set: (v, live) => S.change(T, 'rotation', ((v % 360) + 360) % 360 > 180 ? ((v % 360) + 360) % 360 - 360 : ((v % 360) + 360) % 360, live) }),
-        h('div.btn-row', null, el.type !== 'text' ? h('button.btn.icon', { title: 'Flip horizontal', onclick: () => S.flip('x') }, ic('flipH')) : null,
-          el.type !== 'text' ? h('button.btn.icon', { title: 'Flip vertical', onclick: () => S.flip('y') }, ic('flipV')) : null)),
+        h('div.btn-row', null, el.type !== 'text' ? h('button.btn.icon', { type: 'button', title: 'Flip horizontal', onclick: () => S.flip('x') }, ic('flipH')) : null,
+          el.type !== 'text' ? h('button.btn.icon', { type: 'button', title: 'Flip vertical', onclick: () => S.flip('y') }, ic('flipV')) : null)),
       h('div.btn-row', null,
-        h('button.btn.icon', { title: 'Bring to front (⇧⌘])', onclick: () => S.order('front') }, ic('front')),
-        h('button.btn.icon', { title: 'Bring forward (⌘])', onclick: () => S.order('forward') }, ic('forward')),
-        h('button.btn.icon', { title: 'Send backward (⌘[)', onclick: () => S.order('backward') }, ic('backward')),
-        h('button.btn.icon', { title: 'Send to back (⇧⌘[)', onclick: () => S.order('back') }, ic('back')),
-        h('button.btn.icon', { title: el.locked ? 'Unlock (⌘L)' : 'Lock (⌘L)', onclick: () => S.toggleLock() }, ic(el.locked ? 'unlock' : 'lock'))),
-      h('div.btn-row', null,
-        h('button.btn', { onclick: () => S.duplicate() }, ic('copy'), 'Duplicate'),
-        h('button.btn.danger', { onclick: () => S.removeSelected() }, ic('trash'), 'Delete')),
-    ], true);
+        h('button.btn.icon', { type: 'button', title: 'Bring to front (⇧⌘])', onclick: () => S.order('front') }, ic('front')),
+        h('button.btn.icon', { type: 'button', title: 'Bring forward (⌘])', onclick: () => S.order('forward') }, ic('forward')),
+        h('button.btn.icon', { type: 'button', title: 'Send backward (⌘[)', onclick: () => S.order('backward') }, ic('backward')),
+        h('button.btn.icon', { type: 'button', title: 'Send to back (⇧⌘[)', onclick: () => S.order('back') }, ic('back'))),
+    ], false);
   }
 
   function multiInspector(els) {
     return [
-      h('div.insp-head', null, h('h2', null, `${els.length} elements`)),
+      h('div.insp-head', null, h('h2', null, `${els.length} layers`), h('div.insp-opacity', { title: 'Opacity' }, num('sel', 'opacity', { min: 0, max: 100, scale: 100, unit: '%', label: 'Opacity' }))),
       sec('Arrange', [
-        h('div.hint', null, 'Align to each other'),
         alignGrid(),
-        els.length >= 3 ? h('div.btn-row', null, h('button.btn', { onclick: () => S.distribute('x') }, ic('distH'), 'Space horizontally'), h('button.btn', { onclick: () => S.distribute('y') }, ic('distV'), 'Space vertically')) : null,
-        row('Opacity', num('sel', 'opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+        els.length >= 3 ? h('div.btn-row', null, h('button.btn.grow', { type: 'button', onclick: () => S.distribute('x') }, ic('distH'), 'Space across'), h('button.btn.grow', { type: 'button', onclick: () => S.distribute('y') }, ic('distV'), 'Space down')) : null,
         h('div.btn-row', null,
-          h('button.btn.icon', { title: 'Bring to front', onclick: () => S.order('front') }, ic('front')),
-          h('button.btn.icon', { title: 'Bring forward', onclick: () => S.order('forward') }, ic('forward')),
-          h('button.btn.icon', { title: 'Send backward', onclick: () => S.order('backward') }, ic('backward')),
-          h('button.btn.icon', { title: 'Send to back', onclick: () => S.order('back') }, ic('back')),
-          h('button.btn.icon', { title: 'Lock', onclick: () => S.toggleLock() }, ic('lock'))),
-        h('div.btn-row', null, h('button.btn', { onclick: () => S.duplicate() }, ic('copy'), 'Duplicate'), h('button.btn.danger', { onclick: () => S.removeSelected() }, ic('trash'), 'Delete')),
-      ]),
+          h('button.btn.icon', { type: 'button', title: 'Bring to front', onclick: () => S.order('front') }, ic('front')),
+          h('button.btn.icon', { type: 'button', title: 'Bring forward', onclick: () => S.order('forward') }, ic('forward')),
+          h('button.btn.icon', { type: 'button', title: 'Send backward', onclick: () => S.order('backward') }, ic('backward')),
+          h('button.btn.icon', { type: 'button', title: 'Send to back', onclick: () => S.order('back') }, ic('back')),
+          h('button.btn.icon', { type: 'button', title: 'Lock', onclick: () => S.toggleLock() }, ic('lock'))),
+      ], true, { collapsible: false }),
+      motionSectionMulti(els),
     ];
   }
+  function motionSectionMulti(els) {
+    return sec('Motion', [
+      h('div.hint', null, 'Give every selected layer the same move.'),
+      full(h('div.chips.tight', null, [['float', 'Float'], ['jiggle', 'Jiggle'], ['wiggle', 'Wiggle'], ['bounce', 'Bounce'], ['none', 'None']].map(([k, l]) => h('button.chip', { type: 'button', onclick: () => { for (const e of S.selEls()) e.anim = Object.assign({ enter: 'none', speed: 1, amount: 1 }, e.anim || {}, { loop: k }); S.touchAll(); S.commit(); updateTimeline(); if (k !== 'none') S.play(); } }, l)))),
+    ], false);
+  }
 
+  function sizeName(w, hh) { const m = SIZES.find(([, a, b]) => a === w && b === hh); return m ? m[0] : 'Custom'; }
   function canvasInspector() {
     const T = 'doc';
     const d = S.doc;
     const bg = d.background;
+    const o = d.overlay || {};
     const grad = bg.gradient && bg.gradient !== 'none';
+    const fin = (label, path, max = 100, extra) => ({
+      label, on: !!S.getPath(d, path), add: () => S.change(T, path, extra ? extra.def : 30), remove: () => S.change(T, path, 0),
+      body: () => [row('Amount', num(T, path, { min: 0, max, slider: true, def: 0 })), ...(extra && extra.body ? extra.body() : [])],
+    });
     return [
-      h('div.insp-head', null, h('h2', null, 'Canvas'), h('span.pill', null, `${d.width} × ${d.height}`)),
+      h('div.insp-head', null, h('h2', null, 'Canvas')),
       sec('Background', [
+        full(h('button.size-btn', { type: 'button', onclick: () => openSizeModal() }, h('span', null, sizeName(d.width, d.height)), h('small', null, `${d.width} × ${d.height}`), ic('resize'))),
         row('Colour', colorCtl(T, 'background.color')),
-        row('Gradient', selectCtl(T, 'background.gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'background.gradient', v); renderInspector(); } })),
-        grad ? row('To', colorCtl(T, 'background.color2')) : null,
-        grad ? row('Angle', num(T, 'background.angle', { min: 0, max: 360, slider: true, unit: '°' })) : null,
         full(h('div.btn-row', null,
-          h('button.btn', { onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), bg.assetId ? 'Replace photo' : 'Background photo'),
-          bg.assetId ? h('button.btn', { onclick: () => { S.change(T, 'background.assetId', null); renderInspector(); } }, ic('trash'), 'Remove') : null,
-          h('button.btn', { onclick: () => openSizeModal() }, ic('resize'), 'Resize'))),
-      ]),
+          h('button.btn.grow', { type: 'button', onclick: () => setTab('background') }, ic('palette'), 'Backgrounds'),
+          h('button.btn.grow', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), bg.assetId ? 'Replace photo' : 'Photo'))),
+        more('canvas-grad', [
+          row('Gradient', selectCtl(T, 'background.gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'background.gradient', v); renderInspector(); } })),
+          grad ? row('To', colorCtl(T, 'background.color2')) : null,
+          grad ? row('Angle', num(T, 'background.angle', { min: 0, max: 360, slider: true, unit: '°' })) : null,
+        ], 'Gradient'),
+      ], true, { collapsible: false }),
+      bg.scene ? sec('Scene', [
+        h('div.hint', null, 'A painted backdrop. Add hills, flowers and clouds as layers from Elements → Garden.'),
+        full(h('div.btn-row', null,
+          h('button.btn.grow', { type: 'button', onclick: () => { S.change(T, 'background.scene', Object.assign({}, bg.scene, { seed: Math.floor(Math.random() * 1e5) })); } }, ic('shuffle'), 'Shuffle'),
+          h('button.btn', { type: 'button', onclick: () => { S.change(T, 'background.scene', null); renderInspector(); } }, ic('trash'), 'Remove'))),
+      ], true) : null,
       bg.assetId ? sec('Background photo', [
-        full(h('button.btn.primary', { disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
-        h('div.hint', null, 'Great for putting text behind a person. Runs on your device.'),
-        row('Opacity', num(T, 'background.imageOpacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
-        row('Zoom', num(T, 'background.crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
-        row('Pan X', num(T, 'background.crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
-        row('Pan Y', num(T, 'background.crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+        full(h('button.btn.primary', { type: 'button', disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
         full(filterThumbs(null, 'doc')),
-        ...filterSliders(T, 'background.filters'),
-      ]) : null,
-      sec('Pattern', [
-        row('Pattern', selectCtl(T, 'background.pattern.type', Object.entries(R.PATTERNS))),
-        row('Colour', colorCtl(T, 'background.pattern.color')),
-        row('Size', num(T, 'background.pattern.size', { min: 4, max: 300, slider: true })),
-        row('Line', num(T, 'background.pattern.thick', { min: 0.5, max: 12, step: 0.5, slider: true })),
-        row('Opacity', num(T, 'background.pattern.opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
-      ], bg.pattern && bg.pattern.type !== 'none'),
-      sec('Finish', [
-        row('Paper', num(T, 'background.texture', { min: 0, max: 100, slider: true })),
-        row('Crumpled', num(T, 'background.crumple', { min: 0, max: 100, slider: true, def: 0 })),
-        d.background.crumple ? full(h('button.btn', { onclick: () => S.change(T, 'background.crumpleSeed', Math.floor(Math.random() * 1e6)) }, ic('shuffle'), 'New creases')) : null,
-        row('Film grain', num(T, 'overlay.grain', { min: 0, max: 100, slider: true })),
-        row('Vignette', num(T, 'overlay.vignette', { min: 0, max: 100, slider: true })),
-        row('Tint', colorCtl(T, 'overlay.tint')),
-        row('Tint amt', num(T, 'overlay.tintAmount', { min: 0, max: 100, slider: true })),
-        row('Paper on top', num(T, 'overlay.paper', { min: 0, max: 100, slider: true, def: 0 })),
-        row('Poster folds', num(T, 'overlay.creases', { min: 0, max: 100, slider: true, def: 0 })),
-        row('Light leak', num(T, 'overlay.leak', { min: 0, max: 100, slider: true, def: 0 })),
-      ]),
-      sec('Tips', [h('div.hint', { html: 'Drag to move · <span class="kbd">Shift</span> to lock an axis · <span class="kbd">Alt</span>-drag to duplicate · hold <span class="kbd">Ctrl</span> to skip snapping · <span class="kbd">E</span> eraser · <span class="kbd">Space</span>-drag to pan · double-click text to edit, photos to crop · paste images straight in with <span class="kbd">⌘V</span>.' })], false),
+        more('bgphoto-more', [
+          row('Opacity', num(T, 'background.imageOpacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          row('Zoom', num(T, 'background.crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
+          row('Pan X', num(T, 'background.crop.x', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          row('Pan Y', num(T, 'background.crop.y', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+          ...filterSliders(T, 'background.filters'),
+          full(h('button.btn', { type: 'button', onclick: () => { S.change(T, 'background.assetId', null); renderInspector(); } }, ic('trash'), 'Remove photo')),
+        ], 'Adjust photo'),
+      ], true) : null,
+      addSec('Finish', [
+        {
+          label: 'Pattern', on: bg.pattern && bg.pattern.type !== 'none',
+          add: () => S.change(T, 'background.pattern', Object.assign({}, bg.pattern, { type: 'grid' })), remove: () => S.change(T, 'background.pattern.type', 'none'),
+          body: () => [
+            row('Pattern', selectCtl(T, 'background.pattern.type', Object.entries(R.PATTERNS).filter(([k]) => k !== 'none'))),
+            row('Colour', colorCtl(T, 'background.pattern.color')),
+            row('Size', num(T, 'background.pattern.size', { min: 4, max: 300, slider: true })),
+            more('fin-pattern', [
+              row('Line', num(T, 'background.pattern.thick', { min: 0.5, max: 12, step: 0.5, slider: true })),
+              row('Opacity', num(T, 'background.pattern.opacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+            ]),
+          ],
+        },
+        fin('Paper texture', 'background.texture'),
+        fin('Crumpled paper', 'background.crumple', 100, { def: 60, body: () => [full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'background.crumpleSeed', Math.floor(Math.random() * 1e6)) }, ic('shuffle'), 'New creases'))] }),
+        fin('Film grain', 'overlay.grain'),
+        fin('Vignette', 'overlay.vignette'),
+        {
+          label: 'Colour tint', on: !!o.tintAmount, add: () => S.change(T, 'overlay.tintAmount', 30), remove: () => S.change(T, 'overlay.tintAmount', 0),
+          body: () => [row('Colour', colorCtl(T, 'overlay.tint')), row('Amount', num(T, 'overlay.tintAmount', { min: 0, max: 100, slider: true }))],
+        },
+        fin('Paper on top', 'overlay.paper'),
+        fin('Poster folds', 'overlay.creases', 100, { def: 60 }),
+        fin('Light leak', 'overlay.leak', 100, { def: 45 }),
+      ], 'canvas-finish'),
+      h('p.insp-empty', null, 'Select a layer to edit it. Double-click text to type, a photo to crop, a ribbon to bend it.'),
     ];
   }
 
   /* ───────────────────────── left panels ───────────────────────── */
 
   const panel = $('#panel');
+  const app = $('#app');
   let tab = 'templates';
-  function setTab(t) {
+  let drill = null;        // "See all" view inside a panel: { tab, title, items, grid }
+  const queries = {};      // search text per tab
+  const TAB_TITLES = { templates: 'Templates', elements: 'Elements', text: 'Text', photos: 'Photos', background: 'Canvas', layers: 'Layers' };
+  function setTab(t, opts = {}) {
+    if (t === 'animate') { openAnimate($('#btn-animate')); return; }
+    if (t === 'stickers' || t === 'shapes' || t === 'planner') t = 'elements';
+    if (tab !== t) drill = null;
     tab = t;
-    $$('#rail button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+    $$('#rail button').forEach(b => b.classList.toggle('active', b.dataset.tab === t && !app.classList.contains('panel-closed')));
+    if (opts.open !== false) openPanel(true);
     renderPanel();
     if (t === 'background') S.select([]);
+  }
+  function openPanel(on) {
+    app.classList.toggle('panel-closed', !on);
+    $$('#rail button').forEach(b => b.classList.toggle('active', on && b.dataset.tab === tab));
+    if (matchMedia('(max-width: 920px)').matches) { panel.classList.toggle('open', on); if (on) insp.classList.remove('open'); }
   }
   $('#rail').addEventListener('click', e => {
     const b = e.target.closest('button[data-tab]');
     if (!b) return;
     const narrow = matchMedia('(max-width: 920px)').matches;
-    if (narrow && tab === b.dataset.tab && panel.classList.contains('open')) { panel.classList.remove('open'); return; }
+    const isOpen = narrow ? panel.classList.contains('open') : !app.classList.contains('panel-closed');
+    // clicking the active tab folds the panel away for more canvas room
+    if (tab === b.dataset.tab && isOpen) { openPanel(false); return; }
     setTab(b.dataset.tab);
-    if (narrow) { panel.classList.add('open'); insp.classList.remove('open'); }
   });
 
+  function panelHead(title, extra) {
+    return h('div.panel-head', null, h('h2', null, title), extra || null,
+      h('button.icon-btn', { type: 'button', title: 'Hide panel', onclick: () => openPanel(false) }, ic('chevLeft')));
+  }
+  function searchBox(placeholder, onInput) {
+    const inp = h('input.search', { placeholder, value: queries[tab] || '', type: 'search' });
+    inp.addEventListener('input', () => { queries[tab] = inp.value; onInput(inp.value.trim().toLowerCase()); });
+    return inp;
+  }
+  // a short row of the most useful items with "See all" for the rest
+  function shelf(title, items, o = {}) {
+    if (!items.length) return null;
+    const limit = o.limit ?? 8;
+    const grid = o.grid || 'stk-grid';
+    return h('div.shelf', null,
+      h('div.shelf-head', null, h('h3', null, title),
+        items.length > limit ? h('button.see-all', { type: 'button', onclick: () => { drill = { tab, title, items, grid, note: o.note }; renderPanel(); panel.scrollTop = 0; } }, 'See all', ic('chevRight')) : null),
+      o.note && !o.noteAll ? h('p.hint.shelf-note', null, o.note) : null,
+      h('div.' + grid, null, items.slice(0, limit).map(it => it.node())));
+  }
+  function drillView() {
+    return [
+      h('button.back-link', { type: 'button', onclick: () => { drill = null; renderPanel(); } }, ic('chevLeft'), TAB_TITLES[tab]),
+      h('h2.drill-title', null, drill.title),
+      drill.note ? h('p.hint', null, drill.note) : null,
+      h('div.' + drill.grid, null, drill.items.map(it => it.node())),
+    ];
+  }
+
   function renderPanel() {
-    const fn = { templates: templatesPanel, text: textPanel, stickers: stickersPanel, shapes: shapesPanel, photos: photosPanel, planner: plannerPanel, animate: animatePanel, background: backgroundPanel, layers: layersPanel }[tab];
-    panel.replaceChildren(...fn().filter(Boolean));
+    const fn = { templates: templatesPanel, elements: elementsPanel, text: textPanel, photos: photosPanel, background: backgroundPanel, layers: layersPanel }[tab] || templatesPanel;
+    const body = drill && drill.tab === tab ? [panelHead(TAB_TITLES[tab]), ...drillView()] : fn();
+    panel.replaceChildren(...body.flat().filter(Boolean));
     hydrateIcons(panel);
   }
   S.on('fonts', () => { if (tab === 'layers') renderPanel(); });
 
   function dragPayload(node, payload) {
     node.draggable = true;
-    node.addEventListener('dragstart', e => { e.dataTransfer.setData('application/x-studio', JSON.stringify(payload)); e.dataTransfer.effectAllowed = 'copy'; });
+    node.addEventListener('dragstart', e => { e.dataTransfer.setData('application/x-studio', JSON.stringify(typeof payload === 'function' ? payload() : payload)); e.dataTransfer.effectAllowed = 'copy'; });
   }
   S.on('dropPayload', (p, at) => {
     if (p.kind === 'sticker') addSticker(p.id, at);
     else if (p.kind === 'element') S.addElement(p.el, { at });
     else if (p.kind === 'asset') { const el = S.addImageFromAsset(p.id); S.changeEl(el, e => { e.x = at.x - e.width / 2; e.y = at.y - e.height / 2; }); }
   });
+  // a tile that adds an element on click and can be dragged onto the canvas
+  function elTile(name, make, o = {}) {
+    return {
+      name, tags: o.tags || '',
+      node: () => {
+        const demo = make();
+        const tile = h('button.' + (o.cls || 'stk') + (o.dark ? '.dark' : ''), { type: 'button', title: name, onclick: () => (o.onAdd ? o.onAdd() : S.addElement(make())) },
+          o.thumb ? o.thumb() : elThumb(demo, o.tw || 54, o.th || 54, o.pad ?? 6), o.caption ? h('div.cap', null, name) : null);
+        dragPayload(tile, () => ({ kind: 'element', el: make() }));
+        return tile;
+      },
+    };
+  }
 
-  // templates
+  /* templates */
   let tplTag = 'All';
   function templateCard(t, onPick, width = 260, opts = {}) {
     const thumb = h('div.thumb.skeleton', { style: { aspectRatio: `${t.width} / ${t.height}` } });
-    const main = h('button.tpl-main', { onclick: () => onPick(t), title: opts.pieces ? `Use “${t.name}”` : t.name }, thumb, h('div.meta', null, t.name, h('small', null, `${t.width} × ${t.height}`)));
-    const card = h('div.tpl', null, main,
-      opts.pieces ? h('button.tpl-pieces', { title: `Browse the layers in “${t.name}” and add the ones you want`, onclick: () => openPieces(t) }, ic('layers'), 'Pieces') : null);
+    const card = h('div.tpl', null,
+      h('button.tpl-main', { type: 'button', onclick: () => onPick(t), title: `Use “${t.name}”` }, thumb, opts.meta === false ? null : h('div.meta', null, t.name)),
+      opts.pieces ? h('button.tpl-pieces', { type: 'button', title: `Browse the layers in “${t.name}” and add the ones you want`, onclick: () => openPieces(t) }, ic('layers'), 'Pieces') : null);
     docThumb('tpl:' + t.id, templateDoc(t), width).then(c => {
       const img = new Image();
       img.src = c.toDataURL('image/jpeg', 0.85);
@@ -1036,14 +1356,11 @@
     });
     return card;
   }
-  // a template's measured document; built once so pieces and thumbnails agree
   const tplDocs = new Map();
   function templateDoc(t) {
     if (!tplDocs.has(t.id)) tplDocs.set(t.id, prepDoc(t.build()));
     return tplDocs.get(t.id);
   }
-
-  // map template coordinates onto the current canvas: scale to fit, centre the template's frame
   function fitTemplate(t) {
     const d = S.doc, td = templateDoc(t);
     const k = Math.min(d.width / td.width, d.height / td.height);
@@ -1075,122 +1392,74 @@
     S.loadDoc(prepDoc(t.build()), null, { name: t.name });
     toast(`“${t.name}” loaded — make it yours`);
   }
-
   function useTemplate(t) {
     if (!S.doc.elements.length) { replaceWithTemplate(t); return; }
     const n = templateDoc(t).elements.length;
-    const choice = (iconName, title, sub, run, primary) => h('button.big-btn' + (primary ? '.accent' : ''), { onclick: () => { closeModal(); run(); } },
+    const choice = (iconName, title, sub, run, primary) => h('button.big-btn' + (primary ? '.accent' : ''), { type: 'button', onclick: () => { closeModal(); run(); } },
       ic(iconName), h('div', null, h('b', { style: { display: 'block' } }, title), h('small', { style: { opacity: 0.8 } }, sub)));
     const box = modal([
-      h('h1', { style: { fontSize: '22px' } }, `Use “${t.name}”`),
-      h('p.lead', null, 'Your canvas already has a design. How do you want to use this template?'),
-      choice('plus', 'Add to my design', `Adds its ${n} layers on top, scaled to fit. Your layers stay as they are.`, () => addTemplateLayers(t), true),
-      choice('layers', 'Pick pieces', 'Browse its layers and add only the ones you want.', () => openPieces(t)),
-      choice('palette', 'Use just its background', 'Swap in its backdrop, pattern and finish. Nothing else changes.', () => useTemplateBackground(t)),
-      choice('replace', 'Replace my design', 'Start over with this template. You can undo with ⌘Z.', () => replaceWithTemplate(t)),
+      h('h1', { style: { fontSize: '20px' } }, `Use “${t.name}”`),
+      h('p.lead', null, 'You already have a design going. What should this template do?'),
+      choice('replace', 'Start from this template', 'Replaces your canvas. ⌘Z brings your design back.', () => replaceWithTemplate(t), true),
+      choice('plus', 'Add it to my design', `Adds its ${n} layers on top, scaled to fit.`, () => addTemplateLayers(t)),
+      choice('layers', 'Pick pieces', 'Choose single layers to add.', () => openPieces(t)),
+      choice('palette', 'Use just its background', 'Swaps the backdrop and finish only.', () => useTemplateBackground(t)),
     ], { small: true });
-    box.style.width = 'min(460px, 100%)';
+    box.style.width = 'min(440px, 100%)';
     hydrateIcons(box);
   }
-
-  // pieces view: every layer of one template as a tile you can click or drag onto the canvas
   let piecesOf = null;
   function openPieces(t) {
     closeModal();
     piecesOf = t.id;
-    if (tab !== 'templates') setTab('templates'); else renderPanel();
-    if (matchMedia('(max-width: 920px)').matches) panel.classList.add('open');
+    drill = null;
+    if (tab !== 'templates') setTab('templates'); else { openPanel(true); renderPanel(); }
     panel.scrollTop = 0;
   }
   function piecesPanel(t) {
     const td = templateDoc(t);
     const grid = h('div.piece-grid');
-    // background tile first
     const bgThumb = h('div.piece-thumb');
     docThumb('bg-of:' + t.id, Object.assign({}, td, { elements: [] }), 140).then(c => bgThumb.replaceChildren(c));
-    grid.append(h('button.piece', { title: 'Use this background on your canvas', onclick: () => useTemplateBackground(t) }, bgThumb, h('span', null, 'Background')));
+    grid.append(h('button.piece', { type: 'button', title: 'Use this background on your canvas', onclick: () => useTemplateBackground(t) }, bgThumb, h('span', null, 'Background')));
     td.elements.slice().reverse().forEach(src => {
       const demo = S.clone(src); demo.rotation = 0;
-      const tile = h('button.piece', { title: 'Click to add · drag onto the canvas', onclick: () => { S.addElement(pieceFor(t, src), { center: false }); toast(`Added ${S.elLabel(src)}`); } },
+      const tile = h('button.piece', { type: 'button', title: 'Click to add · drag onto the canvas', onclick: () => { S.addElement(pieceFor(t, src), { center: false }); toast(`Added ${S.elLabel(src)}`); } },
         h('div.piece-thumb', null, elThumb(demo, 128, 96, 8)), h('span', null, S.elLabel(src)));
-      tile.draggable = true;
-      tile.addEventListener('dragstart', e => {
-        const el = pieceFor(t, src);
-        e.dataTransfer.setData('application/x-studio', JSON.stringify({ kind: 'element', el }));
-        e.dataTransfer.effectAllowed = 'copy';
-      });
+      dragPayload(tile, () => ({ kind: 'element', el: pieceFor(t, src) }));
       grid.append(tile);
     });
     return [
-      h('button.back-link', { onclick: () => { piecesOf = null; renderPanel(); } }, ic('backward'), 'All templates'),
-      h('h2', null, t.name),
-      h('p.sub', null, `${td.elements.length} layers. Click one to add it where it sits in the template, or drag it to where you want it.`),
-      h('div.btn-row', { style: { marginBottom: '12px' } },
-        h('button.btn.primary', { onclick: () => addTemplateLayers(t) }, ic('plus'), 'Add all layers'),
-        h('button.btn', { onclick: () => useTemplate(t) }, ic('layout'), 'More options')),
+      panelHead('Templates'),
+      h('button.back-link', { type: 'button', onclick: () => { piecesOf = null; renderPanel(); } }, ic('chevLeft'), 'All templates'),
+      h('h2.drill-title', null, t.name),
+      h('p.hint', null, `${td.elements.length} layers — click one to add it, or drag it where you want it.`),
+      h('div.btn-row', { style: { margin: '10px 0 14px' } },
+        h('button.btn.primary.grow', { type: 'button', onclick: () => addTemplateLayers(t) }, ic('plus'), 'Add all'),
+        h('button.btn.grow', { type: 'button', onclick: () => useTemplate(t) }, ic('layout'), 'Use template')),
       grid,
     ];
   }
-
   function templatesPanel() {
     const T = window.STUDIO_TEMPLATES || [];
     if (piecesOf) { const t = T.find(x => x.id === piecesOf); if (t) return piecesPanel(t); piecesOf = null; }
     const tags = ['All', ...new Set(T.flatMap(t => t.tags || []))];
     const grid = h('div.tpl-grid');
-    const draw = () => { grid.replaceChildren(...T.filter(t => tplTag === 'All' || (t.tags || []).includes(tplTag)).map(t => templateCard(t, useTemplate, 260, { pieces: true }))); hydrateIcons(grid); };
-    const chips = h('div.chips');
-    const drawChips = () => chips.replaceChildren(...tags.map(tg => h('button.chip' + (tg === tplTag ? '.on' : ''), { onclick: () => { tplTag = tg; drawChips(); draw(); } }, tg)));
+    const draw = () => {
+      const q = (queries.templates || '').trim().toLowerCase();
+      const list = T.filter(t => (tplTag === 'All' || (t.tags || []).includes(tplTag)) && (!q || t.name.toLowerCase().includes(q) || (t.tags || []).some(g => g.toLowerCase().includes(q))));
+      grid.replaceChildren(...list.map(t => templateCard(t, useTemplate, 260, { pieces: true })));
+      if (!list.length) grid.append(h('p.hint', null, 'No templates match.'));
+      hydrateIcons(grid);
+    };
+    const chips = h('div.chips.scroll');
+    const drawChips = () => chips.replaceChildren(...tags.map(tg => h('button.chip' + (tg === tplTag ? '.on' : ''), { type: 'button', onclick: () => { tplTag = tg; drawChips(); draw(); } }, tg)));
     drawChips(); draw();
-    return [h('h2', null, 'Templates'), h('p.sub', null, 'Use a whole template, add it to your design, or open its Pieces to grab single layers.'), chips, grid];
+    return [panelHead('Templates'), searchBox('Search templates', draw), chips, grid];
   }
 
-  // text
-  function addText(over) {
-    const el = S.mk('text', over);
-    const added = S.addElement(el);
-    return added;
-  }
-  S.on('addText', () => addText({ text: 'Your text', fontSize: Math.round(S.doc.width * 0.08) }));
-  function textPanel() {
-    const W = S.doc.width;
-    const presets = window.STUDIO_TEXT_PRESETS || [];
-    const grid = h('div.preset-grid');
-    for (const p of presets) {
-      const el = S.mk('text', S.clone(p.el));
-      S.autosize(el, false);
-      const c = elThumb(el, 128, 64, 12);
-      const tile = h('button.preset' + (p.dark ? '.dark' : ''), { title: p.name, onclick: () => { const e = S.clone(p.el); scaleTextPreset(e, W / 1080); addText(e); } }, c);
-      const payload = S.clone(p.el); scaleTextPreset(payload, W / 1080);
-      dragPayload(tile, { kind: 'element', el: S.mk('text', payload) });
-      grid.append(tile);
-    }
-    return [
-      h('h2', null, 'Text'),
-      h('button.big-btn', { onclick: () => addText({ text: 'Add a heading', fontFamily: 'Instrument Serif', fontSize: Math.round(W * 0.11) }), style: { fontFamily: '"Instrument Serif"', fontSize: '28px' } }, 'Add a heading'),
-      h('button.big-btn', { onclick: () => addText({ text: 'Add a subheading', fontFamily: 'Bricolage Grotesque', fontWeight: 600, fontSize: Math.round(W * 0.05) }), style: { fontFamily: '"Bricolage Grotesque"', fontWeight: 600, fontSize: '18px' } }, 'Add a subheading'),
-      h('button.big-btn', { onclick: () => addText({ text: 'Add a little body text', fontFamily: 'Instrument Sans', fontSize: Math.round(W * 0.032), lineHeight: 1.35 }), style: { fontFamily: '"Instrument Sans"', fontSize: '14px' } }, 'Add a little body text'),
-      h('button.big-btn', { onclick: () => S.addElement(S.mk('badge', { width: W * 0.3, height: W * 0.3 })), style: { fontSize: '14px' } }, ic('sparkle'), 'Add circular text badge'),
-      h('h3', null, 'Your fonts'),
-      F.customFamilies().length
-        ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } }, F.customFamilies().map(fam => h('button.big-btn', {
-          style: { fontFamily: `"${fam}", sans-serif`, fontSize: '20px', marginBottom: 0 },
-          onclick: () => { const meta = F.BY_NAME[fam]; addText({ text: fam, fontFamily: fam, fontWeight: meta && meta.weights.includes(500) ? 500 : F.nearestWeight(fam, 400), fontSize: Math.round(W * 0.08) }); },
-        }, fam)))
-        : h('p.hint', null, 'Upload fonts you own (or a .zip of them). They stay in this browser and are saved inside project files.'),
-      h('button.btn', { style: { marginTop: '8px', width: '100%' }, onclick: () => pickFonts(() => renderPanel()) }, ic('upload'), 'Upload fonts'),
-      h('h3', null, 'Text styles'),
-      h('p.sub', null, 'Click to add or drag onto the canvas.'),
-      grid,
-    ];
-  }
-  function scaleTextPreset(e, s) {
-    if (e.fontSize) e.fontSize = Math.round(e.fontSize * s);
-    if (e.bg) for (const k of ['padX', 'padY', 'gap', 'radius', 'borderWidth']) if (e.bg[k]) e.bg[k] *= s;
-    if (e.stroke && e.stroke.width) e.stroke.width *= s;
-  }
-
-  // stickers
-  let stkCat = 'All', stkQuery = '';
+  /* elements */
+  let stkCat = null;
   const svgUrlCache = new Map();
   function stickerUrl(def) { let u = svgUrlCache.get(def.id); if (!u) { u = R.svgDataUrl(def.svg(def.colors)); svgUrlCache.set(def.id, u); } return u; }
   function addSticker(id, at) {
@@ -1202,7 +1471,6 @@
     const el = S.mk('sticker', { stickerId: id, colors: def.colors.slice(), width: def.w * s, height: def.h * s });
     S.addElement(el, at ? { at } : {});
   }
-  // big-head figure: an outfit body plus an oversized face slot sitting on its neck
   function figureEls(def, at, scale = 1) {
     const H = Math.min(S.doc.width, S.doc.height) * 0.42 * scale, k = H / def.h;
     const bw = def.w * k, bh = H;
@@ -1221,173 +1489,109 @@
     S.addElements(figureEls(def, at));
     if (!S.settings.faceTipShown) {
       S.settings.faceTipShown = true; S.saveSettings();
-      toast('Double-click the face circle to add a selfie, then press Remove background');
+      toast('Double-click the face circle to add a selfie — the background is removed for you');
     }
   }
   S.figureEls = figureEls;
-  // a selfie dropped into a face slot is cut out straight away
   S.on('replaced', el => {
     if (el && el.type === 'image' && /^Face/.test(el.name || '') && S.removeBackground) {
       toast('Cutting out the face…');
       S.removeBackground(el.id, 'face');
     }
   });
-
-  function stickersPanel() {
-    const all = window.STICKERS || [];
-    const cats = ['All', ...new Set(all.map(s => s.cat))];
-    const search = h('input.search', { placeholder: 'Search stickers', value: stkQuery });
-    const chips = h('div.chips');
-    const body = h('div');
-    const draw = () => {
-      chips.replaceChildren(...cats.map(c => h('button.chip' + (c === stkCat ? '.on' : ''), { onclick: () => { stkCat = c; draw(); } }, c)));
-      const q = stkQuery.trim().toLowerCase();
-      const list = all.filter(s => (stkCat === 'All' || s.cat === stkCat) && (!q || s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q) || s.id.includes(q)));
-      const groups = new Map();
-      for (const s of list) { if (!groups.has(s.cat)) groups.set(s.cat, []); groups.get(s.cat).push(s); }
-      body.replaceChildren(...[...groups].flatMap(([cat, items]) => [
-        h('h3', null, cat),
-        h('div.stk-grid', null, items.map(s => {
-          const b = h('button.stk' + (/chalk|star-outline|paper-plane|polaroid|tape-clear|sparkle-outline|smiley-chain|px-cursor|px-hand|cloud-/i.test(s.id) ? '.dark' : ''), { title: s.name, onclick: () => addSticker(s.id) }, h('img', { src: stickerUrl(s), alt: s.name, loading: 'lazy' }));
-          dragPayload(b, { kind: 'sticker', id: s.id });
-          return b;
-        })),
-      ]));
-      if (!list.length) body.append(h('p.hint', null, 'No stickers match.'));
+  const DARK_STK = /chalk|star-outline|paper-plane|polaroid|tape-clear|sparkle-outline|smiley-chain|px-cursor|px-hand|cloud-|ui-pill/i;
+  function stickerItem(s) {
+    return {
+      name: s.name, tags: s.cat + ' ' + s.id,
+      node: () => {
+        const b = h('button.stk' + (DARK_STK.test(s.id) ? '.dark' : ''), { type: 'button', title: s.name, onclick: () => addSticker(s.id) }, h('img', { src: stickerUrl(s), alt: s.name, loading: 'lazy' }));
+        dragPayload(b, { kind: 'sticker', id: s.id });
+        return b;
+      },
     };
-    search.addEventListener('input', () => { stkQuery = search.value; draw(); });
-    draw();
-    const hasOutfits = all.some(st => st.neck);
-    return [h('h2', null, 'Stickers'), search, chips,
-      hasOutfits && (stkCat === 'All' || /^Outfits/.test(stkCat)) ? h('p.hint', { style: { margin: '8px 0 0' } }, 'Outfits come with a face slot on top — add a selfie to it and press Remove background for the big-head look.') : null,
-      body];
   }
-
-  // shapes
-  function shapesPanel() {
-    const W = S.doc.width;
+  const STICKER_CAT_NAMES = { Shapes: 'Sparkles & shapes' };
+  function elementCatalog() {
+    const W = S.doc.width, M = Math.min(S.doc.width, S.doc.height);
+    const out = [];
+    const N = window.StudioNature;
+    if (N) {
+      const kinds = Object.entries(N.KINDS).map(([k, d]) => elTile(d.label, () => {
+        const s = (k === 'hill' || k === 'sky') ? W / d.w : M / 1080;
+        return S.mk('nature', { kind: k, colors: d.colors.slice(), width: d.w * s, height: d.h * s, name: d.label, ...(k === 'hill' ? { y: S.doc.height - d.h * s, x: 0 } : {}) });
+      }, { tags: 'garden nature grass flowers', onAdd: k === 'hill' ? () => { const s = W / d.w; const el = S.mk('nature', { kind: k, colors: d.colors.slice(), width: W, height: d.h * s, name: d.label }); el.x = 0; el.y = S.doc.height - el.height; S.addElement(el, { center: false }); } : null }));
+      out.push({ title: 'Garden & nature', items: kinds, note: 'Painted lawn, flowers and sky — stack them like a set, then add a cut-out photo on top.' });
+    }
+    const ribbons = [
+      ['Loop ribbon', { path: 'loop', color: '#e9f07a', text: 'a cosy weekend festival with friends, music and good food', width: W * 0.9, height: W * 0.5, thickness: W * 0.08, fontSize: W * 0.03 }],
+      ['Wave ribbon', { path: 'wave', color: '#ff7ab6', text: 'NEW DROP', uppercase: true, fontFamily: 'Archivo Black', fontWeight: 400, width: W * 0.9, height: W * 0.28, thickness: W * 0.065, fontSize: W * 0.035 }],
+      ['Swoosh band', { path: 'swoosh', color: '#1f3fd1', textColor: '#ffffff', text: 'limited edition', width: W * 0.85, height: W * 0.45, thickness: W * 0.07, fontSize: W * 0.032 }],
+      ['Arc banner', { path: 'arc', color: '#f2542d', textColor: '#fff6e5', text: 'OPEN SUNDAYS', uppercase: true, repeat: false, fontFamily: 'Anton', fontWeight: 400, width: W * 0.7, height: W * 0.3, thickness: W * 0.08, fontSize: W * 0.05, letterSpacing: 0.12 }],
+      ['Outlined S-curve', { path: 'scurve', color: '#d7ef5a', border: { width: 5, color: '#1d1b18' }, text: 'save the date', width: W * 0.8, height: W * 0.5, thickness: W * 0.07, fontSize: W * 0.032 }],
+      ['Circle band', { path: 'circle', color: '#c9b6f2', text: 'good things take time', width: W * 0.5, height: W * 0.5, thickness: W * 0.06, fontSize: W * 0.028 }],
+      ['Spiral', { path: 'spiral', color: '#7bd3c4', text: 'round and round we go', width: W * 0.6, height: W * 0.6, thickness: W * 0.05, fontSize: W * 0.024 }],
+      ['Zigzag tape', { path: 'zigzag', color: '#f7d046', text: 'CAUTION · HOT DEALS', uppercase: true, ends: 'flat', width: W * 0.9, height: W * 0.25, thickness: W * 0.06, fontSize: W * 0.026 }],
+      ['Double loop', { path: 'double', color: '#ff8a3d', text: 'twists and turns and happy accidents', width: W * 0.9, height: W * 0.45, thickness: W * 0.055, fontSize: W * 0.024 }],
+      ['Text on a line', { path: 'wave', color: 'transparent', text: 'words floating on a gentle wave', repeat: false, fontFamily: 'Instrument Serif', fontWeight: 400, fontSize: W * 0.05, width: W * 0.8, height: W * 0.2, thickness: 4, textColor: '#1d1b18' }],
+    ].map(([name, o]) => elTile(name, () => S.mk('ribbon', o), { tags: 'ribbon text path band', tw: 80, th: 50 }));
+    out.push({ title: 'Ribbons & text paths', items: ribbons, grid: 'wide-grid', limit: 4, note: 'Double-click a ribbon on the canvas to bend it point by point.' });
+    const curves = [
+      ['Hook arrow', { path: 'hook', arrowEnd: true }], ['Bend arrow', { path: 'bend', arrowEnd: true }], ['Wave arrow', { path: 'wave', arrowEnd: true }],
+      ['Swoosh arrow', { path: 'swoosh', arrowEnd: true }], ['Loop arrow', { path: 'loop', arrowEnd: true }], ['Arc arrow', { path: 'arc', arrowEnd: true }],
+      ['Dashed curve', { path: 'scurve', dash: 2.5, arrowEnd: true }], ['Spiral line', { path: 'spiral' }],
+    ].map(([name, o]) => elTile(name, () => S.mk('ribbon', Object.assign({ line: true, thickness: Math.max(3, W * 0.004), color: '#1d1b18', text: '', width: W * 0.3, height: W * 0.24 }, o)), { tags: 'arrow line curve connector' }));
+    const lineDefs = [
+      ['Line', {}], ['Arrow', { arrowEnd: true }], ['Double arrow', { arrowEnd: true, arrowStart: true }], ['Dashed', { dash: 2 }],
+      ['Wavy', { wavy: true }], ['Wavy arrow', { wavy: true, arrowEnd: true }], ['Dotted', { dash: 0.5 }], ['Thick', { strokeWidth: 18 }],
+    ].map(([name, o]) => elTile(name, () => S.mk('shape', Object.assign({ shape: 'line', stroke: '#1d1b18', strokeWidth: 8, width: W * 0.4, height: 60 }, o)), { tags: 'line arrow', th: 40 }));
+    out.push({ title: 'Lines & arrows', items: [...curves.slice(0, 4), ...lineDefs.slice(0, 4), ...curves.slice(4), ...lineDefs.slice(4)] });
     const colors = ['#7fa88a', '#f7d046', '#ff8a3d', '#c9b6f2', '#ff7ab6', '#5aa9e6', '#d7ef5a', '#e84a5f'];
     let ci = 0;
-    const grid = h('div.shape-grid');
-    for (const [k, s] of Object.entries(R.SHAPES)) {
-      if (k === 'line') continue;
+    const shapes = Object.entries(R.SHAPES).filter(([k]) => k !== 'line').map(([k, s]) => {
       const fill = colors[ci++ % colors.length];
-      const make = () => {
+      return elTile(s.label, () => {
         const sz = W * 0.3;
         const w = ['pill', 'ticket', 'arrow', 'parallelogram', 'speech', 'torn'].includes(k) ? sz * 1.5 : sz;
         const hh = k === 'halfcircle' ? sz / 2 : k === 'arch' ? sz * 1.3 : ['pill', 'ticket', 'arrow', 'parallelogram'].includes(k) ? sz * 0.55 : sz;
         return S.mk('shape', { shape: k, fill, width: w, height: hh, radius: k === 'rounded' ? sz * 0.16 : k === 'ticket' ? 18 : 0, points: k === 'burst' ? 18 : k === 'scallop' ? 16 : k === 'flower' ? 8 : 5, inner: k === 'burst' ? 0.8 : 0.48, depth: k === 'flower' ? 0.28 : 0.08, texture: k === 'torn' ? 30 : 0 });
-      };
-      const demo = make();
-      const tile = h('button.stk', { title: s.label, onclick: () => S.addElement(make()) }, elThumb(demo, 54, 54, 6));
-      dragPayload(tile, { kind: 'element', el: make() });
-      grid.append(tile);
-    }
-    const lines = h('div.shape-grid');
-    const lineDefs = [
-      ['Line', {}], ['Arrow', { arrowEnd: true }], ['Double arrow', { arrowEnd: true, arrowStart: true }], ['Dashed', { dash: 2 }],
-      ['Wavy', { wavy: true }], ['Wavy arrow', { wavy: true, arrowEnd: true }], ['Dotted', { dash: 0.5 }], ['Thick', { strokeWidth: 18 }],
-    ];
-    for (const [name, o] of lineDefs) {
-      const make = () => S.mk('shape', Object.assign({ shape: 'line', stroke: '#1d1b18', strokeWidth: 8, width: W * 0.4, height: 60 }, o));
-      const tile = h('button.stk', { title: name, onclick: () => S.addElement(make()) }, elThumb(make(), 54, 40, 4));
-      dragPayload(tile, { kind: 'element', el: make() });
-      lines.append(tile);
-    }
-    const papers = window.STUDIO_PAPER_PRESETS || [];
-    const pgrid = h('div.preset-grid');
-    for (const p of papers) {
-      const make = () => S.mk('shape', S.clone(p.el(W)));
-      const tile = h('button.preset', { title: p.name, onclick: () => S.addElement(make()) }, elThumb(make(), 120, 80, 14), h('div.hint', null, p.name));
-      dragPayload(tile, { kind: 'element', el: make() });
-      pgrid.append(tile);
-    }
-    return [h('h2', null, 'Shapes'), h('h3', null, 'Basic shapes'), grid, h('h3', null, 'Lines & arrows'), lines, h('h3', null, 'Paper & cards'), pgrid];
-  }
-
-  // photos
-  function photosPanel() {
-    const W = S.doc.width;
-    const dz = h('div.drop-zone', null, h('div', { style: { fontWeight: 650, color: 'var(--ink)', marginBottom: '4px' } }, 'Drop photos here'), 'or ', h('a', { href: '#', onclick: e => { e.preventDefault(); S.pickImages({ uploadOnly: false }); } }, 'browse your files'), h('div.hint', { style: { marginTop: '6px' } }, 'You can also paste an image with ⌘V'));
-    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-    dz.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('over'); S.importFiles([...e.dataTransfer.files], { uploadOnly: true }); });
-    const ups = h('div.upl-grid', null, S.uploads.filter(id => S.assets[id]).map(id => {
-      const b = h('button.upl', { title: 'Add to canvas', onclick: () => S.addImageFromAsset(id) }, h('img', { src: S.assets[id], alt: '' }),
-        h('span.upl-bg', { onclick: e => { e.stopPropagation(); S.setBackgroundImage(id); toast('Set as background'); } }, 'Use as bg'));
-      dragPayload(b, { kind: 'asset', id });
-      return b;
+      }, { tags: 'shape' });
+    });
+    out.push({ title: 'Shapes', items: shapes });
+    const papers = (window.STUDIO_PAPER_PRESETS || []).map(p => elTile(p.name, () => S.mk('shape', S.clone(p.el(W))), { cls: 'preset', tw: 120, th: 80, pad: 14, caption: true, tags: 'paper card note' }));
+    out.push({ title: 'Paper & cards', items: papers, grid: 'preset-grid', limit: 4 });
+    const planners = (window.STUDIO_PLANNER_PRESETS || []).map(p => elTile(p.name, () => { const e = S.mk(p.el.type, S.clone(p.el)); scaleTo(e, W); return e; }, { cls: 'preset', dark: p.dark, tw: 128, th: 96, caption: true, tags: 'calendar planner date ' + p.group }));
+    out.push({ title: 'Calendars & planners', items: planners, grid: 'preset-grid', limit: 4 });
+    const cams = [
+      ['Phone camera', { style: 'iphone' }], ['Phone camera, no edge', { style: 'iphone', lens: false }],
+      ['Camcorder', { style: 'camcorder', lens: false, grid: false }], ['Viewfinder', { style: 'minimal', lens: false, grid: true }],
+    ].map(([name, o]) => elTile(name, () => S.mk('camera', Object.assign({ x: 0, y: 0, width: S.doc.width, height: S.doc.height, name }, o)), {
+      cls: 'preset.dark', tw: 96, th: 110, caption: true, tags: 'camera overlay phone screen ui',
+      onAdd: () => S.addElement(S.mk('camera', Object.assign({ x: 0, y: 0, width: S.doc.width, height: S.doc.height, name }, o)), { center: false }),
     }));
-    const frames = h('div.frame-grid');
-    const sel = S.selEls();
-    const target = sel.length === 1 && sel[0].type === 'image' ? sel[0] : null;
-    const tints = [['#e7e1d4', '#cfc5b1'], ['#f3d9d0', '#e3b4a6'], ['#d8e4d2', '#b4c9aa'], ['#dad6ef', '#b9b2de'], ['#f4e6c2', '#e6cf93'], ['#d3e3ee', '#a9c6db']];
-    let ti = 0;
-    for (const [k, l] of Object.entries(R.FRAMES)) {
-      const tint = tints[ti++ % tints.length];
-      const make = () => {
-        const sz = W * 0.42;
-        const bordered = ['polaroid', 'stamp', 'film', 'torn', 'border'].includes(k);
-        return S.mk('image', {
-          width: sz, height: k === 'polaroid' ? sz * 1.2 : k === 'arch' ? sz * 1.3 : k === 'film' ? sz * 0.8 : sz,
-          placeholder: tint,
-          frame: { style: k, color: k === 'film' ? '#1d1b18' : k === 'stamp' ? '#9ab83e' : '#ffffff', size: bordered ? Math.round(sz * 0.05) : 0, radius: k === 'rounded' ? sz * 0.08 : 0 },
-          shadow: bordered ? { on: true, color: '#000000', opacity: 0.22, blur: 26, x: 0, y: 12 } : undefined,
-        });
-      };
-      const demo = make();
-      const tile = h('button.frame-tile', {
-        title: target ? `Apply ${l} frame to the selected photo` : `Add ${l} photo frame`,
-        onclick: () => {
-          if (target) {
-            S.changeEl(target, e => { const n = make(); e.frame = n.frame; e.frame.size = ['polaroid', 'stamp', 'film', 'torn', 'border'].includes(k) ? Math.round(Math.min(e.width, e.height) * 0.05) : 0; if (k === 'polaroid') e.height = Math.max(e.height, e.width * 1.18); });
-            renderInspector();
-          } else S.addElement(make());
-        },
-      }, elThumb(demo, 56, 56, 2), l);
-      if (!target) dragPayload(tile, { kind: 'element', el: make() });
-      frames.append(tile);
-    }
-    const layouts = (window.STUDIO_PHOTO_LAYOUTS || []).map(L => h('button.big-btn', { onclick: () => S.addElements(L.build(S.doc).map(e => S.mk(e.type, e))) }, ic('layout'), L.name));
-    return [
-      h('h2', null, 'Photos'),
-      dz,
-      h('div.btn-row', { style: { marginTop: '8px' } },
-        h('button.btn', { onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), 'Photo as background'),
-        h('button.btn', { onclick: () => S.addElement(S.mk('image', { width: W * 0.5, height: W * 0.5 })) }, ic('plus'), 'Empty frame')),
-      S.uploads.length ? h('h3', null, 'Your uploads') : null,
-      S.uploads.length ? ups : null,
-      h('h3', null, target ? 'Frames — applies to selected photo' : 'Photo frames'),
-      frames,
-      layouts.length ? h('h3', null, 'Collage layouts') : null,
-      ...layouts,
-    ];
-  }
-  S.on('uploads', () => { if (tab === 'photos') renderPanel(); });
-  S.on('bgremove', stage => { if (stage === 'start' || stage === 'end') { renderInspector(); quickBar(); hydrateIcons(S.quickBar); } });
-
-  // planner
-  function plannerPanel() {
-    const W = S.doc.width;
-    const presets = window.STUDIO_PLANNER_PRESETS || [];
-    const groups = new Map();
-    for (const p of presets) { if (!groups.has(p.group)) groups.set(p.group, []); groups.get(p.group).push(p); }
-    const out = [h('h2', null, 'Calendar & planner'), h('p.sub', null, 'Month grids, week strips, tear-off dates, checklists and circular badges.')];
-    for (const [g, items] of groups) {
-      out.push(h('h3', null, g));
-      const grid = h('div.preset-grid');
-      for (const p of items) {
-        const make = () => S.mk(p.el.type, S.clone(p.el), W);
-        const demoEl = make();
-        scaleTo(demoEl, W);
-        const tile = h('button.preset' + (p.dark ? '.dark' : ''), { title: p.name, onclick: () => { const e = make(); scaleTo(e, W); S.addElement(e); } }, elThumb(demoEl, 128, 96, 6), h('div.hint', null, p.name));
-        const de = make(); scaleTo(de, W);
-        dragPayload(tile, { kind: 'element', el: de });
-        grid.append(tile);
-      }
-      out.push(grid);
+    out.push({ title: 'Camera overlays', items: cams, grid: 'preset-grid', limit: 2, note: 'Covers the whole canvas — put it on top of a photo.' });
+    const all = window.STICKERS || [];
+    const cats = [...new Set(all.map(s => s.cat))];
+    const order = ['Game & UI', 'Doodles', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
+    cats.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+    for (const c of cats) {
+      out.push({ title: STICKER_CAT_NAMES[c] || c, items: all.filter(s => s.cat === c).map(stickerItem), note: /^Outfits/.test(c) ? 'Each outfit comes with a face slot — add a selfie and the background is cut away.' : null });
     }
     return out;
+  }
+  function elementsPanel() {
+    const cat = elementCatalog();
+    const body = h('div');
+    const draw = q => {
+      if (!q) {
+        body.replaceChildren(...cat.map(c => shelf(c.title, c.items, { grid: c.grid, limit: c.limit, note: c.note })).filter(Boolean));
+      } else {
+        const hits = cat.flatMap(c => c.items.filter(it => it.name.toLowerCase().includes(q) || (it.tags || '').toLowerCase().includes(q) || c.title.toLowerCase().includes(q)));
+        body.replaceChildren(hits.length ? h('div.stk-grid', null, hits.slice(0, 120).map(it => it.node())) : h('p.hint', null, 'Nothing matches — try “arrow”, “heart”, “flower” or “calendar”.'));
+      }
+      hydrateIcons(body);
+    };
+    draw((queries.elements || '').trim().toLowerCase());
+    return [panelHead('Elements'), searchBox('Search stickers, shapes, garden…', draw), body];
   }
   function scaleTo(e, W) {
     const s = W / 1080;
@@ -1396,42 +1600,153 @@
     if (e.fontSize) e.fontSize *= s;
   }
 
-  // background
-  function backgroundPanel() {
-    const bgs = window.STUDIO_BACKGROUNDS || [];
-    const sw = h('div.color-row', null, PALETTE.map(c => h('button', { style: { background: c }, title: c, onclick: () => { S.change('doc', 'background.gradient', 'none', true); S.change('doc', 'background.color', c); renderInspector(); } })));
-    const grads = h('div.color-row', null, GRADIENTS.map(([a, b, t, ang]) => h('button', {
-      style: { background: t === 'radial' ? `radial-gradient(${a}, ${b})` : `linear-gradient(${ang}deg, ${a}, ${b})` },
-      onclick: () => { S.changeEl(S.doc, () => {}, true); Object.assign(S.doc.background, { color: a, color2: b, gradient: t, angle: ang }); S.touchAll(); S.commit(); renderInspector(); },
-    })));
-    const grid = h('div.tpl-grid');
-    for (const b of bgs) {
-      const d = prepDoc({ width: 300, height: 300, background: b.bg, overlay: b.overlay || {}, elements: [] });
-      const thumb = h('div.thumb', { style: { aspectRatio: '1' } });
-      docThumb('bg:' + b.name, d, 150).then(c => thumb.replaceChildren(c));
-      grid.append(h('button.tpl', {
-        onclick: () => {
-          const keepImg = S.doc.background.assetId;
-          S.doc.background = S.deepMerge(S.blankDoc(1, 1, '#fff').background, S.clone(b.bg));
-          if (keepImg && b.keepPhoto) S.doc.background.assetId = keepImg;
-          S.doc.overlay = S.deepMerge(S.blankDoc(1, 1, '#fff').overlay, S.clone(b.overlay || {}));
-          S.touchAll(); S.commit(); renderInspector();
-        },
-      }, thumb, h('div.meta', null, b.name)));
-    }
+  /* text */
+  function addText(over) { return S.addElement(S.mk('text', over)); }
+  S.on('addText', () => addText({ text: 'Your text', fontSize: Math.round(S.doc.width * 0.08) }));
+  function scaleTextPreset(e, s) {
+    if (e.fontSize) e.fontSize = Math.round(e.fontSize * s);
+    if (e.bg) for (const k of ['padX', 'padY', 'gap', 'radius', 'borderWidth']) if (e.bg[k]) e.bg[k] *= s;
+    if (e.stroke && e.stroke.width) e.stroke.width *= s;
+  }
+  function textPanel() {
+    const W = S.doc.width;
+    const presets = (window.STUDIO_TEXT_PRESETS || []).map(p => ({
+      name: p.name,
+      node: () => {
+        const el = S.mk('text', S.clone(p.el));
+        S.autosize(el, false);
+        const tile = h('button.preset' + (p.dark ? '.dark' : ''), { type: 'button', title: p.name, onclick: () => { const e = S.clone(p.el); scaleTextPreset(e, W / 1080); addText(e); } }, elThumb(el, 128, 64, 12));
+        dragPayload(tile, () => { const e = S.clone(p.el); scaleTextPreset(e, W / 1080); return { kind: 'element', el: S.mk('text', e) }; });
+        return tile;
+      },
+    }));
+    const paths = elementCatalog().find(c => c.title === 'Ribbons & text paths');
+    const badge = elTile('Circular badge', () => S.mk('badge', { width: W * 0.3, height: W * 0.3 }), { cls: 'preset', tw: 80, th: 80, caption: true });
+    const fams = F.customFamilies();
     return [
-      h('h2', null, 'Canvas'),
-      h('p.sub', null, 'Pick a backdrop, then fine-tune it on the right.'),
-      h('div.btn-row', null,
-        h('button.btn', { onclick: () => openSizeModal() }, ic('resize'), 'Resize canvas'),
-        h('button.btn', { onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), 'Photo')),
-      h('h3', null, 'Colours'), sw,
-      h('h3', null, 'Gradients'), grads,
-      h('h3', null, 'Paper, patterns & mats'), grid,
+      panelHead('Text'),
+      h('div.add-text', null,
+        h('button.add-text-btn', { type: 'button', onclick: () => addText({ text: 'Add a heading', fontFamily: 'Instrument Serif', fontSize: Math.round(W * 0.11) }) }, h('span', { style: { fontFamily: '"Instrument Serif"', fontSize: '26px' } }, 'Heading')),
+        h('button.add-text-btn', { type: 'button', onclick: () => addText({ text: 'Add a subheading', fontFamily: 'Bricolage Grotesque', fontWeight: 600, fontSize: Math.round(W * 0.05) }) }, h('span', { style: { fontFamily: '"Bricolage Grotesque"', fontWeight: 600, fontSize: '17px' } }, 'Subheading')),
+        h('button.add-text-btn', { type: 'button', onclick: () => addText({ text: 'Add a little body text', fontFamily: 'Instrument Sans', fontSize: Math.round(W * 0.032), lineHeight: 1.35 }) }, h('span', { style: { fontFamily: '"Instrument Sans"', fontSize: '13px' } }, 'Body text'))),
+      shelf('Styles', presets, { grid: 'preset-grid', limit: 8 }),
+      paths ? shelf('Text on a path', [...paths.items, badge], { grid: 'wide-grid', limit: 4 }) : null,
+      h('div.shelf', null,
+        h('div.shelf-head', null, h('h3', null, 'Your fonts'), h('button.see-all', { type: 'button', onclick: () => pickFonts(() => renderPanel()) }, ic('upload'), 'Upload')),
+        fams.length
+          ? h('div.font-chips', null, fams.map(fam => h('button.chip', {
+            type: 'button', style: { fontFamily: `"${fam}", sans-serif` },
+            onclick: () => { const meta = F.BY_NAME[fam]; addText({ text: fam, fontFamily: fam, fontWeight: meta && meta.weights.includes(500) ? 500 : F.nearestWeight(fam, 400), fontSize: Math.round(W * 0.08) }); },
+          }, fam)))
+          : h('p.hint', null, 'Add fonts you own (.otf, .ttf, .woff or a .zip). They stay in this browser and travel inside project files.')),
     ];
   }
 
-  // layers
+  /* photos */
+  function photosPanel() {
+    const W = S.doc.width;
+    const dz = h('div.drop-zone', { onclick: () => S.pickImages({}) }, ic('upload'), h('div', null, h('b', null, 'Upload photos'), h('div.hint', null, 'or drop them here · paste with ⌘V')));
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('over'); S.importFiles([...e.dataTransfer.files], { uploadOnly: true }); });
+    const ups = S.uploads.filter(id => S.assets[id]).map(id => ({
+      name: 'Upload',
+      node: () => {
+        const b = h('button.upl', { type: 'button', title: 'Add to canvas', onclick: () => S.addImageFromAsset(id) }, h('img', { src: S.assets[id], alt: '' }),
+          h('span.upl-bg', { onclick: e => { e.stopPropagation(); S.setBackgroundImage(id); toast('Set as background'); } }, 'Background'));
+        dragPayload(b, { kind: 'asset', id });
+        return b;
+      },
+    }));
+    const sel = S.selEls();
+    const target = sel.length === 1 && sel[0].type === 'image' ? sel[0] : null;
+    const tints = [['#e7e1d4', '#cfc5b1'], ['#f3d9d0', '#e3b4a6'], ['#d8e4d2', '#b4c9aa'], ['#dad6ef', '#b9b2de'], ['#f4e6c2', '#e6cf93'], ['#d3e3ee', '#a9c6db']];
+    let ti = 0;
+    const frames = Object.entries(R.FRAMES).map(([k, l]) => {
+      const tint = tints[ti++ % tints.length];
+      const make = () => {
+        const sz = W * 0.42;
+        const bordered = BORDER_FRAMES.includes(k);
+        return S.mk('image', {
+          width: sz, height: k === 'polaroid' ? sz * 1.2 : k === 'arch' ? sz * 1.3 : k === 'film' ? sz * 0.8 : sz,
+          placeholder: tint,
+          frame: { style: k, color: k === 'film' ? '#1d1b18' : k === 'stamp' ? '#9ab83e' : '#ffffff', size: bordered ? Math.round(sz * 0.05) : 0, radius: k === 'rounded' ? sz * 0.08 : 0 },
+          shadow: bordered ? { on: true, color: '#000000', opacity: 0.22, blur: 26, x: 0, y: 12 } : undefined,
+        });
+      };
+      return {
+        name: l,
+        node: () => {
+          const tile = h('button.frame-tile', {
+            type: 'button', title: target ? `Apply ${l} to the selected photo` : `Add a ${l} photo frame`,
+            onclick: () => {
+              const cur = S.selEls()[0];
+              if (cur && cur.type === 'image') {
+                S.changeEl(cur, e => { const n = make(); e.frame = n.frame; e.frame.size = BORDER_FRAMES.includes(k) ? Math.round(Math.min(e.width, e.height) * 0.05) : 0; if (k === 'polaroid') e.height = Math.max(e.height, e.width * 1.18); });
+                renderInspector();
+              } else S.addElement(make());
+            },
+          }, elThumb(make(), 56, 56, 2), l);
+          if (!target) dragPayload(tile, () => ({ kind: 'element', el: make() }));
+          return tile;
+        },
+      };
+    });
+    const layouts = (window.STUDIO_PHOTO_LAYOUTS || []).map(L => ({ name: L.name, node: () => h('button.list-btn', { type: 'button', onclick: () => S.addElements(L.build(S.doc).map(e => S.mk(e.type, e))) }, ic('layout'), L.name) }));
+    return [
+      panelHead('Photos'),
+      dz,
+      ups.length ? shelf('Your uploads', ups, { grid: 'upl-grid', limit: 6 }) : null,
+      shelf(target ? 'Frames · applies to selected photo' : 'Frames', frames, { grid: 'frame-grid', limit: 8 }),
+      shelf('Collage layouts', layouts, { grid: 'list-grid', limit: 4 }),
+      h('p.hint.panel-tip', null, 'Select a photo to remove its background, try a look (Motion, Fisheye, Gym grit…) or add a ground shadow.'),
+    ];
+  }
+  S.on('uploads', () => { if (tab === 'photos') renderPanel(); });
+  S.on('bgremove', st => { if (st === 'start' || st === 'end') { renderInspector(); quickBar(); hydrateIcons(S.quickBar); } });
+
+  /* canvas / backgrounds */
+  function applyBackground(b) {
+    const keepImg = S.doc.background.assetId;
+    S.doc.background = S.deepMerge(S.blankDoc(1, 1, '#fff').background, S.clone(b.bg));
+    if (keepImg && b.keepPhoto) S.doc.background.assetId = keepImg;
+    S.doc.overlay = S.deepMerge(S.blankDoc(1, 1, '#fff').overlay, S.clone(b.overlay || {}));
+    S.touchAll(); S.commit(); renderInspector();
+  }
+  function backgroundPanel() {
+    const bgs = (window.STUDIO_BACKGROUNDS || []).slice();
+    const N = window.StudioNature;
+    if (N && N.SCENES) for (const [id, sc] of Object.entries(N.SCENES)) bgs.push({ name: sc.label, group: 'Garden & sky', bg: { color: (sc.scene.sky && sc.scene.sky[1]) || '#bfe6f5', scene: Object.assign({ id }, sc.scene) } });
+    const groupOf = b => b.group || (b.bg.scene ? 'Garden & sky' : b.bg.crumple ? 'Crumpled paper' : b.bg.gradient && b.bg.gradient !== 'none' ? 'Gradients & film' : b.overlay && b.overlay.grain > 20 ? 'Gradients & film' : 'Paper & patterns');
+    const groups = new Map();
+    for (const b of bgs) { const g = groupOf(b); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(b); }
+    const item = b => ({
+      name: b.name,
+      node: () => {
+        const d = prepDoc({ width: 300, height: 300, background: b.bg, overlay: b.overlay || {}, elements: [] });
+        const thumb = h('div.thumb', { style: { aspectRatio: '1' } });
+        docThumb('bg:' + b.name, d, 150).then(c => thumb.replaceChildren(c));
+        return h('button.tpl.bg-tile', { type: 'button', title: b.name, onclick: () => applyBackground(b) }, thumb, h('div.meta', null, b.name));
+      },
+    });
+    const sw = h('div.color-row', null, PALETTE.map(c => h('button', { type: 'button', style: { background: c }, title: c, onclick: () => { S.change('doc', 'background.gradient', 'none', true); S.change('doc', 'background.scene', null, true); S.change('doc', 'background.color', c); renderInspector(); } })));
+    const grads = h('div.color-row', null, GRADIENTS.map(([a, b, t, ang]) => h('button', {
+      type: 'button',
+      style: { background: t === 'radial' ? `radial-gradient(${a}, ${b})` : `linear-gradient(${ang}deg, ${a}, ${b})` },
+      onclick: () => { Object.assign(S.doc.background, { color: a, color2: b, gradient: t, angle: ang, scene: null }); S.touchAll(); S.commit(); renderInspector(); },
+    })));
+    const order = ['Garden & sky', 'Crumpled paper', 'Paper & patterns', 'Gradients & film'];
+    return [
+      panelHead('Canvas'),
+      h('button.size-btn', { type: 'button', onclick: () => openSizeModal() }, h('span', null, sizeName(S.doc.width, S.doc.height)), h('small', null, `${S.doc.width} × ${S.doc.height}`), ic('resize')),
+      h('div.shelf', null, h('div.shelf-head', null, h('h3', null, 'Colour')), sw),
+      h('div.shelf', null, h('div.shelf-head', null, h('h3', null, 'Gradient')), grads),
+      ...order.filter(g => groups.has(g)).map(g => shelf(g, groups.get(g).map(item), { grid: 'tpl-grid.bg-grid', limit: 4 })),
+      h('button.list-btn', { type: 'button', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), 'Use a photo as the background'),
+    ];
+  }
+
+  /* layers */
   let dragLayer = null;
   function layersPanel() {
     const els = S.doc.elements.slice().reverse();
@@ -1454,8 +1769,8 @@
       },
       h('div.lthumb', null, elThumb(thumbEl, 30, 30, 2)),
       h('div.lname', null, nameSpan, h('div.ltype', null, typeLabel(el))),
-      h('button.lbtn' + (el.locked ? '.on' : ''), { title: el.locked ? 'Unlock' : 'Lock', onclick: () => S.toggleLock([el.id]) }, ic(el.locked ? 'lock' : 'unlock')),
-      h('button.lbtn' + (el.hidden ? '' : '.on'), { title: el.hidden ? 'Show' : 'Hide', onclick: () => S.toggleHidden(el.id) }, ic(el.hidden ? 'eyeOff' : 'eye')));
+      h('button.lbtn' + (el.locked ? '.on' : ''), { type: 'button', title: el.locked ? 'Unlock' : 'Lock', onclick: () => S.toggleLock([el.id]) }, ic(el.locked ? 'lock' : 'unlock')),
+      h('button.lbtn' + (el.hidden ? '' : '.on'), { type: 'button', title: el.hidden ? 'Show' : 'Hide', onclick: () => S.toggleHidden(el.id) }, ic(el.hidden ? 'eyeOff' : 'eye')));
       item.addEventListener('dragstart', e => { dragLayer = el.id; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', el.id); });
       item.addEventListener('dragover', e => {
         if (!dragLayer) return;
@@ -1471,18 +1786,17 @@
         const r = item.getBoundingClientRect(), top = e.clientY < r.top + r.height / 2;
         const arr = S.doc.elements.filter(x => x.id !== dragLayer);
         let idx = arr.findIndex(x => x.id === el.id);
-        if (top) idx += 1; // list is reversed: "above" means a higher index
+        if (top) idx += 1;
         S.moveLayer(dragLayer, idx);
         dragLayer = null;
       });
       list.append(item);
     }
     return [
-      h('h2', null, 'Layers'),
-      h('p.sub', null, 'Top of the list is the front. Drag to reorder, double-click to rename.'),
+      panelHead('Layers'),
+      h('p.hint', { style: { margin: '0 0 10px' } }, 'Top of the list sits in front. Drag to reorder, double-click to rename.'),
       els.length ? list : h('p.hint', null, 'Nothing here yet — add text, stickers or photos.'),
-      h('h3', null, 'Background'),
-      h('div.layer', { onclick: () => { S.select([]); setTab('background'); } }, h('div.lthumb', { style: { background: S.doc.background.color } }), h('div.lname', null, 'Canvas background', h('div.ltype', null, `${S.doc.width} × ${S.doc.height}`))),
+      h('div.layer.bg-layer', { onclick: () => { S.select([]); setTab('background'); } }, h('div.lthumb', { style: { background: S.doc.background.color } }), h('div.lname', null, 'Background', h('div.ltype', null, `${S.doc.width} × ${S.doc.height}`))),
     ];
   }
 
@@ -1550,37 +1864,89 @@
   S.on('contextmenu', (x, y) => contextMenu({ x, y }));
   S.on('quick', () => { quickBar(); hydrateIcons(S.quickBar); });
 
-  /* ───────────────────────── top bar ───────────────────────── */
+  /* ───────────────────────── top bar, dock & zoom ───────────────────────── */
 
   function updateTop() {
     $('#btn-undo').disabled = !S.canUndo();
     $('#btn-redo').disabled = !S.canRedo();
-    $('#tg-grid').classList.toggle('on', S.settings.grid);
-    $('#tg-snapgrid').classList.toggle('on', S.settings.snapGrid);
-    $('#tg-guides').classList.toggle('on', S.settings.guides);
-    $('#gridsize-label').textContent = S.settings.gridSize;
     $('#size-label').textContent = `${S.doc.width} × ${S.doc.height}`;
     $('#btn-zoom-fit').textContent = Math.round(S.view.scale * 100) + '%';
+    $('#btn-view').classList.toggle('on', !!(S.settings.grid || S.settings.snapGrid));
+    $('#btn-animate').classList.toggle('on', S.hasAnimation());
+    updateDock();
   }
   $('#btn-undo').onclick = () => S.undo();
   $('#btn-redo').onclick = () => S.redo();
-  $('#tg-grid').onclick = () => { S.settings.grid = !S.settings.grid; S.saveSettings(); S.redraw(); updateTop(); };
-  $('#tg-snapgrid').onclick = () => { S.settings.snapGrid = !S.settings.snapGrid; if (S.settings.snapGrid) S.settings.grid = true; S.saveSettings(); S.redraw(); updateTop(); toast(S.settings.snapGrid ? 'Snapping to the grid' : 'Grid snapping off'); };
-  $('#tg-guides').onclick = () => { S.settings.guides = !S.settings.guides; S.saveSettings(); updateTop(); toast(S.settings.guides ? 'Smart guides on' : 'Smart guides off (canvas edges & centre still snap)'); };
-  $('#btn-gridsize').onclick = e => menu(e.currentTarget, [10, 20, 30, 40, 60, 80, 108, 120].map(g => ({ label: `${g}px grid`, icon: S.settings.gridSize === g ? 'check' : 'grid', run: () => { S.settings.gridSize = g; S.settings.grid = true; S.saveSettings(); S.redraw(); updateTop(); } })));
+  $('#btn-export').onclick = () => openExport();
+  $('#size-label').onclick = () => openSizeModal();
+  $('#btn-menu').onclick = e => menu(e.currentTarget, [
+    { label: 'New design…', icon: 'plus', run: () => openHome() },
+    { label: 'Open project file…', icon: 'folder', run: () => { $('#project-input').value = ''; $('#project-input').click(); } },
+    { label: 'Save project file', icon: 'download', kbd: '⌘S', run: saveProject },
+    '-',
+    { label: 'Canvas size…', icon: 'resize', run: () => openSizeModal() },
+    { label: 'Export…', icon: 'image', kbd: '⌘E', run: () => openExport() },
+    '-',
+    { label: 'Keyboard shortcuts', icon: 'help', kbd: '?', run: () => openHelp() },
+  ]);
   $('#btn-zoom-in').onclick = () => S.zoomBy(1.2);
   $('#btn-zoom-out').onclick = () => S.zoomBy(1 / 1.2);
-  $('#btn-zoom-fit').onclick = () => S.fit();
-  $('#btn-size').onclick = () => openSizeModal();
-  $('#btn-export').onclick = () => openExport();
-  $('#btn-home').onclick = () => openHome();
-  $('#btn-help').onclick = () => openHelp();
-  $('#btn-project').onclick = e => menu(e.currentTarget, [
-    { label: 'Save project file', icon: 'download', run: saveProject },
-    { label: 'Open project file…', icon: 'folder', run: () => { $('#project-input').value = ''; $('#project-input').click(); } },
-    '-',
-    { label: 'Export image…', icon: 'image', kbd: '⌘E', run: openExport },
+  $('#btn-zoom-fit').onclick = e => menu(e.currentTarget, [
+    { label: 'Fit to screen', icon: 'resize', kbd: '⌘0', run: () => S.fit() },
+    { label: 'Zoom to 50%', icon: 'minus', run: () => S.zoomAt(0.5) },
+    { label: 'Zoom to 100%', icon: 'plus', kbd: '⌘1', run: () => S.zoomAt(1) },
+    { label: 'Zoom to 200%', icon: 'plus', run: () => S.zoomAt(2) },
   ]);
+  function viewMenu(anchor) {
+    const set = (k, v) => { S.settings[k] = v; S.saveSettings(); S.redraw(); updateTop(); };
+    const item = (label, on, run) => h('button.view-item', { type: 'button', onclick: () => { run(); viewMenu(anchor); } }, h('span', null, label), h('span.switch' + (on ? '.on' : '')));
+    const sizes = [10, 20, 30, 40, 60, 80, 108, 120];
+    popover(anchor, [
+      h('div.pop-title', null, 'Grid & snapping'),
+      item('Smart guides & centre lines', S.settings.guides, () => set('guides', !S.settings.guides)),
+      item('Show grid', S.settings.grid, () => set('grid', !S.settings.grid)),
+      item('Snap to grid', S.settings.snapGrid, () => { set('snapGrid', !S.settings.snapGrid); if (S.settings.snapGrid) set('grid', true); }),
+      h('div.view-sizes', null, h('span', null, 'Grid size'), h('div.seg', null, sizes.map(g => h('button' + (S.settings.gridSize === g ? '.on' : ''), { type: 'button', onclick: () => { S.settings.gridSize = g; S.settings.grid = true; S.saveSettings(); S.redraw(); updateTop(); viewMenu(anchor); } }, g)))),
+      h('p.hint', null, 'Hold Ctrl while dragging to skip snapping.'),
+    ], { cls: 'view-pop' });
+    const pop = $('.view-pop'), r = anchor.getBoundingClientRect();
+    if (pop) { pop.style.top = Math.max(8, r.top - pop.offsetHeight - 8) + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, r.right - pop.offsetWidth)) + 'px'; }
+  }
+  $('#btn-view').onclick = e => viewMenu(e.currentTarget);
+
+  // floating tool dock under the canvas
+  const dock = $('#dock');
+  function updateDock() {
+    $$('button[data-tool]', dock).forEach(b => b.classList.toggle('on', S.tool === b.dataset.tool));
+  }
+  function buildDock() {
+    const W = () => S.doc.width;
+    const tool = (t, iconName, title) => h('button.dock-btn', { type: 'button', 'data-tool': t, title, onclick: () => S.setTool(S.tool === t && t !== 'select' ? 'select' : t) }, ic(iconName));
+    const act = (iconName, title, run) => h('button.dock-btn', { type: 'button', title, onclick: run }, ic(iconName));
+    dock.replaceChildren(
+      tool('select', 'cursor', 'Select (V)'),
+      tool('hand', 'hand', 'Hand — drag to pan (H, or hold Space)'),
+      h('span.dock-sep'),
+      act('type', 'Add text (T)', () => S.emit('addText')),
+      act('shapes', 'Add a shape', e => menu(e.currentTarget, [
+        { label: 'Rectangle', icon: 'square', run: () => S.addElement(S.mk('shape', { shape: 'rect', width: W() * 0.3, height: W() * 0.3 })) },
+        { label: 'Circle', icon: 'circle', run: () => S.addElement(S.mk('shape', { shape: 'ellipse', width: W() * 0.3, height: W() * 0.3, fill: '#f7d046' })) },
+        { label: 'Star', icon: 'sparkle', run: () => S.addElement(S.mk('shape', { shape: 'star', width: W() * 0.3, height: W() * 0.3, fill: '#ff8a3d' })) },
+        { label: 'Line', icon: 'minus', run: () => S.addElement(S.mk('shape', { shape: 'line', stroke: '#1d1b18', strokeWidth: 8, width: W() * 0.4, height: 60 })) },
+        { label: 'Curved arrow', icon: 'forward', run: () => S.addElement(S.mk('ribbon', { path: 'hook', line: true, thickness: 4, color: '#1d1b18', text: '', arrowEnd: true, width: W() * 0.3, height: W() * 0.24 })) },
+        { label: 'Ribbon with text', icon: 'path', run: () => S.addElement(S.mk('ribbon', { width: W() * 0.85, height: W() * 0.3, thickness: W() * 0.07, fontSize: W() * 0.03 })) },
+        '-',
+        { label: 'More elements…', icon: 'more', run: () => setTab('elements') },
+      ])),
+      act('image', 'Add photos', () => S.pickImages({})),
+      tool('erase', 'eraser', 'Eraser (E)'),
+    );
+    hydrateIcons(dock);
+    updateDock();
+  }
+  buildDock();
+  S.on('tool', updateDock);
+
   const nameInput = $('#doc-name');
   nameInput.addEventListener('input', () => { S.docName = nameInput.value || 'Untitled design'; S.scheduleSave(); });
   nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); e.stopPropagation(); });
@@ -1745,8 +2111,8 @@
         const sz = sizeFor(vres);
         const anim = S.hasAnimation();
         opts.replaceChildren(...[
-          anim ? null : h('div.hint', { style: { marginBottom: '8px', color: 'var(--ink)' } }, 'Nothing is animated yet. Open the Animate tab (or press “Animate everything”) to bring layers to life — or export a still video.'),
-          anim ? null : h('button.btn', { style: { marginBottom: '10px' }, onclick: () => { closeModal(); setTab('animate'); } }, ic('film'), 'Go to Animate'),
+          anim ? null : h('div.hint', { style: { marginBottom: '8px', color: 'var(--ink)' } }, 'Nothing is animated yet. Use Animate in the top bar to bring layers to life — or export a still video.'),
+          anim ? null : h('button.btn', { style: { marginBottom: '10px' }, onclick: () => { closeModal(); openAnimate($('#btn-animate')); } }, ic('film'), 'Animate'),
           row('Format', h('div.seg', null, segBtn(vfmt, 'mp4', 'MP4', v => { vfmt = v; }), segBtn(vfmt, 'webm', 'WEBM', v => { vfmt = v; }))),
           row('Size', h('div.seg', null, RES.slice(1).map(([l, v]) => segBtn(vres, v, l.split(' ')[0], x => { vres = x; })))),
           row('Frame rate', h('div.seg', null, [24, 30, 60].map(f => segBtn(fps, f, f + ' fps', x => { fps = x; })))),
@@ -1841,106 +2207,66 @@
 
   /* ───────────────────────── animation ───────────────────────── */
 
-  function animSection(el) {
-    const T = 'sel';
-    const an = el.anim || {};
-    const loop = an.loop || 'none', enter = an.enter || 'none';
-    const setA = (k, v, live) => { S.change(T, 'anim.' + k, v, live); if (!live && (k === 'loop' || k === 'enter')) renderInspector(); updateTimeline(); };
-    const enterOpts = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'typewriter' || el.type === 'text');
-    return sec('Animation', [
-      row('Loop', selectCtl(T, 'anim.loop', Object.entries(R.ANIM_LOOPS), { def: 'none', set: v => setA('loop', v) })),
-      row('Entrance', selectCtl(T, 'anim.enter', enterOpts, { def: 'none', set: v => setA('enter', v) })),
-      loop !== 'none' || enter !== 'none' ? row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })) : null,
-      loop !== 'none' && loop !== 'spin' && loop !== 'blink' ? row('Amount', num(T, 'anim.amount', { min: 0.1, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('amount', v, l) })) : null,
-      enter !== 'none' ? row('Delay', num(T, 'anim.delay', { min: 0, max: 10, step: 0.05, slider: true, def: 0, unit: 's', set: (v, l) => setA('delay', v, l) })) : null,
-      loop === 'spin' ? toggle(T, 'anim.reverse', 'Spin anticlockwise') : null,
-      loop !== 'none' ? toggle(T, 'anim.sync', 'Start in sync with other layers') : null,
-      full(h('div.btn-row', null,
-        h('button.btn', { onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic('play'), 'Preview'),
-        h('button.btn', { onclick: () => { setTab('animate'); } }, ic('film'), 'All animation'))),
-    ], loop !== 'none' || enter !== 'none');
-  }
-
   // one-click looks for the whole design
   const ANIM_PRESETS = [
     { name: 'Stop-motion', sub: 'Everything boils like hand-made frames', apply: (el, i) => ({ loop: 'wiggle', amount: el.type === 'image' && el.width > S.doc.width * 0.8 ? 0 : 1, speed: 1 }) },
-    { name: 'Gentle float', sub: 'Stickers drift, text settles in', apply: (el, i) => el.type === 'text' ? { enter: 'rise', delay: i * 0.12, loop: 'none' } : { loop: el.type === 'sticker' ? 'float' : 'sway', amount: 0.7 } },
-    { name: 'Pop in', sub: 'Layers pop in one after another', apply: (el, i) => ({ enter: 'pop', delay: 0.15 + i * 0.12, loop: el.type === 'sticker' ? 'jiggle' : 'none', amount: 0.6 }) },
-    { name: 'Party', sub: 'Bouncy stickers, spinning stars', apply: (el, i) => el.type === 'sticker' ? { loop: /star|sparkle|sun|flower|asterisk|burst/i.test(el.stickerId) ? 'spin' : 'bounce', speed: 1 } : el.type === 'text' ? { loop: 'pulse', amount: 0.6 } : { loop: 'jiggle', amount: 0.4 } },
-    { name: 'Typewriter story', sub: 'Text types itself out', apply: (el, i) => el.type === 'text' ? { enter: 'typewriter', delay: 0.2 + i * 0.5, speed: 0.4 } : { enter: 'fade', delay: i * 0.1 } },
+    { name: 'Gentle float', sub: 'Stickers drift, text settles in', apply: (el, i) => el.type === 'text' ? { enter: 'rise', delay: i * 0.12, loop: 'none' } : el.type === 'ribbon' ? { loop: 'flow', enter: 'none' } : { loop: el.type === 'sticker' ? 'float' : 'sway', amount: 0.7 } },
+    { name: 'Pop in', sub: 'Layers pop in one after another', apply: (el, i) => ({ enter: el.type === 'ribbon' ? 'draw' : 'pop', delay: 0.15 + i * 0.12, loop: el.type === 'sticker' ? 'jiggle' : 'none', amount: 0.6 }) },
+    { name: 'Party', sub: 'Bouncy stickers, spinning stars', apply: (el, i) => el.type === 'sticker' ? { loop: /star|sparkle|sun|flower|asterisk|burst|gem/i.test(el.stickerId) ? 'spin' : 'bounce', speed: 1 } : el.type === 'text' ? { loop: 'pulse', amount: 0.6 } : el.type === 'ribbon' ? { loop: 'flow' } : { loop: 'jiggle', amount: 0.4 } },
+    { name: 'Typewriter story', sub: 'Text types itself out', apply: (el, i) => el.type === 'text' ? { enter: 'typewriter', delay: 0.2 + i * 0.5, speed: 0.4 } : el.type === 'ribbon' ? { enter: 'draw', delay: i * 0.1 } : { enter: 'fade', delay: i * 0.1 } },
     { name: 'Drop & sway', sub: 'Things fall in and keep swinging', apply: (el, i) => ({ enter: 'drop', delay: i * 0.1, loop: el.type === 'sticker' ? 'swing' : 'none', amount: 0.8 }) },
   ];
-  function animatePanel() {
-    const D = S.doc.anim;
-    const presets = h('div.anim-presets', null, ANIM_PRESETS.map(p => h('button.big-btn', {
-      onclick: () => {
-        const targets = S.doc.elements.filter(e => !e.locked && !e.hidden);
-        // large full-bleed photos act as backdrops and stay still
-        targets.forEach((el, i) => { el.anim = Object.assign({ loop: 'none', enter: 'none', speed: 1, amount: 1, delay: 0 }, p.apply(el, i)); if (el.anim.amount === 0) el.anim = { loop: 'none', enter: 'none' }; });
-        S.touchAll(); S.commit(); renderInspector(); updateTimeline(); S.play();
-        toast(`“${p.name}” applied to ${targets.length} layers`);
-      },
-    }, h('b', null, p.name), h('small', null, p.sub))));
-    return [
-      h('h2', null, 'Animate'),
-      h('p.sub', null, 'Bring layers to life, then export a looping video up to 4K. Pick a look for everything, or set each layer in the right-hand panel.'),
-      h('div.btn-row', null,
-        h('button.btn.primary', { onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic(S.isPlaying() ? 'pause' : 'play'), S.isPlaying() ? 'Pause' : 'Play'),
-        h('button.btn', { onclick: () => openExport('video') }, ic('film'), 'Export video')),
-      h('h3', null, 'Animate everything'),
-      presets,
-      h('button.btn', { style: { marginTop: '8px', width: '100%' }, onclick: () => { S.doc.elements.forEach(e => { delete e.anim; }); S.stopPreview(); S.touchAll(); S.commit(); renderInspector(); updateTimeline(); toast('Animations removed'); } }, ic('trash'), 'Remove all animation'),
-      h('h3', null, 'Timing'),
-      row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); updateTimeline(); } })),
-      row('Frame rate', selectCtl('doc', 'anim.fps', [[24, '24 fps'], [30, '30 fps'], [60, '60 fps']], { number: true })),
-      h('p.hint', null, 'Loops repeat a whole number of times within the length, so exported videos loop seamlessly.'),
-      h('h3', null, 'Animated layers'),
-      ...(() => {
-        const list = S.doc.elements.filter(R.hasAnim).slice().reverse();
-        if (!list.length) return [h('p.hint', null, 'No layers are animated yet.')];
-        return list.map(el => h('div.layer', { onclick: () => S.select([el.id]) },
-          h('div.lname', null, S.elLabel(el), h('div.ltype', null, [el.anim.enter && el.anim.enter !== 'none' ? R.ANIM_ENTER[el.anim.enter] : null, el.anim.loop && el.anim.loop !== 'none' ? R.ANIM_LOOPS[el.anim.loop] : null].filter(Boolean).join(' · ')))));
-      })(),
-    ];
+  function applyAnimPreset(p) {
+    const targets = S.doc.elements.filter(e => !e.locked && !e.hidden && e.type !== 'camera' && !(e.type === 'nature' && e.width >= S.doc.width * 0.9));
+    targets.forEach((el, i) => { el.anim = Object.assign({ loop: 'none', enter: 'none', speed: 1, amount: 1, delay: 0 }, p.apply(el, i)); if (el.anim.amount === 0) el.anim = { loop: 'none', enter: 'none' }; });
+    S.touchAll(); S.commit(); renderInspector(); updateTimeline(); updateTop(); S.play();
+    toast(`“${p.name}” applied to ${targets.length} layers`);
   }
+  function openAnimate(anchor) {
+    const playing = S.isPlaying();
+    const el = popover(anchor, [
+      h('div.pop-title', null, 'Animate'),
+      h('div.btn-row', null,
+        h('button.btn.primary.grow', { type: 'button', onclick: () => { closePop(); if (!S.hasAnimation()) { toast('Pick a look below first'); return; } playing ? S.pause() : S.play(); } }, ic(playing ? 'pause' : 'play'), playing ? 'Pause' : 'Play'),
+        h('button.btn.grow', { type: 'button', onclick: () => { closePop(); openExport('video'); } }, ic('film'), 'Export video')),
+      h('div.sub-label', null, 'Animate everything'),
+      h('div.anim-presets', null, ANIM_PRESETS.map(p => h('button.anim-preset', { type: 'button', onclick: () => { closePop(); applyAnimPreset(p); } }, h('b', null, p.name), h('small', null, p.sub)))),
+      row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); updateTimeline(); } })),
+      S.hasAnimation() ? h('button.link-btn.danger', { type: 'button', onclick: () => { closePop(); S.doc.elements.forEach(e => { delete e.anim; }); S.stopPreview(); S.touchAll(); S.commit(); renderInspector(); updateTimeline(); updateTop(); toast('Animations removed'); } }, 'Remove all animation') : null,
+      h('p.hint', null, 'To animate one layer, select it and use Motion on the right.'),
+    ].filter(Boolean), { cls: 'anim-pop' });
+    hydrateIcons(el);
+  }
+  $('#btn-animate').onclick = e => openAnimate(e.currentTarget);
 
   // floating timeline under the canvas whenever something moves
   const tl = $('#timeline');
   function updateTimeline() {
     const show = S.hasAnimation() || S.isPlaying();
     tl.hidden = !show;
+    $('#stage-area').classList.toggle('has-timeline', show);
     if (!show) return;
     const D = S.doc.anim.duration;
     if (!tl.firstChild) {
       tl.append(
-        h('button.play', { title: 'Play / pause (P)', onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic('play')),
+        h('button.play', { type: 'button', title: 'Play / pause (P)', onclick: () => (S.isPlaying() ? S.pause() : S.play()) }, ic('play')),
         h('input', { type: 'range', min: 0, max: 1000, value: 0, 'aria-label': 'Animation time', oninput: e => { S.pause(); S.seek(e.target.value / 1000 * S.doc.anim.duration); } }),
         h('span.time'),
-        h('button.btn', { title: 'Back to the editing layout', onclick: () => S.stopPreview() }, ic('stop'), 'Edit'),
-        h('button.btn', { onclick: () => openExport('video') }, ic('film'), 'Export'));
+        h('button.btn', { type: 'button', title: 'Back to the still layout for editing', onclick: () => S.stopPreview() }, ic('stop'), 'Edit'));
       hydrateIcons(tl);
     }
     const t = R.playTime;
     $('input', tl).value = t == null ? 0 : Math.round(t / D * 1000);
-    $('.time', tl).textContent = t == null ? `edit · ${D}s` : `${t.toFixed(1)} / ${D}s`;
+    $('.time', tl).textContent = t == null ? `${D}s` : `${t.toFixed(1)} / ${D}s`;
     const pb = $('.play', tl);
     const want = S.isPlaying() ? 'pause' : 'play';
     if (pb.dataset.state !== want) { pb.dataset.state = want; pb.replaceChildren(ic(want)); }
   }
   let tlRaf = 0;
   S.on('time', () => { if (!tlRaf) tlRaf = requestAnimationFrame(() => { tlRaf = 0; updateTimeline(); }); });
-  S.on('playstate', playing => {
-    updateTimeline();
-    $('#btn-play').classList.toggle('on', playing);
-    $('#btn-play').replaceChildren(ic(playing ? 'pause' : 'play'));
-    if (tab === 'animate') renderPanel();
-  });
+  S.on('playstate', () => { updateTimeline(); updateTop(); });
   S.on('change', updateTimeline);
   S.on('doc', updateTimeline);
-  $('#btn-play').onclick = () => {
-    if (!S.hasAnimation() && !S.isPlaying()) { toast('Nothing is animated yet — pick a look in Animate'); setTab('animate'); if (matchMedia('(max-width: 920px)').matches) panel.classList.add('open'); return; }
-    S.isPlaying() ? S.pause() : S.play();
-  };
 
   /* ───────────────────────── eraser bar ───────────────────────── */
 
@@ -1948,7 +2274,6 @@
   function updateEraserBar() {
     const on = S.tool === 'erase';
     ebar.hidden = !on;
-    $('#tg-eraser').classList.toggle('on', on);
     if (!on) return;
     const E = S.eraser;
     const segE = (cur, v, label, set) => h('button' + (cur === v ? '.on' : ''), { title: typeof label === 'string' ? label : '', onclick: () => { set(v); S.refreshBrush(); updateEraserBar(); } }, ICONS[label] ? ic(label) : label);
@@ -1968,7 +2293,6 @@
   S.on('tool', updateEraserBar);
   S.on('selection', () => { if (S.tool === 'erase') updateEraserBar(); });
   S.on('values', () => { if (S.tool === 'erase') { const c = S.selEls()[0]; const has = !!(c && c.erase && c.erase.length); if (has !== !!$('#eraser-bar .btn:not(.primary)')) updateEraserBar(); } });
-  $('#tg-eraser').onclick = () => S.setTool(S.tool === 'erase' ? 'select' : 'erase');
 
   /* ───────────────────────── wiring ───────────────────────── */
 

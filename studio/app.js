@@ -1678,6 +1678,7 @@
     if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
     if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
     if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }
+    if (k === 'h') { S.setTool(S.tool === 'hand' ? 'select' : 'hand'); return; }
     if (S.tool === 'erase' && (e.key === '[' || e.key === ']')) { S.eraser.size = clamp(S.eraser.size * (e.key === ']' ? 1.2 : 1 / 1.2), 4, 800); S.refreshBrush(); emit('tool', 'erase'); return; }
     if (k === 'p') { playing ? S.pause() : S.play(); return; }
     if (e.key === 'Enter') {
