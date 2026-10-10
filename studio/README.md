@@ -27,6 +27,16 @@ Work is autosaved to the browser (IndexedDB). Use **Menu → Download project fi
 
 To refresh the file after changing the code: `python3 studio/tools/build_single_file.py`.
 
+## On a phone
+
+Open the same link on a phone and the editor switches to a phone layout on its own (and back on a laptop — nothing changes there):
+
+- The canvas fills the screen. **Pinch** to zoom, **two fingers** to pan, drag an empty part of the canvas with one finger to move around, **tap** empty canvas to deselect, **double-tap** text to type, **long-press** a layer for its menu (duplicate, copy properties, flip, arrange, delete…).
+- A **tool strip** runs along the bottom, like Snapseed or Photoshop Express. With nothing selected it has Templates, Text, Photos, Elements, Backdrop, Canvas, Layers and Animate (plus Play once something moves). Select a layer and it changes to that layer's tools — for a photo: Replace, Crop, Blend, Photo, Studio, Looks, Adjust, Film, Blur, Frame, Effects, Motion, Position, Duplicate, Delete; for text: Edit text, Font, Style, Effects…
+- Each tool opens **one small sheet** with just its controls, with the canvas still in view above; ✓ closes it, and switching layers keeps the same tool open. Templates, Text, Photos and the other libraries open as tall sheets that fold away as soon as you add something.
+- Menus, colour pickers and dialogs (export, canvas size…) slide up from the bottom. Handles are bigger for fingers.
+- Turn the phone sideways and the sheets sit beside the canvas instead of under it.
+
 ## Home page and your designs
 
 The app opens on a home page:

@@ -888,3 +888,120 @@ input.sel { padding: 0 8px; }
 .layer-row .blend-sel { flex: 1; min-width: 0; height: 28px; }
 .layer-row .insp-opacity { width: 118px; flex: none; }
 .multi-hint { padding: 10px 16px 0; margin: 0; }
+
+/* ───────────────────────── phone layout (body.mobile) ─────────────────────────
+   The canvas fills the screen; tools run along the bottom; each tool opens a small sheet. */
+.mtools { display: none; }
+body.mobile { --mt-h: calc(64px + env(safe-area-inset-bottom)); overscroll-behavior: none; }
+body.mobile #app, body.mobile #app.panel-closed {
+  grid-template: "top" calc(50px + env(safe-area-inset-top)) "stage" minmax(0, 1fr) "insp" auto "tools" auto / minmax(0, 1fr);
+  height: 100dvh;
+}
+body.mobile .topbar { padding: env(safe-area-inset-top) 6px 0 4px; gap: 2px; }
+body.mobile .doc-name { flex: 1; width: auto; min-width: 0; font-size: 14px; }
+body.mobile .size-chip, body.mobile .save-chip, body.mobile #btn-animate { display: none; }
+body.mobile .tb-icon { width: 36px; height: 36px; }
+body.mobile #btn-export { padding: 0 12px; height: 34px; border-radius: 10px; }
+body.mobile #btn-export i { display: none; }
+body.mobile .rail, body.mobile .dock, body.mobile .zoom-ctl, body.mobile .ctx-quick, body.mobile .stage-hint { display: none !important; }
+body.mobile .timeline { bottom: 10px; width: calc(100% - 20px); }
+
+/* bottom tool strip */
+body.mobile .mtools {
+  grid-area: tools; display: flex; gap: 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: var(--chrome); border-top: 1px solid var(--line); position: relative; z-index: 25;
+  -webkit-overflow-scrolling: touch;
+}
+body.mobile .mtools::-webkit-scrollbar { display: none; }
+.mt {
+  flex: 0 0 auto; min-width: 62px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 0; background: transparent; border-radius: 12px; color: var(--ink-2); font: 600 10.5px/1 var(--ui-font); padding: 0 6px; scroll-snap-align: start;
+  -webkit-tap-highlight-color: transparent;
+}
+.mt i { width: 22px; height: 22px; }
+.mt.on { background: var(--accent-soft); color: var(--accent); }
+.mt:active { background: var(--surface-2); }
+.mt.back { color: var(--ink); }
+.mt.back::after { content: ''; position: absolute; }
+.mt.danger { color: var(--danger); }
+
+/* the inspector becomes a small sheet between the canvas and the tools, so the canvas stays in view */
+body.mobile .inspector {
+  grid-area: insp; position: relative; display: none; max-height: 46dvh; padding: 0 0 12px; border: 0; border-top: 1px solid var(--line);
+  border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(20, 16, 10, .10); z-index: 24; overscroll-behavior: contain;
+  left: auto; right: auto; bottom: auto;
+}
+body.mobile .inspector.open { display: block; }
+body.mobile .inspector .insp-head, body.mobile .inspector .insp-empty, body.mobile .inspector .m-hide { display: none !important; }
+body.mobile .inspector .sec { border-bottom: 0; }
+body.mobile .inspector .sec-head { padding-top: 4px; }
+body.mobile .inspector .layer-row { border-bottom: 0; padding: 12px 16px; }
+.m-bar {
+  position: sticky; top: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px 6px 16px; background: var(--chrome);
+}
+.m-bar::before { content: ''; position: absolute; left: 50%; top: 5px; width: 36px; height: 4px; border-radius: 4px; background: var(--line-strong); transform: translateX(-50%); }
+.m-bar b { font-size: 14px; font-weight: 650; margin-top: 6px; }
+.m-done { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; margin-top: 4px; }
+.m-done i { width: 18px; height: 18px; }
+/* a single section in the sheet already has the sheet title above it */
+body.mobile .inspector .sec:not(.m-hide) .sec-title span { font-size: 12px; color: var(--ink-3); }
+
+/* panels (templates, text, photos…) are tall sheets over the canvas */
+body.mobile .panel, body.mobile #app.panel-closed .panel {
+  position: fixed; left: 0; right: 0; bottom: var(--mt-h); top: auto; height: min(76dvh, 720px); display: none; visibility: visible;
+  padding: 0 14px 24px; z-index: 30; border: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -12px 40px rgba(20, 16, 10, .18); overscroll-behavior: contain; max-height: none;
+}
+body.mobile .panel.open { display: block; animation: m-up .2s ease; }
+body.mobile .panel-head { padding-top: 18px; }
+body.mobile .panel-head::before { content: ''; position: absolute; left: 50%; top: 7px; width: 36px; height: 4px; border-radius: 4px; background: var(--line-strong); transform: translateX(-50%); }
+body.mobile .panel-head .icon-btn i { transform: rotate(-90deg); }
+@keyframes m-up { from { transform: translateY(30px); opacity: .4; } }
+
+/* bigger touch targets in sheets */
+body.mobile .row { min-height: 40px; }
+body.mobile input.slider, body.mobile input[type=range] { height: 28px; }
+body.mobile .btn { min-height: 38px; }
+body.mobile .chip { padding: 7px 12px; }
+body.mobile .num input { font-size: 16px; }
+body.mobile input, body.mobile textarea, body.mobile select { font-size: 16px; }
+body.mobile .tpl-grid { gap: 14px 10px; }
+
+/* popovers and menus become action sheets; dialogs slide up from the bottom */
+body.mobile .pop {
+  left: 8px !important; right: 8px; top: auto !important; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto !important;
+  max-height: 64dvh; border-radius: 16px; padding: 14px;
+}
+body.mobile .menu button { padding: 12px 10px; font-size: 15px; }
+body.mobile .modal-back { place-items: end stretch; padding: 0; }
+body.mobile .modal, body.mobile .modal.small {
+  width: 100% !important; max-width: none; max-height: 92dvh; border-radius: 20px 20px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+  animation: m-up .2s ease;
+}
+
+/* home page on a phone */
+body.mobile .start-row { display: flex; overflow-x: auto; scrollbar-width: none; gap: 10px; margin: 0 -16px; padding: 2px 16px 6px; scroll-snap-type: x mandatory; }
+body.mobile .start-row::-webkit-scrollbar { display: none; }
+body.mobile .start-card { flex: 0 0 132px; scroll-snap-align: start; }
+body.mobile .home .home-tpls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 10px; }
+body.mobile .proj-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.mobile .home-head { flex-wrap: wrap; gap: 8px; }
+/* one section in the sheet: the sheet bar already names it; keep only its "+" button */
+body.mobile .inspector.m-single .sec-title { display: none; }
+body.mobile .inspector.m-single .sec-head:not(:has(.sec-add)) { display: none; }
+body.mobile .inspector.m-single .sec-head:has(.sec-add) { justify-content: flex-end; padding: 0 12px; min-height: 0; }
+body.mobile .inspector.m-single .sec-add { display: flex; align-items: center; width: auto; padding: 0 12px; height: 32px; border-radius: 9px; background: var(--surface-2); }
+body.mobile .inspector.m-single .sec-add::after { content: 'Add'; font-size: 13px; font-weight: 600; margin-left: 4px; }
+body.mobile .inspector .sec.empty:not(.m-hide) .sec-body::before { content: 'Nothing yet — tap Add.'; display: block; color: var(--ink-3); font-size: 13px; padding: 4px 16px 10px; }
+/* phone held sideways: sheets sit beside the canvas instead of under it */
+@media (orientation: landscape) {
+  body.mobile #app, body.mobile #app.panel-closed {
+    grid-template: "top top" calc(44px + env(safe-area-inset-top)) "stage insp" minmax(0, 1fr) "tools tools" auto / minmax(0, 1fr) auto;
+  }
+  body.mobile .inspector { width: min(380px, 46vw); max-height: none; border-top: 0; border-left: 1px solid var(--line); border-radius: 0; box-shadow: none; padding-left: env(safe-area-inset-left); }
+  body.mobile .panel, body.mobile #app.panel-closed .panel {
+    left: auto; right: 0; top: calc(44px + env(safe-area-inset-top)); height: auto; width: min(440px, 56vw); border-radius: 16px 0 0 0;
+  }
+  body.mobile .mt { height: 46px; }
+  body.mobile .m-bar::before, body.mobile .panel-head::before { display: none; }
+}

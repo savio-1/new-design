@@ -140,6 +140,19 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
 `full(node)`, `label(text)`. Panels use `shelf`, `elTile`, `templateCard`. Call `renderInspector()` /
 `renderPanel()` after structural changes; `toast(msg, {label, run})` for feedback with an action.
 
+## Phone layout
+
+`app.js` sets `S.mobile` and `body.mobile` from `matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 520px)')`
+and emits `mobile` when it flips. Touch gestures live in the "touch: phones & tablets" block (pinch / two-finger pan,
+one-finger pan on empty canvas via `touchPan`, long-press → `contextmenu`); the transformer gets bigger handles.
+In `ui.js` the "phone layout" block adds the bottom tool strip (`#mtools`, `mToolbar`) and turns the inspector into a
+one-section sheet: every `sec()` carries `data-key` / `data-title`, `mobileSheet()` shows only the section whose key is
+`mTool` (or all of them for the canvas, `'all'`), and `M_SEC` maps section titles to strip icons and short labels — so a
+new inspector section shows up as a phone tool automatically. Panels are tall sheets (`.panel.open`). All phone CSS
+is scoped under `body.mobile` at the end of `studio.css` (landscape phones: sheets beside the canvas). Test with
+Playwright `devices['iPhone 13']`, `'Pixel 7'`, `'iPhone 13 landscape'`; multi-touch through CDP
+`Input.dispatchTouchEvent`.
+
 ## Templates (templates.js)
 
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,

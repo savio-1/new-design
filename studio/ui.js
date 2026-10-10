@@ -11,6 +11,9 @@
 
   const ICONS = {
     plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+    sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4', drop: 'M12 3.5s6 6.4 6 10.8a6 6 0 0 1-12 0C6 9.9 12 3.5 12 3.5z',
+    blend: 'M9.5 15.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5 19.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z',
+    move: 'M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3',
     home: 'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
     target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
     undo: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11', redo: 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
@@ -457,6 +460,7 @@
     const title$ = fixed
       ? h('div.sec-title', null, h('span', null, title))
       : h('button.sec-title', { type: 'button', onclick: () => { const o = !d.classList.contains('open'); d.classList.toggle('open', o); secOpen.set(key, o); } }, h('span', null, title), ic('chevDown'));
+    d.dataset.key = key; d.dataset.title = title;
     d.append(h('div.sec-head', null, title$, opts.actions || null), h('div.sec-body', null, list));
     return d;
   }
@@ -515,6 +519,7 @@
     insp.replaceChildren(...parts.flat().filter(Boolean));
     insp.scrollTop = top;
     hydrateIcons(insp);
+    if (S.mobile) mobileSheet();
   }
   S.renderInspector = renderInspector;
   function typeLabel(el) {
@@ -578,7 +583,8 @@
     renderInspector();
     const ta = insp.querySelector(`textarea.video-text[data-el="${id}"]`);
     if (ta) { ta.focus(); ta.select(); ta.closest('.sec')?.scrollIntoView({ block: 'nearest' }); ta.classList.add('flash'); setTimeout(() => ta.classList.remove('flash'), 700); }
-    if (matchMedia('(max-width: 920px)').matches) insp.classList.add('open');
+    if (S.mobile) { const sec0 = ta && ta.closest('.sec'); if (sec0) { mTool = sec0.dataset.key; mobileSheet(); ta.focus(); } }
+    else if (matchMedia('(max-width: 920px)').matches) insp.classList.add('open');
   });
   function textInspector(el, o = {}) {
     const T = 'sel';
@@ -3261,7 +3267,8 @@
     if (tab === 'layers') renderPanel();
     if (tab === 'photos') renderPanel();
     quickBar(); hydrateIcons(S.quickBar);
-    if (matchMedia('(max-width: 920px)').matches) {
+    if (S.mobile) { if (els.length) panel.classList.remove('open'); mToolbar(); }
+    else if (matchMedia('(max-width: 920px)').matches) {
       insp.classList.toggle('open', els.length > 0);
       if (els.length) panel.classList.remove('open');
     }
@@ -3269,10 +3276,100 @@
   S.on('doc', () => { renderInspector(); if (tab === 'layers' || tab === 'background') renderPanel(); updateTop(); });
   S.on('change', () => { if (tab === 'layers') { clearTimeout(S._lt); S._lt = setTimeout(renderPanel, 120); } });
 
+  /* ───────────────────────── phone layout ─────────────────────────
+     Snapseed / Photoshop Express style: the canvas fills the screen, a strip of tools along the bottom changes
+     with what's selected, and each tool opens one small sheet (one inspector section) with the canvas in view.
+     Panels (templates, text, photos…) open as tall sheets and fold away once something is added. */
+  const mtools = h('nav.mtools', { id: 'mtools', 'aria-label': 'Tools' });
+  app.append(mtools);
+  let mTool = null;   // the inspector section in the sheet; 'all' = the whole canvas inspector; null = sheet closed
+  const M_SEC = {
+    Photo: ['image', 'Photo'], 'Studio look': ['wand', 'Studio'], Look: ['palette', 'Looks'], Adjust: ['sliders', 'Adjust'], 'Film effects': ['film', 'Film'],
+    Blur: ['drop', 'Blur'], Frame: ['square', 'Frame'], Typography: ['type', 'Font'], Background: ['square', 'Style'], Text: ['edit', 'Text'],
+    Effects: ['sparkle', 'Effects'], Motion: ['play', 'Motion'], Position: ['move', 'Position'], Arrange: ['layers', 'Arrange'], Playback: ['film', 'Playback'],
+    'Stop motion': ['film', 'Frames'], Shape: ['shapes', 'Shape'], Colours: ['palette', 'Colours'], Underneath: ['image', 'Under'], Photos: ['image', 'Photos'],
+    'Opacity & blend': ['blend', 'Blend'],
+  };
+  function mSections() {
+    const out = [];
+    for (const n of insp.children) {
+      if (n.classList.contains('layer-row')) out.push({ node: n, key: 'layer', title: 'Opacity & blend' });
+      // "+" lists (Effects, Motion, Finish) count even before anything is added — that's how you add things
+      else if (n.matches('section.sec') && (!n.classList.contains('empty') || n.querySelector('.sec-add'))) out.push({ node: n, key: n.dataset.key, title: n.dataset.title });
+      else if (n.matches('section.sec')) n.classList.add('m-hide');
+    }
+    return out;
+  }
+  function mobileSheet() {
+    if (!S.mobile) return;
+    const secs = mSections(), els = S.selEls();
+    if (mTool === 'all' && els.length) mTool = null;
+    if (mTool && mTool !== 'all' && !secs.some(x => x.key === mTool)) mTool = null;
+    for (const x of secs) {
+      const on = mTool === 'all' || x.key === mTool;
+      x.node.classList.toggle('m-hide', !on);
+      if (on && mTool !== 'all') x.node.classList.add('open');
+    }
+    insp.classList.toggle('open', !!mTool);
+    insp.classList.toggle('m-single', !!mTool && mTool !== 'all');
+    const old = insp.querySelector(':scope > .m-bar');
+    if (old) old.remove();
+    if (mTool) {
+      const cur = secs.find(x => x.key === mTool);
+      const title = mTool === 'all' ? 'Canvas' : cur ? cur.title : '';
+      insp.prepend(h('div.m-bar', null, h('b', null, title), h('button.m-done', { type: 'button', 'aria-label': 'Done', onclick: () => { mTool = null; mobileSheet(); } }, ic('check'))));
+    }
+    mToolbar(secs);
+  }
+  function mOpen(key) { panel.classList.remove('open'); mTool = mTool === key ? null : key; mobileSheet(); insp.scrollTop = 0; }
+  function mPanel(t) {
+    mTool = null; mobileSheet();
+    if (panel.classList.contains('open') && tab === t) openPanel(false); else setTab(t);
+    mToolbar();
+  }
+  function mToolbar(secs) {
+    if (!S.mobile) return;
+    secs = secs || mSections();
+    const els = S.selEls(), items = [];
+    const B = (icon, label, run, on, cls) => h('button.mt' + (on ? '.on' : '') + (cls || ''), { type: 'button', onclick: run }, ic(icon), h('span', null, label));
+    if (!els.length) {
+      const pt = panel.classList.contains('open') ? tab : null;
+      items.push(B('layout', 'Templates', () => mPanel('templates'), pt === 'templates'), B('type', 'Text', () => mPanel('text'), pt === 'text'),
+        B('image', 'Photos', () => mPanel('photos'), pt === 'photos'), B('shapes', 'Elements', () => mPanel('elements'), pt === 'elements'),
+        B('palette', 'Backdrop', () => mPanel('background'), pt === 'background'), B('sliders', 'Canvas', () => mOpen('all'), mTool === 'all'),
+        B('layers', 'Layers', () => mPanel('layers'), pt === 'layers'), B('film', 'Animate', e => openAnimate(e.currentTarget)));
+      if (S.hasAnimation()) items.push(B(S.isPlaying() ? 'pause' : 'play', S.isPlaying() ? 'Pause' : 'Play', () => (S.isPlaying() ? S.pause() : S.play())));
+    } else {
+      const el = els[0], one = els.length === 1;
+      items.push(B('chevLeft', 'Done', () => { mTool = null; S.select([]); }, false, '.back'));
+      if (one && el.type === 'text') items.push(B('edit', 'Edit text', () => (S.isVideoText(el) ? mOpen('video-text') : S.editText(el.id))));
+      if (one && el.type === 'image') {
+        items.push(B('replace', el.assetId ? 'Replace' : 'Add photo', () => S.pickImages({ replaceId: el.id })));
+        if (el.assetId) items.push(B('crop', 'Crop', () => { mTool = null; mobileSheet(); S.startCrop(el.id); }));
+      }
+      for (const x of secs) {
+        if (x.key === 'video-text' && one && el.type === 'text') continue;
+        const [icon, lab] = M_SEC[x.title] || ['more', x.title];
+        items.push(B(icon, lab, () => mOpen(x.key), mTool === x.key));
+      }
+      items.push(B('copy', 'Duplicate', () => S.duplicate()), B('trash', 'Delete', () => S.removeSelected(), false, '.danger'));
+    }
+    const sx = mtools.scrollLeft;
+    mtools.replaceChildren(...items);
+    mtools.scrollLeft = sx;
+  }
+  S.on('mobile', () => { mTool = null; panel.classList.remove('open'); insp.classList.remove('open'); renderInspector(); renderPanel(); mToolbar(); if (S.fit) S.fit(); });
+  S.on('playstate', () => mToolbar());
+  // a template loaded or a layer added from a sheet: fold the sheet so the canvas shows
+  S.on('doc', () => { if (S.mobile) { panel.classList.remove('open'); mToolbar(); } });
+  // the panel's own close button folds the sheet; keep the strip in step
+  new MutationObserver(() => { if (S.mobile) mToolbar(); }).observe(panel, { attributes: true, attributeFilter: ['class'] });
+
   hydrateIcons();
   renderPanel();
   renderInspector();
   updateTop();
+  if (S.mobile) mToolbar();
   S.ui = { openHome, openExport, openSizeModal, setTab, toast, renderPanel };
 
   // first run: restore the last session silently, otherwise show the start screen

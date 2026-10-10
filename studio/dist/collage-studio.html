@@ -899,6 +899,123 @@ input.sel { padding: 0 8px; }
 .layer-row .insp-opacity { width: 118px; flex: none; }
 .multi-hint { padding: 10px 16px 0; margin: 0; }
 
+/* ───────────────────────── phone layout (body.mobile) ─────────────────────────
+   The canvas fills the screen; tools run along the bottom; each tool opens a small sheet. */
+.mtools { display: none; }
+body.mobile { --mt-h: calc(64px + env(safe-area-inset-bottom)); overscroll-behavior: none; }
+body.mobile #app, body.mobile #app.panel-closed {
+  grid-template: "top" calc(50px + env(safe-area-inset-top)) "stage" minmax(0, 1fr) "insp" auto "tools" auto / minmax(0, 1fr);
+  height: 100dvh;
+}
+body.mobile .topbar { padding: env(safe-area-inset-top) 6px 0 4px; gap: 2px; }
+body.mobile .doc-name { flex: 1; width: auto; min-width: 0; font-size: 14px; }
+body.mobile .size-chip, body.mobile .save-chip, body.mobile #btn-animate { display: none; }
+body.mobile .tb-icon { width: 36px; height: 36px; }
+body.mobile #btn-export { padding: 0 12px; height: 34px; border-radius: 10px; }
+body.mobile #btn-export i { display: none; }
+body.mobile .rail, body.mobile .dock, body.mobile .zoom-ctl, body.mobile .ctx-quick, body.mobile .stage-hint { display: none !important; }
+body.mobile .timeline { bottom: 10px; width: calc(100% - 20px); }
+
+/* bottom tool strip */
+body.mobile .mtools {
+  grid-area: tools; display: flex; gap: 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; scroll-snap-type: x proximity;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: var(--chrome); border-top: 1px solid var(--line); position: relative; z-index: 25;
+  -webkit-overflow-scrolling: touch;
+}
+body.mobile .mtools::-webkit-scrollbar { display: none; }
+.mt {
+  flex: 0 0 auto; min-width: 62px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: 0; background: transparent; border-radius: 12px; color: var(--ink-2); font: 600 10.5px/1 var(--ui-font); padding: 0 6px; scroll-snap-align: start;
+  -webkit-tap-highlight-color: transparent;
+}
+.mt i { width: 22px; height: 22px; }
+.mt.on { background: var(--accent-soft); color: var(--accent); }
+.mt:active { background: var(--surface-2); }
+.mt.back { color: var(--ink); }
+.mt.back::after { content: ''; position: absolute; }
+.mt.danger { color: var(--danger); }
+
+/* the inspector becomes a small sheet between the canvas and the tools, so the canvas stays in view */
+body.mobile .inspector {
+  grid-area: insp; position: relative; display: none; max-height: 46dvh; padding: 0 0 12px; border: 0; border-top: 1px solid var(--line);
+  border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(20, 16, 10, .10); z-index: 24; overscroll-behavior: contain;
+  left: auto; right: auto; bottom: auto;
+}
+body.mobile .inspector.open { display: block; }
+body.mobile .inspector .insp-head, body.mobile .inspector .insp-empty, body.mobile .inspector .m-hide { display: none !important; }
+body.mobile .inspector .sec { border-bottom: 0; }
+body.mobile .inspector .sec-head { padding-top: 4px; }
+body.mobile .inspector .layer-row { border-bottom: 0; padding: 12px 16px; }
+.m-bar {
+  position: sticky; top: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 12px 6px 16px; background: var(--chrome);
+}
+.m-bar::before { content: ''; position: absolute; left: 50%; top: 5px; width: 36px; height: 4px; border-radius: 4px; background: var(--line-strong); transform: translateX(-50%); }
+.m-bar b { font-size: 14px; font-weight: 650; margin-top: 6px; }
+.m-done { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; margin-top: 4px; }
+.m-done i { width: 18px; height: 18px; }
+/* a single section in the sheet already has the sheet title above it */
+body.mobile .inspector .sec:not(.m-hide) .sec-title span { font-size: 12px; color: var(--ink-3); }
+
+/* panels (templates, text, photos…) are tall sheets over the canvas */
+body.mobile .panel, body.mobile #app.panel-closed .panel {
+  position: fixed; left: 0; right: 0; bottom: var(--mt-h); top: auto; height: min(76dvh, 720px); display: none; visibility: visible;
+  padding: 0 14px 24px; z-index: 30; border: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -12px 40px rgba(20, 16, 10, .18); overscroll-behavior: contain; max-height: none;
+}
+body.mobile .panel.open { display: block; animation: m-up .2s ease; }
+body.mobile .panel-head { padding-top: 18px; }
+body.mobile .panel-head::before { content: ''; position: absolute; left: 50%; top: 7px; width: 36px; height: 4px; border-radius: 4px; background: var(--line-strong); transform: translateX(-50%); }
+body.mobile .panel-head .icon-btn i { transform: rotate(-90deg); }
+@keyframes m-up { from { transform: translateY(30px); opacity: .4; } }
+
+/* bigger touch targets in sheets */
+body.mobile .row { min-height: 40px; }
+body.mobile input.slider, body.mobile input[type=range] { height: 28px; }
+body.mobile .btn { min-height: 38px; }
+body.mobile .chip { padding: 7px 12px; }
+body.mobile .num input { font-size: 16px; }
+body.mobile input, body.mobile textarea, body.mobile select { font-size: 16px; }
+body.mobile .tpl-grid { gap: 14px 10px; }
+
+/* popovers and menus become action sheets; dialogs slide up from the bottom */
+body.mobile .pop {
+  left: 8px !important; right: 8px; top: auto !important; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto !important;
+  max-height: 64dvh; border-radius: 16px; padding: 14px;
+}
+body.mobile .menu button { padding: 12px 10px; font-size: 15px; }
+body.mobile .modal-back { place-items: end stretch; padding: 0; }
+body.mobile .modal, body.mobile .modal.small {
+  width: 100% !important; max-width: none; max-height: 92dvh; border-radius: 20px 20px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+  animation: m-up .2s ease;
+}
+
+/* home page on a phone */
+body.mobile .start-row { display: flex; overflow-x: auto; scrollbar-width: none; gap: 10px; margin: 0 -16px; padding: 2px 16px 6px; scroll-snap-type: x mandatory; }
+body.mobile .start-row::-webkit-scrollbar { display: none; }
+body.mobile .start-card { flex: 0 0 132px; scroll-snap-align: start; }
+body.mobile .home .home-tpls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 10px; }
+body.mobile .proj-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.mobile .home-head { flex-wrap: wrap; gap: 8px; }
+/* one section in the sheet: the sheet bar already names it; keep only its "+" button */
+body.mobile .inspector.m-single .sec-title { display: none; }
+body.mobile .inspector.m-single .sec-head:not(:has(.sec-add)) { display: none; }
+body.mobile .inspector.m-single .sec-head:has(.sec-add) { justify-content: flex-end; padding: 0 12px; min-height: 0; }
+body.mobile .inspector.m-single .sec-add { display: flex; align-items: center; width: auto; padding: 0 12px; height: 32px; border-radius: 9px; background: var(--surface-2); }
+body.mobile .inspector.m-single .sec-add::after { content: 'Add'; font-size: 13px; font-weight: 600; margin-left: 4px; }
+body.mobile .inspector .sec.empty:not(.m-hide) .sec-body::before { content: 'Nothing yet — tap Add.'; display: block; color: var(--ink-3); font-size: 13px; padding: 4px 16px 10px; }
+/* phone held sideways: sheets sit beside the canvas instead of under it */
+@media (orientation: landscape) {
+  body.mobile #app, body.mobile #app.panel-closed {
+    grid-template: "top top" calc(44px + env(safe-area-inset-top)) "stage insp" minmax(0, 1fr) "tools tools" auto / minmax(0, 1fr) auto;
+  }
+  body.mobile .inspector { width: min(380px, 46vw); max-height: none; border-top: 0; border-left: 1px solid var(--line); border-radius: 0; box-shadow: none; padding-left: env(safe-area-inset-left); }
+  body.mobile .panel, body.mobile #app.panel-closed .panel {
+    left: auto; right: 0; top: calc(44px + env(safe-area-inset-top)); height: auto; width: min(440px, 56vw); border-radius: 16px 0 0 0;
+  }
+  body.mobile .mt { height: 46px; }
+  body.mobile .m-bar::before, body.mobile .panel-head::before { display: none; }
+}
+
 </style>
 </head>
 <body>
@@ -16125,6 +16242,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       marqueeStart = { x: p.x, y: p.y, mode, base: sel.slice(), onId };
       marquee.setAttrs({ x: p.x, y: p.y, width: 0, height: 0, visible: false });
     };
+    if (t === stage && S.mobile && evt.touches) {
+      // on a phone a finger on empty canvas pans the view; a tap there deselects
+      const p0 = evt.touches[0];
+      touchPan = { x: p0.clientX, y: p0.clientY, vx: S.view.x, vy: S.view.y, moved: false };
+      return;
+    }
     if (t === stage) {
       const mode = evt.shiftKey ? 'add' : evt.altKey ? 'sub' : 'replace';
       if (mode === 'replace') S.select([]);
@@ -16232,6 +16355,75 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     else if (t === stage) S.select([]);
     emit('contextmenu', e.evt.clientX, e.evt.clientY);
   });
+
+  /* ───────────────────────── touch: phones & tablets ─────────────────────────
+     Two fingers pinch to zoom and pan, one finger on empty canvas pans, a long press opens the layer menu. */
+  const mobileQuery = matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 520px)');
+  function setMobile() {
+    S.mobile = mobileQuery.matches;
+    document.body.classList.toggle('mobile', S.mobile);
+    // bigger handles for fingers
+    tr.setAttrs(S.mobile ? { anchorSize: 20, rotateAnchorOffset: 34, anchorCornerRadius: 10, borderStrokeWidth: 2 } : { anchorSize: 10, rotateAnchorOffset: 26, anchorCornerRadius: 5, borderStrokeWidth: 1.5 });
+    uiLayer.batchDraw();
+    emit('mobile', S.mobile);
+  }
+  S.mobile = false;
+  mobileQuery.addEventListener('change', setMobile);
+  setMobile();
+  let touchPan = null, pinch = null, press = null;
+  const touchPt = t => { const r = area.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; };
+  area.addEventListener('touchstart', e => {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (e.touches.length >= 2) {
+      e.preventDefault();
+      // the second finger turns whatever the first one started into a pinch
+      touchPan = null;
+      if (marqueeStart) { marqueeStart = null; marquee.visible(false); }
+      for (const n of nodes.values()) if (n.isDragging()) n.stopDrag();
+      if (tr.isTransforming()) tr.stopTransform();
+      const a = touchPt(e.touches[0]), b = touchPt(e.touches[1]);
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale: S.view.scale, vx: S.view.x, vy: S.view.y };
+      return;
+    }
+    const t0 = e.touches[0];
+    press = { x: t0.clientX, y: t0.clientY, timer: setTimeout(() => {
+      if (!press || pinch) return;
+      const p = touchPt({ clientX: press.x, clientY: press.y }), hit = stage.getIntersection(p);
+      let node = hit; while (node && !elMap.has(node.id && node.id())) node = node.getParent && node.getParent();
+      for (const n of nodes.values()) if (n.isDragging()) n.stopDrag();
+      touchPan = null;
+      if (node) { const id = node.id(); if (!sel.includes(id)) S.select([id]); }
+      if (navigator.vibrate) navigator.vibrate(12);
+      emit('contextmenu', press.x, press.y);
+      press = null;
+    }, 550) };
+  }, { passive: false, capture: true });
+  area.addEventListener('touchmove', e => {
+    if (pinch && e.touches.length >= 2) {
+      e.preventDefault();
+      const a = touchPt(e.touches[0]), b = touchPt(e.touches[1]);
+      const sc = clamp(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.d, 0.05, 8);
+      const wx = (pinch.mx - pinch.vx) / pinch.scale, wy = (pinch.my - pinch.vy) / pinch.scale;
+      S.view.scale = sc; S.view.x = (a.x + b.x) / 2 - wx * sc; S.view.y = (a.y + b.y) / 2 - wy * sc; S.view.fit = false;
+      applyView();
+      return;
+    }
+    const t0 = e.touches[0];
+    if (press && Math.hypot(t0.clientX - press.x, t0.clientY - press.y) > 8) { clearTimeout(press.timer); press = null; }
+    if (touchPan && e.touches.length === 1) {
+      e.preventDefault();
+      if (Math.hypot(t0.clientX - touchPan.x, t0.clientY - touchPan.y) > 6) touchPan.moved = true;
+      S.view.x = touchPan.vx + (t0.clientX - touchPan.x); S.view.y = touchPan.vy + (t0.clientY - touchPan.y); S.view.fit = false;
+      applyView();
+    }
+  }, { passive: false, capture: true });
+  const touchEnd = e => {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (e.touches.length < 2) pinch = null;
+    if (touchPan && !e.touches.length) { if (!touchPan.moved) S.select([]); touchPan = null; }
+  };
+  area.addEventListener('touchend', touchEnd, { capture: true });
+  area.addEventListener('touchcancel', touchEnd, { capture: true });
 
   /* ───────────────────────── snapping ───────────────────────── */
 
@@ -18126,6 +18318,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   const ICONS = {
     plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+    sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4', drop: 'M12 3.5s6 6.4 6 10.8a6 6 0 0 1-12 0C6 9.9 12 3.5 12 3.5z',
+    blend: 'M9.5 15.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM14.5 19.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z',
+    move: 'M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3',
     home: 'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
     target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
     undo: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11', redo: 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
@@ -18572,6 +18767,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const title$ = fixed
       ? h('div.sec-title', null, h('span', null, title))
       : h('button.sec-title', { type: 'button', onclick: () => { const o = !d.classList.contains('open'); d.classList.toggle('open', o); secOpen.set(key, o); } }, h('span', null, title), ic('chevDown'));
+    d.dataset.key = key; d.dataset.title = title;
     d.append(h('div.sec-head', null, title$, opts.actions || null), h('div.sec-body', null, list));
     return d;
   }
@@ -18630,6 +18826,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     insp.replaceChildren(...parts.flat().filter(Boolean));
     insp.scrollTop = top;
     hydrateIcons(insp);
+    if (S.mobile) mobileSheet();
   }
   S.renderInspector = renderInspector;
   function typeLabel(el) {
@@ -18693,7 +18890,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     renderInspector();
     const ta = insp.querySelector(`textarea.video-text[data-el="${id}"]`);
     if (ta) { ta.focus(); ta.select(); ta.closest('.sec')?.scrollIntoView({ block: 'nearest' }); ta.classList.add('flash'); setTimeout(() => ta.classList.remove('flash'), 700); }
-    if (matchMedia('(max-width: 920px)').matches) insp.classList.add('open');
+    if (S.mobile) { const sec0 = ta && ta.closest('.sec'); if (sec0) { mTool = sec0.dataset.key; mobileSheet(); ta.focus(); } }
+    else if (matchMedia('(max-width: 920px)').matches) insp.classList.add('open');
   });
   function textInspector(el, o = {}) {
     const T = 'sel';
@@ -21376,7 +21574,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (tab === 'layers') renderPanel();
     if (tab === 'photos') renderPanel();
     quickBar(); hydrateIcons(S.quickBar);
-    if (matchMedia('(max-width: 920px)').matches) {
+    if (S.mobile) { if (els.length) panel.classList.remove('open'); mToolbar(); }
+    else if (matchMedia('(max-width: 920px)').matches) {
       insp.classList.toggle('open', els.length > 0);
       if (els.length) panel.classList.remove('open');
     }
@@ -21384,10 +21583,100 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   S.on('doc', () => { renderInspector(); if (tab === 'layers' || tab === 'background') renderPanel(); updateTop(); });
   S.on('change', () => { if (tab === 'layers') { clearTimeout(S._lt); S._lt = setTimeout(renderPanel, 120); } });
 
+  /* ───────────────────────── phone layout ─────────────────────────
+     Snapseed / Photoshop Express style: the canvas fills the screen, a strip of tools along the bottom changes
+     with what's selected, and each tool opens one small sheet (one inspector section) with the canvas in view.
+     Panels (templates, text, photos…) open as tall sheets and fold away once something is added. */
+  const mtools = h('nav.mtools', { id: 'mtools', 'aria-label': 'Tools' });
+  app.append(mtools);
+  let mTool = null;   // the inspector section in the sheet; 'all' = the whole canvas inspector; null = sheet closed
+  const M_SEC = {
+    Photo: ['image', 'Photo'], 'Studio look': ['wand', 'Studio'], Look: ['palette', 'Looks'], Adjust: ['sliders', 'Adjust'], 'Film effects': ['film', 'Film'],
+    Blur: ['drop', 'Blur'], Frame: ['square', 'Frame'], Typography: ['type', 'Font'], Background: ['square', 'Style'], Text: ['edit', 'Text'],
+    Effects: ['sparkle', 'Effects'], Motion: ['play', 'Motion'], Position: ['move', 'Position'], Arrange: ['layers', 'Arrange'], Playback: ['film', 'Playback'],
+    'Stop motion': ['film', 'Frames'], Shape: ['shapes', 'Shape'], Colours: ['palette', 'Colours'], Underneath: ['image', 'Under'], Photos: ['image', 'Photos'],
+    'Opacity & blend': ['blend', 'Blend'],
+  };
+  function mSections() {
+    const out = [];
+    for (const n of insp.children) {
+      if (n.classList.contains('layer-row')) out.push({ node: n, key: 'layer', title: 'Opacity & blend' });
+      // "+" lists (Effects, Motion, Finish) count even before anything is added — that's how you add things
+      else if (n.matches('section.sec') && (!n.classList.contains('empty') || n.querySelector('.sec-add'))) out.push({ node: n, key: n.dataset.key, title: n.dataset.title });
+      else if (n.matches('section.sec')) n.classList.add('m-hide');
+    }
+    return out;
+  }
+  function mobileSheet() {
+    if (!S.mobile) return;
+    const secs = mSections(), els = S.selEls();
+    if (mTool === 'all' && els.length) mTool = null;
+    if (mTool && mTool !== 'all' && !secs.some(x => x.key === mTool)) mTool = null;
+    for (const x of secs) {
+      const on = mTool === 'all' || x.key === mTool;
+      x.node.classList.toggle('m-hide', !on);
+      if (on && mTool !== 'all') x.node.classList.add('open');
+    }
+    insp.classList.toggle('open', !!mTool);
+    insp.classList.toggle('m-single', !!mTool && mTool !== 'all');
+    const old = insp.querySelector(':scope > .m-bar');
+    if (old) old.remove();
+    if (mTool) {
+      const cur = secs.find(x => x.key === mTool);
+      const title = mTool === 'all' ? 'Canvas' : cur ? cur.title : '';
+      insp.prepend(h('div.m-bar', null, h('b', null, title), h('button.m-done', { type: 'button', 'aria-label': 'Done', onclick: () => { mTool = null; mobileSheet(); } }, ic('check'))));
+    }
+    mToolbar(secs);
+  }
+  function mOpen(key) { panel.classList.remove('open'); mTool = mTool === key ? null : key; mobileSheet(); insp.scrollTop = 0; }
+  function mPanel(t) {
+    mTool = null; mobileSheet();
+    if (panel.classList.contains('open') && tab === t) openPanel(false); else setTab(t);
+    mToolbar();
+  }
+  function mToolbar(secs) {
+    if (!S.mobile) return;
+    secs = secs || mSections();
+    const els = S.selEls(), items = [];
+    const B = (icon, label, run, on, cls) => h('button.mt' + (on ? '.on' : '') + (cls || ''), { type: 'button', onclick: run }, ic(icon), h('span', null, label));
+    if (!els.length) {
+      const pt = panel.classList.contains('open') ? tab : null;
+      items.push(B('layout', 'Templates', () => mPanel('templates'), pt === 'templates'), B('type', 'Text', () => mPanel('text'), pt === 'text'),
+        B('image', 'Photos', () => mPanel('photos'), pt === 'photos'), B('shapes', 'Elements', () => mPanel('elements'), pt === 'elements'),
+        B('palette', 'Backdrop', () => mPanel('background'), pt === 'background'), B('sliders', 'Canvas', () => mOpen('all'), mTool === 'all'),
+        B('layers', 'Layers', () => mPanel('layers'), pt === 'layers'), B('film', 'Animate', e => openAnimate(e.currentTarget)));
+      if (S.hasAnimation()) items.push(B(S.isPlaying() ? 'pause' : 'play', S.isPlaying() ? 'Pause' : 'Play', () => (S.isPlaying() ? S.pause() : S.play())));
+    } else {
+      const el = els[0], one = els.length === 1;
+      items.push(B('chevLeft', 'Done', () => { mTool = null; S.select([]); }, false, '.back'));
+      if (one && el.type === 'text') items.push(B('edit', 'Edit text', () => (S.isVideoText(el) ? mOpen('video-text') : S.editText(el.id))));
+      if (one && el.type === 'image') {
+        items.push(B('replace', el.assetId ? 'Replace' : 'Add photo', () => S.pickImages({ replaceId: el.id })));
+        if (el.assetId) items.push(B('crop', 'Crop', () => { mTool = null; mobileSheet(); S.startCrop(el.id); }));
+      }
+      for (const x of secs) {
+        if (x.key === 'video-text' && one && el.type === 'text') continue;
+        const [icon, lab] = M_SEC[x.title] || ['more', x.title];
+        items.push(B(icon, lab, () => mOpen(x.key), mTool === x.key));
+      }
+      items.push(B('copy', 'Duplicate', () => S.duplicate()), B('trash', 'Delete', () => S.removeSelected(), false, '.danger'));
+    }
+    const sx = mtools.scrollLeft;
+    mtools.replaceChildren(...items);
+    mtools.scrollLeft = sx;
+  }
+  S.on('mobile', () => { mTool = null; panel.classList.remove('open'); insp.classList.remove('open'); renderInspector(); renderPanel(); mToolbar(); if (S.fit) S.fit(); });
+  S.on('playstate', () => mToolbar());
+  // a template loaded or a layer added from a sheet: fold the sheet so the canvas shows
+  S.on('doc', () => { if (S.mobile) { panel.classList.remove('open'); mToolbar(); } });
+  // the panel's own close button folds the sheet; keep the strip in step
+  new MutationObserver(() => { if (S.mobile) mToolbar(); }).observe(panel, { attributes: true, attributeFilter: ['class'] });
+
   hydrateIcons();
   renderPanel();
   renderInspector();
   updateTop();
+  if (S.mobile) mToolbar();
   S.ui = { openHome, openExport, openSizeModal, setTab, toast, renderPanel };
 
   // first run: restore the last session silently, otherwise show the start screen

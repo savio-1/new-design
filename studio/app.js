@@ -910,6 +910,12 @@
       marqueeStart = { x: p.x, y: p.y, mode, base: sel.slice(), onId };
       marquee.setAttrs({ x: p.x, y: p.y, width: 0, height: 0, visible: false });
     };
+    if (t === stage && S.mobile && evt.touches) {
+      // on a phone a finger on empty canvas pans the view; a tap there deselects
+      const p0 = evt.touches[0];
+      touchPan = { x: p0.clientX, y: p0.clientY, vx: S.view.x, vy: S.view.y, moved: false };
+      return;
+    }
     if (t === stage) {
       const mode = evt.shiftKey ? 'add' : evt.altKey ? 'sub' : 'replace';
       if (mode === 'replace') S.select([]);
@@ -1017,6 +1023,75 @@
     else if (t === stage) S.select([]);
     emit('contextmenu', e.evt.clientX, e.evt.clientY);
   });
+
+  /* ───────────────────────── touch: phones & tablets ─────────────────────────
+     Two fingers pinch to zoom and pan, one finger on empty canvas pans, a long press opens the layer menu. */
+  const mobileQuery = matchMedia('(max-width: 760px), (pointer: coarse) and (max-height: 520px)');
+  function setMobile() {
+    S.mobile = mobileQuery.matches;
+    document.body.classList.toggle('mobile', S.mobile);
+    // bigger handles for fingers
+    tr.setAttrs(S.mobile ? { anchorSize: 20, rotateAnchorOffset: 34, anchorCornerRadius: 10, borderStrokeWidth: 2 } : { anchorSize: 10, rotateAnchorOffset: 26, anchorCornerRadius: 5, borderStrokeWidth: 1.5 });
+    uiLayer.batchDraw();
+    emit('mobile', S.mobile);
+  }
+  S.mobile = false;
+  mobileQuery.addEventListener('change', setMobile);
+  setMobile();
+  let touchPan = null, pinch = null, press = null;
+  const touchPt = t => { const r = area.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; };
+  area.addEventListener('touchstart', e => {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (e.touches.length >= 2) {
+      e.preventDefault();
+      // the second finger turns whatever the first one started into a pinch
+      touchPan = null;
+      if (marqueeStart) { marqueeStart = null; marquee.visible(false); }
+      for (const n of nodes.values()) if (n.isDragging()) n.stopDrag();
+      if (tr.isTransforming()) tr.stopTransform();
+      const a = touchPt(e.touches[0]), b = touchPt(e.touches[1]);
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, scale: S.view.scale, vx: S.view.x, vy: S.view.y };
+      return;
+    }
+    const t0 = e.touches[0];
+    press = { x: t0.clientX, y: t0.clientY, timer: setTimeout(() => {
+      if (!press || pinch) return;
+      const p = touchPt({ clientX: press.x, clientY: press.y }), hit = stage.getIntersection(p);
+      let node = hit; while (node && !elMap.has(node.id && node.id())) node = node.getParent && node.getParent();
+      for (const n of nodes.values()) if (n.isDragging()) n.stopDrag();
+      touchPan = null;
+      if (node) { const id = node.id(); if (!sel.includes(id)) S.select([id]); }
+      if (navigator.vibrate) navigator.vibrate(12);
+      emit('contextmenu', press.x, press.y);
+      press = null;
+    }, 550) };
+  }, { passive: false, capture: true });
+  area.addEventListener('touchmove', e => {
+    if (pinch && e.touches.length >= 2) {
+      e.preventDefault();
+      const a = touchPt(e.touches[0]), b = touchPt(e.touches[1]);
+      const sc = clamp(pinch.scale * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.d, 0.05, 8);
+      const wx = (pinch.mx - pinch.vx) / pinch.scale, wy = (pinch.my - pinch.vy) / pinch.scale;
+      S.view.scale = sc; S.view.x = (a.x + b.x) / 2 - wx * sc; S.view.y = (a.y + b.y) / 2 - wy * sc; S.view.fit = false;
+      applyView();
+      return;
+    }
+    const t0 = e.touches[0];
+    if (press && Math.hypot(t0.clientX - press.x, t0.clientY - press.y) > 8) { clearTimeout(press.timer); press = null; }
+    if (touchPan && e.touches.length === 1) {
+      e.preventDefault();
+      if (Math.hypot(t0.clientX - touchPan.x, t0.clientY - touchPan.y) > 6) touchPan.moved = true;
+      S.view.x = touchPan.vx + (t0.clientX - touchPan.x); S.view.y = touchPan.vy + (t0.clientY - touchPan.y); S.view.fit = false;
+      applyView();
+    }
+  }, { passive: false, capture: true });
+  const touchEnd = e => {
+    if (press) { clearTimeout(press.timer); press = null; }
+    if (e.touches.length < 2) pinch = null;
+    if (touchPan && !e.touches.length) { if (!touchPan.moved) S.select([]); touchPan = null; }
+  };
+  area.addEventListener('touchend', touchEnd, { capture: true });
+  area.addEventListener('touchcancel', touchEnd, { capture: true });
 
   /* ───────────────────────── snapping ───────────────────────── */
 
