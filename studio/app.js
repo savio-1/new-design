@@ -476,7 +476,11 @@
   function usedAssets() {
     const ids = new Set();
     if (doc.background.assetId) ids.add(doc.background.assetId);
-    for (const el of doc.elements) if (el.assetId) ids.add(el.assetId);
+    for (const el of doc.elements) {
+      if (el.assetId) ids.add(el.assetId);
+      if (el.studio && el.studio.cutId) ids.add(el.studio.cutId);
+      if (el.bgRemoved && el.bgRemoved.assetId) ids.add(el.bgRemoved.assetId);
+    }
     for (const id of S.uploads) ids.add(id);
     const out = {};
     for (const id of ids) if (assets[id]) out[id] = assets[id];

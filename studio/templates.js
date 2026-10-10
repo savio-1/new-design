@@ -589,6 +589,63 @@
       }),
     })),
 
+    // ── studio portraits: the photo is cut out and re-lit on a seamless backdrop ──
+    ...[
+      { id: 'studio-stat', name: 'Big stat', preset: 'ember', f: { motion: 22, motionAngle: 0, contrast: 10 } },
+      { id: 'studio-circle', name: 'Circle headline', preset: 'ember', st: { light: 'flat', color: '#d4552a', color2: '#7a2410' }, f: { motion: 35, motionAngle: 0, contrast: 10 } },
+      { id: 'studio-rhythm', name: 'Case study', preset: 'blue', st: { backdrop: false }, f: { ghost: 35, motionAngle: -30 } },
+      { id: 'studio-data', name: 'Body data', preset: 'spotlight', f: {} },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Photo', 'Post', 'Sport'], width: 1080, height: 1350,
+      build: () => {
+        const P = window.StudioRender && window.StudioRender.STUDIO_PRESETS ? window.StudioRender.STUDIO_PRESETS[v.preset] : {};
+        const studio = Object.assign({ on: true, backdrop: true, preset: v.preset }, P, v.st || {});
+        delete studio.label;
+        const photo = img(0, 0, 1080, 1350, { studio, filters: v.f, placeholder: [studio.color, studio.color2], name: 'Your photo — the person is cut out and re-lit' });
+        const W = '#ffffff';
+        const els = {
+          'studio-stat': [
+            photo,
+            txt('99%', { x: 585, y: 760, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 170, letterSpacing: -0.05, fill: W }),
+            txt('of beginners at the gym\nmake this one mistake', { x: 592, y: 960, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 34, lineHeight: 1.12, letterSpacing: -0.03, fill: W }),
+          ],
+          'studio-circle': [
+            photo,
+            txt('superpower', { cx: 540, cy: 40, fontFamily: 'Inter', fontWeight: 600, fontSize: 34, letterSpacing: -0.02, fill: W }),
+            shp('ellipse', 210, 330, 660, 660, { fill: 'transparent', stroke: '#ffffff', strokeWidth: 2.5 }),
+            txt('The #1\nLongevity Hack', { cx: 540, cy: 660, fontFamily: 'Inter', fontWeight: 500, fontSize: 72, lineHeight: 1.15, letterSpacing: -0.02, fill: W }),
+            txt('HEALTH HACKS', { x: 40, y: 1290, align: 'left', fontFamily: 'Space Mono', fontWeight: 700, fontSize: 22, letterSpacing: 0.12, fill: W }),
+          ],
+          'studio-rhythm': [
+            txt('rion', { cx: 560, cy: 780, fontFamily: 'Inter', fontWeight: 500, fontSize: 520, letterSpacing: -0.06, fill: 'rgba(255,255,255,0.16)' }),
+            photo,
+            txt('Case\nStudy', { x: 50, y: 40, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 18, lineHeight: 1.1, fill: W }),
+            txt('Performance\nWellness Brand', { x: 350, y: 40, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 18, lineHeight: 1.1, fill: W }),
+            txt('2026', { x: 700, y: 40, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 18, fill: W }),
+            txt('Performance is not\npressure. It is a rhythm', { x: 50, y: 140, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 62, lineHeight: 1.08, letterSpacing: -0.04, fill: W }),
+            txt('A performance wellness brand for people who move with intention — balancing training, recovery and everyday rituals.', { x: 700, y: 150, width: 330, autoWidth: false, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 21, lineHeight: 1.2, fill: W }),
+            txt('Research\nBrand Identity\nLogo Design\nVisual System', { x: 115, y: 1120, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 18, lineHeight: 1.15, fill: W }),
+            txt('Location:\nUSA', { x: 115, y: 1260, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 18, lineHeight: 1.15, fill: W }),
+          ],
+          'studio-data': [
+            photo,
+            ...[[590, 430], [265, 570], [320, 710], [410, 860]].map(([x, y]) => shp('rect', x, y, 12, 12, { fill: 'transparent', stroke: '#ffffff', strokeWidth: 1.5 })),
+            shp('rect', 510, 590, 190, 180, { fill: 'transparent', stroke: '#ffffff', strokeWidth: 1.5 }),
+            txt('FLEXION + ABDUCTION', { x: 508, y: 555, align: 'left', fontFamily: 'Space Mono', fontWeight: 400, fontSize: 15, letterSpacing: 0.1, fill: W }),
+            txt('TRAPEZIUS MUSCULATURE', { x: 508, y: 785, align: 'left', fontFamily: 'Space Mono', fontWeight: 400, fontSize: 15, letterSpacing: 0.1, fill: W }),
+            txt('Test your whole\nbody and visualize\nall your data.', { x: 30, y: 1050, align: 'left', fontFamily: 'Inter', fontWeight: 600, fontSize: 52, lineHeight: 1.0, letterSpacing: -0.04, fill: W }),
+            txt('Hormones, stress, thyroid, heart,\nmetabolic, toxins and much more.', { x: 30, y: 1240, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 24, lineHeight: 1.2, fill: W }),
+          ],
+        }[v.id];
+        return {
+          width: 1080, height: 1350,
+          background: v.id === 'studio-rhythm' ? { color: '#6f93e6', color2: '#2547a8', gradient: 'linear', angle: 160 } : { color: studio.color2 },
+          overlay: { grain: 22 },
+          elements: els,
+        };
+      },
+    })),
+
     // ── VIDEO: newspaper clipping — the photo gets circled while the camera moves ──
     ...[
       { id: 'news-pullback', name: 'Pull-back reveal', head: 'That’s me!', last: 'me!', mark: 'circle', caption: 'That’s me!', cam: { move: 'pullback', zoom: 4.2, start: 0, dur: 1.9, rotate: 8, blur: 0.8, shake: 0.25 }, markAt: 1.7, headAt: 2.2 },
@@ -1162,6 +1219,7 @@
 
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
+    'Studio portrait': ['studio-stat', 'studio-circle', 'studio-rhythm', 'studio-data'],
     'Newspaper reveal': ['news-pullback', 'news-crash', 'news-snap', 'news-cuts', 'news-push'],
     'Typing': ['type-follow', 'type-marker', 'type-crash', 'type-terminal'],
     'Match cut': ['match-highlight', 'match-dark', 'match-news'],

@@ -746,6 +746,52 @@
     ];
   }
 
+  // studio look: re-light the person over a seamless backdrop
+  function studioTile(k, p, on, onclick) {
+    const bg = p.light === 'spot' ? `radial-gradient(circle at ${p.lx * 100}% ${p.ly * 100}%, ${p.glow} 0 32%, ${p.color} 50%, ${p.color2} 85%)`
+      : p.light === 'side' ? `linear-gradient(${p.lx < 0.5 ? 90 : 270}deg, ${p.color}, ${p.color2})`
+      : p.light === 'top' ? `linear-gradient(180deg, ${p.color}, ${p.color2})`
+      : `radial-gradient(circle at ${p.lx * 100}% ${p.ly * 100}%, ${p.glow} 0, ${p.color} 30%, ${p.color2} 100%)`;
+    return h('button.studio-tile' + (on ? '.on' : ''), { type: 'button', title: p.label, onclick }, h('span.studio-swatch', { style: { background: bg } }, h('span.studio-figure')), p.label);
+  }
+  function applyStudio(el, k) {
+    const p = R.STUDIO_PRESETS[k];
+    const cur = el.studio || {};
+    S.changeEl(el, e => { e.studio = Object.assign({ on: true, backdrop: true }, cur, p, { on: true, preset: k, label: undefined }); delete e.studio.label; });
+    renderInspector();
+    if (el.assetId && !R.studioReady(el) && S.studioCutout) S.studioCutout(el.id);
+  }
+  function studioSection(el) {
+    const T = 'sel', st = el.studio || {};
+    const on = !!st.on;
+    const busy = S.isRemovingBackground && S.isRemovingBackground();
+    const tiles = h('div.studio-grid', null, Object.entries(R.STUDIO_PRESETS).map(([k, p]) => studioTile(k, p, on && st.preset === k, () => applyStudio(S.selEls()[0], k))));
+    const needsCut = on && el.assetId && !R.studioReady(el);
+    return sec('Studio look', [
+      on ? null : h('p.hint', null, 'Turn any photo into a studio shot: the person is cut out and re-lit on a seamless coloured backdrop.'),
+      full(tiles),
+      needsCut ? full(h('button.btn.primary', { type: 'button', disabled: busy, onclick: () => S.studioCutout(el.id) }, ic('wand'), busy ? 'Cutting out…' : 'Cut out the person')) : null,
+      on ? row('Light', selectCtl(T, 'studio.light', Object.entries(R.STUDIO_LIGHTS), { set: v => { S.change(T, 'studio.light', v); renderInspector(); } })) : null,
+      on ? h('div.swatch-line', null, h('span.sub-label', null, 'Colours'), swatchRow([
+        ['Backdrop', () => S.selEls()[0].studio.color, (v, l) => S.change(T, 'studio.color', v, l)],
+        ['Shadow side', () => S.selEls()[0].studio.color2, (v, l) => S.change(T, 'studio.color2', v, l)],
+        ['Light', () => S.selEls()[0].studio.glow, (v, l) => S.change(T, 'studio.glow', v, l)],
+      ])) : null,
+      on ? row('Brightness', num(T, 'studio.intensity', { min: 0, max: 150, scale: 100, slider: true, unit: '%' })) : null,
+      on ? row('Tint person', num(T, 'studio.grade', { min: 0, max: 100, slider: true })) : null,
+      on ? more('studio-more', [
+        row('Light X', num(T, 'studio.lx', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+        row('Light Y', num(T, 'studio.ly', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
+        row('Light size', num(T, 'studio.size', { min: 10, max: 150, scale: 100, slider: true, unit: '%' })),
+        row('Rim light', num(T, 'studio.rim', { min: 0, max: 100, slider: true })),
+        row('Wall shadow', num(T, 'studio.shadow', { min: 0, max: 100, slider: true })),
+        toggle(T, 'studio.backdrop', 'Backdrop on this layer', { get: () => S.selEls()[0].studio.backdrop !== false }),
+        h('p.hint', null, 'Turn the backdrop off to put text between the canvas background and the person. Add movement with Blur → Motion: it smears just the person.'),
+      ], 'Light position, rim & shadow') : null,
+      on ? full(h('button.link-btn', { type: 'button', onclick: () => { S.change(T, 'studio.on', false); renderInspector(); } }, 'Turn off studio look')) : null,
+      !el.assetId && on ? h('p.hint', null, 'Add a photo — the person is cut out automatically (the first time downloads a 44 MB model).') : null,
+    ], on, { key: 'studio-look' });
+  }
   function imageInspector(el) {
     const T = 'sel';
     const fs = el.frame.style || 'none';
@@ -765,6 +811,7 @@
           full(h('button.btn', { type: 'button', onclick: () => { S.setBackgroundImage(el.assetId); toast('Set as background'); } }, ic('bgimg'), 'Use as canvas background')),
         ], 'Zoom & position') : null,
       ], true, { collapsible: false }),
+      studioSection(el),
       el.assetId ? sec('Look', [full(filterThumbs(el, 'sel')), more('photo-adjust', filterSliders(T, 'filters'), 'Adjust')], true) : null,
       blurSection(T, 'filters'),
       sec('Frame', [
@@ -1753,6 +1800,7 @@
   }
   S.figureEls = figureEls;
   S.on('replaced', el => {
+    if (el && el.type === 'image' && el.studio && el.studio.on && S.studioCutout) { toast('Cutting out the person for the studio look…'); S.studioCutout(el.id); return; }
     if (el && el.type === 'image' && /^Face/.test(el.name || '') && S.removeBackground) {
       toast('Cutting out the face…');
       S.removeBackground(el.id, 'face');

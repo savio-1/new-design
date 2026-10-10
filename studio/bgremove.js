@@ -394,6 +394,27 @@
     });
   };
 
+  // studio look: cut the person out once and keep it beside the original photo
+  S.studioCutout = function (id) {
+    return guard(async () => {
+      const el = S.elById(id);
+      if (!el || el.type !== 'image' || !el.assetId || !el.studio) return;
+      if (el.studio.cutId && el.studio.src === el.assetId && S.assets[el.studio.cutId]) return;
+      const img = await loadedImage(el.assetId);
+      if (!img) throw new Error('image not loaded');
+      const src = el.assetId;
+      const cut = await cutout(img, reporter());
+      if (!opaqueBounds(cut)) { S.emit('toast', 'No clear subject found in this photo'); return; }
+      const cutId = S.addAsset(cut.toDataURL('image/png'));
+      await new Promise(res => { const i = new Image(); i.onload = i.onerror = res; i.src = S.assets[cutId]; R.assetImage(cutId); });
+      const cur = S.elById(id);
+      if (!cur || cur.assetId !== src) return;
+      S.changeEl(cur, e => { e.studio = Object.assign({}, e.studio, { cutId, src }); });
+      S.emit('doc');
+      S.emit('toast', 'Studio look ready — try the presets and light settings');
+    });
+  };
+
   S.restoreBackground = function (id) {
     const el = S.elById(id);
     if (!el || !el.bgRemoved) return;

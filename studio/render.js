@@ -1673,9 +1673,142 @@
     }
   }
 
+  /* ───────────────────────── studio look ─────────────────────────
+     el.studio = { on, preset, color, color2, glow, light, lx, ly, size, intensity, grade, rim, shadow, backdrop, cutId, src }
+     The person (cut out once, cached as cutId) is re-lit over a seamless studio backdrop. */
+  R.STUDIO_PRESETS = {
+    ember: { label: 'Ember', color: '#d2501f', color2: '#4a1306', glow: '#ff9a52', light: 'soft', lx: 0.32, ly: 0.22, size: 0.75, intensity: 0.85, grade: 55, rim: 45, shadow: 35 },
+    spotlight: { label: 'Spotlight', color: '#d2731a', color2: '#4a1a05', glow: '#ffc23a', light: 'spot', lx: 0.42, ly: 0.42, size: 0.42, intensity: 1, grade: 50, rim: 55, shadow: 20 },
+    blue: { label: 'Blue hour', color: '#5f86e0', color2: '#1d3a9e', glow: '#c9dbff', light: 'top', lx: 0.6, ly: 0.1, size: 0.8, intensity: 0.8, grade: 55, rim: 40, shadow: 25 },
+    clay: { label: 'Clay', color: '#c98a64', color2: '#6a3a24', glow: '#ffd8b8', light: 'side', lx: 0.15, ly: 0.35, size: 0.7, intensity: 0.75, grade: 40, rim: 40, shadow: 40 },
+    grey: { label: 'Studio grey', color: '#b9b7b2', color2: '#5b5955', glow: '#ffffff', light: 'soft', lx: 0.5, ly: 0.3, size: 0.8, intensity: 0.7, grade: 15, rim: 30, shadow: 40 },
+    lime: { label: 'Lime', color: '#c7e25a', color2: '#4f6a12', glow: '#f4ffc0', light: 'soft', lx: 0.65, ly: 0.25, size: 0.7, intensity: 0.8, grade: 35, rim: 40, shadow: 30 },
+    noir: { label: 'Noir', color: '#3a3a3a', color2: '#050505', glow: '#ffffff', light: 'side', lx: 0.85, ly: 0.3, size: 0.6, intensity: 0.9, grade: 30, rim: 70, shadow: 10 },
+    blush: { label: 'Blush', color: '#f2a7b8', color2: '#8e3b56', glow: '#ffe3ea', light: 'spot', lx: 0.5, ly: 0.38, size: 0.5, intensity: 0.85, grade: 40, rim: 45, shadow: 25 },
+  };
+  R.STUDIO_LIGHTS = { soft: 'Soft key', spot: 'Spotlight', side: 'Side', top: 'Top', flat: 'Flat' };
+  function studioBackdrop(ctx, r, st) {
+    const { x, y, w, h } = r, M = Math.max(w, h), k = clamp(st.intensity ?? 0.8, 0, 1.5);
+    const c1 = st.color || '#d2501f', c2 = st.color2 || '#3a0e04', glow = st.glow || '#ffffff';
+    const lx = x + w * (st.lx ?? 0.5), ly = y + h * (st.ly ?? 0.3), R0 = M * (st.size ?? 0.7);
+    ctx.save();
+    ctx.fillStyle = c2; ctx.fillRect(x, y, w, h);
+    const light = st.light || 'soft';
+    if (light === 'spot') {
+      // a hard-ish circle of light thrown on the wall behind the subject
+      const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, R0);
+      g.addColorStop(0, glow); g.addColorStop(0.55, rgba(glow, 0.95)); g.addColorStop(0.78, c1); g.addColorStop(1, c2);
+      ctx.fillStyle = c1; ctx.globalAlpha = 0.55 * k; ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = Math.min(1, k); ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    } else if (light === 'side' || light === 'top') {
+      const gg = light === 'side' ? ctx.createLinearGradient(lx < x + w / 2 ? x : x + w, 0, lx < x + w / 2 ? x + w : x, 0) : ctx.createLinearGradient(0, y, 0, y + h);
+      gg.addColorStop(0, c1); gg.addColorStop(0.65, rgba(c1, 0.35)); gg.addColorStop(1, rgba(c1, 0));
+      ctx.globalAlpha = k; ctx.fillStyle = gg; ctx.fillRect(x, y, w, h);
+      const hl = ctx.createRadialGradient(lx, ly, 0, lx, ly, R0);
+      hl.addColorStop(0, rgba(glow, 0.45 * k)); hl.addColorStop(1, rgba(glow, 0));
+      ctx.globalAlpha = 1; ctx.fillStyle = hl; ctx.fillRect(x, y, w, h);
+    } else if (light === 'flat') {
+      ctx.fillStyle = c1; ctx.fillRect(x, y, w, h);
+    } else {
+      // soft key: a broad pool of light falling off into the shadow colour
+      const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, R0 * 1.5);
+      g.addColorStop(0, rgba(glow, 0.9)); g.addColorStop(0.25, c1); g.addColorStop(1, c2);
+      ctx.globalAlpha = Math.min(1, k); ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    }
+    // seamless sweep: the floor darkens slightly, edges fall off
+    ctx.globalAlpha = 1;
+    const fl = ctx.createLinearGradient(0, y + h * 0.7, 0, y + h);
+    fl.addColorStop(0, 'rgba(0,0,0,0)'); fl.addColorStop(1, 'rgba(0,0,0,0.22)');
+    ctx.fillStyle = fl; ctx.fillRect(x, y + h * 0.7, w, h * 0.3);
+    const vg = ctx.createRadialGradient(x + w / 2, y + h / 2, Math.min(w, h) * 0.35, x + w / 2, y + h / 2, Math.hypot(w, h) / 2);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = vg; ctx.fillRect(x, y, w, h);
+    ctx.translate(x, y); fillTexture(ctx, 'grain', 22, w, h);
+    ctx.restore();
+  }
+  R.studioBackdrop = studioBackdrop;
+  const studioCache = new LRU(12);
+  // the cut-out person, tinted toward the backdrop and rim-lit from the light's side
+  function studioSubject(cutId, cutImg, filters, st) {
+    const key = cutId + '|' + JSON.stringify(filters || {}) + '|' + [st.color, st.color2, st.glow, st.grade, st.rim, st.lx, st.ly].join(',');
+    const hit = studioCache.get(key);
+    if (hit) return hit;
+    const src = filteredSource(cutId, cutImg, filters);
+    const w = src.width, h = src.height;
+    const out = canvas(w, h), x = out.getContext('2d');
+    x.drawImage(src, 0, 0);
+    const grade = (st.grade ?? 40) / 100;
+    if (grade > 0) {
+      // pull the person's colours toward the backdrop: hue shift, soft-light warmth, deeper shadows
+      x.globalCompositeOperation = 'color'; x.globalAlpha = grade * 0.55; x.fillStyle = st.color || '#d2501f'; x.fillRect(0, 0, w, h);
+      x.globalCompositeOperation = 'soft-light'; x.globalAlpha = Math.min(1, grade * 1.1); x.fillStyle = st.color || '#d2501f'; x.fillRect(0, 0, w, h);
+      x.globalCompositeOperation = 'multiply'; x.globalAlpha = grade * 0.3; x.fillStyle = st.color2 || '#3a0e04'; x.fillRect(0, 0, w, h);
+      x.globalCompositeOperation = 'screen'; x.globalAlpha = grade * 0.12; x.fillStyle = st.glow || '#ffffff'; x.fillRect(0, 0, w, h);
+      x.globalAlpha = 1; x.globalCompositeOperation = 'destination-in'; x.drawImage(src, 0, 0);
+    }
+    const rim = (st.rim ?? 40) / 100;
+    if (rim > 0) {
+      const ang = Math.atan2((st.ly ?? 0.3) - 0.5, (st.lx ?? 0.5) - 0.5), d = Math.max(w, h) * 0.014 * (0.4 + rim);
+      const sil = canvas(w, h), sx = sil.getContext('2d');
+      sx.drawImage(src, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = st.glow || '#ffffff'; sx.fillRect(0, 0, w, h);
+      sx.globalCompositeOperation = 'destination-out'; sx.drawImage(src, -Math.cos(ang) * d, -Math.sin(ang) * d);
+      const soft = canvas(w, h), so = soft.getContext('2d');
+      so.filter = `blur(${d * 0.5}px)`; so.drawImage(sil, 0, 0); so.filter = 'none';
+      so.globalCompositeOperation = 'destination-in'; so.drawImage(src, 0, 0);
+      x.globalCompositeOperation = 'screen'; x.globalAlpha = Math.min(1, rim * 1.2); x.drawImage(soft, 0, 0);
+    }
+    x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1;
+    // a silhouette for the soft shadow on the wall
+    const shadow = canvas(w, h), shx = shadow.getContext('2d');
+    shx.drawImage(src, 0, 0); shx.globalCompositeOperation = 'source-in'; shx.fillStyle = '#000'; shx.fillRect(0, 0, w, h);
+    const res = { img: out, shadow };
+    studioCache.set(key, res);
+    return res;
+  }
+  R.studioReady = el => !!(el.studio && el.studio.on && el.studio.cutId && el.studio.src === el.assetId && assetImage(el.studio.cutId));
+  function drawStudio(ctx, el, g) {
+    const st = el.studio, r = g.rect;
+    ctx.save();
+    ctx.clip(g.inner);
+    if (st.backdrop !== false) studioBackdrop(ctx, r, st);
+    const cutImg = st.cutId && st.src === el.assetId ? assetImage(st.cutId) : null;
+    if (cutImg) {
+      const S2 = studioSubject(st.cutId, cutImg, el.filters, st);
+      if ((st.shadow ?? 30) > 0) {
+        const ang = Math.atan2((st.ly ?? 0.3) - 0.5, (st.lx ?? 0.5) - 0.5), off = Math.max(r.w, r.h) * 0.035;
+        ctx.save();
+        ctx.translate(-Math.cos(ang) * off, -Math.sin(ang) * off * 0.6);
+        ctx.globalAlpha *= clamp((st.shadow ?? 30) / 100, 0, 1) * 0.7;
+        if ('filter' in ctx) ctx.filter = `blur(${Math.max(r.w, r.h) * 0.025 * deviceScale(ctx)}px)`;
+        drawCover(ctx, S2.shadow, r, Object.assign({}, el, { filters: {} }));
+        ctx.restore();
+      }
+      drawCover(ctx, S2.img, r, Object.assign({}, el, { filters: { blur: (el.filters || {}).blur } }));
+    } else if (el.assetId && assetImage(el.assetId)) {
+      // not cut out yet: show the photo dimmed over the backdrop
+      ctx.globalAlpha *= 0.35;
+      drawCover(ctx, filteredSource(el.assetId, assetImage(el.assetId), el.filters), r, el);
+      ctx.globalAlpha /= 0.35;
+    } else if (!el.assetId) {
+      const s = Math.min(r.w, r.h) * 0.12, cx = r.x + r.w / 2, cy = r.y + r.h * 0.55;
+      ctx.globalAlpha *= 0.35; ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(cx, cy - s * 1.6, s * 0.75, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx, cy + s * 1.4, s * 1.5, s * 2.2, 0, Math.PI, 0); ctx.fill();
+    }
+    overlays(ctx, r, el.filters || {});
+    ctx.restore();
+  }
+
   function drawImageEl(ctx, el, env) {
     const g = frameGeometry(el);
     const f = el.frame || {};
+    if (el.studio && el.studio.on) {
+      if (g.outer) { ctx.fillStyle = f.color || '#fff'; ctx.fill(g.outer); }
+      drawStudio(ctx, el, g);
+      if (g.stroke) { ctx.lineWidth = g.stroke.w; ctx.strokeStyle = f.color || '#fff'; ctx.lineJoin = 'round'; ctx.stroke(g.stroke.path); }
+      if (g.extra) g.extra(ctx);
+      return;
+    }
     if (g.outer) {
       ctx.fillStyle = f.color || '#fff'; ctx.fill(g.outer);
       if (f.texture) { ctx.save(); ctx.clip(g.outer); fillTexture(ctx, 'paper', f.texture, el.width, el.height); ctx.restore(); }
@@ -2590,7 +2723,7 @@
   }
 
   function isComplete(el) {
-    if (el.type === 'image') return !el.assetId || !!assetImage(el.assetId);
+    if (el.type === 'image') return (!el.assetId || !!assetImage(el.assetId)) && (!(el.studio && el.studio.on && el.studio.cutId) || !!assetImage(el.studio.cutId));
     if (el.type === 'sticker') { const svg = stickerSvg(el); return !svg || !!svgImage(svg); }
     return true;
   }
@@ -2790,6 +2923,7 @@
     if (doc.background && doc.background.assetId) ids.add(doc.background.assetId);
     for (const el of doc.elements || []) {
       if (el.type === 'image' && el.assetId) ids.add(el.assetId);
+      if (el.type === 'image' && el.studio && el.studio.cutId) ids.add(el.studio.cutId);
       if (el.type === 'sticker') { const svg = stickerSvg(el); if (svg) jobs.push(loadImage(R.svgDataUrl(svg), svgCache, svg).promise); }
     }
     for (const id of ids) if (assets[id]) jobs.push(loadImage(assets[id], imgCache, id).promise);
