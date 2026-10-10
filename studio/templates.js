@@ -9,6 +9,10 @@
   const stk = (stickerId, x, y, w, h, o = {}) => Object.assign({ type: 'sticker', stickerId, x, y, width: w, height: h }, o);
   const img = (x, y, w, h, o = {}) => Object.assign({ type: 'image', x, y, width: w, height: h }, o);
   const shp = (shape, x, y, w, h, o = {}) => Object.assign({ type: 'shape', shape, x, y, width: w, height: h }, o);
+  const nat = (kind, x, y, w, h, o = {}) => Object.assign({ type: 'nature', kind, x, y, width: w, height: h }, o);
+  const rib = (path, x, y, w, h, o = {}) => Object.assign({ type: 'ribbon', path, x, y, width: w, height: h }, o);
+  const cam = (style, o = {}) => Object.assign({ type: 'camera', style, x: 0, y: 0, width: 1080, height: 1350 }, o);
+  const arrow = (x, y, w, h, o = {}) => rib('hook', x, y, w, h, Object.assign({ line: true, thickness: 2.5, color: 'rgba(255,255,255,0.85)', text: '', arrowEnd: true }, o));
   const soft = { on: true, color: '#000000', opacity: 0.22, blur: 30, x: 0, y: 14 };
   const lifted = { on: true, color: '#000000', opacity: 0.3, blur: 14, x: 0, y: 7 };
   const deep = { on: true, color: '#0b1f18', opacity: 0.45, blur: 40, x: 0, y: 22 };
@@ -585,6 +589,110 @@
       }),
     })),
 
+    // ── life-sim garden: cut-out photo on a painted lawn with game-menu choices ──
+    ...[
+      { id: 'garden-menu', name: 'Choose an action', sky: ['#1f6dd0', '#bfe7f6'], hill: ['#b5d65e', '#5fae37', '#2c6a1f', '#cdea7c'], profile: 'left', flower: ['#e3262c', '#8e0d15', '#3d7a2c', '#163c13', '#4d0a0c'], bloom: 'cluster', gem: ['#2fd16a', '#0c7a3c', '#a6ffbf'], ink: '#22307a', pill: '#f3eee6',
+        items: [['Gossip', 'icon-lips'], ['Flirt', 'icon-heart-glossy'], ['Change Outfit', 'icon-cap'], ['Ask About Mood', 'icon-chat-bubbles'], ['Talk About Pet', 'icon-cat-sketch'], ['More Choices…', null]] },
+      { id: 'garden-golden', name: 'Weekend plans', sky: ['#f39a5b', '#ffe6a8'], hill: ['#d4d86a', '#8fb23f', '#4b6e22', '#ecf09a'], profile: 'right', flower: ['#ffd23f', '#d89a10', '#4e7a2c', '#203f14', '#7a4a10'], bloom: 'daisy', gem: ['#ff9a3d', '#b85a10', '#ffe0b0'], ink: '#6b2f12', pill: '#fff4e0',
+        items: [['Brunch', 'icon-coffee-glossy'], ['Nap', 'icon-house'], ['Go Thrifting', 'icon-cap'], ['Call Mum', 'icon-chat-bubbles'], ['Make a Playlist', 'icon-music-glossy'], ['More Plans…', null]] },
+      { id: 'garden-dusk', name: 'Date night choices', sky: ['#8a6fd8', '#ffc3d8'], hill: ['#8cc06a', '#3f8a46', '#1d4f2a', '#b8e08a'], profile: 'double', flower: ['#ff8fc1', '#c24a86', '#3d7a3c', '#173d1c', '#ffe066'], bloom: 'cluster', gem: ['#ff6fb5', '#a8245f', '#ffd0e6'], ink: '#4a1f5c', pill: '#fff0f6',
+        items: [['Compliment', 'icon-heart-glossy'], ['Hold Hands', 'icon-lips'], ['Share Dessert', 'icon-coffee-glossy'], ['Slow Dance', 'icon-music-glossy'], ['Stargaze', 'icon-sparkle-green'], ['More Choices…', null]] },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Post', 'Photo', 'Garden'], width: 1080, height: 1350,
+      build: () => {
+        const slots = [[340, 430], [740, 430], [290, 524], [790, 524], [250, 618], [830, 618]];
+        const pills = v.items.flatMap(([label, icon], i) => {
+          const [cx, cy] = slots[i], W = 280;
+          const out = [txt(label, { cx, cy, autoWidth: false, width: W, align: 'center', fontFamily: 'Nunito', fontWeight: 700, fontSize: 26, fill: v.ink, bg: { style: 'glossy', color: v.pill, padX: 24, padY: 12 }, shadow: { on: true, color: '#000000', opacity: 0.2, blur: 16, x: 0, y: 6 }, name: 'Choice' })];
+          if (icon) out.push(stk(icon, cx - W / 2 - 40, cy - 36, 72, 72, { name: 'Choice icon' }));
+          return out;
+        });
+        return {
+          width: 1080, height: 1350,
+          background: { color: v.sky[0], color2: v.sky[1], gradient: 'linear', angle: 180 },
+          overlay: { grain: 22 },
+          elements: [
+            nat('cloud', 690, 150, 320, 160, { opacity: v.id === 'garden-menu' ? 0 : 0.85, name: 'Cloud' }),
+            nat('hill', 0, 640, 1080, 710, { colors: v.hill, profile: v.profile, seed: 4 }),
+            nat('flowers', 200, 1105, 330, 120, { colors: v.flower, bloom: v.bloom, seed: 2 }),
+            nat('flowers', 690, 975, 330, 100, { colors: v.flower, bloom: v.bloom, seed: 7 }),
+            img(380, 470, 320, 860, { name: 'Your photo — press Remove background to cut yourself out', placeholder: ['#e6e1d6', '#c9bfae'], frame: { style: 'rounded', radius: 30, size: 0 }, shadow: { on: true, style: 'cast', angle: 55, length: 0.35, blur: 16, opacity: 0.45, x: 0, y: 0, color: '#000000' } }),
+            stk('crystal-gem', 497, 190, 86, 172, { colors: v.gem, anim: { loop: 'float', amount: 0.6 } }),
+            ...pills,
+          ],
+        };
+      },
+    })),
+
+    // ── text riding a looping ribbon over a photo ──
+    ...[
+      { id: 'ribbon-fest', name: 'Ribbon festival', path: 'loop', band: '#e6ef7d', ink: '#1d1b18', ph: ['#5d8a4a', '#2f4d2a'], title: 'PET FEST', sub: '14–15 JUNE · CITY PARK', font: 'Unbounded', words: 'a cosy offline festival for pets and their people, with activities, new friends and useful meetups', doodle: '#e6ef7d' },
+      { id: 'ribbon-sounds', name: 'Summer sounds', path: 'double', band: '#ff7ab6', ink: '#ffffff', ph: ['#6fb4e8', '#2c5fa8'], title: 'SUMMER\nSOUNDS', sub: 'LIVE MUSIC · EVERY FRIDAY', font: 'Bricolage Grotesque', words: 'SUMMER SOUNDS ✦ LIVE ON THE ROOF ✦ BRING A FRIEND', upper: true, doodle: '#ffd23f' },
+      { id: 'ribbon-market', name: 'Saturday market', path: 'scurve', band: '#ff8a3d', ink: '#1d1b18', ph: ['#c9a27a', '#6b4b33'], title: 'MARKET\nDAY', sub: 'SATURDAYS 8–1 · OLD TOWN SQUARE', font: 'Archivo Black', words: 'fresh flowers · sourdough · coffee · local honey · good people', border: '#1d1b18', doodle: '#fff3d6' },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Event', 'Post', 'Ribbon'], width: 1080, height: 1350,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.ph[1] },
+        overlay: { grain: 12 },
+        elements: [
+          img(0, 0, 1080, 1350, { placeholder: v.ph, name: 'Background photo' }),
+          stk('sparkle-4', 800, 40, 170, 170, { colors: [v.doodle], rotation: 12 }),
+          stk('sparkle-4', 930, 190, 90, 90, { colors: [v.doodle], rotation: -8 }),
+          rib(v.path, -70, 210, 1220, 650, { color: v.band, text: v.words, textColor: v.ink, fontFamily: 'Space Mono', fontWeight: 700, fontSize: 34, uppercase: !!v.upper, thickness: 100, letterSpacing: 0.04, border: { width: v.border ? 6 : 0, color: v.border || '#1d1b18' }, anim: { loop: 'flow', speed: 0.6 } }),
+          txt(v.title, { cx: 540, cy: 1040, fontFamily: v.font, fontWeight: v.font === 'Unbounded' ? 800 : v.font === 'Bricolage Grotesque' ? 800 : 400, fontSize: v.title.includes('\n') ? 130 : 150, lineHeight: 0.92, fill: v.band, stroke: v.border ? { width: 6, color: v.border } : undefined }),
+          txt(v.sub, { cx: 540, cy: 1230, fontFamily: 'Space Mono', fontWeight: 700, fontSize: 30, letterSpacing: 0.06, fill: '#ffffff', bg: { style: 'pill', color: 'rgba(20,20,20,0.35)', padX: 26, padY: 10 } }),
+          stk('flower-doodle', 70, 1150, 150, 150, { colors: [v.doodle], rotation: -10 }),
+          stk('sun-doodle', 880, 1140, 140, 140, { colors: [v.doodle] }),
+        ],
+      }),
+    })),
+
+    // ── motion-blurred sport photo with a step-by-step arrow trail ──
+    ...[
+      { id: 'first-squat', name: 'From the first squat', head: 'FROM\nTHE\nFIRST SQUAT\nTO\nFOREVER.', steps: ['BODY', 'MIND', 'SOUL', 'BODY'], f: { grayscale: 100, contrast: 28, brightness: -6, motion: 55, noise: 55, vignette: 35 }, ph: ['#6b6b6b', '#1c1c1c'], bg: '#151515' },
+      { id: 'run-club', name: 'Run club', head: 'MILE ONE\nTO MILE\nONE\nHUNDRED.', steps: ['START', 'PUSH', 'BREATHE', 'FINISH'], f: { contrast: 18, saturation: -20, warmth: 25, motion: 60, noise: 40, vignette: 30 }, ph: ['#a0583a', '#2a140d'], bg: '#1d0f0a' },
+      { id: 'dance-studio', name: 'Every rehearsal', head: 'EVERY\nREHEARSAL\nCOUNTS.', steps: ['COUNT', 'MOVE', 'FEEL', 'REPEAT'], f: { contrast: 15, duotone: true, duoDark: '#22104a', duoLight: '#d7c6ff', motion: 65, motionAngle: 90, noise: 45 }, ph: ['#7b67c9', '#1d1238'], bg: '#160c2c' },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Photo', 'Quote', 'Sport'], width: 1080, height: 1350,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: v.bg },
+        overlay: { grain: 30, vignette: 20 },
+        elements: [
+          img(0, 0, 1080, 1350, { placeholder: v.ph, filters: v.f, name: 'Action photo' }),
+          txt(v.head, { x: 100, y: 70, align: 'left', fontFamily: 'Archivo Black', fontSize: 96, lineHeight: 0.86, fill: '#f2f2ef' }),
+          txt(v.steps[0], { x: 92, y: 560, align: 'left', fontFamily: 'Archivo', fontWeight: 700, fontSize: 30, letterSpacing: 0.02, fill: '#f2f2ef' }),
+          arrow(130, 610, 190, 160),
+          txt(v.steps[1], { x: 336, y: 752, align: 'left', fontFamily: 'Archivo', fontWeight: 700, fontSize: 30, letterSpacing: 0.02, fill: '#f2f2ef' }),
+          arrow(430, 800, 200, 160),
+          txt(v.steps[2], { x: 640, y: 942, align: 'left', fontFamily: 'Archivo', fontWeight: 700, fontSize: 30, letterSpacing: 0.02, fill: '#f2f2ef' }),
+          arrow(722, 990, 180, 160),
+          txt(v.steps[3], { x: 912, y: 1132, align: 'left', fontFamily: 'Archivo', fontWeight: 700, fontSize: 30, letterSpacing: 0.02, fill: '#f2f2ef' }),
+        ],
+      }),
+    })),
+
+    // ── shot through a phone camera: fisheye photo with the camera interface on top ──
+    ...[
+      { id: 'pov-camera', name: 'Creators wanted', style: 'iphone', head: 'Bloggers,\nlet’s team up', sub: 'Now inviting creators', brand: 'WILD TRIP', f: { fisheye: 42, saturation: 10, warmth: 8 }, ph: ['#9cc4d8', '#4f7a3a'], font: 'Gloock', size: 118 },
+      { id: 'pov-tapes', name: 'Summer tapes', style: 'camcorder', head: 'SUMMER\nTAPES ’26', sub: 'press play on the good days', brand: 'VOL. 03', f: { noise: 45, fade: 18, warmth: 15, contrast: 8 }, ph: ['#e6b98a', '#7a4a2e'], font: 'VT323', size: 170 },
+      { id: 'pov-behind', name: 'Behind the scenes', style: 'minimal', head: 'Behind\nthe scenes', sub: 'Day 03 · Lisbon', brand: 'ON SET', f: { fisheye: 30, fade: 12, contrast: 6 }, ph: ['#d9c7b0', '#5f5246'], font: 'Instrument Serif', size: 140 },
+    ].map(v => ({
+      id: v.id, name: v.name, tags: ['Photo', 'Story', 'Camera'], width: 1080, height: 1350,
+      build: () => ({
+        width: 1080, height: 1350,
+        background: { color: '#000000' },
+        elements: [
+          img(0, 0, 1080, 1350, { placeholder: v.ph, filters: v.f, name: 'Your photo' }),
+          cam(v.style, v.style === 'iphone' ? { lens: true, grid: true } : v.style === 'camcorder' ? { lens: false, grid: false, date: 'JUL 21 2026' } : { lens: true, grid: true }),
+          txt(v.brand, { cx: 540, cy: v.style === 'camcorder' ? 300 : 175, fontFamily: v.style === 'camcorder' ? 'VT323' : 'Instrument Sans', fontWeight: v.style === 'camcorder' ? 400 : 600, fontSize: v.style === 'camcorder' ? 44 : 24, letterSpacing: 0.18, fill: '#ffffff' }),
+          txt(v.head, { cx: 540, cy: v.style === 'camcorder' ? 470 : 380, fontFamily: v.font, fontSize: v.size, lineHeight: v.style === 'camcorder' ? 0.8 : 0.95, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.25, blur: 24, x: 0, y: 4 } }),
+          txt(v.sub, { cx: 540, cy: v.style === 'camcorder' ? 660 : 560, fontFamily: v.style === 'camcorder' ? 'VT323' : 'Inter', fontWeight: v.style === 'camcorder' ? 400 : 500, fontSize: v.style === 'camcorder' ? 52 : 44, fill: '#ffffff' }),
+        ],
+      }),
+    })),
+
     // ── save the date, written on a giant wall calendar ──
     ...[
       { id: 'date-green', name: 'Save the date (calendar)', head: 'SAVE\nTHE\nDATE', headInk: '#173d12', l1: 'POWDERFINGER +\nSILVERCHAIR SHOW', l2: '@ Wharf Events', mark: '#5cf06a', price: '$25pp', pen: ['#3fd16a', '#25302a'] },
@@ -822,6 +930,10 @@
     { name: 'Plus grid', bg: { color: '#1d1b18', pattern: { type: 'plus', color: 'rgba(255,255,255,0.3)', size: 60, thick: 2 } } },
   ];
 
+  // newest looks first (after the starter design)
+  const FRESH = ['garden-menu', 'ribbon-fest', 'first-squat', 'pov-camera', 'garden-golden', 'ribbon-sounds', 'run-club', 'pov-tapes', 'garden-dusk', 'ribbon-market', 'dance-studio', 'pov-behind'];
+  const rank = t => t.id === 'every-shade' ? -1 : FRESH.includes(t.id) ? FRESH.indexOf(t.id) : 100;
+  TEMPLATES.sort((a, b) => rank(a) - rank(b));
   window.STUDIO_TEMPLATES = TEMPLATES;
   window.STUDIO_TEXT_PRESETS = TEXT_PRESETS;
   window.STUDIO_PAPER_PRESETS = PAPER_PRESETS;

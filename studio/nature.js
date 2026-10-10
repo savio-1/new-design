@@ -149,12 +149,12 @@
       for (let x = 0; x < W; x++) a[x] = margin + Math.max(0, L.f((x + 0.5) / W)) * (H - margin);
       return a;
     });
-    const cv = mk(W, H), ctx = cv.getContext('2d');
+    let cv = null, ctx = null;
     for (let i = 0; i < layers.length; i++) {
       const lim = new Float32Array(W).fill(H + 1);
       if (i + 1 < layers.length) for (let x = 0; x < W; x++) lim[x] = tops[i + 1][x] + 4 + Lb * k;
       const lc = hillLayer(W, H, k, tops[i], lim, o.colors, seed + i * 31, density, layers[i].haze, Lb);
-      ctx.drawImage(lc, 0, 0);
+      if (!cv) { cv = lc; ctx = cv.getContext('2d'); } else ctx.drawImage(lc, 0, 0);
     }
     return cv;
   }
@@ -241,8 +241,6 @@
       }
     }
     ctx.putImageData(img, 0, 0);
-    if (window.__NT) window.__NT.px = performance.now();
-    let NB = 0;
 
     /* ---- blades, batched per (width band, depth band, tone) */
     const r = rng(seed * 131 + 7);
@@ -286,10 +284,10 @@
           const a = -Math.PI / 2 + lean + (r() - 0.5) * 0.7;
           const len = lenP * (0.5 + r() * 0.8);
           const p = bk.get(wb * 1000 + tq * 10 + tone);
-          NB++;
           p.moveTo(x0, y0);
           const x1 = x0 + Math.cos(a) * len, y1 = y0 + Math.sin(a) * len;
-          p.quadraticCurveTo(x0 + Math.cos(a) * len * 0.55, y0 + Math.sin(a) * len * 0.55, x1 + (r() - 0.5) * lw, y1);
+          if (len < 7) p.lineTo(x1, y1);
+          else p.quadraticCurveTo(x0 + Math.cos(a) * len * 0.55, y0 + Math.sin(a) * len * 0.55, x1 + (r() - 0.5) * lw, y1);
         }
       }
     }
@@ -309,7 +307,6 @@
       p.moveTo(x0, y0);
       p.lineTo(x0 + Math.cos(a) * len, y0 + Math.sin(a) * len);
     }
-    if (window.__NT) { window.__NT.nb = NB; window.__NT.bl = performance.now(); }
     ctx.lineCap = 'round';
     const keys = [...bk.m.keys()].sort((a, b) => (a % 10) - (b % 10) || a - b);
     for (const key of keys) {
@@ -567,7 +564,7 @@
       const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
       const lam = nx * L[0] + ny * L[1] + nz * L[2];
       const edge = Math.sqrt(nx * nx + ny * ny);
-      let val = lam * 0.75 + 0.18 + (r() - 0.5) * 0.42 - (edge > 0.85 ? (edge - 0.85) * 0.8 : 0);
+      let val = lam * 0.72 + 0.1 + (r() - 0.5) * 0.42 - (edge > 0.75 ? (edge - 0.75) * 1.1 : 0);
       if (shadeY) val += shadeY(x, y);
       const tone = clamp(Math.floor(val * NT), 0, NT - 1);
       const l = ls * (0.6 + r() * 0.65), rot = r() * TAU;
@@ -743,16 +740,16 @@
     ctx.strokeStyle = css(mix(ct, BLACK, 0.45), 0.55); ctx.lineWidth = Math.max(0.7, tw * 0.08); ctx.stroke(bark);
     ctx.restore();
     // canopy clumps
-    const clumps = [{ x: cx, y: ccy, r: Math.min(rx, ry) * 0.62 }];
-    const n = 12 + Math.floor(r() * 4);
+    const clumps = [{ x: cx, y: ccy + ry * 0.05, r: Math.min(rx, ry) * 0.5 }];
+    const n = 14 + Math.floor(r() * 4);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU + r() * 0.3;
-      const rr = Math.min(rx, ry) * (0.3 + r() * 0.12);
+      const rr = Math.min(rx, ry) * (0.24 + r() * 0.16);
       clumps.push({ x: cx + Math.cos(a) * (rx - rr) * (0.85 + r() * 0.15), y: ccy + Math.sin(a) * (ry - rr) * (0.85 + r() * 0.15), r: rr });
     }
-    for (let i = 0; i < 5; i++) {
-      const a = r() * TAU, d = r() * 0.45;
-      clumps.push({ x: cx + Math.cos(a) * rx * d, y: ccy + Math.sin(a) * ry * d + ry * 0.1, r: Math.min(rx, ry) * (0.3 + r() * 0.1) });
+    for (let i = 0; i < 8; i++) {
+      const a = r() * TAU, d = 0.2 + r() * 0.4;
+      clumps.push({ x: cx + Math.cos(a) * rx * d, y: ccy + Math.sin(a) * ry * d + ry * 0.05, r: Math.min(rx, ry) * (0.22 + r() * 0.12) });
     }
     clumps.sort((a, b) => a.y - b.y);
     const { deep, tones } = leafTonesOf(cl, cm, cd);
@@ -817,7 +814,7 @@
         const i = y * gw + x;
         const f = F[i];
         if (f <= 0.02) { F[i] = 0; continue; }
-        const nz = fbm(g1, x * sc, y * sc, 4) * 0.32 + vn(g2, x * sc * 4.3, y * sc * 4.3) * 0.1;
+        const nz = fbm(g1, x * sc, y * sc, 5) * 0.32 + vn(g2, x * sc * 4.3, y * sc * 4.3) * 0.1;
         F[i] = Math.max(0, (f + nz * Math.min(1, f * 2.2)) * flat);
       }
     }
@@ -835,12 +832,15 @@
       for (let x = 0; x < gw; x++) {
         const f = F[y * gw + x];
         if (f <= 0) continue;
-        const a = sstep(T - 0.07, T + 0.1, f);
+        const gx = at(x + 1, y) - at(x - 1, y), gyy = at(x, y + 1) - at(x, y - 1);
+        const gm = Math.max(0.004, Math.sqrt(gx * gx + gyy * gyy) * 0.5); // field change per px
+        const a = sstep(T - gm * 1.6 * ds - 0.01, T + gm * 2.2 * ds + 0.02, f);
         if (a <= 0) continue;
         const occ = at(x + lx * o1, y + ly * o1) * 0.45 + at(x + lx * o2, y + ly * o2) * 0.35 + at(x + lx * o3, y + ly * o3) * 0.2;
         // self-shadowing toward the light + darker toward the flat base; thin edges stay light
         const vy = (y - topY[x]) / Math.max(4, base - topY[x]);
-        let s = clamp01((occ - 0.25) * 0.42 + vy * 0.62 - 0.1 - (1 - Math.min(1, f / 0.45)) * 0.18 * (1 - vy));
+        let s = clamp01((occ - 0.3) * 0.3 + vy * 0.6 - 0.14 - (1 - Math.min(1, f / 0.45)) * 0.15 * (1 - vy));
+        s = clamp01(s + fbm(g2, x * sc * 1.1 + 5.3, y * sc * 1.1 + 1.1, 3) * 0.28 * (0.3 + vy));
         s = s * s * (3 - 2 * s);
         const c = s < 0.5 ? mix(chi, mid, s * 2) : mix(mid, csh, (s - 0.5) * 2);
         const j = (y * gw + x) * 4;
