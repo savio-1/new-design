@@ -1048,11 +1048,19 @@
   function onDouble(id) {
     const el = elMap.get(id);
     if (!el || el.locked) return;
-    if (el.type === 'text') S.startTextEdit(id);
+    if (el.type === 'text') S.editText(id);
     else if (el.type === 'image') { if (el.assetId) startCrop(id); else S.pickImages({ replaceId: id }); }
     else if (el.type === 'ribbon') startPathEdit(id);
     else emit('focusInspector', el);
   }
+  // in videos, text is typed into the side panel: animated text can't be edited in place
+  S.isVideoText = el => !!(el && el.type === 'text' && (R.hasAnim(el) || S.hasAnimation()));
+  S.editText = function (id) {
+    const el = elMap.get(id);
+    if (!el) return;
+    if (S.isVideoText(el)) { if (R.playTime != null) S.stopPreview(); if (!sel.includes(id) || sel.length !== 1) S.select([id]); emit('focusText', id); }
+    else S.startTextEdit(id);
+  };
   S.startTextEdit = function (id) {
     const el = elMap.get(id);
     if (!el || el.type !== 'text') return;
@@ -1705,7 +1713,7 @@
     if (e.key === 'Enter') {
       if (cropState) { endCrop(); return; }
       const els = S.selEls();
-      if (els.length === 1 && els[0].type === 'text') { e.preventDefault(); S.startTextEdit(els[0].id); }
+      if (els.length === 1 && els[0].type === 'text') { e.preventDefault(); S.editText(els[0].id); }
       return;
     }
     const step = e.shiftKey ? 10 : 1;

@@ -524,6 +524,44 @@
       h('button.icon-btn', { type: 'button', title: 'More actions', onclick: e => { const r = e.currentTarget.getBoundingClientRect(); contextMenu({ x: r.left - 160, y: r.bottom + 4 }); } }, ic('more')));
   }
 
+  // what an animated text layer does with its text, in plain words
+  function textModeHint(el) {
+    const en = (el.anim && el.anim.enter) || '';
+    if (en === 'captions') return 'One caption per line — each line shows in turn.';
+    if (en === 'roll') return 'One value per line — they roll past in order.';
+    if (en === 'words') return 'Each word pops up on its own, in order.';
+    if (en === 'typewriter') return 'Typed out letter by letter. Pick highlighted words under Motion → Typing.';
+    if (/^letters|^slam/.test(en)) return 'Each letter animates in, one after another.';
+    if (el.time && (el.time.start > 0 || el.time.end != null || el.time.cycle)) return 'Shown for part of the video (see Motion → timing).';
+    return '';
+  }
+  // a text box bound to one element (so many can sit side by side)
+  function elTextBox(el, o = {}) {
+    const key = o.path || 'text';
+    const pieces = () => (R.seqPieces(el) || []).length;
+    const ta = h('textarea.txt.video-text', { rows: o.rows || Math.min(8, Math.max(2, String(el[key] || '').split('\n').length + 1)), spellcheck: true, placeholder: o.placeholder || 'Type your text', 'data-el': el.id });
+    ta.value = el[key] || '';
+    const count = h('span.txt-count');
+    const updCount = () => { const n = pieces(); count.textContent = n > 1 ? `${n} ${el.anim.enter === 'words' ? 'words' : 'lines'}` : ''; };
+    let timer;
+    ta.addEventListener('input', () => {
+      S.changeEl(el, e => { e[key] = ta.value; }, true);
+      updCount(); clearTimeout(timer); timer = setTimeout(() => S.commit(), 500);
+      if (R.playTime != null) S.seek(R.playTime);
+    });
+    ta.addEventListener('blur', () => { S.commit(); if (o.onBlur) o.onBlur(); });
+    ta.addEventListener('keydown', e => e.stopPropagation());
+    bindings.push(() => { if (document.activeElement !== ta) ta.value = el[key] || ''; });
+    updCount();
+    const hint = o.hint ?? textModeHint(el);
+    return h('div.text-box', null, ta, h('div.text-box-foot', null, hint ? h('span.hint', null, hint) : h('span'), count));
+  }
+  S.on('focusText', id => {
+    renderInspector();
+    const ta = insp.querySelector(`textarea.video-text[data-el="${id}"]`);
+    if (ta) { ta.focus(); ta.select(); ta.closest('.sec')?.scrollIntoView({ block: 'nearest' }); ta.classList.add('flash'); setTimeout(() => ta.classList.remove('flash'), 700); }
+    if (matchMedia('(max-width: 920px)').matches) insp.classList.add('open');
+  });
   function textInspector(el) {
     const T = 'sel';
     const bgStyle = (el.bg && el.bg.style) || 'none';
@@ -534,7 +572,12 @@
     const styles = Object.entries(R.TEXT_BG).filter(([k]) => showAll || MAIN_STYLES.includes(k));
     const chips = h('div.chips.tight', null, styles.map(([k, l]) => h('button.chip' + (bgStyle === k ? '.on' : ''), { type: 'button', onclick: () => { S.change(T, 'bg.style', k, false); renderInspector(); } }, l)),
       showAll ? null : h('button.chip.ghost', { type: 'button', onclick: () => { moreOpen.set('text-styles-all', true); renderInspector(); } }, 'More…'));
+    const videoText = S.isVideoText(el);
     return [
+      videoText ? sec('Text', [
+        elTextBox(el, { onBlur: () => { if (el.typing) renderInspector(); } }),
+        full(h('div.btn-row', null, h('button.btn.grow', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview the animation'))),
+      ], true, { collapsible: false, key: 'video-text' }) : null,
       sec('Typography', [
         full(fontCtl(T, 'fontFamily', 'fontWeight')),
         two(weightCtl(T, 'fontFamily', 'fontWeight'), num(T, 'fontSize', { label: 'Size', min: 4, max: 2000, step: 1 })),
@@ -1286,6 +1329,28 @@
         h('button.btn', { type: 'button', onclick: () => setCameraMove('none') }, ic('trash'), 'Remove'))),
     ], true, { collapsible: false, actions: null });
   }
+  // every piece of text in a video, editable without touching the canvas
+  function videoTextSection() {
+    if (!S.hasAnimation()) return null;
+    const items = S.doc.elements.filter(e => !e.hidden && ((e.type === 'text' && String(e.text || '').trim()) || (e.type === 'ribbon' && e.text)));
+    if (!items.length) return null;
+    const label = e => {
+      if (e.name) return e.name;
+      if (e.type === 'ribbon') return 'Ribbon text';
+      const en = (e.anim || {}).enter || '';
+      const m = { captions: 'Captions', roll: 'Rolling values', words: 'Word by word', typewriter: 'Typed text', left: 'Slides in from the left', right: 'Slides in from the right', rise: 'Slides up', drop: 'Drops in', fade: 'Fades in', pop: 'Pops in', zoom: 'Zooms in', wipe: 'Wipes in' }[en];
+      if (m) return m;
+      if (/^letters|^slam/.test(en)) return 'Animated letters';
+      if (e.time && e.time.start > 0) return `Appears at ${e.time.start}s`;
+      return 'Text';
+    };
+    return sec('Text in this video', [
+      h('p.hint', null, 'Type here — the animation updates as you go. Click a label to select that layer.'),
+      ...items.slice().reverse().map(e => h('div.video-text-item', null,
+        h('button.link-btn.vt-label', { type: 'button', onclick: () => S.select([e.id]) }, label(e)),
+        elTextBox(e, { rows: Math.min(6, Math.max(1, String(e.text || '').split('\n').length)), hint: e.type === 'ribbon' ? 'Runs along the ribbon.' : undefined }))),
+    ], true, { key: 'video-text-all' });
+  }
   function sizeName(w, hh) { const m = SIZES.find(([, a, b]) => a === w && b === hh); return m ? m[0] : 'Custom'; }
   function canvasInspector() {
     const T = 'doc';
@@ -1329,6 +1394,7 @@
           full(h('button.btn', { type: 'button', onclick: () => { S.change(T, 'background.assetId', null); renderInspector(); } }, ic('trash'), 'Remove photo')),
         ], 'Adjust photo'),
       ], true) : null,
+      videoTextSection(),
       cameraSection(),
       addSec('Finish', [
         {
@@ -1974,7 +2040,7 @@
     const el = els[0];
     const b = (i, t, fn) => h('button', { title: t, onclick: fn }, ic(i));
     const kids = [];
-    if (els.length === 1 && el.type === 'text' && !el.locked) kids.push(b('edit', 'Edit text', () => S.startTextEdit(el.id)));
+    if (els.length === 1 && el.type === 'text' && !el.locked) kids.push(b('edit', 'Edit text', () => S.editText(el.id)));
     if (els.length === 1 && el.type === 'image' && !el.locked) {
       kids.push(b('replace', el.assetId ? 'Replace photo' : 'Add photo', () => S.pickImages({ replaceId: el.id })));
       if (el.assetId) kids.push(b('crop', 'Crop', () => S.startCrop(el.id)));
@@ -2001,7 +2067,7 @@
     }
     const el = els[0];
     const items = [];
-    if (els.length === 1 && el.type === 'text') items.push({ label: 'Edit text', icon: 'edit', kbd: '↵', run: () => S.startTextEdit(el.id) });
+    if (els.length === 1 && el.type === 'text') items.push({ label: 'Edit text', icon: 'edit', kbd: '↵', run: () => S.editText(el.id) });
     if (els.length === 1 && el.type === 'image') {
       items.push({ label: el.assetId ? 'Replace photo' : 'Add photo', icon: 'replace', run: () => S.pickImages({ replaceId: el.id }) });
       if (el.assetId) items.push({ label: 'Crop', icon: 'crop', run: () => S.startCrop(el.id) }, { label: 'Use as background', icon: 'bgimg', run: () => S.setBackgroundImage(el.assetId) });
