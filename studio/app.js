@@ -652,6 +652,90 @@
     },
   };
 
+  // my templates: a design saved to start new ones from. Index under 'templates', data under 'template:<id>'
+  // (the doc, the photos/videos it uses — bundled demo photos are left out — and any uploaded fonts)
+  const BUILT_IN = /^(demo|img|film)-/;
+  let tplList = null;
+  async function myTemplates() {
+    if (tplList) return tplList;
+    const list = await DB.get('templates').catch(() => null);
+    tplList = Array.isArray(list) ? list : [];
+    return tplList;
+  }
+  function docAssets(d) {
+    const ids = new Set();
+    if (d.background.assetId) ids.add(d.background.assetId);
+    for (const el of d.elements) {
+      if (el.assetId) ids.add(el.assetId);
+      if (el.studio && el.studio.cutId) ids.add(el.studio.cutId);
+      if (el.bgRemoved && el.bgRemoved.assetId) ids.add(el.bgRemoved.assetId);
+      if (el.type === 'flashes') for (const a of el.images || []) ids.add(a);
+      if (el.seq && el.seq.ids) for (const a of el.seq.ids) ids.add(a);
+    }
+    const out = {};
+    for (const id of ids) if (assets[id] && !BUILT_IN.test(id)) out[id] = assets[id];
+    return out;
+  }
+  async function putTemplate(id, name, data, list, created) {
+    const now = Date.now();
+    await DB.set('template:' + id, data);
+    let it = list.find(t => t.id === id);
+    if (!it) { it = { id, created: created || now }; list.unshift(it); }
+    const d = data.doc;
+    let thumb = null;
+    try { thumb = R.renderDoc(d, { scale: 360 / Math.max(d.width, d.height) }).toDataURL('image/jpeg', 0.8); } catch (e) { /* tainted or not ready */ }
+    Object.assign(it, { name, savedAt: now, w: d.width, h: d.height, video: !!data.video, layers: d.elements.length, thumb });
+    await DB.set('templates', list);
+    emit('templates');
+    return id;
+  }
+  S.myTemplates = {
+    list: myTemplates,
+    get: id => DB.get('template:' + id).catch(() => null),
+    // save the canvas as it is now; with replaceId, overwrite that template instead of adding a new one
+    async save(name, replaceId) {
+      if (textEdit) finishTextEdit();
+      const list = await myTemplates();
+      const id = replaceId && list.some(t => t.id === replaceId) ? replaceId : uid('t');
+      const d = clone(doc);
+      const data = { name, doc: d, assets: docAssets(d), video: S.hasAnimation(), fonts: window.StudioFonts.packFamilies(usedFamilies()), savedAt: Date.now() };
+      return putTemplate(id, name, data, list);
+    },
+    // a template file from another computer
+    async add(data, name) {
+      const list = await myTemplates();
+      if (data.assets) Object.assign(assets, data.assets);
+      return putTemplate(uid('t'), name || data.name || 'My template', { name: name || data.name, doc: data.doc, assets: data.assets || {}, video: !!data.video, fonts: data.fonts || [], savedAt: Date.now() }, list);
+    },
+    async rename(id, name) {
+      const list = await myTemplates(), it = list.find(t => t.id === id);
+      if (!it) return;
+      it.name = name;
+      const data = await DB.get('template:' + id).catch(() => null);
+      if (data) { data.name = name; await DB.set('template:' + id, data).catch(() => {}); }
+      await DB.set('templates', list).catch(() => {});
+      emit('templates');
+    },
+    async remove(id) {
+      const list = await myTemplates(), i = list.findIndex(t => t.id === id);
+      if (i < 0) return null;
+      const [it] = list.splice(i, 1);
+      const data = await DB.get('template:' + id).catch(() => null);
+      await DB.del('template:' + id).catch(() => {});
+      await DB.set('templates', list).catch(() => {});
+      emit('templates');
+      return { it, data, index: i };
+    },
+    async restore(r) {
+      if (!r || !r.data) return;
+      const list = await myTemplates();
+      await DB.set('template:' + r.it.id, r.data).catch(() => {});
+      list.splice(Math.min(r.index, list.length), 0, r.it);
+      await DB.set('templates', list).catch(() => {});
+      emit('templates');
+    },
+  };
+
   // uploaded fonts used in the design travel inside the project file so it opens anywhere
   function usedFamilies() {
     const fam = new Set();

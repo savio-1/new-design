@@ -1935,6 +1935,7 @@
   }
   function replaceWithTemplate(t) {
     closeModal();
+    templateFonts(t);
     S.loadDoc(prepDoc(t.build()), null, { name: t.name });
     toast(`“${t.name}” loaded — make it yours`);
   }
@@ -1999,15 +2000,107 @@
       grid,
     ];
   }
+  /* my templates: designs saved from the canvas to start new ones from */
+  let myTpls = [];
+  async function loadMyTemplates() {
+    const list = await S.myTemplates.list();
+    const out = [];
+    for (const m of list) {
+      const data = await S.myTemplates.get(m.id);
+      if (!data || !data.doc) continue;
+      // their photos join the asset store so thumbnails and new designs can use them
+      if (data.assets) Object.assign(S.assets, data.assets);
+      out.push({ id: 'my:' + m.id + ':' + m.savedAt, mine: m.id, meta: m, name: m.name, width: data.doc.width, height: data.doc.height, video: !!m.video, tags: ['My templates'], fonts: data.fonts || [], build: () => S.clone(data.doc) });
+    }
+    R.setAssets(S.assets);
+    myTpls = out;
+  }
+  const allTemplates = () => myTpls.concat(window.STUDIO_TEMPLATES || []);
+  // uploaded fonts saved with a template come back before it's used
+  function templateFonts(t) {
+    if (!t.fonts || !t.fonts.length) return;
+    F.unpackFamilies(t.fonts).then(() => { R.fontsVersion++; R.requestRedraw(); });
+  }
+  function saveTemplateModal() {
+    const nameIn = h('input.sel', { type: 'text', value: S.docName && S.docName !== 'Untitled design' ? S.docName : '', placeholder: 'Template name', 'aria-label': 'Template name' });
+    let target = '';
+    const pick = myTpls.length ? h('select.sel', { 'aria-label': 'Save as', onchange: e => { target = e.target.value; const m = myTpls.find(t => t.mine === target); if (m && !nameIn.value.trim()) nameIn.value = m.name; } },
+      h('option', { value: '' }, 'A new template'), myTpls.map(t => h('option', { value: t.mine }, `Replace “${t.name}”`))) : null;
+    const save = () => {
+      const name = nameIn.value.trim() || 'My template';
+      closeModal();
+      S.myTemplates.save(name, target || null)
+        .then(() => toast(`Saved “${name}” to My templates`, { label: 'Show', run: () => { tplGroup = null; piecesOf = null; tplTag = 'All'; queries.templates = ''; setTab('templates'); panel.scrollTop = 0; } }))
+        .catch(() => toast('Couldn’t save the template — the browser’s storage may be full'));
+    };
+    nameIn.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') save(); });
+    const box = modal([
+      h('h1', { style: { fontSize: '20px' } }, 'Save as template'),
+      h('p.lead', null, 'Keeps the whole canvas — layers, photos and videos, background, finish and animation — under My templates, so any new design can start from it. This design stays as it is.'),
+      h('div.form-rows', null,
+        h('label.form-row', null, h('span', null, 'Name'), nameIn),
+        pick ? h('label.form-row', null, h('span', null, 'Save as'), pick) : null),
+      h('div.btn-row', { style: { marginTop: '18px' } }, h('button.btn', { type: 'button', onclick: closeModal }, 'Cancel'), h('button.btn.primary', { type: 'button', onclick: save }, ic('layout'), 'Save template')),
+    ], { small: true });
+    box.style.width = 'min(460px, 100%)';
+    hydrateIcons(box);
+    setTimeout(() => { nameIn.focus(); nameIn.select(); }, 30);
+  }
+  function renameTemplate(t) {
+    const nameIn = h('input.sel', { type: 'text', value: t.name, 'aria-label': 'Template name' });
+    const ok = () => { const v = nameIn.value.trim(); closeModal(); if (v && v !== t.name) S.myTemplates.rename(t.mine, v); };
+    nameIn.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') ok(); });
+    modal([h('h1', { style: { fontSize: '20px' } }, 'Rename template'), nameIn,
+      h('div.btn-row', { style: { marginTop: '18px' } }, h('button.btn', { type: 'button', onclick: closeModal }, 'Cancel'), h('button.btn.primary', { type: 'button', onclick: ok }, 'Rename'))], { small: true }).style.width = 'min(420px, 100%)';
+    setTimeout(() => { nameIn.focus(); nameIn.select(); }, 30);
+  }
+  async function downloadTemplate(t) {
+    const data = await S.myTemplates.get(t.mine);
+    if (!data) return;
+    const name = (t.name || 'template').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'template';
+    const blob = new Blob([JSON.stringify({ app: 'collage-studio', kind: 'template', version: 1, name: t.name, doc: data.doc, assets: data.assets, fonts: data.fonts || [], video: !!data.video })], { type: 'application/json' });
+    download(blob, name + '.template.studio.json').then(r => { if (r === 'saved' || r === 'started') toast('Template file saved'); });
+  }
+  async function deleteTemplate(t) {
+    const r = await S.myTemplates.remove(t.mine);
+    toast(`Deleted the template “${t.name}”`, { label: 'Undo', run: () => S.myTemplates.restore(r) });
+  }
+  // a template card with a ⋯ menu for the ones you made
+  function myTemplateCard(t, onPick, width) {
+    const card = templateCard(t, onPick, width, { pieces: width > 240 });
+    card.classList.add('mine');
+    card.append(h('button.icon-btn.tpl-more', { type: 'button', title: 'More', 'aria-label': `More for “${t.name}”`, onclick: e => { e.stopPropagation(); menu(e.currentTarget, [
+      { label: 'Use template', icon: 'layout', run: () => onPick(t) },
+      { label: 'Rename', icon: 'edit', run: () => renameTemplate(t) },
+      { label: 'Replace with this design', icon: 'replace', disabled: isHome(), run: () => S.myTemplates.save(t.name, t.mine).then(() => toast(`Updated “${t.name}”`)) },
+      { label: 'Download template file', icon: 'download', run: () => downloadTemplate(t) },
+      '-',
+      { label: 'Delete', icon: 'trash', run: () => deleteTemplate(t) },
+    ]); } }, ic('more')));
+    return card;
+  }
+  function myTemplatesBlock(q) {
+    const list = myTpls.filter(t => !q || t.name.toLowerCase().includes(q));
+    if (q && !list.length) return null;
+    const saveTile = h('button.tpl-save', { type: 'button', onclick: saveTemplateModal, title: 'Save the whole canvas as a template' }, ic('plus'), h('b', null, 'Save this design'), h('small', null, 'as a template'));
+    return h('div.my-tpls', null,
+      h('div.sub-head', null, h('span', null, 'My templates'), myTpls.length ? h('small', null, myTpls.length) : null),
+      myTpls.length ? null : h('p.hint', null, 'Made something you’ll want again? Save the whole canvas as a template and it shows up here.'),
+      h('div.tpl-grid', null, list.map(t => myTemplateCard(t, useTemplate, 260)), q ? null : saveTile));
+  }
+
   function templatesPanel() {
-    const T = window.STUDIO_TEMPLATES || [];
+    const T = allTemplates();
     if (piecesOf) { const t = T.find(x => x.id === piecesOf); if (t) return piecesPanel(t); piecesOf = null; }
     if (tplGroup) { const m = T.filter(t => t.group === tplGroup); if (m.length) return familyPanel(tplGroup, m); tplGroup = null; }
-    const tags = ['All', 'Video', ...[...new Set(T.flatMap(t => t.tags || []))].filter(x => x !== 'Video')];
-    const grid = h('div.tpl-grid');
+    const BT = window.STUDIO_TEMPLATES || [];
+    const tags = ['All', 'Video', ...[...new Set(BT.flatMap(t => t.tags || []))].filter(x => x !== 'Video')];
+    const grid = h('div.tpl-grid'), mine = h('div');
     const draw = () => {
       const q = (queries.templates || '').trim().toLowerCase();
-      const list = T.filter(t => (tplTag === 'All' || (t.tags || []).includes(tplTag)) && (!q || t.name.toLowerCase().includes(q) || (t.group || '').toLowerCase().includes(q) || (t.tags || []).some(g => g.toLowerCase().includes(q))));
+      mine.replaceChildren(...[tplTag === 'All' ? myTemplatesBlock(q) : null].filter(Boolean));
+      hydrateIcons(mine);
+      const list = BT.filter(t => (tplTag === 'All' || (t.tags || []).includes(tplTag)) && (!q || t.name.toLowerCase().includes(q) || (t.group || '').toLowerCase().includes(q) || (t.tags || []).some(g => g.toLowerCase().includes(q))));
       // one card per family; searching shows every match individually
       const seen = new Set(), cards = [];
       for (const t of list) {
@@ -2025,7 +2118,7 @@
     const chips = h('div.chips.scroll');
     const drawChips = () => chips.replaceChildren(...tags.map(tg => h('button.chip' + (tg === tplTag ? '.on' : ''), { type: 'button', onclick: () => { tplTag = tg; drawChips(); draw(); } }, tg)));
     drawChips(); draw();
-    return [panelHead('Templates'), searchBox('Search templates', draw), chips, grid];
+    return [panelHead('Templates'), searchBox('Search templates', draw), chips, mine, grid];
   }
 
   /* elements */
@@ -2493,6 +2586,7 @@
     { label: 'Home — all designs', icon: 'home', run: () => openHome() },
     { label: 'New design…', icon: 'plus', run: () => customSizeModal() },
     { label: 'Save to my designs', icon: 'check', kbd: '⌘S', run: () => S.projects.markSaved().then(() => toast('Saved to your designs')) },
+    { label: 'Save as template…', icon: 'layout', run: () => saveTemplateModal() },
     { label: 'Open project file…', icon: 'folder', run: () => { $('#project-input').value = ''; $('#project-input').click(); } },
     { label: 'Download project file', icon: 'download', run: saveProject },
     '-',
@@ -2607,6 +2701,11 @@
       const data = JSON.parse(await f.text());
       if (!data.doc) throw new Error('bad');
       if (data.fonts && data.fonts.length) { await F.unpackFamilies(data.fonts); R.fontsVersion++; }
+      if (data.kind === 'template') {
+        await S.myTemplates.add(data, data.name || f.name.replace(/(\.template)?\.studio\.json$|\.json$/, ''));
+        toast(`Added “${data.name || 'template'}” to My templates`);
+        return;
+      }
       S.loadDoc(data.doc, data.assets || {}, { name: data.name || f.name.replace(/\.studio\.json$|\.json$/, ''), project: 'new' });
       S.uploads.splice(0, S.uploads.length, ...(data.uploads || []));
       S.saveNow();
@@ -2676,7 +2775,7 @@
     S.fit(); updateTop(); renderInspector(); renderPanel();
   }
   function startBlank(w, hh, color) { S.newDoc(w, hh, color || '#ffffff', {}, { project: 'new' }); leaveHome(); }
-  function startTemplate(t) { S.loadDoc(prepDoc(t.build()), null, { name: t.name, project: 'new' }); leaveHome(); }
+  function startTemplate(t) { templateFonts(t); S.loadDoc(prepDoc(t.build()), null, { name: t.name, project: 'new' }); leaveHome(); }
   function startPhoto(files) {
     const opts = { startFromPhoto: true, newProject: true, onStart: () => { if (isHome()) leaveHome(); } };
     if (files) S.importFiles(files, opts); else S.pickImages(opts);
@@ -2761,6 +2860,15 @@
       h('div.proj-meta', null, h('div.proj-text', null, nameEl, h('small', null, `Edited ${ago(p.savedAt)} · ${p.w} × ${p.h}`)), more));
     return card;
   }
+  function drawHomeMine(slot) {
+    slot = slot || $('.home-mine');
+    if (!slot) return;
+    const q = hs.q.trim().toLowerCase();
+    const list = myTpls.filter(t => !q || t.name.toLowerCase().includes(q));
+    slot.hidden = !list.length;
+    slot.replaceChildren(h('div.home-head', null, h('h2', null, 'My templates')), h('div.home-tpls', null, list.map(t => myTemplateCard(t, startTemplate, 220))));
+    hydrateIcons(slot);
+  }
   let homeTplGrid = null;
   function drawHomeTemplates() {
     if (!homeTplGrid) return;
@@ -2805,7 +2913,7 @@
     const T = window.STUDIO_TEMPLATES || [];
     const search = h('input.home-search-in', { type: 'search', placeholder: 'Search designs and templates', value: hs.q, 'aria-label': 'Search' });
     const projSlot = h('div'), tabs = h('div.seg.home-tabs');
-    search.addEventListener('input', () => { hs.q = search.value; drawProjects(projSlot, tabs); drawHomeTemplates(); });
+    search.addEventListener('input', () => { hs.q = search.value; drawProjects(projSlot, tabs); drawHomeTemplates(); drawHomeMine(); });
     search.addEventListener('keydown', e => e.stopPropagation());
     const sizeCard = ([n, w, hh]) => {
       const sc = 54 / Math.max(w, hh);
@@ -2825,6 +2933,8 @@
     const sortSel = h('select.sel.home-sort', { 'aria-label': 'Sort designs', onchange: e => { hs.sort = e.target.value; drawProjects(projSlot, tabs); } },
       [['edited', 'Last edited'], ['created', 'Newest first'], ['name', 'Name']].map(([v, l]) => h('option', { value: v, selected: hs.sort === v }, l)));
     const cur = S.projectId;
+    const homeMine = h('section.home-sec.home-mine');
+    drawHomeMine(homeMine);
     home.replaceChildren(
       h('header.home-top', null,
         h('div.home-brand', null, h('span.brand-mark'), h('b', null, 'Collage Studio')),
@@ -2841,6 +2951,7 @@
         h('section.home-sec', null,
           h('div.home-head', null, h('h2', null, 'Your designs'), tabs, h('div.grow'), sortSel),
           projSlot),
+        homeMine,
         h('section.home-sec', null,
           h('div.home-head', null, h('h2', null, 'Start from a template')),
           chips, homeTplGrid,
@@ -2851,6 +2962,8 @@
     home._redraw = () => drawProjects(projSlot, tabs);
   }
   S.on('projects', () => { if (isHome() && home._redraw) home._redraw(); updateSaveState(); });
+  S.on('templates', () => loadMyTemplates().then(() => { if (tab === 'templates' && !tplGroup && !piecesOf) renderPanel(); if (isHome()) drawHomeMine(); }));
+  loadMyTemplates().then(() => { if (myTpls.length) { if (tab === 'templates') renderPanel(); if (isHome()) drawHomeMine(); } });
   S.on('project', updateSaveState);
 
   // draft / saved state next to the design name

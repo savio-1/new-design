@@ -38,6 +38,14 @@ The app opens on a home page:
 
 Designs live in this browser's storage, so clearing site data removes them — download project files for anything you want to keep elsewhere.
 
+## My templates
+
+- **Save as template** (⋯ menu → *Save as template…*, or the *Save this design* tile at the top of the Templates panel): keeps the whole canvas — every layer, its photos and videos, the background, finish, camera move and animation — under **My templates**. The design you're working on isn't changed.
+- My templates show first in the Templates panel and on the home page. Clicking one starts from it like any built-in template (on an empty canvas it loads straight away; otherwise you can replace, add its layers, pick pieces or take its background). Every photo slot can then be replaced as usual.
+- Each card's ⋯ menu: *Rename*, *Replace with this design* (update the template with what's on the canvas now), *Download template file*, *Delete* (with Undo). *Save as* in the save dialog can also overwrite an existing template.
+- **On another computer**: *Download template file* gives a `.template.studio.json`; *Open file* on the home page (or ⋯ → *Open project file…*) adds it to My templates there. Uploaded fonts used in the template travel inside the file.
+- Templates live in this browser's storage, like your designs.
+
 ## Layout of the editor
 
 - **Top bar**: menu (new, open, save, canvas size, shortcuts), name, undo/redo, **Animate** and **Export**.

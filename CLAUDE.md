@@ -106,11 +106,16 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, register
 - State: `doc`, `sel` (ids), `elMap`, `nodes`. Change things with `S.change(target, path, value, live)`
   (`target` = `'doc'` or `'sel'`), `S.changeEl(el, fn)`, then `S.commit()` for history.
 - Events (`S.on`): `selection`, `values`, `doc`, `history`, `change`, `time`, `playstate`, `projects`,
-  `project`, `name`, `view`, `uploads`, `replaced`, `spotedit`, `pathedit`, `fonts`, `toast`.
+  `project`, `name`, `templates`, `view`, `uploads`, `replaced`, `spotedit`, `pathedit`, `fonts`, `toast`.
 - Import: `S.pickImages(opts)` / `S.importFiles(files, opts)` (photos and videos; `replaceId`,
   `asBackground`, `uploadOnly`+`onAdded`, `startFromPhoto`, `imagesOnly`).
 - Projects: each design is a project in IndexedDB (`project:<id>` + a `projects` index with thumbnails,
   status draft / saved). `S.projects.*`, `S.saveNow()`. Opening the app shows the home page.
+- My templates: `S.myTemplates.*` (save / add / rename / remove / restore) stores a snapshot of the canvas
+  under `template:<id>` + a `templates` index (thumbnail, size, video). Bundled `demo-/img-/film-` photos are
+  left out of the snapshot. ui.js turns them into template-like objects (`myTpls`, `t.mine`) so
+  `templateCard`, `useTemplate` and pieces work unchanged; a file with `kind: 'template'` opened through
+  *Open file* is added to My templates instead of opening as a design. Event: `templates`.
 - Selection gestures: Shift adds (click or box), Alt removes, Cmd/Ctrl toggles; Alt-drag duplicates;
   holding Alt shows distance lines (`updateDistances`). Selection gestures set `noDrag`.
 - Full-canvas `flashes` layers don't listen to clicks so the photo under them stays reachable.
