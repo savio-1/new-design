@@ -11,6 +11,7 @@
 
   const ICONS = {
     plus: 'M12 5v14M5 12h14', minus: 'M5 12h14',
+    home: 'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
     target: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 12h.01',
     undo: 'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11', redo: 'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
     grid: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM3 9h18M3 15h18M9 3v18M15 3v18',
@@ -88,10 +89,13 @@
   }
   const ic = name => h('i', { 'data-icon': name, html: icon(name) });
 
-  function toast(msg) {
+  function toast(msg, action) {
     const t = $('#toast');
-    t.textContent = msg; t.classList.add('show');
-    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2200);
+    t.replaceChildren(String(msg));
+    if (action) t.append(h('button.toast-act', { type: 'button', onclick: () => { t.classList.remove('show'); action.run(); } }, action.label));
+    t.classList.toggle('has-act', !!action);
+    t.classList.add('show');
+    clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), action ? 5000 : 2200);
   }
   S.on('toast', toast);
 
@@ -2229,9 +2233,11 @@
   $('#btn-export').onclick = () => openExport();
   $('#size-label').onclick = () => openSizeModal();
   $('#btn-menu').onclick = e => menu(e.currentTarget, [
-    { label: 'New design…', icon: 'plus', run: () => openHome() },
+    { label: 'Home — all designs', icon: 'home', run: () => openHome() },
+    { label: 'New design…', icon: 'plus', run: () => customSizeModal() },
+    { label: 'Save to my designs', icon: 'check', kbd: '⌘S', run: () => S.projects.markSaved().then(() => toast('Saved to your designs')) },
     { label: 'Open project file…', icon: 'folder', run: () => { $('#project-input').value = ''; $('#project-input').click(); } },
-    { label: 'Save project file', icon: 'download', kbd: '⌘S', run: saveProject },
+    { label: 'Download project file', icon: 'download', run: saveProject },
     '-',
     { label: 'Canvas size…', icon: 'resize', run: () => openSizeModal() },
     { label: 'Export…', icon: 'image', kbd: '⌘E', run: () => openExport() },
@@ -2344,9 +2350,11 @@
       const data = JSON.parse(await f.text());
       if (!data.doc) throw new Error('bad');
       if (data.fonts && data.fonts.length) { await F.unpackFamilies(data.fonts); R.fontsVersion++; }
+      S.loadDoc(data.doc, data.assets || {}, { name: data.name || f.name.replace(/\.studio\.json$|\.json$/, ''), project: 'new' });
       S.uploads.splice(0, S.uploads.length, ...(data.uploads || []));
-      S.loadDoc(data.doc, data.assets || {}, { name: data.name || f.name.replace(/\.studio\.json$|\.json$/, '') });
-      toast('Project opened');
+      S.saveNow();
+      if (isHome()) leaveHome();
+      toast('Project opened — it’s now in your designs');
     } catch (err) { toast('That file isn’t a Collage Studio project'); }
   });
 
@@ -2382,44 +2390,223 @@
     box.style.width = 'min(560px, 100%)';
   }
 
-  function openHome(first) {
-    let W = 1080, H = 1350, color = '#f6f1e7';
+  /* ───────────────────────── home: your designs & new ones ───────────────────────── */
+
+  const home = $('#home');
+  const HOME_SIZES = [['Portrait post', 1080, 1350], ['Square post', 1080, 1080], ['Story / Reel', 1080, 1920], ['Landscape', 1920, 1080]];
+  const hs = { filter: 'all', sort: 'edited', q: '', tag: 'All', allTpl: false };
+  function ago(t) {
+    const s = (Date.now() - t) / 1000;
+    if (s < 45) return 'just now';
+    if (s < 3600) return Math.round(s / 60) + ' min ago';
+    if (s < 86400) return Math.round(s / 3600) + ' h ago';
+    if (s < 86400 * 7) { const d = Math.round(s / 86400); return d === 1 ? 'yesterday' : d + ' days ago'; }
+    return new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: new Date(t).getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+  }
+  function isHome() { return !home.hidden; }
+  async function openHome() {
+    if (S.isPlaying()) S.pause();
+    if (R.playTime != null) S.stopPreview();
+    closeModal(); closePop();
+    await S.saveNow();
+    home.hidden = false;
+    document.body.classList.add('at-home');
+    renderHome();
+  }
+  function leaveHome() {
+    home.hidden = true;
+    document.body.classList.remove('at-home');
+    S.fit(); updateTop(); renderInspector(); renderPanel();
+  }
+  function startBlank(w, hh, color) { S.newDoc(w, hh, color || '#ffffff', {}, { project: 'new' }); leaveHome(); }
+  function startTemplate(t) { S.loadDoc(prepDoc(t.build()), null, { name: t.name, project: 'new' }); leaveHome(); }
+  function startPhoto(files) {
+    const opts = { startFromPhoto: true, newProject: true, onStart: () => { if (isHome()) leaveHome(); } };
+    if (files) S.importFiles(files, opts); else S.pickImages(opts);
+  }
+  async function openProject(id) {
+    const data = await S.projects.get(id);
+    if (!data || !data.doc) { toast('That design couldn’t be opened'); return; }
+    S.uploads.splice(0, S.uploads.length, ...(data.uploads || []));
+    S.loadDoc(data.doc, data.assets || {}, { name: data.name || 'Untitled design', project: id });
+    leaveHome();
+  }
+  function customSizeModal() {
+    let W = 1080, H = 1350, color = '#ffffff';
     const colors = ['#ffffff', '#f6f1e7', '#efe6d2', '#1f5a4a', '#1d1b18', '#f7b4c8', '#c9b6f2', '#d7ef5a', '#9ad1f5', '#ff8a3d'];
-    const crow = h('div.color-row', null, colors.map(c => h('button' + (c === color ? '.on' : ''), { style: { background: c }, onclick: e => { color = c; $$('button', crow).forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } })));
-    const pd = h('div.photo-drop', { onclick: () => { closeModal(); S.pickImages({ startFromPhoto: true }); } },
-      h('div', { style: { marginBottom: '6px' } }, ic('upload')), h('b', null, 'Choose a photo'), h('div.hint', null, 'or drop it here — the canvas takes its shape'));
-    pd.addEventListener('dragover', e => { e.preventDefault(); pd.classList.add('over'); });
-    pd.addEventListener('dragleave', () => pd.classList.remove('over'));
-    pd.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); closeModal(); S.importFiles([...e.dataTransfer.files], { startFromPhoto: true }); });
-    const tpls = h('div.home-tpls', null, (window.STUDIO_TEMPLATES || []).map(t => templateCard(t, tt => { closeModal(); S.loadDoc(prepDoc(tt.build()), null, { name: tt.name }); }, 220)));
-    const resumeSlot = h('div');
-    const kids = [
-      h('h1', { html: 'What are we <em>making</em> today?' }),
-      h('p.lead', null, 'Start blank, start from a photo, or remix a template. Everything is layered and editable.'),
-      resumeSlot,
-      h('div.home-cols', null,
-        h('div.home-card', null, h('h3', null, 'Blank canvas'), h('p', null, 'Choose a size and a starting colour.'),
-          sizeTiles([W, H], (w, hh) => { W = w; H = hh; }), crow,
-          h('button.btn.primary', { style: { width: '100%', height: '38px' }, onclick: () => { closeModal(); S.newDoc(W, H, color); updateTop(); } }, 'Create blank design')),
-        h('div.home-card', null, h('h3', null, 'Start from a photo'), h('p', null, 'Your photo becomes the background; add stickers and type on top.'), pd)),
-      h('h3', { style: { margin: '0 0 12px', fontSize: '15px' } }, 'Templates'),
-      tpls,
-    ];
-    modal(kids, { closable: !first });
-    S.loadAutosave().then(save => {
-      if (!save || !save.doc || !save.doc.elements) return;
-      const c = h('canvas');
-      const btn = h('button.resume', { onclick: () => { closeModal(); resumeFrom(save); } }, c, h('div', null, h('b', null, 'Continue where you left off'), h('span', null, `${save.name || 'Untitled design'} · ${new Date(save.savedAt).toLocaleString()}`)));
-      resumeSlot.append(btn);
-      R.setAssets(Object.assign(S.assets, save.assets || {}));
-      docThumb('resume:' + save.savedAt, prepDoc(save.doc), 128).then(t => { c.width = t.width; c.height = t.height; c.getContext('2d').drawImage(t, 0, 0); });
-    });
+    const crow = h('div.color-row', null, colors.map(c => h('button' + (c === color ? '.on' : ''), { type: 'button', title: c, style: { background: c }, onclick: e => { color = c; $$('button', crow).forEach(b => b.classList.remove('on')); e.currentTarget.classList.add('on'); } })));
+    const wIn = h('input', { type: 'text', value: W }), hIn = h('input', { type: 'text', value: H });
+    const box = modal([
+      h('h1', null, 'New design'),
+      h('p.lead', null, 'Pick a format or type your own size, then a starting colour.'),
+      sizeTiles([W, H], (w, hh) => { W = w; H = hh; wIn.value = w; hIn.value = hh; }),
+      h('div.custom-size', null, h('div.num', null, h('span.lbl', null, 'W'), wIn, h('span.unit', null, 'px')), '×', h('div.num', null, h('span.lbl', null, 'H'), hIn, h('span.unit', null, 'px'))),
+      h('div.sub-label', { style: { marginTop: '16px' } }, 'Background'), crow,
+      h('div.btn-row', { style: { marginTop: '18px' } }, h('button.btn', { type: 'button', onclick: closeModal }, 'Cancel'),
+        h('button.btn.primary', { type: 'button', onclick: () => { closeModal(); startBlank(clamp(parseInt(wIn.value, 10) || W, 64, 6000), clamp(parseInt(hIn.value, 10) || H, 64, 6000), color); } }, 'Create design')),
+    ], { small: true });
+    box.style.width = 'min(560px, 100%)';
   }
-  function resumeFrom(save) {
-    S.uploads.splice(0, S.uploads.length, ...(save.uploads || []));
-    S.loadDoc(save.doc, save.assets || {}, { name: save.name || 'Untitled design' });
-    updateTop();
+  function familyModal(g, members) {
+    const box = modal([
+      h('h1', null, g),
+      h('p.lead', null, members[0].video ? `${members.length} styles — hover one to preview its motion.` : `${members.length} variations of the same idea.`),
+      h('div.home-tpls', null, members.map(t => templateCard(t, tt => { closeModal(); startTemplate(tt); }, 220))),
+    ]);
+    box.style.width = 'min(900px, 100%)';
+    hydrateIcons(box);
   }
+  function renameInline(nameEl, p) {
+    const inp = h('input.proj-rename', { value: p.name, 'aria-label': 'Design name' });
+    const done = ok => { const v = inp.value.trim(); inp.replaceWith(nameEl); if (ok && v && v !== p.name) { nameEl.textContent = v; S.projects.update(p.id, { name: v }); } };
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); });
+    inp.addEventListener('blur', () => done(true));
+    nameEl.replaceWith(inp); inp.focus(); inp.select();
+  }
+  async function deleteProject(p) {
+    const r = await S.projects.remove(p.id);
+    toast(`Deleted “${p.name}”`, { label: 'Undo', run: () => S.projects.restore(r) });
+  }
+  async function downloadProject(p) {
+    const data = await S.projects.get(p.id);
+    if (!data) return;
+    const name = (p.name || 'design').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'design';
+    const blob = new Blob([JSON.stringify({ app: 'collage-studio', version: 1, name: p.name, doc: data.doc, assets: data.assets, uploads: data.uploads })], { type: 'application/json' });
+    download(blob, name + '.studio.json');
+  }
+  function projectCard(p) {
+    const thumb = h('div.proj-thumb');
+    if (p.thumb) thumb.append(h('img', { src: p.thumb, alt: '' }));
+    else {
+      thumb.classList.add('skeleton');
+      S.projects.get(p.id).then(data => {
+        if (!data || !data.doc) return;
+        R.setAssets(Object.assign(S.assets, data.assets || {}));
+        docThumb('proj:' + p.id + ':' + p.savedAt, prepDoc(data.doc), 360).then(c => { thumb.classList.remove('skeleton'); thumb.replaceChildren(h('img', { src: c.toDataURL('image/jpeg', 0.8), alt: '' })); });
+      });
+    }
+    const nameEl = h('b.proj-name', { title: 'Double-click to rename' }, p.name || 'Untitled design');
+    nameEl.addEventListener('dblclick', e => { e.stopPropagation(); renameInline(nameEl, p); });
+    const saved = p.status === 'saved';
+    const more = h('button.icon-btn.proj-more', { type: 'button', title: 'More', onclick: e => { e.stopPropagation(); menu(e.currentTarget, [
+      { label: 'Open', icon: 'chevRight', run: () => openProject(p.id) },
+      { label: 'Rename', icon: 'edit', run: () => renameInline(nameEl, p) },
+      { label: 'Duplicate', icon: 'copy', run: () => S.projects.duplicate(p.id).then(() => toast('Duplicated')) },
+      { label: saved ? 'Move to drafts' : 'Mark as saved', icon: saved ? 'undo' : 'check', run: () => S.projects.update(p.id, { status: saved ? 'draft' : 'saved' }) },
+      { label: 'Download project file', icon: 'download', run: () => downloadProject(p) },
+      '-',
+      { label: 'Delete', icon: 'trash', run: () => deleteProject(p) },
+    ]); } }, ic('more'));
+    const card = h('div.proj', null,
+      h('button.proj-open', { type: 'button', title: `Open “${p.name}”`, onclick: () => openProject(p.id) }, thumb,
+        p.video ? h('span.tpl-badge', null, ic('play'), 'Video') : null,
+        h('span.proj-status' + (saved ? '.saved' : ''), null, saved ? 'Saved' : 'Draft')),
+      h('div.proj-meta', null, h('div.proj-text', null, nameEl, h('small', null, `Edited ${ago(p.savedAt)} · ${p.w} × ${p.h}`)), more));
+    return card;
+  }
+  let homeTplGrid = null;
+  function drawHomeTemplates() {
+    if (!homeTplGrid) return;
+    const T = window.STUDIO_TEMPLATES || [];
+    const q = hs.q.trim().toLowerCase();
+    const list = T.filter(t => (hs.tag === 'All' || (t.tags || []).includes(hs.tag)) && (!q || t.name.toLowerCase().includes(q) || (t.group || '').toLowerCase().includes(q) || (t.tags || []).some(g => g.toLowerCase().includes(q))));
+    const seen = new Set(), cards = [];
+    for (const t of list) {
+      if (t.group && !q) {
+        if (seen.has(t.group)) continue;
+        seen.add(t.group);
+        const members = T.filter(x => x.group === t.group);
+        cards.push(templateCard(t, () => familyModal(t.group, members), 220, { family: true, count: members.length, label: t.group, title: `See all ${members.length} styles of “${t.group}”` }));
+      } else cards.push(templateCard(t, startTemplate, 220));
+    }
+    const limit = hs.allTpl || q ? cards.length : 12;
+    homeTplGrid.replaceChildren(...cards.slice(0, limit));
+    if (!cards.length) homeTplGrid.append(h('p.hint', null, 'No templates match.'));
+    const btn = $('#home-tpl-more');
+    if (btn) { btn.hidden = cards.length <= 12 || !!q; btn.textContent = hs.allTpl ? 'Show fewer' : `Show all ${cards.length}`; }
+    hydrateIcons(homeTplGrid);
+  }
+  async function drawProjects(slot, tabs) {
+    const all = (await S.projects.list()).slice();
+    const q = hs.q.trim().toLowerCase();
+    const counts = { all: all.length, draft: all.filter(p => p.status !== 'saved').length, saved: all.filter(p => p.status === 'saved').length };
+    tabs.replaceChildren(...[['all', 'All'], ['draft', 'Drafts'], ['saved', 'Saved']].map(([k, l]) =>
+      h('button' + (hs.filter === k ? '.on' : ''), { type: 'button', onclick: () => { hs.filter = k; drawProjects(slot, tabs); } }, l, h('span.count', null, counts[k]))));
+    let list = all.filter(p => (hs.filter === 'all' || (hs.filter === 'saved' ? p.status === 'saved' : p.status !== 'saved')) && (!q || (p.name || '').toLowerCase().includes(q)));
+    list.sort(hs.sort === 'name' ? (a, b) => (a.name || '').localeCompare(b.name || '') : hs.sort === 'created' ? (a, b) => (b.created || 0) - (a.created || 0) : (a, b) => b.savedAt - a.savedAt);
+    if (!list.length) {
+      slot.replaceChildren(h('div.proj-empty', null,
+        h('div.proj-empty-art', null, h('span'), h('span'), h('span')),
+        h('b', null, q ? 'No designs match your search' : all.length ? (hs.filter === 'saved' ? 'Nothing saved yet' : 'No drafts') : 'No designs yet'),
+        h('p', null, q ? 'Try another name.' : all.length ? (hs.filter === 'saved' ? 'Press ⌘S (Ctrl+S) in a design, or use Mark as saved, to keep it here.' : 'Everything you start lands here as a draft until you save it.') : 'Start one above — everything you make is kept here automatically.')));
+      return;
+    }
+    slot.replaceChildren(h('div.proj-grid', null, list.map(projectCard)));
+    hydrateIcons(slot);
+  }
+  function renderHome() {
+    const T = window.STUDIO_TEMPLATES || [];
+    const search = h('input.home-search-in', { type: 'search', placeholder: 'Search designs and templates', value: hs.q, 'aria-label': 'Search' });
+    const projSlot = h('div'), tabs = h('div.seg.home-tabs');
+    search.addEventListener('input', () => { hs.q = search.value; drawProjects(projSlot, tabs); drawHomeTemplates(); });
+    search.addEventListener('keydown', e => e.stopPropagation());
+    const sizeCard = ([n, w, hh]) => {
+      const sc = 54 / Math.max(w, hh);
+      return h('button.start-card', { type: 'button', onclick: () => startBlank(w, hh) },
+        h('div.start-art', null, h('div.start-ratio', { style: { width: w * sc + 'px', height: hh * sc + 'px' } })), h('b', null, n), h('small', null, `${w} × ${hh}`));
+    };
+    const photoCard = h('button.start-card.photo', { type: 'button', onclick: () => startPhoto() },
+      h('div.start-art', null, ic('image')), h('b', null, 'From a photo'), h('small', null, 'Click or drop one here'));
+    photoCard.addEventListener('dragover', e => { e.preventDefault(); photoCard.classList.add('over'); });
+    photoCard.addEventListener('dragleave', () => photoCard.classList.remove('over'));
+    photoCard.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); photoCard.classList.remove('over'); startPhoto([...e.dataTransfer.files]); });
+    const tags = ['All', 'Video', ...[...new Set(T.flatMap(t => t.tags || []))].filter(x => x !== 'Video')];
+    const chips = h('div.chips.scroll');
+    const drawChips = () => chips.replaceChildren(...tags.map(tg => h('button.chip' + (tg === hs.tag ? '.on' : ''), { type: 'button', onclick: () => { hs.tag = tg; drawChips(); drawHomeTemplates(); } }, tg)));
+    drawChips();
+    homeTplGrid = h('div.home-tpls');
+    const sortSel = h('select.sel.home-sort', { 'aria-label': 'Sort designs', onchange: e => { hs.sort = e.target.value; drawProjects(projSlot, tabs); } },
+      [['edited', 'Last edited'], ['created', 'Newest first'], ['name', 'Name']].map(([v, l]) => h('option', { value: v, selected: hs.sort === v }, l)));
+    const cur = S.projectId;
+    home.replaceChildren(
+      h('header.home-top', null,
+        h('div.home-brand', null, h('span.brand-mark'), h('b', null, 'Collage Studio')),
+        h('label.home-search', null, ic('search'), search),
+        h('div.home-actions', null,
+          cur ? h('button.btn', { type: 'button', onclick: leaveHome, title: 'Back to the design you were editing' }, ic('chevLeft'), h('span', null, 'Back to editor')) : null,
+          h('button.btn', { type: 'button', title: 'Open a .studio.json project file', onclick: () => { $('#project-input').value = ''; $('#project-input').click(); } }, ic('folder'), h('span', null, 'Open file')),
+          h('button.btn.primary', { type: 'button', onclick: customSizeModal }, ic('plus'), h('span', null, 'New design')))),
+      h('main.home-main', null,
+        h('section.home-sec', null,
+          h('h1.home-title', { html: 'What are we <em>making</em> today?' }),
+          h('div.start-row', null, HOME_SIZES.map(sizeCard), photoCard,
+            h('button.start-card', { type: 'button', onclick: customSizeModal }, h('div.start-art', null, ic('resize')), h('b', null, 'Custom size'), h('small', null, 'Any width × height')))),
+        h('section.home-sec', null,
+          h('div.home-head', null, h('h2', null, 'Your designs'), tabs, h('div.grow'), sortSel),
+          projSlot),
+        h('section.home-sec', null,
+          h('div.home-head', null, h('h2', null, 'Start from a template')),
+          chips, homeTplGrid,
+          h('button.btn.home-more', { type: 'button', id: 'home-tpl-more', onclick: () => { hs.allTpl = !hs.allTpl; drawHomeTemplates(); } }, 'Show all'))));
+    hydrateIcons(home);
+    drawProjects(projSlot, tabs);
+    drawHomeTemplates();
+    home._redraw = () => drawProjects(projSlot, tabs);
+  }
+  S.on('projects', () => { if (isHome() && home._redraw) home._redraw(); updateSaveState(); });
+  S.on('project', updateSaveState);
+
+  // draft / saved state next to the design name
+  const saveChip = $('#save-state');
+  function updateSaveState() {
+    if (!saveChip) return;
+    const st = S.projectId ? S.projects.status() : null;
+    saveChip.hidden = !st;
+    saveChip.classList.toggle('saved', st === 'saved');
+    saveChip.replaceChildren(...(st === 'saved' ? [ic('check'), 'Saved'] : ['Draft']));
+    saveChip.title = st === 'saved' ? 'Kept in Saved on your home page' : 'Autosaved as a draft — click to save it (⌘S)';
+  }
+  if (saveChip) saveChip.onclick = () => { if (S.projects.status() !== 'saved') S.projects.markSaved().then(() => toast('Saved to your designs')); else S.projects.update(S.projectId, { status: 'draft' }).then(() => toast('Moved back to drafts')); };
 
   // export resolutions are named by their short side, so "4K" means 2160 px on the short edge (3840 × 2160 landscape)
   const RES = [['1×', 0], ['HD 720', 720], ['Full HD 1080', 1080], ['2K 1440', 1440], ['4K 2160', 2160]];
@@ -2674,12 +2861,6 @@
   // first run: restore the last session silently, otherwise show the start screen
   F.injectStylesheets();
   F.customReady.then(() => { if (F.customFamilies().length) { R.fontsVersion++; R.requestRedraw(); } });
-  S.loadAutosave().then(save => {
-    if (save && save.doc && save.doc.elements && save.doc.elements.length) { resumeFrom(save); }
-    else {
-      const T = window.STUDIO_TEMPLATES || [];
-      if (T.length) S.loadDoc(prepDoc(T[0].build()), null, { name: T[0].name });
-      openHome(false);
-    }
-  }).catch(() => openHome(false));
+  // the app opens on the home page with your designs
+  openHome();
 })();

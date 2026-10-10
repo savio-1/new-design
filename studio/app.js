@@ -472,6 +472,7 @@
     },
     async get(k) { const d = await this.open(); return new Promise((res, rej) => { const q = d.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
     async set(k, v) { const d = await this.open(); return new Promise((res, rej) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); },
+    async del(k) { const d = await this.open(); return new Promise((res, rej) => { const t = d.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); },
   };
   let saveTimer = null;
   function usedAssets() {
@@ -488,14 +489,110 @@
     return out;
   }
   S.uploads = [];
+  // every design is its own project in this browser: the full data lives under
+  // 'project:<id>' and a light index (name, size, thumbnail, status) under 'projects'
+  S.projectId = null;
+  let projList = null;
+  async function projects() {
+    if (projList) return projList;
+    let list = await DB.get('projects').catch(() => null);
+    if (!Array.isArray(list)) {
+      list = [];
+      // carry over the single autosave from before projects existed
+      const old = await DB.get('autosave').catch(() => null);
+      if (old && old.doc && old.doc.elements && old.doc.elements.length) {
+        const id = uid('p');
+        await DB.set('project:' + id, old).catch(() => {});
+        list.push({ id, name: old.name || 'Untitled design', status: 'draft', created: old.savedAt || Date.now(), savedAt: old.savedAt || Date.now(), w: old.doc.width, h: old.doc.height, thumb: null });
+      }
+      await DB.set('projects', list).catch(() => {});
+    }
+    projList = list;
+    return list;
+  }
+  function projThumb() {
+    try {
+      const s = 360 / Math.max(doc.width, doc.height);
+      return R.renderDoc(doc, { scale: s }).toDataURL('image/jpeg', 0.8);
+    } catch (e) { return null; }
+  }
+  async function saveNow() {
+    clearTimeout(saveTimer); saveTimer = null;
+    const id = S.projectId;
+    if (!id) return;
+    const now = Date.now();
+    await DB.set('project:' + id, { doc, assets: usedAssets(), uploads: S.uploads, name: S.docName, savedAt: now }).catch(() => {});
+    const list = await projects();
+    let it = list.find(p => p.id === id);
+    if (!it) { it = { id, status: 'draft', created: now }; list.unshift(it); }
+    Object.assign(it, { name: S.docName, savedAt: now, w: doc.width, h: doc.height, video: S.hasAnimation(), layers: doc.elements.length });
+    const th = projThumb();
+    if (th) it.thumb = th;
+    await DB.set('projects', list).catch(() => {});
+    DB.set('lastProject', id).catch(() => {});
+    emit('projects');
+  }
   function scheduleSave() {
+    if (!S.projectId) return;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      DB.set('autosave', { doc, assets: usedAssets(), uploads: S.uploads, name: S.docName, savedAt: Date.now() }).catch(() => {});
-    }, 800);
+    saveTimer = setTimeout(saveNow, 800);
   }
   S.scheduleSave = scheduleSave;
-  S.loadAutosave = () => DB.get('autosave').catch(() => null);
+  S.saveNow = saveNow;
+  S.projects = {
+    list: projects,
+    get: id => DB.get('project:' + id).catch(() => null),
+    last: () => DB.get('lastProject').catch(() => null),
+    async update(id, patch) {
+      const list = await projects(), it = list.find(p => p.id === id);
+      if (!it) return;
+      Object.assign(it, patch);
+      if (patch.name != null) {
+        const data = await DB.get('project:' + id).catch(() => null);
+        if (data) { data.name = patch.name; await DB.set('project:' + id, data).catch(() => {}); }
+        if (id === S.projectId) { S.docName = patch.name; emit('name'); }
+      }
+      await DB.set('projects', list).catch(() => {});
+      emit('projects');
+    },
+    async duplicate(id) {
+      if (id === S.projectId) await saveNow();
+      const list = await projects(), it = list.find(p => p.id === id), data = await DB.get('project:' + id).catch(() => null);
+      if (!it || !data) return null;
+      const nid = uid('p'), now = Date.now(), name = it.name + ' copy';
+      await DB.set('project:' + nid, Object.assign({}, data, { name, savedAt: now }));
+      list.unshift(Object.assign({}, it, { id: nid, name, status: 'draft', created: now, savedAt: now }));
+      await DB.set('projects', list).catch(() => {});
+      emit('projects');
+      return nid;
+    },
+    async remove(id) {
+      const list = await projects(), i = list.findIndex(p => p.id === id);
+      if (i < 0) return;
+      const [it] = list.splice(i, 1);
+      const data = await DB.get('project:' + id).catch(() => null);
+      await DB.del('project:' + id).catch(() => {});
+      await DB.set('projects', list).catch(() => {});
+      if (id === S.projectId) { clearTimeout(saveTimer); S.projectId = null; }
+      emit('projects');
+      // handed back so the deletion can be undone
+      return { it, data, index: i };
+    },
+    async restore(r) {
+      if (!r || !r.data) return;
+      const list = await projects();
+      await DB.set('project:' + r.it.id, r.data).catch(() => {});
+      list.splice(Math.min(r.index, list.length), 0, r.it);
+      await DB.set('projects', list).catch(() => {});
+      emit('projects');
+    },
+    status: () => { const it = projList && projList.find(p => p.id === S.projectId); return it ? it.status : 'draft'; },
+    async markSaved() {
+      if (!S.projectId) return;
+      await saveNow();
+      await S.projects.update(S.projectId, { status: 'saved' });
+    },
+  };
 
   // uploaded fonts used in the design travel inside the project file so it opens anywhere
   function usedFamilies() {
@@ -520,17 +617,22 @@
     rebuild();
     S.fit();
     if (!opts.keepHistory) { hist.stack = []; hist.idx = -1; }
+    // a brand-new design gets its own project; opening one keeps its id
+    if (opts.project) { clearTimeout(saveTimer); S.projectId = opts.project === 'new' ? uid('p') : opts.project; if (opts.project === 'new') S.uploads.splice(0); emit('project'); }
+    if (opts.name) S.docName = opts.name;
     S.commit();
+    // just opening a design shouldn't count as editing it
+    if (opts.project && opts.project !== 'new') { clearTimeout(saveTimer); saveTimer = null; }
     emit('doc');
     emit('selection');
     if (opts.name) { S.docName = opts.name; emit('name'); }
     // fonts may arrive after the first paint; re-measure when they do
     R.preload(doc).then(() => { R.requestRedraw(); });
   };
-  S.newDoc = function (w, h, color, extra = {}) {
+  S.newDoc = function (w, h, color, extra = {}, opts = {}) {
     const d = blankDoc(w, h, color);
     deepMerge(d, extra);
-    S.loadDoc(d, null, { name: 'Untitled design' });
+    S.loadDoc(d, null, Object.assign({ name: 'Untitled design' }, opts));
   };
   S.resizeCanvas = function (w, h, scaleContent) {
     const sx = w / doc.width, sy = h / doc.height;
@@ -1667,7 +1769,9 @@
       const W = Math.round(a.w * s), H = Math.round(a.h * s);
       const d = blankDoc(W, H, '#ffffff');
       d.background.assetId = a.id;
-      S.loadDoc(d, null, { name: 'Photo edit' });
+      S.loadDoc(d, null, { name: 'Photo edit', project: opts.newProject ? 'new' : undefined });
+      if (opts.newProject) { S.uploads.splice(0, 0, ...added.map(x => x.id)); scheduleSave(); }
+      if (opts.onStart) opts.onStart();
       return added;
     }
     if (opts.asBackground) { S.setBackgroundImage(added[0].id); return added; }
@@ -1739,7 +1843,7 @@
   window.addEventListener('copy', e => onCopy(e, false));
   window.addEventListener('cut', e => onCopy(e, true));
   window.addEventListener('paste', e => {
-    if (typingTarget(e.target)) return;
+    if (typingTarget(e.target) || document.body.classList.contains('at-home')) return;
     const text = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
     if (text && text.startsWith(CLIP_TAG)) {
       e.preventDefault();
@@ -1764,6 +1868,8 @@
   /* ───────────────────────── keyboard ───────────────────────── */
 
   window.addEventListener('keydown', e => {
+    // the editor sits behind the home page; its shortcuts wait until a design is open
+    if (document.body.classList.contains('at-home')) return;
     if (e.key === ' ' ) keys.space = !isTyping(e);
     keys.alt = e.altKey; keys.shift = e.shiftKey; keys.ctrl = e.ctrlKey || e.metaKey;
     if (keys.space && !panning) area.style.cursor = 'grab';
@@ -1785,7 +1891,7 @@
     if (mod && k === '1') { e.preventDefault(); S.zoomAt(1); return; }
     if (mod && e.key === ']') { e.preventDefault(); S.order(e.shiftKey ? 'front' : 'forward'); return; }
     if (mod && e.key === '[') { e.preventDefault(); S.order(e.shiftKey ? 'back' : 'backward'); return; }
-    if (mod && k === 's') { e.preventDefault(); scheduleSave(); emit('toast', 'Saved in this browser'); return; }
+    if (mod && k === 's') { e.preventDefault(); if (S.projectId) S.projects.markSaved().then(() => emit('toast', 'Saved to your designs')); return; }
     if (mod && k === 'e') { e.preventDefault(); emit('export'); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }

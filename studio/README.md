@@ -17,7 +17,18 @@ Open `studio/index.html` in a browser, or serve the folder with any static serve
 | `ui.js` | Panels, inspector, popovers, dialogs |
 | `templates.js` | 55 templates plus text, paper, planner, photo-layout and background presets |
 
-Work is autosaved to the browser (IndexedDB). Use **Project → Save project file** to keep a portable `.studio.json`.
+Work is autosaved to the browser (IndexedDB). Use **Menu → Download project file** to keep a portable `.studio.json`.
+
+## Home page and your designs
+
+The app opens on a home page:
+
+- **Start something new**: one click for a portrait post, square post, story/reel or landscape canvas, start from a photo (click or drop), or pick any custom size and colour. Templates sit below, grouped into families, with the same tag filters as the editor.
+- **Your designs**: every design you start is kept as its own project in this browser, with a thumbnail, its size and when it was last edited. Tabs split them into **Drafts** (everything autosaves as a draft) and **Saved** (press ⌘S / Ctrl+S, click the *Draft* chip next to the design name, or use *Mark as saved*). Sort by last edited, newest or name, and search by name.
+- Each card's **⋯** menu opens, renames (or double-click the name), duplicates, moves between drafts and saved, downloads the project file or deletes — with an Undo right after deleting.
+- **Menu → Home — all designs** (or *Back to editor* on the home page) moves between the two. Opening a `.studio.json` file adds it to your designs.
+
+Designs live in this browser's storage, so clearing site data removes them — download project files for anything you want to keep elsewhere.
 
 ## Layout of the editor
 
