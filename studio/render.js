@@ -545,7 +545,7 @@
   R.TEXT_BG = {
     none: 'None', box: 'Box', pill: 'Pill', lines: 'Line highlight', select: 'Selection', marker: 'Marker',
     sticker: 'Sticker outline', tape: 'Tape', oval: 'Oval', scallop: 'Scallop', burst: 'Burst',
-    speech: 'Speech bubble', ticket: 'Ticket', underline: 'Underline', scribble: 'Scribble circle', torn: 'Torn paper', rough: 'Marker blocks', folded: 'Folded label',
+    speech: 'Speech bubble', ticket: 'Ticket', underline: 'Underline', scribble: 'Scribble circle', torn: 'Torn paper', rough: 'Marker blocks', folded: 'Folded label', glossy: 'Game button',
   };
 
   const layoutCache = new LRU(400);
@@ -681,6 +681,23 @@
     switch (style) {
       case 'box': paint(rrect(new Path2D(), 0, 0, w, h, rad)); stitch(0, 0, w, h, rad); break;
       case 'pill': paint(rrect(new Path2D(), 0, 0, w, h, h / 2)); stitch(0, 0, w, h, h / 2); break;
+      case 'glossy': {
+        // game-menu button: soft vertical gradient, top sheen and a darker lower lip
+        const p = rrect(new Path2D(), 0, 0, w, h, Math.min(h / 2, rad || h / 2));
+        const base = rgba(col);
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, rgba('#ffffff', 1)); g.addColorStop(0.55, base); g.addColorStop(1, base);
+        ctx.fillStyle = g; ctx.fill(p);
+        ctx.save(); ctx.clip(p);
+        const lip = ctx.createLinearGradient(0, h * 0.6, 0, h);
+        lip.addColorStop(0, 'rgba(0,0,0,0)'); lip.addColorStop(1, 'rgba(60,50,40,0.16)');
+        ctx.fillStyle = lip; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fill(rrect(new Path2D(), h * 0.3, h * 0.08, w - h * 0.6, h * 0.22, h * 0.11));
+        ctx.restore();
+        ctx.lineWidth = Math.max(1, h * 0.025); ctx.strokeStyle = border ? border.c : 'rgba(80,70,60,0.18)'; ctx.stroke(p);
+        break;
+      }
       case 'oval': { const p = new Path2D(); p.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, TAU); paint(p); break; }
       case 'scallop': paint(shapePath('scallop', w, h, { points: Math.round(clamp((w + h) / 18, 12, 28)), depth: 0.07 })); break;
       case 'burst': paint(shapePath('burst', w, h, { points: 20, inner: 0.84 })); break;
@@ -1204,8 +1221,15 @@
     photocopy: { label: 'Photocopy', f: { contrast: 20, threshold: 50, grain: 35 } },
     riso: { label: 'Riso', f: { contrast: 25, duotone: true, duoDark: '#f2542d', duoLight: '#fff3d6', halftone: 8, grain: 25 } },
     xerox: { label: 'Xerox', f: { grayscale: 100, contrast: 60, brightness: 8, grain: 50, fade: 10 } },
+    motion: { label: 'Motion', f: { motion: 45, contrast: 6 } },
+    grit: { label: 'Gym grit', f: { grayscale: 100, contrast: 28, brightness: -6, motion: 55, noise: 55, vignette: 35 } },
+    ghost: { label: 'Ghost', f: { motion: 70, motionAngle: 90, fade: 18, saturation: -20 } },
+    noisy: { label: 'Noise', f: { noise: 60, contrast: 10, fade: 8 } },
+    haze: { label: 'Haze', f: { blur: 6, fade: 22, brightness: 8, noise: 30 } },
+    fisheye: { label: 'Fisheye', f: { fisheye: 45, contrast: 6, saturation: 8 } },
+    lens: { label: 'Lens', f: { fisheye: 35, warmth: 12, fade: 10, vignette: 30 } },
   };
-  const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone'];
+  const FILTER_KEYS = ['brightness', 'contrast', 'saturation', 'warmth', 'fade', 'grayscale', 'sepia', 'halftone', 'threshold', 'duotone', 'noise', 'motion', 'motionAngle', 'fisheye'];
   const filterCache = new LRU(40);
   function hexRgb(c) { const v = rgba(c).match(/[\d.]+/g).map(Number); return v; }
   function filteredSource(id, img, f) {
@@ -1229,6 +1253,9 @@
     const dk = twoTone ? hexRgb(f.duoDark || '#111111') : null, lt = twoTone ? hexRgb(f.duoLight || '#f4f1ea') : null;
     const thr = (f.threshold || 0) / 100 * 255;
     const tone = f.halftone ? new Float32Array(a.length / 4) : null;
+    // luminance noise is baked into the pixels, so it stays fine-grained at any size
+    const nz = (f.noise || 0) / 100 * 120;
+    let seed = 0x9e3779b9;
     for (let i = 0; i < a.length; i += 4) {
       let r = a[i] * br, g = a[i + 1] * br, b = a[i + 2] * br;
       r = cf * (r - 128) + 128; g = cf * (g - 128) + 128; b = cf * (b - 128) + 128;
@@ -1247,13 +1274,65 @@
         if (f.threshold) t = t * 255 > thr ? 1 : 0;
         r = dk[0] + (lt[0] - dk[0]) * t; g = dk[1] + (lt[1] - dk[1]) * t; b = dk[2] + (lt[2] - dk[2]) * t;
       }
+      if (nz) {
+        seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+        const n = ((seed >>> 0) / 4294967296 - 0.5) * nz;
+        r += n; g += n; b += n;
+      }
       a[i] = r; a[i + 1] = g; a[i + 2] = b;
     }
     x.putImageData(d, 0, 0);
     let out = c;
     if (f.halftone) out = halftone(c, tone, f);
+    if (f.motion) out = motionBlur(out, f.motion, f.motionAngle || 0);
+    if (f.fisheye) out = barrel(out, f.fisheye);
     filterCache.set(key, out);
     return out;
+  }
+  // directional blur: the photo averaged with copies of itself slid along the angle
+  function motionBlur(src, amt, angle) {
+    const w = src.width, h = src.height;
+    const L = Math.max(w, h) * amt / 100 * 0.09;
+    const N = clamp(Math.round(L / 3), 6, 40);
+    const o = canvas(w, h), x = o.getContext('2d');
+    const a = angle * Math.PI / 180, dx = Math.cos(a) * L, dy = Math.sin(a) * L;
+    x.drawImage(src, 0, 0);
+    for (let i = 1; i < N; i++) {
+      const t = i / (N - 1) - 0.5;
+      x.globalAlpha = 1 / (i + 1); // running average keeps every copy equally weighted
+      x.drawImage(src, dx * t, dy * t);
+    }
+    return o;
+  }
+  // barrel distortion: the centre swells, edges bow out and the corners fall away
+  function barrel(src, amt) {
+    const w = src.width, h = src.height;
+    const sc = canvas(w, h).getContext('2d', { willReadFrequently: true });
+    sc.drawImage(src, 0, 0);
+    let si;
+    try { si = sc.getImageData(0, 0, w, h); } catch (e) { return src; }
+    const sd = si.data, o = canvas(w, h), ox = o.getContext('2d'), od = ox.createImageData(w, h), dd = od.data;
+    const k = amt / 100 * 0.6;
+    for (let y = 0; y < h; y++) {
+      const ny = (y + 0.5) / h * 2 - 1;
+      for (let x = 0; x < w; x++) {
+        const nx = (x + 0.5) / w * 2 - 1;
+        const f = 1 + k * (nx * nx + ny * ny - 1);
+        const fx = (nx * f + 1) / 2 * w - 0.5, fy = (ny * f + 1) / 2 * h - 0.5;
+        if (fx < -0.5 || fy < -0.5 || fx > w - 0.5 || fy > h - 0.5) continue;
+        const x0 = Math.max(0, Math.floor(fx)), y0 = Math.max(0, Math.floor(fy));
+        const x1 = Math.min(w - 1, x0 + 1), y1 = Math.min(h - 1, y0 + 1);
+        const tx = clamp(fx - x0, 0, 1), ty = clamp(fy - y0, 0, 1);
+        const i00 = (y0 * w + x0) * 4, i10 = (y0 * w + x1) * 4, i01 = (y1 * w + x0) * 4, i11 = (y1 * w + x1) * 4;
+        const di = (y * w + x) * 4;
+        for (let c = 0; c < 4; c++) {
+          const top = sd[i00 + c] + (sd[i10 + c] - sd[i00 + c]) * tx, bot = sd[i01 + c] + (sd[i11 + c] - sd[i01 + c]) * tx;
+          dd[di + c] = top + (bot - top) * ty;
+        }
+      }
+    }
+    ox.putImageData(od, 0, 0);
+    return o;
   }
   // print-style dot screen: one dot per cell, sized by how dark the cell is
   function halftone(src, tone, f) {
@@ -1716,6 +1795,292 @@
   }
   R.drawCrumple = drawCrumple;
 
+  /* ───────────────────────── ribbons: bands and lines with text along a path ─────────────────────────
+     el.points are [u, v] fractions of the box, joined by a Catmull-Rom spline. */
+
+  R.RIBBON_PATHS = {
+    wave: { label: 'Wave', pts: [[0, 0.62], [0.18, 0.3], [0.42, 0.68], [0.66, 0.3], [0.85, 0.62], [1, 0.42]] },
+    loop: { label: 'Loop', pts: [[0, 0.92], [0.17, 0.78], [0.33, 0.66], [0.4, 0.84], [0.28, 0.95], [0.17, 0.8], [0.19, 0.42], [0.36, 0.12], [0.58, 0.2], [0.78, 0.6], [1, 0.52]] },
+    swoosh: { label: 'Swoosh', pts: [[0, 0.82], [0.35, 0.8], [0.7, 0.55], [1, 0.12]] },
+    arc: { label: 'Arc', pts: [[0, 0.95], [0.25, 0.25], [0.5, 0.05], [0.75, 0.25], [1, 0.95]] },
+    scurve: { label: 'S-curve', pts: [[0, 0.1], [0.55, 0.12], [0.62, 0.5], [0.38, 0.86], [1, 0.9]] },
+    double: { label: 'Double loop', pts: [[0, 0.7], [0.15, 0.45], [0.27, 0.72], [0.17, 0.85], [0.12, 0.6], [0.35, 0.3], [0.55, 0.5], [0.66, 0.78], [0.56, 0.86], [0.52, 0.62], [0.75, 0.3], [1, 0.4]] },
+    zigzag: { label: 'Zigzag', sharp: true, pts: [[0, 0.25], [0.25, 0.75], [0.5, 0.25], [0.75, 0.75], [1, 0.25]] },
+    spiral: { label: 'Spiral', pts: (() => { const o = []; for (let i = 0; i <= 26; i++) { const t = i / 26 * TAU * 1.6, r = 0.08 + 0.42 * i / 26; o.push([0.5 + Math.cos(t) * r, 0.5 + Math.sin(t) * r]); } return o; })() },
+    circle: { label: 'Circle', closed: true, pts: (() => { const o = []; for (let i = 0; i < 12; i++) { const t = i / 12 * TAU - Math.PI / 2; o.push([0.5 + Math.cos(t) * 0.5, 0.5 + Math.sin(t) * 0.5]); } return o; })() },
+    straight: { label: 'Straight', pts: [[0, 0.5], [1, 0.5]] },
+    hook: { label: 'Hook arrow', pts: [[0.02, 0], [0.06, 0.55], [0.3, 0.92], [1, 0.97]] },
+    bend: { label: 'Bend arrow', pts: [[0, 0.85], [0.45, 0.1], [1, 0.3]] },
+  };
+  const ribbonCache = new LRU(60);
+  function ribbonGeom(el) {
+    const w = el.width, h = el.height, pre = R.RIBBON_PATHS[el.path] || R.RIBBON_PATHS.wave;
+    const P = (el.points && el.points.length >= 2 ? el.points : pre.pts);
+    const closed = el.points ? !!el.closed : !!pre.closed, sharp = el.points ? !!el.sharp : !!pre.sharp;
+    const key = JSON.stringify(P) + '|' + w + '|' + h + '|' + closed + sharp;
+    let g = ribbonCache.get(key);
+    if (g) return g;
+    const pts = P.map(([u, v]) => [u * w, v * h]);
+    const out = [];
+    const n = pts.length, segs = closed ? n : n - 1;
+    const at = i => closed ? pts[(i + n) % n] : pts[clamp(i, 0, n - 1)];
+    for (let i = 0; i < segs; i++) {
+      const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+      const steps = sharp ? 1 : Math.max(8, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 6));
+      for (let k = 0; k < steps; k++) {
+        const t = k / steps, t2 = t * t, t3 = t2 * t;
+        if (sharp) { out.push([p1[0], p1[1]]); continue; }
+        out.push([0, 1].map(c => 0.5 * ((2 * p1[c]) + (-p0[c] + p2[c]) * t + (2 * p0[c] - 5 * p1[c] + 4 * p2[c] - p3[c]) * t2 + (-p0[c] + 3 * p1[c] - 3 * p2[c] + p3[c]) * t3)));
+      }
+    }
+    out.push(closed ? out[0].slice() : pts[n - 1].slice());
+    const cum = [0];
+    for (let i = 1; i < out.length; i++) cum.push(cum[i - 1] + Math.hypot(out[i][0] - out[i - 1][0], out[i][1] - out[i - 1][1]));
+    g = { pts: out, cum, L: cum[cum.length - 1] || 1, closed };
+    ribbonCache.set(key, g);
+    return g;
+  }
+  R.ribbonGeom = ribbonGeom;
+  // point and direction at distance d along the path
+  function pathAt(g, d) {
+    const { pts, cum, L } = g;
+    if (g.closed) d = ((d % L) + L) % L; else d = clamp(d, 0, L);
+    let lo = 0, hi = cum.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= d) lo = m; else hi = m; }
+    const seg = cum[hi] - cum[lo] || 1, t = (d - cum[lo]) / seg;
+    const a = pts[lo], b = pts[hi];
+    return { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t, ang: Math.atan2(b[1] - a[1], b[0] - a[0]) };
+  }
+  function subPath(g, d0, d1) {
+    const p = new Path2D(), { pts, cum } = g;
+    const s = pathAt(g, d0);
+    p.moveTo(s.x, s.y);
+    for (let i = 0; i < pts.length; i++) if (cum[i] > d0 && cum[i] < d1) p.lineTo(pts[i][0], pts[i][1]);
+    const e = pathAt(g, d1);
+    p.lineTo(e.x, e.y);
+    return p;
+  }
+  function ribbonHead(el) {
+    const th = el.thickness || 60;
+    return el.line ? Math.max(10, th * 4.2) : th * 1.1;
+  }
+  function drawRibbon(ctx, el) {
+    const g = ribbonGeom(el);
+    const th = Math.max(0.5, el.thickness || 60);
+    const L = g.L;
+    const frac = el.drawFrac == null ? 1 : clamp(el.drawFrac, 0, 1);
+    const head = ribbonHead(el);
+    const end = L * frac;
+    const d0 = el.arrowStart && !g.closed ? head * 0.85 : 0;
+    const d1 = el.arrowEnd && !g.closed ? Math.max(d0, end - head * 0.85) : end;
+    const path = g.closed && frac >= 1 && !el.arrowEnd ? (() => { const p = new Path2D(); g.pts.forEach(([x, y], i) => i ? p.lineTo(x, y) : p.moveTo(x, y)); p.closePath(); return p; })() : subPath(g, d0, d1);
+    const col = el.color || '#e9f07a';
+    const bw = (el.border && el.border.width) || 0;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = el.ends === 'flat' ? 'butt' : 'round';
+    if (el.dash) ctx.setLineDash([th * el.dash, th * el.dash * (el.line ? 1.4 : 0.6)]);
+    if (bw > 0 && !el.line) { ctx.lineWidth = th + bw * 2; ctx.strokeStyle = el.border.color || '#111'; ctx.stroke(path); }
+    if (!isClear(col)) { ctx.lineWidth = th; ctx.strokeStyle = col; ctx.stroke(path); }
+    ctx.setLineDash([]);
+    // arrowheads
+    const headAt = (d, dir) => {
+      const p = pathAt(g, d), a = p.ang + (dir < 0 ? Math.PI : 0);
+      const hw = el.line ? head * 0.42 : th * 1.05, hl = head;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(a);
+      ctx.beginPath();
+      if (el.line && el.headStyle !== 'solid') {
+        ctx.moveTo(-hl, -hw); ctx.lineTo(0, 0); ctx.lineTo(-hl, hw);
+        ctx.lineWidth = th; ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+      } else {
+        ctx.moveTo(0, 0); ctx.lineTo(-hl, -hw); ctx.lineTo(-hl, hw); ctx.closePath();
+        if (bw > 0 && !el.line) { ctx.lineWidth = bw * 2; ctx.strokeStyle = el.border.color || '#111'; ctx.stroke(); }
+        ctx.fillStyle = col; ctx.fill();
+      }
+      ctx.restore();
+    };
+    if (el.arrowEnd && !g.closed && frac > 0.02) headAt(end, 1);
+    if (el.arrowStart && !g.closed && frac > 0.02) headAt(0, -1);
+    // text riding the path
+    let txt = el.text || '';
+    if (el.uppercase) txt = txt.toUpperCase();
+    txt = txt.replace(/\s*\n\s*/g, ' ');
+    if (txt.trim() && el.fontSize > 0) {
+      const size = el.fontSize;
+      const font = fontFor(el.fontFamily || 'Space Mono', el.fontWeight || 700, !!el.italic, size);
+      const m = metrics(fontFor(el.fontFamily || 'Space Mono', el.fontWeight || 700, !!el.italic, 100));
+      const ls = (el.letterSpacing || 0) * size;
+      const unitStr = el.repeat ? txt + (el.sep ?? '   ✦   ') : txt;
+      const chars = [...unitStr];
+      const meas = measurer(mctx, font, 0);
+      const pos = [], cw = [];
+      let prefix = '';
+      for (let i = 0; i < chars.length; i++) { pos.push(meas.raw(prefix) + ls * i); prefix += chars[i]; }
+      const unitW = meas.raw(unitStr) + ls * chars.length;
+      for (let i = 0; i < chars.length; i++) cw.push((i < chars.length - 1 ? pos[i + 1] - ls : meas.raw(unitStr)) - pos[i]);
+      const flow = el.flowShift || 0;
+      let starts;
+      if (el.repeat) {
+        const first = ((el.offset || 0) * L + flow * unitW) % unitW;
+        starts = [];
+        for (let s0 = first - unitW; s0 < L + unitW; s0 += unitW) starts.push(s0);
+      } else {
+        const tw = unitW - ls;
+        let s0 = el.align === 'start' ? (el.offset || 0) * L + size * 0.4 : (L - tw) / 2 + (el.offset || 0) * L;
+        if (flow) s0 = ((s0 + flow * L) % L + L) % L - (g.closed ? 0 : tw * 0);
+        starts = [s0];
+      }
+      ctx.font = font; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = el.textColor || '#111';
+      const lift = m.cap * size / 2 + (el.textShift || 0) * size;
+      const flip = !!el.flip;
+      const lim = end;
+      for (const s0 of starts) {
+        for (let i = 0; i < chars.length; i++) {
+          if (chars[i] === ' ') continue;
+          let d = s0 + pos[i] + cw[i] / 2;
+          if (g.closed) d = ((d % L) + L) % L;
+          else if (d < -cw[i] || d > lim + cw[i] * 0.2) continue;
+          if (!g.closed && (d < 0 || d > lim)) continue;
+          const pd = flip ? L - d : d;
+          const p = pathAt(g, pd);
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.ang + (flip ? Math.PI : 0));
+          ctx.fillText(chars[i], -cw[i] / 2, lift);
+          ctx.restore();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  /* ───────────────────────── camera overlays ───────────────────────── */
+
+  R.CAMERA_STYLES = { iphone: 'Phone camera', camcorder: 'Camcorder', minimal: 'Viewfinder' };
+  // a rounded frame whose sides bow outwards, like a wide lens seen on screen
+  function barrelPath(w, h, ins, bulge, rad) {
+    const p = new Path2D(), x0 = ins, y0 = ins, x1 = w - ins, y1 = h - ins;
+    p.moveTo(x0 + rad, y0);
+    p.quadraticCurveTo(w / 2, y0 - bulge, x1 - rad, y0);
+    p.quadraticCurveTo(x1, y0, x1, y0 + rad);
+    p.quadraticCurveTo(x1 + bulge, h / 2, x1, y1 - rad);
+    p.quadraticCurveTo(x1, y1, x1 - rad, y1);
+    p.quadraticCurveTo(w / 2, y1 + bulge, x0 + rad, y1);
+    p.quadraticCurveTo(x0, y1, x0, y1 - rad);
+    p.quadraticCurveTo(x0 - bulge, h / 2, x0, y0 + rad);
+    p.quadraticCurveTo(x0, y0, x0 + rad, y0);
+    p.closePath();
+    return p;
+  }
+  function drawCamera(ctx, el) {
+    const w = el.width, h = el.height, u = Math.min(w, h) / 1080;
+    const style = el.style || 'iphone';
+    const col = el.color || '#ffffff', acc = el.accent || '#ffd60a';
+    const list = s => String(s || '').split(',').map(x => x.trim()).filter(Boolean);
+    ctx.save();
+    if (el.lens) {
+      const m = Math.min(w, h);
+      const p = barrelPath(w, h, m * 0.035, m * 0.03, m * 0.11);
+      const outer = new Path2D(); outer.rect(-2, -2, w + 4, h + 4); outer.addPath(p);
+      ctx.fillStyle = el.lensColor || '#000000'; ctx.fill(outer, 'evenodd');
+      // soft inner shading at the lens edge
+      ctx.save(); ctx.clip(p);
+      const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.hypot(w, h) * 0.55);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.45)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
+    const thin = Math.max(1, 1.6 * u);
+    if (el.grid) {
+      ctx.strokeStyle = rgba(col, 0.42); ctx.lineWidth = thin;
+      ctx.beginPath();
+      for (const f of [1 / 3, 2 / 3]) { ctx.moveTo(w * f, 0); ctx.lineTo(w * f, h); ctx.moveTo(0, h * f); ctx.lineTo(w, h * f); }
+      ctx.stroke();
+    }
+    const brackets = (x0, y0, x1, y1, len, lw, c) => {
+      ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (const [x, y, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+        ctx.moveTo(x + sx * len, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * len);
+      }
+      ctx.stroke();
+    };
+    const font = (wt, px, fam) => fontFor(fam || el.fontFamily || 'Inter', wt, false, px);
+    const label = (t, x, y, f, c, align = 'center', ls = 0) => {
+      ctx.font = f; ctx.fillStyle = c; ctx.textBaseline = 'middle';
+      if (!ls) { ctx.textAlign = align; ctx.fillText(t, x, y); return; }
+      ctx.textAlign = 'left';
+      const tw = ctx.measureText(t).width + ls * ([...t].length - 1);
+      drawLine(ctx, t, align === 'center' ? x - tw / 2 : align === 'right' ? x - tw : x, y, ls, 'fill');
+    };
+    if (style === 'iphone') {
+      if (el.brackets !== false) brackets(w * 0.045, h * 0.07, w * 0.955, h * 0.79, 28 * u, 3 * u, rgba(col, 0.85));
+      // zoom bubbles
+      const zooms = list(el.zooms ?? '0.5, 1×, 2, 5'), za = el.activeZoom ?? 1;
+      const zy = h * 0.745, zgap = 88 * u, zx0 = w / 2 - (zooms.length - 1) * zgap / 2;
+      zooms.forEach((z, i) => {
+        const x = zx0 + i * zgap, on = i === za;
+        ctx.fillStyle = 'rgba(20,20,20,0.38)';
+        ctx.beginPath(); ctx.arc(x, zy, (on ? 34 : 27) * u, 0, TAU); ctx.fill();
+        label(z, x, zy + 1 * u, font(on ? 700 : 600, (on ? 25 : 21) * u), on ? acc : col);
+      });
+      // mode strip, centred on the active mode
+      const modes = list(el.modes ?? 'CINEMATIC, VIDEO, PHOTO, PORTRAIT, PANO'), ma = clamp(el.activeMode ?? 2, 0, Math.max(0, modes.length - 1));
+      const mf = font(600, 25 * u), mls = 1.5 * u, gap = 52 * u, my = h * 0.85;
+      ctx.font = mf;
+      const widths = modes.map(m => ctx.measureText(m).width + mls * ([...m].length - 1));
+      let x = w / 2 - widths[ma] / 2;
+      for (let i = ma - 1; i >= 0; i--) x -= widths[i] + gap;
+      modes.forEach((m, i) => { label(m, x, my, mf, i === ma ? acc : rgba(col, 0.92), 'left', mls); x += widths[i] + gap; });
+      // shutter, last-shot thumbnail, flip
+      const sy = h * 0.93;
+      ctx.lineWidth = 6 * u; ctx.strokeStyle = col;
+      ctx.beginPath(); ctx.arc(w / 2, sy, 56 * u, 0, TAU); ctx.stroke();
+      ctx.fillStyle = col; ctx.beginPath(); ctx.arc(w / 2, sy, 46 * u, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(20,20,20,0.38)';
+      ctx.beginPath(); ctx.arc(w * 0.82, sy, 38 * u, 0, TAU); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 3.5 * u; ctx.lineCap = 'round';
+      const fx = w * 0.82, r = 15 * u;
+      ctx.beginPath(); ctx.arc(fx, sy, r, Math.PI * 1.05, Math.PI * 1.85); ctx.stroke();
+      ctx.beginPath(); ctx.arc(fx, sy, r, Math.PI * 0.05, Math.PI * 0.85); ctx.stroke();
+      const tip = (a, dir) => { const px = fx + Math.cos(a) * r, py = sy + Math.sin(a) * r; ctx.beginPath(); ctx.moveTo(px - 6 * u, py - dir * 5 * u); ctx.lineTo(px, py); ctx.lineTo(px + 7 * u * dir, py - 2 * u); ctx.stroke(); };
+      tip(Math.PI * 1.85, -1); tip(Math.PI * 0.85, 1);
+      if (el.thumb !== false) { ctx.fillStyle = 'rgba(255,255,255,0.22)'; ctx.fill(rrect(new Path2D(), w * 0.18 - 32 * u, sy - 32 * u, 64 * u, 64 * u, 10 * u)); }
+    } else if (style === 'camcorder') {
+      const vt = (px) => fontFor(el.fontFamily || 'VT323', 400, false, px);
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 6 * u * deviceScale(ctx);
+      brackets(w * 0.06, h * 0.06, w * 0.94, h * 0.94, 46 * u, 4 * u, rgba(col, 0.9));
+      ctx.fillStyle = el.recColor || '#ff3b30';
+      ctx.beginPath(); ctx.arc(w * 0.1, h * 0.105, 13 * u, 0, TAU); ctx.fill();
+      label(el.rec ?? 'REC', w * 0.1 + 26 * u, h * 0.105, vt(62 * u), col, 'left');
+      label(el.timecode ?? '00:12:47', w * 0.9, h * 0.105, vt(62 * u), col, 'right');
+      // battery
+      const bx = w * 0.9 - 70 * u, by = h * 0.105 + 44 * u;
+      ctx.strokeStyle = col; ctx.lineWidth = 3 * u; ctx.strokeRect(bx, by, 60 * u, 28 * u);
+      ctx.fillStyle = col; ctx.fillRect(bx + 60 * u, by + 8 * u, 6 * u, 12 * u);
+      for (let i = 0; i < 3; i++) ctx.fillRect(bx + (6 + i * 18) * u, by + 6 * u, 13 * u, 16 * u);
+      label(el.date ?? 'OCT 10 2026', w * 0.1, h * 0.895, vt(56 * u), col, 'left');
+      label(el.mode ?? 'SP ▶', w * 0.9, h * 0.895, vt(56 * u), col, 'right');
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = rgba(col, 0.8); ctx.lineWidth = 3 * u;
+      ctx.beginPath(); ctx.moveTo(w / 2 - 24 * u, h / 2); ctx.lineTo(w / 2 + 24 * u, h / 2); ctx.moveTo(w / 2, h / 2 - 24 * u); ctx.lineTo(w / 2, h / 2 + 24 * u); ctx.stroke();
+      if (el.scanlines) {
+        ctx.fillStyle = 'rgba(0,0,0,0.08)';
+        for (let y = 0; y < h; y += 6 * u) ctx.fillRect(0, y, w, 2.5 * u);
+      }
+    } else {
+      brackets(w * 0.06, h * 0.06, w * 0.94, h * 0.94, 40 * u, 3 * u, rgba(col, 0.9));
+      const fs = Math.min(w, h) * 0.16;
+      ctx.strokeStyle = acc; ctx.lineWidth = 2.5 * u;
+      ctx.strokeRect(w / 2 - fs / 2, h / 2 - fs / 2, fs, fs);
+      ctx.fillStyle = acc;
+      for (const [x, y] of [[w / 2, h / 2 - fs / 2], [w / 2, h / 2 + fs / 2], [w / 2 - fs / 2, h / 2], [w / 2 + fs / 2, h / 2]]) ctx.fillRect(x - 1.5 * u - (y === h / 2 ? (x < w / 2 ? 0 : 8 * u) : 0), y - 1.5 * u - (x === w / 2 ? (y < h / 2 ? 0 : 8 * u) : 0), y === h / 2 ? 11 * u : 3 * u, x === w / 2 ? 11 * u : 3 * u);
+      label(el.zoomLabel ?? '1×', w / 2, h * 0.88, font(700, 26 * u), acc);
+    }
+    ctx.restore();
+  }
+
   /* ───────────────────────── element dispatch ───────────────────────── */
 
   function bleed(el) {
@@ -1724,6 +2089,9 @@
       case 'text': return ((el.bg && el.bg.padX) || 0) + ((el.stroke && el.stroke.width) || 0) * 2 + (el.echo && el.echo.on ? el.fontSize * 0.4 : 0) + 8;
       case 'sticker': case 'image': return ((el.outline && el.outline.on && el.outline.width) || 0) * 1.6 + 8;
       case 'shape': return (el.strokeWidth || 0) + 6;
+      case 'ribbon': return Math.max(el.thickness || 0, (el.fontSize || 0) * 1.2) / 2 + ((el.border && el.border.width) || 0) + ribbonHead(el) * 0.6 + 8;
+      case 'camera': return 6;
+      case 'nature': return 4;
       default: return m * 0.05 + 6;
     }
   }
@@ -1737,6 +2105,9 @@
       case 'calendar': drawCalendar(ctx, el, env); break;
       case 'badge': drawBadge(ctx, el, env); break;
       case 'checklist': drawChecklist(ctx, el, env); break;
+      case 'ribbon': drawRibbon(ctx, el, env); break;
+      case 'camera': drawCamera(ctx, el, env); break;
+      case 'nature': if (window.StudioNature) window.StudioNature.draw(ctx, el); break;
     }
   }
 
@@ -1746,13 +2117,13 @@
   R.animDoc = null;
   R.ANIM_LOOPS = {
     none: 'None', wiggle: 'Stop-motion wiggle', float: 'Float', jiggle: 'Jiggle', sway: 'Sway', swing: 'Swing',
-    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink',
+    spin: 'Spin', pulse: 'Pulse', bounce: 'Bounce', shake: 'Shake', orbit: 'Orbit', blink: 'Blink', flow: 'Text flow (paths)',
   };
   R.ANIM_ENTER = {
     none: 'None', pop: 'Pop in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
-    right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe',
+    right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
   };
-  const LOOP_PERIOD = { float: 3, jiggle: 0.9, sway: 3, swing: 2.2, spin: 6, pulse: 1.6, bounce: 1.2, shake: 0.5, orbit: 4, blink: 1.4 };
+  const LOOP_PERIOD = { float: 3, jiggle: 0.9, sway: 3, swing: 2.2, spin: 6, pulse: 1.6, bounce: 1.2, shake: 0.5, orbit: 4, blink: 1.4, flow: 4 };
   const easeOut = p => 1 - Math.pow(1 - p, 3);
   const easeBack = p => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
   const easeBounce = p => {
@@ -1765,7 +2136,7 @@
   R.hasAnim = el => !!(el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none')));
   function animState(el, t, doc) {
     const an = el.anim, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
-    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1 };
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
     const loop = an.loop || 'none';
@@ -1791,6 +2162,7 @@
           case 'shake': st.dx = Math.sin(ph) * m * 0.025 * amt; break;
           case 'orbit': st.dx = Math.cos(ph) * m * 0.06 * amt; st.dy = Math.sin(ph) * m * 0.06 * amt; break;
           case 'blink': st.alpha = (u % 1) < 0.78 ? 1 : 0.12; break;
+          case 'flow': st.flow = (u - phase) * (an.reverse ? -1 : 1); break;
         }
       }
     }
@@ -1808,6 +2180,7 @@
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
         case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * [...(el.text || '')].length); else st.reveal = p; break;
         case 'wipe': st.reveal = e; break;
+        case 'draw': if (el.type === 'ribbon') st.draw = e; else st.reveal = e; break;
       }
     }
     return st;
@@ -1834,6 +2207,7 @@
       const chars = [...(el.text || '')];
       if (A.chars < chars.length) e = Object.assign({}, el, { text: chars.slice(0, A.chars).join(''), autoWidth: false, width: el.width });
     }
+    if (A.flow != null || A.draw != null) e = Object.assign({}, e, A.flow != null ? { flowShift: ((A.flow % 1) + 1) % 1 } : {}, A.draw != null ? { drawFrac: A.draw } : {});
     drawLayered(ctx, e, env);
     ctx.restore();
   }
@@ -1896,7 +2270,21 @@
     }
     const ds = deviceScale(ctx);
     ctx.save();
-    if (sh && sh.on) {
+    if (sh && sh.on && sh.style === 'cast') {
+      // a shadow lying on the ground behind the subject: its silhouette sheared and squashed from the box's bottom edge
+      if (!c.sil || c.sil.src !== key) {
+        const sil = canvas(c.width, c.height), sx = sil.getContext('2d');
+        sx.drawImage(c, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = '#000'; sx.fillRect(0, 0, sil.width, sil.height);
+        c.sil = sil; c.sil.src = key;
+      }
+      const hh = el.height, skew = Math.tan(clamp(sh.angle ?? 50, -85, 85) * Math.PI / 180), len = sh.length ?? 0.45;
+      ctx.save();
+      ctx.transform(1, 0, -skew * len, len, skew * len * hh + (sh.x || 0), hh * (1 - len) + (sh.y || 0));
+      ctx.globalAlpha *= clamp(sh.opacity ?? 0.4, 0, 1);
+      if ((sh.blur ?? 12) > 0 && 'filter' in ctx) ctx.filter = `blur(${(sh.blur ?? 12) * ds}px)`;
+      ctx.drawImage(c.sil, -b, -b, el.width + b * 2, el.height + b * 2);
+      ctx.restore();
+    } else if (sh && sh.on) {
       ctx.shadowColor = rgba(sh.color || '#000', sh.opacity ?? 0.35);
       ctx.shadowBlur = (sh.blur ?? 20) * ds;
       ctx.shadowOffsetX = (sh.x ?? 0) * ds;
@@ -1919,6 +2307,7 @@
     if (!opts.transparent) {
       ctx.fillStyle = makeFill(ctx, { color: bg.color || '#fff', color2: bg.color2, gradient: bg.gradient, angle: bg.angle }, w, h);
       ctx.fillRect(0, 0, w, h);
+      if (bg.scene && window.StudioNature) window.StudioNature.drawScene(ctx, w, h, bg.scene);
     }
     if (bg.assetId) {
       const img = assetImage(bg.assetId);
@@ -1984,6 +2373,8 @@
     for (const el of doc.elements || []) {
       if (el.type === 'text' || el.type === 'checklist') out.push([el.fontFamily, el.fontWeight || 400, !!el.italic]);
       if (el.type === 'calendar') { out.push([el.titleFont || 'Instrument Serif', el.titleWeight || 400, false], [el.bodyFont || 'Instrument Sans', el.bodyWeight || 500, false], [el.bodyFont || 'Instrument Sans', 600, false]); }
+      if (el.type === 'ribbon' && el.text) out.push([el.fontFamily || 'Space Mono', el.fontWeight || 700, !!el.italic]);
+      if (el.type === 'camera') { if (el.style === 'camcorder') out.push([el.fontFamily || 'VT323', 400, false]); else out.push([el.fontFamily || 'Inter', 600, false], [el.fontFamily || 'Inter', 700, false]); }
       if (el.type === 'badge') { out.push([el.ringFont || 'Bricolage Grotesque', el.ringWeight || 600, false]); if (el.center === 'text') out.push([el.centerFont || el.ringFont || 'Bricolage Grotesque', el.centerWeight || 700, !!el.centerItalic]); }
     }
     return out.filter(f => Fonts.BY_NAME[f[0]]).map(([f, w, i]) => [f, Fonts.nearestWeight(f, w), i]);

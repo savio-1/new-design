@@ -61,6 +61,18 @@
       ringSep: '  •  ', textColor: '#1f3fd1', center: 'asterisk', centerText: 'NEW', centerFont: 'Bricolage Grotesque', centerWeight: 700,
       centerSize: 0.26, centerColor: '', innerRing: false,
     },
+    ribbon: {
+      path: 'wave', points: null, closed: false, sharp: false, thickness: 90, color: '#e9f07a', ends: 'round', line: false,
+      arrowEnd: false, arrowStart: false, headStyle: 'open', dash: 0, border: { width: 0, color: '#1d1b18' },
+      text: 'your words travel along the ribbon', repeat: true, sep: '   ✦   ', fontFamily: 'Space Mono', fontWeight: 700, italic: false,
+      fontSize: 34, textColor: '#1d1b18', letterSpacing: 0.04, uppercase: false, offset: 0, flip: false, align: 'center', textShift: 0,
+    },
+    camera: {
+      style: 'iphone', grid: true, lens: true, lensColor: '#000000', brackets: true, color: '#ffffff', accent: '#ffd60a',
+      modes: 'CINEMATIC, VIDEO, PHOTO, PORTRAIT, PANO', activeMode: 2, zooms: '0.5, 1×, 2, 5', activeZoom: 1, thumb: true,
+      rec: 'REC', timecode: '00:12:47', date: 'OCT 10 2026', mode: 'SP ▶', scanlines: true, fontFamily: '',
+    },
+    nature: { kind: 'hill', colors: null, seed: 1, density: 1, params: {}, flipX: false },
     checklist: {
       items: '[x] Morning walk\n[ ] Water the plants\n[ ] Call grandma\n[ ] Finish moodboard', fontFamily: 'Caveat', fontSize: 48,
       fontWeight: 500, italic: false, fill: '#1d1b18', lineHeight: 1.55, boxStyle: 'square', boxColor: '#1d1b18', checkColor: '#e4572e',
@@ -98,6 +110,7 @@
   let assets = {};
   let sel = [];
   let playing = false;
+  let pathEdit = null;
   const elMap = new Map();
   S.view = { scale: 1, x: 0, y: 0, fit: true };
   S.settings = { grid: false, snapGrid: false, guides: true, gridSize: 40 };
@@ -136,6 +149,9 @@
       case 'calendar': return R.MONTHS[el.month] + ' calendar';
       case 'badge': return 'Badge · ' + (el.ringText || '').slice(0, 16);
       case 'checklist': return 'Checklist';
+      case 'ribbon': return el.line ? 'Curved line' : (el.text ? 'Ribbon · ' + el.text.slice(0, 18) : 'Ribbon');
+      case 'camera': return (R.CAMERA_STYLES[el.style] || 'Camera') + ' overlay';
+      case 'nature': { const N = window.StudioNature; return (N && N.KINDS[el.kind] && N.KINDS[el.kind].label) || 'Nature'; }
     }
     return el.type;
   };
@@ -353,7 +369,7 @@
     if (!n) return;
     n.setAttrs({
       x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation || 0, scaleX: 1, scaleY: 1,
-      opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && S.tool === 'select' && !playing,
+      opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && !(pathEdit && pathEdit.id === el.id) && S.tool === 'select' && !playing,
       globalCompositeOperation: el.blend && el.blend !== 'normal' ? el.blend : 'source-over',
     });
   }
@@ -539,6 +555,7 @@
       anchors = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     }
     if (anyLocked || cropState || S.tool === 'erase') anchors = [];
+    if (pathEdit) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
     tr.setAttrs({
       enabledAnchors: anchors, keepRatio, rotateEnabled: !anyLocked && !cropState && S.tool !== 'erase',
       shouldOverdrawWholeArea: ns.length > 1, borderDash: anyLocked ? [4, 4] : null,
@@ -552,6 +569,7 @@
   S.select = function (ids, opts = {}) {
     if (textEdit && !(ids.length === 1 && ids[0] === textEdit.id)) finishTextEdit();
     if (cropState && !(ids.length === 1 && ids[0] === cropState.id)) endCrop();
+    if (pathEdit && !(ids.length === 1 && ids[0] === pathEdit.id)) endPathEdit();
     sel = ids.filter(id => elMap.has(id));
     attachTransformer();
     if (!opts.silent) emit('selection');
@@ -578,7 +596,7 @@
 
   stage.on('mousedown touchstart', e => {
     const evt = e.evt;
-    if (keys.space || evt.button === 1) {
+    if (keys.space || evt.button === 1 || S.tool === 'hand') {
       panning = { x: evt.clientX ?? evt.touches?.[0]?.clientX, y: evt.clientY ?? evt.touches?.[0]?.clientY, vx: S.view.x, vy: S.view.y };
       area.style.cursor = 'grabbing';
       return;
@@ -637,7 +655,7 @@
     }
   });
   window.addEventListener('mouseup', () => {
-    if (panning) { panning = null; area.style.cursor = keys.space ? 'grab' : ''; }
+    if (panning) { panning = null; area.style.cursor = keys.space || S.tool === 'hand' ? 'grab' : ''; }
     if (cropDrag) { cropDrag = null; S.commit(); }
     if (erasing) { erasing = null; S.commit(); emit('values'); }
     if (marqueeStart) {
@@ -827,6 +845,7 @@
       if (el.type === 'sticker' && el.outline) el.outline.width *= s;
       if (el.type === 'badge' && el.borderWidth) el.borderWidth *= s;
       if (el.type === 'shape' && el.radius) el.radius *= s;
+      if (el.type === 'ribbon') { el.thickness *= s; el.fontSize *= s; if (el.border) el.border.width *= s; }
     }
   }
   S.scaleElement = scaleElement;
@@ -920,6 +939,98 @@
   }
   S.positionOverlays = positionOverlays;
 
+  /* ───────────────────────── path editing (ribbons) ───────────────────────── */
+
+  const pathGroup = new Konva.Group();
+  uiLayer.add(pathGroup);
+  function startPathEdit(id) {
+    const el = elMap.get(id);
+    if (!el || el.type !== 'ribbon' || el.locked) return;
+    if (textEdit) finishTextEdit();
+    endCrop();
+    if (!el.points) {
+      const pre = R.RIBBON_PATHS[el.path] || R.RIBBON_PATHS.wave;
+      el.points = pre.pts.map(p => p.slice()); el.closed = !!pre.closed; el.sharp = !!pre.sharp;
+    }
+    pathEdit = { id };
+    if (!sel.includes(id) || sel.length !== 1) { sel = [id]; emit('selection'); }
+    syncNode(el);
+    buildPathHandles();
+    attachTransformer();
+    S.hint('Drag points to reshape · click a small dot to add a point · double-click a point to remove it · Esc when done', 4200);
+    emit('pathedit', true);
+  }
+  function endPathEdit() {
+    if (!pathEdit) return;
+    const el = elMap.get(pathEdit.id);
+    pathEdit = null;
+    pathGroup.destroyChildren();
+    if (el) syncNode(el);
+    attachTransformer();
+    emit('pathedit', false);
+  }
+  S.startPathEdit = startPathEdit;
+  S.endPathEdit = endPathEdit;
+  S.isEditingPath = () => !!pathEdit;
+  // re-fit the box around the points so selection and snapping follow the new shape
+  function refitPath(el) {
+    const lp = el.points.map(([u, v]) => [u * el.width, v * el.height]);
+    let x0 = Math.min(...lp.map(p => p[0])), x1 = Math.max(...lp.map(p => p[0]));
+    let y0 = Math.min(...lp.map(p => p[1])), y1 = Math.max(...lp.map(p => p[1]));
+    if (x1 - x0 < 20) { const c = (x0 + x1) / 2; x0 = c - 10; x1 = c + 10; }
+    if (y1 - y0 < 20) { const c = (y0 + y1) / 2; y0 = c - 10; y1 = c + 10; }
+    const [ox, oy] = rotVec(x0, y0, el.rotation || 0);
+    el.x += ox; el.y += oy;
+    el.width = x1 - x0; el.height = y1 - y0;
+    el.points = lp.map(([x, y]) => [(x - x0) / el.width, (y - y0) / el.height]);
+  }
+  function buildPathHandles() {
+    pathGroup.destroyChildren();
+    if (!pathEdit) return;
+    const el = elMap.get(pathEdit.id), n = nodes.get(pathEdit.id);
+    if (!el || !n) return;
+    const s = S.view.scale, T = n.getTransform();
+    const pts = el.points.map(([u, v]) => T.point({ x: u * el.width, y: v * el.height }));
+    const line = new Konva.Line({ points: pts.flatMap(p => [p.x, p.y]).concat(el.closed ? [pts[0].x, pts[0].y] : []), stroke: '#5b4cf5', strokeWidth: 1 / s, dash: [4 / s, 4 / s], listening: false });
+    pathGroup.add(line);
+    const finish = () => { refitPath(el); syncNode(el); buildPathHandles(); layer.batchDraw(); S.commit(); emit('values'); };
+    // midpoints add a point
+    const segs = el.closed ? pts.length : pts.length - 1;
+    for (let i = 0; i < segs; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const m = new Konva.Circle({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, radius: 4.5 / s, fill: 'rgba(91,76,245,0.55)', stroke: '#fff', strokeWidth: 1 / s, hitStrokeWidth: 8 / s });
+      m.on('mousedown touchstart', ev => {
+        ev.cancelBubble = true;
+        const inv = n.getTransform().copy().invert(), lp = inv.point({ x: m.x(), y: m.y() });
+        el.points.splice(i + 1, 0, [lp.x / el.width, lp.y / el.height]);
+        layer.batchDraw(); buildPathHandles(); S.commit();
+      });
+      m.on('mouseenter', () => { area.style.cursor = 'copy'; });
+      m.on('mouseleave', () => { area.style.cursor = ''; });
+      pathGroup.add(m);
+    }
+    pts.forEach((p, i) => {
+      const c = new Konva.Circle({ x: p.x, y: p.y, radius: 7 / s, fill: '#ffffff', stroke: '#5b4cf5', strokeWidth: 2 / s, draggable: true, hitStrokeWidth: 10 / s });
+      c.on('mousedown touchstart', ev => { ev.cancelBubble = true; });
+      c.on('dragmove', () => {
+        const inv = n.getTransform().copy().invert(), lp = inv.point(c.position());
+        el.points[i] = [lp.x / el.width, lp.y / el.height];
+        const flat = line.points(); flat[i * 2] = c.x(); flat[i * 2 + 1] = c.y();
+        if (el.closed && i === 0) { flat[flat.length - 2] = c.x(); flat[flat.length - 1] = c.y(); }
+        line.points(flat);
+        layer.batchDraw();
+      });
+      c.on('dragend', finish);
+      c.on('dblclick dbltap', () => { if (el.points.length > 2) { el.points.splice(i, 1); finish(); } });
+      c.on('mouseenter', () => { area.style.cursor = 'move'; });
+      c.on('mouseleave', () => { area.style.cursor = ''; });
+      pathGroup.add(c);
+    });
+    uiLayer.batchDraw();
+  }
+  S.on('view', () => { if (pathEdit) buildPathHandles(); });
+  S.on('values', () => { if (pathEdit && !pathGroup.findOne('Circle')?.isDragging()) buildPathHandles(); });
+
   /* ───────────────────────── text editing ───────────────────────── */
 
   let textEdit = null;
@@ -928,6 +1039,7 @@
     if (!el || el.locked) return;
     if (el.type === 'text') S.startTextEdit(id);
     else if (el.type === 'image') { if (el.assetId) startCrop(id); else S.pickImages({ replaceId: id }); }
+    else if (el.type === 'ribbon') startPathEdit(id);
     else emit('focusInspector', el);
   }
   S.startTextEdit = function (id) {
@@ -1021,7 +1133,8 @@
     endCrop();
     S.tool = tool;
     for (const el of doc.elements) syncNode(el);
-    area.style.cursor = tool === 'erase' ? 'none' : '';
+    area.style.cursor = tool === 'erase' ? 'none' : tool === 'hand' ? 'grab' : '';
+    if (pathEdit) endPathEdit();
     area.classList.toggle('erasing', tool === 'erase');
     if (tool !== 'erase') brush.style.display = 'none';
     attachTransformer();
@@ -1562,7 +1675,7 @@
     if (mod && k === 'e') { e.preventDefault(); emit('export'); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }
-    if (e.key === 'Escape') { if (playing) S.pause(); else if (S.tool === 'erase') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
+    if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
     if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
     if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }
     if (S.tool === 'erase' && (e.key === '[' || e.key === ']')) { S.eraser.size = clamp(S.eraser.size * (e.key === ']' ? 1.2 : 1 / 1.2), 4, 800); S.refreshBrush(); emit('tool', 'erase'); return; }
