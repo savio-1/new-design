@@ -343,6 +343,22 @@
     p.closePath();
     return p;
   }
+  // a standing figure seen from the front: head, shoulders, arms and body
+  function personPath(w, h) {
+    const p = new Path2D(), cx = w / 2, hr = Math.min(w * 0.2, h * 0.09);
+    p.arc(cx, hr * 1.05, hr, 0, TAU);
+    const ny = hr * 2.05, sw = w * 0.5, top = ny + h * 0.02;
+    p.moveTo(cx - w * 0.08, ny - hr * 0.1);
+    p.lineTo(cx + w * 0.08, ny - hr * 0.1);
+    p.lineTo(cx + w * 0.09, top);
+    p.bezierCurveTo(cx + sw * 0.7, top + h * 0.01, cx + sw * 0.95, top + h * 0.05, cx + sw * 0.98, top + h * 0.16);
+    p.lineTo(w * 0.97, h * 0.62); p.lineTo(w * 0.86, h * 0.63); p.lineTo(w * 0.8, h * 0.4); p.lineTo(w * 0.78, h);
+    p.lineTo(w * 0.22, h); p.lineTo(w * 0.2, h * 0.4); p.lineTo(w * 0.14, h * 0.63); p.lineTo(w * 0.03, h * 0.62);
+    p.lineTo(cx - sw * 0.98, top + h * 0.16);
+    p.bezierCurveTo(cx - sw * 0.95, top + h * 0.05, cx - sw * 0.7, top + h * 0.01, cx - w * 0.09, top);
+    p.closePath();
+    return p;
+  }
   function heartPath(w, h) {
     const p = new Path2D();
     p.moveTo(w / 2, h * 0.28);
@@ -481,6 +497,7 @@
     cross: { label: 'Plus', path: (w, h) => { const t = 0.32; return polyPath([[w * (0.5 - t / 2), 0], [w * (0.5 + t / 2), 0], [w * (0.5 + t / 2), h * (0.5 - t / 2)], [w, h * (0.5 - t / 2)], [w, h * (0.5 + t / 2)], [w * (0.5 + t / 2), h * (0.5 + t / 2)], [w * (0.5 + t / 2), h], [w * (0.5 - t / 2), h], [w * (0.5 - t / 2), h * (0.5 + t / 2)], [0, h * (0.5 + t / 2)], [0, h * (0.5 - t / 2)], [w * (0.5 - t / 2), h * (0.5 - t / 2)]]); } },
     arrow: { label: 'Arrow', path: (w, h) => polyPath([[0, h * 0.32], [w * 0.62, h * 0.32], [w * 0.62, 0], [w, h / 2], [w * 0.62, h], [w * 0.62, h * 0.68], [0, h * 0.68]]) },
     parallelogram: { label: 'Slant', path: (w, h) => polyPath([[w * 0.18, 0], [w, 0], [w * 0.82, h], [0, h]]) },
+    person: { label: 'Person', path: (w, h) => personPath(w, h) },
     line: { label: 'Line', path: null },
   };
   R.SHAPES = SHAPES;
@@ -495,7 +512,7 @@
   const PATTERNS = {
     none: 'None', grid: 'Grid paper', graph: 'Graph paper', dots: 'Dot grid', lined: 'Notebook lines',
     check: 'Checkerboard', gingham: 'Gingham', stripes: 'Stripes', diagonal: 'Diagonal', polka: 'Polka dots',
-    waves: 'Waves', plus: 'Plus grid', halftone: 'Halftone',
+    waves: 'Waves', plus: 'Plus grid', halftone: 'Halftone', scribble: 'Pen scribbles',
   };
   R.PATTERNS = PATTERNS;
   function drawPattern(ctx, w, h, p) {
@@ -532,6 +549,24 @@
       case 'check':
         for (let x = 0, i = 0; x < w; x += s, i++) for (let y = 0, j = 0; y < h; y += s, j++) if ((i + j) % 2) path.rect(x, y, s, s);
         ctx.fill(path); break;
+      case 'scribble': {
+        // dense handwriting-like scribbles, like a page filled with a ballpoint pen
+        const r = rng(p.seed || 11);
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for (let y = s * 0.4; y < h + s; y += s * 0.42) {
+          let x = -s;
+          path.moveTo(x, y + (r() - 0.5) * s * 0.3);
+          while (x < w + s) {
+            const step = s * (0.08 + r() * 0.12), amp = s * (0.12 + r() * 0.3);
+            x += step;
+            const ny = y + (r() - 0.5) * s * 0.35;
+            if (r() < 0.35) path.bezierCurveTo(x + step * 0.8, ny - amp, x - step * 1.2, ny - amp * 1.4, x, ny);
+            else path.quadraticCurveTo(x - step * 0.5, ny + (r() < 0.5 ? -amp : amp), x, ny);
+            if (r() < 0.04) { x += s * 0.25; path.moveTo(x, y); }
+          }
+        }
+        ctx.stroke(path); break;
+      }
       case 'gingham': {
         ctx.globalAlpha *= 0.5;
         const a = new Path2D(), b = new Path2D();

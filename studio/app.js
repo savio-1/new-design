@@ -114,6 +114,7 @@
   let assets = {};
   // built-in demo photos (speed-flash templates) are always available under fixed ids
   if (window.StudioFlashes && window.StudioFlashes.DEMO) for (const [k, v] of Object.entries(window.StudioFlashes.DEMO)) assets['demo-' + k] = v.src;
+  if (window.StudioFlashes && window.StudioFlashes.IMG) for (const [k, v] of Object.entries(window.StudioFlashes.IMG)) assets['img-' + k] = v.src;
   let sel = [];
   let playing = false;
   let pathEdit = null;

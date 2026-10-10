@@ -753,6 +753,219 @@
       },
     })),
 
+    // ── TEXT SLIDES: typographic quote posters, one idea per slide ──
+    ...(() => {
+      const W = 1080, H = 1350;
+      // left / right anchored lines without measuring: a full-width box aligned to one side
+      const L = (t, x, y, o) => txt(t, Object.assign({ x, y, align: 'left' }, o));
+      const Rt = (t, right, y, o) => txt(t, Object.assign({ x: 60, y, autoWidth: false, width: right - 60, align: 'right' }, o));
+      const C = (t, cy, o) => txt(t, Object.assign({ cx: W / 2, cy, align: 'center' }, o));
+      const chip = (asset, x, y, w, h, o = {}) => img(x, y, w, h, Object.assign({ assetId: 'img-' + asset, placeholder: ['#9a9a9a', '#5a5a5a'], name: 'Photo chip — replace with yours' }, o));
+      const helv = (size, o) => Object.assign({ fontFamily: 'Inter', fontWeight: 500, fontSize: size, letterSpacing: -0.055, lineHeight: 0.98, fill: '#ffffff' }, o);
+      const heavy = (size, o) => Object.assign({ fontFamily: 'Archivo Black', fontSize: size, letterSpacing: -0.02, lineHeight: 1, fill: '#111111' }, o);
+      const paperTex = { texture: 40 };
+      const slides = [
+        { id: 'ts-created', name: 'I was created', bg: { color: '#2a14c8' }, els: () => [
+          L('i', 120, 380, helv(160)), L('was', 300, 380, helv(160)), L('created', 430, 540, helv(160)), L('to', 300, 700, helv(160)), L('create.', 150, 860, helv(160)),
+        ] },
+        { id: 'ts-goal', name: 'Goal: make art', bg: { color: '#2a14c8' }, els: () => [
+          L('goal:', 130, 330, helv(118)), L('make   art,', 300, 560, helv(118)), L('be   hot.', 130, 680, helv(118)),
+        ] },
+        { id: 'ts-earth', name: 'Earth without art', bg: { color: '#efefed' }, els: () => [
+          L('EARTH', 90, 360, heavy(130)), chip('rise1', 600, 380, 390, 104),
+          shp('burst', 92, 528, 104, 104, { fill: '#1b9a3c', points: 16, inner: 0.62 }), L('WITHOUT', 210, 500, heavy(130)),
+          L('‘ART’', 90, 640, heavy(130)), chip('fight3', 455, 660, 340, 104, { filters: { contrast: 20, saturation: 30 } }), Rt('IS', 990, 640, heavy(130)),
+          L('JUST', 90, 780, heavy(130)), chip('drive6', 480, 800, 210, 104), Rt('‘EH’', 990, 780, heavy(130)),
+          L('YourStudio', 90, 1220, { fontFamily: 'Inter', fontWeight: 700, fontSize: 22, fill: '#111111' }),
+        ] },
+        { id: 'ts-crisis', name: 'Creative crisis', bg: { color: '#0b62de' }, els: () => [
+          L('behind every\nbeautiful design\nthere’s a creative\ncrisis at 2 a.m.', 80, 440, { fontFamily: 'Inter', fontWeight: 600, fontSize: 80, lineHeight: 1.04, letterSpacing: -0.03, fill: '#d6f53c' }),
+          C('@yourstudio', 1190, { fontFamily: 'Inter', fontWeight: 500, fontSize: 26, fill: '#d6f53c' }),
+        ] },
+        { id: 'ts-brands', name: 'Speak to someone', bg: { color: '#8c8c8c', color2: '#262626', gradient: 'linear', angle: 180, texture: 30 }, overlay: { grain: 45, vignette: 40 }, els: () => [
+          shp('rect', 536, 0, 6, H, { fill: '#1b1b1b', opacity: 0.85, name: 'Door gap' }),
+          shp('rect', 260, 380, 560, 580, { fill: '#0a22d6', texture: 20 }),
+          C('THE  BEST  BRANDS  DON’T\nSPEAK TO EVERYONE.\nTHEY SPEAK TO SOMEONE', 650, { fontFamily: 'Archivo', fontWeight: 700, fontSize: 34, letterSpacing: 0.1, lineHeight: 1.3, fill: '#ffffff', align: 'left' }),
+        ] },
+        { id: 'ts-made', name: 'Made to create', bg: { color: '#1335ff', texture: 20 }, overlay: { grain: 40 }, els: () => [
+          shp('burst', 110, 470, 860, 520, { fill: '#efe6cf', points: 13, inner: 0.72, rotation: -8, texture: 40 }),
+          C('you were made\nto create.', 735, { fontFamily: 'Archivo', fontWeight: 800, fontSize: 84, lineHeight: 0.98, letterSpacing: -0.02, fill: '#111111', rotation: -6 }),
+          ribbon('scurve', 130, 220, 120, 160, '#a8b6ff'), ribbon('swoosh', 760, 1080, 160, 90, '#a8b6ff'),
+        ] },
+        { id: 'ts-align', name: 'Art needs alignment', bg: { color: '#b9f02a' }, els: () => [
+          L('Art\nneeds\nalignment.', 90, 440, { fontFamily: 'Archivo Black', fontSize: 150, lineHeight: 0.95, letterSpacing: -0.03, fill: '#111111' }),
+          shp('rect', 930, 1190, 70, 80, { fill: 'transparent', stroke: '#111111', strokeWidth: 3, name: 'Logo box' }),
+          C('K S', 1230, { cx: 965, fontFamily: 'Archivo', fontWeight: 700, fontSize: 24, fill: '#111111' }),
+        ] },
+        { id: 'ts-dress', name: 'Dress well, stay weird', bg: { color: '#2c12d6' }, els: () => [
+          L('dress', 80, 360, helv(118)), chip('fight3', 360, 384, 140, 100), L('well', 520, 360, helv(118)),
+          chip('play2', 80, 504, 150, 100), L('stay weird', 250, 480, helv(118)),
+          L('make', 140, 600, helv(118)), chip('run4', 430, 624, 150, 100), L('art', 600, 600, helv(118)),
+          chip('drive5', 80, 744, 210, 100), L('confuse', 310, 720, helv(118)),
+          chip('gym3', 120, 864, 130, 100), chip('play4', 265, 864, 130, 100), L('people', 420, 840, helv(118)),
+        ] },
+        { id: 'ts-meant', name: 'Meant to create', bg: { color: '#1f5fa6', texture: 70, crumple: 30, crumpleSeed: 3 }, overlay: { grain: 30 }, els: () => [
+          L('YOU ARE', 80, 300, heavy(78, { fill: '#ffffff', letterSpacing: -0.05 })), Rt('MEANT TO', 980, 460, heavy(78, { fill: '#ffffff', letterSpacing: -0.05 })),
+          L('CREATE', 120, 620, heavy(78, { fill: '#ffffff', letterSpacing: -0.05 })), Rt('BEAUTIFUL', 940, 780, heavy(78, { fill: '#ffffff', letterSpacing: -0.05 })),
+          L('THINGS.', 180, 940, heavy(78, { fill: '#ffffff', letterSpacing: -0.05 })),
+          C('@YOURSTUDIO', 1240, { fontFamily: 'Archivo', fontWeight: 800, fontSize: 24, fill: '#ffffff' }),
+        ] },
+        { id: 'ts-new', name: 'It’s just new', bg: Object.assign({ color: '#ece6dc', pattern: { type: 'lined', color: 'rgba(0,0,0,0.05)', size: 40, color2: 'rgba(0,0,0,0)' } }, paperTex), els: () => [
+          L('REMINDERS FOR YOU', 60, 60, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, letterSpacing: 0.12, fill: '#d8352a' }),
+          Rt('+ FOR ME', 1020, 60, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, letterSpacing: 0.12, fill: '#d8352a' }),
+          L('it’s not\nhard,', 60, 300, helv(160, { fill: '#d8352a' })), Rt('it’s just', 1020, 640, helv(160, { fill: '#d8352a' })), L('new.', 60, 800, helv(160, { fill: '#d8352a' })),
+          L('+5', 60, 1280, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, fill: '#d8352a' }), Rt('@YOURSTUDIO', 1020, 1280, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, letterSpacing: 0.12, fill: '#d8352a' }),
+        ] },
+        { id: 'ts-visuals', name: 'Bare minimum', bg: { color: '#173c86', texture: 50 }, overlay: { grain: 35 }, els: () => {
+          const ink = '#efe8b4', f = (sz, o) => Object.assign({ fontFamily: 'Inter', fontWeight: 600, fontSize: sz, letterSpacing: -0.04, fill: ink }, o);
+          return [
+            Rt('AESTHETIC “AND”', 1020, 70, f(20, { letterSpacing: 0.12, fontWeight: 500 })),
+            L('good visuals', 230, 380, f(80)), L('are the', 150, 470, f(80)), L('[ bare minimum ]', 470, 478, f(34, { fontWeight: 500, letterSpacing: 0 })),
+            L('to get someone', 300, 550, f(80)), L('to pay', 150, 630, f(80)), L('attention.', 360, 710, f(80)),
+            C('but the list on the last slide are\nthe decisions that actually influence how\nsomeone reacts once they’re there.', 920, f(26, { fontWeight: 500, letterSpacing: 0, lineHeight: 1.35 })),
+            L(':)', 1000, 1270, f(20)),
+          ];
+        } },
+        { id: 'ts-average', name: 'Fear of being average', bg: { color: '#f21616' }, els: () => [
+          C('INSPIRED\nBY THE\nFEAR\nOF BEING\nAVERAGE', 660, heavy(132, { lineHeight: 1.0 })),
+        ] },
+        { id: 'ts-cool', name: 'Wait, I’m cool', bg: { color: '#0a2df0' }, els: () => [
+          L('wait, I’m cool\nactually.', 80, 870, { fontFamily: 'Inter', fontWeight: 700, fontSize: 92, lineHeight: 0.95, letterSpacing: -0.04, fill: '#ffffff' }),
+        ] },
+        { id: 'ts-iamart', name: 'I am art', bg: { color: '#c4c4c2', color2: '#8e8e8c', gradient: 'radial' }, overlay: { grain: 30 }, els: () => [
+          C('I AM ART', 675, { fontFamily: 'Anton', fontSize: 300, letterSpacing: -0.03, fill: '#111111', lblur: { motion: 6, angle: 90 } }),
+          C('I am art', 680, { fontFamily: 'Inter', fontWeight: 600, fontSize: 72, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.35, blur: 12, x: 0, y: 2 } }),
+        ] },
+        { id: 'ts-redact', name: 'Make it simple', bg: Object.assign({ color: '#f2f0eb' }, paperTex), els: () => {
+          const lines = [
+            'Explaining too much kills the idea before it', 'gets a chance to breathe. Every extra word is', 'a decision you didn’t want to make, another',
+            'layer between the feeling and the person you', 'want to reach. Say less. Cut the safe parts,', 'the clever parts, the parts that only exist to',
+            'prove how hard you worked. The work should', 'speak before you do, and it should be clear.', 'So when in doubt:',
+            'strip it back until only the point is left.', 'Then go one step further. Delete the line', 'you love the most and see if it still works.',
+            'It usually does. Clarity is a kind of kindness.', 'Nobody remembers the paragraph, only the', 'moment it finally clicked for them.',
+          ];
+          const keep = 8, phrase = ' Make it simple.';
+          const f = { fontFamily: 'Inter', fontWeight: 400, fontSize: 42, lineHeight: 1.42, letterSpacing: -0.01, align: 'left' };
+          const body = lines.map((l, i) => (i === keep ? l + phrase : l)).join('\n');
+          return [
+            L(body, 70, 130, Object.assign({ fill: '#1a1a1a', name: 'Paragraph' }, f)),
+            L(lines.join('\n'), 70, 130, Object.assign({ fill: 'rgba(0,0,0,0)', bg: { style: 'marker', color: '#e8261c', padX: 6, padY: 0, gap: 0 }, opacity: 0.92, name: 'Red marker (edit to match the paragraph)' }, f, { opacity: 1 })),
+          ];
+        } },
+        { id: 'ts-rest', name: 'Real rest', bg: { color: '#0b3ea8' }, els: () => [
+          C('~', 120, { fontFamily: 'IBM Plex Mono', fontWeight: 500, fontSize: 30, fill: '#ffffff' }),
+          C('REAL CREATIVE WORK INCLUDES\nREAL REST.\n\nGO RECHARGE -\nYOUR ART WILL THANK YOU.', 640, { fontFamily: 'IBM Plex Mono', fontWeight: 500, fontSize: 32, letterSpacing: 0.04, lineHeight: 1.35, fill: '#ffffff' }),
+          C('YOUR NAME', 1270, { fontFamily: 'IBM Plex Mono', fontWeight: 500, fontSize: 16, letterSpacing: 0.1, fill: 'rgba(255,255,255,0.7)' }),
+        ] },
+        { id: 'ts-chase', name: 'Chase it', bg: { color: '#4b6b2a' }, overlay: { grain: 25, vignette: 30 }, els: () => {
+          const words = ['THAT', 'DREAM', 'WAS', 'PLANTED', 'IN', 'YOUR', 'HEART', 'FOR', 'A', 'REASON.', 'CHASE', 'IT.'];
+          const f = { fontFamily: 'Inter', fontWeight: 700, fontSize: 24, letterSpacing: 0.06, fill: '#ffffff', shadow: { on: true, color: '#000000', opacity: 0.35, blur: 6, x: 0, y: 1 } };
+          return [img(0, 0, W, H, { assetId: 'img-rise3', placeholder: ['#6f8f3a', '#2c4214'], filters: { contrast: 8, saturation: -10 }, name: 'Background photo — replace with yours' }),
+            ...words.map((w, i) => txt(w, Object.assign({ cx: 150 + (i % 4) * 260, cy: 500 + Math.floor(i / 4) * 90 }, f)))];
+        } },
+        { id: 'ts-chapter', name: 'Chapter one', bg: { color: '#e8231c' }, els: () => {
+          const hl = (sz) => ({ fontFamily: 'Inter', fontWeight: 600, fontSize: sz * 1.3, letterSpacing: -0.02, lineHeight: 1.12, fill: '#111111', bg: { style: 'lines', color: '#d8d8d8', padX: 8, padY: 2, radius: 0 } });
+          return [L('(Chapter : 1)', 50, 60, hl(60)), L('A river never flows\nbackwards.', 50, 1080, hl(62))];
+        } },
+        { id: 'ts-do', name: 'Do.', bg: { color: '#c4121a', texture: 70, crumple: 35, crumpleSeed: 8 }, overlay: { grain: 30, vignette: 25 }, els: () => [
+          shp('rect', 300, 610, 480, 130, { fill: '#e2453f', opacity: 0.8, rotation: -3, texture: 40, name: 'Tape' }),
+          C('Do.', 675, { fontFamily: 'Inter', fontWeight: 800, fontSize: 96, letterSpacing: -0.05, fill: '#111111' }),
+        ] },
+        { id: 'ts-action', name: 'Less words, more action', bg: { color: '#e9e9ec' }, overlay: { grain: 25 }, els: () => {
+          const a = cy => C('action', cy, { fontFamily: 'Inter', fontWeight: 700, fontSize: 230, letterSpacing: -0.05, fill: '#2f56f0', lblur: { gauss: 3.5 } });
+          return [a(200), a(470), a(740), a(1010), a(1280),
+            L('Less words,', 70, 590, { fontFamily: 'Inter', fontWeight: 600, fontSize: 46, letterSpacing: -0.03, fill: '#111111' }),
+            Rt('more action.', 1010, 860, { fontFamily: 'Inter', fontWeight: 600, fontSize: 46, letterSpacing: -0.03, fill: '#111111' })];
+        } },
+        { id: 'ts-where', name: 'Where do I go', bg: { color: '#d8b50e' }, els: () => [
+          img(240, 330, 600, 640, { assetId: 'demo-mindset', placeholder: ['#1a2fb0', '#0b1460'], filters: { duotone: true, duoDark: '#08156e', duoLight: '#e2363a', contrast: 25 }, crop: { zoom: 2.2, x: 0.62, y: 0.42 }, name: 'Photo — replace with yours' }),
+          L('Where do\nI go from\nhere?', 70, 80, { fontFamily: 'Inter', fontWeight: 600, fontSize: 80, lineHeight: 0.95, letterSpacing: -0.04, fill: '#1e3fd8' }),
+          Rt('Where do\nI go from\nhere?', 1010, 1010, { fontFamily: 'Inter', fontWeight: 600, fontSize: 80, lineHeight: 0.95, letterSpacing: -0.04, fill: '#ffffff' }),
+        ] },
+        { id: 'ts-norest', name: 'No rest for the creative', bg: Object.assign({ color: '#e7e4dd' }, paperTex), overlay: { grain: 30 }, els: () => [
+          L('co.untitled', 70, 60, { fontFamily: 'Inter', fontWeight: 500, fontSize: 22, fill: '#444444' }),
+          img(200, 280, 680, 680, { assetId: 'demo-premium', frame: { style: 'star', size: 0 }, filters: { duotone: true, duoDark: '#0a4fc0', duoLight: '#a6dcff', contrast: 15 }, crop: { zoom: 2.4, x: 0.5, y: 0.35 }, rotation: -8, name: 'Star photo — replace with yours' }),
+          C('no rest', 260, { fontFamily: 'Inter', fontWeight: 700, fontSize: 200, letterSpacing: -0.07, fill: '#111111' }),
+          C('for the', 950, { fontFamily: 'Inter', fontWeight: 700, fontSize: 200, letterSpacing: -0.07, fill: '#111111' }),
+          C('creative', 1140, { fontFamily: 'Inter', fontWeight: 700, fontSize: 200, letterSpacing: -0.07, fill: '#111111' }),
+        ] },
+        { id: 'ts-scribble', name: 'Too many thoughts', bg: { color: '#fbfbfd', pattern: { type: 'scribble', color: '#2b3fe0', size: 120, thick: 2.2, opacity: 0.95 } }, els: () => [
+          C('too many thoughts', 675, { fontFamily: 'Inter', fontWeight: 700, fontSize: 64, letterSpacing: -0.03, fill: '#2b3fe0', bg: { style: 'box', color: '#ffffff', padX: 30, padY: 16, radius: 0 } }),
+        ] },
+        { id: 'ts-feeling', name: 'Sell the feeling', bg: { color: '#f1efea' }, els: () => [
+          img(130, 330, 820, 560, { assetId: 'img-rise2', placeholder: ['#3a6a7a', '#163844'], filters: { duotone: true, duoDark: '#10313f', duoLight: '#9cc7c9', contrast: 10 }, name: 'Photo — replace with yours' }),
+          L('Sell The', 70, 90, { fontFamily: 'Inter', fontWeight: 700, fontSize: 120, letterSpacing: -0.05, fill: '#111111' }),
+          L('Feeling', 50, 205, { fontFamily: 'Inter', fontWeight: 700, fontSize: 250, letterSpacing: -0.06, fill: '#f05a22', opacity: 0.92 }),
+          L('Not The\nFeature!', 70, 930, { fontFamily: 'Inter', fontWeight: 700, fontSize: 125, lineHeight: 0.92, letterSpacing: -0.05, fill: '#111111' }),
+          L('Sell the Feeling', 70, 1265, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, fill: '#111111' }),
+          L('@yourbrand', 520, 1265, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, fill: '#111111' }),
+          L('*', 980, 1240, { fontFamily: 'Inter', fontWeight: 800, fontSize: 60, fill: '#f05a22' }),
+        ] },
+        { id: 'ts-museum', name: 'Museum of failure', bg: { color: '#efefed' }, els: () => [
+          C('museum   of   failure\nor gallery of trying?', 675, { fontFamily: 'Inter', fontWeight: 500, fontSize: 54, lineHeight: 1.35, letterSpacing: -0.03, fill: '#111111' }),
+        ] },
+        { id: 'ts-story', name: 'Tell a story', bg: Object.assign({ color: '#e9e3d9' }, paperTex), els: () => [
+          Rt('MS', 1010, 70, { fontFamily: 'Instrument Serif', fontSize: 44, fill: '#9c2a24' }),
+          L('Let your visuals', 140, 560, { fontFamily: 'Instrument Serif', fontSize: 110, letterSpacing: -0.02, fill: '#9c2a24' }),
+          L('tell a', 140, 680, { fontFamily: 'Instrument Serif', fontSize: 110, letterSpacing: -0.02, fill: '#9c2a24' }),
+          L('story.', 340, 680, { fontFamily: 'Instrument Serif', italic: true, fontSize: 110, letterSpacing: -0.02, fill: '#9c2a24' }),
+          L('YOUR NAME  |  SOCIAL MEDIA & MARKETING', 80, 1240, { fontFamily: 'Inter', fontWeight: 600, fontSize: 16, letterSpacing: 0.08, fill: '#9c2a24' }),
+          Rt('→', 1000, 1228, { fontFamily: 'Inter', fontWeight: 500, fontSize: 34, fill: '#9c2a24' }),
+        ] },
+        { id: 'ts-justdo', name: 'Just do creative stuff', bg: { color: '#ef4a14', texture: 25 }, overlay: { grain: 25 }, els: () => [
+          C('just do\nsome\ncreative\nstuff', 675, { fontFamily: 'Oswald', fontWeight: 700, fontSize: 210, lineHeight: 0.7, letterSpacing: -0.04, fill: '#2f4cf0' }),
+        ] },
+        { id: 'ts-notend', name: 'Not the end', bg: { color: '#1747e8', texture: 45 }, overlay: { grain: 55 }, els: () => {
+          const t = (s, x, y) => L(s, x, y, heavy(140, { fill: '#f2f2ff' }));
+          const blue = { duotone: true, duoDark: '#0a2a9a', duoLight: '#cfe0ff', contrast: 15 };
+          return [
+            t('THIS', 70, 200), chip('rise1', 470, 222, 330, 112, { filters: blue }),
+            t('IS NOT', 70, 350), chip('drive6', 625, 372, 150, 112, { filters: blue }),
+            t('THE END', 70, 500),
+            chip('rise3', 70, 672, 440, 112, { filters: blue }), t('OF', 530, 650),
+            chip('drive5', 70, 822, 300, 112, { filters: blue }), t('YOUR', 390, 800),
+            chip('rise2', 70, 972, 110, 112, { filters: blue }), t('STORY', 200, 950),
+            L('YOUR NAME  |  BRAND', 70, 1240, { fontFamily: 'Inter', fontWeight: 600, fontSize: 18, letterSpacing: 0.1, fill: '#dfe6ff' }),
+          ];
+        } },
+        { id: 'ts-consume', name: 'Create more, consume less', bg: { color: '#050505' }, overlay: { grain: 30 }, els: () => {
+          const f = { fontFamily: 'Archivo Black', fontSize: 104, lineHeight: 0.98, letterSpacing: -0.04, fill: '#f2f2f2', bg: { style: 'lines', color: '#2f6fd8', padX: 10, padY: 0, radius: 0 } };
+          return [shp('rect', 150, 300, 780, 760, { fill: '#1b1d22', texture: 35, name: 'Panel' }),
+            L('CREATE\nMORE.', 200, 400, f), L('CONSUME\nLESS.', 200, 720, f)];
+        } },
+        { id: 'ts-love', name: 'Love people', bg: { color: '#1f3a7c', texture: 40 }, overlay: { grain: 30 }, els: () => [
+          C('LOVE LIFE\nLOVE PEOPLE', 675, { fontFamily: 'Anton', fontSize: 130, lineHeight: 0.95, letterSpacing: -0.02, fill: '#cfdc58' }),
+        ] },
+        { id: 'ts-now', name: 'If not now, when?', bg: { color: '#ededeb' }, els: () => [
+          L('if not\nnow,\nwhen?', 120, 400, { fontFamily: 'Archivo', fontWeight: 800, fontSize: 160, lineHeight: 0.9, letterSpacing: -0.04, fill: '#0d6b2f' }),
+        ] },
+        { id: 'ts-austen', name: 'Quote silhouette', bg: { color: '#ffffff' }, els: () => {
+          const q = 'I cannot fix on the hour, or the spot, or the look or the words, which laid the foundation. It is too long ago. I was in the middle before I knew that I had begun.';
+          const mono = (sz, o) => Object.assign({ fontFamily: 'Courier Prime', fontSize: sz, lineHeight: 1.6, fill: '#ffffff', align: 'left', autoWidth: false }, o);
+          return [
+            shp('rect', 540, 0, 540, H, { fill: '#0a1ff0', name: 'Blue panel' }),
+            shp('person', 40, 170, 460, 1180, { fill: '#0a1ff0', name: 'Silhouette' }),
+            txt(q + ' ' + q, mono(20, { x: 130, y: 470, width: 280, opacity: 0.85, name: 'Words inside the silhouette' })),
+            txt(q + '\n\nJane Austen, Pride\nand Prejudice', mono(34, { x: 590, y: 90, width: 440 })),
+          ];
+        } },
+        { id: 'ts-son', name: 'Son of a dreamer', bg: { color: '#b5121b', texture: 55 }, overlay: { grain: 30, vignette: 35 }, els: () => [
+          C('SON OF A', 330, { fontFamily: 'Playfair Display', fontWeight: 800, fontSize: 200, fill: '#cf2530', shadow: { on: true, color: '#4a0005', opacity: 0.6, blur: 5, x: 0, y: 5 } }),
+          C('DREAMER', 1010, { fontFamily: 'Playfair Display', fontWeight: 800, fontSize: 200, fill: '#cf2530', shadow: { on: true, color: '#4a0005', opacity: 0.6, blur: 5, x: 0, y: 5 } }),
+          img(310, 400, 460, 560, { assetId: 'demo-grind', placeholder: ['#7a1018', '#2a0306'], filters: { duotone: true, duoDark: '#1c0204', duoLight: '#f2b2a4', contrast: 18 }, crop: { zoom: 1.5, x: 0.5, y: 0.2 }, shadow: { on: true, color: '#000000', opacity: 0.4, blur: 30, x: 0, y: 14 }, name: 'Portrait — replace with yours' }),
+        ] },
+        { id: 'ts-sleep', name: 'Creative people never sleep', bg: { color: '#6e98ee' }, els: () => [
+          C('Creative People', 620, { fontFamily: 'Instrument Serif', fontSize: 124, letterSpacing: -0.02, fill: '#f6f08c' }),
+          C('Never Sleep', 745, { fontFamily: 'Instrument Serif', italic: true, fontSize: 124, letterSpacing: -0.02, fill: '#f6f08c' }),
+        ] },
+      ];
+      function ribbon(path, x, y, w, h, color) { return rib(path, x, y, w, h, { line: true, thickness: 4, color, text: '', name: 'Doodle' }); }
+      return slides.map(v => ({
+        id: v.id, name: v.name, tags: ['Quote', 'Text'], width: W, height: H,
+        build: () => ({ width: W, height: H, background: v.bg, overlay: v.overlay || {}, elements: v.els() }),
+      }));
+    })(),
+
     // ── VIDEO: speed flashes — motion-blurred action shots cut fast over your own photo or video ──
     ...[
       {
@@ -1268,6 +1481,7 @@
 
   // families of variations show as one card in the panel and open into all their styles
   const GROUPS = {
+    'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep'],
     'Speed flashes': ['flash-mindset', 'flash-grind', 'flash-race', 'flash-premium'],
     'Studio portrait': ['studio-stat', 'studio-circle', 'studio-rhythm', 'studio-data'],
     'Newspaper reveal': ['news-pullback', 'news-crash', 'news-snap', 'news-cuts', 'news-push'],
