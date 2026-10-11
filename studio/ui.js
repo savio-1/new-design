@@ -3312,7 +3312,7 @@
           onProgress: (f, stage) => {
             fill.style.width = Math.round(f * 100) + '%';
             const el = (performance.now() - t0) / 1000;
-            status.textContent = stage === 'finish' ? 'Finishing the file…' : `Rendering frames… ${Math.round(f * 100)}%` + (f > 0.05 ? ` · about ${Math.max(1, Math.round(el / f - el))}s left` : '');
+            status.textContent = stage === 'retry' ? 'The fast encoder gave up at this size — trying another one…' : stage === 'finish' ? 'Finishing the file…' : `Rendering frames… ${Math.round(f * 100)}%` + (f > 0.05 ? ` · about ${Math.max(1, Math.round(el / f - el))}s left` : '');
           },
         });
         const name = `${slug()}.${out.ext}`;
@@ -3322,11 +3322,12 @@
           h('button.btn', { onclick: () => download(out.blob, name) }, ic('download'), 'Save again')));
         hydrateIcons(preview);
         download(out.blob, name);
-        status.textContent = valpha && !out.alpha ? 'This browser can’t make see-through video here, so the background was left in — try PNG frames.' : out.ext !== (vfmt === 'png' ? 'zip' : vfmt) ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
+        status.textContent = valpha && !out.alpha ? 'This browser can’t make see-through video here, so the background was left in — try PNG frames.' : out.ext !== (vfmt === 'png' ? 'zip' : vfmt) ? `Your browser can’t encode ${vfmt.toUpperCase()} at this size, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
         toast('Video exported');
       } catch (err) {
         console.error(err);
-        status.textContent = err.name === 'AbortError' ? 'Cancelled.' : 'Video export failed. Try a smaller size or a lower frame rate.';
+        const why = err && err.message ? ` (${err.message.slice(0, 140)})` : '';
+        status.textContent = err.name === 'AbortError' ? 'Cancelled.' : `Video export failed${why}. Try a smaller size or a lower frame rate.`;
       }
       cancel.hidden = true; go.disabled = false; ctrl = null;
     }

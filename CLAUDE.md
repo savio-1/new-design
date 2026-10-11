@@ -44,7 +44,7 @@ unless asked.
 | `portraits.js` | Editorial portraits (`window.StudioPortraits.IMG`), registered as `ed-<key>` assets for the Photo effects / Paper & ID templates. |
 | `bgremove.js` | Background removal and the "studio look" cut-out (onnxruntime-web + RMBG-1.4 from Hugging Face). |
 | `tracker.js` | Motion tracking: `S.trackLayer(el, { src, region })` follows a picked point / object / edge / plane through a video and returns `el.track`; `S.detectObject`, `S.trackSources()`. |
-| `video.js` | Video export: frame-by-frame render → WebCodecs → mp4-muxer / webm-muxer; MediaRecorder fallback. |
+| `video.js` | Video export: frame-by-frame render → WebCodecs → mp4-muxer / webm-muxer; MediaRecorder fallback. `encoderCandidates` lists each codec with the default (hardware) and `prefer-software` encoder; `exportVideo` retries the next candidate when an encoder errors or stalls (`err.fromEncoder`) — hardware H.264 can accept 4K and then fail. |
 | `studio.css` | All styling; colour tokens on `:root`, dark mode via `prefers-color-scheme`. |
 | `vendor/` | Konva, muxers, JSZip — inlined into the single-file build so it works offline. |
 | `tools/build_single_file.py` | Builds `dist/collage-studio.html` (everything inlined). |

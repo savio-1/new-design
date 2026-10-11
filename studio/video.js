@@ -25,23 +25,29 @@
     });
   }
 
-  // best encoder this browser offers for the size: H.264 first (plays everywhere), then VP9, then VP8
-  async function pickEncoder(width, height, fps, bitrate, prefer) {
-    if (!('VideoEncoder' in window)) return null;
+  // encoders this browser offers for the size, best first: H.264 (plays everywhere), then VP9 / VP8. Each codec is also
+  // offered with the software encoder, because a hardware encoder can claim a size (4K) and then fail once frames arrive
+  async function encoderCandidates(width, height, fps, bitrate, prefer) {
+    if (!('VideoEncoder' in window)) return [];
     const avc = ['avc1.640034', 'avc1.640033', 'avc1.640032', 'avc1.64002a', 'avc1.640028', 'avc1.4d0034', 'avc1.42e034'];
     const vp = ['vp09.00.51.08', 'vp09.00.50.08', 'vp09.00.41.08', 'vp8'];
     const order = prefer === 'webm' ? [['webm', vp], ['mp4', avc]] : [['mp4', avc], ['webm', vp]];
+    const out = [];
+    const test = async (kind, cfg) => {
+      try { const r = await VideoEncoder.isConfigSupported(cfg); if (r.supported) { out.push({ kind, cfg: r.config || cfg }); return true; } } catch (e) { /* not this one */ }
+      return false;
+    };
     for (const [kind, list] of order) {
       for (const codec of list) {
         const cfg = { codec, width, height, bitrate, framerate: fps, latencyMode: 'quality' };
         if (kind === 'mp4') cfg.avc = { format: 'avc' };
-        try {
-          const r = await VideoEncoder.isConfigSupported(cfg);
-          if (r.supported) return { kind, cfg: r.config || cfg };
-        } catch (e) { /* try the next codec */ }
+        if (await test(kind, cfg)) { await test(kind, Object.assign({}, cfg, { hardwareAcceleration: 'prefer-software' })); break; }
       }
     }
-    return null;
+    return out;
+  }
+  async function pickEncoder(width, height, fps, bitrate, prefer) {
+    return (await encoderCandidates(width, height, fps, bitrate, prefer))[0] || null;
   }
   S.videoFormats = async function (width, height, fps) {
     const out = [];
@@ -63,8 +69,23 @@
       const t = await exportAlphaWebm({ width, height, fps, duration, bitrate, onProgress, signal });
       if (t) return t;
     }
-    const enc = await pickEncoder(width, height, fps, bitrate, format);
-    if (!enc) return recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal });
+    const cands = await encoderCandidates(width, height, fps, bitrate, format);
+    if (!cands.length) return recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal });
+    // if an encoder gives up part-way (typically hardware H.264 at 4K), start again with the next one
+    let lastErr = null;
+    for (let ci = 0; ci < cands.length; ci++) {
+      try {
+        return await encodeWith(cands[ci], { doc, width, height, fps, duration, onProgress, signal });
+      } catch (err) {
+        if (!err || !err.fromEncoder || (signal && signal.aborted)) throw err;
+        console.warn('Video encoder failed, trying the next one', cands[ci].cfg, err);
+        lastErr = err;
+        if (ci < cands.length - 1) onProgress(0, 'retry');
+      }
+    }
+    throw lastErr;
+  };
+  async function encodeWith(enc, { doc, width, height, fps, duration, onProgress, signal }) {
     // the single-file build already carries the muxers; otherwise fetch the one we need
     if (!(enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer)) await loadScript(LIBS[enc.kind]);
     const Lib = enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer;
@@ -72,8 +93,9 @@
       ? new Lib.Muxer({ target: new Lib.ArrayBufferTarget(), video: { codec: 'avc', width, height }, fastStart: 'in-memory' })
       : new Lib.Muxer({ target: new Lib.ArrayBufferTarget(), video: { codec: enc.cfg.codec.startsWith('vp8') ? 'V_VP8' : 'V_VP9', width, height, frameRate: fps } });
     let failure = null;
-    const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { failure = e; } });
-    encoder.configure(enc.cfg);
+    const encErr = e => { const x = e instanceof Error ? e : new Error(String(e)); x.fromEncoder = true; return x; };
+    const encoder = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { failure = encErr(e); } });
+    try { encoder.configure(enc.cfg); } catch (e) { throw encErr(e); }
     const c = document.createElement('canvas');
     c.width = width; c.height = height;
     const frames = Math.max(1, Math.round(duration * fps));
@@ -88,22 +110,26 @@
         if (hasVid) await R.syncVideos(doc, i / fps, i === 0);
         R.renderDoc(doc, { canvas: c, time: i / fps });
         const frame = new VideoFrame(c, { timestamp: Math.round(i * us), duration: Math.round(us) });
-        encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
-        frame.close();
-        while (encoder.encodeQueueSize > 4) await sleep(4);
+        try { encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 }); } catch (e) { throw failure || encErr(e); } finally { frame.close(); }
+        // an encoder that stops taking frames counts as failed (some hardware encoders stall instead of erroring)
+        for (const t0 = performance.now(); encoder.encodeQueueSize > 4 && !failure; await sleep(4)) {
+          if (performance.now() - t0 > 15000) throw encErr(new Error('The video encoder stopped responding'));
+        }
         onProgress((i + 1) / frames, 'render');
         if (i % 2 === 0) await sleep(0);
       }
       onProgress(1, 'finish');
-      await encoder.flush();
+      try {
+        await Promise.race([encoder.flush(), sleep(60000).then(() => { throw new Error('The video encoder stopped responding'); })]);
+      } catch (e) { throw failure || encErr(e); }
       if (failure) throw failure;
       muxer.finalize();
     } finally {
       if (encoder.state !== 'closed') encoder.close();
     }
     const type = enc.kind === 'mp4' ? 'video/mp4' : 'video/webm';
-    return { blob: new Blob([muxer.target.buffer], { type }), ext: enc.kind, width, height };
-  };
+    return { blob: new Blob([muxer.target.buffer], { type }), ext: enc.kind, width, height, codec: enc.cfg.codec, software: enc.cfg.hardwareAcceleration === 'prefer-software' };
+  }
 
   /* ── see-through video ──
      WebCodecs can't encode alpha, so a transparent WebM is built the way browsers store one: the colour
