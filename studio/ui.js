@@ -1748,17 +1748,18 @@
     } });
     const thumb = e => { const im = e.assetId && R.assetImage(e.assetId), cv = h('canvas.clip-thumb', { width: 64, height: 40 }); if (im) { const m = R.mediaSize(im), k = Math.max(64 / m.w, 40 / m.h); cv.getContext('2d').drawImage(im, (64 - m.w * k) / 2, (40 - m.h * k) / 2, m.w * k, m.h * k); } return cv; };
     return [
-      h('p.hint', null, `Types the text word by word, cutting to a clip at ${Math.min(clips.length, Math.max(0, words - 1))} of the breaks between words and pulling back at the end. Change the words any time — the video's length follows (${S.doc.anim.duration}s now).`),
+      h('p.hint', null, `Types the text with a natural rhythm while the camera rides the caret, then pulls back to show it all. Change the words any time — the video's length follows (${S.doc.anim.duration}s now).`),
       row('Typing speed', num(T, 'camera.cps', { min: 3, max: 30, slider: true, unit: '/s', def: 10, set: (v, l) => setLive('camera.cps', v, l) })),
       row('Zoom', num(T, 'camera.zoom', { min: 1, max: 6, step: 0.05, slider: true, unit: '×', def: 2.6, set: (v, l) => setLive('camera.zoom', v, l) })),
-      row('Clip length', num(T, 'camera.cut', { min: 0.3, max: 4, step: 0.1, slider: true, unit: 's', def: 1, set: (v, l) => setLive('camera.cut', v, l) })),
       row('End hold', num(T, 'camera.hold', { min: 0, max: 6, step: 0.1, slider: true, unit: 's', def: 1.8, set: (v, l) => setLive('camera.hold', v, l) })),
-      label('Clips between words'),
+      more('typecut-clips', [
+      row('Clip length', num(T, 'camera.cut', { min: 0.3, max: 4, step: 0.1, slider: true, unit: 's', def: 1, set: (v, l) => setLive('camera.cut', v, l) })),
       ...clips.map((e, i) => h('div.clip-row', null, thumb(e), h('span.clip-name', null, (e.name || 'Clip ' + (i + 1)) + (used.has(e.id) ? '' : ' · not used')),
         h('button.icon-btn', { type: 'button', title: 'Replace with a photo or video', onclick: () => S.pickImages({ replaceId: e.id }) }, ic('bgimg')),
         h('button.icon-btn', { type: 'button', title: 'Remove this clip', onclick: () => { S.select([e.id]); S.removeSelected(); S.commit(); S.select([]); renderInspector(); updateTimeline(); } }, ic('trash')))),
       clips.length > Math.max(0, words - 1) ? h('p.hint', null, 'There are more clips than breaks between words, so the last ones wait until you add words.') : null,
       full(h('button.btn', { type: 'button', onclick: addClips }, ic('plus'), 'Add photos or videos')),
+      ], clips.length ? `Clips between words (${clips.length})` : 'Cut to photos or videos (optional)'),
     ];
   }
   function cameraSection() {
@@ -1891,6 +1892,19 @@
         fin('Flicker', 'overlay.flicker', 100, { def: 50, body: () => [h('p.hint', null, 'Each frame a touch brighter or darker — shows while the video plays.')] }),
         fin('Gate weave', 'overlay.weave', 100, { def: 50, body: () => [h('p.hint', null, 'The picture hops slightly every frame, like film in a projector — shows while the video plays.')] }),
         fin('Vignette', 'overlay.vignette'),
+        {
+          // the whole design shown on a real display, filmed close up (pixel mesh, soft focus, dust)
+          label: 'Screen close-up', on: !!(d.screen && d.screen.on),
+          add: () => { S.change(T, 'screen', { on: true, pitch: Math.round(Math.min(d.width, d.height) / 900 * 100) / 100, grid: 75, focus: 40, dust: 5 }); renderInspector(); },
+          remove: () => { S.change(T, 'screen.on', false); renderInspector(); },
+          body: () => [
+            h('p.hint', null, 'Looks like the design is on a real screen filmed from close by. The pixels show once the camera zooms in — try Camera → Slow push-in. Play to see it.'),
+            row('Pixel size', num(T, 'screen.pitch', { min: 0.3, max: 6, step: 0.05, slider: true, def: 1 })),
+            row('Pixel grid', num(T, 'screen.grid', { min: 0, max: 100, slider: true, def: 75 })),
+            row('Depth of field', num(T, 'screen.focus', { min: 0, max: 100, slider: true, def: 40 })),
+            row('Dust', num(T, 'screen.dust', { min: 0, max: 20, step: 1, slider: true, def: 5 })),
+          ],
+        },
         {
           label: 'Colour tint', on: !!o.tintAmount, add: () => S.change(T, 'overlay.tintAmount', 30), remove: () => S.change(T, 'overlay.tintAmount', 0),
           body: () => [row('Colour', colorCtl(T, 'overlay.tint')), row('Amount', num(T, 'overlay.tintAmount', { min: 0, max: 100, slider: true }))],

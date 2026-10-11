@@ -1400,19 +1400,22 @@
       }));
     })(),
 
-    // ── TYPING SCREEN: a question typed on a pale screen, the camera riding the caret, clips cutting in between words ──
+    // ── TYPING SCREEN: a question typed on a white display, filmed close up — pixel mesh, soft focus, the camera riding the caret ──
     ...(() => {
-      const CLIPS = [['film-tram', { grayscale: 100, contrast: 18, brightness: -4 }], ['ed-stool', { contrast: 8, saturation: -10, warmth: 6 }], ['film-kiss', { grayscale: 100, contrast: 14 }]];
       function build(W, H) {
-        const fs = Math.round(Math.min(W * 0.034, H * 0.055) * 10) / 10;
+        const fs = Math.round(Math.min(W * 0.036, H * 0.06) * 10) / 10;
+        // about 45 screen pixels per capital letter, like text on a laptop screen seen through a macro lens
+        const pitch = Math.round(fs * 0.72 / 45 * 1000) / 1000;
+        // zoom so a screen pixel lands about 4–5 px wide in the video
+        const zoom = Math.round((W > H ? 4.8 : 4.1) / pitch * 100) / 100;
         return {
-          background: { color: '#c5d1b9', color2: '#93a191', gradient: 'radial' },
-          overlay: { grain: 12, vignette: 42 },
-          camera: { move: 'typecut', target: 'type', zoom: 2.6, cps: 10, cut: 1.0, hold: 1.8, blur: 0.25, shake: 0.12 },
+          background: { color: '#ffffff', color2: '#f1f3f0', gradient: 'radial' },
+          overlay: { grain: 7, vignette: 24 },
+          screen: { on: true, pitch, grid: 75, focus: 40, dust: 5 },
+          camera: { move: 'typecut', target: 'type', zoom, cps: 9, cut: 1.0, hold: 2.2, blur: 0, shake: 0.25 },
           elements: [
-            txt('WHAT IS YOUR INSPIRATION?', { key: 'type', cx: W / 2, cy: H / 2, width: W * 0.8, autoWidth: false, align: 'center', fontFamily: 'Arimo', fontWeight: 400, fontSize: fs, lineHeight: 1.25, letterSpacing: 0.01, fill: '#24343a',
-              typing: { caret: true, pin: true, blink: true, caretWidth: 0.07, marks: [] }, anim: { enter: 'typewriter', delay: 0 }, name: 'Typed text' }),
-            ...CLIPS.map(([a, f], i) => img(0, 0, W, H, { assetId: a, filters: f, cutin: true, name: 'Clip ' + (i + 1), placeholder: ['#2a2a2a', '#111111'] })),
+            txt('WHAT IS YOUR INSPIRATION?', { key: 'type', cx: W / 2, cy: H / 2, width: W * 0.84, autoWidth: false, align: 'center', fontFamily: 'Arimo', fontWeight: 400, fontSize: fs, lineHeight: 1.25, letterSpacing: 0.01, fill: '#1b3136',
+              typing: { caret: true, pin: true, blink: true, caretWidth: 0.085, caretColor: '#142a2f', marks: [] }, anim: { enter: 'typewriter', delay: 0 }, name: 'Typed text' }),
           ],
         };
       }

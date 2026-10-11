@@ -4054,7 +4054,7 @@
     none: 'Still', pushin: 'Slow push-in', pullback: 'Pull-back reveal', whip: 'Whip zoom', snap: 'Snap zoom', crash: 'Crash zoom in & out',
     follow: 'Follow the typing', cuts: 'Hard cuts (close → wide)', drift: 'Handheld drift', pan: 'Pan across', tilt: 'Dutch tilt', jolt: 'Jolt cuts', spiral: 'Spiral in',
     keys: 'Smooth cam (keyframes)',
-    typecut: 'Type & cut (screen typing)',
+    typecut: 'Screen typing (follow the caret)',
   };
   const eio = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
   const eoExpo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
@@ -4086,23 +4086,36 @@
       at.set(breaks[b], clips[j].id);
     }
     const phases = [], LEAD = 0.35, PAUSE = 0.22;
+    // a person types in bursts: quicker inside a word, a beat at each space, longer after punctuation, the odd hesitation.
+    // kt[i] is when character i lands; the same text always gets the same rhythm.
+    const rr = rng(hashStr(el.text || '') + 17), kt = new Array(N);
+    const gap = i => {
+      const ch = chars[i], prev = chars[i - 1] || '';
+      let d = (1 / cps) * (0.55 + rr() * 0.9);
+      if (/\s/.test(ch)) d *= 1.45;
+      if (/[.,!?;:—–-]/.test(prev)) d *= 2.4;
+      if (rr() < 0.05) d *= 2.6;
+      return d;
+    };
     let t = LEAD, typed = 0, zoom = Z, visit = 0;
     const stops = [...at.keys()].sort((a, b) => a - b).concat([N]);
-    phases.push({ kind: 'type', t0: 0, t1: LEAD, c0: 0, c1: 0, zoom, seg: 'type0' });
+    phases.push({ kind: 'type', t0: 0, t1: LEAD, zoom, seg: 'type0' });
     for (const stop of stops) {
-      const d = (stop - typed) / cps;
-      phases.push({ kind: 'type', t0: t, t1: t + d + (stop < N ? PAUSE : 0), c0: typed, c1: stop, zoom, seg: 'type' + visit });
-      t += d + (stop < N ? PAUSE : 0); typed = stop;
+      const t0 = t;
+      for (let i = typed; i < stop; i++) { t += gap(i); kt[i] = t; }
+      if (stop < N) t += PAUSE;
+      phases.push({ kind: 'type', t0, t1: t, zoom, seg: 'type' + visit });
+      typed = stop;
       if (stop < N) {
         phases.push({ kind: 'cut', t0: t, t1: t + cutLen, id: at.get(stop), seg: 'cut' + visit });
         t += cutLen; visit++;
         zoom = Math.min(Z * 2.2, Z * (1 + 0.32 * visit));
-        // the typing picks up again just after the space
-        while (typed < N && /\s/.test(chars[typed])) typed++;
+        // the space after the word is already there when the screen comes back
+        while (typed < N && /\s/.test(chars[typed])) { kt[typed] = t; typed++; }
       }
     }
     const lastZoom = zoom;
-    phases.push({ kind: 'type', t0: t, t1: t + 0.55, c0: N, c1: N, zoom: lastZoom, seg: 'type' + visit });
+    phases.push({ kind: 'type', t0: t, t1: t + 0.55, zoom: lastZoom, seg: 'type' + visit });
     t += 0.55;
     const PULL = 1.1;
     phases.push({ kind: 'pull', t0: t, t1: t + PULL, zoom: lastZoom, seg: 'pull' });
@@ -4111,22 +4124,21 @@
     t += hold;
     const total = t;
     const find = tt => phases.find(p => tt >= p.t0 && tt < p.t1) || phases[phases.length - 1];
+    // how many characters are on screen at tt (binary search over the keystroke times)
+    const count = tt => { let lo = 0, hi = N; while (lo < hi) { const m = (lo + hi) >> 1; if (kt[m] <= tt) lo = m + 1; else hi = m; } return lo; };
     const plan = {
-      el, total, phases,
+      el, total, phases, kt,
       phase(tt) {
         const p = find(tt);
         return Object.assign({}, p, p.kind === 'pull' ? { k: clamp((tt - p.t0) / (p.t1 - p.t0), 0, 1) } : {});
       },
-      charsAt(tt) {
-        const p = find(tt);
-        if (p.kind !== 'type') return p.kind === 'cut' ? phases[phases.indexOf(p) - 1].c1 : N;
-        return Math.min(p.c1, p.c0 + Math.floor(Math.max(0, tt - p.t0) * cps + 1e-6));
-      },
-      // the same, without rounding down to whole letters (for the camera)
+      charsAt: count,
+      // the same, gliding between keystrokes (for the camera)
       charsAtF(tt) {
-        const p = find(tt);
-        if (p.kind !== 'type') return p.kind === 'cut' ? phases[phases.indexOf(p) - 1].c1 : N;
-        return Math.min(p.c1, p.c0 + Math.max(0, tt - p.t0) * cps);
+        const n = count(tt);
+        if (n >= N) return N;
+        const a = n ? kt[n - 1] : LEAD, b = kt[n];
+        return n + clamp((tt - a) / Math.max(1e-3, b - a), 0, 1) * (b - a < 0.6 ? 1 : 0);
       },
       cutAt(tt) { const p = find(tt); return p.kind === 'cut' ? p.id : null; },
     };
@@ -4247,7 +4259,7 @@
         if (ph.kind === 'cut') { f = C; z = 1; break; }
         // follow a continuously gliding caret, eased over the last ~0.3 s so the camera trails the typing smoothly
         const caret = () => { let x = 0, y = 0, ws = 0; for (let k = 0; k < 8; k++) { const q = R.caretAtChars(el, P.charsAtF(Math.max(ph.t0, t - k * 0.04))), w = 8 - k; x += q.x * w; y += q.y * w; ws += w; } return { x: x / ws, y: y / ws }; };
-        if (ph.kind === 'type') { f = caret(); z = ph.zoom * (1 + 0.025 * (t - ph.t0)); r = rot; break; }
+        if (ph.kind === 'type') { f = caret(); z = ph.zoom * (1 + 0.02 * Math.min(8, t - ph.t0)); r = rot; break; }
         if (ph.kind === 'pull') { const k = eio(ph.k); f = mix(caret(), C, k); z = ph.zoom + (1 - ph.zoom) * k; r = rot * (1 - k); break; }
         f = C; z = 1 + 0.012 * (t - ph.t0);
         break;
@@ -4372,30 +4384,107 @@
     ctx.save(); ctx.globalAlpha *= clamp(amt / 100, 0, 1) * 0.6; ctx.fillStyle = pat; ctx.fillRect(0, 0, w, h); ctx.restore();
   }
   let blurBuf = null;
+  /* ── screen close-up: the design shown on a real display, filmed from a few centimetres away ──
+     doc.screen = { on, pitch, grid, focus, dust }: the design is rendered at the screen's own resolution (one image pixel
+     per screen pixel, `pitch` canvas units apart), drawn back with hard pixel edges under the camera, and a pixel mesh with
+     RGB sub-pixels is laid over it — all locked to the screen, so it grows as the camera moves in. A little lens softness,
+     a shallow depth of field and specks of dust on the glass finish the look. */
+  let panelBuf = null;
+  const meshTiles = new Map();
+  function meshTile(T) {
+    let tile = meshTiles.get(T);
+    if (tile) return tile;
+    tile = canvas(T, T);
+    const x = tile.getContext('2d'), gap = Math.max(1, Math.round(T * 0.16)), w = (T - gap) / 3;
+    // dark gaps between pixels; inside each, red / green / blue sub-pixel columns (only faintly tinted, as a camera sees them)
+    x.fillStyle = 'rgb(118,124,124)'; x.fillRect(0, 0, T, T);
+    [[255, 232, 228], [236, 255, 240], [232, 240, 255]].forEach(([r, g, b], i) => { x.fillStyle = `rgb(${r},${g},${b})`; x.fillRect(Math.round(i * w), 0, Math.max(1, Math.round((i + 1) * w) - Math.round(i * w) - (T >= 9 && i < 2 ? 1 : 0)), T - gap); });
+    meshTiles.set(T, tile);
+    return tile;
+  }
+  function drawScreen(ctx, doc, opts, t, scr, k0) {
+    const W = doc.width, H = doc.height, p = Math.max(0.2, scr.pitch || 1);
+    const pw = Math.ceil(W / p), ph = Math.ceil(H / p);
+    if (!panelBuf || panelBuf.width !== pw || panelBuf.height !== ph) panelBuf = canvas(pw, ph);
+    R.renderDoc(doc, { canvas: panelBuf, scale: pw / W, time: t, _panel: true, transparent: opts.transparent });
+    const P = p * k0; // output pixels per screen pixel
+    ctx.save();
+    ctx.imageSmoothingEnabled = P < 2;
+    ctx.drawImage(panelBuf, 0, 0, pw * p, ph * p);
+    ctx.imageSmoothingEnabled = true;
+    // the pixel mesh: fades in once the pixels are big enough to resolve (no moiré when pulled back)
+    const vis = clamp((P - 1.8) / 2.2, 0, 1) * clamp((scr.grid ?? 70) / 100, 0, 1);
+    if (vis > 0.01) {
+      const T = clamp(Math.round(P), 3, 24), pat = ctx.createPattern(meshTile(T), 'repeat');
+      pat.setTransform(new DOMMatrix().scale(p / T));
+      ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = vis; ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H);
+      // expose for the bright screen: colour-dodge lifts the whites back to white but leaves dark text dark
+      ctx.globalCompositeOperation = 'color-dodge'; ctx.fillStyle = 'rgb(34,34,34)'; ctx.fillRect(0, 0, W, H);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    }
+    // dust on the glass: a few soft specks fixed to the screen
+    const nd = Math.round(scr.dust ?? 6);
+    if (nd > 0) {
+      const r = rng(77 + nd);
+      for (let i = 0; i < nd * 6; i++) {
+        const x = r() * W, y = r() * H, rad = p * (0.5 + r() * r() * 3), a = 0.12 + r() * 0.25;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+        g.addColorStop(0, `rgba(30,32,30,${a})`); g.addColorStop(1, 'rgba(30,32,30,0)');
+        ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+      }
+    }
+    ctx.restore();
+  }
+  // lens softness everywhere, and a shallow depth of field: sharp across the middle, softer above and below
+  function screenLens(c, ctx, scr, P) {
+    const W = c.width, H = c.height;
+    const soft = Math.min(7, Math.max(0, P * 0.32)), focus = clamp((scr.focus ?? 45) / 100, 0, 1);
+    if (!('filter' in ctx) || (soft < 0.4 && !focus)) return;
+    const src = canvas(W, H), sx = src.getContext('2d');
+    sx.filter = soft >= 0.4 ? `blur(${soft}px)` : 'none'; sx.drawImage(c, 0, 0); sx.filter = 'none';
+    let out = src;
+    if (focus > 0) {
+      const far = canvas(W, H), fx = far.getContext('2d');
+      fx.filter = `blur(${Math.max(1, focus * Math.max(W, H) * 0.012)}px)`; fx.drawImage(src, 0, 0); fx.filter = 'none';
+      const g = fx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.24, 'rgba(0,0,0,0)'); g.addColorStop(0.76, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+      fx.globalCompositeOperation = 'destination-in'; fx.fillStyle = g; fx.fillRect(0, 0, W, H);
+      sx.drawImage(far, 0, 0);
+      out = src;
+    }
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'copy'; ctx.drawImage(out, 0, 0); ctx.restore();
+  }
+
   R.renderDoc = function (doc, opts = {}) {
     const scale = opts.scale || 1;
     const c = opts.canvas || canvas(doc.width * scale, doc.height * scale);
     const ctx = c.getContext('2d');
     if (opts.canvas) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height); }
     const t = opts.time ?? null;
-    const cam = t != null ? camAt(doc, t) : null;
+    // a "panel" render is the screen's own picture for the close-up look: no camera, no finish on top
+    const panel = !!opts._panel, scr = !panel && doc.screen && doc.screen.on ? doc.screen : null;
+    const cam = t != null && !panel ? camAt(doc, t) : null;
     const sx = c.width / doc.width, sy = c.height / doc.height;
     ctx.save();
     ctx.scale(sx, sy);
     if (cam) ctx.transform(...(m => [m.a, m.b, m.c, m.d, m.e, m.f])(camMatrix(doc, cam)));
-    drawBackground(ctx, doc, opts);
-    const env = Object.assign({}, opts, { time: opts.time ?? null, doc });
-    for (const el of doc.elements || []) {
-      if (el.hidden) continue;
-      ctx.save();
-      ctx.translate(el.x, el.y);
-      ctx.rotate((el.rotation || 0) * Math.PI / 180);
-      ctx.globalAlpha = el.opacity ?? 1;
-      if (el.blend && el.blend !== 'normal') ctx.globalCompositeOperation = el.blend;
-      drawElement(ctx, el, env);
-      ctx.restore();
+    if (scr) drawScreen(ctx, doc, opts, t, scr, sx * (cam ? cam.z : 1));
+    else {
+      drawBackground(ctx, doc, opts);
+      const env = Object.assign({}, opts, { time: opts.time ?? null, doc });
+      for (const el of doc.elements || []) {
+        if (el.hidden) continue;
+        ctx.save();
+        ctx.translate(el.x, el.y);
+        ctx.rotate((el.rotation || 0) * Math.PI / 180);
+        ctx.globalAlpha = el.opacity ?? 1;
+        if (el.blend && el.blend !== 'normal') ctx.globalCompositeOperation = el.blend;
+        drawElement(ctx, el, env);
+        ctx.restore();
+      }
     }
     ctx.restore();
+    if (panel) return c;
     // motion blur: smear the frame along the camera's own movement during a short shutter
     const blur = cam && doc.camera && doc.camera.blur > 0 ? doc.camera.blur : 0;
     if (blur) {
@@ -4425,6 +4514,7 @@
         }
       }
     }
+    if (scr) screenLens(c, ctx, scr, doc.screen.pitch * sx * (cam ? cam.z : 1));
     const ov = doc.overlay || {};
     if (ov.rgb > 0) {
       const copy = canvas(c.width, c.height); copy.getContext('2d').drawImage(c, 0, 0);

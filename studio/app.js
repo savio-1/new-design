@@ -1767,6 +1767,20 @@
     bgLayer.batchDraw();
   }
   S.applyCamera = applyCamera;
+  // the screen close-up look is a whole-frame effect, so while playing it is shown on a canvas over the artboard
+  const screenView = document.createElement('canvas');
+  screenView.className = 'screen-view'; screenView.hidden = true;
+  overlayEl.appendChild(screenView);
+  function drawScreenView(t) {
+    if (!playing || t == null || !(doc.screen && doc.screen.on)) { screenView.hidden = true; return; }
+    const dpr = window.devicePixelRatio || 1, cssW = doc.width * S.view.scale, cssH = doc.height * S.view.scale;
+    const k = Math.min(dpr, 1400 / Math.max(cssW, cssH));
+    const w = Math.max(2, Math.round(cssW * k)), hgt = Math.max(2, Math.round(cssH * k));
+    if (screenView.width !== w || screenView.height !== hgt) { screenView.width = w; screenView.height = hgt; }
+    R.renderDoc(doc, { canvas: screenView, time: t });
+    Object.assign(screenView.style, { left: S.view.x + 'px', top: S.view.y + 'px', width: cssW + 'px', height: cssH + 'px' });
+    screenView.hidden = false;
+  }
   S.play = function () {
     if (playing) return;
     if (textEdit) finishTextEdit();
@@ -1784,6 +1798,7 @@
       R.playTime = t;
       applyCamera(t);
       layer.batchDraw();
+      drawScreenView(t);
       if (R.isVideoAsset(doc.background.assetId)) bgLayer.batchDraw();
       emit('time', t);
       raf = requestAnimationFrame(tick);
@@ -1797,6 +1812,7 @@
     R.playing = false;
     R.pauseVideos();
     cancelAnimationFrame(raf);
+    screenView.hidden = true;
     for (const el of doc.elements) syncNode(el);
     tr.visible(true);
     attachTransformer();

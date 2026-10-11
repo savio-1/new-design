@@ -116,8 +116,14 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
   the bleed. ui.js `blurControls(t, base, { noun, onNone })` is shared by the photo Blur section and the Effects → Blur
   item; the spot editor (`spotBase` / `spotMap` in app.js) works on `filters` for photos and `tblur` for everything else.
   `blurSpots` mixes blurred × mask + sharp × (1 − mask) (`lighter`), so see-through layers don't show a sharp copy.
+- Screen close-up: `doc.screen = { on, pitch, grid, focus, dust }`. `renderDoc` renders the design once at screen resolution
+  (`_panel`: no camera / finish), `drawScreen` draws it back nearest-neighbour under the camera, multiplies a sub-pixel mesh
+  tile (`meshTile`, fades in once a screen pixel is ≥ ~2 px) and colour-dodges the whites back up, adds glass dust;
+  `screenLens` adds lens softness (∝ pixel size) and a top / bottom depth-of-field blur. Keep camera blur at 0 with it
+  (motion blur wipes out the vertical mesh lines). The editor shows it on `.screen-view` (a canvas over the artboard)
+  only while playing.
 - Type & cut (`camera.move: 'typecut'`, template family Typing screen / layout `typescreen`): `R.typePlan(doc)` builds one schedule
-  from the target text (cps, word breaks, clips = image layers with `cutin: true` spread evenly over the breaks, zoom rising
+  from the target text (human keystroke rhythm `kt[]` seeded by the text, word breaks, optional clips = image layers with `cutin: true` spread evenly over the breaks, zoom rising
   after each clip, pull-back, end hold) and drives the typewriter (`charsAt`), clip visibility (`cutAt`, in `drawElement`)
   and the camera (identity during clips; caret followed through `R.caretAtChars` with fractional letters so motion blur is
   smooth; `seg` stops blur smearing across a cut). `R.applyTypePlan` writes the length and each clip's `time` slot (video
