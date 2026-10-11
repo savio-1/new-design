@@ -12,6 +12,11 @@
     mp4: 'vendor/mp4-muxer.js',
     webm: 'vendor/webm-muxer.js',
   };
+  // if the page was published without the vendor folder, the stock builds from a CDN still make normal (opaque) video
+  const CDN = {
+    mp4: 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/build/mp4-muxer.js',
+    webm: 'https://cdn.jsdelivr.net/npm/webm-muxer@5.0.4/build/webm-muxer.js',
+  };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const even = n => Math.max(2, Math.round(n / 2) * 2);
   S.even = even;
@@ -87,7 +92,7 @@
   };
   async function encodeWith(enc, { doc, width, height, fps, duration, onProgress, signal }) {
     // the single-file build already carries the muxers; otherwise fetch the one we need
-    if (!(enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer)) await loadScript(LIBS[enc.kind]);
+    if (!(enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer)) await loadScript(LIBS[enc.kind]).catch(() => loadScript(CDN[enc.kind]));
     const Lib = enc.kind === 'mp4' ? window.Mp4Muxer : window.WebMMuxer;
     const muxer = enc.kind === 'mp4'
       ? new Lib.Muxer({ target: new Lib.ArrayBufferTarget(), video: { codec: 'avc', width, height }, fastStart: 'in-memory' })

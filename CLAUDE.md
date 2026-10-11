@@ -259,9 +259,11 @@ Chromium exports WebM (no H.264); real Chrome exports MP4.
 1. Commit with a clear message; push to the working branch.
 2. `python3 studio/tools/build_single_file.py` → `studio/dist/collage-studio.html` (commit it too).
 3. A private claude.ai artifact of the app was published earlier
-   (https://claude.ai/artifact/WSEaiShKsrkDT4mFzVpkES). Republishing `dist/collage-studio.html` to it
-   works; note the artifact sandbox may block Hugging Face downloads, which breaks background removal
-   there unless the model is shipped alongside.
+   (https://claude.ai/artifact/WSEaiShKsrkDT4mFzVpkES). Build its page with
+   `python3 studio/tools/build_single_file.py --artifact <dir>` (same inlined scripts as dist, incl. the muxers and
+   JSZip, plus `STUDIO_MODEL_PARTS` so background removal reads the model parts already published under `models/`)
+   and publish `<dir>/collage-studio.html` to that URL. The artifact has no `vendor/` scripts, so anything loaded
+   lazily from `vendor/` must be inlined: a build without the muxers broke every video export there.
 
 ## Moving to another computer
 
