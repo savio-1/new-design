@@ -1477,7 +1477,86 @@
           txt('living and working\nin NYC', { x: 780, y: 640, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 34, lineHeight: 1, fill: '#1d1b18' }),
           mono('YOUR NAME  ·  2026', { x: 140, y: 350, align: 'left', fontSize: 14, fontWeight: 700 }),
         ], { grain: 6 })),
+        ...handwritten(),
       ];
+      // ── handwritten journal pages: ink scrawl, pen capitals and marker notes around the photos ──
+      function handwritten() {
+        const F = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'film-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
+        const hand = (t, font, size, color, o) => txt(t, Object.assign({ align: 'left', fontFamily: font, fontSize: size, fill: color, lineHeight: 1.2 }, o));
+        const soft = { on: true, color: '#000000', opacity: 0.16, blur: 18, x: 0, y: 8 };
+        const pola = (size = 26) => ({ style: 'polaroid', color: '#f6f5f1', size, bottom: 3.6 });
+        const pen = (x, y, w, h, pts, o) => rib('straight', x, y, w, h, Object.assign({ points: pts, line: true, thickness: 3, color: '#1d1b18', text: '', name: 'Pen line' }, o));
+        // a point (lx, ly) inside a box whose top-left is (X, Y), turned by deg around that corner
+        const turn = (X, Y, deg, lx, ly) => { const a = deg * Math.PI / 180; return [X + lx * Math.cos(a) - ly * Math.sin(a), Y + lx * Math.sin(a) + ly * Math.cos(a)]; };
+        const INK = '#151413', BLUE = '#2f3c9e', RED = '#d42a2c';
+        const LOOK = (k, extra) => Object.assign(JSON.parse(JSON.stringify(window.StudioRender.FILTER_PRESETS[k].f)), extra || {});
+        return [
+          T('px-letter', 'Ink letter', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#fbfbf9' }, [
+            hand('This is temporary\nyou’re gonna make it\ncount the days with\nfear and wonder\nthen let them go…\nfear can creep in.\nDon’t let it come\nfor you! You will\ncalm the storms', 'Zeyada', 118, INK, { x: 70, y: 90, lineHeight: 1.1, letterSpacing: 0.07, rotation: -1, name: 'Handwriting' }),
+            P('think', 300, 500, 500, 360, { crop: { zoom: 1.25, x: 0.5, y: 0.62 }, filters: BW({ contrast: 30, brightness: 6 }) }),
+          ], { grain: 6 })),
+          T('px-touch', 'Stay in touch', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#f5f5f4', color2: '#d4d4d2', gradient: 'linear', angle: 180 }, [
+            F('friends', 240, 90, 580, 640, { rotation: 3, crop: { zoom: 1.35, x: 0.55, y: 0.5 }, filters: LOOK('expired', { fade: 14 }), frame: pola(30), shadow: soft }),
+            hand('IF', 'The Girl Next Door', 76, BLUE, { x: 330, y: 880, rotation: -2 }),
+            hand('WE  STAY', 'The Girl Next Door', 76, BLUE, { x: 330, y: 990, rotation: -2 }),
+            hand('IN  TOUCH .', 'The Girl Next Door', 76, BLUE, { x: 400, y: 1100, rotation: -2 }),
+          ], { grain: 10 })),
+          T('px-fieldnotes', 'Field notes', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#f1f0ec', texture: 18 }, [
+            F('grass', 300, 60, 560, 640, { crop: { zoom: 1.6, x: 0.38, y: 0.5 }, filters: { fade: 22, brightness: 10, contrast: -8, saturation: -18, warmth: -6, noise: 8 } }),
+            pen(276, 20, 20, 790, [[0.5, 0], [0.4, 1]]), pen(864, 20, 20, 720, [[0.5, 0], [0.6, 1]]), pen(220, 696, 720, 20, [[0, 0.4], [1, 0.6]]),
+            hand('WAIT!  I HAVE SOMETHING\nTO SAY TO PEOPLE\nWHO ARE STRUGGLING ×2\nWE’RE NOT MACHINES\nBUT WE NEED TO REBOOT\nTHE BRAIN,', 'Covered By Your Grace', 38, INK, { x: 640, y: 92, lineHeight: 1.3, name: 'Notes' }),
+            stk('pen-circle', 626, 90, 100, 52, { name: 'Pen circle' }),
+            stk('pen-mark', 130, 360, 50, 64, { rotation: 10 }),
+            hand('I’M THE ONE\nWHO TURNED THE\nSWITCH ON', 'Covered By Your Grace', 38, INK, { x: 120, y: 960, lineHeight: 1.4 }),
+            hand('WE HAVE TO\nSWITCH IT OFF\nSOMETIMES,', 'Covered By Your Grace', 38, INK, { x: 680, y: 940, lineHeight: 1.4, underline: true }),
+          ], { grain: 8 })),
+          T('px-quote', 'Quote & booth strip', ['Photo', 'Paper', 'Handwritten'], () => {
+            const X = 470, Y = 380, R = -8, sw = 160, ph = 168;
+            const strip = [shp('rect', X, Y, sw, 3 * ph + 52, { rotation: R, fill: '#121212', shadow: { on: true, color: '#000000', opacity: 0.22, blur: 10, x: 0, y: 4 }, name: 'Booth strip' })];
+            ['smile', 'kiss', 'friends'].forEach((a, i) => { const [x, y] = turn(X, Y, R, 12, 14 + i * (ph + 12)); strip.push(F(a, x, y, sw - 24, ph, { rotation: R, filters: BW({ contrast: 22 }) })); });
+            return doc({ color: '#cfcbc1', texture: 15 }, [
+              ...strip,
+              hand('No one can', 'Whisper', 118, '#4469b3', { cx: 470, cy: 470, name: 'Quote' }),
+              hand('make     you feel', 'Whisper', 118, '#4469b3', { cx: 560, cy: 620, name: 'Quote' }),
+              hand('inferior     without', 'Whisper', 118, '#4469b3', { cx: 530, cy: 770, name: 'Quote' }),
+              hand('your consent.', 'Whisper', 118, '#4469b3', { cx: 570, cy: 920, name: 'Quote' }),
+              txt('Eleanor Roosevelt', { cx: 540, cy: 1030, fontFamily: 'EB Garamond', fontSize: 22, fill: '#4469b3', name: 'Who said it' }),
+            ], { grain: 10 });
+          }),
+          T('px-belonged', 'Red marker notes', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#ececeb', texture: 12 }, [
+            P('profile', 100, 140, 480, 560, { rotation: -1, crop: { zoom: 1.1, x: 0.5, y: 0.4 }, filters: BW({ contrast: 26, brightness: -6 }), frame: pola(28), shadow: soft }),
+            P('dark', 480, 560, 470, 560, { rotation: 1, crop: { zoom: 1.15, x: 0.5, y: 0.35 }, filters: BW({ contrast: 22 }), frame: pola(28), shadow: soft }),
+            hand('from the moment\n  i saw you', 'Marck Script', 92, RED, { x: 430, y: 360, rotation: -12, lineHeight: 1.05, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+            hand('i have belonged', 'Marck Script', 92, RED, { x: 70, y: 860, rotation: -10, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+            hand('to you', 'Marck Script', 92, RED, { x: 190, y: 960, rotation: -10, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+            hand('Completely.', 'Marck Script', 100, RED, { x: 110, y: 1090, rotation: -10, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+          ], { grain: 12 })),
+          T('px-worthy', 'Worthy', ['Photo', 'Handwritten'], () => doc({ color: '#e9e9ea', texture: 10 }, [
+            F('station', 170, 330, 740, 640, { crop: { zoom: 1.2, x: 0.5, y: 0.5 }, filters: LOOK('portrait', { fade: 10 }) }),
+            hand('worthy', 'Nanum Brush Script', 250, '#d9393e', { cx: 520, cy: 300, rotation: -3, name: 'Word' }),
+            rib('straight', 150, 760, 800, 80, { points: [[0, 0.9], [1, 0.12]], line: true, thickness: 7, color: '#d9393e', text: '', name: 'Strike line' }),
+            hand('of all of it', 'Nanum Brush Script', 150, '#d9393e', { cx: 560, cy: 1080, rotation: -3, name: 'Word' }),
+          ], { grain: 10 })),
+          T('px-margins', 'Margin scribbles', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#ececec', texture: 14 }, [
+            P('think', 250, 290, 580, 780, { crop: { zoom: 1.4, x: 0.42, y: 0.5 }, filters: BW({ contrast: 28 }), frame: { style: 'border', color: '#f4f4f2', size: 6 } }),
+            hand('that stuff is OK', 'Kristi', 120, INK, { x: 290, y: 150, rotation: -3, name: 'Headline' }),
+            hand('being sad', 'Reenie Beanie', 40, INK, { x: 150, y: 230, rotation: -32 }),
+            hand('i don’t wanna be angry', 'Reenie Beanie', 40, INK, { x: 660, y: 240, rotation: -2 }),
+            hand('it’s only human · i can’t let you go · it is good to feel', 'Reenie Beanie', 42, INK, { x: 196, y: 1066, rotation: -90, name: 'Left edge' }),
+            hand('finally you found yourself a friend', 'Reenie Beanie', 42, INK, { x: 892, y: 300, rotation: 90, name: 'Right edge' }),
+            hand('and it’s ok.', 'Reenie Beanie', 44, INK, { x: 620, y: 1090, rotation: -2 }),
+          ], { grain: 10 })),
+          T('px-sketchbook', 'Sketchbook story', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#f3f2ee', texture: 10 }, [
+            F('lamp', 110, 660, 600, 520, { crop: { zoom: 1.2, x: 0.45, y: 0.5 }, filters: LOOK('portrait', { fade: 18, saturation: -12 }) }),
+            stk('pen-lamp', 700, 0, 200, 312, { name: 'Pen sketch' }),
+            stk('pen-vase', 650, 840, 220, 314, { name: 'Pen sketch' }),
+            stk('pen-clock', 870, 1000, 150, 150, { name: 'Pen sketch' }),
+            hand('A story of', 'Dawning of a New Day', 92, INK, { x: 330, y: 420, rotation: -4 }),
+            hand('curiosity,', 'Dawning of a New Day', 92, INK, { x: 470, y: 540, rotation: -6 }),
+            hand('creativity,', 'Dawning of a New Day', 92, INK, { x: 360, y: 640, rotation: -4 }),
+          ], { grain: 6 })),
+        ];
+      }
     })(),
 
     // ── PAPER & ID: documents, cards and stamps built around a portrait ──
@@ -2400,7 +2479,7 @@
   const GROUPS = {
     'Scrolling wall': [], 'Card trail': [], 'Grid build': [], 'Photo drop': [], 'Fan stack': [], 'Strip conveyor': [], 'Zoom wall': [], 'Slide-in panels': [],
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
-    'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper'],
+    'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper', 'px-letter', 'px-quote', 'px-fieldnotes', 'px-belonged', 'px-touch', 'px-margins', 'px-worthy', 'px-sketchbook'],
     'Paper & ID': ['pid-mugshot', 'pid-inquiry', 'pid-badge', 'pid-portrait', 'pid-certificate', 'pid-record', 'pid-pass', 'pid-application', 'pid-aboutme', 'pid-profile'],
     'Film looks': ['fl-gold', 'fl-portrait', 'fl-night', 'fl-super8', 'fl-expired', 'fl-disposable', 'fl-burn', 'fl-vivid', 'fl-green', 'fl-cinema', 'fl-cross', 'fl-leak', 'fl-bleach', 'fl-twostrip', 'fl-pan400', 'fl-projector'],
     'Film camera': ['fc-contact', 'fc-leader', 'fc-strip', 'fc-slides', 'fc-instant', 'fc-darkroom', 'fc-negative', 'fc-halfframe', 'fc-medium', 'fc-booth'],

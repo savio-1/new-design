@@ -2328,7 +2328,7 @@
     out.push({ title: 'Camera overlays', items: cams, grid: 'preset-grid', limit: 2, note: 'Covers the whole canvas — put it on top of a photo.' });
     const all = window.STICKERS || [];
     const cats = [...new Set(all.map(s => s.cat))];
-    const order = ['Game & UI', 'Doodles', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
+    const order = ['Game & UI', 'Doodles', 'Pen sketches', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
     cats.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
     for (const c of cats) {
       out.push({ title: STICKER_CAT_NAMES[c] || c, items: all.filter(s => s.cat === c).map(stickerItem), note: /^Outfits/.test(c) ? 'Each outfit comes with a face slot — add a selfie and the background is cut away.' : null });

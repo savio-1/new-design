@@ -4632,6 +4632,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   ['Leckerli One','Script','',[400],0],
   ['Cookie','Script','',[400],0],
   ['Sriracha','Handwritten','',[400],0],
+  ['Zeyada','Script','',[400],0],
+  ['Dawning of a New Day','Script','',[400],0],
+  ['Whisper','Script','',[400],0],
+  ['Ms Madi','Script','',[400],0],
+  ['Herr Von Muellerhoff','Script','',[400],0],
+  ['Cedarville Cursive','Script','',[400],0],
+  ['Marck Script','Script','',[400],0],
+  ['Bad Script','Script','',[400],0],
+  ['Beth Ellen','Script','',[400],0],
+  ['Kristi','Script','',[400],0],
+  ['Square Peg','Script','',[400],0],
+  ['The Girl Next Door','Handwritten','',[400],0],
+  ['Loved by the King','Handwritten','',[400],0],
+  ['Just Me Again Down Here','Handwritten','',[400],0],
+  ['Sue Ellen Francisco','Handwritten','',[400],0],
+  ['Architects Daughter','Handwritten','',[400],0],
+  ['Waiting for the Sunrise','Handwritten','',[400],0],
+  ['Over the Rainbow','Handwritten','',[400],0],
+  ['Nanum Pen Script','Handwritten','',[400],0],
+  ['Nanum Brush Script','Handwritten','',[400],0],
+  ['Mansalva','Handwritten','',[400],0],
   ['Space Mono','Mono','ital,wght@0,400;0,700;1,400;1,700',[400,700],1],
   ['IBM Plex Mono','Mono','ital,wght@0,300;0,400;0,500;0,600;0,700;1,400',[300,400,500,600,700],1],
   ['VT323','Mono','',[400],0],
@@ -5308,6 +5329,70 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   add('chalk-squiggle', 'Chalk squiggle', DO, 248, 90, ['#c6f432'], (c) => S(248, 90, chalk(`<path d="${wavyD}" ${DS(c[0], 10)}/>`), CHALK));
   add('chalk-scribble-star', 'Chalk scribble star', DO, 200, 200, ['#5ee0f0'], (c) => S(200, 200, chalk(`<path d="${scribStarD}" ${DS(c[0], 8)}/>`), CHALK));
   add('chalk-heart', 'Chalk heart', DO, 200, 200, ['#ff6fa8'], (c) => S(200, 200, chalk(`<path d="${heartD}" ${DS(c[0], 9)}/>`), CHALK));
+
+  /* ============================================================= PEN SKETCHES */
+  // thin fine-liner drawings for notebook / journal layouts: every line wobbles a little like a hand-drawn one
+  const PS = 'Pen sketches';
+  {
+    const line = (pts, seed, a = 0.9) => smooth(wob(pts, a, seed));
+    const seg = (p, q, seed, n = 8) => line(samp((t) => lerp(p, q, t), n), seed, 0.7);
+    // straight strokes with real corners: split every edge into short steps, wobble them, join without smoothing
+    const pl = (pts, seed, a = 0.7) => poly(wob(pts.slice(1).flatMap((q, i) => { const p0 = pts[i], n = Math.max(2, Math.round(Math.hypot(q[0] - p0[0], q[1] - p0[1]) / 10)); return samp((t) => lerp(p0, q, t), n, i ? 1 / n : 0); }), a, seed));
+    const ring = (cx, cy, rx, ry, seed, t0 = 0, t1 = 1, n = 40) => line(samp((t) => [cx + rx * Math.cos(t * 2 * PI), cy + ry * Math.sin(t * 2 * PI)], n, t0, t1), seed);
+    const pen = (w, h, ds, sw = 3) => (c) => S(w, h, ds.map((d) => `<path d="${d}" ${DS(c[0], sw)}/>`).join(''));
+    const lamp = [
+      seg([80, 0], [80, 150], 1, 14),
+      line([[70, 150], [72, 138], [88, 138], [90, 150]], 2, 0.4),
+      line(samp((t) => [80 + 66 * Math.sin((t - 0.5) * PI), 210 - 60 * Math.cos((t - 0.5) * PI) * 0.95], 30), 3, 0.8),
+      line([[10, 212], [150, 214], [12, 208]], 4, 0.6),
+      ring(80, 224, 15, 11, 5, 0, 0.55, 18),
+    ];
+    add('pen-lamp', 'Pendant lamp', PS, 160, 250, ['#1d1b18'], pen(160, 250, lamp));
+    const vase = [
+      line([[86, 294], [64, 268], [62, 226], [78, 196], [86, 168], [80, 150], [118, 150], [112, 168], [120, 196], [136, 226], [134, 268], [112, 294]], 6, 0.8), pl([[84, 294], [114, 294]], 5),
+      line([[96, 152], [92, 110], [70, 64], [40, 36]], 7), line([[102, 152], [112, 96], [140, 50], [172, 30]], 8), line([[100, 152], [104, 92], [96, 40]], 9),
+      ring(36, 30, 12, 9, 10), ring(176, 25, 13, 10, 11), ring(96, 30, 9, 13, 12),
+      line([[112, 100], [140, 92], [150, 70], [126, 78], [112, 100]], 13, 0.5), line([[84, 90], [56, 88], [46, 66], [70, 72], [84, 90]], 14, 0.5),
+    ];
+    add('pen-vase', 'Vase of stems', PS, 210, 300, ['#1d1b18'], pen(210, 300, vase));
+    const clock = [ring(90, 90, 76, 76, 15, 0, 1.02, 48), ring(90, 90, 66, 66, 16, 0, 1.01, 44), seg([90, 90], [90, 46], 17, 4), seg([90, 90], [122, 104], 18, 4)];
+    for (let i = 0; i < 12; i++) { const a = i * 30 - 90; clock.push(seg(pol(90, 90, 58, a), pol(90, 90, i % 3 ? 54 : 50, a), 20 + i, 2)); }
+    add('pen-clock', 'Wall clock', PS, 180, 180, ['#1d1b18'], pen(180, 180, clock));
+    const plant = [
+      pl([[52, 186], [62, 252], [138, 252], [148, 186]], 30), pl([[44, 186], [156, 186]], 31),
+      line([[100, 186], [96, 120], [80, 60], [70, 20]], 32), line([[100, 186], [116, 120], [140, 80]], 33),
+      ...[[86, 120, -1], [80, 76, -1], [112, 140, 1], [128, 100, 1], [74, 40, -1]].map(([x, y, s], i) => line([[x, y], [x + s * 36, y - 22], [x + s * 50, y - 6], [x + s * 22, y + 6], [x, y]], 34 + i, 0.5)),
+    ];
+    add('pen-plant', 'Potted plant', PS, 200, 260, ['#1d1b18'], pen(200, 260, plant));
+    const mug = [
+      line([[40, 70], [44, 150], [56, 162], [124, 162], [136, 150], [140, 70]], 40, 0.6), ring(90, 70, 50, 9, 41, 0, 1.02, 30),
+      line([[140, 90], [168, 92], [172, 118], [158, 136], [138, 134]], 42, 0.5),
+      line([[72, 50], [64, 34], [76, 18], [70, 4]], 43, 0.6), line([[100, 50], [92, 32], [104, 18], [98, 2]], 44, 0.6),
+    ];
+    add('pen-mug', 'Coffee mug', PS, 190, 170, ['#1d1b18'], pen(190, 170, mug));
+    const chair = [
+      pl([[40, 20], [44, 150], [146, 150], [150, 20]], 50), seg([40, 20], [150, 20], 51), seg([42, 60], [148, 60], 52),
+      pl([[30, 150], [160, 150], [158, 168], [32, 168], [30, 150]], 53),
+      seg([40, 168], [34, 256], 54), seg([150, 168], [156, 256], 55), seg([66, 168], [70, 236], 56), seg([124, 168], [120, 236], 57),
+    ];
+    add('pen-chair', 'Chair', PS, 190, 260, ['#1d1b18'], pen(190, 260, chair));
+    const books = [
+      pl([[20, 160], [220, 160], [220, 128], [20, 128], [20, 160]], 60), pl([[34, 128], [200, 128], [200, 96], [34, 96], [34, 128]], 61),
+      pl([[24, 96], [212, 96], [212, 66], [24, 66], [24, 96]], 62), seg([50, 128], [50, 160], 63, 3), seg([186, 96], [186, 128], 64, 3), seg([60, 66], [60, 96], 65, 3),
+      pl([[150, 66], [148, 34], [160, 28], [164, 62]], 66, 0.4),
+    ];
+    add('pen-books', 'Stack of books', PS, 240, 180, ['#1d1b18'], pen(240, 180, books));
+    const window_ = [
+      pl([[20, 20], [180, 20], [180, 240], [20, 240], [20, 20]], 70), seg([100, 20], [100, 240], 71), seg([20, 130], [180, 130], 72),
+      pl([[12, 250], [188, 250]], 73), line([[30, 34], [44, 60], [40, 110]], 74, 0.5), line([[166, 34], [150, 70], [158, 112]], 75, 0.5),
+    ];
+    add('pen-window', 'Window', PS, 200, 260, ['#1d1b18'], pen(200, 260, window_));
+    add('pen-mark', 'Pen mark', PS, 80, 100, ['#1d1b18'], pen(80, 100, [line([[60, 10], [44, 14], [34, 26], [44, 40], [52, 54], [44, 70], [30, 80], [18, 90]], 80, 0.5)]));
+    const crop = [pl([[0, 40], [260, 42]], 81, 0.5), pl([[40, 0], [42, 260]], 82, 0.5)];
+    add('pen-corner', 'Pen corner lines', PS, 260, 260, ['#1d1b18'], pen(260, 260, crop, 2.5));
+    add('pen-underline', 'Pen underline', PS, 300, 40, ['#1d1b18'], pen(300, 40, [line(samp((t) => [6 + 288 * t, 22 + 5 * Math.sin(t * 5)], 16), 83, 0.8)]));
+    add('pen-circle', 'Pen circle', PS, 220, 110, ['#1d1b18'], pen(220, 110, [line(samp((t) => [110 + 100 * Math.cos(t * 2 * PI * 1.1 - 2.2), 55 + 46 * Math.sin(t * 2 * PI * 1.1 - 2.2) + 4 * t], 44), 84, 0.8)], 2.5));
+  }
 
   /* =========================================================== PAPER & OFFICE */
   const PO = 'Paper & Office';
@@ -14572,7 +14657,86 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           txt('living and working\nin NYC', { x: 780, y: 640, align: 'left', fontFamily: 'Caveat', fontWeight: 600, fontSize: 34, lineHeight: 1, fill: '#1d1b18' }),
           mono('YOUR NAME  ·  2026', { x: 140, y: 350, align: 'left', fontSize: 14, fontWeight: 700 }),
         ], { grain: 6 })),
+        ...handwritten(),
       ];
+      // ── handwritten journal pages: ink scrawl, pen capitals and marker notes around the photos ──
+      function handwritten() {
+        const F = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'film-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
+        const hand = (t, font, size, color, o) => txt(t, Object.assign({ align: 'left', fontFamily: font, fontSize: size, fill: color, lineHeight: 1.2 }, o));
+        const soft = { on: true, color: '#000000', opacity: 0.16, blur: 18, x: 0, y: 8 };
+        const pola = (size = 26) => ({ style: 'polaroid', color: '#f6f5f1', size, bottom: 3.6 });
+        const pen = (x, y, w, h, pts, o) => rib('straight', x, y, w, h, Object.assign({ points: pts, line: true, thickness: 3, color: '#1d1b18', text: '', name: 'Pen line' }, o));
+        // a point (lx, ly) inside a box whose top-left is (X, Y), turned by deg around that corner
+        const turn = (X, Y, deg, lx, ly) => { const a = deg * Math.PI / 180; return [X + lx * Math.cos(a) - ly * Math.sin(a), Y + lx * Math.sin(a) + ly * Math.cos(a)]; };
+        const INK = '#151413', BLUE = '#2f3c9e', RED = '#d42a2c';
+        const LOOK = (k, extra) => Object.assign(JSON.parse(JSON.stringify(window.StudioRender.FILTER_PRESETS[k].f)), extra || {});
+        return [
+          T('px-letter', 'Ink letter', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#fbfbf9' }, [
+            hand('This is temporary\nyou’re gonna make it\ncount the days with\nfear and wonder\nthen let them go…\nfear can creep in.\nDon’t let it come\nfor you! You will\ncalm the storms', 'Zeyada', 118, INK, { x: 70, y: 90, lineHeight: 1.1, letterSpacing: 0.07, rotation: -1, name: 'Handwriting' }),
+            P('think', 300, 500, 500, 360, { crop: { zoom: 1.25, x: 0.5, y: 0.62 }, filters: BW({ contrast: 30, brightness: 6 }) }),
+          ], { grain: 6 })),
+          T('px-touch', 'Stay in touch', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#f5f5f4', color2: '#d4d4d2', gradient: 'linear', angle: 180 }, [
+            F('friends', 240, 90, 580, 640, { rotation: 3, crop: { zoom: 1.35, x: 0.55, y: 0.5 }, filters: LOOK('expired', { fade: 14 }), frame: pola(30), shadow: soft }),
+            hand('IF', 'The Girl Next Door', 76, BLUE, { x: 330, y: 880, rotation: -2 }),
+            hand('WE  STAY', 'The Girl Next Door', 76, BLUE, { x: 330, y: 990, rotation: -2 }),
+            hand('IN  TOUCH .', 'The Girl Next Door', 76, BLUE, { x: 400, y: 1100, rotation: -2 }),
+          ], { grain: 10 })),
+          T('px-fieldnotes', 'Field notes', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#f1f0ec', texture: 18 }, [
+            F('grass', 300, 60, 560, 640, { crop: { zoom: 1.6, x: 0.38, y: 0.5 }, filters: { fade: 22, brightness: 10, contrast: -8, saturation: -18, warmth: -6, noise: 8 } }),
+            pen(276, 20, 20, 790, [[0.5, 0], [0.4, 1]]), pen(864, 20, 20, 720, [[0.5, 0], [0.6, 1]]), pen(220, 696, 720, 20, [[0, 0.4], [1, 0.6]]),
+            hand('WAIT!  I HAVE SOMETHING\nTO SAY TO PEOPLE\nWHO ARE STRUGGLING ×2\nWE’RE NOT MACHINES\nBUT WE NEED TO REBOOT\nTHE BRAIN,', 'Covered By Your Grace', 38, INK, { x: 640, y: 92, lineHeight: 1.3, name: 'Notes' }),
+            stk('pen-circle', 626, 90, 100, 52, { name: 'Pen circle' }),
+            stk('pen-mark', 130, 360, 50, 64, { rotation: 10 }),
+            hand('I’M THE ONE\nWHO TURNED THE\nSWITCH ON', 'Covered By Your Grace', 38, INK, { x: 120, y: 960, lineHeight: 1.4 }),
+            hand('WE HAVE TO\nSWITCH IT OFF\nSOMETIMES,', 'Covered By Your Grace', 38, INK, { x: 680, y: 940, lineHeight: 1.4, underline: true }),
+          ], { grain: 8 })),
+          T('px-quote', 'Quote & booth strip', ['Photo', 'Paper', 'Handwritten'], () => {
+            const X = 470, Y = 380, R = -8, sw = 160, ph = 168;
+            const strip = [shp('rect', X, Y, sw, 3 * ph + 52, { rotation: R, fill: '#121212', shadow: { on: true, color: '#000000', opacity: 0.22, blur: 10, x: 0, y: 4 }, name: 'Booth strip' })];
+            ['smile', 'kiss', 'friends'].forEach((a, i) => { const [x, y] = turn(X, Y, R, 12, 14 + i * (ph + 12)); strip.push(F(a, x, y, sw - 24, ph, { rotation: R, filters: BW({ contrast: 22 }) })); });
+            return doc({ color: '#cfcbc1', texture: 15 }, [
+              ...strip,
+              hand('No one can', 'Whisper', 118, '#4469b3', { cx: 470, cy: 470, name: 'Quote' }),
+              hand('make     you feel', 'Whisper', 118, '#4469b3', { cx: 560, cy: 620, name: 'Quote' }),
+              hand('inferior     without', 'Whisper', 118, '#4469b3', { cx: 530, cy: 770, name: 'Quote' }),
+              hand('your consent.', 'Whisper', 118, '#4469b3', { cx: 570, cy: 920, name: 'Quote' }),
+              txt('Eleanor Roosevelt', { cx: 540, cy: 1030, fontFamily: 'EB Garamond', fontSize: 22, fill: '#4469b3', name: 'Who said it' }),
+            ], { grain: 10 });
+          }),
+          T('px-belonged', 'Red marker notes', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#ececeb', texture: 12 }, [
+            P('profile', 100, 140, 480, 560, { rotation: -1, crop: { zoom: 1.1, x: 0.5, y: 0.4 }, filters: BW({ contrast: 26, brightness: -6 }), frame: pola(28), shadow: soft }),
+            P('dark', 480, 560, 470, 560, { rotation: 1, crop: { zoom: 1.15, x: 0.5, y: 0.35 }, filters: BW({ contrast: 22 }), frame: pola(28), shadow: soft }),
+            hand('from the moment\n  i saw you', 'Marck Script', 92, RED, { x: 430, y: 360, rotation: -12, lineHeight: 1.05, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+            hand('i have belonged', 'Marck Script', 92, RED, { x: 70, y: 860, rotation: -10, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+            hand('to you', 'Marck Script', 92, RED, { x: 190, y: 960, rotation: -10, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+            hand('Completely.', 'Marck Script', 100, RED, { x: 110, y: 1090, rotation: -10, stroke: { width: 1, color: RED }, name: 'Marker note' }),
+          ], { grain: 12 })),
+          T('px-worthy', 'Worthy', ['Photo', 'Handwritten'], () => doc({ color: '#e9e9ea', texture: 10 }, [
+            F('station', 170, 330, 740, 640, { crop: { zoom: 1.2, x: 0.5, y: 0.5 }, filters: LOOK('portrait', { fade: 10 }) }),
+            hand('worthy', 'Nanum Brush Script', 250, '#d9393e', { cx: 520, cy: 300, rotation: -3, name: 'Word' }),
+            rib('straight', 150, 760, 800, 80, { points: [[0, 0.9], [1, 0.12]], line: true, thickness: 7, color: '#d9393e', text: '', name: 'Strike line' }),
+            hand('of all of it', 'Nanum Brush Script', 150, '#d9393e', { cx: 560, cy: 1080, rotation: -3, name: 'Word' }),
+          ], { grain: 10 })),
+          T('px-margins', 'Margin scribbles', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#ececec', texture: 14 }, [
+            P('think', 250, 290, 580, 780, { crop: { zoom: 1.4, x: 0.42, y: 0.5 }, filters: BW({ contrast: 28 }), frame: { style: 'border', color: '#f4f4f2', size: 6 } }),
+            hand('that stuff is OK', 'Kristi', 120, INK, { x: 290, y: 150, rotation: -3, name: 'Headline' }),
+            hand('being sad', 'Reenie Beanie', 40, INK, { x: 150, y: 230, rotation: -32 }),
+            hand('i don’t wanna be angry', 'Reenie Beanie', 40, INK, { x: 660, y: 240, rotation: -2 }),
+            hand('it’s only human · i can’t let you go · it is good to feel', 'Reenie Beanie', 42, INK, { x: 196, y: 1066, rotation: -90, name: 'Left edge' }),
+            hand('finally you found yourself a friend', 'Reenie Beanie', 42, INK, { x: 892, y: 300, rotation: 90, name: 'Right edge' }),
+            hand('and it’s ok.', 'Reenie Beanie', 44, INK, { x: 620, y: 1090, rotation: -2 }),
+          ], { grain: 10 })),
+          T('px-sketchbook', 'Sketchbook story', ['Photo', 'Paper', 'Handwritten'], () => doc({ color: '#f3f2ee', texture: 10 }, [
+            F('lamp', 110, 660, 600, 520, { crop: { zoom: 1.2, x: 0.45, y: 0.5 }, filters: LOOK('portrait', { fade: 18, saturation: -12 }) }),
+            stk('pen-lamp', 700, 0, 200, 312, { name: 'Pen sketch' }),
+            stk('pen-vase', 650, 840, 220, 314, { name: 'Pen sketch' }),
+            stk('pen-clock', 870, 1000, 150, 150, { name: 'Pen sketch' }),
+            hand('A story of', 'Dawning of a New Day', 92, INK, { x: 330, y: 420, rotation: -4 }),
+            hand('curiosity,', 'Dawning of a New Day', 92, INK, { x: 470, y: 540, rotation: -6 }),
+            hand('creativity,', 'Dawning of a New Day', 92, INK, { x: 360, y: 640, rotation: -4 }),
+          ], { grain: 6 })),
+        ];
+      }
     })(),
 
     // ── PAPER & ID: documents, cards and stamps built around a portrait ──
@@ -15495,7 +15659,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   const GROUPS = {
     'Scrolling wall': [], 'Card trail': [], 'Grid build': [], 'Photo drop': [], 'Fan stack': [], 'Strip conveyor': [], 'Zoom wall': [], 'Slide-in panels': [],
     'Text slides': ['ts-created', 'ts-goal', 'ts-earth', 'ts-crisis', 'ts-brands', 'ts-made', 'ts-align', 'ts-dress', 'ts-meant', 'ts-new', 'ts-visuals', 'ts-average', 'ts-cool', 'ts-iamart', 'ts-redact', 'ts-rest', 'ts-chase', 'ts-chapter', 'ts-do', 'ts-action', 'ts-where', 'ts-norest', 'ts-scribble', 'ts-feeling', 'ts-museum', 'ts-story', 'ts-justdo', 'ts-notend', 'ts-consume', 'ts-love', 'ts-now', 'ts-austen', 'ts-son', 'ts-sleep', 'ts-laziest', 'ts-gofor', 'ts-normalize', 'ts-purpose', 'ts-passion', 'ts-artflip', 'ts-exactly', 'ts-identity', 'ts-ability', 'ts-tryagain', 'ts-authentic', 'ts-happen', 'ts-memories', 'ts-now2', 'ts-hands', 'ts-messy', 'ts-start', 'ts-rushed', 'ts-develop', 'ts-addicted', 'ts-makeit', 'ts-dothis', 'ts-mostcreative', 'ts-busy', 'ts-lesscare', 'ts-chapter2', 'ts-overthink', 'ts-athletes', 'ts-curated', 'ts-outside', 'ts-done', 'ts-whatmakes', 'ts-support', 'ts-takerisk', 'ts-thinkbig'],
-    'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper'],
+    'Photo effects': ['px-scribble', 'px-strips', 'px-censor', 'px-mosaic', 'px-mirror', 'px-eyes', 'px-childhood', 'px-note', 'px-words', 'px-brandfade', 'px-faceswap', 'px-ghost', 'px-phone', 'px-signed', 'px-redbar', 'px-taped', 'px-redprint', 'px-backdrop', 'px-gridpaper', 'px-letter', 'px-quote', 'px-fieldnotes', 'px-belonged', 'px-touch', 'px-margins', 'px-worthy', 'px-sketchbook'],
     'Paper & ID': ['pid-mugshot', 'pid-inquiry', 'pid-badge', 'pid-portrait', 'pid-certificate', 'pid-record', 'pid-pass', 'pid-application', 'pid-aboutme', 'pid-profile'],
     'Film looks': ['fl-gold', 'fl-portrait', 'fl-night', 'fl-super8', 'fl-expired', 'fl-disposable', 'fl-burn', 'fl-vivid', 'fl-green', 'fl-cinema', 'fl-cross', 'fl-leak', 'fl-bleach', 'fl-twostrip', 'fl-pan400', 'fl-projector'],
     'Film camera': ['fc-contact', 'fc-leader', 'fc-strip', 'fc-slides', 'fc-instant', 'fc-darkroom', 'fc-negative', 'fc-halfframe', 'fc-medium', 'fc-booth'],
@@ -20842,7 +21006,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     out.push({ title: 'Camera overlays', items: cams, grid: 'preset-grid', limit: 2, note: 'Covers the whole canvas — put it on top of a photo.' });
     const all = window.STICKERS || [];
     const cats = [...new Set(all.map(s => s.cat))];
-    const order = ['Game & UI', 'Doodles', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
+    const order = ['Game & UI', 'Doodles', 'Pen sketches', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
     cats.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
     for (const c of cats) {
       out.push({ title: STICKER_CAT_NAMES[c] || c, items: all.filter(s => s.cat === c).map(stickerItem), note: /^Outfits/.test(c) ? 'Each outfit comes with a face slot — add a selfie and the background is cut away.' : null });

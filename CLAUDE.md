@@ -37,7 +37,7 @@ unless asked.
 | `ui.js` | All DOM UI: panels (Templates, Elements, Text, Photos, Canvas, Layers), inspector per element type, home page, export dialog, timeline, menus, toasts. |
 | `templates.js` | `window.STUDIO_TEMPLATES` (+ text presets, paper / planner presets, backgrounds). `GROUPS` maps family name → template ids and sets the order. |
 | `fonts.js` | Google Fonts catalogue (`[family, category, axes, weights, hasItalic]`), lazy loading (`ensure`), user-uploaded fonts (IndexedDB, packed into project files). |
-| `stickers.js`, `stickers-game.js`, `outfits-*.js` | SVG sticker library (`window.STICKERS`). |
+| `stickers.js`, `stickers-game.js`, `outfits-*.js` | SVG sticker library (`window.STICKERS`). Hand-drawn strokes use `smooth(wob(...))`; the *Pen sketches* set uses `pl()` for wobbly straight lines with real corners. |
 | `nature.js` | Painted garden / sky / flower painters (`window.StudioNature`). |
 | `flashes.js` | Bundled photos as data URLs: speed-flash packs (`IMG`, `PACKS`), demo portraits (`DEMO`), text-slide backdrops. All from Unsplash (credited in README). |
 | `filmphotos.js` | Film-style demo photos (`window.StudioFilm.IMG`), registered as `film-<key>` assets for the Film looks / Film camera templates. |
@@ -165,10 +165,10 @@ Playwright `devices['iPhone 13']`, `'Pixel 7'`, `'iPhone 13 landscape'`; multi-t
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,
 `stk`, `shp`, `rib`, `nat`, `cam`. Text can be placed by centre (`cx`, `cy`); widths are measured on
 load. Put a new family's ids in `GROUPS` (order = display order); `video: true` adds the badge and hover
-preview. Families so far: eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (19), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
+preview. Families so far: eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (27, incl. eight handwritten journal layouts), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
 reveal, Typing, Match cut, Kinetic headline, Sticky notes, Rolling numbers, Word by word, Letter
 bounce, Life-sim garden, Ribbon poster, Motion blur, Camera view, Meet the team, Grid-paper notes,
-Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 249 templates. Film templates build
+Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 257 templates. Film templates build
 filters with `LOOK('<preset>', overrides)` so they stay in step with the presets.
 
 **Moving layouts** (`mv-<layout>-<orientation>`): generator functions in the "LAYOUTS IN MOTION" block of
@@ -179,6 +179,12 @@ canvas is resized (photos carry over in slot order; other layers stay). `orienta
 family by closeness to the canvas and adds a "Your canvas" member. `S.photoSlots()` / `S.fillSlots()` fill many
 slots at once (`importFiles` `fillIds`). Motions: loop `drift` (`anim.dx`, `anim.dy` over the whole video) and
 entrance `land` (`anim.spin`).
+
+Handwritten layouts (`px-letter`, `px-quote`, `px-fieldnotes`, …, built in `handwritten()` inside the Photo effects block)
+use fonts matched to the reference handwriting: Zeyada (ink scrawl), Whisper (pen script), Marck Script (marker),
+Covered By Your Grace / The Girl Next Door (pen capitals), Reenie Beanie / Kristi (margin scribbles), Nanum Brush Script,
+Dawning of a New Day. To compare candidates, render a specimen sheet straight from the Google Fonts css2 API.
+Element rotation turns around the top-left corner (`x`, `y`); `turn()` places pieces inside a rotated group.
 
 When lining up words with inline photo chips, measure text widths first (create a text with `S.mk`,
 `S.autosize`, read `width` after fonts load) and hard-code positions.
