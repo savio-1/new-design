@@ -116,6 +116,13 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
   the bleed. ui.js `blurControls(t, base, { noun, onNone })` is shared by the photo Blur section and the Effects → Blur
   item; the spot editor (`spotBase` / `spotMap` in app.js) works on `filters` for photos and `tblur` for everything else.
   `blurSpots` mixes blurred × mask + sharp × (1 − mask) (`lighter`), so see-through layers don't show a sharp copy.
+- Type & cut (`camera.move: 'typecut'`, template family Typing screen / layout `typescreen`): `R.typePlan(doc)` builds one schedule
+  from the target text (cps, word breaks, clips = image layers with `cutin: true` spread evenly over the breaks, zoom rising
+  after each clip, pull-back, end hold) and drives the typewriter (`charsAt`), clip visibility (`cutAt`, in `drawElement`)
+  and the camera (identity during clips; caret followed through `R.caretAtChars` with fractional letters so motion blur is
+  smooth; `seg` stops blur smearing across a cut). `R.applyTypePlan` writes the length and each clip's `time` slot (video
+  clips start at their cut); `S.commit` calls it. `typing.pin` lays out the full text and reveals letters in place.
+  Cut-ins don't listen to clicks and are hidden in the still editing view.
 - Camera `move: 'keys'` takes `camera.keys = [{ t, x, y, z, r, ease }]` (x / y ≤ 1 are fractions; ease '' = cubic, 'expo',
   'out', 'linear'); camera motion blur follows any path (big moves accumulate at half size, up to 64 samples).
   Entrance `focus` (Blur in) blurs, scales and fades a layer into focus (`st.gblur`).
@@ -188,10 +195,10 @@ Playwright `devices['iPhone 13']`, `'Pixel 7'`, `'iPhone 13 landscape'`; multi-t
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,
 `stk`, `shp`, `rib`, `nat`, `cam`. Text can be placed by centre (`cx`, `cy`); widths are measured on
 load. Put a new family's ids in `GROUPS` (order = display order); `video: true` adds the badge and hover
-preview. Families so far: Smooth cam text (layout `smoothcam`, 4 orientations, words carried across re-flows by `key`), Text effects (5), eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (27, incl. eight handwritten journal layouts), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
+preview. Families so far: Typing screen (layout `typescreen`, 4 orientations), Smooth cam text (layout `smoothcam`, 4 orientations, words carried across re-flows by `key`), Text effects (5), eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (27, incl. eight handwritten journal layouts), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
 reveal, Typing, Match cut, Kinetic headline, Sticky notes, Rolling numbers, Word by word, Letter
 bounce, Life-sim garden, Ribbon poster, Motion blur, Camera view, Meet the team, Grid-paper notes,
-Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 266 templates. Film templates build
+Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 270 templates. Film templates build
 filters with `LOOK('<preset>', overrides)` so they stay in step with the presets.
 
 **Moving layouts** (`mv-<layout>-<orientation>`): generator functions in the "LAYOUTS IN MOTION" block of

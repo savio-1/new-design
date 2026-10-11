@@ -891,6 +891,8 @@
       el.align, el.autoWidth ? 'A' : el.width, el.curve || 0, b.style, b.padX, b.padY, b.gap, el.stroke && el.stroke.width, R.fontsVersion].join('\u0001');
   }
   function layoutText(el) {
+    // pinned typing: lay out the finished text, then show only the typed characters, so letters never shift
+    if (el._full != null && el.typing && el.typing.pin) return pinnedLayout(el);
     const key = textKey(el);
     const hit = layoutCache.get(key);
     if (hit) return hit;
@@ -992,6 +994,23 @@
     return L;
   }
   R.layoutText = layoutText;
+  function pinnedLayout(el) {
+    const LF = layoutText(Object.assign({}, el, { text: el._full, _full: null }));
+    const up = t => el.uppercase ? t.toUpperCase() : t;
+    const full = up(el._full), n = [...up(el.text || '')].length, meas = measurer(mctx, LF.font, LF.ls);
+    const lines = [];
+    let at = 0;
+    for (const ln of LF.lines) {
+      const idx = full.indexOf(ln.text, at), st = idx < 0 ? at : idx;
+      const chars = [...ln.text], startN = [...full.slice(0, st)].length, k = clamp(n - startN, 0, chars.length);
+      if (k <= 0 && lines.length) break;
+      const t = chars.slice(0, k).join('');
+      lines.push(Object.assign({}, ln, { text: t, w: meas(t) }));
+      at = st + ln.text.length;
+      if (k < chars.length) break;
+    }
+    return Object.assign({}, LF, { lines });
+  }
 
   function textBackground(ctx, el, L) {
     const bg = el.bg || {};
@@ -3512,7 +3531,12 @@
           break;
         }
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
-        case 'typewriter': if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p; break;
+        case 'typewriter': {
+          const P = el.type === 'text' ? typePlanFor(doc, el) : null;
+          if (P) st.chars = P.charsAt(t);
+          else if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p;
+          break;
+        }
         case 'wipe': st.reveal = e; break;
         case 'draw': if (el.type === 'ribbon') st.draw = e; else st.reveal = e; break;
       }
@@ -3553,6 +3577,8 @@
   function drawElement(ctx, el, env = {}) {
     const t = 'time' in env ? env.time : R.playTime;
     if (t != null && !R.visibleAt(el, t)) return;
+    // clips cut in between typed words: only on screen during their own slot (hidden while editing the still)
+    if (el.cutin) { const P = R.typePlan(env.doc || R.animDoc); if (!P || t == null || P.cutAt(t) !== el.id) return; }
     const pcs = R.seqPieces(el);
     if (t == null && pcs && pcs.length) { drawLayered(ctx, onePiece(el, pcs[0]), env); return; }
     if (t == null || !R.hasAnim(el)) { drawLayered(ctx, el, env); return; }
@@ -4028,10 +4054,105 @@
     none: 'Still', pushin: 'Slow push-in', pullback: 'Pull-back reveal', whip: 'Whip zoom', snap: 'Snap zoom', crash: 'Crash zoom in & out',
     follow: 'Follow the typing', cuts: 'Hard cuts (close → wide)', drift: 'Handheld drift', pan: 'Pan across', tilt: 'Dutch tilt', jolt: 'Jolt cuts', spiral: 'Spiral in',
     keys: 'Smooth cam (keyframes)',
+    typecut: 'Type & cut (screen typing)',
   };
   const eio = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
   const eoExpo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
   const eioExpo = p => p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2;
+  /* ── type & cut: one schedule, worked out from the text, drives the typing, the clips and the camera ──
+     camera = { move: 'typecut', target, zoom, cps, cut, hold }: the text types at cps characters a second; the
+     clips (image layers with cutin: true, in layer order) cut in at word breaks spread evenly through the text;
+     each return to the screen is closer than the last; after the last letter the camera pulls back and holds. */
+  const planCache = new LRU(12);
+  R.typePlan = function (doc) {
+    const c = doc && doc.camera;
+    if (!c || c.move !== 'typecut') return null;
+    const el = findEl(doc, c.target);
+    if (!el || el.type !== 'text') return null;
+    const clips = (doc.elements || []).filter(e => e.cutin && !e.hidden);
+    const cps = Math.max(2, c.cps || 10), cutLen = Math.max(0.2, c.cut ?? 1), hold = Math.max(0, c.hold ?? 1.8), Z = Math.max(1, c.zoom || 2.6);
+    const key = [el.text, el.uppercase, cps, cutLen, hold, Z, clips.map(e => e.id).join(',')].join('|');
+    const hit = planCache.get(key);
+    if (hit) { hit.el = el; return hit; }
+    const chars = [...(el.text || '')], N = chars.length;
+    // word breaks: the last letter of each word that has more words after it
+    const breaks = [];
+    for (let i = 1; i < N; i++) if (/\s/.test(chars[i]) && !/\s/.test(chars[i - 1]) && /\S/.test(chars.slice(i).join(''))) breaks.push(i);
+    const K = Math.min(clips.length, breaks.length), at = new Map();
+    for (let j = 0; j < K; j++) {
+      let b = Math.round((j + 1) * (breaks.length + 1) / (K + 1)) - 1;
+      b = clamp(b, 0, breaks.length - 1);
+      while (at.has(breaks[b]) && b < breaks.length - 1) b++;
+      at.set(breaks[b], clips[j].id);
+    }
+    const phases = [], LEAD = 0.35, PAUSE = 0.22;
+    let t = LEAD, typed = 0, zoom = Z, visit = 0;
+    const stops = [...at.keys()].sort((a, b) => a - b).concat([N]);
+    phases.push({ kind: 'type', t0: 0, t1: LEAD, c0: 0, c1: 0, zoom, seg: 'type0' });
+    for (const stop of stops) {
+      const d = (stop - typed) / cps;
+      phases.push({ kind: 'type', t0: t, t1: t + d + (stop < N ? PAUSE : 0), c0: typed, c1: stop, zoom, seg: 'type' + visit });
+      t += d + (stop < N ? PAUSE : 0); typed = stop;
+      if (stop < N) {
+        phases.push({ kind: 'cut', t0: t, t1: t + cutLen, id: at.get(stop), seg: 'cut' + visit });
+        t += cutLen; visit++;
+        zoom = Math.min(Z * 2.2, Z * (1 + 0.32 * visit));
+        // the typing picks up again just after the space
+        while (typed < N && /\s/.test(chars[typed])) typed++;
+      }
+    }
+    const lastZoom = zoom;
+    phases.push({ kind: 'type', t0: t, t1: t + 0.55, c0: N, c1: N, zoom: lastZoom, seg: 'type' + visit });
+    t += 0.55;
+    const PULL = 1.1;
+    phases.push({ kind: 'pull', t0: t, t1: t + PULL, zoom: lastZoom, seg: 'pull' });
+    t += PULL;
+    phases.push({ kind: 'end', t0: t, t1: t + hold, seg: 'end' });
+    t += hold;
+    const total = t;
+    const find = tt => phases.find(p => tt >= p.t0 && tt < p.t1) || phases[phases.length - 1];
+    const plan = {
+      el, total, phases,
+      phase(tt) {
+        const p = find(tt);
+        return Object.assign({}, p, p.kind === 'pull' ? { k: clamp((tt - p.t0) / (p.t1 - p.t0), 0, 1) } : {});
+      },
+      charsAt(tt) {
+        const p = find(tt);
+        if (p.kind !== 'type') return p.kind === 'cut' ? phases[phases.indexOf(p) - 1].c1 : N;
+        return Math.min(p.c1, p.c0 + Math.floor(Math.max(0, tt - p.t0) * cps + 1e-6));
+      },
+      // the same, without rounding down to whole letters (for the camera)
+      charsAtF(tt) {
+        const p = find(tt);
+        if (p.kind !== 'type') return p.kind === 'cut' ? phases[phases.indexOf(p) - 1].c1 : N;
+        return Math.min(p.c1, p.c0 + Math.max(0, tt - p.t0) * cps);
+      },
+      cutAt(tt) { const p = find(tt); return p.kind === 'cut' ? p.id : null; },
+    };
+    planCache.set(key, plan);
+    return plan;
+  };
+  // write the schedule back into the design: the video length, and each clip's slot (so a video clip starts at its cut)
+  R.applyTypePlan = function (doc) {
+    const P = R.typePlan(doc);
+    if (!P) return false;
+    let changed = false;
+    const d = Math.round(P.total * 10) / 10;
+    if (!doc.anim) doc.anim = { duration: d, fps: 30 };
+    if (doc.anim.duration !== d) { doc.anim.duration = d; changed = true; }
+    const slot = new Map(P.phases.filter(p => p.kind === 'cut').map(p => [p.id, p]));
+    for (const e of doc.elements || []) {
+      if (!e.cutin) continue;
+      const p = slot.get(e.id), want = p ? { start: Math.round(p.t0 * 1000) / 1000, end: Math.round(p.t1 * 1000) / 1000 } : null;
+      if (JSON.stringify(e.time || null) !== JSON.stringify(want)) { if (want) e.time = want; else delete e.time; changed = true; }
+    }
+    return changed;
+  };
+  function typePlanFor(doc, el) {
+    const P = doc && R.typePlan(doc);
+    return P && P.el && P.el.id === el.id ? P : null;
+  }
   // fill in each key from the one before it; x / y may be fractions of the canvas (≤ 1)
   function camKeys(c, W, H) {
     const out = [];
@@ -4062,6 +4183,20 @@
     const a = (el.rotation || 0) * Math.PI / 180;
     return { x: el.x + lx * Math.cos(a) - ly * Math.sin(a), y: el.y + lx * Math.sin(a) + ly * Math.cos(a) };
   };
+  // the caret after n characters (n may be fractional: it glides between the two letters around it)
+  R.caretAtChars = function (el, n) {
+    const chars = [...(el.text || '')], at = k => {
+      const kk = clamp(Math.floor(k), 0, chars.length);
+      const e = kk < chars.length ? Object.assign({}, el, { text: chars.slice(0, kk).join(''), autoWidth: false, width: el.width, _full: el.text }) : el;
+      const L = layoutText(e), T = typingBoxes(e, L);
+      return { x: T.caret.x, y: T.caret.base - L.cap * 0.5 };
+    };
+    const lo = at(n), f = n - Math.floor(n), hi = f > 0 ? at(n + 1) : lo;
+    // across a line break, jump rather than slide through the middle of the text
+    const p = Math.abs(hi.y - lo.y) > 1 ? (f < 0.5 ? lo : hi) : { x: lo.x + (hi.x - lo.x) * f, y: lo.y };
+    const a = (el.rotation || 0) * Math.PI / 180;
+    return { x: el.x + p.x * Math.cos(a) - p.y * Math.sin(a), y: el.y + p.x * Math.sin(a) + p.y * Math.cos(a) };
+  };
   function focusAt(doc, c, t) {
     const el = findEl(doc, c.target);
     if (!el) return null;
@@ -4083,7 +4218,7 @@
     const Z = Math.max(1, c.zoom || 2), s0 = c.start || 0, d = Math.max(0.05, c.dur || 1.5), rot = c.rotate || 0;
     const p = clamp((t - s0) / d, 0, 1);
     const mix = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k });
-    let f = C, z = 1, r = 0;
+    let f = C, z = 1, r = 0, seg;
     switch (c.move) {
       case 'pushin': { const k = eio(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = rot * k; break; }
       case 'pullback': { const k = 1 - Math.pow(1 - p, 2.6); f = mix(T0, C, k); z = Z + (1 - Z) * k; r = rot * (1 - k); break; }
@@ -4103,6 +4238,20 @@
         break;
       }
       case 'spiral': { const k = eio(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = (rot || 25) * (1 - k); break; }
+      case 'typecut': {
+        // type & cut: zoomed in on the caret while typing, the full frame during clips, a pull-back at the end
+        const P = R.typePlan(doc), el = P && P.el;
+        if (!P) break;
+        const ph = P.phase(t);
+        seg = ph.seg;
+        if (ph.kind === 'cut') { f = C; z = 1; break; }
+        // follow a continuously gliding caret, eased over the last ~0.3 s so the camera trails the typing smoothly
+        const caret = () => { let x = 0, y = 0, ws = 0; for (let k = 0; k < 8; k++) { const q = R.caretAtChars(el, P.charsAtF(Math.max(ph.t0, t - k * 0.04))), w = 8 - k; x += q.x * w; y += q.y * w; ws += w; } return { x: x / ws, y: y / ws }; };
+        if (ph.kind === 'type') { f = caret(); z = ph.zoom * (1 + 0.025 * (t - ph.t0)); r = rot; break; }
+        if (ph.kind === 'pull') { const k = eio(ph.k); f = mix(caret(), C, k); z = ph.zoom + (1 - ph.zoom) * k; r = rot * (1 - k); break; }
+        f = C; z = 1 + 0.012 * (t - ph.t0);
+        break;
+      }
       case 'keys': {
         // keyframed camera: { t, x, y, z, r, ease } — each key eases in from the one before ('expo' for a whip)
         const K = camKeys(c, W, H);
@@ -4140,7 +4289,7 @@
     z = Math.max(z, Math.cos(ar) + Math.sin(ar) * asp) * (z > 1.0001 || ar ? 1.004 : 1);
     const hw = W / 2 / z, hh = H / 2 / z;
     f = { x: clamp(f.x, hw, W - hw), y: clamp(f.y, hh, H - hh) };
-    return { fx: f.x, fy: f.y, z, r };
+    return { fx: f.x, fy: f.y, z, r, seg };
   }
   R.camAt = camAt;
   R.hasCamera = doc => !!(doc && doc.camera && doc.camera.move && doc.camera.move !== 'none');
@@ -4252,7 +4401,7 @@
     if (blur) {
       const sh = blur * 0.045;
       const prev = camAt(doc, Math.max(0, t - sh));
-      if (prev) {
+      if (prev && prev.seg === cam.seg) {
         const M = camMatrix(doc, cam), Mi = M.inverse();
         const S0 = new DOMMatrix().scale(sx, sy), S0i = S0.inverse();
         const rel = k => { const ck = camAt(doc, Math.max(0, t - sh * k)); return S0.multiply(camMatrix(doc, ck)).multiply(Mi).multiply(S0i); };

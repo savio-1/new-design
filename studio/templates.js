@@ -1400,6 +1400,38 @@
       }));
     })(),
 
+    // ── TYPING SCREEN: a question typed on a pale screen, the camera riding the caret, clips cutting in between words ──
+    ...(() => {
+      const CLIPS = [['film-tram', { grayscale: 100, contrast: 18, brightness: -4 }], ['ed-stool', { contrast: 8, saturation: -10, warmth: 6 }], ['film-kiss', { grayscale: 100, contrast: 14 }]];
+      function build(W, H) {
+        const fs = Math.round(Math.min(W * 0.034, H * 0.055) * 10) / 10;
+        return {
+          background: { color: '#c5d1b9', color2: '#93a191', gradient: 'radial' },
+          overlay: { grain: 12, vignette: 42 },
+          camera: { move: 'typecut', target: 'type', zoom: 2.6, cps: 10, cut: 1.0, hold: 1.8, blur: 0.25, shake: 0.12 },
+          elements: [
+            txt('WHAT IS YOUR INSPIRATION?', { key: 'type', cx: W / 2, cy: H / 2, width: W * 0.8, autoWidth: false, align: 'center', fontFamily: 'Arimo', fontWeight: 400, fontSize: fs, lineHeight: 1.25, letterSpacing: 0.01, fill: '#24343a',
+              typing: { caret: true, pin: true, blink: true, caretWidth: 0.07, marks: [] }, anim: { enter: 'typewriter', delay: 0 }, name: 'Typed text' }),
+            ...CLIPS.map(([a, f], i) => img(0, 0, W, H, { assetId: a, filters: f, cutin: true, name: 'Clip ' + (i + 1), placeholder: ['#2a2a2a', '#111111'] })),
+          ],
+        };
+      }
+      const buildAt = (W, H) => {
+        const d = Object.assign({ width: W, height: H, anim: { duration: 8, fps: 30 }, layout: { key: 'typescreen' } }, build(W, H));
+        d.elements.forEach(e => { e.layoutSlot = true; });
+        // clips need ids before the schedule can give them their slots
+        d.elements.forEach((e, i) => { if (!e.id) e.id = 'ts' + i + '_' + Math.random().toString(36).slice(2, 7); });
+        if (window.StudioRender) window.StudioRender.applyTypePlan(d);
+        return d;
+      };
+      (window.STUDIO_LAYOUTS = window.STUDIO_LAYOUTS || {}).typescreen = { name: 'Typing screen', build: (W, H) => buildAt(W, H) };
+      const SIZES = [['wide', 1920, 1080, 'Landscape 16:9'], ['story', 1080, 1920, 'Story 9:16'], ['portrait', 1080, 1350, 'Portrait 4:5'], ['square', 1080, 1080, 'Square 1:1']];
+      return SIZES.map(([k, W, H, label]) => ({
+        id: `mv-typescreen-${k}`, name: label, family: 'Typing screen', layout: 'typescreen', orientation: k, tags: ['Video', 'Text', 'Typing'], width: W, height: H, video: true,
+        build: () => buildAt(W, H),
+      }));
+    })(),
+
     // ── TEXT EFFECTS: thermal-camera glow and ink soaking into paper ──
     ...(() => {
       const T = (id, name, tags, build, video) => ({ id, name, tags, width: 1080, height: 1350, video: !!video, build });
@@ -2593,6 +2625,7 @@
     'Kinetic headline': ['kinetic-news', 'kinetic-reveal', 'kinetic-pop'],
     'Sticky notes': ['sticky-cut', 'sticky-stack', 'sticky-flip'],
     'Rolling numbers': ['roll-years', 'roll-countdown', 'roll-price'],
+    'Typing screen': [],
     'Smooth cam text': [],
     'Text effects': ['fx-thermal', 'fx-ink', 'fx-thermal-photo', 'fx-night', 'fx-ink-quote'],
     'Word by word': ['words-films', 'words-bold', 'words-soft'],

@@ -1734,6 +1734,33 @@
     renderInspector(); updateTimeline(); updateTop();
   }
   S.setCameraMove = setCameraMove;
+  // type & cut: the typing pace, how close the camera rides the caret, and the clips that cut in between words
+  function typeCutControls(c) {
+    const T = 'doc', clips = S.doc.elements.filter(e => e.cutin);
+    const P = R.typePlan(S.doc), used = P ? new Set(P.phases.filter(p => p.kind === 'cut').map(p => p.id)) : new Set();
+    const typed = S.doc.elements.find(e => e.id === c.target || e.key === c.target);
+    const words = typed ? String(typed.text || '').trim().split(/\s+/).filter(Boolean).length : 0;
+    const setLive = (path, v, live) => { S.change(T, path, v, live); if (!live) { S.syncTypeLength(); updateTimeline(); } };
+    const addClips = () => S.pickImages({ uploadOnly: true, onAdded: added => {
+      added.forEach(a => S.addElement({ type: 'image', x: 0, y: 0, width: S.doc.width, height: S.doc.height, assetId: a.id, cutin: true, layoutSlot: true, name: 'Clip ' + (S.doc.elements.filter(e => e.cutin).length + 1), video: a.video ? { trim: 0, speed: 1, loop: true } : undefined }, { center: false, select: false, commit: false }));
+      S.commit(); renderInspector(); updateTimeline();
+      R.preload(S.doc).then(() => renderInspector());
+    } });
+    const thumb = e => { const im = e.assetId && R.assetImage(e.assetId), cv = h('canvas.clip-thumb', { width: 64, height: 40 }); if (im) { const m = R.mediaSize(im), k = Math.max(64 / m.w, 40 / m.h); cv.getContext('2d').drawImage(im, (64 - m.w * k) / 2, (40 - m.h * k) / 2, m.w * k, m.h * k); } return cv; };
+    return [
+      h('p.hint', null, `Types the text word by word, cutting to a clip at ${Math.min(clips.length, Math.max(0, words - 1))} of the breaks between words and pulling back at the end. Change the words any time — the video's length follows (${S.doc.anim.duration}s now).`),
+      row('Typing speed', num(T, 'camera.cps', { min: 3, max: 30, slider: true, unit: '/s', def: 10, set: (v, l) => setLive('camera.cps', v, l) })),
+      row('Zoom', num(T, 'camera.zoom', { min: 1, max: 6, step: 0.05, slider: true, unit: '×', def: 2.6, set: (v, l) => setLive('camera.zoom', v, l) })),
+      row('Clip length', num(T, 'camera.cut', { min: 0.3, max: 4, step: 0.1, slider: true, unit: 's', def: 1, set: (v, l) => setLive('camera.cut', v, l) })),
+      row('End hold', num(T, 'camera.hold', { min: 0, max: 6, step: 0.1, slider: true, unit: 's', def: 1.8, set: (v, l) => setLive('camera.hold', v, l) })),
+      label('Clips between words'),
+      ...clips.map((e, i) => h('div.clip-row', null, thumb(e), h('span.clip-name', null, (e.name || 'Clip ' + (i + 1)) + (used.has(e.id) ? '' : ' · not used')),
+        h('button.icon-btn', { type: 'button', title: 'Replace with a photo or video', onclick: () => S.pickImages({ replaceId: e.id }) }, ic('bgimg')),
+        h('button.icon-btn', { type: 'button', title: 'Remove this clip', onclick: () => { S.select([e.id]); S.removeSelected(); S.commit(); S.select([]); renderInspector(); updateTimeline(); } }, ic('trash')))),
+      clips.length > Math.max(0, words - 1) ? h('p.hint', null, 'There are more clips than breaks between words, so the last ones wait until you add words.') : null,
+      full(h('button.btn', { type: 'button', onclick: addClips }, ic('plus'), 'Add photos or videos')),
+    ];
+  }
   function cameraSection() {
     const c = S.doc.camera;
     const moves = Object.entries(R.CAMERA_MOVES).filter(([k]) => k !== 'none' && (k !== 'keys' || (c && c.keys && c.keys.length)));
@@ -1745,13 +1772,14 @@
     return sec('Camera', [
       row('Move', selectCtl(T, 'camera.move', moves, { set: v => setCameraMove(v) })),
       c.move === 'keys' ? h('p.hint', null, 'This camera path came with the template: it glides, whips and pushes in between the words.') : null,
-      c.move !== 'keys' ? row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })) : null,
-      c.move !== 'keys' ? row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })) : null,
-      !['drift', 'jolt', 'keys'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
-      !['drift', 'jolt', 'follow', 'keys'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
+      ...(c.move === 'typecut' ? typeCutControls(c) : []),
+      !['keys', 'typecut'].includes(c.move) ? row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })) : null,
+      !['keys', 'typecut'].includes(c.move) ? row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })) : null,
+      !['drift', 'jolt', 'keys', 'typecut'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
+      !['drift', 'jolt', 'follow', 'keys', 'typecut'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
       c.move === 'jolt' ? row('Cut every', num(T, 'camera.cut', { min: 0.05, max: 2, step: 0.01, slider: true, unit: 's' })) : null,
       more('camera-more', [
-        c.move === 'keys' ? null : row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
+        ['keys', 'typecut'].includes(c.move) ? null : row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
         row('Handheld', num(T, 'camera.shake', { min: 0, max: 3, step: 0.05, slider: true, def: 0 })),
         row('Motion blur', num(T, 'camera.blur', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 0 })),
         c.move === 'jolt' ? row('Wander', num(T, 'camera.wander', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 1 })) : null,

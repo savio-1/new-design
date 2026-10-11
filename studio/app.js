@@ -436,7 +436,8 @@
       opacity: el.opacity ?? 1, visible: !el.hidden, draggable: !el.locked && !(cropState && cropState.id === el.id) && !(pathEdit && pathEdit.id === el.id) && !(spotEdit && spotEdit.id === el.id) && S.tool === 'select' && !playing,
       globalCompositeOperation: el.blend && el.blend !== 'normal' ? el.blend : 'source-over',
       // full-canvas overlays let clicks through to the photo or video underneath (pick them in Layers)
-      listening: el.type !== 'flashes',
+      // full-frame overlays and the clips that cut in between typed words never catch clicks meant for the layers under them
+      listening: el.type !== 'flashes' && !el.cutin,
     });
   }
   function rebuild() {
@@ -498,7 +499,13 @@
 
   const hist = { stack: [], idx: -1 };
   function snapshot() { return JSON.stringify(doc); }
+  // a type & cut video is exactly as long as its typing, clips and pull-back
+  function syncTypeLength() {
+    if (R.applyTypePlan(doc)) { for (const e of doc.elements) if (e.cutin) syncNode(e); emit('values', 'anim.duration'); }
+  }
+  S.syncTypeLength = syncTypeLength;
   S.commit = function () {
+    syncTypeLength();
     const s = snapshot();
     if (hist.stack[hist.idx] === s) return;
     hist.stack.length = hist.idx + 1;
