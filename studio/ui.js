@@ -1565,6 +1565,47 @@
     return addSec('Effects', items.filter(Boolean));
   }
 
+  // motion tracking: pin a layer to something in a video — it follows its move, size and turn
+  let trackJob = null;
+  async function runTrack(el, src) {
+    if (trackJob) return;
+    if (S.isPlaying && S.isPlaying()) S.pause();
+    S.seek(null); // the still frame is the reference the layer was placed on
+    const ctrl = new AbortController();
+    trackJob = { id: el.id, src, p: 0, ctrl };
+    renderInspector();
+    try {
+      const tr = await S.trackLayer(el, { src, signal: ctrl.signal, onProgress: p => { trackJob.p = p; const bar = $('.track-progress > div'); if (bar) bar.style.width = Math.round(p * 100) + '%'; } });
+      const cur = S.doc.elements.find(e => e.id === el.id);
+      if (cur) { S.changeEl(cur, e => { e.track = tr; }); S.commit(); }
+      toast('Pinned to the video — press play to see it follow');
+    } catch (err) {
+      if (err.name !== 'AbortError') { console.error(err); toast(err.message || 'Tracking failed'); }
+    }
+    trackJob = null;
+    renderInspector(); updateTimeline();
+  }
+  function trackControls(el, sources) {
+    const T = 'sel';
+    if (trackJob && trackJob.id === el.id) return [
+      h('p.hint', null, 'Following the spot through the video…'),
+      full(h('div.progress.track-progress', null, h('div', { style: { width: Math.round(trackJob.p * 100) + '%' } }))),
+      full(h('button.btn', { type: 'button', onclick: () => trackJob && trackJob.ctrl.abort() }, 'Cancel')),
+    ];
+    const tr = el.track || {}, src = tr.src || sources[0][0];
+    return [
+      h('p.hint', null, R.isTracked(el)
+        ? `Sticks to the spot under it in ${(sources.find(x => x[0] === src) || ['', 'the video'])[1].toLowerCase()}, following its move, size and turn. Moved it? Track again to pin it to the new spot.`
+        : 'Put the layer over the thing it should stick to, then track.'),
+      sources.length > 1 ? row('Video', selectCtl(T, 'track.src', sources, { get: () => src, set: v => runTrack(S.selEls()[0], v) })) : null,
+      toggle(T, 'track.scale', 'Follow size', { get: () => (S.selEls()[0].track || {}).scale !== false, set: v => S.change(T, 'track.scale', v) }),
+      toggle(T, 'track.rotate', 'Follow turn', { get: () => (S.selEls()[0].track || {}).rotate !== false, set: v => S.change(T, 'track.rotate', v) }),
+      toggle(T, 'track.blur', 'Motion blur on fast moves', { get: () => (S.selEls()[0].track || {}).blur !== false, set: v => S.change(T, 'track.blur', v) }),
+      full(h('div.btn-row', null,
+        h('button.btn.grow', { type: 'button', onclick: () => runTrack(S.selEls()[0], src) }, ic('target'), R.isTracked(el) ? 'Track again' : 'Track'),
+        h('button.btn.grow', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview'))),
+    ];
+  }
   function motionSection(el) {
     const T = 'sel';
     const an = el.anim || {};
@@ -1580,7 +1621,14 @@
     const marks = (el.typing && el.typing.marks) || [];
     const isMarked = w => marks.some(m => m.toLowerCase() === w.toLowerCase());
     const toggleMark = w => { const cur = (S.selEls()[0].typing.marks || []).slice(); const i = cur.findIndex(m => m.toLowerCase() === w.toLowerCase()); if (i >= 0) cur.splice(i, 1); else cur.push(w); S.change(T, 'typing.marks', cur); renderInspector(); };
+    const sources = S.trackSources().filter(([id]) => id !== el.id);
     return addSec('Motion', [
+      el.type !== 'camera' && !(el.type === 'image' && R.isVideoAsset(el.assetId)) ? {
+        label: 'Pin to video (tracking)', icon: 'target', on: R.isTracked(el) || (trackJob && trackJob.id === el.id), hidden: !sources.length,
+        add: () => runTrack(el, sources[0][0]),
+        remove: () => { if (trackJob && trackJob.id === el.id) trackJob.ctrl.abort(); S.change(T, 'track', null); renderInspector(); },
+        body: () => trackControls(el, sources),
+      } : null,
       el.type === 'text' ? {
         label: 'Typing', icon: 'type', on: !!el.typing,
         add: () => { S.change(T, 'typing', { caret: true, marks: [], style: 'select' }, true); if ((S.selEls()[0].anim || {}).enter !== 'typewriter') start('enter', 'typewriter'); else S.commit(); },

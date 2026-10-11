@@ -43,6 +43,7 @@ unless asked.
 | `filmphotos.js` | Film-style demo photos (`window.StudioFilm.IMG`), registered as `film-<key>` assets for the Film looks / Film camera templates. |
 | `portraits.js` | Editorial portraits (`window.StudioPortraits.IMG`), registered as `ed-<key>` assets for the Photo effects / Paper & ID templates. |
 | `bgremove.js` | Background removal and the "studio look" cut-out (onnxruntime-web + RMBG-1.4 from Hugging Face). |
+| `tracker.js` | Motion tracking: `S.trackLayer(el, { src })` follows a spot through a video and returns `el.track`; `S.trackSources()`. |
 | `video.js` | Video export: frame-by-frame render → WebCodecs → mp4-muxer / webm-muxer; MediaRecorder fallback. |
 | `studio.css` | All styling; colour tokens on `:root`, dark mode via `prefers-color-scheme`. |
 | `vendor/` | Konva, muxers, JSZip — inlined into the single-file build so it works offline. |
@@ -116,6 +117,14 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
   the bleed. ui.js `blurControls(t, base, { noun, onNone })` is shared by the photo Blur section and the Effects → Blur
   item; the spot editor (`spotBase` / `spotMap` in app.js) works on `filters` for photos and `tblur` for everything else.
   `blurSpots` mixes blurred × mask + sharp × (1 − mask) (`lighter`), so see-through layers don't show a sharp copy.
+- Motion tracking: `el.track = { src: 'bg' | video layer id, t0, dt, pts: [[u, v, s, r]…], ref, scale, rotate, blur }`, sampled
+  in the clip's own time. `R.trackXform` maps the sample at the current clip time (`R.videoTarget`) and at the reference
+  (the still frame the layer was placed on) through `R.videoSpaceMap` and returns a canvas matrix, which `drawElement`
+  prepends to the layer's own placement (+ motion blur from the speed). tracker.js: a private `<video>` played at ½ speed,
+  frames caught with `requestVideoFrameCallback` (seeking costs ~200 ms a frame); ~24 Shi–Tomasi points matched
+  coarse-to-fine (zero-mean SAD, sub-pixel parabola), a least-squares similarity from reference anchors to current
+  positions (no chaining → no scale creep), and a drift guard (`refine`) that re-aligns the reference look of the spot each
+  frame. Test against an exact path: render a pan / zoom / turn of a photo in Python (PIL affine), encode VP9, compare.
 - Screen close-up: `doc.screen = { on, pitch, grid, focus, dust }`. `renderDoc` renders the design once at screen resolution
   (`_panel`: no camera / finish), `drawScreen` draws it back nearest-neighbour under the camera, multiplies a sub-pixel mesh
   tile (`meshTile`, fades in once a screen pixel is ≥ ~2 px) and colour-dodges the whites back up, adds glass dust;

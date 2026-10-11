@@ -3451,7 +3451,7 @@
     if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
     return n * (p -= 2.625 / d) * p + 0.984375;
   };
-  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!(el.tfx && el.tfx.move && el.tfx.style && el.tfx.style !== 'none') || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
+  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!(el.track && el.track.pts && el.track.pts.length) || !!(el.tfx && el.tfx.move && el.tfx.style && el.tfx.style !== 'none') || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
   R.hasTiming = el => !!(el.time && ((el.time.start || 0) > 0 || el.time.end != null || (el.time.cycle && el.time.cycle.count > 1)));
   // cuts: a layer can be shown only for part of the video, or take turns with others
   R.visibleAt = function (el, t) {
@@ -3574,11 +3574,78 @@
     one._yShift = (el.height - layoutText(one).boxH) / 2;
     return one;
   }
+  /* ── motion tracking: a layer pinned to something in a video ──
+     el.track = { src: 'bg' | <video layer id>, t0, dt, pts: [[u, v, s, r], …], ref, scale, rotate } — the tracked spot in
+     the video's own picture (u, v as fractions), its size and turn relative to the reference frame, sampled every dt
+     seconds of the clip from t0. The layer sits where it was placed on the reference frame (the still the editor shows)
+     and follows the spot from there: moved, scaled and turned with it. */
+  // where a point of a video's picture lands on the canvas
+  R.videoSpaceMap = function (doc, src) {
+    const W = doc.width, H = doc.height;
+    if (src === 'bg') {
+      const bg = doc.background || {}, img = bg.assetId && assetImage(bg.assetId);
+      if (!img) return null;
+      const iw = iwOf(img), ih = ihOf(img), c = bg.crop || {};
+      const sc = (c.fit ? Math.min : Math.max)(W / iw, H / ih) * (c.zoom || 1), dw = iw * sc, dh = ih * sc;
+      const dx = (W - dw) * (c.x ?? 0.5), dy = (H - dh) * (c.y ?? 0.5), fx = u => bg.flipX ? 1 - u : u;
+      return { toCanvas: (u, v) => ({ x: dx + fx(u) * dw, y: dy + v * dh }), fromCanvas: (x, y) => ({ u: fx((x - dx) / dw), v: (y - dy) / dh }), unit: Math.max(dw, dh), rot: 0, vd: bg.video, start: 0, assetId: bg.assetId };
+    }
+    const el = (doc.elements || []).find(e => e.id === src);
+    if (!el || el.type !== 'image') return null;
+    const m = R.imageBoxMap(el);
+    if (!m) return null;
+    const a = (el.rotation || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    const toC = p => ({ x: el.x + p.x * ca - p.y * sa, y: el.y + p.x * sa + p.y * ca });
+    const fromC = (x, y) => { const dx = x - el.x, dy = y - el.y; return m.toImg(dx * ca + dy * sa, -dx * sa + dy * ca); };
+    return { toCanvas: (u, v) => toC(m.toBox(u, v)), fromCanvas: (x, y) => { const q = fromC(x, y); return { u: q.u, v: q.v }; }, unit: m.unit, rot: el.rotation || 0, vd: el.video, start: (el.time && el.time.start) || 0, assetId: el.assetId };
+  };
+  // the tracked spot at a moment of the clip, interpolated between samples
+  function trackSample(tr, m) {
+    const P = tr.pts, n = P.length;
+    if (!n) return null;
+    const f = clamp((m - tr.t0) / tr.dt, 0, n - 1), i = Math.floor(f), k = f - i, a = P[i], b = P[Math.min(n - 1, i + 1)];
+    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k];
+  }
+  // how a tracked layer is moved at time t: a canvas-space matrix, plus how fast it is moving (for motion blur)
+  R.trackXform = function (el, t, doc) {
+    const tr = el.track;
+    if (!tr || !tr.pts || !tr.pts.length || t == null || !doc) return null;
+    const map = R.videoSpaceMap(doc, tr.src);
+    if (!map) return null;
+    const e = assetVideo(map.assetId), v = e && e.ok ? e.v : null;
+    if (!v || !v.duration) return null;
+    const at = tt => { const m = R.videoTarget(map.vd, tt, v, map.start); return trackSample(tr, m); };
+    const now = at(t), ref = tr.ref || trackSample(tr, R.videoTarget(map.vd, null, v, map.start));
+    if (!now || !ref) return null;
+    const A = map.toCanvas(now[0], now[1]), A0 = map.toCanvas(ref[0], ref[1]);
+    const ds = tr.scale === false ? 1 : now[2] / (ref[2] || 1), dr = tr.rotate === false ? 0 : now[3] - ref[3];
+    const M = new DOMMatrix().translate(A.x, A.y).rotate(dr).scale(ds).translate(-A0.x, -A0.y);
+    // speed over the last 1/30 s, in canvas units, for motion blur on fast moves
+    const prev = at(Math.max(0, t - 1 / 30)), P0 = prev ? map.toCanvas(prev[0], prev[1]) : A;
+    return { M, vx: A.x - P0.x, vy: A.y - P0.y, scale: ds };
+  };
+  R.isTracked = el => !!(el.track && el.track.pts && el.track.pts.length);
+
   function drawElement(ctx, el, env = {}) {
     const t = 'time' in env ? env.time : R.playTime;
     if (t != null && !R.visibleAt(el, t)) return;
     // clips cut in between typed words: only on screen during their own slot (hidden while editing the still)
     if (el.cutin) { const P = R.typePlan(env.doc || R.animDoc); if (!P || t == null || P.cutAt(t) !== el.id) return; }
+    // pinned to a tracked spot in a video: move the whole layer with it (prepended to the layer's own placement)
+    let trackBlur = null;
+    if (t != null && el.track) {
+      const X = R.trackXform(el, t, env.doc || R.animDoc);
+      if (X) {
+        const cur = ctx.getTransform(), own = new DOMMatrix().translate(el.x, el.y).rotate(el.rotation || 0);
+        ctx.setTransform(cur.multiply(own.inverse()).multiply(X.M).multiply(own));
+        const sp = Math.hypot(X.vx, X.vy);
+        if (el.track.blur !== false && sp > 4) {
+          // undo the layer's own turn so the streak runs along the movement on the canvas
+          trackBlur = { motion: sp * 0.6, angle: Math.atan2(X.vy, X.vx) * 180 / Math.PI - (el.rotation || 0) };
+        }
+      }
+    }
+    if (trackBlur) el = Object.assign({}, el, { lblur: Object.assign({}, el.lblur || {}, { motion: ((el.lblur && el.lblur.motion) || 0) + trackBlur.motion, angle: trackBlur.angle }), track: null, _tracked: true });
     const pcs = R.seqPieces(el);
     if (t == null && pcs && pcs.length) { drawLayered(ctx, onePiece(el, pcs[0]), env); return; }
     if (t == null || !R.hasAnim(el)) { drawLayered(ctx, el, env); return; }
