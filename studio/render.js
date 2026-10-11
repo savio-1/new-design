@@ -3599,14 +3599,56 @@
     const fromC = (x, y) => { const dx = x - el.x, dy = y - el.y; return m.toImg(dx * ca + dy * sa, -dx * sa + dy * ca); };
     return { toCanvas: (u, v) => toC(m.toBox(u, v)), fromCanvas: (x, y) => { const q = fromC(x, y); return { u: q.u, v: q.v }; }, unit: m.unit, rot: el.rotation || 0, vd: el.video, start: (el.time && el.time.start) || 0, assetId: el.assetId };
   };
-  // the tracked spot at a moment of the clip, interpolated between samples
+  // jitter control: a zero-lag Gaussian over time (the whole path is known, so nothing trails behind). Position is only
+  // lightly smoothed so real camera shake is still followed; size and turn, which wobble more, get more.
+  const seriesCache = new WeakMap();
+  function trackSeries(tr) {
+    const k = tr.steady ?? 10, hit = seriesCache.get(tr);
+    if (hit && hit.k === k) return hit.pts;
+    const P = tr.pts, n = P.length, W = P[0].length;
+    const sig = c => tr.mode === 'plane' ? 0.4 + k / 100 * 1.6 : (c < 2 ? 0.3 + k / 100 * 1.2 : 0.8 + k / 100 * 5);
+    const out = P.map(r => r.slice());
+    for (let c = 0; c < W; c++) {
+      const sg = sig(c), R2 = Math.ceil(sg * 3);
+      if (sg < 0.35) continue;
+      const wts = []; for (let j = -R2; j <= R2; j++) wts.push(Math.exp(-(j * j) / (2 * sg * sg)));
+      for (let i = 0; i < n; i++) {
+        let s = 0, ws = 0;
+        for (let j = -R2; j <= R2; j++) { const q = i + j; if (q < 0 || q >= n || !P[q]) continue; s += P[q][c] * wts[j + R2]; ws += wts[j + R2]; }
+        if (ws) out[i][c] = s / ws;
+      }
+    }
+    seriesCache.set(tr, { k, pts: out });
+    return out;
+  }
+  // the tracked target at a moment of the clip, interpolated between samples
   function trackSample(tr, m) {
-    const P = tr.pts, n = P.length;
+    const P = trackSeries(tr), n = P.length;
     if (!n) return null;
     const f = clamp((m - tr.t0) / tr.dt, 0, n - 1), i = Math.floor(f), k = f - i, a = P[i], b = P[Math.min(n - 1, i + 1)];
-    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k];
+    return a.map((v, c) => v + (b[c] - v) * k);
   }
-  // how a tracked layer is moved at time t: a canvas-space matrix, plus how fast it is moving (for motion blur)
+  // 4-point perspective (homography) taking quad A to quad B, as a 3×3 row-major array
+  function quadH(A, B) {
+    const M = [], v = [];
+    for (let i = 0; i < 4; i++) {
+      const { x, y } = A[i], X = B[i].x, Y = B[i].y;
+      M.push([x, y, 1, 0, 0, 0, -x * X, -y * X]); v.push(X);
+      M.push([0, 0, 0, x, y, 1, -x * Y, -y * Y]); v.push(Y);
+    }
+    for (let i = 0; i < 8; i++) {
+      let p = i; for (let r = i + 1; r < 8; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r;
+      [M[i], M[p]] = [M[p], M[i]]; [v[i], v[p]] = [v[p], v[i]];
+      if (Math.abs(M[i][i]) < 1e-12) return null;
+      for (let r = i + 1; r < 8; r++) { const f = M[r][i] / M[i][i]; for (let c = i; c < 8; c++) M[r][c] -= f * M[i][c]; v[r] -= f * v[i]; }
+    }
+    const h = new Array(8);
+    for (let i = 7; i >= 0; i--) { let s2 = v[i]; for (let c = i + 1; c < 8; c++) s2 -= M[i][c] * h[c]; h[i] = s2 / M[i][i]; }
+    return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+  }
+  const hpt = (H, x, y) => { const w = H[6] * x + H[7] * y + H[8]; return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w }; };
+  R.hpt = hpt;
+  // how a tracked layer is moved at time t: a canvas-space matrix (or a perspective H for planes) and its speed
   R.trackXform = function (el, t, doc) {
     const tr = el.track;
     if (!tr || !tr.pts || !tr.pts.length || t == null || !doc) return null;
@@ -3614,9 +3656,18 @@
     if (!map) return null;
     const e = assetVideo(map.assetId), v = e && e.ok ? e.v : null;
     if (!v || !v.duration) return null;
-    const at = tt => { const m = R.videoTarget(map.vd, tt, v, map.start); return trackSample(tr, m); };
-    const now = at(t), ref = tr.ref || trackSample(tr, R.videoTarget(map.vd, null, v, map.start));
+    const at = tt => trackSample(tr, R.videoTarget(map.vd, tt, v, map.start));
+    // the reference is the still frame the layer was placed on, read from the same smoothed path
+    const now = at(t), ref = trackSample(tr, R.videoTarget(map.vd, null, v, map.start));
     if (!now || !ref) return null;
+    if (tr.mode === 'plane') {
+      const quad = q => [0, 1, 2, 3].map(i => map.toCanvas(q[i * 2], q[i * 2 + 1]));
+      const A = quad(ref), B = quad(now), H = quadH(A, B);
+      if (!H) return null;
+      const prev = at(Math.max(0, t - 1 / 30)), P0 = prev ? quad(prev) : B;
+      const cA = B.reduce((s2, q) => ({ x: s2.x + q.x / 4, y: s2.y + q.y / 4 }), { x: 0, y: 0 }), cP = P0.reduce((s2, q) => ({ x: s2.x + q.x / 4, y: s2.y + q.y / 4 }), { x: 0, y: 0 });
+      return { H, quad: B, vx: cA.x - cP.x, vy: cA.y - cP.y, scale: 1 };
+    }
     const A = map.toCanvas(now[0], now[1]), A0 = map.toCanvas(ref[0], ref[1]);
     const ds = tr.scale === false ? 1 : now[2] / (ref[2] || 1), dr = tr.rotate === false ? 0 : now[3] - ref[3];
     const M = new DOMMatrix().translate(A.x, A.y).rotate(dr).scale(ds).translate(-A0.x, -A0.y);
@@ -3624,6 +3675,61 @@
     const prev = at(Math.max(0, t - 1 / 30)), P0 = prev ? map.toCanvas(prev[0], prev[1]) : A;
     return { M, vx: A.x - P0.x, vy: A.y - P0.y, scale: ds };
   };
+  // the picked target's outline on the canvas at time t (null = as picked, on the still frame)
+  R.trackRegionAt = function (el, t, doc) {
+    const tr = el.track;
+    if (!tr || !tr.region) return null;
+    const map = R.videoSpaceMap(doc, tr.src);
+    if (!map) return null;
+    let pts = tr.region.map(([u, v]) => map.toCanvas(u, v));
+    const X = t != null ? R.trackXform(el, t, doc) : null;
+    if (X) pts = pts.map(p => X.H ? hpt(X.H, p.x, p.y) : X.M.transformPoint(new DOMPoint(p.x, p.y)));
+    return { mode: tr.pick || 'object', pts };
+  };
+  // draw a layer through a perspective: render it flat, then map it piece by piece (an affine per triangle)
+  let warpBuf = null;
+  function drawWarped(ctx, el, env, H) {
+    const cur = ctx.getTransform(), own = new DOMMatrix().translate(el.x, el.y).rotate(el.rotation || 0), C = cur.multiply(own.inverse());
+    const b = bleed(el), a = (el.rotation || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    const cs = [[-b, -b], [el.width + b, -b], [el.width + b, el.height + b], [-b, el.height + b]].map(([x, y]) => ({ x: el.x + x * ca - y * sa, y: el.y + x * sa + y * ca }));
+    const bx = Math.min(...cs.map(p => p.x)), by = Math.min(...cs.map(p => p.y)), bw = Math.max(...cs.map(p => p.x)) - bx, bh = Math.max(...cs.map(p => p.y)) - by;
+    const k = clamp(Math.hypot(C.a, C.b) * 1.2, 0.5, Math.min(3, 3000 / Math.max(bw, bh, 1)));
+    const W = Math.max(2, Math.ceil(bw * k)), Ht = Math.max(2, Math.ceil(bh * k));
+    if (!warpBuf || warpBuf.width < W || warpBuf.height < Ht) warpBuf = canvas(Math.max(W, warpBuf ? warpBuf.width : 0), Math.max(Ht, warpBuf ? warpBuf.height : 0));
+    const ox = warpBuf.getContext('2d');
+    ox.setTransform(1, 0, 0, 1, 0, 0); ox.clearRect(0, 0, warpBuf.width, warpBuf.height);
+    ox.setTransform(k, 0, 0, k, -bx * k, -by * k);
+    ox.translate(el.x, el.y); ox.rotate(a);
+    drawElement(ox, Object.assign({}, el, { track: null }), env);
+    // a grid over the flat layer, each cell drawn as two triangles with their own affine map
+    const N = 10, src = (i, j) => ({ x: bx + bw * i / N, y: by + bh * j / N });
+    const dst = (i, j) => { const p = src(i, j); return hpt(H, p.x, p.y); };
+    const tri = (s0, s1, s2, d0, d1, d2) => {
+      // affine taking buffer pixels of s* to canvas d*
+      const S0 = { x: (s0.x - bx) * k, y: (s0.y - by) * k }, S1 = { x: (s1.x - bx) * k, y: (s1.y - by) * k }, S2 = { x: (s2.x - bx) * k, y: (s2.y - by) * k };
+      const den = (S1.x - S0.x) * (S2.y - S0.y) - (S2.x - S0.x) * (S1.y - S0.y);
+      if (Math.abs(den) < 1e-9) return;
+      const ma = ((d1.x - d0.x) * (S2.y - S0.y) - (d2.x - d0.x) * (S1.y - S0.y)) / den, mc = ((d2.x - d0.x) * (S1.x - S0.x) - (d1.x - d0.x) * (S2.x - S0.x)) / den;
+      const mb = ((d1.y - d0.y) * (S2.y - S0.y) - (d2.y - d0.y) * (S1.y - S0.y)) / den, md = ((d2.y - d0.y) * (S1.x - S0.x) - (d1.y - d0.y) * (S2.x - S0.x)) / den;
+      const me = d0.x - ma * S0.x - mc * S0.y, mf = d0.y - mb * S0.x - md * S0.y;
+      // grow the clip a hair so neighbouring triangles meet without hairline gaps
+      const cx = (d0.x + d1.x + d2.x) / 3, cy = (d0.y + d1.y + d2.y) / 3, g = 0.6 / Math.max(0.2, Math.hypot(C.a, C.b));
+      const grow = p => { const dx = p.x - cx, dy = p.y - cy, L = Math.hypot(dx, dy) || 1; return { x: p.x + dx / L * g, y: p.y + dy / L * g }; };
+      const [e0, e1, e2] = [grow(d0), grow(d1), grow(d2)];
+      ctx.save();
+      ctx.setTransform(C);
+      ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(e1.x, e1.y); ctx.lineTo(e2.x, e2.y); ctx.closePath(); ctx.clip();
+      ctx.transform(ma, mb, mc, md, me, mf);
+      ctx.drawImage(warpBuf, 0, 0);
+      ctx.restore();
+    };
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const s00 = src(i, j), s10 = src(i + 1, j), s01 = src(i, j + 1), s11 = src(i + 1, j + 1);
+      const d00 = dst(i, j), d10 = dst(i + 1, j), d01 = dst(i, j + 1), d11 = dst(i + 1, j + 1);
+      tri(s00, s10, s11, d00, d10, d11);
+      tri(s00, s11, s01, d00, d11, d01);
+    }
+  }
   R.isTracked = el => !!(el.track && el.track.pts && el.track.pts.length);
 
   function drawElement(ctx, el, env = {}) {
@@ -3635,6 +3741,7 @@
     let trackBlur = null;
     if (t != null && el.track) {
       const X = R.trackXform(el, t, env.doc || R.animDoc);
+      if (X && X.H) { drawWarped(ctx, el, env, X.H); return; }
       if (X) {
         const cur = ctx.getTransform(), own = new DOMMatrix().translate(el.x, el.y).rotate(el.rotation || 0);
         ctx.setTransform(cur.multiply(own.inverse()).multiply(X.M).multiply(own));

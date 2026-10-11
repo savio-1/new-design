@@ -121,6 +121,7 @@
   let playing = false;
   let pathEdit = null;
   let spotEdit = null;
+  let trackPick = null; // picking what a layer should stick to in a video
   const elMap = new Map();
   S.view = { scale: 1, x: 0, y: 0, fit: true };
   S.settings = { grid: false, snapGrid: false, guides: true, gridSize: 40 };
@@ -860,7 +861,7 @@
       anchors = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     }
     if (anyLocked || cropState || S.tool === 'erase') anchors = [];
-    if (pathEdit || spotEdit) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
+    if (pathEdit || spotEdit || trackPick) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
     tr.setAttrs({
       enabledAnchors: anchors, keepRatio, rotateEnabled: !anyLocked && !cropState && S.tool !== 'erase',
       shouldOverdrawWholeArea: ns.length > 1, borderDash: anyLocked ? [4, 4] : null,
@@ -911,6 +912,7 @@
     // editing always happens on the still layout, not mid-animation
     if (R.playTime != null) S.stopPreview();
     const t = e.target;
+    if (trackPick) { if (!(t.getParent && t.getParent() === pickGroup && t.draggable())) pickDown(); return; }
     if (S.tool === 'erase') { eraseStart(evt, t); return; }
     if (spotEdit) {
       if (t.getParent && t.getParent() === spotGroup) return;
@@ -1578,6 +1580,149 @@
   }
   S.on('view', () => { if (spotEdit) buildSpotHandles(); });
   S.on('values', () => { if (spotEdit && !spotGroup.find('Circle').some(c => c.isDragging())) buildSpotHandles(); });
+
+  /* ───────────────────────── tracking: pick what a layer sticks to ───────────────────────── */
+
+  // modes: point (centre + edge of a circle), object (box: 4 corners), edge (2 ends), plane (4 free corners)
+  const pickGroup = new Konva.Group();
+  const outlineGroup = new Konva.Group({ listening: false });
+  uiLayer.add(outlineGroup, pickGroup);
+  const pickHit = new Konva.Rect({ x: 0, y: 0, fill: 'rgba(0,0,0,0.001)' });
+  const PICK_HINT = {
+    point: 'Click the spot it should stick to — drag to make the tracked area bigger. Esc when done.',
+    object: 'Click an object to find it, or drag a box around it. Esc when done.',
+    edge: 'Drag along the edge it should stick to. Esc when done.',
+    plane: 'Drag a box over the flat surface, then move its four corners onto the surface’s corners. Esc when done.',
+  };
+  const box4 = (a, b) => [{ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) }, { x: Math.max(a.x, b.x), y: Math.min(a.y, b.y) }, { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) }, { x: Math.min(a.x, b.x), y: Math.max(a.y, b.y) }];
+  function regionPolyline(mode, pts) {
+    if (!pts || !pts.length) return null;
+    if (mode === 'point') {
+      const c = pts[0], r = Math.hypot(pts[1].x - c.x, pts[1].y - c.y);
+      return { closed: true, pts: Array.from({ length: 40 }, (_, i) => ({ x: c.x + r * Math.cos(i / 40 * 2 * Math.PI), y: c.y + r * Math.sin(i / 40 * 2 * Math.PI) })) };
+    }
+    if (mode === 'edge') return { closed: false, pts };
+    return { closed: true, pts };
+  }
+  function drawPick() {
+    pickHit.remove(); // reused: keep it out of the clear-out
+    pickGroup.destroyChildren();
+    if (!trackPick) { uiLayer.batchDraw(); return; }
+    const s = S.view.scale;
+    pickHit.setAttrs({ width: doc.width, height: doc.height });
+    pickGroup.add(pickHit);
+    const P = trackPick.pts, line = regionPolyline(trackPick.mode, P);
+    if (line) {
+      const flat = line.pts.flatMap(p => [p.x, p.y]);
+      pickGroup.add(new Konva.Line({ points: flat, closed: line.closed, stroke: '#000', opacity: 0.35, strokeWidth: 4 / s, listening: false }));
+      pickGroup.add(new Konva.Line({ points: flat, closed: line.closed, stroke: '#ffffff', strokeWidth: 2 / s, dash: [7 / s, 5 / s], fill: line.closed ? 'rgba(91,76,245,0.12)' : null, listening: false }));
+      P.forEach((p, i) => {
+        const h = new Konva.Circle({ x: p.x, y: p.y, radius: 7 / s, fill: i === 0 || trackPick.mode !== 'point' ? '#5b4cf5' : '#ffffff', stroke: '#fff', strokeWidth: 2 / s, draggable: true, hitStrokeWidth: 12 / s });
+        h.on('dragmove', () => {
+          const q = { x: h.x(), y: h.y() }, m = trackPick.mode;
+          if (m === 'object') {
+            // keep the box square to the frame: the dragged corner moves, the opposite one stays
+            const o = P[(i + 2) % 4]; trackPick.pts = box4(o, q);
+          } else if (m === 'point' && i === 0) { const dx = q.x - P[0].x, dy = q.y - P[0].y; trackPick.pts = [q, { x: P[1].x + dx, y: P[1].y + dy }]; }
+          else { trackPick.pts = P.map((c, j) => j === i ? q : c); }
+          drawPickLines();
+        });
+        h.on('dragend', () => { savePick(); drawPick(); });
+        h.on('mouseenter', () => { area.style.cursor = 'move'; }); h.on('mouseleave', () => { area.style.cursor = 'crosshair'; });
+        pickGroup.add(h);
+      });
+    }
+    uiLayer.batchDraw();
+  }
+  // during a handle drag only the outline is redrawn (the handles keep their own drag)
+  function drawPickLines() {
+    const line = regionPolyline(trackPick.mode, trackPick.pts);
+    const lines = pickGroup.find('Line');
+    if (line && lines.length >= 2) { const flat = line.pts.flatMap(p => [p.x, p.y]); lines.forEach(l => l.points(flat)); }
+    uiLayer.batchDraw();
+  }
+  function savePick() {
+    const el = elMap.get(trackPick.id);
+    if (!el || !trackPick.pts) return;
+    el.trackPick = { mode: trackPick.mode, src: trackPick.src, pts: trackPick.pts.map(p => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })) };
+    S.commit(); emit('values', 'trackPick'); emit('trackpick', true);
+  }
+  function pickDown() {
+    const p0 = layer.getRelativePointerPosition();
+    trackPick.drag = { p0, p: p0 };
+    const move = () => {
+      const p = layer.getRelativePointerPosition(), m = trackPick.mode;
+      trackPick.drag.p = p;
+      if (Math.hypot(p.x - p0.x, p.y - p0.y) < 4 / S.view.scale) return;
+      trackPick.pts = m === 'point' ? [p0, p] : m === 'edge' ? [p0, p] : box4(p0, p);
+      drawPick();
+    };
+    const up = async () => {
+      stage.off('mousemove.pick touchmove.pick'); window.removeEventListener('mouseup', up); window.removeEventListener('touchend', up);
+      const d = trackPick && trackPick.drag;
+      if (!trackPick || !d) return;
+      trackPick.drag = null;
+      const dist = Math.hypot(d.p.x - p0.x, d.p.y - p0.y), m = trackPick.mode, u = Math.min(doc.width, doc.height);
+      if (dist < 4 / S.view.scale) {
+        // a click: sensible starting shapes, and for objects a look at the frame to find the object's outline
+        if (m === 'point') trackPick.pts = [p0, { x: p0.x + u * 0.05, y: p0.y }];
+        else if (m === 'plane') trackPick.pts = box4({ x: p0.x - u * 0.12, y: p0.y - u * 0.08 }, { x: p0.x + u * 0.12, y: p0.y + u * 0.08 });
+        else if (m === 'edge') { S.hint('Drag along the edge — from one end to the other.', 2500); return; }
+        else {
+          S.hint('Finding the object…', 1500);
+          const found = await S.detectObject(trackPick.src, p0.x, p0.y).catch(() => null);
+          if (!trackPick) return;
+          trackPick.pts = found || box4({ x: p0.x - u * 0.08, y: p0.y - u * 0.08 }, { x: p0.x + u * 0.08, y: p0.y + u * 0.08 });
+          if (!found) S.hint('Couldn’t find its outline — drag a box around it instead.', 3000);
+        }
+      }
+      savePick(); drawPick();
+    };
+    stage.on('mousemove.pick touchmove.pick', move);
+    window.addEventListener('mouseup', up); window.addEventListener('touchend', up);
+  }
+  S.startTrackPick = function (id, mode, src) {
+    const el = elMap.get(id);
+    if (!el) return;
+    if (textEdit) finishTextEdit();
+    endCrop(); endPathEdit(); endSpotEdit();
+    if (playing) S.pause();
+    S.seek(null);
+    const prev = el.trackPick && el.trackPick.mode === mode ? el.trackPick.pts.map(p => ({ x: p.x, y: p.y })) : null;
+    trackPick = { id, mode, src, pts: prev };
+    if (!sel.includes(id) || sel.length !== 1) { sel = [id]; emit('selection'); }
+    area.style.cursor = 'crosshair';
+    attachTransformer();
+    drawPick(); drawOutline();
+    S.hint(PICK_HINT[mode], 4500);
+    emit('trackpick', true);
+  };
+  S.endTrackPick = function () {
+    if (!trackPick) return;
+    trackPick = null;
+    area.style.cursor = '';
+    drawPick(); attachTransformer(); drawOutline();
+    emit('trackpick', false);
+  };
+  S.isPicking = () => !!trackPick;
+  // a thin outline of the target a selected pinned layer follows (at the current moment when playing or scrubbing)
+  function drawOutline() {
+    outlineGroup.destroyChildren();
+    const el = sel.length === 1 ? elMap.get(sel[0]) : null;
+    if (!trackPick && el && (el.track || el.trackPick)) {
+      const reg = el.track ? R.trackRegionAt(el, R.playTime, doc) : (() => { const l = regionPolyline(el.trackPick.mode, el.trackPick.pts); return l && { mode: el.trackPick.mode, pts: el.trackPick.mode === 'point' ? el.trackPick.pts : l.pts }; })();
+      if (reg) {
+        const line = regionPolyline(reg.mode, reg.pts) || { closed: true, pts: reg.pts };
+        const s = S.view.scale;
+        outlineGroup.add(new Konva.Line({ points: line.pts.flatMap(p => [p.x, p.y]), closed: line.closed, stroke: '#ffffff', strokeWidth: 1.5 / s, dash: [5 / s, 4 / s], opacity: 0.85, shadowColor: '#000', shadowBlur: 2, shadowOpacity: 0.5 }));
+      }
+    }
+    uiLayer.batchDraw();
+  }
+  S.on('selection', drawOutline);
+  S.on('values', () => { if (!trackPick) drawOutline(); });
+  S.on('time', drawOutline);
+  S.on('view', () => { if (trackPick) drawPick(); drawOutline(); });
 
   /* ───────────────────────── text editing ───────────────────────── */
 
@@ -2369,7 +2514,7 @@
     if (mod && k === 'e') { e.preventDefault(); emit('export'); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }
-    if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (spotEdit) endSpotEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
+    if (e.key === 'Escape') { if (playing) S.pause(); else if (trackPick) S.endTrackPick(); else if (pathEdit) endPathEdit(); else if (spotEdit) endSpotEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
     if (e.shiftKey && !e.altKey && (e.code === 'KeyH' || e.code === 'KeyV')) { if (sel.length) { e.preventDefault(); S.flip(e.code === 'KeyH' ? 'x' : 'y'); } return; }
     if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
     if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }

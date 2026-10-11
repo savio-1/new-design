@@ -11413,14 +11413,56 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const fromC = (x, y) => { const dx = x - el.x, dy = y - el.y; return m.toImg(dx * ca + dy * sa, -dx * sa + dy * ca); };
     return { toCanvas: (u, v) => toC(m.toBox(u, v)), fromCanvas: (x, y) => { const q = fromC(x, y); return { u: q.u, v: q.v }; }, unit: m.unit, rot: el.rotation || 0, vd: el.video, start: (el.time && el.time.start) || 0, assetId: el.assetId };
   };
-  // the tracked spot at a moment of the clip, interpolated between samples
+  // jitter control: a zero-lag Gaussian over time (the whole path is known, so nothing trails behind). Position is only
+  // lightly smoothed so real camera shake is still followed; size and turn, which wobble more, get more.
+  const seriesCache = new WeakMap();
+  function trackSeries(tr) {
+    const k = tr.steady ?? 10, hit = seriesCache.get(tr);
+    if (hit && hit.k === k) return hit.pts;
+    const P = tr.pts, n = P.length, W = P[0].length;
+    const sig = c => tr.mode === 'plane' ? 0.4 + k / 100 * 1.6 : (c < 2 ? 0.3 + k / 100 * 1.2 : 0.8 + k / 100 * 5);
+    const out = P.map(r => r.slice());
+    for (let c = 0; c < W; c++) {
+      const sg = sig(c), R2 = Math.ceil(sg * 3);
+      if (sg < 0.35) continue;
+      const wts = []; for (let j = -R2; j <= R2; j++) wts.push(Math.exp(-(j * j) / (2 * sg * sg)));
+      for (let i = 0; i < n; i++) {
+        let s = 0, ws = 0;
+        for (let j = -R2; j <= R2; j++) { const q = i + j; if (q < 0 || q >= n || !P[q]) continue; s += P[q][c] * wts[j + R2]; ws += wts[j + R2]; }
+        if (ws) out[i][c] = s / ws;
+      }
+    }
+    seriesCache.set(tr, { k, pts: out });
+    return out;
+  }
+  // the tracked target at a moment of the clip, interpolated between samples
   function trackSample(tr, m) {
-    const P = tr.pts, n = P.length;
+    const P = trackSeries(tr), n = P.length;
     if (!n) return null;
     const f = clamp((m - tr.t0) / tr.dt, 0, n - 1), i = Math.floor(f), k = f - i, a = P[i], b = P[Math.min(n - 1, i + 1)];
-    return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k];
+    return a.map((v, c) => v + (b[c] - v) * k);
   }
-  // how a tracked layer is moved at time t: a canvas-space matrix, plus how fast it is moving (for motion blur)
+  // 4-point perspective (homography) taking quad A to quad B, as a 3×3 row-major array
+  function quadH(A, B) {
+    const M = [], v = [];
+    for (let i = 0; i < 4; i++) {
+      const { x, y } = A[i], X = B[i].x, Y = B[i].y;
+      M.push([x, y, 1, 0, 0, 0, -x * X, -y * X]); v.push(X);
+      M.push([0, 0, 0, x, y, 1, -x * Y, -y * Y]); v.push(Y);
+    }
+    for (let i = 0; i < 8; i++) {
+      let p = i; for (let r = i + 1; r < 8; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r;
+      [M[i], M[p]] = [M[p], M[i]]; [v[i], v[p]] = [v[p], v[i]];
+      if (Math.abs(M[i][i]) < 1e-12) return null;
+      for (let r = i + 1; r < 8; r++) { const f = M[r][i] / M[i][i]; for (let c = i; c < 8; c++) M[r][c] -= f * M[i][c]; v[r] -= f * v[i]; }
+    }
+    const h = new Array(8);
+    for (let i = 7; i >= 0; i--) { let s2 = v[i]; for (let c = i + 1; c < 8; c++) s2 -= M[i][c] * h[c]; h[i] = s2 / M[i][i]; }
+    return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+  }
+  const hpt = (H, x, y) => { const w = H[6] * x + H[7] * y + H[8]; return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w }; };
+  R.hpt = hpt;
+  // how a tracked layer is moved at time t: a canvas-space matrix (or a perspective H for planes) and its speed
   R.trackXform = function (el, t, doc) {
     const tr = el.track;
     if (!tr || !tr.pts || !tr.pts.length || t == null || !doc) return null;
@@ -11428,9 +11470,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (!map) return null;
     const e = assetVideo(map.assetId), v = e && e.ok ? e.v : null;
     if (!v || !v.duration) return null;
-    const at = tt => { const m = R.videoTarget(map.vd, tt, v, map.start); return trackSample(tr, m); };
-    const now = at(t), ref = tr.ref || trackSample(tr, R.videoTarget(map.vd, null, v, map.start));
+    const at = tt => trackSample(tr, R.videoTarget(map.vd, tt, v, map.start));
+    // the reference is the still frame the layer was placed on, read from the same smoothed path
+    const now = at(t), ref = trackSample(tr, R.videoTarget(map.vd, null, v, map.start));
     if (!now || !ref) return null;
+    if (tr.mode === 'plane') {
+      const quad = q => [0, 1, 2, 3].map(i => map.toCanvas(q[i * 2], q[i * 2 + 1]));
+      const A = quad(ref), B = quad(now), H = quadH(A, B);
+      if (!H) return null;
+      const prev = at(Math.max(0, t - 1 / 30)), P0 = prev ? quad(prev) : B;
+      const cA = B.reduce((s2, q) => ({ x: s2.x + q.x / 4, y: s2.y + q.y / 4 }), { x: 0, y: 0 }), cP = P0.reduce((s2, q) => ({ x: s2.x + q.x / 4, y: s2.y + q.y / 4 }), { x: 0, y: 0 });
+      return { H, quad: B, vx: cA.x - cP.x, vy: cA.y - cP.y, scale: 1 };
+    }
     const A = map.toCanvas(now[0], now[1]), A0 = map.toCanvas(ref[0], ref[1]);
     const ds = tr.scale === false ? 1 : now[2] / (ref[2] || 1), dr = tr.rotate === false ? 0 : now[3] - ref[3];
     const M = new DOMMatrix().translate(A.x, A.y).rotate(dr).scale(ds).translate(-A0.x, -A0.y);
@@ -11438,6 +11489,61 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const prev = at(Math.max(0, t - 1 / 30)), P0 = prev ? map.toCanvas(prev[0], prev[1]) : A;
     return { M, vx: A.x - P0.x, vy: A.y - P0.y, scale: ds };
   };
+  // the picked target's outline on the canvas at time t (null = as picked, on the still frame)
+  R.trackRegionAt = function (el, t, doc) {
+    const tr = el.track;
+    if (!tr || !tr.region) return null;
+    const map = R.videoSpaceMap(doc, tr.src);
+    if (!map) return null;
+    let pts = tr.region.map(([u, v]) => map.toCanvas(u, v));
+    const X = t != null ? R.trackXform(el, t, doc) : null;
+    if (X) pts = pts.map(p => X.H ? hpt(X.H, p.x, p.y) : X.M.transformPoint(new DOMPoint(p.x, p.y)));
+    return { mode: tr.pick || 'object', pts };
+  };
+  // draw a layer through a perspective: render it flat, then map it piece by piece (an affine per triangle)
+  let warpBuf = null;
+  function drawWarped(ctx, el, env, H) {
+    const cur = ctx.getTransform(), own = new DOMMatrix().translate(el.x, el.y).rotate(el.rotation || 0), C = cur.multiply(own.inverse());
+    const b = bleed(el), a = (el.rotation || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+    const cs = [[-b, -b], [el.width + b, -b], [el.width + b, el.height + b], [-b, el.height + b]].map(([x, y]) => ({ x: el.x + x * ca - y * sa, y: el.y + x * sa + y * ca }));
+    const bx = Math.min(...cs.map(p => p.x)), by = Math.min(...cs.map(p => p.y)), bw = Math.max(...cs.map(p => p.x)) - bx, bh = Math.max(...cs.map(p => p.y)) - by;
+    const k = clamp(Math.hypot(C.a, C.b) * 1.2, 0.5, Math.min(3, 3000 / Math.max(bw, bh, 1)));
+    const W = Math.max(2, Math.ceil(bw * k)), Ht = Math.max(2, Math.ceil(bh * k));
+    if (!warpBuf || warpBuf.width < W || warpBuf.height < Ht) warpBuf = canvas(Math.max(W, warpBuf ? warpBuf.width : 0), Math.max(Ht, warpBuf ? warpBuf.height : 0));
+    const ox = warpBuf.getContext('2d');
+    ox.setTransform(1, 0, 0, 1, 0, 0); ox.clearRect(0, 0, warpBuf.width, warpBuf.height);
+    ox.setTransform(k, 0, 0, k, -bx * k, -by * k);
+    ox.translate(el.x, el.y); ox.rotate(a);
+    drawElement(ox, Object.assign({}, el, { track: null }), env);
+    // a grid over the flat layer, each cell drawn as two triangles with their own affine map
+    const N = 10, src = (i, j) => ({ x: bx + bw * i / N, y: by + bh * j / N });
+    const dst = (i, j) => { const p = src(i, j); return hpt(H, p.x, p.y); };
+    const tri = (s0, s1, s2, d0, d1, d2) => {
+      // affine taking buffer pixels of s* to canvas d*
+      const S0 = { x: (s0.x - bx) * k, y: (s0.y - by) * k }, S1 = { x: (s1.x - bx) * k, y: (s1.y - by) * k }, S2 = { x: (s2.x - bx) * k, y: (s2.y - by) * k };
+      const den = (S1.x - S0.x) * (S2.y - S0.y) - (S2.x - S0.x) * (S1.y - S0.y);
+      if (Math.abs(den) < 1e-9) return;
+      const ma = ((d1.x - d0.x) * (S2.y - S0.y) - (d2.x - d0.x) * (S1.y - S0.y)) / den, mc = ((d2.x - d0.x) * (S1.x - S0.x) - (d1.x - d0.x) * (S2.x - S0.x)) / den;
+      const mb = ((d1.y - d0.y) * (S2.y - S0.y) - (d2.y - d0.y) * (S1.y - S0.y)) / den, md = ((d2.y - d0.y) * (S1.x - S0.x) - (d1.y - d0.y) * (S2.x - S0.x)) / den;
+      const me = d0.x - ma * S0.x - mc * S0.y, mf = d0.y - mb * S0.x - md * S0.y;
+      // grow the clip a hair so neighbouring triangles meet without hairline gaps
+      const cx = (d0.x + d1.x + d2.x) / 3, cy = (d0.y + d1.y + d2.y) / 3, g = 0.6 / Math.max(0.2, Math.hypot(C.a, C.b));
+      const grow = p => { const dx = p.x - cx, dy = p.y - cy, L = Math.hypot(dx, dy) || 1; return { x: p.x + dx / L * g, y: p.y + dy / L * g }; };
+      const [e0, e1, e2] = [grow(d0), grow(d1), grow(d2)];
+      ctx.save();
+      ctx.setTransform(C);
+      ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(e1.x, e1.y); ctx.lineTo(e2.x, e2.y); ctx.closePath(); ctx.clip();
+      ctx.transform(ma, mb, mc, md, me, mf);
+      ctx.drawImage(warpBuf, 0, 0);
+      ctx.restore();
+    };
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const s00 = src(i, j), s10 = src(i + 1, j), s01 = src(i, j + 1), s11 = src(i + 1, j + 1);
+      const d00 = dst(i, j), d10 = dst(i + 1, j), d01 = dst(i, j + 1), d11 = dst(i + 1, j + 1);
+      tri(s00, s10, s11, d00, d10, d11);
+      tri(s00, s11, s01, d00, d11, d01);
+    }
+  }
   R.isTracked = el => !!(el.track && el.track.pts && el.track.pts.length);
 
   function drawElement(ctx, el, env = {}) {
@@ -11449,6 +11555,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     let trackBlur = null;
     if (t != null && el.track) {
       const X = R.trackXform(el, t, env.doc || R.animDoc);
+      if (X && X.H) { drawWarped(ctx, el, env, X.H); return; }
       if (X) {
         const cur = ctx.getTransform(), own = new DOMMatrix().translate(el.x, el.y).rotate(el.rotation || 0);
         ctx.setTransform(cur.multiply(own.inverse()).multiply(X.M).multiply(own));
@@ -16542,6 +16649,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   let playing = false;
   let pathEdit = null;
   let spotEdit = null;
+  let trackPick = null; // picking what a layer should stick to in a video
   const elMap = new Map();
   S.view = { scale: 1, x: 0, y: 0, fit: true };
   S.settings = { grid: false, snapGrid: false, guides: true, gridSize: 40 };
@@ -17281,7 +17389,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       anchors = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
     }
     if (anyLocked || cropState || S.tool === 'erase') anchors = [];
-    if (pathEdit || spotEdit) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
+    if (pathEdit || spotEdit || trackPick) { tr.nodes([]); tr.visible(false); uiLayer.batchDraw(); positionOverlays(); return; }
     tr.setAttrs({
       enabledAnchors: anchors, keepRatio, rotateEnabled: !anyLocked && !cropState && S.tool !== 'erase',
       shouldOverdrawWholeArea: ns.length > 1, borderDash: anyLocked ? [4, 4] : null,
@@ -17332,6 +17440,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     // editing always happens on the still layout, not mid-animation
     if (R.playTime != null) S.stopPreview();
     const t = e.target;
+    if (trackPick) { if (!(t.getParent && t.getParent() === pickGroup && t.draggable())) pickDown(); return; }
     if (S.tool === 'erase') { eraseStart(evt, t); return; }
     if (spotEdit) {
       if (t.getParent && t.getParent() === spotGroup) return;
@@ -17999,6 +18108,149 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   S.on('view', () => { if (spotEdit) buildSpotHandles(); });
   S.on('values', () => { if (spotEdit && !spotGroup.find('Circle').some(c => c.isDragging())) buildSpotHandles(); });
+
+  /* ───────────────────────── tracking: pick what a layer sticks to ───────────────────────── */
+
+  // modes: point (centre + edge of a circle), object (box: 4 corners), edge (2 ends), plane (4 free corners)
+  const pickGroup = new Konva.Group();
+  const outlineGroup = new Konva.Group({ listening: false });
+  uiLayer.add(outlineGroup, pickGroup);
+  const pickHit = new Konva.Rect({ x: 0, y: 0, fill: 'rgba(0,0,0,0.001)' });
+  const PICK_HINT = {
+    point: 'Click the spot it should stick to — drag to make the tracked area bigger. Esc when done.',
+    object: 'Click an object to find it, or drag a box around it. Esc when done.',
+    edge: 'Drag along the edge it should stick to. Esc when done.',
+    plane: 'Drag a box over the flat surface, then move its four corners onto the surface’s corners. Esc when done.',
+  };
+  const box4 = (a, b) => [{ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y) }, { x: Math.max(a.x, b.x), y: Math.min(a.y, b.y) }, { x: Math.max(a.x, b.x), y: Math.max(a.y, b.y) }, { x: Math.min(a.x, b.x), y: Math.max(a.y, b.y) }];
+  function regionPolyline(mode, pts) {
+    if (!pts || !pts.length) return null;
+    if (mode === 'point') {
+      const c = pts[0], r = Math.hypot(pts[1].x - c.x, pts[1].y - c.y);
+      return { closed: true, pts: Array.from({ length: 40 }, (_, i) => ({ x: c.x + r * Math.cos(i / 40 * 2 * Math.PI), y: c.y + r * Math.sin(i / 40 * 2 * Math.PI) })) };
+    }
+    if (mode === 'edge') return { closed: false, pts };
+    return { closed: true, pts };
+  }
+  function drawPick() {
+    pickHit.remove(); // reused: keep it out of the clear-out
+    pickGroup.destroyChildren();
+    if (!trackPick) { uiLayer.batchDraw(); return; }
+    const s = S.view.scale;
+    pickHit.setAttrs({ width: doc.width, height: doc.height });
+    pickGroup.add(pickHit);
+    const P = trackPick.pts, line = regionPolyline(trackPick.mode, P);
+    if (line) {
+      const flat = line.pts.flatMap(p => [p.x, p.y]);
+      pickGroup.add(new Konva.Line({ points: flat, closed: line.closed, stroke: '#000', opacity: 0.35, strokeWidth: 4 / s, listening: false }));
+      pickGroup.add(new Konva.Line({ points: flat, closed: line.closed, stroke: '#ffffff', strokeWidth: 2 / s, dash: [7 / s, 5 / s], fill: line.closed ? 'rgba(91,76,245,0.12)' : null, listening: false }));
+      P.forEach((p, i) => {
+        const h = new Konva.Circle({ x: p.x, y: p.y, radius: 7 / s, fill: i === 0 || trackPick.mode !== 'point' ? '#5b4cf5' : '#ffffff', stroke: '#fff', strokeWidth: 2 / s, draggable: true, hitStrokeWidth: 12 / s });
+        h.on('dragmove', () => {
+          const q = { x: h.x(), y: h.y() }, m = trackPick.mode;
+          if (m === 'object') {
+            // keep the box square to the frame: the dragged corner moves, the opposite one stays
+            const o = P[(i + 2) % 4]; trackPick.pts = box4(o, q);
+          } else if (m === 'point' && i === 0) { const dx = q.x - P[0].x, dy = q.y - P[0].y; trackPick.pts = [q, { x: P[1].x + dx, y: P[1].y + dy }]; }
+          else { trackPick.pts = P.map((c, j) => j === i ? q : c); }
+          drawPickLines();
+        });
+        h.on('dragend', () => { savePick(); drawPick(); });
+        h.on('mouseenter', () => { area.style.cursor = 'move'; }); h.on('mouseleave', () => { area.style.cursor = 'crosshair'; });
+        pickGroup.add(h);
+      });
+    }
+    uiLayer.batchDraw();
+  }
+  // during a handle drag only the outline is redrawn (the handles keep their own drag)
+  function drawPickLines() {
+    const line = regionPolyline(trackPick.mode, trackPick.pts);
+    const lines = pickGroup.find('Line');
+    if (line && lines.length >= 2) { const flat = line.pts.flatMap(p => [p.x, p.y]); lines.forEach(l => l.points(flat)); }
+    uiLayer.batchDraw();
+  }
+  function savePick() {
+    const el = elMap.get(trackPick.id);
+    if (!el || !trackPick.pts) return;
+    el.trackPick = { mode: trackPick.mode, src: trackPick.src, pts: trackPick.pts.map(p => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 })) };
+    S.commit(); emit('values', 'trackPick'); emit('trackpick', true);
+  }
+  function pickDown() {
+    const p0 = layer.getRelativePointerPosition();
+    trackPick.drag = { p0, p: p0 };
+    const move = () => {
+      const p = layer.getRelativePointerPosition(), m = trackPick.mode;
+      trackPick.drag.p = p;
+      if (Math.hypot(p.x - p0.x, p.y - p0.y) < 4 / S.view.scale) return;
+      trackPick.pts = m === 'point' ? [p0, p] : m === 'edge' ? [p0, p] : box4(p0, p);
+      drawPick();
+    };
+    const up = async () => {
+      stage.off('mousemove.pick touchmove.pick'); window.removeEventListener('mouseup', up); window.removeEventListener('touchend', up);
+      const d = trackPick && trackPick.drag;
+      if (!trackPick || !d) return;
+      trackPick.drag = null;
+      const dist = Math.hypot(d.p.x - p0.x, d.p.y - p0.y), m = trackPick.mode, u = Math.min(doc.width, doc.height);
+      if (dist < 4 / S.view.scale) {
+        // a click: sensible starting shapes, and for objects a look at the frame to find the object's outline
+        if (m === 'point') trackPick.pts = [p0, { x: p0.x + u * 0.05, y: p0.y }];
+        else if (m === 'plane') trackPick.pts = box4({ x: p0.x - u * 0.12, y: p0.y - u * 0.08 }, { x: p0.x + u * 0.12, y: p0.y + u * 0.08 });
+        else if (m === 'edge') { S.hint('Drag along the edge — from one end to the other.', 2500); return; }
+        else {
+          S.hint('Finding the object…', 1500);
+          const found = await S.detectObject(trackPick.src, p0.x, p0.y).catch(() => null);
+          if (!trackPick) return;
+          trackPick.pts = found || box4({ x: p0.x - u * 0.08, y: p0.y - u * 0.08 }, { x: p0.x + u * 0.08, y: p0.y + u * 0.08 });
+          if (!found) S.hint('Couldn’t find its outline — drag a box around it instead.', 3000);
+        }
+      }
+      savePick(); drawPick();
+    };
+    stage.on('mousemove.pick touchmove.pick', move);
+    window.addEventListener('mouseup', up); window.addEventListener('touchend', up);
+  }
+  S.startTrackPick = function (id, mode, src) {
+    const el = elMap.get(id);
+    if (!el) return;
+    if (textEdit) finishTextEdit();
+    endCrop(); endPathEdit(); endSpotEdit();
+    if (playing) S.pause();
+    S.seek(null);
+    const prev = el.trackPick && el.trackPick.mode === mode ? el.trackPick.pts.map(p => ({ x: p.x, y: p.y })) : null;
+    trackPick = { id, mode, src, pts: prev };
+    if (!sel.includes(id) || sel.length !== 1) { sel = [id]; emit('selection'); }
+    area.style.cursor = 'crosshair';
+    attachTransformer();
+    drawPick(); drawOutline();
+    S.hint(PICK_HINT[mode], 4500);
+    emit('trackpick', true);
+  };
+  S.endTrackPick = function () {
+    if (!trackPick) return;
+    trackPick = null;
+    area.style.cursor = '';
+    drawPick(); attachTransformer(); drawOutline();
+    emit('trackpick', false);
+  };
+  S.isPicking = () => !!trackPick;
+  // a thin outline of the target a selected pinned layer follows (at the current moment when playing or scrubbing)
+  function drawOutline() {
+    outlineGroup.destroyChildren();
+    const el = sel.length === 1 ? elMap.get(sel[0]) : null;
+    if (!trackPick && el && (el.track || el.trackPick)) {
+      const reg = el.track ? R.trackRegionAt(el, R.playTime, doc) : (() => { const l = regionPolyline(el.trackPick.mode, el.trackPick.pts); return l && { mode: el.trackPick.mode, pts: el.trackPick.mode === 'point' ? el.trackPick.pts : l.pts }; })();
+      if (reg) {
+        const line = regionPolyline(reg.mode, reg.pts) || { closed: true, pts: reg.pts };
+        const s = S.view.scale;
+        outlineGroup.add(new Konva.Line({ points: line.pts.flatMap(p => [p.x, p.y]), closed: line.closed, stroke: '#ffffff', strokeWidth: 1.5 / s, dash: [5 / s, 4 / s], opacity: 0.85, shadowColor: '#000', shadowBlur: 2, shadowOpacity: 0.5 }));
+      }
+    }
+    uiLayer.batchDraw();
+  }
+  S.on('selection', drawOutline);
+  S.on('values', () => { if (!trackPick) drawOutline(); });
+  S.on('time', drawOutline);
+  S.on('view', () => { if (trackPick) drawPick(); drawOutline(); });
 
   /* ───────────────────────── text editing ───────────────────────── */
 
@@ -18790,7 +19042,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (mod && k === 'e') { e.preventDefault(); emit('export'); return; }
     if (mod) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { if (sel.length) { e.preventDefault(); S.removeSelected(); } return; }
-    if (e.key === 'Escape') { if (playing) S.pause(); else if (pathEdit) endPathEdit(); else if (spotEdit) endSpotEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
+    if (e.key === 'Escape') { if (playing) S.pause(); else if (trackPick) S.endTrackPick(); else if (pathEdit) endPathEdit(); else if (spotEdit) endSpotEdit(); else if (S.tool !== 'select') S.setTool('select'); else if (cropState) endCrop(); else S.select([]); return; }
     if (e.shiftKey && !e.altKey && (e.code === 'KeyH' || e.code === 'KeyV')) { if (sel.length) { e.preventDefault(); S.flip(e.code === 'KeyH' ? 'x' : 'y'); } return; }
     if (k === 'e') { S.setTool(S.tool === 'erase' ? 'select' : 'erase'); return; }
     if (k === 'v' && S.tool !== 'select') { S.setTool('select'); return; }
@@ -19625,11 +19877,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return { x: fx + sx, y: fy + sy, err: fb / T.length, energy: T.energy };
   }
   // corners worth following near (cx, cy): strong texture in both directions (Shi–Tomasi), spread out
-  function features(f, cx, cy, rad, want, keep) {
-    const cand = [], step = 3, w = 4;
+  // `inside` (optional) limits the search to the picked region; otherwise a circle of radius rad
+  function features(f, cx, cy, rad, want, keep, inside) {
+    const cand = [], step = rad > 60 ? 4 : 3, w = 4;
     for (let y = Math.max(w + 1, cy - rad); y < Math.min(f.h - w - 1, cy + rad); y += step) {
       for (let x = Math.max(w + 1, cx - rad); x < Math.min(f.w - w - 1, cx + rad); x += step) {
-        if (Math.hypot(x - cx, y - cy) > rad) continue;
+        if (inside ? !inside(x, y) : Math.hypot(x - cx, y - cy) > rad) continue;
         let gxx = 0, gyy = 0, gxy = 0;
         for (let dy = -w; dy <= w; dy++) for (let dx = -w; dx <= w; dx++) {
           const ix = (px(f, x + dx + 1, y + dy) - px(f, x + dx - 1, y + dy)) / 2, iy = (px(f, x + dx, y + dy + 1) - px(f, x + dx, y + dy - 1)) / 2;
@@ -19660,7 +19913,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   // one step: follow the points from frame a to b, then fit the reference → now transform to all of them (nothing is
   // chained from step to step, so scale and turn don't creep)
-  function step(a, b, st, r) {
+  function step(a, b, st, r, ref) {
     const moved = [];
     for (const p of st.pts) {
       const g = { x: p.x + p.vx, y: p.y + p.vy };
@@ -19677,6 +19930,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (next.length < 3 || next.length === good.length) break;
       good = next; F = fit(good);
     }
+    // drift guard, point by point: each point is pulled back onto how it looked on the reference frame (seen through
+    // the current fit), so small slips don't add up into a slow turn or slide
+    if (ref) {
+      const Hs = [F.c, -F.s, F.qx - F.c * F.ax + F.s * F.ay, F.s, F.c, F.qy - F.s * F.ax - F.c * F.ay, 0, 0, 1];
+      good = good.map(m => { const q = snapToRef(ref, b, { ax: m.ax, ay: m.ay, x: m.qx, y: m.qy }, Hs, r); return Object.assign({}, m, { qx: q.x, qy: q.y }); });
+      F = fit(good);
+    }
     st.T = F;
     st.c = F.apply(st.c0.x, st.c0.y);
     st.s = Math.hypot(F.c, F.s); st.r = Math.atan2(F.s, F.c) * 180 / Math.PI;
@@ -19685,15 +19945,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   // drift guard: compare how the spot looked on the reference frame (warped by the current estimate) with this frame and
   // nudge the move / scale / turn to where they line up best. Everything stays tied to the original look of the spot.
-  function refTemplate(f, c0, rad) {
-    const N = 21, R = clamp(rad, 14, 56), pts = [], vals = [];
+  // the reference look of the target, sampled on a grid over its region (rx × ry around c0, only inside the region)
+  function refTemplate(f, c0, rx, ry, inside) {
+    const N = 23, RX = clamp(rx, 12, 90), RY = clamp(ry, 12, 90), pts = [], vals = [];
     let sum = 0;
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const dx = (i / (N - 1) * 2 - 1) * R, dy = (j / (N - 1) * 2 - 1) * R, v = bil(f, c0.x + dx, c0.y + dy);
+      const dx = (i / (N - 1) * 2 - 1) * RX, dy = (j / (N - 1) * 2 - 1) * RY;
+      if (inside && !inside(c0.x + dx, c0.y + dy)) continue;
+      const v = bil(f, c0.x + dx, c0.y + dy);
       pts.push(dx, dy); vals.push(v); sum += v;
     }
+    if (vals.length < 30) return null;
     const m = sum / vals.length;
-    return { pts, vals: vals.map(v => v - m), R };
+    return { pts, vals: vals.map(v => v - m) };
   }
   function refine(cur, st) {
     const RT = st.ref;
@@ -19739,44 +20003,233 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return list;
   }
 
-  // track the layer el against a video ('bg' or a video layer id); returns el.track
-  S.trackLayer = async function (el, { src, onProgress = () => {}, signal } = {}) {
-    const doc = S.doc, map = R.videoSpaceMap(doc, src);
-    if (!map) throw new Error('No video to track');
+  /* ── plane: perspective (homography) ── */
+  function solve(A, b) { // Gaussian elimination with partial pivoting
+    const n = b.length;
+    for (let i = 0; i < n; i++) {
+      let p = i;
+      for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r;
+      [A[i], A[p]] = [A[p], A[i]]; [b[i], b[p]] = [b[p], b[i]];
+      if (Math.abs(A[i][i]) < 1e-12) return null;
+      for (let r = i + 1; r < n; r++) { const f = A[r][i] / A[i][i]; for (let c = i; c < n; c++) A[r][c] -= f * A[i][c]; b[r] -= f * b[i]; }
+    }
+    const x = new Array(n);
+    for (let i = n - 1; i >= 0; i--) { let s = b[i]; for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c]; x[i] = s / A[i][i]; }
+    return x;
+  }
+  // least-squares homography src → dst (normalised DLT, h33 = 1)
+  function homography(src, dst) {
+    const norm = P => {
+      let cx = 0, cy = 0; for (const p of P) { cx += p.x; cy += p.y; } cx /= P.length; cy /= P.length;
+      let d = 0; for (const p of P) d += Math.hypot(p.x - cx, p.y - cy); d = d / P.length || 1;
+      const k = Math.SQRT2 / d; return { cx, cy, k, P: P.map(p => ({ x: (p.x - cx) * k, y: (p.y - cy) * k })) };
+    };
+    const S1 = norm(src), D1 = norm(dst), M = Array.from({ length: 8 }, () => new Array(8).fill(0)), v = new Array(8).fill(0);
+    for (let i = 0; i < src.length; i++) {
+      const { x, y } = S1.P[i], X = D1.P[i].x, Y = D1.P[i].y;
+      for (const [row, rhs] of [[[x, y, 1, 0, 0, 0, -x * X, -y * X], X], [[0, 0, 0, x, y, 1, -x * Y, -y * Y], Y]]) {
+        for (let r = 0; r < 8; r++) { v[r] += row[r] * rhs; for (let c = 0; c < 8; c++) M[r][c] += row[r] * row[c]; }
+      }
+    }
+    const h = solve(M, v);
+    if (!h) return null;
+    // undo the normalisation: H = Td⁻¹ · Hn · Ts
+    const Hn = [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+    const Ts = [S1.k, 0, -S1.k * S1.cx, 0, S1.k, -S1.k * S1.cy, 0, 0, 1];
+    const Tdi = [1 / D1.k, 0, D1.cx, 0, 1 / D1.k, D1.cy, 0, 0, 1];
+    const H = mul3(Tdi, mul3(Hn, Ts));
+    return H.map(x => x / H[8]);
+  }
+  function mul3(a, b) { const o = new Array(9); for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) o[r * 3 + c] = a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]; return o; }
+  function inv3(m) {
+    const [a, b, c, d, e, f, g, h, i] = m, A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
+    if (Math.abs(det) < 1e-12) return null;
+    return [A / det, -(b * i - c * h) / det, (b * f - c * e) / det, B / det, (a * i - c * g) / det, -(a * f - c * d) / det, C / det, -(a * h - b * g) / det, (a * e - b * d) / det];
+  }
+  const hp = (H, x, y) => { const w = H[6] * x + H[7] * y + H[8]; return { x: (H[0] * x + H[1] * y + H[2]) / w, y: (H[3] * x + H[4] * y + H[5]) / w }; };
+  // a point drifts a little each frame; pull it back onto how it looked on the reference frame (warped by the local
+  // perspective at that spot) with a small search around where it is now
+  function snapToRef(ref, cur, p, H, r) {
+    const a0 = { x: p.ax, y: p.ay }, e = 0.5;
+    const o = hp(H, a0.x, a0.y), ux = hp(H, a0.x + e, a0.y), uy = hp(H, a0.x, a0.y + e);
+    // local affine (reference → current) and its inverse
+    const j00 = (ux.x - o.x) / e, j10 = (ux.y - o.y) / e, j01 = (uy.x - o.x) / e, j11 = (uy.y - o.y) / e, det = j00 * j11 - j01 * j10;
+    if (Math.abs(det) < 1e-6) return p;
+    const i00 = j11 / det, i01 = -j01 / det, i10 = -j10 / det, i11 = j00 / det;
+    const n = (2 * r + 1) * (2 * r + 1), T = new Float32Array(n);
+    let k = 0, sum = 0;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) { const v = bil(ref, a0.x + i00 * dx + i01 * dy, a0.y + i10 * dx + i11 * dy); T[k++] = v; sum += v; }
+    const m = sum / n; for (let i = 0; i < n; i++) T[i] -= m;
+    let bx = Math.round(p.x), by = Math.round(p.y), best = Infinity;
+    const grid = new Map();
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const s = sadAt(cur, T, r, Math.round(p.x) + dx, Math.round(p.y) + dy, Infinity);
+      grid.set(dx + ',' + dy, s);
+      if (s < best) { best = s; bx = Math.round(p.x) + dx; by = Math.round(p.y) + dy; }
+    }
+    const at = (x, y) => grid.get((x - Math.round(p.x)) + ',' + (y - Math.round(p.y))) ?? sadAt(cur, T, r, x, y, Infinity);
+    const par = (l, c, rr) => { const d = l - 2 * c + rr; return d > 1e-6 ? clamp(0.5 * (l - rr) / d, -0.5, 0.5) : 0; };
+    const sx = par(at(bx - 1, by), best, at(bx + 1, by)), sy = par(at(bx, by - 1), best, at(bx, by + 1));
+    if (best / n > 18) return p;
+    return Object.assign({}, p, { x: bx + sx, y: by + sy });
+  }
+  function stepPlane(a, b, ref, st, r) {
+    const moved = [];
+    for (const p of st.pts) {
+      const q = match(a, b, p, { x: p.x + p.vx, y: p.y + p.vy }, r);
+      if (q.err > Math.max(6, q.energy * 0.85) || q.x < 2 || q.y < 2 || q.x > b.w - 3 || q.y > b.h - 3) continue;
+      moved.push({ ax: p.ax, ay: p.ay, x: q.x, y: q.y, vx: q.x - p.x, vy: q.y - p.y });
+    }
+    if (moved.length < 5) { st.lost++; return; }
+    const fitH = list => homography(list.map(m => ({ x: m.ax, y: m.ay })), list.map(m => ({ x: m.x, y: m.y })));
+    let good = moved, H = fitH(good);
+    if (!H) { st.lost++; return; }
+    for (let it = 0; it < 3; it++) {
+      const res = good.map(m => { const e = hp(H, m.ax, m.ay); return Math.hypot(e.x - m.x, e.y - m.y); });
+      const lim = Math.max(1.2, median(res) * 2.5), next = good.filter((m, i) => res[i] <= lim);
+      if (next.length < 5 || next.length === good.length) break;
+      good = next; H = fitH(good) || H;
+    }
+    // drift guard, point by point, then the final fit
+    good = good.map(m => snapToRef(ref, b, m, H, r));
+    H = fitH(good) || H;
+    st.H = H; st.lost = 0;
+    st.pts = good;
+  }
+
+  // the picked region in analysis pixels: polygon, centre, half-size and an inside test
+  function regionOf(region, map, cv) {
+    const toA = p => { const q = map.fromCanvas(p.x, p.y); return { x: q.u * cv.width, y: q.v * cv.height }; };
+    const P = region.pts.map(toA);
+    let poly;
+    if (region.mode === 'point') {
+      const c = P[0], rr = Math.max(10, Math.hypot(P[1].x - c.x, P[1].y - c.y));
+      poly = Array.from({ length: 20 }, (_, i) => ({ x: c.x + rr * Math.cos(i / 20 * 2 * Math.PI), y: c.y + rr * Math.sin(i / 20 * 2 * Math.PI) }));
+    } else if (region.mode === 'edge') {
+      const [A, B] = P, L = Math.max(1, Math.hypot(B.x - A.x, B.y - A.y)), nx = -(B.y - A.y) / L, ny = (B.x - A.x) / L, w = Math.max(8, L * 0.08);
+      poly = [{ x: A.x + nx * w, y: A.y + ny * w }, { x: B.x + nx * w, y: B.y + ny * w }, { x: B.x - nx * w, y: B.y - ny * w }, { x: A.x - nx * w, y: A.y - ny * w }];
+    } else poly = P; // object: the box's 4 corners, plane: the 4 corners
+    let cx = 0, cy = 0, x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const q of poly) { cx += q.x; cy += q.y; x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
+    cx /= poly.length; cy /= poly.length;
+    const inside = (x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) c = !c; } return c; };
+    // a little room around the region helps the search
+    const grow = (x, y) => inside(x, y) || inside(cx + (x - cx) * 0.85, cy + (y - cy) * 0.85);
+    return { poly, P, c: { x: cx, y: cy }, rx: (x1 - x0) / 2, ry: (y1 - y0) / 2, inside, grow };
+  }
+
+  async function openClip(map) {
     const shown = R.assetImage(map.assetId);
     if (!shown || !shown.duration) throw new Error('The video isn’t ready yet');
     // a private copy of the clip to step through, so the editor's own playback never pulls it back
     const v = document.createElement('video');
     v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = shown.currentSrc || shown.src;
     await new Promise((res, rej) => { if (v.readyState >= 2) return res(); v.onloadeddata = res; v.onerror = () => rej(new Error('Could not read the video')); setTimeout(res, 8000); });
+    return v;
+  }
+
+  // click on an object: grow a region of similar colour from that spot and return its box (canvas coordinates)
+  S.detectObject = async function (src, x, y) {
+    const map = R.videoSpaceMap(S.doc, src);
+    if (!map) return null;
+    const v = await openClip(map);
+    await seek(v, R.videoTarget(map.vd || {}, null, v, map.start));
+    const k = 320 / Math.max(v.videoWidth, v.videoHeight), w = Math.round(v.videoWidth * k), h = Math.round(v.videoHeight * k);
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(v, 0, 0, w, h);
+    const d = cx.getImageData(0, 0, w, h).data;
+    v.removeAttribute('src'); v.load();
+    const uv = map.fromCanvas(x, y), sx = Math.round(uv.u * w), sy = Math.round(uv.v * h);
+    if (sx < 0 || sy < 0 || sx >= w || sy >= h) return null;
+    const col = i => [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]];
+    let seed = [0, 0, 0], ns = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const xx = clamp(sx + dx, 0, w - 1), yy = clamp(sy + dy, 0, h - 1), c = col(yy * w + xx); seed[0] += c[0]; seed[1] += c[1]; seed[2] += c[2]; ns++; }
+    seed = seed.map(v0 => v0 / ns);
+    let box = null;
+    for (const tol of [26, 38, 54]) {
+      const seen = new Uint8Array(w * h), stack = [sy * w + sx];
+      let n = 0, x0 = sx, y0 = sy, x1 = sx, y1 = sy;
+      seen[stack[0]] = 1;
+      while (stack.length && n < w * h * 0.35) {
+        const i = stack.pop(), px0 = i % w, py0 = (i - px0) / w;
+        n++; x0 = Math.min(x0, px0); x1 = Math.max(x1, px0); y0 = Math.min(y0, py0); y1 = Math.max(y1, py0);
+        for (const j of [i - 1, i + 1, i - w, i + w]) {
+          if (j < 0 || j >= w * h || seen[j] || Math.abs((j % w) - px0) > 1) continue;
+          const c = col(j), dc = Math.hypot(c[0] - seed[0], c[1] - seed[1], c[2] - seed[2]);
+          if (dc < tol) { seen[j] = 1; stack.push(j); }
+        }
+      }
+      box = { x0, y0, x1, y1, n };
+      if (n > w * h * 0.004) break;
+    }
+    if (!box || box.n > w * h * 0.34) return null;
+    const mx = (box.x1 - box.x0) * 0.08 + 2, my = (box.y1 - box.y0) * 0.08 + 2;
+    const corner = (u, v2) => map.toCanvas(clamp(u, 0, w) / w, clamp(v2, 0, h) / h);
+    return [corner(box.x0 - mx, box.y0 - my), corner(box.x1 + mx, box.y0 - my), corner(box.x1 + mx, box.y1 + my), corner(box.x0 - mx, box.y1 + my)];
+  };
+
+  // track a picked region of a video ('bg' or a video layer id); returns el.track for the layer pinned to it.
+  // region = { mode: 'point' | 'object' | 'edge' | 'plane', pts: [canvas points] } — point: [centre, edge of the circle],
+  // edge: [start, end], object and plane: 4 corners. Without a region, the spot under the layer's centre is used.
+  S.trackLayer = async function (el, { src, region, onProgress = () => {}, signal } = {}) {
+    const doc = S.doc, map = R.videoSpaceMap(doc, src);
+    if (!map) throw new Error('No video to track');
+    const v = await openClip(map);
     const vd = map.vd || {}, dur = v.duration, end = vd.end > 0 ? Math.min(dur, vd.end) : dur, ts = clamp(vd.trim || 0, 0, Math.max(0, end - 0.05));
     const fps = Math.min(30, Math.max(10, await R.clipFps(map.assetId))), dt = 1 / fps;
     const m0 = R.videoTarget(vd, null, v, map.start);
-    const vw = v.videoWidth, vh = v.videoHeight, k = AW / Math.max(vw, vh);
-    const cv = document.createElement('canvas'); cv.width = Math.round(vw * k); cv.height = Math.round(vh * k);
-    // the spot: the layer's centre, and its size, in the video's picture
-    const cx = el.x + el.width / 2, cy = el.y + el.height / 2, rot = (el.rotation || 0) * Math.PI / 180;
-    const ccx = el.x + (el.width / 2) * Math.cos(rot) - (el.height / 2) * Math.sin(rot), ccy = el.y + (el.width / 2) * Math.sin(rot) + (el.height / 2) * Math.cos(rot);
-    const uv = map.fromCanvas(ccx, ccy);
-    if (!(uv.u >= 0 && uv.u <= 1 && uv.v >= 0 && uv.v <= 1)) throw new Error('Place the layer over the video first');
-    const target = { x: uv.u * cv.width, y: uv.v * cv.height };
-    const sizePx = Math.max(el.width, el.height) / map.unit * Math.max(cv.width, cv.height);
-    const rad0 = clamp(sizePx * 0.6, 22, cv.width * 0.22), r = 6;
+    const vw = v.videoWidth, vh = v.videoHeight;
+    const cv = document.createElement('canvas'); cv.width = vw; cv.height = vh;
+    if (!region) {
+      const rot = (el.rotation || 0) * Math.PI / 180;
+      const c = { x: el.x + (el.width / 2) * Math.cos(rot) - (el.height / 2) * Math.sin(rot), y: el.y + (el.width / 2) * Math.sin(rot) + (el.height / 2) * Math.cos(rot) };
+      region = { mode: 'point', pts: [c, { x: c.x + Math.max(el.width, el.height) * 0.6, y: c.y }] };
+    }
+    // analysis size: enough pixels on the picked target (≈170 px across) to read its turn and size precisely, at least
+    // AW wide, never above the clip's own size or 1280
+    const R0 = regionOf(region, map, cv), big = Math.max(vw, vh);
+    const k = clamp(170 / Math.max(8, 2 * Math.max(R0.rx, R0.ry)), AW / big, Math.min(1, 1280 / big));
+    cv.width = Math.round(vw * k); cv.height = Math.round(vh * k);
+    const RG = regionOf(region, map, cv), plane = region.mode === 'plane';
+    if (!(RG.c.x >= 0 && RG.c.x <= cv.width && RG.c.y >= 0 && RG.c.y <= cv.height)) throw new Error('Pick something on the video first');
+    const r = 6, want = region.mode === 'point' ? 24 : 40;
     const n = Math.max(1, Math.floor((end - ts) / dt + 1e-6) + 1), i0 = clamp(Math.round((m0 - ts) / dt), 0, n - 1);
     const pts = new Array(n);
-    let done = 0;
+    let done = 0, refFrame = null;
+    const corners = H => RG.P.slice(0, 4).map(q => hp(H, q.x, q.y));
+    const sample = st => plane
+      ? [].concat(...corners(st.H || [1, 0, 0, 0, 1, 0, 0, 0, 1]).map(q => [q.x / cv.width, q.y / cv.height]))
+      : [st.c.x / cv.width, st.c.y / cv.height, st.s, st.r];
     const newState = f => {
-      const st = { c0: { x: target.x, y: target.y }, c: { x: target.x, y: target.y }, s: 1, r: 0, rad: rad0, rad0, lost: 0, T: null, pts: [], ref: refTemplate(f, target, rad0) };
-      st.pts = anchorNew(st, features(f, Math.round(target.x), Math.round(target.y), Math.round(rad0), 24));
-      if (st.pts.length < 4) { st.rad = st.rad0 = rad0 * 2; st.pts = anchorNew(st, features(f, Math.round(target.x), Math.round(target.y), Math.round(st.rad), 24)); }
+      refFrame = f;
+      const st = { c0: { x: RG.c.x, y: RG.c.y }, c: { x: RG.c.x, y: RG.c.y }, s: 1, r: 0, rad: Math.max(RG.rx, RG.ry), rad0: Math.max(RG.rx, RG.ry), lost: 0, T: null, H: null, pts: [],
+        ref: plane ? null : refTemplate(f, RG.c, RG.rx, RG.ry, RG.inside) };
+      st.pts = anchorNew(st, features(f, Math.round(RG.c.x), Math.round(RG.c.y), Math.round(Math.max(RG.rx, RG.ry) * 1.1), want, null, RG.grow));
+      if (st.pts.length < 6) st.pts = anchorNew(st, features(f, Math.round(RG.c.x), Math.round(RG.c.y), Math.round(Math.max(RG.rx, RG.ry) * 1.8 + 10), want, st.pts));
       return st;
     };
+    const topUp = (cur, st) => {
+      if (st.pts.length >= Math.min(12, want / 2)) return;
+      if (plane && st.H) {
+        // new points inside the tracked quad, anchored back through the inverse perspective
+        const Hi = inv3(st.H);
+        if (!Hi) return;
+        const quad = corners(st.H), insideNow = (x, y) => { const q = hp(Hi, x, y); return RG.grow(q.x, q.y); };
+        let qx = 0, qy = 0; for (const q of quad) { qx += q.x; qy += q.y; }
+        const rad = Math.max(...quad.map(q => Math.hypot(q.x - qx / 4, q.y - qy / 4)));
+        const fresh = features(cur, Math.round(qx / 4), Math.round(qy / 4), Math.round(rad), want, st.pts, insideNow);
+        for (const p of fresh) if (p.ax == null) { const a = hp(Hi, p.x, p.y); p.ax = a.x; p.ay = a.y; }
+        st.pts = fresh;
+      } else {
+        const T = st.T, inside = T ? (x, y) => { const det = T.c * T.c + T.s * T.s, dx = x - T.qx, dy = y - T.qy; return RG.grow(T.ax + (T.c * dx + T.s * dy) / det, T.ay + (-T.s * dx + T.c * dy) / det); } : RG.grow;
+        st.pts = anchorNew(st, features(cur, Math.round(st.c.x), Math.round(st.c.y), Math.round(st.rad * 1.1 + 6), want, st.pts, inside));
+      }
+    };
     const advance = (prev, cur, st) => {
-      step(prev, cur, st, r);
-      refine(cur, st);
-      // top up the points when too many have been lost (occlusion, leaving the frame)
-      if (st.pts.length < 10) st.pts = anchorNew(st, features(cur, Math.round(st.c.x), Math.round(st.c.y), Math.round(st.rad), 24, st.pts));
-      return [st.c.x / cv.width, st.c.y / cv.height, st.s, st.r];
+      if (plane) stepPlane(prev, cur, refFrame, st, r);
+      else { step(prev, cur, st, r, refFrame); refine(cur, st); }
+      topUp(cur, st);
+      return sample(st);
     };
     const cancelled = () => signal && signal.aborted;
     // stepping by seeking: exact but slow (each seek decodes from the last key frame)
@@ -19784,7 +20237,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       await seek(v, ts + from * dt + dt * 0.5);
       let prev = grab(v, cv);
       const st = newState(prev);
-      pts[from] = [st.c.x / cv.width, st.c.y / cv.height, 1, 0];
+      pts[from] = sample(st);
       for (let i = from + dir; dir > 0 ? i <= to : i >= to; i += dir) {
         if (cancelled()) throw new DOMException('Cancelled', 'AbortError');
         await seek(v, ts + i * dt + dt * 0.5);
@@ -19800,7 +20253,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const runPlay = async from => {
       await seek(v, ts + from * dt + dt * 0.5);
       let prev = grab(v, cv);
-      const st = newState(prev), got = [[ts + from * dt + dt * 0.5, st.c.x / cv.width, st.c.y / cv.height, 1, 0]];
+      const st = newState(prev), got = [[ts + from * dt + dt * 0.5].concat(sample(st))];
       let rate = 0.5, lastM = got[0][0];
       await new Promise((resolve, reject) => {
         const finish = () => { v.pause(); resolve(); };
@@ -19809,10 +20262,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const m = meta.mediaTime;
           if (m > lastM + 1e-4) {
             const t0 = performance.now(), cur = grab(v, cv);
-            got.push([m].concat(advance(prev, cur, st)));
+            // mediaTime is when the frame starts; samples sit at frame centres (like the seeks)
+            got.push([m + dt * 0.5].concat(advance(prev, cur, st)));
             prev = cur; lastM = m;
             const spent = performance.now() - t0;
-            if (spent > 0.75 * dt * 1000 / rate && rate > 0.2) { rate = Math.max(0.2, rate * 0.7); v.playbackRate = rate; }
+            if (spent > 0.75 * dt * 1000 / rate && rate > 0.15) { rate = Math.max(0.15, rate * 0.7); v.playbackRate = rate; }
             onProgress(clamp((m - ts) / Math.max(dt, end - ts), 0, 1));
           }
           if (m >= end - dt * 0.75 || v.ended) { finish(); return; }
@@ -19825,19 +20279,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       });
       // resample onto the even time grid
       let j = 0;
+      const W = got[0].length;
       for (let i = from; i < n; i++) {
         const tm = ts + i * dt + dt * 0.5;
         while (j < got.length - 2 && got[j + 1][0] < tm) j++;
-        const A = got[j], B = got[Math.min(got.length - 1, j + 1)], k = B[0] > A[0] ? clamp((tm - A[0]) / (B[0] - A[0]), 0, 1) : 0;
-        pts[i] = [1, 2, 3, 4].map(c => A[c] + (B[c] - A[c]) * k);
+        const A = got[j], B = got[Math.min(got.length - 1, j + 1)], kk = B[0] > A[0] ? clamp((tm - A[0]) / (B[0] - A[0]), 0, 1) : 0;
+        const row = []; for (let c = 1; c < W; c++) row.push(A[c] + (B[c] - A[c]) * kk);
+        pts[i] = row;
       }
     };
     if ('requestVideoFrameCallback' in v) await runPlay(i0);
     else await runSeek(i0, n - 1, 1);
     if (i0 > 0) await runSeek(i0, 0, -1);
     v.removeAttribute('src'); v.load();
-    const track = { src, t0: ts + dt * 0.5, dt, pts, ref: pts[i0].slice(), scale: el.track ? el.track.scale !== false : true, rotate: el.track ? el.track.rotate !== false : true, blur: el.track ? el.track.blur !== false : true, at: Date.now() };
-    return track;
+    const keep = (k2, d) => el.track && el.track[k2] != null ? el.track[k2] : d;
+    // the picked region is kept in the video's own picture, so it can be shown and re-tracked later
+    const regionUV = region.pts.map(p => { const q = map.fromCanvas(p.x, p.y); return [q.u, q.v]; });
+    return { src, mode: plane ? 'plane' : 'similar', pick: region.mode, region: regionUV, t0: ts + dt * 0.5, dt, pts, ref: pts[i0].slice(),
+      scale: keep('scale', true), rotate: keep('rotate', region.mode !== 'point'), blur: keep('blur', true), steady: keep('steady', 10), at: Date.now() };
   };
   // the videos a layer could be pinned to: video layers and a video background
   S.trackSources = function () {
@@ -21419,43 +21878,54 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   // motion tracking: pin a layer to something in a video — it follows its move, size and turn
   let trackJob = null;
-  async function runTrack(el, src) {
+  async function runTrack(el, src, pick) {
     if (trackJob) return;
     if (S.isPlaying && S.isPlaying()) S.pause();
+    S.endTrackPick();
     S.seek(null); // the still frame is the reference the layer was placed on
     const ctrl = new AbortController();
     trackJob = { id: el.id, src, p: 0, ctrl };
     renderInspector();
     try {
-      const tr = await S.trackLayer(el, { src, signal: ctrl.signal, onProgress: p => { trackJob.p = p; const bar = $('.track-progress > div'); if (bar) bar.style.width = Math.round(p * 100) + '%'; } });
+      const region = pick && pick.pts && pick.pts.length ? { mode: pick.mode, pts: pick.pts } : null;
+      const tr = await S.trackLayer(el, { src, region, signal: ctrl.signal, onProgress: p => { trackJob.p = p; const bar = $('.track-progress > div'); if (bar) bar.style.width = Math.round(p * 100) + '%'; } });
       const cur = S.doc.elements.find(e => e.id === el.id);
       if (cur) { S.changeEl(cur, e => { e.track = tr; }); S.commit(); }
-      toast('Pinned to the video — press play to see it follow');
+      toast('Pinned — press play to see it stick');
     } catch (err) {
       if (err.name !== 'AbortError') { console.error(err); toast(err.message || 'Tracking failed'); }
     }
     trackJob = null;
     renderInspector(); updateTimeline();
   }
+  const PICK_MODES = [['point', 'Point', 'A single spot'], ['object', 'Object', 'A thing — click it to find it, or drag a box'], ['edge', 'Edge', 'A line, like the edge of a table or a door'], ['plane', 'Plane', 'A flat surface — the layer follows its perspective too']];
   function trackControls(el, sources) {
     const T = 'sel';
     if (trackJob && trackJob.id === el.id) return [
-      h('p.hint', null, 'Following the spot through the video…'),
+      h('p.hint', null, 'Following it through the video…'),
       full(h('div.progress.track-progress', null, h('div', { style: { width: Math.round(trackJob.p * 100) + '%' } }))),
       full(h('button.btn', { type: 'button', onclick: () => trackJob && trackJob.ctrl.abort() }, 'Cancel')),
     ];
-    const tr = el.track || {}, src = tr.src || sources[0][0];
+    const tr = el.track || {}, pick = el.trackPick || null, src = (pick && pick.src) || tr.src || sources[0][0];
+    const mode = (pick && pick.mode) || tr.pick || 'object', picking = S.isPicking(), picked = !!(pick && pick.pts && pick.pts.length);
+    const startPick = m => { S.changeEl(el, e => { e.trackPick = { mode: m, src, pts: e.trackPick && e.trackPick.mode === m ? e.trackPick.pts : [] }; }); S.commit(); S.startTrackPick(el.id, m, src); renderInspector(); };
+    const what = { point: 'the point', object: 'the object', edge: 'the edge', plane: 'the surface' }[tr.pick || mode];
     return [
-      h('p.hint', null, R.isTracked(el)
-        ? `Sticks to the spot under it in ${(sources.find(x => x[0] === src) || ['', 'the video'])[1].toLowerCase()}, following its move, size and turn. Moved it? Track again to pin it to the new spot.`
-        : 'Put the layer over the thing it should stick to, then track.'),
-      sources.length > 1 ? row('Video', selectCtl(T, 'track.src', sources, { get: () => src, set: v => runTrack(S.selEls()[0], v) })) : null,
-      toggle(T, 'track.scale', 'Follow size', { get: () => (S.selEls()[0].track || {}).scale !== false, set: v => S.change(T, 'track.scale', v) }),
-      toggle(T, 'track.rotate', 'Follow turn', { get: () => (S.selEls()[0].track || {}).rotate !== false, set: v => S.change(T, 'track.rotate', v) }),
-      toggle(T, 'track.blur', 'Motion blur on fast moves', { get: () => (S.selEls()[0].track || {}).blur !== false, set: v => S.change(T, 'track.blur', v) }),
+      label('Stick to'),
+      full(seg(T, 'trackPick.mode', PICK_MODES, { get: () => mode, set: m => startPick(m) })),
+      h('p.hint', null, picking ? { point: 'Click the spot on the video. Drag to make the tracked area bigger.', object: 'Click the object to find it, or drag a box around it.', edge: 'Drag along the edge, end to end.', plane: 'Drag a box over the surface, then move its corners onto the surface’s corners.' }[mode]
+        : R.isTracked(el) ? `Pinned to ${what} — it moves, grows and turns with it. Put the layer anywhere: it keeps its place relative to ${what}.`
+        : picked ? 'Picked. Now track it through the video.' : 'Pick what it should stick to on the video.'),
+      sources.length > 1 ? row('Video', selectCtl(T, 'trackPick.src', sources, { get: () => src, set: v => { S.changeEl(el, e => { e.trackPick = Object.assign({}, e.trackPick || { mode, pts: [] }, { src: v }); }); S.commit(); renderInspector(); } })) : null,
       full(h('div.btn-row', null,
-        h('button.btn.grow', { type: 'button', onclick: () => runTrack(S.selEls()[0], src) }, ic('target'), R.isTracked(el) ? 'Track again' : 'Track'),
-        h('button.btn.grow', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview'))),
+        picking ? h('button.btn.grow', { type: 'button', onclick: () => { S.endTrackPick(); renderInspector(); } }, ic('check'), 'Done picking')
+          : h('button.btn.grow', { type: 'button', onclick: () => startPick(mode) }, ic('target'), picked ? 'Adjust pick' : 'Pick on video'),
+        h('button.btn.grow' + (picked && !R.isTracked(el) ? '.primary' : ''), { type: 'button', disabled: !picked, onclick: () => runTrack(S.selEls()[0], src, S.selEls()[0].trackPick) }, ic('film'), R.isTracked(el) ? 'Track again' : 'Track'))),
+      R.isTracked(el) ? row('Steady', num(T, 'track.steady', { min: 0, max: 100, slider: true, def: 10, set: (v, l) => S.change(T, 'track.steady', v, l) })) : null,
+      R.isTracked(el) && tr.mode !== 'plane' ? toggle(T, 'track.scale', 'Follow size', { get: () => (S.selEls()[0].track || {}).scale !== false, set: v => S.change(T, 'track.scale', v) }) : null,
+      R.isTracked(el) && tr.mode !== 'plane' ? toggle(T, 'track.rotate', 'Follow turn', { get: () => (S.selEls()[0].track || {}).rotate !== false, set: v => S.change(T, 'track.rotate', v) }) : null,
+      R.isTracked(el) && tr.mode !== 'plane' ? toggle(T, 'track.blur', 'Motion blur on fast moves', { get: () => (S.selEls()[0].track || {}).blur !== false, set: v => S.change(T, 'track.blur', v) }) : null,
+      R.isTracked(el) ? full(h('button.btn', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview')) : null,
     ];
   }
   function motionSection(el) {
@@ -21476,9 +21946,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const sources = S.trackSources().filter(([id]) => id !== el.id);
     return addSec('Motion', [
       el.type !== 'camera' && !(el.type === 'image' && R.isVideoAsset(el.assetId)) ? {
-        label: 'Pin to video (tracking)', icon: 'target', on: R.isTracked(el) || (trackJob && trackJob.id === el.id), hidden: !sources.length,
-        add: () => runTrack(el, sources[0][0]),
-        remove: () => { if (trackJob && trackJob.id === el.id) trackJob.ctrl.abort(); S.change(T, 'track', null); renderInspector(); },
+        label: 'Pin to video (tracking)', icon: 'target', on: R.isTracked(el) || !!el.trackPick || (trackJob && trackJob.id === el.id), hidden: !sources.length,
+        add: () => { S.changeEl(el, e => { e.trackPick = { mode: 'object', src: sources[0][0], pts: [] }; }); S.commit(); S.startTrackPick(el.id, 'object', sources[0][0]); renderInspector(); },
+        remove: () => { if (trackJob && trackJob.id === el.id) trackJob.ctrl.abort(); S.endTrackPick(); S.change(T, 'track', null); S.change(T, 'trackPick', null); renderInspector(); },
         body: () => trackControls(el, sources),
       } : null,
       el.type === 'text' ? {
@@ -23281,6 +23751,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   S.on('tool', updateEraserBar);
   S.on('selection', () => { if (S.tool === 'erase') updateEraserBar(); });
   S.on('spotedit', () => renderInspector());
+  S.on('trackpick', () => renderInspector());
   S.on('values', () => { if (S.tool === 'erase') { const c = S.selEls()[0]; const has = !!(c && c.erase && c.erase.length); if (has !== !!$('#eraser-bar .btn:not(.primary)')) updateEraserBar(); } });
 
   /* ───────────────────────── wiring ───────────────────────── */

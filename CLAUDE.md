@@ -43,7 +43,7 @@ unless asked.
 | `filmphotos.js` | Film-style demo photos (`window.StudioFilm.IMG`), registered as `film-<key>` assets for the Film looks / Film camera templates. |
 | `portraits.js` | Editorial portraits (`window.StudioPortraits.IMG`), registered as `ed-<key>` assets for the Photo effects / Paper & ID templates. |
 | `bgremove.js` | Background removal and the "studio look" cut-out (onnxruntime-web + RMBG-1.4 from Hugging Face). |
-| `tracker.js` | Motion tracking: `S.trackLayer(el, { src })` follows a spot through a video and returns `el.track`; `S.trackSources()`. |
+| `tracker.js` | Motion tracking: `S.trackLayer(el, { src, region })` follows a picked point / object / edge / plane through a video and returns `el.track`; `S.detectObject`, `S.trackSources()`. |
 | `video.js` | Video export: frame-by-frame render → WebCodecs → mp4-muxer / webm-muxer; MediaRecorder fallback. |
 | `studio.css` | All styling; colour tokens on `:root`, dark mode via `prefers-color-scheme`. |
 | `vendor/` | Konva, muxers, JSZip — inlined into the single-file build so it works offline. |
@@ -117,14 +117,21 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
   the bleed. ui.js `blurControls(t, base, { noun, onNone })` is shared by the photo Blur section and the Effects → Blur
   item; the spot editor (`spotBase` / `spotMap` in app.js) works on `filters` for photos and `tblur` for everything else.
   `blurSpots` mixes blurred × mask + sharp × (1 − mask) (`lighter`), so see-through layers don't show a sharp copy.
-- Motion tracking: `el.track = { src: 'bg' | video layer id, t0, dt, pts: [[u, v, s, r]…], ref, scale, rotate, blur }`, sampled
-  in the clip's own time. `R.trackXform` maps the sample at the current clip time (`R.videoTarget`) and at the reference
-  (the still frame the layer was placed on) through `R.videoSpaceMap` and returns a canvas matrix, which `drawElement`
-  prepends to the layer's own placement (+ motion blur from the speed). tracker.js: a private `<video>` played at ½ speed,
-  frames caught with `requestVideoFrameCallback` (seeking costs ~200 ms a frame); ~24 Shi–Tomasi points matched
-  coarse-to-fine (zero-mean SAD, sub-pixel parabola), a least-squares similarity from reference anchors to current
-  positions (no chaining → no scale creep), and a drift guard (`refine`) that re-aligns the reference look of the spot each
-  frame. Test against an exact path: render a pan / zoom / turn of a photo in Python (PIL affine), encode VP9, compare.
+- Motion tracking: the user picks what a layer sticks to (`el.trackPick = { mode: 'point' | 'object' | 'edge' | 'plane', src, pts }`
+  in canvas coords; pick mode in app.js "tracking: pick what a layer sticks to": `S.startTrackPick` / `S.endTrackPick`,
+  click = default shape, in object mode `S.detectObject` (colour flood fill on a 320 px frame → box); emits `trackpick`).
+  `S.trackLayer(el, { src, region })` returns `el.track = { src, mode: 'similar' | 'plane', pick, region (uv), t0, dt, pts, ref,
+  scale, rotate, blur, steady }`: `pts` per frame are `[u, v, s, r]` (similar) or 8 corner uvs (plane), sampled at frame
+  centres in the clip's own time (`requestVideoFrameCallback` mediaTime + dt/2). The analysis size is chosen so the picked
+  target is ~170 px across (≥ 512, ≤ 1280 / the clip). Similar: Shi–Tomasi points inside the region, coarse-to-fine
+  zero-mean SAD + sub-pixel parabola, least-squares similarity from reference anchors (no chaining), each point snapped back
+  onto its look on the reference frame (`snapToRef` through the current fit — this is what stops slow turn / slide drift),
+  then `refine` (template of the region). Plane: normalised-DLT homography with outlier rejection + `snapToRef`.
+  `R.trackXform` returns `{ M }` or `{ H }` (reference quad → current quad, canvas space); `drawElement` prepends `M` or
+  draws through `drawWarped` (flat buffer, 10×10 mesh of per-triangle affines). `trackSeries` smooths over time with a
+  zero-lag Gaussian keyed by `steady` (default 10 — more smoothing makes text lag real shake). `R.trackRegionAt` gives the
+  outline shown while selected. Test against exact paths: render push-in + shake / perspective clips in Python (PIL),
+  encode VP9, compare text corners (currently ~3–4 px mean on a 1920 canvas, plane ~2 px).
 - Screen close-up: `doc.screen = { on, pitch, grid, focus, dust }`. `renderDoc` renders the design once at screen resolution
   (`_panel`: no camera / finish), `drawScreen` draws it back nearest-neighbour under the camera, multiplies a sub-pixel mesh
   tile (`meshTile`, fades in once a screen pixel is ≥ ~2 px) and colour-dodges the whites back up, adds glass dust;

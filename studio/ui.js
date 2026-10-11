@@ -1567,43 +1567,54 @@
 
   // motion tracking: pin a layer to something in a video — it follows its move, size and turn
   let trackJob = null;
-  async function runTrack(el, src) {
+  async function runTrack(el, src, pick) {
     if (trackJob) return;
     if (S.isPlaying && S.isPlaying()) S.pause();
+    S.endTrackPick();
     S.seek(null); // the still frame is the reference the layer was placed on
     const ctrl = new AbortController();
     trackJob = { id: el.id, src, p: 0, ctrl };
     renderInspector();
     try {
-      const tr = await S.trackLayer(el, { src, signal: ctrl.signal, onProgress: p => { trackJob.p = p; const bar = $('.track-progress > div'); if (bar) bar.style.width = Math.round(p * 100) + '%'; } });
+      const region = pick && pick.pts && pick.pts.length ? { mode: pick.mode, pts: pick.pts } : null;
+      const tr = await S.trackLayer(el, { src, region, signal: ctrl.signal, onProgress: p => { trackJob.p = p; const bar = $('.track-progress > div'); if (bar) bar.style.width = Math.round(p * 100) + '%'; } });
       const cur = S.doc.elements.find(e => e.id === el.id);
       if (cur) { S.changeEl(cur, e => { e.track = tr; }); S.commit(); }
-      toast('Pinned to the video — press play to see it follow');
+      toast('Pinned — press play to see it stick');
     } catch (err) {
       if (err.name !== 'AbortError') { console.error(err); toast(err.message || 'Tracking failed'); }
     }
     trackJob = null;
     renderInspector(); updateTimeline();
   }
+  const PICK_MODES = [['point', 'Point', 'A single spot'], ['object', 'Object', 'A thing — click it to find it, or drag a box'], ['edge', 'Edge', 'A line, like the edge of a table or a door'], ['plane', 'Plane', 'A flat surface — the layer follows its perspective too']];
   function trackControls(el, sources) {
     const T = 'sel';
     if (trackJob && trackJob.id === el.id) return [
-      h('p.hint', null, 'Following the spot through the video…'),
+      h('p.hint', null, 'Following it through the video…'),
       full(h('div.progress.track-progress', null, h('div', { style: { width: Math.round(trackJob.p * 100) + '%' } }))),
       full(h('button.btn', { type: 'button', onclick: () => trackJob && trackJob.ctrl.abort() }, 'Cancel')),
     ];
-    const tr = el.track || {}, src = tr.src || sources[0][0];
+    const tr = el.track || {}, pick = el.trackPick || null, src = (pick && pick.src) || tr.src || sources[0][0];
+    const mode = (pick && pick.mode) || tr.pick || 'object', picking = S.isPicking(), picked = !!(pick && pick.pts && pick.pts.length);
+    const startPick = m => { S.changeEl(el, e => { e.trackPick = { mode: m, src, pts: e.trackPick && e.trackPick.mode === m ? e.trackPick.pts : [] }; }); S.commit(); S.startTrackPick(el.id, m, src); renderInspector(); };
+    const what = { point: 'the point', object: 'the object', edge: 'the edge', plane: 'the surface' }[tr.pick || mode];
     return [
-      h('p.hint', null, R.isTracked(el)
-        ? `Sticks to the spot under it in ${(sources.find(x => x[0] === src) || ['', 'the video'])[1].toLowerCase()}, following its move, size and turn. Moved it? Track again to pin it to the new spot.`
-        : 'Put the layer over the thing it should stick to, then track.'),
-      sources.length > 1 ? row('Video', selectCtl(T, 'track.src', sources, { get: () => src, set: v => runTrack(S.selEls()[0], v) })) : null,
-      toggle(T, 'track.scale', 'Follow size', { get: () => (S.selEls()[0].track || {}).scale !== false, set: v => S.change(T, 'track.scale', v) }),
-      toggle(T, 'track.rotate', 'Follow turn', { get: () => (S.selEls()[0].track || {}).rotate !== false, set: v => S.change(T, 'track.rotate', v) }),
-      toggle(T, 'track.blur', 'Motion blur on fast moves', { get: () => (S.selEls()[0].track || {}).blur !== false, set: v => S.change(T, 'track.blur', v) }),
+      label('Stick to'),
+      full(seg(T, 'trackPick.mode', PICK_MODES, { get: () => mode, set: m => startPick(m) })),
+      h('p.hint', null, picking ? { point: 'Click the spot on the video. Drag to make the tracked area bigger.', object: 'Click the object to find it, or drag a box around it.', edge: 'Drag along the edge, end to end.', plane: 'Drag a box over the surface, then move its corners onto the surface’s corners.' }[mode]
+        : R.isTracked(el) ? `Pinned to ${what} — it moves, grows and turns with it. Put the layer anywhere: it keeps its place relative to ${what}.`
+        : picked ? 'Picked. Now track it through the video.' : 'Pick what it should stick to on the video.'),
+      sources.length > 1 ? row('Video', selectCtl(T, 'trackPick.src', sources, { get: () => src, set: v => { S.changeEl(el, e => { e.trackPick = Object.assign({}, e.trackPick || { mode, pts: [] }, { src: v }); }); S.commit(); renderInspector(); } })) : null,
       full(h('div.btn-row', null,
-        h('button.btn.grow', { type: 'button', onclick: () => runTrack(S.selEls()[0], src) }, ic('target'), R.isTracked(el) ? 'Track again' : 'Track'),
-        h('button.btn.grow', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview'))),
+        picking ? h('button.btn.grow', { type: 'button', onclick: () => { S.endTrackPick(); renderInspector(); } }, ic('check'), 'Done picking')
+          : h('button.btn.grow', { type: 'button', onclick: () => startPick(mode) }, ic('target'), picked ? 'Adjust pick' : 'Pick on video'),
+        h('button.btn.grow' + (picked && !R.isTracked(el) ? '.primary' : ''), { type: 'button', disabled: !picked, onclick: () => runTrack(S.selEls()[0], src, S.selEls()[0].trackPick) }, ic('film'), R.isTracked(el) ? 'Track again' : 'Track'))),
+      R.isTracked(el) ? row('Steady', num(T, 'track.steady', { min: 0, max: 100, slider: true, def: 10, set: (v, l) => S.change(T, 'track.steady', v, l) })) : null,
+      R.isTracked(el) && tr.mode !== 'plane' ? toggle(T, 'track.scale', 'Follow size', { get: () => (S.selEls()[0].track || {}).scale !== false, set: v => S.change(T, 'track.scale', v) }) : null,
+      R.isTracked(el) && tr.mode !== 'plane' ? toggle(T, 'track.rotate', 'Follow turn', { get: () => (S.selEls()[0].track || {}).rotate !== false, set: v => S.change(T, 'track.rotate', v) }) : null,
+      R.isTracked(el) && tr.mode !== 'plane' ? toggle(T, 'track.blur', 'Motion blur on fast moves', { get: () => (S.selEls()[0].track || {}).blur !== false, set: v => S.change(T, 'track.blur', v) }) : null,
+      R.isTracked(el) ? full(h('button.btn', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview')) : null,
     ];
   }
   function motionSection(el) {
@@ -1624,9 +1635,9 @@
     const sources = S.trackSources().filter(([id]) => id !== el.id);
     return addSec('Motion', [
       el.type !== 'camera' && !(el.type === 'image' && R.isVideoAsset(el.assetId)) ? {
-        label: 'Pin to video (tracking)', icon: 'target', on: R.isTracked(el) || (trackJob && trackJob.id === el.id), hidden: !sources.length,
-        add: () => runTrack(el, sources[0][0]),
-        remove: () => { if (trackJob && trackJob.id === el.id) trackJob.ctrl.abort(); S.change(T, 'track', null); renderInspector(); },
+        label: 'Pin to video (tracking)', icon: 'target', on: R.isTracked(el) || !!el.trackPick || (trackJob && trackJob.id === el.id), hidden: !sources.length,
+        add: () => { S.changeEl(el, e => { e.trackPick = { mode: 'object', src: sources[0][0], pts: [] }; }); S.commit(); S.startTrackPick(el.id, 'object', sources[0][0]); renderInspector(); },
+        remove: () => { if (trackJob && trackJob.id === el.id) trackJob.ctrl.abort(); S.endTrackPick(); S.change(T, 'track', null); S.change(T, 'trackPick', null); renderInspector(); },
         body: () => trackControls(el, sources),
       } : null,
       el.type === 'text' ? {
@@ -3429,6 +3440,7 @@
   S.on('tool', updateEraserBar);
   S.on('selection', () => { if (S.tool === 'erase') updateEraserBar(); });
   S.on('spotedit', () => renderInspector());
+  S.on('trackpick', () => renderInspector());
   S.on('values', () => { if (S.tool === 'erase') { const c = S.selEls()[0]; const has = !!(c && c.erase && c.erase.length); if (has !== !!$('#eraser-bar .btn:not(.primary)')) updateEraserBar(); } });
 
   /* ───────────────────────── wiring ───────────────────────── */
