@@ -1347,6 +1347,107 @@
       })));
     })(),
 
+    // ── SMOOTH CAM TEXT: words pull into focus, the camera whips up to the headline, pushes in, and the type turns italic ──
+    ...(() => {
+      const BLUE = '#1f19c8', FONT = 'Inter Tight';
+      // word widths in ems (Inter Tight 800, -0.045 tracking; "probably" at 700)
+      const EM = { 'you’ve': 3.03, probably: 3.75, 'seen those': 4.79, smooth: 3.39, cam: 1.94, animations: 4.85 };
+      const D = 5.5;
+      function build(W, H) {
+        const Z = 2, vw = W / Z, vh = H / Z;
+        const fs = Math.min(0.74 * vw / 1.12 / 8.53, vh * 0.2);
+        const lowY = H * 0.66, highY = H * 0.34;
+        // one line of words of different sizes sitting on a shared baseline, centred on x = W / 2
+        const line = (words, cy, extra, label) => {
+          const sized = words.map(([w, k, o]) => ({ w, size: fs * k, o: o || {} }));
+          const total = sized.reduce((a, q, i) => a + EM[q.w] * q.size + (i ? 0.16 * q.size : 0), 0);
+          let x = W / 2 - total / 2;
+          const base = cy + fs * 0.36;
+          return sized.map((q, i) => {
+            if (i) x += 0.16 * q.size;
+            const el = txt(q.w, Object.assign({ x, y: base - q.size * 0.97, align: 'left', fontFamily: FONT, fontWeight: 800, fontSize: Math.round(q.size * 10) / 10, letterSpacing: -0.045, fill: BLUE, key: 'w-' + q.w.replace(/\W+/g, '') + (extra && extra.italic ? '-i' : ''), name: (label || 'Word') + ' ' + (i + 1) }, extra || {}, q.o));
+            x += EM[q.w] * q.size;
+            return el;
+          });
+        };
+        const blob = (fx, fy, fw, fh, color, blur) => shp('rounded', fx * W, fy * H, fw * W, fh * H, { radius: Math.min(fw * W, fh * H) * 0.3, fill: color, lblur: { gauss: blur * Math.min(W, H) / 1080, motion: 0, angle: 0 }, name: 'Soft light' });
+        const flash = (color, op, a, b) => shp('rect', 0, 0, W, H, { fill: color, opacity: op, time: { start: a, end: b }, name: 'Exposure flash' });
+        return {
+          background: { color: '#e8eafb', color2: '#f6f6fd', gradient: 'linear', angle: 150 },
+          overlay: { grain: 6 },
+          camera: {
+            move: 'keys', blur: 0.6,
+            keys: [{ t: 0, x: 0.5, y: lowY / H, z: Z, r: 0 }, { t: 2.1, z: Z * 1.04 }, { t: 2.5, y: highY / H, z: Z, r: 3.2 }, { t: 3.1, r: 0, z: Z * 1.02, ease: 'out' }, { t: D, z: Z * 1.13, ease: 'linear' }],
+          },
+          elements: [
+            blob(0.05, 0.08, 0.5, 0.3, '#ffffff', 60), blob(0.55, 0.2, 0.42, 0.24, '#d3d8f8', 70), blob(0.12, 0.46, 0.34, 0.2, '#dce0fa', 60),
+            blob(0.6, 0.55, 0.4, 0.28, '#ffffff', 70), blob(0.02, 0.72, 0.5, 0.24, '#d0d5f7', 80), blob(0.45, 0.82, 0.5, 0.2, '#f9f9ff', 60),
+            flash('#8d93ad', 0.45, 4.55, 4.67), flash('#ffffff', 0.75, 4.78, 4.88),
+            ...line([['you’ve', 0.85], ['probably', 0.62, { fontWeight: 700 }]], lowY, null, 'Opening word').map((e, i) => Object.assign(e, { time: { start: i ? 0.8 : 0.3, end: 1.45 }, anim: { enter: 'focus', delay: i ? 0.8 : 0.3, speed: 1 } }, i ? { y: e.y + fs * 0.08 } : {})),
+            ...line([['seen those', 0.8]], lowY, null, 'Second line').map(e => Object.assign(e, { time: { start: 1.45 }, anim: { enter: 'focus', delay: 1.45, speed: 1.6 } })),
+            ...line([['smooth', 1], ['cam', 0.8], ['animations', 0.68]], highY, null, 'Headline word').map(e => Object.assign(e, { time: { start: 0, end: 4.02 } })),
+            ...line([['smooth', 0.74], ['cam', 0.84], ['animations', 1]], highY, { italic: true }, 'Italic headline word').map(e => Object.assign(e, { time: { start: 3.92 }, anim: { enter: 'focus', delay: 3.92, speed: 2.2, amount: 0.6 } })),
+          ],
+        };
+      }
+      // every layer is part of the layout, so a resize rebuilds them (keeping the words you typed)
+      const buildAt = (W, H) => { const d = build(W, H); d.elements.forEach(e => { e.layoutSlot = true; }); return Object.assign({ width: W, height: H, anim: { duration: D, fps: 30 }, layout: { key: 'smoothcam' } }, d); };
+      (window.STUDIO_LAYOUTS = window.STUDIO_LAYOUTS || {}).smoothcam = { name: 'Smooth cam text', build: (W, H) => buildAt(W, H) };
+      const SIZES = [['story', 1080, 1920, 'Story 9:16'], ['portrait', 1080, 1350, 'Portrait 4:5'], ['square', 1080, 1080, 'Square 1:1'], ['wide', 1920, 1080, 'Landscape 16:9']];
+      return SIZES.map(([k, W, H, label]) => ({
+        id: `mv-smoothcam-${k}`, name: label, family: 'Smooth cam text', layout: 'smoothcam', orientation: k, tags: ['Video', 'Text', 'Kinetic'], width: W, height: H, video: true,
+        build: () => buildAt(W, H),
+      }));
+    })(),
+
+    // ── TEXT EFFECTS: thermal-camera glow and ink soaking into paper ──
+    ...(() => {
+      const T = (id, name, tags, build, video) => ({ id, name, tags, width: 1080, height: 1350, video: !!video, build });
+      const word = (t, o) => txt(t, Object.assign({ align: 'center', fontFamily: 'Inter Tight', fontWeight: 800, fontSize: 300, letterSpacing: -0.05, fill: '#ffffff' }, o));
+      const ink = (t, o) => txt(t, Object.assign({ align: 'left', fontFamily: 'Archivo Black', fontSize: 190, letterSpacing: -0.07, lineHeight: 0.9, fill: '#141414', tfx: { style: 'ink', amount: 55, rough: 55, speckle: 60, smear: 30, angle: 25 } }, o));
+      return [
+        T('fx-thermal', 'Thermal word', ['Text', 'Video'], () => ({
+          width: 1080, height: 1350, background: { color: '#030303' }, overlay: { grain: 18, vignette: 30 }, anim: { duration: 5, fps: 30 },
+          camera: { move: 'pushin', zoom: 1.12, start: 0, dur: 5, blur: 0 },
+          elements: [
+            word('blur', { cx: 540, cy: 640, key: 'heat', tfx: { style: 'thermal', amount: 55, palette: 'thermal', move: true } }),
+            txt('HEAT SIGNATURE · 36.6°', { cx: 540, cy: 1180, fontFamily: 'Space Mono', fontSize: 22, letterSpacing: 0.2, fill: '#7d86ff' }),
+          ],
+        }), true),
+        T('fx-thermal-photo', 'Thermal over photo', ['Text', 'Photo'], () => ({
+          width: 1080, height: 1350, background: { color: '#0b0b0b' }, overlay: { grain: 16 },
+          elements: [
+            img(0, 0, 1080, 1350, { assetId: 'ed-dark', name: 'Your photo or video', filters: { grayscale: 100, contrast: 20, brightness: -30 }, placeholder: ['#2a2a2a', '#111111'] }),
+            word('warm', { cx: 540, cy: 1060, fontSize: 260, tfx: { style: 'thermal', amount: 45, palette: 'sunset' } }),
+            txt('still thinking about you', { cx: 540, cy: 1250, fontFamily: 'Instrument Serif', italic: true, fontSize: 40, fill: '#ffd7b0' }),
+          ],
+        })),
+        T('fx-night', 'Night vision', ['Text'], () => ({
+          width: 1080, height: 1350, background: { color: '#020a04' }, overlay: { grain: 30, scanlines: 30, vignette: 45 },
+          elements: [
+            word('after\ndark', { cx: 540, cy: 620, fontSize: 230, lineHeight: 0.95, tfx: { style: 'thermal', amount: 40, palette: 'night' } }),
+            txt('REC ● 02:14:09', { x: 70, y: 70, align: 'left', fontFamily: 'VT323', fontSize: 48, fill: '#8dff8a' }),
+          ],
+        })),
+        T('fx-ink', 'Ink bleed poster', ['Text', 'Video', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#cbc9d2', texture: 70 }, overlay: { grain: 34 }, anim: { duration: 5, fps: 30 },
+          camera: { move: 'pushin', target: 'bleed', zoom: 1.7, start: 0.4, dur: 3.6, blur: 0.4 },
+          elements: [
+            ink('INK', { x: 170, y: 470 }),
+            ink('BLEED', { x: 350, y: 650, key: 'bleed' }),
+            ink('EFFECT', { x: 100, y: 830 }),
+          ],
+        }), true),
+        T('fx-ink-quote', 'Ink on paper', ['Text', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#efe9dc', texture: 55 }, overlay: { grain: 14 },
+          elements: [
+            txt('the words\nstay with\nyou', { x: 110, y: 330, align: 'left', fontFamily: 'Instrument Serif', fontSize: 210, lineHeight: 0.92, fill: '#1b2a7a', tfx: { style: 'ink', amount: 45, rough: 60, speckle: 45, smear: 10, angle: 0 } }),
+            txt('— written in fountain pen, left in the rain', { x: 114, y: 1120, align: 'left', fontFamily: 'Courier Prime', fontSize: 26, fill: '#1b2a7a', tfx: { style: 'ink', amount: 30, rough: 40, speckle: 30, smear: 0 } }),
+          ],
+        })),
+      ];
+    })(),
+
     // ── PHOTO EFFECTS: editorial poster treatments — halftone scribbles, shredded strips, mosaics, mirrors, censor blocks ──
     ...(() => {
       const P = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'ed-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
@@ -2492,6 +2593,8 @@
     'Kinetic headline': ['kinetic-news', 'kinetic-reveal', 'kinetic-pop'],
     'Sticky notes': ['sticky-cut', 'sticky-stack', 'sticky-flip'],
     'Rolling numbers': ['roll-years', 'roll-countdown', 'roll-price'],
+    'Smooth cam text': [],
+    'Text effects': ['fx-thermal', 'fx-ink', 'fx-thermal-photo', 'fx-night', 'fx-ink-quote'],
     'Word by word': ['words-films', 'words-bold', 'words-soft'],
     'Letter bounce': ['bounce-everyone', 'bounce-hello', 'bounce-pastel'],
     'Life-sim garden': ['garden-menu', 'garden-golden', 'garden-dusk'],

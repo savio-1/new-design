@@ -159,6 +159,10 @@ One **Text slides** family holds 69 typographic quote posters in the style of Pi
 - **Text in videos** is typed in the side panel: select a text layer (or double-click it) to get its text box, or, with nothing selected, edit every piece of text in the video under *Text in this video*.
 - **Show / hide timing** (Motion): make a layer appear and leave at set times. Layers that take turns create match cuts.
 - **Layer blur** (Effects): Gaussian and directional blur on any layer.
+- **Thermal blur** (Effects → Thermal blur, on text, stickers, shapes and lines): the layer turns white-hot and glows through yellow, orange and pink to blue, like a heat camera. *Heat* sets how far it glows; colours: Thermal, Infrared, Night vision, Ice or Sunset; *Shimmer in videos* makes the heat breathe over time.
+- **Ink bleed** (Effects → Ink bleed): letters soak into the paper — rough spreading edges, a spray of ink dots around them and an optional smear in one direction. *Bleed*, *Speckle*, *Rough edge*, *Smear* and *Smear angle*; *New pattern* reshuffles the specks. The ink takes the text colour.
+- **Text effects** template family (5): Thermal word (video, the heat shimmers while the camera creeps in), Thermal over photo, Night vision, Ink bleed poster (video, slow push-in on photocopied paper) and Ink on paper.
+- **Smooth cam text** template family (video, 4 orientations: story, portrait, square, landscape — plus *Your canvas* for any size): words pull into focus one after another (*you’ve* · *probably* · *seen those*), the camera whips up to the headline with motion blur and a tilt, settles and pushes in slowly, the headline changes into italic with new word sizes, and the exposure flashes at the end. Resize the canvas and it re-flows, keeping the words you typed. New pieces it uses: a **Blur in (focus)** entrance for any layer and a **Smooth cam (keyframes)** camera path.
 
 ## Background removal
 

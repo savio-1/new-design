@@ -3360,7 +3360,7 @@
 
   function bleed(el) {
     const lb = el.lblur || {};
-    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6;
+    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6 + R.textFxPad(el);
   }
   function bleedCore(el) {
     const m = Math.max(el.width, el.height);
@@ -3415,7 +3415,7 @@
   };
   R.ANIM_ENTER = {
     none: 'None', pop: 'Pop in', land: 'Toss in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
-    right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
+    right: 'Slide from right', zoom: 'Zoom in', focus: 'Blur in (focus)', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
     slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', lettersBounce: 'Letters bounce in',
     captions: 'Captions (line by line)', roll: 'Roll through lines', words: 'Word by word',
   };
@@ -3429,7 +3429,7 @@
     if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
     return n * (p -= 2.625 / d) * p + 0.984375;
   };
-  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
+  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!(el.tfx && el.tfx.move && el.tfx.style && el.tfx.style !== 'none') || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
   R.hasTiming = el => !!(el.time && ((el.time.start || 0) > 0 || el.time.end != null || (el.time.cycle && el.time.cycle.count > 1)));
   // cuts: a layer can be shown only for part of the video, or take turns with others
   R.visibleAt = function (el, t) {
@@ -3447,7 +3447,7 @@
   };
   function animState(el, t, doc) {
     const an = el.anim || {}, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
-    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, seq: null };
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, gblur: 0, seq: null };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
     const loop = an.loop || 'none';
@@ -3499,6 +3499,8 @@
         case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
         case 'roll': case 'words': if (el.type === 'text') st.seq = seqState(el, tl - (an.delay || 0), spd, enter, an.accel); break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
+        // out of focus to sharp, like a lens pulling focus onto the word
+        case 'focus': { const q = clamp((tl - (an.delay || 0)) / (0.75 / spd), 0, 1), f = 1 - Math.pow(1 - q, 2.2); st.alpha *= Math.min(1, q * 1.6); st.gblur = (1 - f) * m * 0.22 * amt; st.sc *= 1 + (1 - f) * 0.04; break; }
         case 'land': {
           // tossed onto a pile: comes in big and turned, settles flat with a little bounce
           const q = clamp((tl - (an.delay || 0)) / (0.45 / spd), 0, 1), k = easeOut(q);
@@ -3577,6 +3579,7 @@
     if (A.flow != null || A.draw != null) e = Object.assign({}, e, A.flow != null ? { flowShift: ((A.flow % 1) + 1) % 1 } : {}, A.draw != null ? { drawFrac: A.draw } : {});
     if (A.letters) e = Object.assign({}, e, { _letters: A.letters });
     if (A.mblur > 1.5) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { motion: ((e.lblur && e.lblur.motion) || 0) + A.mblur, angle: A.mang }) });
+    if (A.gblur > 0.3) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { gauss: ((e.lblur && e.lblur.gauss) || 0) + Math.round(A.gblur * 2) / 2 }) });
     if (A.seq) {
       const Q = A.seq, cur = onePiece(e, Q.pieces[Q.i]);
       if (el.anim.enter === 'roll') {
@@ -3637,17 +3640,173 @@
     x.stroke();
   }
 
+  /* ───────────────────────── text effects (thermal, ink bleed) ───────────────────────── */
+
+  // el.tfx = { style: 'thermal' | 'ink', amount, palette, move, rough, speckle, smear, angle, color }
+  // Both work on the layer's rendered bitmap: its alpha becomes a heat map or a soaked-ink mask.
+  R.TEXT_FX = { none: 'None', thermal: 'Thermal blur', ink: 'Ink bleed' };
+  R.THERMAL_PALETTES = {
+    thermal: { label: 'Thermal', stops: [[0, 20, 40, 255, 0], [0.07, 30, 60, 255, 0.3], [0.14, 50, 80, 255, 0.85], [0.22, 90, 100, 255, 1], [0.3, 255, 110, 170, 1], [0.42, 255, 140, 60, 1], [0.6, 255, 214, 60, 1], [0.8, 255, 246, 170, 1], [1, 255, 255, 255, 1]] },
+    infrared: { label: 'Infrared', stops: [[0, 40, 0, 90, 0], [0.07, 60, 0, 120, 0.3], [0.14, 80, 0, 150, 0.85], [0.25, 170, 20, 160, 1], [0.42, 240, 40, 60, 1], [0.6, 255, 140, 20, 1], [0.8, 255, 230, 90, 1], [1, 255, 255, 235, 1]] },
+    night: { label: 'Night vision', stops: [[0, 0, 40, 10, 0], [0.07, 5, 70, 20, 0.3], [0.14, 10, 100, 30, 0.85], [0.35, 40, 190, 60, 1], [0.65, 150, 255, 120, 1], [1, 235, 255, 225, 1]] },
+    ice: { label: 'Ice', stops: [[0, 10, 30, 120, 0], [0.07, 20, 50, 180, 0.3], [0.14, 30, 80, 230, 0.85], [0.32, 40, 160, 255, 1], [0.55, 110, 230, 255, 1], [0.8, 210, 250, 255, 1], [1, 255, 255, 255, 1]] },
+    sunset: { label: 'Sunset', stops: [[0, 120, 20, 120, 0], [0.07, 150, 25, 130, 0.3], [0.14, 190, 30, 140, 0.85], [0.3, 255, 60, 110, 1], [0.5, 255, 120, 60, 1], [0.75, 255, 200, 110, 1], [1, 255, 250, 235, 1]] },
+  };
+  const paletteLut = new LRU(8);
+  function heatLut(name) {
+    let lut = paletteLut.get(name);
+    if (lut) return lut;
+    const st = (R.THERMAL_PALETTES[name] || R.THERMAL_PALETTES.thermal).stops;
+    lut = new Uint8ClampedArray(256 * 4);
+    for (let i = 0; i < 256; i++) {
+      const v = i / 255;
+      let j = 0;
+      while (j < st.length - 2 && v > st[j + 1][0]) j++;
+      const a = st[j], b = st[j + 1], k = clamp((v - a[0]) / Math.max(1e-6, b[0] - a[0]), 0, 1);
+      for (let c = 0; c < 4; c++) lut[i * 4 + c] = (a[c + 1] + (b[c + 1] - a[c + 1]) * k) * (c === 3 ? 255 : 1);
+    }
+    paletteLut.set(name, lut);
+    return lut;
+  }
+  // three box passes ≈ a gaussian; runs on a Float32 alpha map so it works without canvas filters (Safari)
+  function blurMap(src, w, h, r) {
+    r = Math.max(0, Math.round(r));
+    if (!r) return src.slice();
+    const a = src.slice(), b = new Float32Array(src.length), inv = 1 / (r * 2 + 1);
+    const hpass = (from, to) => {
+      for (let y = 0; y < h; y++) {
+        const o = y * w;
+        let s = 0;
+        for (let i = -r; i <= r; i++) s += from[o + (i < 0 ? 0 : i >= w ? w - 1 : i)];
+        for (let x = 0; x < w; x++) {
+          to[o + x] = s * inv;
+          const add = x + r + 1, sub = x - r;
+          s += from[o + (add >= w ? w - 1 : add)] - from[o + (sub < 0 ? 0 : sub)];
+        }
+      }
+    };
+    const vpass = (from, to) => {
+      for (let x = 0; x < w; x++) {
+        let s = 0;
+        for (let i = -r; i <= r; i++) s += from[(i < 0 ? 0 : i >= h ? h - 1 : i) * w + x];
+        for (let y = 0; y < h; y++) {
+          to[y * w + x] = s * inv;
+          const add = y + r + 1, sub = y - r;
+          s += from[(add >= h ? h - 1 : add) * w + x] - from[(sub < 0 ? 0 : sub) * w + x];
+        }
+      }
+    };
+    for (let k = 0; k < 3; k++) { hpass(a, b); vpass(b, a); }
+    return a;
+  }
+  // smooth value noise in 0..1, cells of `cell` px; `z` slides the field over time
+  function valueNoise(w, h, cell, seed, z = 0) {
+    const gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2, r = rng(seed), g = new Float32Array(gw * gh * 2);
+    for (let i = 0; i < g.length; i++) g[i] = r();
+    const zi = Math.floor(z) % 2, zf = z - Math.floor(z), zs = zf * zf * (3 - 2 * zf), out = new Float32Array(w * h);
+    const G = (x, y, l) => g[(((l + zi) % 2) * gh + y) * gw + x];
+    for (let y = 0; y < h; y++) {
+      const fy = y / cell, iy = Math.floor(fy), ty = fy - iy, sy = ty * ty * (3 - 2 * ty);
+      for (let x = 0; x < w; x++) {
+        const fx = x / cell, ix = Math.floor(fx), tx = fx - ix, sx = tx * tx * (3 - 2 * tx);
+        const at = l => { const a = G(ix, iy, l) + (G(ix + 1, iy, l) - G(ix, iy, l)) * sx, b = G(ix, iy + 1, l) + (G(ix + 1, iy + 1, l) - G(ix, iy + 1, l)) * sx; return a + (b - a) * sy; };
+        out[y * w + x] = zs ? at(0) + (at(1) - at(0)) * zs : at(0);
+      }
+    }
+    return out;
+  }
+  R.textFxPad = function (el) {
+    const fx = el.tfx;
+    if (!fx || !fx.style || fx.style === 'none') return 0;
+    const fs = el.fontSize || Math.min(el.width, el.height) * 0.3, k = clamp((fx.amount ?? 50) / 100, 0, 1);
+    if (fx.style === 'thermal') return fs * (0.3 + 0.85 * k);
+    return fs * (0.1 + 0.25 * k) + fs * 0.5 * clamp((fx.smear ?? 25) / 100, 0, 1);
+  };
+  const fxOn = el => el.tfx && el.tfx.style && el.tfx.style !== 'none';
+  function textFx(c, el, s, t) {
+    const fx = el.tfx, W = c.width, H = c.height, hot = fx.style === 'thermal';
+    // the glow is soft, so heat is worked out small; ink needs its fine specks
+    const ws = Math.min(1, (hot ? 420 : 1100) / Math.max(W, H)), w = Math.max(1, Math.round(W * ws)), h = Math.max(1, Math.round(H * ws));
+    const work = canvas(w, h), wx = work.getContext('2d', { willReadFrequently: true });
+    wx.drawImage(c, 0, 0, w, h);
+    let d;
+    try { d = wx.getImageData(0, 0, w, h); } catch (e) { return c; }
+    const px = d.data, n = w * h, a = new Float32Array(n);
+    for (let i = 0; i < n; i++) a[i] = px[i * 4 + 3] / 255;
+    const fs = (el.fontSize || Math.min(el.width, el.height) * 0.3) * s * ws, k = clamp((fx.amount ?? 50) / 100, 0, 1);
+    const seed = hashStr(el.id || 'fx') + (fx.seed || 0);
+    if (fx.style === 'thermal') {
+      // heat: the letters are white-hot, a tight blur glows yellow-orange, a wide one fades through pink to blue
+      const r = fs * (0.05 + 0.15 * k), z = fx.move && t != null ? t * 1.2 : 0;
+      const b1 = blurMap(a, w, h, r * 0.35), b2 = blurMap(a, w, h, r), b3 = blurMap(a, w, h, r * 1.8);
+      const nz = valueNoise(w, h, Math.max(4, r * 0.9), seed, z), grain = rng(seed + 7 + Math.floor(z * 10));
+      const lut = heatLut(fx.palette || 'thermal');
+      for (let i = 0; i < n; i++) {
+        const wob = 0.55 + nz[i] * 0.9;
+        let v = Math.max(a[i], Math.min(0.74, b1[i] * 1.5) * (0.8 + 0.2 * wob), Math.min(0.6, b2[i] * 1.3 * wob), b3[i] * 1.1 * wob);
+        // fade out towards the bitmap's edge so the glow never ends in a straight line
+        const ex = i % w, ey = (i - ex) / w, edge = Math.min(ex, w - 1 - ex, ey, h - 1 - ey) / (Math.min(w, h) * 0.08);
+        if (edge < 1) v *= Math.max(0, edge);
+        const g = grain();
+        v = v < 0.004 ? 0 : clamp(v + (g - 0.5) * 0.05 * Math.min(1, v * 8), 0, 1);
+        const o = Math.round(v * 255) * 4;
+        px[i * 4] = lut[o]; px[i * 4 + 1] = lut[o + 1]; px[i * 4 + 2] = lut[o + 2]; px[i * 4 + 3] = lut[o + 3];
+      }
+    } else {
+      // ink soaking into paper: blur the letters (plus a smear in one direction), then cut the result with a
+      // rough threshold so the edges spread unevenly, and spray dots of ink into the halo around them
+      const r = fs * (0.012 + 0.045 * k), sm = clamp((fx.smear ?? 25) / 100, 0, 1), rough = clamp((fx.rough ?? 50) / 100, 0, 1), sp = clamp((fx.speckle ?? 50) / 100, 0, 1);
+      let m = blurMap(a, w, h, r);
+      if (sm > 0) {
+        const ang = (fx.angle ?? 30) * Math.PI / 180, len = fs * 0.4 * sm, steps = Math.max(2, Math.min(24, Math.round(len / 2)));
+        const dx = Math.cos(ang) * len / steps, dy = Math.sin(ang) * len / steps, base = m.slice();
+        for (let j = 1; j <= steps; j++) {
+          const ox = Math.round(dx * j), oy = Math.round(dy * j), f = 0.75 * (1 - j / (steps + 1));
+          for (let y = Math.max(0, oy); y < Math.min(h, h + oy); y++) {
+            const row = y * w, srow = (y - oy) * w;
+            for (let x = Math.max(0, ox); x < Math.min(w, w + ox); x++) { const v = base[srow + x - ox] * f; if (v > m[row + x]) m[row + x] = v; }
+          }
+        }
+      }
+      const spray = blurMap(m, w, h, r * 1.4 + 1.5), mid = valueNoise(w, h, Math.max(2, fs * 0.05), seed), fine = rng(seed + 3), th = 0.5 - 0.2 * k;
+      const col = hexRgb(fx.color || (typeof el.fill === 'string' && !isClear(el.fill) ? el.fill : '#111111'));
+      for (let i = 0; i < n; i++) {
+        const f = fine();
+        const v = m[i] + (mid[i] - 0.5) * rough * 0.45 + (f - 0.5) * rough * 0.18;
+        // the letter itself always stays inked; the soaked edge and the spray of dots grow out of it
+        let al = Math.max(a[i] > 0.5 ? 1 : a[i], clamp((v - th + 0.035) / 0.07, 0, 1));
+        if (al < 1 && spray[i] > 0.01 && f < sp * 0.5 * Math.pow(Math.min(1, spray[i] / th), 2.6)) al = 1;
+        else if (al > 0 && a[i] > 0.95 && f > 1 - rough * 0.012) al *= 0.4;
+        px[i * 4] = col[0]; px[i * 4 + 1] = col[1]; px[i * 4 + 2] = col[2]; px[i * 4 + 3] = al * 255;
+      }
+    }
+    wx.putImageData(d, 0, 0);
+    if (ws === 1 && !hot) return work;
+    const out = canvas(W, H), ox = out.getContext('2d');
+    ox.imageSmoothingQuality = 'high';
+    ox.drawImage(work, 0, 0, W, H);
+    if (hot) {
+      // the letters themselves are the hottest colour, drawn sharp over the upscaled glow
+      const lut = heatLut(fx.palette || 'thermal'), core = canvas(W, H), cx = core.getContext('2d');
+      cx.drawImage(c, 0, 0); cx.globalCompositeOperation = 'source-in';
+      cx.fillStyle = `rgb(${lut[1020]},${lut[1021]},${lut[1022]})`; cx.fillRect(0, 0, W, H);
+      ox.drawImage(core, 0, 0);
+    }
+    return out;
+  }
+
   const layerCache = new LRU(60);
   function drawLayered(ctx, el, env) {
     const sh = el.shadow;
     const erased = el.erase && el.erase.length;
     const lb = el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0) ? el.lblur : null;
-    if ((!sh || !sh.on) && !erased && !lb) { drawCore(ctx, el, env); return; }
+    const tfx = fxOn(el);
+    if ((!sh || !sh.on) && !erased && !lb && !tfx) { drawCore(ctx, el, env); return; }
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
     const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
     // layers that change every frame (speed flashes, video) can't reuse a cached bitmap across time
-    const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion + (R.isTimeVarying(el) ? '|' + ('time' in env ? env.time : R.playTime) : '');
+    const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion + (R.isTimeVarying(el) || (tfx && el.tfx.move) ? '|' + ('time' in env ? env.time : R.playTime) : '');
     let c = layerCache.get(key);
     if (!c || c.dirty) {
       const W = (el.width + b * 2) * s, H = (el.height + b * 2) * s;
@@ -3668,9 +3827,15 @@
         x2.globalCompositeOperation = 'destination-in';
         x2.drawImage(mk, 0, 0);
       }
+      if (tfx) { const fc = textFx(c, el, s, 'time' in env ? env.time : R.playTime); fc.dirty = c.dirty; c = fc; }
       if (lb && lb.motion > 0) {
         const sm = motionBlurPx(c, lb.motion * s, lb.angle || 0);
         sm.dirty = c.dirty; c = sm;
+      }
+      // bake a gaussian layer blur into the cached bitmap: blurring once beats blurring every frame
+      if (lb && lb.gauss > 0) {
+        const bc = canvas(c.width, c.height), bx = bc.getContext('2d');
+        if ('filter' in bx) { bx.filter = `blur(${lb.gauss * s}px)`; bx.drawImage(c, 0, 0); bc.dirty = c.dirty; bc.baked = true; c = bc; }
       }
       // async resources may still be loading; don't cache an incomplete render
       if (!isComplete(el)) c.dirty = true;
@@ -3698,7 +3863,7 @@
       ctx.shadowOffsetX = (sh.x ?? 0) * ds;
       ctx.shadowOffsetY = (sh.y ?? 12) * ds;
     }
-    if (lb && lb.gauss > 0 && 'filter' in ctx) ctx.filter = `blur(${lb.gauss * ds}px)`;
+    if (lb && lb.gauss > 0 && !c.baked && 'filter' in ctx) ctx.filter = `blur(${lb.gauss * ds}px)`;
     ctx.drawImage(c, -b, -b, el.width + b * 2, el.height + b * 2);
     ctx.restore();
   }
@@ -3803,10 +3968,23 @@
   R.CAMERA_MOVES = {
     none: 'Still', pushin: 'Slow push-in', pullback: 'Pull-back reveal', whip: 'Whip zoom', snap: 'Snap zoom', crash: 'Crash zoom in & out',
     follow: 'Follow the typing', cuts: 'Hard cuts (close → wide)', drift: 'Handheld drift', pan: 'Pan across', tilt: 'Dutch tilt', jolt: 'Jolt cuts', spiral: 'Spiral in',
+    keys: 'Smooth cam (keyframes)',
   };
   const eio = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
   const eoExpo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
   const eioExpo = p => p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2;
+  // fill in each key from the one before it; x / y may be fractions of the canvas (≤ 1)
+  function camKeys(c, W, H) {
+    const out = [];
+    let prev = { t: 0, x: W / 2, y: H / 2, z: 1, r: 0 };
+    for (const k of (c.keys || []).slice().sort((p, q) => p.t - q.t)) {
+      const n = Object.assign({}, prev, k);
+      if (k.x != null && k.x <= 1) n.x = k.x * W;
+      if (k.y != null && k.y <= 1) n.y = k.y * H;
+      out.push(n); prev = n;
+    }
+    return out;
+  }
   function findEl(doc, key) { return key ? (doc.elements || []).find(e => e.id === key || e.key === key) : null; }
   function elCentre(el) {
     const a = (el.rotation || 0) * Math.PI / 180, w = el.width / 2, h = el.height / 2;
@@ -3866,6 +4044,18 @@
         break;
       }
       case 'spiral': { const k = eio(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = (rot || 25) * (1 - k); break; }
+      case 'keys': {
+        // keyframed camera: { t, x, y, z, r, ease } — each key eases in from the one before ('expo' for a whip)
+        const K = camKeys(c, W, H);
+        if (!K.length) break;
+        let i = 0;
+        while (i < K.length - 1 && t >= K[i + 1].t) i++;
+        const a = K[i], b = K[Math.min(K.length - 1, i + 1)];
+        const q = b === a ? 0 : clamp((t - a.t) / Math.max(1e-3, b.t - a.t), 0, 1);
+        const k = b.ease === 'expo' ? eioExpo(q) : b.ease === 'out' ? eoExpo(q) : b.ease === 'linear' ? q : eio(q);
+        f = { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }; z = a.z + (b.z - a.z) * k; r = a.r + (b.r - a.r) * k;
+        break;
+      }
       case 'jolt': {
         const slot = Math.max(0.05, c.cut || 0.15), n = Math.floor(t / slot), rr = rng(n * 7919 + 101);
         z = 1 + (Z - 1) * (0.35 + rr() * 0.65); r = (rr() - 0.5) * 2 * (rot || 3);
@@ -4011,17 +4201,19 @@
         const pts = [[0, 0], [c.width, 0], [0, c.height], [c.width, c.height], [c.width / 2, c.height / 2]];
         const disp = Math.max(...pts.map(([x, y]) => { const q = R1.transformPoint(new DOMPoint(x, y)); return Math.hypot(q.x - x, q.y - y); }));
         if (disp > 1.5) {
-          const N = clamp(Math.ceil(disp / 3), 2, 14);
-          if (!blurBuf || blurBuf.width !== c.width || blurBuf.height !== c.height) blurBuf = canvas(c.width, c.height);
-          const bx = blurBuf.getContext('2d');
-          bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalAlpha = 1; bx.clearRect(0, 0, c.width, c.height);
-          bx.drawImage(c, 0, 0);
+          const N = clamp(Math.ceil(disp / 2.5), 2, 64);
+          // a long smear hides fine detail, so big moves are accumulated at half size (4× fewer pixels per sample)
+          const hs = disp > 40 ? 0.5 : 1, bw = Math.round(c.width * hs), bh = Math.round(c.height * hs);
+          if (!blurBuf || blurBuf.width !== bw || blurBuf.height !== bh) blurBuf = canvas(bw, bh);
+          const bx = blurBuf.getContext('2d'), HS = new DOMMatrix().scale(hs, hs);
+          bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalAlpha = 1; bx.clearRect(0, 0, bw, bh);
+          bx.drawImage(c, 0, 0, bw, bh);
           for (let i = 1; i <= N; i++) {
-            bx.setTransform(rel(i / N)); bx.globalAlpha = 1 / (i + 1);
+            bx.setTransform(HS.multiply(rel(i / N))); bx.globalAlpha = 1 / (i + 1);
             bx.drawImage(c, 0, 0);
           }
           ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-          ctx.drawImage(blurBuf, 0, 0);
+          ctx.drawImage(blurBuf, 0, 0, c.width, c.height);
         }
       }
     }

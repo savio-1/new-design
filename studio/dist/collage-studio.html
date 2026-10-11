@@ -11158,7 +11158,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function bleed(el) {
     const lb = el.lblur || {};
-    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6;
+    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6 + R.textFxPad(el);
   }
   function bleedCore(el) {
     const m = Math.max(el.width, el.height);
@@ -11213,7 +11213,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   };
   R.ANIM_ENTER = {
     none: 'None', pop: 'Pop in', land: 'Toss in', fade: 'Fade in', rise: 'Slide up', drop: 'Drop in', left: 'Slide from left',
-    right: 'Slide from right', zoom: 'Zoom in', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
+    right: 'Slide from right', zoom: 'Zoom in', focus: 'Blur in (focus)', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
     slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', lettersBounce: 'Letters bounce in',
     captions: 'Captions (line by line)', roll: 'Roll through lines', words: 'Word by word',
   };
@@ -11227,7 +11227,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (p < 2.5 / d) return n * (p -= 2.25 / d) * p + 0.9375;
     return n * (p -= 2.625 / d) * p + 0.984375;
   };
-  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
+  R.hasAnim = el => el.type === 'flashes' || R.isSeq(el) || !!(el.tfx && el.tfx.move && el.tfx.style && el.tfx.style !== 'none') || !!((el.anim && ((el.anim.loop && el.anim.loop !== 'none') || (el.anim.enter && el.anim.enter !== 'none'))) || R.hasTiming(el) || (el.typing && el.typing.caret !== false && el.typing.blink !== false));
   R.hasTiming = el => !!(el.time && ((el.time.start || 0) > 0 || el.time.end != null || (el.time.cycle && el.time.cycle.count > 1)));
   // cuts: a layer can be shown only for part of the video, or take turns with others
   R.visibleAt = function (el, t) {
@@ -11245,7 +11245,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   };
   function animState(el, t, doc) {
     const an = el.anim || {}, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
-    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, seq: null };
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, gblur: 0, seq: null };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
     const loop = an.loop || 'none';
@@ -11297,6 +11297,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
         case 'roll': case 'words': if (el.type === 'text') st.seq = seqState(el, tl - (an.delay || 0), spd, enter, an.accel); break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
+        // out of focus to sharp, like a lens pulling focus onto the word
+        case 'focus': { const q = clamp((tl - (an.delay || 0)) / (0.75 / spd), 0, 1), f = 1 - Math.pow(1 - q, 2.2); st.alpha *= Math.min(1, q * 1.6); st.gblur = (1 - f) * m * 0.22 * amt; st.sc *= 1 + (1 - f) * 0.04; break; }
         case 'land': {
           // tossed onto a pile: comes in big and turned, settles flat with a little bounce
           const q = clamp((tl - (an.delay || 0)) / (0.45 / spd), 0, 1), k = easeOut(q);
@@ -11375,6 +11377,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (A.flow != null || A.draw != null) e = Object.assign({}, e, A.flow != null ? { flowShift: ((A.flow % 1) + 1) % 1 } : {}, A.draw != null ? { drawFrac: A.draw } : {});
     if (A.letters) e = Object.assign({}, e, { _letters: A.letters });
     if (A.mblur > 1.5) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { motion: ((e.lblur && e.lblur.motion) || 0) + A.mblur, angle: A.mang }) });
+    if (A.gblur > 0.3) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { gauss: ((e.lblur && e.lblur.gauss) || 0) + Math.round(A.gblur * 2) / 2 }) });
     if (A.seq) {
       const Q = A.seq, cur = onePiece(e, Q.pieces[Q.i]);
       if (el.anim.enter === 'roll') {
@@ -11435,17 +11438,173 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     x.stroke();
   }
 
+  /* ───────────────────────── text effects (thermal, ink bleed) ───────────────────────── */
+
+  // el.tfx = { style: 'thermal' | 'ink', amount, palette, move, rough, speckle, smear, angle, color }
+  // Both work on the layer's rendered bitmap: its alpha becomes a heat map or a soaked-ink mask.
+  R.TEXT_FX = { none: 'None', thermal: 'Thermal blur', ink: 'Ink bleed' };
+  R.THERMAL_PALETTES = {
+    thermal: { label: 'Thermal', stops: [[0, 20, 40, 255, 0], [0.07, 30, 60, 255, 0.3], [0.14, 50, 80, 255, 0.85], [0.22, 90, 100, 255, 1], [0.3, 255, 110, 170, 1], [0.42, 255, 140, 60, 1], [0.6, 255, 214, 60, 1], [0.8, 255, 246, 170, 1], [1, 255, 255, 255, 1]] },
+    infrared: { label: 'Infrared', stops: [[0, 40, 0, 90, 0], [0.07, 60, 0, 120, 0.3], [0.14, 80, 0, 150, 0.85], [0.25, 170, 20, 160, 1], [0.42, 240, 40, 60, 1], [0.6, 255, 140, 20, 1], [0.8, 255, 230, 90, 1], [1, 255, 255, 235, 1]] },
+    night: { label: 'Night vision', stops: [[0, 0, 40, 10, 0], [0.07, 5, 70, 20, 0.3], [0.14, 10, 100, 30, 0.85], [0.35, 40, 190, 60, 1], [0.65, 150, 255, 120, 1], [1, 235, 255, 225, 1]] },
+    ice: { label: 'Ice', stops: [[0, 10, 30, 120, 0], [0.07, 20, 50, 180, 0.3], [0.14, 30, 80, 230, 0.85], [0.32, 40, 160, 255, 1], [0.55, 110, 230, 255, 1], [0.8, 210, 250, 255, 1], [1, 255, 255, 255, 1]] },
+    sunset: { label: 'Sunset', stops: [[0, 120, 20, 120, 0], [0.07, 150, 25, 130, 0.3], [0.14, 190, 30, 140, 0.85], [0.3, 255, 60, 110, 1], [0.5, 255, 120, 60, 1], [0.75, 255, 200, 110, 1], [1, 255, 250, 235, 1]] },
+  };
+  const paletteLut = new LRU(8);
+  function heatLut(name) {
+    let lut = paletteLut.get(name);
+    if (lut) return lut;
+    const st = (R.THERMAL_PALETTES[name] || R.THERMAL_PALETTES.thermal).stops;
+    lut = new Uint8ClampedArray(256 * 4);
+    for (let i = 0; i < 256; i++) {
+      const v = i / 255;
+      let j = 0;
+      while (j < st.length - 2 && v > st[j + 1][0]) j++;
+      const a = st[j], b = st[j + 1], k = clamp((v - a[0]) / Math.max(1e-6, b[0] - a[0]), 0, 1);
+      for (let c = 0; c < 4; c++) lut[i * 4 + c] = (a[c + 1] + (b[c + 1] - a[c + 1]) * k) * (c === 3 ? 255 : 1);
+    }
+    paletteLut.set(name, lut);
+    return lut;
+  }
+  // three box passes ≈ a gaussian; runs on a Float32 alpha map so it works without canvas filters (Safari)
+  function blurMap(src, w, h, r) {
+    r = Math.max(0, Math.round(r));
+    if (!r) return src.slice();
+    const a = src.slice(), b = new Float32Array(src.length), inv = 1 / (r * 2 + 1);
+    const hpass = (from, to) => {
+      for (let y = 0; y < h; y++) {
+        const o = y * w;
+        let s = 0;
+        for (let i = -r; i <= r; i++) s += from[o + (i < 0 ? 0 : i >= w ? w - 1 : i)];
+        for (let x = 0; x < w; x++) {
+          to[o + x] = s * inv;
+          const add = x + r + 1, sub = x - r;
+          s += from[o + (add >= w ? w - 1 : add)] - from[o + (sub < 0 ? 0 : sub)];
+        }
+      }
+    };
+    const vpass = (from, to) => {
+      for (let x = 0; x < w; x++) {
+        let s = 0;
+        for (let i = -r; i <= r; i++) s += from[(i < 0 ? 0 : i >= h ? h - 1 : i) * w + x];
+        for (let y = 0; y < h; y++) {
+          to[y * w + x] = s * inv;
+          const add = y + r + 1, sub = y - r;
+          s += from[(add >= h ? h - 1 : add) * w + x] - from[(sub < 0 ? 0 : sub) * w + x];
+        }
+      }
+    };
+    for (let k = 0; k < 3; k++) { hpass(a, b); vpass(b, a); }
+    return a;
+  }
+  // smooth value noise in 0..1, cells of `cell` px; `z` slides the field over time
+  function valueNoise(w, h, cell, seed, z = 0) {
+    const gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2, r = rng(seed), g = new Float32Array(gw * gh * 2);
+    for (let i = 0; i < g.length; i++) g[i] = r();
+    const zi = Math.floor(z) % 2, zf = z - Math.floor(z), zs = zf * zf * (3 - 2 * zf), out = new Float32Array(w * h);
+    const G = (x, y, l) => g[(((l + zi) % 2) * gh + y) * gw + x];
+    for (let y = 0; y < h; y++) {
+      const fy = y / cell, iy = Math.floor(fy), ty = fy - iy, sy = ty * ty * (3 - 2 * ty);
+      for (let x = 0; x < w; x++) {
+        const fx = x / cell, ix = Math.floor(fx), tx = fx - ix, sx = tx * tx * (3 - 2 * tx);
+        const at = l => { const a = G(ix, iy, l) + (G(ix + 1, iy, l) - G(ix, iy, l)) * sx, b = G(ix, iy + 1, l) + (G(ix + 1, iy + 1, l) - G(ix, iy + 1, l)) * sx; return a + (b - a) * sy; };
+        out[y * w + x] = zs ? at(0) + (at(1) - at(0)) * zs : at(0);
+      }
+    }
+    return out;
+  }
+  R.textFxPad = function (el) {
+    const fx = el.tfx;
+    if (!fx || !fx.style || fx.style === 'none') return 0;
+    const fs = el.fontSize || Math.min(el.width, el.height) * 0.3, k = clamp((fx.amount ?? 50) / 100, 0, 1);
+    if (fx.style === 'thermal') return fs * (0.3 + 0.85 * k);
+    return fs * (0.1 + 0.25 * k) + fs * 0.5 * clamp((fx.smear ?? 25) / 100, 0, 1);
+  };
+  const fxOn = el => el.tfx && el.tfx.style && el.tfx.style !== 'none';
+  function textFx(c, el, s, t) {
+    const fx = el.tfx, W = c.width, H = c.height, hot = fx.style === 'thermal';
+    // the glow is soft, so heat is worked out small; ink needs its fine specks
+    const ws = Math.min(1, (hot ? 420 : 1100) / Math.max(W, H)), w = Math.max(1, Math.round(W * ws)), h = Math.max(1, Math.round(H * ws));
+    const work = canvas(w, h), wx = work.getContext('2d', { willReadFrequently: true });
+    wx.drawImage(c, 0, 0, w, h);
+    let d;
+    try { d = wx.getImageData(0, 0, w, h); } catch (e) { return c; }
+    const px = d.data, n = w * h, a = new Float32Array(n);
+    for (let i = 0; i < n; i++) a[i] = px[i * 4 + 3] / 255;
+    const fs = (el.fontSize || Math.min(el.width, el.height) * 0.3) * s * ws, k = clamp((fx.amount ?? 50) / 100, 0, 1);
+    const seed = hashStr(el.id || 'fx') + (fx.seed || 0);
+    if (fx.style === 'thermal') {
+      // heat: the letters are white-hot, a tight blur glows yellow-orange, a wide one fades through pink to blue
+      const r = fs * (0.05 + 0.15 * k), z = fx.move && t != null ? t * 1.2 : 0;
+      const b1 = blurMap(a, w, h, r * 0.35), b2 = blurMap(a, w, h, r), b3 = blurMap(a, w, h, r * 1.8);
+      const nz = valueNoise(w, h, Math.max(4, r * 0.9), seed, z), grain = rng(seed + 7 + Math.floor(z * 10));
+      const lut = heatLut(fx.palette || 'thermal');
+      for (let i = 0; i < n; i++) {
+        const wob = 0.55 + nz[i] * 0.9;
+        let v = Math.max(a[i], Math.min(0.74, b1[i] * 1.5) * (0.8 + 0.2 * wob), Math.min(0.6, b2[i] * 1.3 * wob), b3[i] * 1.1 * wob);
+        // fade out towards the bitmap's edge so the glow never ends in a straight line
+        const ex = i % w, ey = (i - ex) / w, edge = Math.min(ex, w - 1 - ex, ey, h - 1 - ey) / (Math.min(w, h) * 0.08);
+        if (edge < 1) v *= Math.max(0, edge);
+        const g = grain();
+        v = v < 0.004 ? 0 : clamp(v + (g - 0.5) * 0.05 * Math.min(1, v * 8), 0, 1);
+        const o = Math.round(v * 255) * 4;
+        px[i * 4] = lut[o]; px[i * 4 + 1] = lut[o + 1]; px[i * 4 + 2] = lut[o + 2]; px[i * 4 + 3] = lut[o + 3];
+      }
+    } else {
+      // ink soaking into paper: blur the letters (plus a smear in one direction), then cut the result with a
+      // rough threshold so the edges spread unevenly, and spray dots of ink into the halo around them
+      const r = fs * (0.012 + 0.045 * k), sm = clamp((fx.smear ?? 25) / 100, 0, 1), rough = clamp((fx.rough ?? 50) / 100, 0, 1), sp = clamp((fx.speckle ?? 50) / 100, 0, 1);
+      let m = blurMap(a, w, h, r);
+      if (sm > 0) {
+        const ang = (fx.angle ?? 30) * Math.PI / 180, len = fs * 0.4 * sm, steps = Math.max(2, Math.min(24, Math.round(len / 2)));
+        const dx = Math.cos(ang) * len / steps, dy = Math.sin(ang) * len / steps, base = m.slice();
+        for (let j = 1; j <= steps; j++) {
+          const ox = Math.round(dx * j), oy = Math.round(dy * j), f = 0.75 * (1 - j / (steps + 1));
+          for (let y = Math.max(0, oy); y < Math.min(h, h + oy); y++) {
+            const row = y * w, srow = (y - oy) * w;
+            for (let x = Math.max(0, ox); x < Math.min(w, w + ox); x++) { const v = base[srow + x - ox] * f; if (v > m[row + x]) m[row + x] = v; }
+          }
+        }
+      }
+      const spray = blurMap(m, w, h, r * 1.4 + 1.5), mid = valueNoise(w, h, Math.max(2, fs * 0.05), seed), fine = rng(seed + 3), th = 0.5 - 0.2 * k;
+      const col = hexRgb(fx.color || (typeof el.fill === 'string' && !isClear(el.fill) ? el.fill : '#111111'));
+      for (let i = 0; i < n; i++) {
+        const f = fine();
+        const v = m[i] + (mid[i] - 0.5) * rough * 0.45 + (f - 0.5) * rough * 0.18;
+        // the letter itself always stays inked; the soaked edge and the spray of dots grow out of it
+        let al = Math.max(a[i] > 0.5 ? 1 : a[i], clamp((v - th + 0.035) / 0.07, 0, 1));
+        if (al < 1 && spray[i] > 0.01 && f < sp * 0.5 * Math.pow(Math.min(1, spray[i] / th), 2.6)) al = 1;
+        else if (al > 0 && a[i] > 0.95 && f > 1 - rough * 0.012) al *= 0.4;
+        px[i * 4] = col[0]; px[i * 4 + 1] = col[1]; px[i * 4 + 2] = col[2]; px[i * 4 + 3] = al * 255;
+      }
+    }
+    wx.putImageData(d, 0, 0);
+    if (ws === 1 && !hot) return work;
+    const out = canvas(W, H), ox = out.getContext('2d');
+    ox.imageSmoothingQuality = 'high';
+    ox.drawImage(work, 0, 0, W, H);
+    if (hot) {
+      // the letters themselves are the hottest colour, drawn sharp over the upscaled glow
+      const lut = heatLut(fx.palette || 'thermal'), core = canvas(W, H), cx = core.getContext('2d');
+      cx.drawImage(c, 0, 0); cx.globalCompositeOperation = 'source-in';
+      cx.fillStyle = `rgb(${lut[1020]},${lut[1021]},${lut[1022]})`; cx.fillRect(0, 0, W, H);
+      ox.drawImage(core, 0, 0);
+    }
+    return out;
+  }
+
   const layerCache = new LRU(60);
   function drawLayered(ctx, el, env) {
     const sh = el.shadow;
     const erased = el.erase && el.erase.length;
     const lb = el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0) ? el.lblur : null;
-    if ((!sh || !sh.on) && !erased && !lb) { drawCore(ctx, el, env); return; }
+    const tfx = fxOn(el);
+    if ((!sh || !sh.on) && !erased && !lb && !tfx) { drawCore(ctx, el, env); return; }
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
     const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
     // layers that change every frame (speed flashes, video) can't reuse a cached bitmap across time
-    const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion + (R.isTimeVarying(el) ? '|' + ('time' in env ? env.time : R.playTime) : '');
+    const key = JSON.stringify(rest) + '|' + s + '|' + R.fontsVersion + (R.isTimeVarying(el) || (tfx && el.tfx.move) ? '|' + ('time' in env ? env.time : R.playTime) : '');
     let c = layerCache.get(key);
     if (!c || c.dirty) {
       const W = (el.width + b * 2) * s, H = (el.height + b * 2) * s;
@@ -11466,9 +11625,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         x2.globalCompositeOperation = 'destination-in';
         x2.drawImage(mk, 0, 0);
       }
+      if (tfx) { const fc = textFx(c, el, s, 'time' in env ? env.time : R.playTime); fc.dirty = c.dirty; c = fc; }
       if (lb && lb.motion > 0) {
         const sm = motionBlurPx(c, lb.motion * s, lb.angle || 0);
         sm.dirty = c.dirty; c = sm;
+      }
+      // bake a gaussian layer blur into the cached bitmap: blurring once beats blurring every frame
+      if (lb && lb.gauss > 0) {
+        const bc = canvas(c.width, c.height), bx = bc.getContext('2d');
+        if ('filter' in bx) { bx.filter = `blur(${lb.gauss * s}px)`; bx.drawImage(c, 0, 0); bc.dirty = c.dirty; bc.baked = true; c = bc; }
       }
       // async resources may still be loading; don't cache an incomplete render
       if (!isComplete(el)) c.dirty = true;
@@ -11496,7 +11661,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       ctx.shadowOffsetX = (sh.x ?? 0) * ds;
       ctx.shadowOffsetY = (sh.y ?? 12) * ds;
     }
-    if (lb && lb.gauss > 0 && 'filter' in ctx) ctx.filter = `blur(${lb.gauss * ds}px)`;
+    if (lb && lb.gauss > 0 && !c.baked && 'filter' in ctx) ctx.filter = `blur(${lb.gauss * ds}px)`;
     ctx.drawImage(c, -b, -b, el.width + b * 2, el.height + b * 2);
     ctx.restore();
   }
@@ -11601,10 +11766,23 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   R.CAMERA_MOVES = {
     none: 'Still', pushin: 'Slow push-in', pullback: 'Pull-back reveal', whip: 'Whip zoom', snap: 'Snap zoom', crash: 'Crash zoom in & out',
     follow: 'Follow the typing', cuts: 'Hard cuts (close → wide)', drift: 'Handheld drift', pan: 'Pan across', tilt: 'Dutch tilt', jolt: 'Jolt cuts', spiral: 'Spiral in',
+    keys: 'Smooth cam (keyframes)',
   };
   const eio = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
   const eoExpo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
   const eioExpo = p => p <= 0 ? 0 : p >= 1 ? 1 : p < 0.5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2;
+  // fill in each key from the one before it; x / y may be fractions of the canvas (≤ 1)
+  function camKeys(c, W, H) {
+    const out = [];
+    let prev = { t: 0, x: W / 2, y: H / 2, z: 1, r: 0 };
+    for (const k of (c.keys || []).slice().sort((p, q) => p.t - q.t)) {
+      const n = Object.assign({}, prev, k);
+      if (k.x != null && k.x <= 1) n.x = k.x * W;
+      if (k.y != null && k.y <= 1) n.y = k.y * H;
+      out.push(n); prev = n;
+    }
+    return out;
+  }
   function findEl(doc, key) { return key ? (doc.elements || []).find(e => e.id === key || e.key === key) : null; }
   function elCentre(el) {
     const a = (el.rotation || 0) * Math.PI / 180, w = el.width / 2, h = el.height / 2;
@@ -11664,6 +11842,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         break;
       }
       case 'spiral': { const k = eio(p); f = mix(C, T0, k); z = 1 + (Z - 1) * k; r = (rot || 25) * (1 - k); break; }
+      case 'keys': {
+        // keyframed camera: { t, x, y, z, r, ease } — each key eases in from the one before ('expo' for a whip)
+        const K = camKeys(c, W, H);
+        if (!K.length) break;
+        let i = 0;
+        while (i < K.length - 1 && t >= K[i + 1].t) i++;
+        const a = K[i], b = K[Math.min(K.length - 1, i + 1)];
+        const q = b === a ? 0 : clamp((t - a.t) / Math.max(1e-3, b.t - a.t), 0, 1);
+        const k = b.ease === 'expo' ? eioExpo(q) : b.ease === 'out' ? eoExpo(q) : b.ease === 'linear' ? q : eio(q);
+        f = { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }; z = a.z + (b.z - a.z) * k; r = a.r + (b.r - a.r) * k;
+        break;
+      }
       case 'jolt': {
         const slot = Math.max(0.05, c.cut || 0.15), n = Math.floor(t / slot), rr = rng(n * 7919 + 101);
         z = 1 + (Z - 1) * (0.35 + rr() * 0.65); r = (rr() - 0.5) * 2 * (rot || 3);
@@ -11809,17 +11999,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const pts = [[0, 0], [c.width, 0], [0, c.height], [c.width, c.height], [c.width / 2, c.height / 2]];
         const disp = Math.max(...pts.map(([x, y]) => { const q = R1.transformPoint(new DOMPoint(x, y)); return Math.hypot(q.x - x, q.y - y); }));
         if (disp > 1.5) {
-          const N = clamp(Math.ceil(disp / 3), 2, 14);
-          if (!blurBuf || blurBuf.width !== c.width || blurBuf.height !== c.height) blurBuf = canvas(c.width, c.height);
-          const bx = blurBuf.getContext('2d');
-          bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalAlpha = 1; bx.clearRect(0, 0, c.width, c.height);
-          bx.drawImage(c, 0, 0);
+          const N = clamp(Math.ceil(disp / 2.5), 2, 64);
+          // a long smear hides fine detail, so big moves are accumulated at half size (4× fewer pixels per sample)
+          const hs = disp > 40 ? 0.5 : 1, bw = Math.round(c.width * hs), bh = Math.round(c.height * hs);
+          if (!blurBuf || blurBuf.width !== bw || blurBuf.height !== bh) blurBuf = canvas(bw, bh);
+          const bx = blurBuf.getContext('2d'), HS = new DOMMatrix().scale(hs, hs);
+          bx.setTransform(1, 0, 0, 1, 0, 0); bx.globalAlpha = 1; bx.clearRect(0, 0, bw, bh);
+          bx.drawImage(c, 0, 0, bw, bh);
           for (let i = 1; i <= N; i++) {
-            bx.setTransform(rel(i / N)); bx.globalAlpha = 1 / (i + 1);
+            bx.setTransform(HS.multiply(rel(i / N))); bx.globalAlpha = 1 / (i + 1);
             bx.drawImage(c, 0, 0);
           }
           ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-          ctx.drawImage(blurBuf, 0, 0);
+          ctx.drawImage(blurBuf, 0, 0, c.width, c.height);
         }
       }
     }
@@ -14527,6 +14719,107 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       })));
     })(),
 
+    // ── SMOOTH CAM TEXT: words pull into focus, the camera whips up to the headline, pushes in, and the type turns italic ──
+    ...(() => {
+      const BLUE = '#1f19c8', FONT = 'Inter Tight';
+      // word widths in ems (Inter Tight 800, -0.045 tracking; "probably" at 700)
+      const EM = { 'you’ve': 3.03, probably: 3.75, 'seen those': 4.79, smooth: 3.39, cam: 1.94, animations: 4.85 };
+      const D = 5.5;
+      function build(W, H) {
+        const Z = 2, vw = W / Z, vh = H / Z;
+        const fs = Math.min(0.74 * vw / 1.12 / 8.53, vh * 0.2);
+        const lowY = H * 0.66, highY = H * 0.34;
+        // one line of words of different sizes sitting on a shared baseline, centred on x = W / 2
+        const line = (words, cy, extra, label) => {
+          const sized = words.map(([w, k, o]) => ({ w, size: fs * k, o: o || {} }));
+          const total = sized.reduce((a, q, i) => a + EM[q.w] * q.size + (i ? 0.16 * q.size : 0), 0);
+          let x = W / 2 - total / 2;
+          const base = cy + fs * 0.36;
+          return sized.map((q, i) => {
+            if (i) x += 0.16 * q.size;
+            const el = txt(q.w, Object.assign({ x, y: base - q.size * 0.97, align: 'left', fontFamily: FONT, fontWeight: 800, fontSize: Math.round(q.size * 10) / 10, letterSpacing: -0.045, fill: BLUE, key: 'w-' + q.w.replace(/\W+/g, '') + (extra && extra.italic ? '-i' : ''), name: (label || 'Word') + ' ' + (i + 1) }, extra || {}, q.o));
+            x += EM[q.w] * q.size;
+            return el;
+          });
+        };
+        const blob = (fx, fy, fw, fh, color, blur) => shp('rounded', fx * W, fy * H, fw * W, fh * H, { radius: Math.min(fw * W, fh * H) * 0.3, fill: color, lblur: { gauss: blur * Math.min(W, H) / 1080, motion: 0, angle: 0 }, name: 'Soft light' });
+        const flash = (color, op, a, b) => shp('rect', 0, 0, W, H, { fill: color, opacity: op, time: { start: a, end: b }, name: 'Exposure flash' });
+        return {
+          background: { color: '#e8eafb', color2: '#f6f6fd', gradient: 'linear', angle: 150 },
+          overlay: { grain: 6 },
+          camera: {
+            move: 'keys', blur: 0.6,
+            keys: [{ t: 0, x: 0.5, y: lowY / H, z: Z, r: 0 }, { t: 2.1, z: Z * 1.04 }, { t: 2.5, y: highY / H, z: Z, r: 3.2 }, { t: 3.1, r: 0, z: Z * 1.02, ease: 'out' }, { t: D, z: Z * 1.13, ease: 'linear' }],
+          },
+          elements: [
+            blob(0.05, 0.08, 0.5, 0.3, '#ffffff', 60), blob(0.55, 0.2, 0.42, 0.24, '#d3d8f8', 70), blob(0.12, 0.46, 0.34, 0.2, '#dce0fa', 60),
+            blob(0.6, 0.55, 0.4, 0.28, '#ffffff', 70), blob(0.02, 0.72, 0.5, 0.24, '#d0d5f7', 80), blob(0.45, 0.82, 0.5, 0.2, '#f9f9ff', 60),
+            flash('#8d93ad', 0.45, 4.55, 4.67), flash('#ffffff', 0.75, 4.78, 4.88),
+            ...line([['you’ve', 0.85], ['probably', 0.62, { fontWeight: 700 }]], lowY, null, 'Opening word').map((e, i) => Object.assign(e, { time: { start: i ? 0.8 : 0.3, end: 1.45 }, anim: { enter: 'focus', delay: i ? 0.8 : 0.3, speed: 1 } }, i ? { y: e.y + fs * 0.08 } : {})),
+            ...line([['seen those', 0.8]], lowY, null, 'Second line').map(e => Object.assign(e, { time: { start: 1.45 }, anim: { enter: 'focus', delay: 1.45, speed: 1.6 } })),
+            ...line([['smooth', 1], ['cam', 0.8], ['animations', 0.68]], highY, null, 'Headline word').map(e => Object.assign(e, { time: { start: 0, end: 4.02 } })),
+            ...line([['smooth', 0.74], ['cam', 0.84], ['animations', 1]], highY, { italic: true }, 'Italic headline word').map(e => Object.assign(e, { time: { start: 3.92 }, anim: { enter: 'focus', delay: 3.92, speed: 2.2, amount: 0.6 } })),
+          ],
+        };
+      }
+      // every layer is part of the layout, so a resize rebuilds them (keeping the words you typed)
+      const buildAt = (W, H) => { const d = build(W, H); d.elements.forEach(e => { e.layoutSlot = true; }); return Object.assign({ width: W, height: H, anim: { duration: D, fps: 30 }, layout: { key: 'smoothcam' } }, d); };
+      (window.STUDIO_LAYOUTS = window.STUDIO_LAYOUTS || {}).smoothcam = { name: 'Smooth cam text', build: (W, H) => buildAt(W, H) };
+      const SIZES = [['story', 1080, 1920, 'Story 9:16'], ['portrait', 1080, 1350, 'Portrait 4:5'], ['square', 1080, 1080, 'Square 1:1'], ['wide', 1920, 1080, 'Landscape 16:9']];
+      return SIZES.map(([k, W, H, label]) => ({
+        id: `mv-smoothcam-${k}`, name: label, family: 'Smooth cam text', layout: 'smoothcam', orientation: k, tags: ['Video', 'Text', 'Kinetic'], width: W, height: H, video: true,
+        build: () => buildAt(W, H),
+      }));
+    })(),
+
+    // ── TEXT EFFECTS: thermal-camera glow and ink soaking into paper ──
+    ...(() => {
+      const T = (id, name, tags, build, video) => ({ id, name, tags, width: 1080, height: 1350, video: !!video, build });
+      const word = (t, o) => txt(t, Object.assign({ align: 'center', fontFamily: 'Inter Tight', fontWeight: 800, fontSize: 300, letterSpacing: -0.05, fill: '#ffffff' }, o));
+      const ink = (t, o) => txt(t, Object.assign({ align: 'left', fontFamily: 'Archivo Black', fontSize: 190, letterSpacing: -0.07, lineHeight: 0.9, fill: '#141414', tfx: { style: 'ink', amount: 55, rough: 55, speckle: 60, smear: 30, angle: 25 } }, o));
+      return [
+        T('fx-thermal', 'Thermal word', ['Text', 'Video'], () => ({
+          width: 1080, height: 1350, background: { color: '#030303' }, overlay: { grain: 18, vignette: 30 }, anim: { duration: 5, fps: 30 },
+          camera: { move: 'pushin', zoom: 1.12, start: 0, dur: 5, blur: 0 },
+          elements: [
+            word('blur', { cx: 540, cy: 640, key: 'heat', tfx: { style: 'thermal', amount: 55, palette: 'thermal', move: true } }),
+            txt('HEAT SIGNATURE · 36.6°', { cx: 540, cy: 1180, fontFamily: 'Space Mono', fontSize: 22, letterSpacing: 0.2, fill: '#7d86ff' }),
+          ],
+        }), true),
+        T('fx-thermal-photo', 'Thermal over photo', ['Text', 'Photo'], () => ({
+          width: 1080, height: 1350, background: { color: '#0b0b0b' }, overlay: { grain: 16 },
+          elements: [
+            img(0, 0, 1080, 1350, { assetId: 'ed-dark', name: 'Your photo or video', filters: { grayscale: 100, contrast: 20, brightness: -30 }, placeholder: ['#2a2a2a', '#111111'] }),
+            word('warm', { cx: 540, cy: 1060, fontSize: 260, tfx: { style: 'thermal', amount: 45, palette: 'sunset' } }),
+            txt('still thinking about you', { cx: 540, cy: 1250, fontFamily: 'Instrument Serif', italic: true, fontSize: 40, fill: '#ffd7b0' }),
+          ],
+        })),
+        T('fx-night', 'Night vision', ['Text'], () => ({
+          width: 1080, height: 1350, background: { color: '#020a04' }, overlay: { grain: 30, scanlines: 30, vignette: 45 },
+          elements: [
+            word('after\ndark', { cx: 540, cy: 620, fontSize: 230, lineHeight: 0.95, tfx: { style: 'thermal', amount: 40, palette: 'night' } }),
+            txt('REC ● 02:14:09', { x: 70, y: 70, align: 'left', fontFamily: 'VT323', fontSize: 48, fill: '#8dff8a' }),
+          ],
+        })),
+        T('fx-ink', 'Ink bleed poster', ['Text', 'Video', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#cbc9d2', texture: 70 }, overlay: { grain: 34 }, anim: { duration: 5, fps: 30 },
+          camera: { move: 'pushin', target: 'bleed', zoom: 1.7, start: 0.4, dur: 3.6, blur: 0.4 },
+          elements: [
+            ink('INK', { x: 170, y: 470 }),
+            ink('BLEED', { x: 350, y: 650, key: 'bleed' }),
+            ink('EFFECT', { x: 100, y: 830 }),
+          ],
+        }), true),
+        T('fx-ink-quote', 'Ink on paper', ['Text', 'Paper'], () => ({
+          width: 1080, height: 1350, background: { color: '#efe9dc', texture: 55 }, overlay: { grain: 14 },
+          elements: [
+            txt('the words\nstay with\nyou', { x: 110, y: 330, align: 'left', fontFamily: 'Instrument Serif', fontSize: 210, lineHeight: 0.92, fill: '#1b2a7a', tfx: { style: 'ink', amount: 45, rough: 60, speckle: 45, smear: 10, angle: 0 } }),
+            txt('— written in fountain pen, left in the rain', { x: 114, y: 1120, align: 'left', fontFamily: 'Courier Prime', fontSize: 26, fill: '#1b2a7a', tfx: { style: 'ink', amount: 30, rough: 40, speckle: 30, smear: 0 } }),
+          ],
+        })),
+      ];
+    })(),
+
     // ── PHOTO EFFECTS: editorial poster treatments — halftone scribbles, shredded strips, mosaics, mirrors, censor blocks ──
     ...(() => {
       const P = (asset, x, y, w, h, o) => img(x, y, w, h, Object.assign({ assetId: 'ed-' + asset, name: 'Your photo or video', placeholder: ['#d6d1c7', '#8c877c'] }, o || {}));
@@ -15672,6 +15965,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     'Kinetic headline': ['kinetic-news', 'kinetic-reveal', 'kinetic-pop'],
     'Sticky notes': ['sticky-cut', 'sticky-stack', 'sticky-flip'],
     'Rolling numbers': ['roll-years', 'roll-countdown', 'roll-price'],
+    'Smooth cam text': [],
+    'Text effects': ['fx-thermal', 'fx-ink', 'fx-thermal-photo', 'fx-night', 'fx-ink-quote'],
     'Word by word': ['words-films', 'words-bold', 'words-soft'],
     'Letter bounce': ['bounce-everyone', 'bounce-hello', 'bounce-pastel'],
     'Life-sim garden': ['garden-menu', 'garden-golden', 'garden-dusk'],
@@ -16495,9 +16790,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (!L) return false;
     const old = S.photoSlots(doc.elements.filter(e => e.type === 'image' && e.layoutSlot));
     const fresh = L.build(doc.width, doc.height);
-    const imgs = fresh.elements.map((e, i) => {
+    // words in a layout keep what the user typed (matched by key); photos carry over in slot order
+    const oldText = new Map(doc.elements.filter(e => e.layoutSlot && e.key && e.type === 'text').map(e => [e.key, e]));
+    let slot = 0;
+    const imgs = fresh.elements.map(e => {
       const n = normalize(Object.assign({}, e, { layoutSlot: true }));
-      const o = old.length ? old[i % old.length] : null;
+      if (n.type === 'text') {
+        const o = oldText.get(n.key);
+        if (o) { n.text = o.text; n.fill = o.fill; n.fontFamily = o.fontFamily; S.autosize(n); }
+        return n;
+      }
+      if (n.type !== 'image') return n;
+      const o = old.length ? old[slot++ % old.length] : null;
       if (o) { n.assetId = o.assetId; n.video = o.video ? clone(o.video) : undefined; n.filters = clone(o.filters || n.filters); }
       return n;
     });
@@ -17756,7 +18060,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   const NOT_STYLE = new Set(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'name', 'locked', 'hidden', 'text', 'assetId', 'crop', 'video', 'seq',
     'points', 'images', 'stickerId', 'shape', 'kind', 'key', 'erase', 'time', 'studio', 'bgRemoved', 'placeholder', 'path', 'autoWidth', 'typing', 'flipX', 'flipY', 'cx', 'cy']);
   // between different kinds of layer only these carry over
-  const SHARED_STYLE = ['opacity', 'blend', 'shadow', 'anim', 'lblur'];
+  const SHARED_STYLE = ['opacity', 'blend', 'shadow', 'anim', 'lblur', 'tfx'];
   S.copyStyle = function () {
     const el = S.selEls()[0];
     if (!el) { emit('toast', 'Select a layer to copy its properties'); return; }
@@ -20174,6 +20478,34 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           ], 'Offset'),
         ],
       } : null,
+      ...(['text', 'sticker', 'shape', 'ribbon'].includes(el.type) ? [
+        {
+          label: 'Thermal blur', icon: 'sun', on: el.tfx && el.tfx.style === 'thermal',
+          add: () => { S.change(T, 'tfx', { style: 'thermal', amount: 50, palette: 'thermal', move: false }); renderInspector(); }, remove: () => S.change(T, 'tfx', null),
+          body: () => [
+            full(seg(T, 'tfx.palette', Object.entries(R.THERMAL_PALETTES).slice(0, 4).map(([k, p]) => [k, p.label.split(' ')[0]]), { def: 'thermal' })),
+            row('Heat', num(T, 'tfx.amount', { min: 0, max: 100, slider: true, def: 50 })),
+            more('fx-thermal', [
+              row('Colours', selectCtl(T, 'tfx.palette', Object.entries(R.THERMAL_PALETTES).map(([k, p]) => [k, p.label]), { def: 'thermal' })),
+              toggle(T, 'tfx.move', 'Shimmer in videos'),
+            ], 'More'),
+          ],
+        },
+        {
+          label: 'Ink bleed', icon: 'drop', on: el.tfx && el.tfx.style === 'ink',
+          add: () => { S.change(T, 'tfx', { style: 'ink', amount: 50, rough: 50, speckle: 50, smear: 25, angle: 30 }); renderInspector(); }, remove: () => S.change(T, 'tfx', null),
+          body: () => [
+            row('Bleed', num(T, 'tfx.amount', { min: 0, max: 100, slider: true, def: 50 })),
+            row('Speckle', num(T, 'tfx.speckle', { min: 0, max: 100, slider: true, def: 50 })),
+            more('fx-ink', [
+              row('Rough edge', num(T, 'tfx.rough', { min: 0, max: 100, slider: true, def: 50 })),
+              row('Smear', num(T, 'tfx.smear', { min: 0, max: 100, slider: true, def: 25 })),
+              row('Smear angle', num(T, 'tfx.angle', { min: -180, max: 180, slider: true, unit: '°', def: 30 })),
+              full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'tfx.seed', Math.floor(Math.random() * 1e5)) }, ic('shuffle'), 'New pattern')),
+            ], 'More'),
+          ],
+        },
+      ] : []),
       el.type === 'sticker' || (el.type === 'image' && (el.frame.style || 'none') === 'none' && el.assetId) ? {
         label: 'Die-cut border', icon: 'sticker', on: el.outline && el.outline.on,
         add: () => set('outline.on', true), remove: () => set('outline.on', false),
@@ -20363,7 +20695,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     if (move === 'none') { S.change('doc', 'camera', null); }
     else {
       const prev = S.doc.camera || {};
-      S.change('doc', 'camera', Object.assign({ move, target: prev.target || camTargetDefault(move), start: 0, dur: 1.5, zoom: 2, rotate: 0, shake: 0, blur: 0.5 }, CAM_DEFAULTS[move] || {}, { move }, prev.target ? { target: prev.target } : {}));
+      S.change('doc', 'camera', Object.assign({ move, target: prev.target || camTargetDefault(move), start: 0, dur: 1.5, zoom: 2, rotate: 0, shake: 0, blur: 0.5 }, CAM_DEFAULTS[move] || {}, { move }, prev.target ? { target: prev.target } : {}, prev.keys ? { keys: prev.keys } : {}));
       S.seek(0); S.play();
     }
     renderInspector(); updateTimeline(); updateTop();
@@ -20371,7 +20703,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   S.setCameraMove = setCameraMove;
   function cameraSection() {
     const c = S.doc.camera;
-    const moves = Object.entries(R.CAMERA_MOVES).filter(([k]) => k !== 'none');
+    const moves = Object.entries(R.CAMERA_MOVES).filter(([k]) => k !== 'none' && (k !== 'keys' || (c && c.keys && c.keys.length)));
     const add = h('button.sec-add', { type: 'button', title: 'Add a camera move', onclick: e => menu(e.currentTarget, moves.map(([k, l]) => ({ label: l, icon: 'film', run: () => setCameraMove(k) }))) }, ic(c && c.move ? 'more' : 'plus'));
     if (!c || !c.move || c.move === 'none') return sec('Camera', [], true, { collapsible: false, actions: add });
     const D = S.doc.anim.duration;
@@ -20379,13 +20711,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const T = 'doc';
     return sec('Camera', [
       row('Move', selectCtl(T, 'camera.move', moves, { set: v => setCameraMove(v) })),
-      row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })),
-      row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })),
-      !['drift', 'jolt'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
-      !['drift', 'jolt', 'follow'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
+      c.move === 'keys' ? h('p.hint', null, 'This camera path came with the template: it glides, whips and pushes in between the words.') : null,
+      c.move !== 'keys' ? row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })) : null,
+      c.move !== 'keys' ? row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })) : null,
+      !['drift', 'jolt', 'keys'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
+      !['drift', 'jolt', 'follow', 'keys'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
       c.move === 'jolt' ? row('Cut every', num(T, 'camera.cut', { min: 0.05, max: 2, step: 0.01, slider: true, unit: 's' })) : null,
       more('camera-more', [
-        row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
+        c.move === 'keys' ? null : row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
         row('Handheld', num(T, 'camera.shake', { min: 0, max: 3, step: 0.05, slider: true, def: 0 })),
         row('Motion blur', num(T, 'camera.blur', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 0 })),
         c.move === 'jolt' ? row('Wander', num(T, 'camera.wander', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 1 })) : null,

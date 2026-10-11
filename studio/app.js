@@ -792,9 +792,18 @@
     if (!L) return false;
     const old = S.photoSlots(doc.elements.filter(e => e.type === 'image' && e.layoutSlot));
     const fresh = L.build(doc.width, doc.height);
-    const imgs = fresh.elements.map((e, i) => {
+    // words in a layout keep what the user typed (matched by key); photos carry over in slot order
+    const oldText = new Map(doc.elements.filter(e => e.layoutSlot && e.key && e.type === 'text').map(e => [e.key, e]));
+    let slot = 0;
+    const imgs = fresh.elements.map(e => {
       const n = normalize(Object.assign({}, e, { layoutSlot: true }));
-      const o = old.length ? old[i % old.length] : null;
+      if (n.type === 'text') {
+        const o = oldText.get(n.key);
+        if (o) { n.text = o.text; n.fill = o.fill; n.fontFamily = o.fontFamily; S.autosize(n); }
+        return n;
+      }
+      if (n.type !== 'image') return n;
+      const o = old.length ? old[slot++ % old.length] : null;
       if (o) { n.assetId = o.assetId; n.video = o.video ? clone(o.video) : undefined; n.filters = clone(o.filters || n.filters); }
       return n;
     });
@@ -2053,7 +2062,7 @@
   const NOT_STYLE = new Set(['id', 'type', 'x', 'y', 'width', 'height', 'rotation', 'name', 'locked', 'hidden', 'text', 'assetId', 'crop', 'video', 'seq',
     'points', 'images', 'stickerId', 'shape', 'kind', 'key', 'erase', 'time', 'studio', 'bgRemoved', 'placeholder', 'path', 'autoWidth', 'typing', 'flipX', 'flipY', 'cx', 'cy']);
   // between different kinds of layer only these carry over
-  const SHARED_STYLE = ['opacity', 'blend', 'shadow', 'anim', 'lblur'];
+  const SHARED_STYLE = ['opacity', 'blend', 'shadow', 'anim', 'lblur', 'tfx'];
   S.copyStyle = function () {
     const el = S.selEls()[0];
     if (!el) { emit('toast', 'Select a layer to copy its properties'); return; }

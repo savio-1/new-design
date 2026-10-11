@@ -105,6 +105,14 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
   `warpFrames` builds the in-between frame (Super-SloMo style intermediate flow). The result is stored per layer
   (`R.interpFrame`) and drawn instead of the `<video>` for that moment; `filteredSource` treats it like a video frame.
   Ground-truth test: pan a photo with ffmpeg, export at 15%, compare PSNR per frame against the exact crop.
+- Text effects: `el.tfx = { style: 'thermal' | 'ink', amount, palette, move, rough, speckle, smear, angle, seed }` is a pixel pass
+  (`textFx`) on the layer's cached bitmap in `drawLayered`: thermal maps a blurred alpha heat map through `R.THERMAL_PALETTES`
+  (worked out at ≤420 px, crisp letters redrawn on top), ink thresholds a blurred + smeared alpha with value noise and sprays
+  dots. `blurMap` (box blur ×3 on Float32 alpha) avoids canvas filters; `R.textFxPad` adds the glow / bleed margin to `bleed()`.
+  `tfx.move` makes the layer time-varying (thermal shimmer). Gaussian layer blur is baked into the layer cache.
+- Camera `move: 'keys'` takes `camera.keys = [{ t, x, y, z, r, ease }]` (x / y ≤ 1 are fractions; ease '' = cubic, 'expo',
+  'out', 'linear'); camera motion blur follows any path (big moves accumulate at half size, up to 64 samples).
+  Entrance `focus` (Blur in) blurs, scales and fades a layer into focus (`st.gblur`).
 - Frames: add a case to `frameGeometry` (returns `outer`, `inner` clip, `rect`, optional `extra` painter; starting size and colour in `FRAME_START`, ui.js)
   and a label in `R.FRAMES`. Cut-up frames (`strips`, `mosaic`, `mirror`) set `g.paint(ctx, draw)` and place the
   photo piece by piece by calling `draw(rect)`.
@@ -165,17 +173,17 @@ Playwright `devices['iPhone 13']`, `'Pixel 7'`, `'iPhone 13 landscape'`; multi-t
 A template is `{ id, name, tags, width, height, video?, build: () => doc }`. Helpers: `txt`, `img`,
 `stk`, `shp`, `rib`, `nat`, `cam`. Text can be placed by centre (`cx`, `cy`); widths are measured on
 load. Put a new family's ids in `GROUPS` (order = display order); `video: true` adds the badge and hover
-preview. Families so far: eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (27, incl. eight handwritten journal layouts), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
+preview. Families so far: Smooth cam text (layout `smoothcam`, 4 orientations, words carried across re-flows by `key`), Text effects (5), eight moving-layout families (Scrolling wall, Card trail, Grid build, Photo drop, Fan stack, Strip conveyor, Zoom wall, Slide-in panels — 4 orientations each), Text slides (69), Photo effects (27, incl. eight handwritten journal layouts), Paper & ID (10), Film looks (16), Film camera (10), Stop motion, Speed flashes, Studio portrait, Newspaper
 reveal, Typing, Match cut, Kinetic headline, Sticky notes, Rolling numbers, Word by word, Letter
 bounce, Life-sim garden, Ribbon poster, Motion blur, Camera view, Meet the team, Grid-paper notes,
-Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 257 templates. Film templates build
+Polaroid POV, Wall calendar, Notebook tip, Outfit line-up — about 266 templates. Film templates build
 filters with `LOOK('<preset>', overrides)` so they stay in step with the presets.
 
 **Moving layouts** (`mv-<layout>-<orientation>`): generator functions in the "LAYOUTS IN MOTION" block of
 templates.js build a layout for any `(W, H)`; each family lists itself in `GROUPS` (one member per orientation:
 story / portrait / square / wide) via `t.family`. Built docs carry `doc.layout = { key }`, the images get
 `layoutSlot: true`, and `window.STUDIO_LAYOUTS[key].build(W, H)` lets `S.relayout()` re-flow the layout when the
-canvas is resized (photos carry over in slot order; other layers stay). `orientationMembers` (ui.js) sorts a
+canvas is resized (photos carry over in slot order, layout text by `key`; other layers stay). `orientationMembers` (ui.js) sorts a
 family by closeness to the canvas and adds a "Your canvas" member. `S.photoSlots()` / `S.fillSlots()` fill many
 slots at once (`importFiles` `fillIds`). Motions: loop `drift` (`anim.dx`, `anim.dy` over the whole video) and
 entrance `land` (`anim.spin`).

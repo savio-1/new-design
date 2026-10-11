@@ -1496,6 +1496,34 @@
           ], 'Offset'),
         ],
       } : null,
+      ...(['text', 'sticker', 'shape', 'ribbon'].includes(el.type) ? [
+        {
+          label: 'Thermal blur', icon: 'sun', on: el.tfx && el.tfx.style === 'thermal',
+          add: () => { S.change(T, 'tfx', { style: 'thermal', amount: 50, palette: 'thermal', move: false }); renderInspector(); }, remove: () => S.change(T, 'tfx', null),
+          body: () => [
+            full(seg(T, 'tfx.palette', Object.entries(R.THERMAL_PALETTES).slice(0, 4).map(([k, p]) => [k, p.label.split(' ')[0]]), { def: 'thermal' })),
+            row('Heat', num(T, 'tfx.amount', { min: 0, max: 100, slider: true, def: 50 })),
+            more('fx-thermal', [
+              row('Colours', selectCtl(T, 'tfx.palette', Object.entries(R.THERMAL_PALETTES).map(([k, p]) => [k, p.label]), { def: 'thermal' })),
+              toggle(T, 'tfx.move', 'Shimmer in videos'),
+            ], 'More'),
+          ],
+        },
+        {
+          label: 'Ink bleed', icon: 'drop', on: el.tfx && el.tfx.style === 'ink',
+          add: () => { S.change(T, 'tfx', { style: 'ink', amount: 50, rough: 50, speckle: 50, smear: 25, angle: 30 }); renderInspector(); }, remove: () => S.change(T, 'tfx', null),
+          body: () => [
+            row('Bleed', num(T, 'tfx.amount', { min: 0, max: 100, slider: true, def: 50 })),
+            row('Speckle', num(T, 'tfx.speckle', { min: 0, max: 100, slider: true, def: 50 })),
+            more('fx-ink', [
+              row('Rough edge', num(T, 'tfx.rough', { min: 0, max: 100, slider: true, def: 50 })),
+              row('Smear', num(T, 'tfx.smear', { min: 0, max: 100, slider: true, def: 25 })),
+              row('Smear angle', num(T, 'tfx.angle', { min: -180, max: 180, slider: true, unit: '°', def: 30 })),
+              full(h('button.btn', { type: 'button', onclick: () => S.change(T, 'tfx.seed', Math.floor(Math.random() * 1e5)) }, ic('shuffle'), 'New pattern')),
+            ], 'More'),
+          ],
+        },
+      ] : []),
       el.type === 'sticker' || (el.type === 'image' && (el.frame.style || 'none') === 'none' && el.assetId) ? {
         label: 'Die-cut border', icon: 'sticker', on: el.outline && el.outline.on,
         add: () => set('outline.on', true), remove: () => set('outline.on', false),
@@ -1685,7 +1713,7 @@
     if (move === 'none') { S.change('doc', 'camera', null); }
     else {
       const prev = S.doc.camera || {};
-      S.change('doc', 'camera', Object.assign({ move, target: prev.target || camTargetDefault(move), start: 0, dur: 1.5, zoom: 2, rotate: 0, shake: 0, blur: 0.5 }, CAM_DEFAULTS[move] || {}, { move }, prev.target ? { target: prev.target } : {}));
+      S.change('doc', 'camera', Object.assign({ move, target: prev.target || camTargetDefault(move), start: 0, dur: 1.5, zoom: 2, rotate: 0, shake: 0, blur: 0.5 }, CAM_DEFAULTS[move] || {}, { move }, prev.target ? { target: prev.target } : {}, prev.keys ? { keys: prev.keys } : {}));
       S.seek(0); S.play();
     }
     renderInspector(); updateTimeline(); updateTop();
@@ -1693,7 +1721,7 @@
   S.setCameraMove = setCameraMove;
   function cameraSection() {
     const c = S.doc.camera;
-    const moves = Object.entries(R.CAMERA_MOVES).filter(([k]) => k !== 'none');
+    const moves = Object.entries(R.CAMERA_MOVES).filter(([k]) => k !== 'none' && (k !== 'keys' || (c && c.keys && c.keys.length)));
     const add = h('button.sec-add', { type: 'button', title: 'Add a camera move', onclick: e => menu(e.currentTarget, moves.map(([k, l]) => ({ label: l, icon: 'film', run: () => setCameraMove(k) }))) }, ic(c && c.move ? 'more' : 'plus'));
     if (!c || !c.move || c.move === 'none') return sec('Camera', [], true, { collapsible: false, actions: add });
     const D = S.doc.anim.duration;
@@ -1701,13 +1729,14 @@
     const T = 'doc';
     return sec('Camera', [
       row('Move', selectCtl(T, 'camera.move', moves, { set: v => setCameraMove(v) })),
-      row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })),
-      row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })),
-      !['drift', 'jolt'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
-      !['drift', 'jolt', 'follow'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
+      c.move === 'keys' ? h('p.hint', null, 'This camera path came with the template: it glides, whips and pushes in between the words.') : null,
+      c.move !== 'keys' ? row('Focus on', selectCtl(T, 'camera.target', focusOpts, { set: v => S.change(T, 'camera.target', v || null) })) : null,
+      c.move !== 'keys' ? row('Zoom', num(T, 'camera.zoom', { min: 1, max: 8, step: 0.05, slider: true, unit: '×' })) : null,
+      !['drift', 'jolt', 'keys'].includes(c.move) ? row('Starts at', num(T, 'camera.start', { min: 0, max: D, step: 0.05, slider: true, unit: 's' })) : null,
+      !['drift', 'jolt', 'follow', 'keys'].includes(c.move) ? row('Lasts', num(T, 'camera.dur', { min: 0.1, max: 30, step: 0.05, slider: true, unit: 's' })) : null,
       c.move === 'jolt' ? row('Cut every', num(T, 'camera.cut', { min: 0.05, max: 2, step: 0.01, slider: true, unit: 's' })) : null,
       more('camera-more', [
-        row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
+        c.move === 'keys' ? null : row('Tilt', num(T, 'camera.rotate', { min: -40, max: 40, step: 0.5, slider: true, unit: '°' })),
         row('Handheld', num(T, 'camera.shake', { min: 0, max: 3, step: 0.05, slider: true, def: 0 })),
         row('Motion blur', num(T, 'camera.blur', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 0 })),
         c.move === 'jolt' ? row('Wander', num(T, 'camera.wander', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 1 })) : null,
