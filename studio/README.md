@@ -86,6 +86,18 @@ Designs live in this browser's storage, so clearing site data removes them — d
 - **Film camera** template family (10): Contact sheet (strips of negatives with grease-pencil marks), Countdown leader (3-2-1 film leader into your clip), Film strip, Light table (slide mounts), Instant stack, Darkroom (prints drying under the safelight), Negative scan, Half frame (two pictures in one frame), Medium format and Photo booth.
 - Heavy looks on a video (bloom, halation, sharpen) are graded at a smaller size while previewing so playback keeps up; the export uses full size.
 
+## Video speed and smooth slow motion
+
+Select a video (a layer or the canvas background) and the **Playback** section has:
+
+- **Super slow 15% · Slow 40% · Normal · Fast 200%**, and a **Speed** slider for any percentage from 5% to 400%.
+- Slowing a clip down lengthens the design so the whole slowed clip plays (up to a minute; *Fit length to clip* does the same by hand).
+- **Smooth frames** (for anything slower than 100%):
+  - **Flow** (default) — new in-between frames follow the motion in the clip, like a phone's slow-mo. The clip's frame rate is measured, the two real frames either side of each moment are taken, the motion between them is worked out both ways, and each in-between frame is drawn by moving the pixels part of the way. On a test pan it scored 35–39 dB against the true in-between frames, about as good as the real frames.
+  - **Blend** — in-between frames cross-fade from one real frame to the next: soft, no warping, quicker to export.
+  - **Off** — the clip's own frames, held: it steps, the classic choppy slow-mo.
+- The smooth frames are made when you **export**; while you edit, the preview plays the plain clip at the chosen speed. Flow takes longer to export than Blend (roughly a tenth of a second per frame at 720p on a laptop).
+
 ## Moving layouts (any orientation)
 
 Eight template families where photos and videos move in a layout. Each comes in **Story 9:16, Portrait 4:5, Square 1:1 and Landscape 16:9**, and opening a family puts the one that fits your canvas first — plus a **Your canvas** version built for any other size (Pinterest pin, A4, custom…). **Resize the canvas later and the layout re-flows** to the new shape, keeping the photos and videos you added and any text or stickers on top.

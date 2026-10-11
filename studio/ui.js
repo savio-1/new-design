@@ -893,6 +893,31 @@
       !el.assetId && on ? h('p.hint', null, 'Add a photo — the person is cut out automatically (the first time downloads a 44 MB model).') : null,
     ], on, { key: 'studio-look' });
   }
+  // speed for a video (a layer or the canvas background): presets, any percentage, and smooth slow motion
+  const SPEEDS = [[0.15, 'Super slow'], [0.4, 'Slow'], [1, 'Normal'], [2, 'Fast']];
+  function speedControls(t, base, clipLen) {
+    const get = () => (S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {});
+    const sp = get().speed || 1;
+    const setSpeed = v => {
+      v = clamp(Math.round(v * 1000) / 1000, 0.05, 4);
+      S.change(t, base + '.speed', v);
+      // slowing down stretches the clip: lengthen the design so all of it plays (up to a minute)
+      const len = clipLen ? clipLen() : 0;
+      if (len && v < 1) {
+        const want = Math.min(60, Math.round(len / v * 10) / 10);
+        if (want > S.doc.anim.duration + 0.05) { S.change('doc', 'anim.duration', want); updateTimeline(); toast(`Design length set to ${want}s so the whole slowed clip plays`); }
+      }
+      renderInspector();
+    };
+    return [
+      full(h('div.chips.tight.speed-chips', null, SPEEDS.map(([v, l]) => h('button.chip' + (Math.abs(sp - v) < 0.001 ? '.on' : ''), { type: 'button', onclick: () => setSpeed(v) }, l, h('small', null, ' ' + Math.round(v * 100) + '%'))))),
+      row('Speed', num(t, base + '.speed', { min: 5, max: 400, step: 1, scale: 100, unit: '%', slider: true, def: 1, set: (v, live) => { if (live) S.change(t, base + '.speed', clamp(v, 0.05, 4), true); else setSpeed(v); } })),
+      sp < 0.999 ? row('Smooth frames', seg(t, base + '.smooth', [['flow', 'Flow'], ['blend', 'Blend'], ['off', 'Off']], { get: () => get().smooth || 'flow' })) : null,
+      sp < 0.999 ? h('p.hint', null, (get().smooth || 'flow') === 'off' ? 'Plays the clip’s own frames, slowed down — it steps.' : (get().smooth || 'flow') === 'blend'
+        ? 'New in-between frames cross-fade from one real frame to the next — soft, no warping.'
+        : 'New in-between frames follow the motion in the clip, like a phone’s slow-mo. Made when you export; the preview plays the plain clip.') : null,
+    ];
+  }
   function videoSection(el) {
     const T = 'sel', ve = R.assetVideo(el.assetId), dur = ve && ve.v && isFinite(ve.v.duration) ? ve.v.duration : 0;
     return sec('Playback', [
@@ -900,8 +925,8 @@
       dur ? row('End at', num(T, 'video.end', { min: 0.2, max: Math.round(dur * 10) / 10, step: 0.1, slider: true, unit: 's', get: () => { const v = S.selEls()[0].video || {}; return v.end > 0 ? v.end : Math.round(dur * 10) / 10; } })) : null,
       full(h('div.btn-row', null,
         h('button.btn.grow', { type: 'button', title: 'Drag to choose which part of the video shows; scroll to zoom', onclick: () => S.startCrop(el.id) }, ic('crop'), 'Crop & position'),
-        h('button.btn.grow', { type: 'button', onclick: () => { const v = S.selEls()[0].video || {}; const len = ((v.end > 0 ? v.end : dur) - (v.trim || 0)) / (v.speed || 1); S.change('doc', 'anim.duration', Math.min(30, Math.max(1, Math.round(len * 10) / 10))); updateTimeline(); toast(`Design length set to ${S.doc.anim.duration}s`); } }, ic('film'), 'Fit length to clip'))),
-      row('Speed', seg(T, 'video.speed', [[0.5, '0.5×'], [1, '1×'], [1.5, '1.5×'], [2, '2×']], { get: () => (S.selEls()[0].video || {}).speed || 1 })),
+        h('button.btn.grow', { type: 'button', onclick: () => { const v = S.selEls()[0].video || {}; const len = ((v.end > 0 ? v.end : dur) - (v.trim || 0)) / (v.speed || 1); S.change('doc', 'anim.duration', Math.min(60, Math.max(1, Math.round(len * 10) / 10))); updateTimeline(); toast(`Design length set to ${S.doc.anim.duration}s`); } }, ic('film'), 'Fit length to clip'))),
+      ...speedControls(T, 'video', () => { const v = S.selEls()[0].video || {}; return dur ? (v.end > 0 ? v.end : dur) - (v.trim || 0) : 0; }),
       toggle(T, 'video.loop', 'Loop when it ends', { get: () => (S.selEls()[0].video || {}).loop !== false }),
       h('p.hint', null, `${dur ? dur.toFixed(1) + 's clip · ' : ''}plays muted and exports without sound. Press play to preview it with your design.`),
     ], true, { collapsible: false });
@@ -1686,7 +1711,7 @@
         row('Handheld', num(T, 'camera.shake', { min: 0, max: 3, step: 0.05, slider: true, def: 0 })),
         row('Motion blur', num(T, 'camera.blur', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 0 })),
         c.move === 'jolt' ? row('Wander', num(T, 'camera.wander', { min: 0, max: 100, scale: 100, slider: true, unit: '%', def: 1 })) : null,
-        row('Video length', num(T, 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change(T, 'anim.duration', v, live); updateTimeline(); } })),
+        row('Video length', num(T, 'anim.duration', { min: 1, max: 60, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change(T, 'anim.duration', v, live); updateTimeline(); } })),
       ], 'Tilt, shake & blur'),
       full(h('div.btn-row', null,
         h('button.btn.grow', { type: 'button', onclick: () => { S.seek(0); S.play(); } }, ic('play'), 'Preview'),
@@ -1750,6 +1775,7 @@
       bg.assetId ? sec(R.isVideoAsset(bg.assetId) ? 'Background video' : 'Background photo', [
         full(h('button.btn.primary', { type: 'button', disabled: S.isRemovingBackground(), title: 'Copies the main subject onto its own layer so you can tuck text behind it', onclick: () => S.cutoutBackgroundSubject() }, ic('wand'), S.isRemovingBackground() ? 'Working…' : 'Cut out subject to a layer')),
         full(filterThumbs(null, 'doc')),
+        ...(R.isVideoAsset(bg.assetId) ? speedControls(T, 'background.video', () => { const ve = R.assetVideo(bg.assetId); return ve && ve.v && isFinite(ve.v.duration) ? ve.v.duration : 0; }) : []),
         more('bgphoto-more', [
           row('Opacity', num(T, 'background.imageOpacity', { min: 0, max: 100, scale: 100, slider: true, unit: '%' })),
           row('Zoom', num(T, 'background.crop.zoom', { min: 1, max: 5, step: 0.01, slider: true })),
@@ -3075,7 +3101,7 @@
           row('Size', h('div.seg', null, RES.slice(1).map(([l, v]) => segBtn(vres, v, l.split(' ')[0], x => { vres = x; })))),
           row('Frame rate', h('div.seg', null, [24, 30, 60].map(f => segBtn(fps, f, f + ' fps', x => { fps = x; })))),
           row('Quality', h('div.seg', null, segBtn(vq, 'standard', 'Standard', v => { vq = v; }), segBtn(vq, 'high', 'High', v => { vq = v; }), segBtn(vq, 'max', 'Max', v => { vq = v; }))),
-          row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); if (!live) draw(); } })),
+          row('Length', num('doc', 'anim.duration', { min: 1, max: 60, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); if (!live) draw(); } })),
           h('div.hint', null, `${sz.w} × ${sz.h} px · ${fps} fps · ${S.doc.anim.duration}s · loops seamlessly`),
           h('div.progress', { hidden: true }, h('div')),
           h('div.hint.vstatus'),
@@ -3191,7 +3217,7 @@
       row('Camera', (() => { const sl = h('select.sel', { onchange: e => { closePop(); setCameraMove(e.target.value); S.select([]); } }, Object.entries(R.CAMERA_MOVES).map(([k, l]) => h('option', { value: k, selected: ((S.doc.camera && S.doc.camera.move) || 'none') === k }, l))); return sl; })()),
       h('div.sub-label', null, 'Animate everything'),
       h('div.anim-presets', null, ANIM_PRESETS.map(p => h('button.anim-preset', { type: 'button', onclick: () => { closePop(); applyAnimPreset(p); } }, h('b', null, p.name), h('small', null, p.sub)))),
-      row('Length', num('doc', 'anim.duration', { min: 1, max: 30, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); updateTimeline(); } })),
+      row('Length', num('doc', 'anim.duration', { min: 1, max: 60, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); updateTimeline(); } })),
       S.hasAnimation() ? h('button.link-btn.danger', { type: 'button', onclick: () => { closePop(); S.doc.elements.forEach(e => { delete e.anim; }); S.stopPreview(); S.touchAll(); S.commit(); renderInspector(); updateTimeline(); updateTop(); toast('Animations removed'); } }, 'Remove all animation') : null,
       h('p.hint', null, 'To animate one layer, select it and use Motion on the right. Camera settings live on the right when nothing is selected.'),
     ].filter(Boolean), { cls: 'anim-pop' });

@@ -114,7 +114,8 @@
       if (Math.abs(v.currentTime - target) > 0.04 && !v.seeking) v.currentTime = target;
       return;
     }
-    v.playbackRate = (vd && vd.speed) || 1;
+    // browsers play down to 1/16 speed; anything slower is kept in step by the drift check below
+    v.playbackRate = Math.max(0.0625, Math.min(16, (vd && vd.speed) || 1));
     if (v.paused) { if (!v.seeking) v.currentTime = target; v.play().catch(() => {}); }
     else if (Math.abs(v.currentTime - target) > 0.3 && !v.seeking) v.currentTime = target;
   }
@@ -122,6 +123,206 @@
     for (const u of videoUsers(doc)) { const e = assetVideo(u.id); if (e && e.ok) liveSync(e.v, u.vd, t, u.start); }
   };
   R.pauseVideos = function () { for (const e of vidCache.values()) if (!e.v.paused) e.v.pause(); };
+  /* ── smooth slow motion ──
+     A slowed-down clip only has so many real frames; on export the frames in between are made from the two
+     real frames either side — by following the motion between them (optical flow) or by cross-fading. */
+  const seekTo = (v, time) => new Promise(res => {
+    if (Math.abs(v.currentTime - time) < 0.0005 && !v.seeking) { res(); return; }
+    let done = false;
+    const fin = () => { if (done) return; done = true; v.removeEventListener('seeked', fin); res(); };
+    v.addEventListener('seeked', fin); setTimeout(fin, 2000);
+    v.currentTime = time;
+  });
+  // the clip's frame rate, measured once by watching a few frames go by (30 if the browser can't tell)
+  async function clipFps(e) {
+    if (e.fps) return e.fps;
+    const v = e.v, was = v.currentTime, times = [];
+    if ('requestVideoFrameCallback' in v) {
+      await new Promise(res => {
+        const cb = (now, md) => { times.push(md.mediaTime); if (times.length < 10) v.requestVideoFrameCallback(cb); else res(); };
+        v.requestVideoFrameCallback(cb);
+        v.playbackRate = 1; v.play().catch(res);
+        setTimeout(res, 1500);
+      });
+      v.pause();
+    }
+    const gaps = [];
+    for (let i = 1; i < times.length; i++) { const d = times[i] - times[i - 1]; if (d > 0.004) gaps.push(d); }
+    gaps.sort((a, b) => a - b);
+    // the shortest gap is one frame (a busy machine can skip frames, never add them)
+    e.fps = gaps.length ? clamp(Math.round(1 / gaps[0]), 12, 120) : 30;
+    await seekTo(v, was);
+    return e.fps;
+  }
+  R.clipFps = id => { const e = assetVideo(id); return e && e.ok ? clipFps(e) : Promise.resolve(30); };
+  function grabFrame(v) {
+    const s = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+    const c = canvas(Math.max(1, Math.round(v.videoWidth * s)), Math.max(1, Math.round(v.videoHeight * s)));
+    c.getContext('2d', { willReadFrequently: true }).drawImage(v, 0, 0, c.width, c.height);
+    return c;
+  }
+  function pixels(c) { return c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height); }
+  // optical flow by block matching, coarse to fine, on small grey copies of the two frames: where did each patch of A go in B?
+  function estimateFlow(A, B) {
+    const W0 = Math.min(320, A.width), H0 = Math.max(16, Math.round(A.height * W0 / A.width));
+    const greyOf = (c, W, H) => {
+      const t = canvas(W, H), x = t.getContext('2d', { willReadFrequently: true });
+      x.drawImage(c, 0, 0, W, H);
+      const d = x.getImageData(0, 0, W, H).data, g = new Float32Array(W * H);
+      for (let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = d[j] * 0.299 + d[j + 1] * 0.587 + d[j + 2] * 0.114;
+      return g;
+    };
+    const half = (g, W, H) => {
+      const w = W >> 1, h = H >> 1, o = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * 2 * W + x * 2; o[y * w + x] = (g[i] + g[i + 1] + g[i + W] + g[i + W + 1]) / 4; }
+      return o;
+    };
+    const bs = 8;
+    // one level: best match for each block within the search radius around a guess from the coarser level
+    const level = (ga, gb, W, H, prior, radius, smooth) => {
+      const gw = Math.max(1, Math.floor(W / bs)), gh = Math.max(1, Math.floor(H / bs));
+      const vx = new Float32Array(gw * gh), vy = new Float32Array(gw * gh), flat = new Uint8Array(gw * gh), flatY = new Uint8Array(gw * gh);
+      for (let by = 0; by < gh; by++) for (let bx = 0; bx < gw; bx++) {
+        let gx = 0, gy = 0;
+        if (prior) { const px = Math.min(prior.gw - 1, bx >> 1), py = Math.min(prior.gh - 1, by >> 1); gx = Math.round(prior.vx[py * prior.gw + px] * 2); gy = Math.round(prior.vy[py * prior.gw + px] * 2); }
+        const x0 = bx * bs, y0 = by * bs;
+        let mean = 0, varc = 0;
+        for (let y = 0; y < bs; y++) for (let x = 0; x < bs; x++) mean += ga[(y0 + y) * W + x0 + x];
+        mean /= bs * bs;
+        for (let y = 0; y < bs; y++) for (let x = 0; x < bs; x++) { const d = ga[(y0 + y) * W + x0 + x] - mean; varc += d * d; }
+        let best = Infinity, bdx = gx, bdy = gy;
+        const k = by * gw + bx;
+        // flat patches (sky, walls, the inside of a plain shape) can't show their own motion: borrow it from neighbours below
+        const sadAt = (dx, dy) => {
+          if (x0 + dx < 0 || y0 + dy < 0 || x0 + dx + bs > W || y0 + dy + bs > H) return Infinity;
+          let sad = 0;
+          for (let y = 0; y < bs; y++) { const ra = (y0 + y) * W + x0, rb = (y0 + dy + y) * W + x0 + dx; for (let x = 0; x < bs; x++) sad += Math.abs(ga[ra + x] - gb[rb + x]); }
+          return sad;
+        };
+        // plain patches (sky, walls, the inside of a plain shape) can't show motion: they borrow it from nearby edges below
+        if (varc / (bs * bs) <= 12) { flat[k] = 1; flatY[k] = 1; vx[k] = gx; vy[k] = gy; continue; }
+        // a detailed patch that looks the same in both frames is simply still
+        if (sadAt(0, 0) < bs * bs * 2.5) { vx[k] = 0; vy[k] = 0; continue; }
+        const tryAt = (cx, cy) => {
+          for (let dy = cy - radius; dy <= cy + radius; dy++) for (let dx = cx - radius; dx <= cx + radius; dx++) {
+            if (x0 + dx < 0 || y0 + dy < 0 || x0 + dx + bs > W || y0 + dy + bs > H) continue;
+            let sad = (Math.abs(dx) + Math.abs(dy)) * 0.5;
+            for (let y = 0; y < bs && sad < best; y++) {
+              const ra = (y0 + y) * W + x0, rb = (y0 + dy + y) * W + x0 + dx;
+              for (let x = 0; x < bs; x++) sad += Math.abs(ga[ra + x] - gb[rb + x]);
+            }
+            if (sad < best) { best = sad; bdx = dx; bdy = dy; }
+          }
+        };
+        tryAt(gx, gy);
+        if (gx || gy) tryAt(0, 0);
+        vx[k] = bdx; vy[k] = bdy;
+        // an edge sliding along itself looks the same wherever it is: that direction can't be measured here
+        const tol = bs * bs * 2.5, b0 = sadAt(bdx, bdy);
+        if (Math.min(sadAt(bdx - 2, bdy), sadAt(bdx + 2, bdy)) - b0 < tol) flat[k] = 1;
+        if (Math.min(sadAt(bdx, bdy - 2), sadAt(bdx, bdy + 2)) - b0 < tol) flatY[k] = 1;
+      }
+      // fill what couldn't be measured from neighbours that could, spreading outwards a ring at a time (each direction on its own)
+      const fill = (v, fl) => {
+        // a few blocks deep only: far from any edge, a plain area's motion makes no visible difference
+        for (let pass = 0; pass < 4; pass++) {
+          let left = 0;
+          const nv = v.slice(), nf = fl.slice();
+          for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+            const k = y * gw + x;
+            if (!fl[k]) continue;
+            let sum = 0, n = 0;
+            for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+              const xx = x + i, yy = y + j;
+              if ((i || j) && xx >= 0 && yy >= 0 && xx < gw && yy < gh && !fl[yy * gw + xx]) { sum += v[yy * gw + xx]; n++; }
+            }
+            if (n) { nv[k] = sum / n; nf[k] = 0; } else left++;
+          }
+          v.set(nv); fl.set(nf);
+          if (!left) break;
+        }
+      };
+      fill(vx, flat); fill(vy, flatY);
+      // a 3×3 median keeps the field coherent and throws out stray matches
+      const med = (src) => { const o = new Float32Array(src.length), n = []; for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) { n.length = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const xx = clamp(x + i, 0, gw - 1), yy = clamp(y + j, 0, gh - 1); n.push(src[yy * gw + xx]); } n.sort((a, b) => a - b); o[y * gw + x] = n[4]; } return o; };
+      return smooth ? { gw, gh, vx: med(vx), vy: med(vy) } : { gw, gh, vx, vy };
+    };
+    const a0 = greyOf(A, W0, H0), b0 = greyOf(B, W0, H0);
+    const W1 = W0 >> 1, H1 = H0 >> 1, a1 = half(a0, W0, H0), b1 = half(b0, W0, H0);
+    const W2 = W1 >> 1, H2 = H1 >> 1, a2 = half(a1, W1, H1), b2 = half(b1, W1, H1);
+    const f2 = level(a2, b2, W2, H2, null, 6, false), f1 = level(a1, b1, W1, H1, f2, 5, false), f0 = level(a0, b0, W0, H0, f1, 10, false);
+    return Object.assign(f0, { bs, scale: A.width / W0 });
+  }
+  // the frame a fraction w of the way from A to B. With the motion both ways (A→B and B→A), the motion from the
+  // in-between moment back to each frame is approximated (as in Super SloMo), each frame is pulled into place and
+  // the two are mixed, leaning on whichever frame is nearer in time.
+  function warpFrames(A, B, fab, fba, w) {
+    const W = A.width, H = A.height, pa = pixels(A).data, pb = pixels(B).data;
+    const out = canvas(W, H), ox = out.getContext('2d'), od = ox.createImageData(W, H), o = od.data;
+    const field = (f, x, y) => {
+      const cell = f.bs * f.scale, gxf = clamp(x / cell - 0.5, 0, f.gw - 1), gyf = clamp(y / cell - 0.5, 0, f.gh - 1);
+      const gx0 = gxf | 0, gy0 = gyf | 0, gx1 = Math.min(f.gw - 1, gx0 + 1), gy1 = Math.min(f.gh - 1, gy0 + 1), tx = gxf - gx0, ty = gyf - gy0;
+      const k00 = gy0 * f.gw + gx0, k10 = gy0 * f.gw + gx1, k01 = gy1 * f.gw + gx0, k11 = gy1 * f.gw + gx1;
+      return [((f.vx[k00] * (1 - tx) + f.vx[k10] * tx) * (1 - ty) + (f.vx[k01] * (1 - tx) + f.vx[k11] * tx) * ty) * f.scale,
+        ((f.vy[k00] * (1 - tx) + f.vy[k10] * tx) * (1 - ty) + (f.vy[k01] * (1 - tx) + f.vy[k11] * tx) * ty) * f.scale];
+    };
+    const sample = (p, X, Y, c) => {
+      const x0 = X | 0, y0 = Y | 0, x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1), tx = X - x0, ty = Y - y0;
+      const i00 = (y0 * W + x0) * 4 + c, i10 = (y0 * W + x1) * 4 + c, i01 = (y1 * W + x0) * 4 + c, i11 = (y1 * W + x1) * 4 + c;
+      return (p[i00] * (1 - tx) + p[i10] * tx) * (1 - ty) + (p[i01] * (1 - tx) + p[i11] * tx) * ty;
+    };
+    // flow is smooth, so it's worked out on a coarse grid and filled in between
+    const step = 4, cw = Math.ceil(W / step) + 1, ch = Math.ceil(H / step) + 1;
+    const t0x = new Float32Array(cw * ch), t0y = new Float32Array(cw * ch), t1x = new Float32Array(cw * ch), t1y = new Float32Array(cw * ch);
+    for (let j = 0; j < ch; j++) for (let i = 0; i < cw; i++) {
+      const x = Math.min(W - 1, i * step), y = Math.min(H - 1, j * step), [ax, ay] = field(fab, x, y), [bx, by] = field(fba, x, y), k = j * cw + i;
+      t0x[k] = -(1 - w) * w * ax + w * w * bx; t0y[k] = -(1 - w) * w * ay + w * w * by;
+      t1x[k] = (1 - w) * (1 - w) * ax - w * (1 - w) * bx; t1y[k] = (1 - w) * (1 - w) * ay - w * (1 - w) * by;
+    }
+    for (let y = 0; y < H; y++) {
+      const jf = y / step, j0 = jf | 0, j1 = Math.min(ch - 1, j0 + 1), ty = jf - j0;
+      for (let x = 0; x < W; x++) {
+        const if_ = x / step, i0 = if_ | 0, i1 = Math.min(cw - 1, i0 + 1), tx = if_ - i0;
+        const k00 = j0 * cw + i0, k10 = j0 * cw + i1, k01 = j1 * cw + i0, k11 = j1 * cw + i1;
+        const lerp = a => (a[k00] * (1 - tx) + a[k10] * tx) * (1 - ty) + (a[k01] * (1 - tx) + a[k11] * tx) * ty;
+        const ax = clamp(x + lerp(t0x), 0, W - 1), ay = clamp(y + lerp(t0y), 0, H - 1);
+        const bx = clamp(x + lerp(t1x), 0, W - 1), by = clamp(y + lerp(t1y), 0, H - 1);
+        const i = (y * W + x) * 4;
+        for (let c = 0; c < 3; c++) o[i + c] = sample(pa, ax, ay, c) * (1 - w) + sample(pb, bx, by, c) * w;
+        o[i + 3] = 255;
+      }
+    }
+    ox.putImageData(od, 0, 0);
+    return out;
+  }
+  function blendFrames(A, B, w) {
+    const out = canvas(A.width, A.height), x = out.getContext('2d');
+    x.drawImage(A, 0, 0); x.globalAlpha = w; x.drawImage(B, 0, 0, A.width, A.height);
+    return out;
+  }
+  const smoothMode = vd => (vd && (vd.speed || 1) < 0.999) ? (vd.smooth || 'flow') : 'off';
+  const interp = new Map(), pairs = new Map();
+  R.interpKey = (id, vd, start) => id + '|' + JSON.stringify(vd || {}) + '|' + (start || 0);
+  // the made-up frame for this layer at this moment of the export, if there is one
+  R.interpFrame = (id, vd, start, t) => { const e = interp.get(R.interpKey(id, vd, start)); return e && t != null && e.t === t ? e.canvas : null; };
+  async function smoothFrame(u, e, t) {
+    const v = e.v, key = R.interpKey(u.id, u.vd, u.start), mode = smoothMode(u.vd);
+    const fd = 1 / await clipFps(e), target = R.videoTarget(u.vd, t, v, u.start);
+    const f = target / fd, k = Math.floor(f), w = f - k;
+    let p = pairs.get(key);
+    if (!p || p.k !== k) {
+      await seekTo(v, Math.min(v.duration - 0.001, (k + 0.5) * fd)); const A = grabFrame(v);
+      await seekTo(v, Math.min(v.duration - 0.001, (k + 1.5) * fd)); const B = grabFrame(v);
+      p = { k, A, B, flow: null }; pairs.set(key, p);
+    }
+    let out = p.A;
+    if (mode === 'off') { /* the clip's own frame, held */ } else if (w > 0.02 && w < 0.98) {
+      if (mode === 'blend') out = blendFrames(p.A, p.B, w);
+      else { if (!p.flow) p.flow = [estimateFlow(p.A, p.B), estimateFlow(p.B, p.A)]; out = warpFrames(p.A, p.B, p.flow[0], p.flow[1], w); }
+    } else if (w >= 0.98) out = p.B;
+    out._interp = true; out._stamp = t.toFixed(4);
+    interp.set(key, { t, canvas: out });
+  }
   // export: seek every video to its exact frame before the frame is drawn
   R.syncVideos = async function (doc, t, force) {
     const jobs = [];
@@ -134,6 +335,8 @@
       if (!v.paused) v.pause();
       // a seek still in flight (from the editor) would leave its old frame on screen
       if (v.seeking) await new Promise(res => { const fin = () => { v.removeEventListener('seeked', fin); res(); }; v.addEventListener('seeked', fin); setTimeout(fin, 1500); });
+      // slowed down with smooth frames: build the in-between frame (one video, two seeks, so not in parallel)
+      if (t != null && u.vd && (u.vd.speed || 1) < 0.999) { await smoothFrame(u, e, t); continue; }
       const target = R.videoTarget(u.vd, t, v, u.start);
       if (!force && Math.abs(v.currentTime - target) < 0.0005) continue;
       jobs.push(new Promise(res => {
@@ -1504,10 +1707,10 @@
   function filteredSource(id, img, f) {
     if (!f || !(FILTER_KEYS.some(k => f[k]) || (f.blur && f.blurArea && f.blurArea !== 'all'))) return img;
     const spots = f.blurArea && f.blurArea !== 'all' && (f.blurPts || []).length ? f.blurArea : null;
-    const isVid = typeof HTMLVideoElement !== 'undefined' && img instanceof HTMLVideoElement;
+    const isVid = (typeof HTMLVideoElement !== 'undefined' && img instanceof HTMLVideoElement) || !!img._interp;
     const key = id + '|' + FILTER_KEYS.map(k => f[k] || 0).join(',') + '|' + (f.duotone || f.threshold || f.halftone ? (f.duoDark || '') + (f.duoLight || '') : '') +
       (f.splitTone ? (f.toneShadow || '') + (f.toneHigh || '') + (f.toneBalance || 0) : '') + (f.halation ? f.halColor || '' : '') +
-      (spots ? '|' + spots + JSON.stringify(f.blurPts) + (f.blurFeather ?? 60) + '|' + (f.blur || 0) : '') + (isVid ? '@' + img.currentTime.toFixed(3) : '');
+      (spots ? '|' + spots + JSON.stringify(f.blurPts) + (f.blurFeather ?? 60) + '|' + (f.blur || 0) : '') + (isVid ? '@' + (img._interp ? img._stamp : img.currentTime.toFixed(3)) : '');
     // video frames change constantly: keep only the latest filtered frame per video
     // mid-seek, currentTime already shows the new time but the pixels are still the old frame
     if (isVid && img.seeking) { const prev = vidFilterCache.get(id); if (prev) return prev.out; }
@@ -2477,8 +2680,10 @@
       ctx.fillStyle = f.color || '#fff'; ctx.fill(g.outer);
       if (f.texture) { ctx.save(); ctx.clip(g.outer); fillTexture(ctx, 'paper', f.texture, el.width, el.height); ctx.restore(); }
     }
-    const img = assetImage(el.assetId);
+    let img = assetImage(el.assetId);
     if (img && env.editor && isVideoAsset(el.assetId)) liveSync(img, el.video, 'time' in env ? env.time : R.playTime, (el.time && el.time.start) || 0);
+    // exporting a slowed-down clip: draw the smooth in-between frame made for this moment
+    if (img && !env.editor && isVideoAsset(el.assetId)) img = R.interpFrame(el.assetId, el.video, (el.time && el.time.start) || 0, 'time' in env ? env.time : null) || img;
     if (el.outline && el.outline.on && el.outline.width > 0 && img && (f.style || 'none') === 'none') {
       const src = filteredSource(el.assetId, img, el.filters);
       drawOutlined(ctx, el, 'img:' + el.assetId + JSON.stringify(el.filters || {}) + JSON.stringify(el.crop || {}) + (el.flipX ? 1 : 0), (c, w, h) => drawCover(c, src, { x: 0, y: 0, w, h }, el));
@@ -3514,8 +3719,9 @@
       if (bg.scene && window.StudioNature) window.StudioNature.drawScene(ctx, w, h, bg.scene);
     }
     if (bg.assetId) {
-      const img = assetImage(bg.assetId);
+      let img = assetImage(bg.assetId);
       if (img && opts.editor && isVideoAsset(bg.assetId)) liveSync(img, bg.video, R.playTime, 0);
+      if (img && !opts.editor && isVideoAsset(bg.assetId)) img = R.interpFrame(bg.assetId, bg.video, 0, opts.time ?? null) || img;
       if (img) {
         ctx.save();
         ctx.globalAlpha *= bg.imageOpacity ?? 1;

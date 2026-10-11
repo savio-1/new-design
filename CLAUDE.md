@@ -98,6 +98,13 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
 - Film effects over the whole canvas (`doc.overlay`: grain + grainSize, dust, burn, flicker, leak) are
   painted in `drawOverlay(ctx, doc, t)`; `overlay.weave` (gate weave) is applied in `camAt` like a
   camera move. `R.hasFilmMotion(doc)` (weave / flicker) makes a design count as a video.
+- Video speed: `vd.speed` (0.05–4) and `vd.smooth` ('flow' | 'blend' | 'off') on `el.video` / `background.video`.
+  For slowed clips `R.syncVideos` (export only) calls `smoothFrame`: `clipFps` measures the clip's frame rate with
+  `requestVideoFrameCallback`, the two real frames either side are grabbed (seeks snapped to frame centres),
+  `estimateFlow` (coarse-to-fine block matching, per-direction reliability, fill from neighbours) runs both ways and
+  `warpFrames` builds the in-between frame (Super-SloMo style intermediate flow). The result is stored per layer
+  (`R.interpFrame`) and drawn instead of the `<video>` for that moment; `filteredSource` treats it like a video frame.
+  Ground-truth test: pan a photo with ffmpeg, export at 15%, compare PSNR per frame against the exact crop.
 - Frames: add a case to `frameGeometry` (returns `outer`, `inner` clip, `rect`, optional `extra` painter; starting size and colour in `FRAME_START`, ui.js)
   and a label in `R.FRAMES`. Cut-up frames (`strips`, `mosaic`, `mirror`) set `g.paint(ctx, draw)` and place the
   photo piece by piece by calling `draw(rect)`.
