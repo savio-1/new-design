@@ -1435,6 +1435,147 @@
       }));
     })(),
 
+    // ── TYPE EFFECTS: words that build, shuffle into place, get selected, or light up in a wall of words ──
+    ...(() => {
+      const T = (id, name, w, h, build) => ({ id, name, tags: ['Video', 'Text', 'Kinetic'], width: w, height: h, video: true, build });
+      // a phrase built word by word, on screen from a to b (the entrance clock is the video's, so its delay is its start)
+      const caps = (t, a, b, o) => txt(t, Object.assign({ x: 0, cy: 540, width: 1920, autoWidth: false, align: 'center', fontFamily: 'Inter Tight', fontWeight: 900, fontSize: 110, letterSpacing: 0.02,
+        fill: '#a2e86f', anim: { enter: 'build', delay: a, speed: 1 }, time: b ? { start: a, end: b } : { start: a }, name: 'Phrase' }, o));
+      const slot = 0.34;
+      return [
+        T('te-build', 'Word build', 1920, 1080, () => ({
+          width: 1920, height: 1080, anim: { duration: 9, fps: 30 }, overlay: { grain: 4 },
+          background: { color: '#0f2a05', color2: '#071603', gradient: 'linear', angle: 180 },
+          elements: [
+            caps('NOVA IS ON A MISSION', 0.2, 1.9),
+            caps('TO MAKE THE WORLD’S MONEY', 1.9, 4.1),
+            caps('WORK FOR EVERYONE', 4.1, 5.6),
+            // the last word swaps: the first two are already there when this one cuts in
+            Object.assign(caps('WORK FOR EVERYWHERE', 5.6, 7.2), { anim: { enter: 'build', delay: 5.6 - 2 * slot + 0.01, speed: 1 } }),
+            shp('rect', 0, 0, 1920, 1080, { fill: '#e3e8da', fill2: '#8f998a', gradient: 'linear', gradAngle: 180, time: { start: 7.2 }, name: 'Light ending' }),
+            caps('TO MAKE MONEY SIMPLE', 7.2, null, { fill: '#163300' }),
+          ],
+        })),
+        T('te-build-portrait', 'Word build — portrait', 1080, 1350, () => ({
+          width: 1080, height: 1350, anim: { duration: 6.5, fps: 30 }, overlay: { grain: 4 },
+          background: { color: '#e3e8da', color2: '#b9c2b0', gradient: 'linear', angle: 180 },
+          elements: [
+            caps('WE ARE ON A MISSION', 0.2, 2.2, { width: 1080, cy: 675, fontSize: 88, fill: '#163300' }),
+            caps('TO MAKE EVERY DAY A LITTLE EASIER', 2.2, null, { width: 960, x: 60, cy: 675, fontSize: 88, lineHeight: 1.0, fill: '#163300' }),
+          ],
+        })),
+        T('te-shuffle', 'Blur shuffle', 1080, 1350, () => ({
+          width: 1080, height: 1350, anim: { duration: 4.6, fps: 30 },
+          background: { color: '#1f14ff' },
+          elements: [
+            txt('But behind every design there is somebody making choices', { x: 44, y: 330, width: 1000, autoWidth: false, align: 'left', fontFamily: 'Inter', fontWeight: 400, fontSize: 124, lineHeight: 0.98, letterSpacing: -0.02, fill: '#ffffff', anim: { enter: 'shuffle', delay: 0, speed: 1 }, name: 'Paragraph' }),
+            txt('@yourstudio', { x: 44, y: 1270, align: 'left', fontFamily: 'Inter', fontSize: 20, fill: 'rgba(255,255,255,0.6)', name: 'Handle' }),
+          ],
+        })),
+        T('te-shuffle-cream', 'Blur shuffle — cream', 1080, 1350, () => ({
+          width: 1080, height: 1350, anim: { duration: 4.6, fps: 30 }, overlay: { grain: 8 },
+          background: { color: '#f1ece2' },
+          elements: [
+            txt('Every good idea starts as a mess of words looking for order', { x: 44, y: 300, width: 1000, autoWidth: false, align: 'left', fontFamily: 'Inter', fontWeight: 500, fontSize: 118, lineHeight: 0.98, letterSpacing: -0.03, fill: '#151515', anim: { enter: 'shuffle', delay: 0, speed: 0.9 }, name: 'Paragraph' }),
+          ],
+        })),
+        T('te-sweep', 'Select sweep', 1920, 1080, () => ({
+          width: 1920, height: 1080, anim: { duration: 6.6, fps: 30 },
+          background: { color: '#521f00' },
+          elements: [
+            txt('Our tools are open source, so even our competitors can put it to use.', { x: 70, cy: 540, autoWidth: true, align: 'left', fontFamily: 'Bricolage Grotesque', fontWeight: 600, fontSize: 118, letterSpacing: -0.01, fill: '#f0c419',
+              anim: { enter: 'sweep', delay: 0.3, speed: 1 }, sweep: { color: '#f0c419', ink: '#521f00', at: 0.62 }, name: 'Selected line' }),
+          ],
+        })),
+        T('te-sweep-night', 'Select sweep — night', 1080, 1920, () => ({
+          width: 1080, height: 1920, anim: { duration: 5.2, fps: 30 },
+          background: { color: '#0d1b2a' },
+          elements: [
+            txt('Select the words that matter and let the rest fall away.', { x: 60, cy: 960, autoWidth: true, align: 'left', fontFamily: 'Bricolage Grotesque', fontWeight: 600, fontSize: 104, fill: '#7ef0c3',
+              anim: { enter: 'sweep', delay: 0.3, speed: 1.1 }, sweep: { color: '#7ef0c3', ink: '#0d1b2a', at: 0.66 }, name: 'Selected line' }),
+          ],
+        })),
+        T('te-wall', 'Word wall', 1920, 1080, () => {
+          const line = (o) => txt('You build it with', Object.assign({ x: 0, cy: 540, width: 1004, autoWidth: false, align: 'right', fontFamily: 'Inter', fontWeight: 500, fontSize: 46, letterSpacing: -0.01, fill: '#15171f', name: 'Lead-in' }, o));
+          return {
+            width: 1920, height: 1080, anim: { duration: 7, fps: 30 },
+            background: { color: '#f4f3f5', color2: '#a7a7ab', gradient: 'linear', angle: 180 },
+            elements: [
+              line({ x: 0, width: 1920, align: 'center', anim: { enter: 'build', delay: 0.15, speed: 1.4 }, time: { start: 0, end: 1.6 } }),
+              shp('rect', 0, 0, 1920, 1080, { fill: '#2a4ad8', fill2: '#121f7c', gradient: 'linear', gradAngle: 180, time: { start: 1.6, end: 4.9 }, name: 'Wall colour' }),
+              txt('honesty, smiles, empathy, hugs, patience, elbow grease, passion, know how, dedication', { x: 0, y: 0, width: 1920, height: 1080, autoWidth: false, align: 'left', fontFamily: 'Inter', fontWeight: 500, fontSize: 132, lineHeight: 1.0, letterSpacing: -0.02, fill: '#14228c',
+                anim: { enter: 'wall', delay: 1.6, speed: 1 }, wall: { fontFamily: 'Newsreader', fontWeight: 400, color: '#ffffff', scale: 1.14, beat: 0.36 }, time: { start: 1.6, end: 4.9 }, name: 'Word wall' }),
+              line({ time: { start: 4.9 } }),
+              txt('trust.', { x: 1016, cy: 536, align: 'left', fontFamily: 'Newsreader', fontWeight: 400, fontSize: 58, fill: '#2a45c8', anim: { enter: 'focus', delay: 5.0, speed: 1.2 }, time: { start: 4.9 }, name: 'Last word' }),
+            ],
+          };
+        }),
+      ];
+    })(),
+
+    // ── SCREEN CLOSE-UP: phrases typed on a tinted screen, and a comment thread, filmed through the pixel mesh ──
+    ...(() => {
+      const T = (id, name, w, h, build) => ({ id, name, tags: ['Video', 'Text', 'Typing'], width: w, height: h, video: true, build: () => { const d = build(); d.elements.forEach((e, i) => { if (!e.id) e.id = id + i; }); if (window.StudioRender) window.StudioRender.applyTypePlan(d); return d; } });
+      const phrases = (W, H) => {
+        const fs = Math.round(Math.min(W * 0.036, H * 0.06) * 10) / 10, pitch = Math.round(fs * 0.72 / 45 * 1000) / 1000, zoom = Math.round((W > H ? 4.8 : 4.1) / pitch * 100) / 100;
+        return {
+          width: W, height: H, anim: { duration: 8, fps: 30 },
+          background: { color: '#b4d6da', color2: '#86b3ba', gradient: 'radial' },
+          overlay: { grain: 7, vignette: 26 },
+          screen: { on: true, pitch, grid: 78, focus: 42, dust: 6 },
+          camera: { move: 'typecut', target: 'type', phrases: true, zoom, cps: 9, hold: 1.2, blur: 0, shake: 0.3 },
+          elements: [
+            txt('Something’s\nWRONG!\nmy iced coffee\ntastes OFF!', { key: 'type', cx: W / 2, cy: H / 2, width: W * 0.84, autoWidth: false, align: 'center', fontFamily: 'Arimo', fontWeight: 400, fontSize: fs, lineHeight: 1.25, letterSpacing: 0.01, fill: '#13262a',
+              typing: { caret: true, pin: true, blink: true, caretWidth: 0.085, caretColor: '#10232a', marks: [] }, anim: { enter: 'typewriter', delay: 0 }, name: 'Typed phrases (one per line)' }),
+          ],
+        };
+      };
+      const thread = (W, H) => {
+        const cx = W / 2, cy = H / 2, wide = W > H, Z = wide ? 2.4 : 1.6, ink = '#1c1f22', mute = '#576068', hv = W / (2 * Z) * 0.92;
+        // one comment: avatar, a blurred user name, the words, and the action row
+        const comment = (text, colour, a, b, dy) => {
+          const x0 = cx - 260, y0 = cy - 70 + dy, t = { start: a, end: b };
+          return [
+            shp('ellipse', x0, y0, 64, 64, { fill: colour, time: t, name: 'Avatar' }),
+            stk('ui-heart', x0 + 16, y0 + 16, 32, 32, { colors: ['rgba(255,255,255,0.75)'], time: t, name: 'Avatar mark' }),
+            shp('rounded', x0 + 88, y0 + 10, 150, 22, { radius: 11, fill: '#aab2ba', lblur: { gauss: 5, motion: 0, angle: 0 }, time: t, name: 'User name (blurred)' }),
+            txt(text, { x: x0 + 88, y: y0 + 50, align: 'left', fontFamily: 'Arimo', fontSize: 34, fill: ink, time: t, name: 'Comment' }),
+            stk('ui-upvote', x0 + 86, y0 + 118, 34, 34, { colors: [mute], time: t }),
+            stk('ui-downvote', x0 + 138, y0 + 118, 34, 34, { colors: [mute], time: t }),
+            stk('ui-comment', x0 + 196, y0 + 118, 34, 34, { colors: [mute], time: t }),
+            txt('Reply', { x: x0 + 238, y: y0 + 120, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 26, fill: mute, time: t }),
+            stk('ui-share', x0 + 330, y0 + 118, 34, 34, { colors: [mute], time: t }),
+            txt('Share', { x: x0 + 372, y: y0 + 120, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 26, fill: mute, time: t }),
+          ];
+        };
+        return {
+          width: W, height: H, anim: { duration: 5, fps: 30 },
+          background: { color: '#eef2f5', color2: '#c9d3db', gradient: 'radial' },
+          overlay: { grain: 7, vignette: 24 },
+          screen: { on: true, pitch: Math.round(4.6 / Z * 100) / 100, grid: 76, focus: 40, dust: 6 },
+          camera: { move: 'keys', blur: 0, shake: 0.3, keys: [{ t: 0, x: cx, y: cy - 20, z: Z, ease: 'linear' }, { t: 2.3, x: cx - 10, y: cy - 10, z: Z * 1.05, ease: 'linear' }, { t: 2.31, x: cx + 20, y: cy + 30, z: Z * 1.12, ease: 'linear' }, { t: 5, x: cx + 30, y: cy + 36, z: Z * 1.18, ease: 'linear' }] },
+          elements: [
+            // the top bar of a made-up forum app
+            shp('rect', 0, cy - 214, W, 62, { fill: '#ffffff', fill2: '#f3f5f7', gradient: 'linear', gradAngle: 180, name: 'Top bar' }),
+            txt('threadly', { x: cx - hv, y: cy - 202, align: 'left', fontFamily: 'Arimo', fontWeight: 700, fontSize: 30, fill: '#ff5a1f', name: 'App name' }),
+            shp('rounded', cx - hv + 172, cy - 204, 2 * hv - 290, 40, { radius: 20, fill: '#e6eaee', name: 'Search' }),
+            stk('ui-search', cx - hv + 186, cy - 197, 26, 26, { colors: [mute] }),
+            txt('Find anything', { x: cx - hv + 222, y: cy - 196, align: 'left', fontFamily: 'Arimo', fontSize: 20, fill: '#98a1a9' }),
+            stk('ui-bell', cx + hv - 82, cy - 199, 30, 30, { colors: [mute] }),
+            stk('ui-more', cx + hv - 36, cy - 199, 30, 30, { colors: [mute] }),
+            ...comment('what’s going on???', '#2fb35a', 0, 2.3, 0),
+            ...comment('I thought i was the only one', '#2f8fb3', 2.3, null, 40),
+          ],
+        };
+      };
+      return [
+        T('sc-phrases', 'Phrase typing — teal', 1920, 1080, () => phrases(1920, 1080)),
+        T('sc-phrases-story', 'Phrase typing — story', 1080, 1920, () => phrases(1080, 1920)),
+        T('sc-thread', 'Comment thread', 1920, 1080, () => thread(1920, 1080)),
+        T('sc-thread-story', 'Comment thread — story', 1080, 1920, () => thread(1080, 1920)),
+      ];
+    })(),
+
     // ── TEXT EFFECTS: thermal-camera glow and ink soaking into paper ──
     ...(() => {
       const T = (id, name, tags, build, video) => ({ id, name, tags, width: 1080, height: 1350, video: !!video, build });
@@ -2631,6 +2772,8 @@
     'Typing screen': [],
     'Smooth cam text': [],
     'Text effects': ['fx-thermal', 'fx-ink', 'fx-thermal-photo', 'fx-night', 'fx-ink-quote'],
+    'Type effects': ['te-build', 'te-sweep', 'te-wall', 'te-shuffle', 'te-build-portrait', 'te-sweep-night', 'te-shuffle-cream'],
+    'Screen close-up': ['sc-phrases', 'sc-thread', 'sc-phrases-story', 'sc-thread-story'],
     'Word by word': ['words-films', 'words-bold', 'words-soft'],
     'Letter bounce': ['bounce-everyone', 'bounce-hello', 'bounce-pastel'],
     'Life-sim garden': ['garden-menu', 'garden-golden', 'garden-dusk'],

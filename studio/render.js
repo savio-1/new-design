@@ -1200,6 +1200,206 @@
       ctx.fillRect(T.caret.x + L.size * 0.04, T.caret.base - L.cap * 1.22, w, L.cap * 1.22 + L.size * 0.2);
     }
   }
+  /* ── word-level entrances: word build, blur shuffle, select sweep, word wall ──
+     These draw the words themselves (fill colour only — no box, stroke or shadow) so each word can move on its own. */
+  // each word of a laid-out text: where it sits (x0–x1 along its line's baseline)
+  function wordBoxesOf(L) {
+    const meas = measurer(mctx, L.font, 0), out = [];
+    L.lines.forEach((ln, li) => {
+      const re = /\S+/g;
+      let m;
+      while ((m = re.exec(ln.text))) {
+        const pre = ln.text.slice(0, m.index), n0 = [...pre].length, nw = [...m[0]].length;
+        const x0 = ln.x + meas.raw(pre) + L.ls * n0, w = meas.raw(pre + m[0]) - meas.raw(pre) + L.ls * (nw - 1);
+        out.push({ w: m[0], x0, x1: x0 + w, base: ln.base, li });
+      }
+    });
+    return out;
+  }
+  const wfxLayout = (el, text) => {
+    const e = Object.assign({}, el, { text, autoWidth: false, width: el.width });
+    const L = layoutText(e);
+    return { L, B: wordBoxesOf(L), dy: (el.height - L.boxH) / 2 };
+  };
+  // a word drawn on its own little canvas, smeared along x by `blur` px (cached per look)
+  const wordCache = new LRU(300);
+  function wordBitmap(L, word, fill, blur, s) {
+    const key = [L.font, L.ls, word, fill, Math.round(blur), s].join('|');
+    let c = wordCache.get(key);
+    if (c) return c;
+    const meas = measurer(mctx, L.font, L.ls), w = meas(word), pad = blur + L.size * 0.2;
+    const W = Math.ceil((w + pad * 2) * s), H = Math.ceil(L.size * 1.6 * s);
+    c = canvas(Math.max(2, W), Math.max(2, H));
+    const x = c.getContext('2d');
+    x.scale(s, s); x.font = L.font; x.fillStyle = fill; x.textBaseline = 'alphabetic';
+    drawLine(x, word, pad, L.size * 1.15, L.ls, 'fill');
+    if (blur > 1.5) c = motionBlurPx(c, blur * s, 0);
+    c.pad = pad; c.top = L.size * 1.15; c.s = s;
+    wordCache.set(key, c);
+    return c;
+  }
+  // how many words a build entrance has shown at tt, and how far the newest one has come
+  function buildState(n, tt, spd) {
+    const slot = 0.34 / spd;
+    if (tt < 0) return { n: 0, q: 0 };
+    const k = Math.min(n, Math.floor(tt / slot) + 1);
+    return { n: k, q: clamp((tt - (k - 1) * slot) / (0.32 / spd), 0, 1) };
+  }
+  function drawWordFx(ctx, el, W, env) {
+    const mode = W.mode, tt = W.t, spd = W.spd, fill = el.fill || '#111';
+    const text = el.uppercase ? String(el.text || '').toUpperCase() : String(el.text || '');
+    const s = Math.min(3, Math.max(1, deviceScale(ctx)));
+    if (mode === 'wall') { drawWordWall(ctx, el, tt, spd, env.doc || R.animDoc); return; }
+    if (mode === 'build') {
+      // words arrive one at a time; the line re-centres around what's there, the newest word pops up from below
+      const words = [...text.matchAll(/\S+/g)], N = words.length;
+      const st = buildState(N, tt, spd);
+      if (!st.n) return;
+      const upTo = k => k ? text.slice(0, words[k - 1].index + words[k - 1][0].length) : '';
+      const P = wfxLayout(el, upTo(st.n)), Q = st.n > 1 ? wfxLayout(el, upTo(st.n - 1)) : P;
+      const slide = easeOut(Math.min(1, st.q * 3));
+      ctx.font = P.L.font; ctx.fillStyle = fill; ctx.textBaseline = 'alphabetic';
+      for (let i = 0; i < P.B.length; i++) {
+        const b = P.B[i], a = Q.B[i] && i < st.n - 1 ? Q.B[i] : b;
+        const x = a.x0 + (b.x0 - a.x0) * slide, y = (a.base + Q.dy) + ((b.base + P.dy) - (a.base + Q.dy)) * slide;
+        if (i < st.n - 1) { drawLine(ctx, b.w, x, y, P.L.ls, 'fill'); continue; }
+        const q = st.q, k = easeBack(q), cx = b.x0 + (b.x1 - b.x0) / 2;
+        ctx.save();
+        ctx.globalAlpha *= Math.min(1, q * 4);
+        ctx.translate(cx, y + (1 - k) * P.L.size * 0.55);
+        ctx.rotate((1 - Math.min(1, k)) * (i % 2 ? 0.045 : -0.035));
+        drawLine(ctx, b.w, b.x0 - cx, 0, P.L.ls, 'fill');
+        ctx.restore();
+      }
+      return;
+    }
+    if (mode === 'shuffle') {
+      // the paragraph keeps its lines, but a few times the words in each line are re-spaced at random (ragged, wide gaps,
+      // pushed left or right); each word slides to its new spot a moment apart, smeared by its speed, then all settle
+      const P = wfxLayout(el, text), L = P.L, K = 3, T = 2.1 / spd, md = 0.24 / spd;
+      const byLine = new Map();
+      P.B.forEach((b, i) => { if (!byLine.has(b.li)) byLine.set(b.li, []); byLine.get(b.li).push(i); });
+      const offs = P.B.map(() => []), hops = P.B.map(() => []);
+      for (const [li, ids] of byLine) {
+        const r = rng(hashStr((el.id || 'w') + ':' + li) + 7);
+        const ws = ids.map(i => P.B[i].x1 - P.B[i].x0), minGap = L.size * 0.25, free = Math.max(0, L.boxW - ws.reduce((a, v) => a + v, 0) - minGap * (ids.length - 1));
+        for (let j = 0; j < K; j++) {
+          const wt = Array.from({ length: ids.length + 1 }, () => Math.pow(r(), 1.6) + 0.02), sum = wt.reduce((a, v) => a + v, 0);
+          let x = free * wt[0] / sum;
+          ids.forEach((i, k) => { offs[i].push(x - P.B[i].x0); x += ws[k] + minGap + free * wt[k + 1] / sum; });
+        }
+        ids.forEach(i => { const rr = rng(hashStr((el.id || 'w') + i) + 3); for (let j = 0; j < K; j++) hops[i].push((j + 1) * T / (K + 1) + (rr() - 0.5) * 0.32 / spd); });
+      }
+      P.B.forEach((b, i) => {
+        const o = offs[i].concat([0]);
+        const at = u => {
+          let p = o[0];
+          for (let j = 0; j < K; j++) {
+            const q = clamp((u - hops[i][j]) / md, 0, 1);
+            if (q <= 0) break;
+            p = o[j] + (o[j + 1] - o[j]) * eio(q);
+          }
+          return p;
+        };
+        const p = at(tt), v = Math.abs(p - at(tt - 1 / 30));
+        const bm = wordBitmap(L, b.w, fill, Math.min(160, v * 1.1), s);
+        ctx.drawImage(bm, b.x0 + p - bm.pad, b.base + P.dy - bm.top, bm.width / s, bm.height / s);
+      });
+      return;
+    }
+    if (mode === 'sweep') {
+      // a text selection dragged across the line: highlight + I-beam, the line sliding along so the cursor stays in view
+      const sw = el.sweep || {}, L = layoutText(el), meas = measurer(mctx, L.font, 0);
+      const lines = L.lines, total = lines.reduce((a, ln) => a + [...ln.text].length, 0);
+      const cps = 13 * spd, n = clamp(tt * cps, 0, total);
+      // cursor position for a fractional character count
+      const posAt = k => {
+        let left = k;
+        for (const ln of lines) {
+          const ch = [...ln.text];
+          if (left <= ch.length || ln === lines[lines.length - 1]) {
+            const i = clamp(Math.floor(left), 0, ch.length), f = clamp(left - i, 0, 1);
+            const xa = ln.x + meas.raw(ch.slice(0, i).join('')) + L.ls * i, xb = i < ch.length ? ln.x + meas.raw(ch.slice(0, i + 1).join('')) + L.ls * (i + 1) : xa;
+            return { x: xa + (xb - xa) * f, ln };
+          }
+          left -= ch.length;
+        }
+        return { x: 0, ln: lines[0] };
+      };
+      const head = posAt(n);
+      let shift = 0;
+      const doc = env.doc || R.animDoc;
+      if (sw.follow !== false && doc) shift = Math.min(0, doc.width * (sw.at ?? 0.62) - (el.x + head.x));
+      ctx.save();
+      ctx.translate(shift, 0);
+      ctx.font = L.font; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = fill;
+      for (const ln of lines) drawLine(ctx, ln.text, ln.x, ln.base, L.ls, 'fill');
+      const sel = Math.round(n), hc = sw.color || '#f0c419', ink = sw.ink || '#4a1d00';
+      let left = sel;
+      const y0 = b => b - L.cap * 1.22, y1 = b => b + L.size * 0.24;
+      for (const ln of lines) {
+        const ch = [...ln.text], k = Math.min(ch.length, left);
+        if (k > 0) {
+          const xr = ln.x + meas.raw(ch.slice(0, k).join('')) + L.ls * k;
+          ctx.save();
+          ctx.beginPath(); ctx.rect(ln.x - L.size * 0.03, y0(ln.base), xr - ln.x + L.size * 0.03, y1(ln.base) - y0(ln.base)); ctx.clip();
+          ctx.fillStyle = hc; ctx.fillRect(ln.x - L.size * 0.03, y0(ln.base), xr - ln.x + L.size * 0.03, y1(ln.base) - y0(ln.base));
+          ctx.fillStyle = ink; drawLine(ctx, ln.text, ln.x, ln.base, L.ls, 'fill');
+          ctx.restore();
+        }
+        left -= ch.length;
+        if (left <= 0) break;
+      }
+      if (sw.cursor !== false) {
+        // the I-beam, with its little curved serifs
+        const b = head.ln.base, top = y0(b) - L.size * 0.12, bot = y1(b) + L.size * 0.12, x = head.x, sf = L.size * 0.09;
+        ctx.strokeStyle = sw.beam || hc; ctx.lineWidth = Math.max(1.2, L.size * 0.035); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot);
+        ctx.moveTo(x - sf, top - sf * 0.5); ctx.quadraticCurveTo(x, top - sf * 0.1, x, top + sf * 0.35); ctx.quadraticCurveTo(x, top - sf * 0.1, x + sf, top - sf * 0.5);
+        ctx.moveTo(x - sf, bot + sf * 0.5); ctx.quadraticCurveTo(x, bot + sf * 0.1, x, bot - sf * 0.35); ctx.quadraticCurveTo(x, bot + sf * 0.1, x + sf, bot + sf * 0.5);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  // word wall: rows of the words (comma-separated in the text) fill the layer; one of them lights up in a second font,
+  // and every beat the wall reshuffles around the next word
+  function drawWordWall(ctx, el, tt, spd, doc) {
+    const wl = el.wall || {}, words = String(el.text || '').split(/[,\n]+/).map(w => w.trim()).filter(Boolean);
+    if (!words.length || tt < 0) return;
+    const size = el.fontSize || 48, font = fontFor(el.fontFamily, el.fontWeight, el.italic, size);
+    const hiSize = size * (wl.scale ?? 1.12), hiFont = fontFor(wl.fontFamily || 'Newsreader', wl.fontWeight || 400, !!wl.italic, hiSize);
+    const meas = measurer(mctx, font, 0), space = meas(' ') * 1.05, lh = size * (el.lineHeight || 1.0);
+    const beat = Math.max(0.12, (wl.beat ?? 0.36) / spd), c = Math.floor(tt / beat), hi = words[c % words.length];
+    // the wall covers the whole canvas (a text box is only as tall as its own lines); wall.fill = false keeps it to the box
+    const full = wl.fill !== false && doc && !el.rotation, ox = full ? -el.x : 0, oy = full ? -el.y : 0;
+    const W = full ? doc.width : el.width, H = full ? doc.height : el.height, rows = Math.ceil(H / lh) + 2, mid = Math.floor(rows / 2);
+    const y0 = H / 2 - mid * lh + size * 0.35;
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+    ctx.textBaseline = 'alphabetic';
+    const pick = r => words[Math.floor(r() * words.length)];
+    for (let row = 0; row < rows; row++) {
+      const r = rng(hashStr(el.id || 'wall') + c * 977 + row * 131), y = y0 + row * lh;
+      ctx.font = font; ctx.fillStyle = el.fill || '#1b2a8f';
+      if (row !== mid) {
+        let x = -r() * W * 0.4;
+        while (x < W) { const w = pick(r); ctx.fillText(w, x, y); x += meas(w) + space; }
+        continue;
+      }
+      // the lit word sits near the middle; ordinary words run up to it from both sides
+      mctx.font = hiFont;
+      const hw = mctx.measureText(hi).width, hx = W / 2 - hw / 2 + (r() - 0.5) * W * 0.3;
+      let x = hx - space;
+      while (x > 0) { const w = pick(r); x -= meas(w); ctx.fillText(w, x, y); x -= space; }
+      x = hx + hw + space;
+      while (x < W) { const w = pick(r); ctx.fillText(w, x, y); x += meas(w) + space; }
+      ctx.font = hiFont; ctx.fillStyle = wl.color || '#ffffff';
+      ctx.fillText(hi, hx, y);
+    }
+    ctx.restore();
+  }
   function drawText(ctx, el, env) {
     const L = layoutText(el);
     const bg = el.bg || {};
@@ -3440,6 +3640,7 @@
     right: 'Slide from right', zoom: 'Zoom in', focus: 'Blur in (focus)', spinIn: 'Spin in', typewriter: 'Typewriter', wipe: 'Wipe', draw: 'Draw on (paths)',
     slam: 'Letters slam in', lettersUp: 'Letters rise', lettersDrop: 'Letters drop', lettersFade: 'Letters fade in', lettersBounce: 'Letters bounce in',
     captions: 'Captions (line by line)', roll: 'Roll through lines', words: 'Word by word',
+    build: 'Word build', shuffle: 'Blur shuffle', sweep: 'Select sweep', wall: 'Word wall',
   };
   const LOOP_PERIOD = { float: 3, jiggle: 0.9, sway: 3, swing: 2.2, spin: 6, pulse: 1.6, bounce: 1.2, shake: 0.5, orbit: 4, blink: 1.4, flow: 4 };
   const easeOut = p => 1 - Math.pow(1 - p, 3);
@@ -3469,7 +3670,7 @@
   };
   function animState(el, t, doc) {
     const an = el.anim || {}, D = Math.max(0.5, (doc && doc.anim && doc.anim.duration) || 5);
-    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, gblur: 0, seq: null };
+    const st = { dx: 0, dy: 0, rot: 0, sc: 1, alpha: 1, px: el.width / 2, py: el.height / 2, chars: null, reveal: 1, flow: null, draw: null, letters: null, caption: null, mblur: 0, mang: 0, gblur: 0, seq: null, wfx: null };
     const amt = an.amount ?? 1, spd = an.speed ?? 1, m = Math.min(el.width, el.height);
     const tl = ((t % D) + D) % D;
     const loop = an.loop || 'none';
@@ -3520,6 +3721,7 @@
           break;
         case 'captions': if (el.type === 'text') st.caption = Math.max(0, Math.floor((tl - (an.delay || 0)) / (0.8 / spd))); break;
         case 'roll': case 'words': if (el.type === 'text') st.seq = seqState(el, tl - (an.delay || 0), spd, enter, an.accel); break;
+        case 'build': case 'shuffle': case 'sweep': case 'wall': if (el.type === 'text') st.wfx = { mode: enter, t: tl - (an.delay || 0), spd }; else st.alpha *= e; break;
         case 'zoom': st.sc *= 1.6 - 0.6 * e; st.alpha *= e; break;
         // out of focus to sharp, like a lens pulling focus onto the word
         case 'focus': { const q = clamp((tl - (an.delay || 0)) / (0.75 / spd), 0, 1), f = 1 - Math.pow(1 - q, 2.2); st.alpha *= Math.min(1, q * 1.6); st.gblur = (1 - f) * m * 0.22 * amt; st.sc *= 1 + (1 - f) * 0.04; break; }
@@ -3533,7 +3735,7 @@
         case 'spinIn': st.rot -= (1 - e) * 200; st.sc *= e; break;
         case 'typewriter': {
           const P = el.type === 'text' ? typePlanFor(doc, el) : null;
-          if (P) st.chars = P.charsAt(t);
+          if (P) { st.chars = P.charsAt(t); if (P.phrases) st.view = P.view(st.chars); }
           else if (el.type === 'text') st.chars = Math.floor(p * nch + 1e-6); else st.reveal = p;
           break;
         }
@@ -3755,6 +3957,8 @@
     if (trackBlur) el = Object.assign({}, el, { lblur: Object.assign({}, el.lblur || {}, { motion: ((el.lblur && el.lblur.motion) || 0) + trackBlur.motion, angle: trackBlur.angle }), track: null, _tracked: true });
     const pcs = R.seqPieces(el);
     if (t == null && pcs && pcs.length) { drawLayered(ctx, onePiece(el, pcs[0]), env); return; }
+    // a word wall's still is the wall itself, not its list of words
+    if (t == null && el.type === 'text' && el.anim && el.anim.enter === 'wall') { drawWordWall(ctx, el, 0, 1, env.doc || R.animDoc); return; }
     if (t == null || !R.hasAnim(el)) { drawLayered(ctx, el, env); return; }
     const A = animState(el, t, env.doc || R.animDoc);
     if (A.alpha <= 0.001 || A.sc <= 0.001 || A.reveal <= 0) return;
@@ -3769,7 +3973,8 @@
       ctx.beginPath(); ctx.rect(-b, -b, (el.width + b * 2) * A.reveal, el.height + b * 2); ctx.clip();
     }
     let e = el;
-    if (A.chars != null) {
+    if (A.view) e = phraseEl(el, A.view);
+    else if (A.chars != null) {
       const chars = [...(el.text || '')];
       if (A.chars < chars.length) e = Object.assign({}, el, { text: chars.slice(0, A.chars).join(''), autoWidth: false, width: el.width, _full: el.text, _typing: true });
     }
@@ -3783,6 +3988,19 @@
     if (A.letters) e = Object.assign({}, e, { _letters: A.letters });
     if (A.mblur > 1.5) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { motion: ((e.lblur && e.lblur.motion) || 0) + A.mblur, angle: A.mang }) });
     if (A.gblur > 0.3) e = Object.assign({}, e, { lblur: Object.assign({}, e.lblur || {}, { gauss: ((e.lblur && e.lblur.gauss) || 0) + Math.round(A.gblur * 2) / 2 }) });
+    if (A.wfx) {
+      if (e.lblur && (e.lblur.gauss > 0 || e.lblur.motion > 0)) {
+        // the layer's own blur still applies: draw the words onto a layer bitmap and blur that
+        const b = bleed(e), s = Math.min(3, Math.max(1, deviceScale(ctx))), c = canvas((el.width + b * 2) * s, (el.height + b * 2) * s), x = c.getContext('2d');
+        x.scale(s, s); x.translate(b, b); drawWordFx(x, e, A.wfx, env);
+        let o = c;
+        if (e.lblur.motion > 0) o = motionBlurPx(o, e.lblur.motion * s, e.lblur.angle || 0);
+        if (e.lblur.gauss > 0) { const g = canvas(o.width, o.height), gx = g.getContext('2d'); gx.filter = `blur(${e.lblur.gauss * s}px)`; gx.drawImage(o, 0, 0); o = g; }
+        ctx.drawImage(o, -b, -b, el.width + b * 2, el.height + b * 2);
+      } else drawWordFx(ctx, e, A.wfx, env);
+      ctx.restore();
+      return;
+    }
     if (A.seq) {
       const Q = A.seq, cur = onePiece(e, Q.pieces[Q.i]);
       if (el.anim.enter === 'roll') {
@@ -4245,10 +4463,11 @@
     if (!el || el.type !== 'text') return null;
     const clips = (doc.elements || []).filter(e => e.cutin && !e.hidden);
     const cps = Math.max(2, c.cps || 10), cutLen = Math.max(0.2, c.cut ?? 1), hold = Math.max(0, c.hold ?? 1.8), Z = Math.max(1, c.zoom || 2.6);
-    const key = [el.text, el.uppercase, cps, cutLen, hold, Z, clips.map(e => e.id).join(',')].join('|');
+    const key = [el.text, el.uppercase, cps, cutLen, hold, Z, !!c.phrases, clips.map(e => e.id).join(',')].join('|');
     const hit = planCache.get(key);
     if (hit) { hit.el = el; return hit; }
     const chars = [...(el.text || '')], N = chars.length;
+    if (c.phrases) { const P = phrasePlan(el, chars, cps, hold, Z); planCache.set(key, P); return P; }
     // word breaks: the last letter of each word that has more words after it
     const breaks = [];
     for (let i = 1; i < N; i++) if (/\s/.test(chars[i]) && !/\s/.test(chars[i - 1]) && /\S/.test(chars.slice(i).join(''))) breaks.push(i);
@@ -4319,6 +4538,63 @@
     planCache.set(key, plan);
     return plan;
   };
+  // phrase by phrase: each line of the text is typed on an empty screen, held a beat, then the shot cuts to the next line.
+  // Short phrases are framed closer. view(n) says which phrase is on screen and how much of it is typed.
+  function phrasePlan(el, chars, cps, hold, Z) {
+    const N = chars.length, rr = rng(hashStr(el.text || '') + 29), kt = new Array(N), phases = [], ph = [];
+    let a = 0;
+    for (let i = 0; i <= N; i++) if (i === N || chars[i] === '\n') { if (i > a) ph.push({ s: a, e: i }); a = i + 1; }
+    const LEAD = 0.35, HOLD = 0.6;
+    let t = LEAD;
+    phases.push({ kind: 'type', t0: 0, t1: LEAD, zoom: Z, seg: 'type0', p: 0 });
+    ph.forEach((p, j) => {
+      const len = p.e - p.s, zoom = Z * clamp(Math.sqrt(11 / Math.max(3, len)), 0.8, 1.45), t0 = j ? t : 0;
+      // the first letter of a new phrase is already there when the shot cuts in
+      if (j) { kt[p.s - 1] = t; kt[p.s] = t; } 
+      for (let i = p.s + (j ? 1 : 0); i < p.e; i++) {
+        let d = (1 / cps) * (0.55 + rr() * 0.9);
+        if (/\s/.test(chars[i])) d *= 1.45;
+        if (/[.,!?;:—–-]/.test(chars[i - 1] || '')) d *= 2.4;
+        if (rr() < 0.05) d *= 2.6;
+        t += d; kt[i] = t;
+      }
+      t += j < ph.length - 1 ? HOLD : 0.4;
+      phases.push({ kind: 'type', t0, t1: t, zoom, seg: 'phrase' + j, p: j });
+    });
+    for (let i = 0; i < N; i++) if (kt[i] == null) kt[i] = i ? kt[i - 1] : LEAD;
+    const last = phases[phases.length - 1];
+    // the last phrase stays framed to the end
+    phases.push({ kind: 'type', t0: t, t1: t + hold, zoom: last.zoom, seg: last.seg, p: last.p });
+    t += hold;
+    const count = tt => { let lo = 0, hi = N; while (lo < hi) { const m = (lo + hi) >> 1; if (kt[m] <= tt) lo = m + 1; else hi = m; } return lo; };
+    const find = tt => phases.find(p => tt >= p.t0 && tt < p.t1) || phases[phases.length - 1];
+    const plan = {
+      el, total: t, phases, kt, phrases: ph,
+      phase(tt) { return find(tt); },
+      charsAt: count,
+      charsAtF(tt) {
+        const n = count(tt);
+        if (n >= N) return N;
+        const a2 = n ? kt[n - 1] : LEAD, b = kt[n];
+        return n + clamp((tt - a2) / Math.max(1e-3, b - a2), 0, 1) * (b - a2 < 0.6 ? 1 : 0);
+      },
+      cutAt() { return null; },
+      // the phrase on screen once n characters have been typed
+      view(n) {
+        let j = 0;
+        while (j < ph.length - 1 && n > ph[j].e) j++;
+        const p = ph[j] || { s: 0, e: 0 };
+        return { j, text: chars.slice(p.s, clamp(n, p.s, p.e)).join(''), full: chars.slice(p.s, p.e).join('') };
+      },
+    };
+    return plan;
+  }
+  // a text element showing just one typed phrase, centred in the layer's box
+  function phraseEl(el, v) {
+    const e = Object.assign({}, el, { text: v.text, autoWidth: false, width: el.width, _full: v.full, _typing: v.text.length < v.full.length });
+    e._yShift = (el.height - layoutText(Object.assign({}, el, { text: v.full, _full: null, autoWidth: false, width: el.width })).boxH) / 2;
+    return e;
+  }
   // write the schedule back into the design: the video length, and each clip's slot (so a video clip starts at its cut)
   R.applyTypePlan = function (doc) {
     const P = R.typePlan(doc);
@@ -4370,12 +4646,12 @@
     return { x: el.x + lx * Math.cos(a) - ly * Math.sin(a), y: el.y + lx * Math.sin(a) + ly * Math.cos(a) };
   };
   // the caret after n characters (n may be fractional: it glides between the two letters around it)
-  R.caretAtChars = function (el, n) {
+  R.caretAtChars = function (el, n, P) {
     const chars = [...(el.text || '')], at = k => {
       const kk = clamp(Math.floor(k), 0, chars.length);
-      const e = kk < chars.length ? Object.assign({}, el, { text: chars.slice(0, kk).join(''), autoWidth: false, width: el.width, _full: el.text }) : el;
+      const e = P && P.phrases ? phraseEl(el, P.view(kk)) : kk < chars.length ? Object.assign({}, el, { text: chars.slice(0, kk).join(''), autoWidth: false, width: el.width, _full: el.text }) : el;
       const L = layoutText(e), T = typingBoxes(e, L);
-      return { x: T.caret.x, y: T.caret.base - L.cap * 0.5 };
+      return { x: T.caret.x, y: T.caret.base - L.cap * 0.5 + (e._yShift || 0) };
     };
     const lo = at(n), f = n - Math.floor(n), hi = f > 0 ? at(n + 1) : lo;
     // across a line break, jump rather than slide through the middle of the text
@@ -4432,7 +4708,15 @@
         seg = ph.seg;
         if (ph.kind === 'cut') { f = C; z = 1; break; }
         // follow a continuously gliding caret, eased over the last ~0.3 s so the camera trails the typing smoothly
-        const caret = () => { let x = 0, y = 0, ws = 0; for (let k = 0; k < 8; k++) { const q = R.caretAtChars(el, P.charsAtF(Math.max(ph.t0, t - k * 0.04))), w = 8 - k; x += q.x * w; y += q.y * w; ws += w; } return { x: x / ws, y: y / ws }; };
+        const caret = () => { let x = 0, y = 0, ws = 0; for (let k = 0; k < 8; k++) { const q = R.caretAtChars(el, P.charsAtF(Math.max(ph.t0, t - k * 0.04)), P), w = 8 - k; x += q.x * w; y += q.y * w; ws += w; } return { x: x / ws, y: y / ws }; };
+        if (ph.kind === 'type' && P.phrases && ph.p != null) {
+          // phrase by phrase: keep the whole phrase in shot, leaning toward the caret, closer for short phrases
+          const pr = P.phrases[ph.p], a = R.caretAtChars(el, pr.s + 1e-6, P), b = R.caretAtChars(el, pr.e, P), cq = caret();
+          const span = Math.max(1, Math.abs(b.x - a.x)), mid = (a.x + b.x) / 2;
+          f = { x: mid + (cq.x - mid) * 0.25, y: cq.y };
+          z = Math.min(ph.zoom, W * 0.64 / span) * (1 + 0.02 * Math.min(8, t - ph.t0)); r = rot;
+          break;
+        }
         if (ph.kind === 'type') { f = caret(); z = ph.zoom * (1 + 0.02 * Math.min(8, t - ph.t0)); r = rot; break; }
         if (ph.kind === 'pull') { const k = eio(ph.k); f = mix(caret(), C, k); z = ph.zoom + (1 - ph.zoom) * k; r = rot * (1 - k); break; }
         f = C; z = 1 + 0.012 * (t - ph.t0);

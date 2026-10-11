@@ -1624,7 +1624,7 @@
     const setA = (k, v, live) => { S.change(T, 'anim.' + k, v, live); if (!live && (k === 'loop' || k === 'enter')) renderInspector(); updateTimeline(); };
     const isPath = el.type === 'ribbon';
     const loops = Object.entries(R.ANIM_LOOPS).filter(([k]) => k !== 'none' && (k !== 'flow' || isPath));
-    const TEXT_ONLY = ['typewriter', 'slam', 'lettersUp', 'lettersDrop', 'lettersFade', 'lettersBounce', 'captions', 'roll', 'words'];
+    const TEXT_ONLY = ['typewriter', 'slam', 'lettersUp', 'lettersDrop', 'lettersFade', 'lettersBounce', 'captions', 'roll', 'words', 'build', 'shuffle', 'sweep', 'wall'];
     const enters = Object.entries(R.ANIM_ENTER).filter(([k]) => k !== 'none' && (!TEXT_ONLY.includes(k) || el.type === 'text') && (k !== 'draw' || isPath));
     const start = (k, v) => { S.change(T, 'anim', Object.assign({ speed: 1, amount: 1, delay: 0 }, S.selEls()[0].anim || {}, { [k]: v })); updateTimeline(); S.play(); };
     const tm = el.time || {};
@@ -1667,9 +1667,25 @@
         body: () => [
           row('Style', selectCtl(T, 'anim.enter', enters, { def: 'pop', set: v => { setA('enter', v); S.touchAll(); } })),
           row('Delay', num(T, 'anim.delay', { min: 0, max: 10, step: 0.05, slider: true, def: 0, unit: 's', set: (v, l) => setA('delay', v, l) })),
-          ['captions', 'roll', 'words', 'typewriter'].includes(enter) || /^letters|slam/.test(enter) ? row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })) : null,
+          ['captions', 'roll', 'words', 'typewriter', 'build', 'shuffle', 'sweep', 'wall'].includes(enter) || /^letters|slam/.test(enter) ? row('Speed', num(T, 'anim.speed', { min: 0.25, max: 4, step: 0.05, slider: true, def: 1, unit: '×', set: (v, l) => setA('speed', v, l) })) : null,
           enter === 'roll' ? toggle(T, 'anim.accel', 'Speed up as it goes') : null,
           ['captions', 'roll'].includes(enter) ? h('p.hint', null, 'Put one item per line in the text — each line takes its turn.') : enter === 'words' ? h('p.hint', null, 'Each word of the text takes its turn.') : null,
+          enter === 'build' ? h('p.hint', null, 'Words join one at a time, popping up from below; the line re-centres as it grows.') : null,
+          enter === 'shuffle' ? h('p.hint', null, 'The words slide about their lines with motion blur, then settle into place.') : null,
+          ...(enter === 'sweep' ? [
+            h('p.hint', null, 'A text selection is dragged across the words; the line slides along so the cursor stays in view.'),
+            row('Highlight', colorCtl(T, 'sweep.color', { def: '#f0c419' })),
+            row('Selected text', colorCtl(T, 'sweep.ink', { def: '#4a1d00' })),
+            toggle(T, 'sweep.cursor', 'Show the cursor', { get: () => (S.selEls()[0].sweep || {}).cursor !== false, set: v => S.change(T, 'sweep.cursor', v) }),
+            toggle(T, 'sweep.follow', 'Follow the cursor', { get: () => (S.selEls()[0].sweep || {}).follow !== false, set: v => S.change(T, 'sweep.follow', v) }),
+          ] : []),
+          ...(enter === 'wall' ? [
+            h('p.hint', null, 'Type the words with commas between them. They fill the layer as a wall, and one lights up at a time.'),
+            row('Lit word', fontCtl(T, 'wall.fontFamily', 'wall.fontWeight')),
+            row('Lit colour', colorCtl(T, 'wall.color', { def: '#ffffff' })),
+            row('Lit size', num(T, 'wall.scale', { min: 0.8, max: 2, step: 0.02, slider: true, def: 1.12, unit: '×' })),
+            row('Each word', num(T, 'wall.beat', { min: 0.12, max: 1.5, step: 0.02, slider: true, def: 0.36, unit: 's' })),
+          ] : []),
         ],
       },
       {
@@ -1811,7 +1827,9 @@
       row('Typing speed', num(T, 'camera.cps', { min: 3, max: 30, slider: true, unit: '/s', def: 10, set: (v, l) => setLive('camera.cps', v, l) })),
       row('Zoom', num(T, 'camera.zoom', { min: 1, max: 6, step: 0.05, slider: true, unit: '×', def: 2.6, set: (v, l) => setLive('camera.zoom', v, l) })),
       row('End hold', num(T, 'camera.hold', { min: 0, max: 6, step: 0.1, slider: true, unit: 's', def: 1.8, set: (v, l) => setLive('camera.hold', v, l) })),
-      more('typecut-clips', [
+      toggle(T, 'camera.phrases', 'One phrase at a time', { get: () => !!S.doc.camera.phrases, set: v => { S.change(T, 'camera.phrases', v); S.syncTypeLength(); updateTimeline(); renderInspector(); } }),
+      c.phrases ? h('p.hint', null, 'Each line of the text is typed on an empty screen, then the shot cuts to the next line.') : null,
+      c.phrases ? null : more('typecut-clips', [
       row('Clip length', num(T, 'camera.cut', { min: 0.3, max: 4, step: 0.1, slider: true, unit: 's', def: 1, set: (v, l) => setLive('camera.cut', v, l) })),
       ...clips.map((e, i) => h('div.clip-row', null, thumb(e), h('span.clip-name', null, (e.name || 'Clip ' + (i + 1)) + (used.has(e.id) ? '' : ' · not used')),
         h('button.icon-btn', { type: 'button', title: 'Replace with a photo or video', onclick: () => S.pickImages({ replaceId: e.id }) }, ic('bgimg')),
@@ -2475,7 +2493,7 @@
     out.push({ title: 'Camera overlays', items: cams, grid: 'preset-grid', limit: 2, note: 'Covers the whole canvas — put it on top of a photo.' });
     const all = window.STICKERS || [];
     const cats = [...new Set(all.map(s => s.cat))];
-    const order = ['Game & UI', 'Doodles', 'Pen sketches', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
+    const order = ['Game & UI', 'Interface icons', 'Doodles', 'Pen sketches', 'Shapes', 'Paper & Office', 'Objects', 'Retro & Y2K', 'Pixel & Web', 'Outfits · Girls', 'Outfits · Boys', 'Shoes & Bags'];
     cats.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
     for (const c of cats) {
       out.push({ title: STICKER_CAT_NAMES[c] || c, items: all.filter(s => s.cat === c).map(stickerItem), note: /^Outfits/.test(c) ? 'Each outfit comes with a face slot — add a selfie and the background is cut away.' : null });

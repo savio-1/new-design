@@ -1405,3 +1405,20 @@
     },
   });
 })();
+
+/* Studio additions: interface icons (outline, one colour) for on-screen UI scenes — comment threads, posts, search bars */
+(function () {
+  const L = window.STICKERS || (window.STICKERS = []);
+  const icon = (id, name, body, w = 100, h = 100) => L.push({
+    id: 'ui-' + id, name, cat: 'Interface icons', w, h, colors: ['#3b4045'],
+    svg: (c) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><g fill="none" stroke="${(c && c[0]) || '#3b4045'}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`,
+  });
+  icon('upvote', 'Up vote', '<path d="M50 14 L84 52 H64 V86 H36 V52 H16 Z"/>');
+  icon('downvote', 'Down vote', '<path d="M50 86 L84 48 H64 V14 H36 V48 H16 Z"/>');
+  icon('comment', 'Comment', '<path d="M50 16 C72 16 88 30 88 48 C88 66 72 80 50 80 C45 80 40 79 36 78 L16 86 L22 70 C15 64 12 56 12 48 C12 30 28 16 50 16 Z"/>');
+  icon('share', 'Share', '<path d="M56 18 L88 46 L56 74 V58 C36 58 22 64 12 82 C14 56 28 38 56 34 Z"/>');
+  icon('search', 'Search', '<circle cx="42" cy="42" r="26"/><path d="M62 62 L86 86"/>');
+  icon('heart', 'Like', '<path d="M50 84 C20 64 10 48 10 34 C10 22 20 12 32 12 C40 12 46 16 50 24 C54 16 60 12 68 12 C80 12 90 22 90 34 C90 48 80 64 50 84 Z"/>');
+  icon('more', 'More', '<circle cx="22" cy="50" r="4"/><circle cx="50" cy="50" r="4"/><circle cx="78" cy="50" r="4"/>');
+  icon('bell', 'Notifications', '<path d="M26 70 V46 C26 30 36 20 50 20 C64 20 74 30 74 46 V70 L82 78 H18 Z"/><path d="M42 86 C44 90 47 92 50 92 C53 92 56 90 58 86"/>');
+})();
