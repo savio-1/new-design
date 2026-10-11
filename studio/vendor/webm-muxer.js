@@ -731,7 +731,8 @@ var WebMMuxer = (() => {
         __privateSet(this, _firstVideoTimestamp, timestamp);
       if (meta)
         __privateMethod(this, _writeVideoDecoderConfig, writeVideoDecoderConfig_fn).call(this, meta);
-      let videoChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, data, type, timestamp, VIDEO_TRACK_NUMBER);
+      // Collage Studio patch: meta.additions (encoded BlockMore bytes) carries the alpha plane of a transparent VP8/VP9 video
+      let videoChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, data, type, timestamp, VIDEO_TRACK_NUMBER, void 0, meta && meta.additions);
       if (__privateGet(this, _options).video.codec === "V_VP9")
         __privateMethod(this, _fixVP9ColorSpace, fixVP9ColorSpace_fn).call(this, videoChunk);
       __privateSet(this, _lastVideoTimestamp, videoChunk.timestamp);
@@ -1291,7 +1292,9 @@ If you want to allow non-zero first timestamps, set firstTimestampBehavior: 'per
           chunk.data
         ] },
         chunk.duration !== void 0 ? { id: 155 /* BlockDuration */, data: msDuration } : null,
-        chunk.additions ? { id: 30113 /* BlockAdditions */, data: chunk.additions } : null
+        chunk.additions ? { id: 30113 /* BlockAdditions */, data: chunk.additions } : null,
+        // Collage Studio patch: a delta frame in a BlockGroup must reference an earlier block or it reads as a key frame
+        chunk.additions && chunk.type !== "key" ? { id: 251 /* ReferenceBlock */, data: new Uint8Array([255]) } : null
       ] };
       __privateGet(this, _writer).writeEBML(blockGroup);
     }

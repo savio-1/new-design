@@ -8,8 +8,9 @@
 
   const S = window.Studio, R = window.StudioRender;
   const LIBS = {
-    mp4: 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/build/mp4-muxer.js',
-    webm: 'https://cdn.jsdelivr.net/npm/webm-muxer@5.0.4/build/webm-muxer.js',
+    // the bundled copies (webm-muxer carries a small patch for transparent video)
+    mp4: 'vendor/mp4-muxer.js',
+    webm: 'vendor/webm-muxer.js',
   };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const even = n => Math.max(2, Math.round(n / 2) * 2);
@@ -52,11 +53,16 @@
     return out;
   };
 
-  S.exportVideo = async function ({ width, height, fps = 30, duration = 5, bitrate, format = 'mp4', onProgress = () => {}, signal }) {
+  S.exportVideo = async function ({ width, height, fps = 30, duration = 5, bitrate, format = 'mp4', transparent = false, onProgress = () => {}, signal }) {
     const doc = S.doc;
     width = even(width); height = even(height);
     bitrate = bitrate || Math.round(width * height * fps * 0.1);
     await R.preload(doc);
+    if (format === 'png') return exportFrames({ width, height, fps, duration, transparent, onProgress, signal });
+    if (transparent) {
+      const t = await exportAlphaWebm({ width, height, fps, duration, bitrate, onProgress, signal });
+      if (t) return t;
+    }
     const enc = await pickEncoder(width, height, fps, bitrate, format);
     if (!enc) return recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal });
     // the single-file build already carries the muxers; otherwise fetch the one we need
@@ -98,6 +104,104 @@
     const type = enc.kind === 'mp4' ? 'video/mp4' : 'video/webm';
     return { blob: new Blob([muxer.target.buffer], { type }), ext: enc.kind, width, height };
   };
+
+  /* ── see-through video ──
+     WebCodecs can't encode alpha, so a transparent WebM is built the way browsers store one: the colour
+     picture as normal VP9, plus the alpha channel encoded as a second greyscale VP9 picture carried in each
+     block's BlockAdditional (BlockAddID 1, track AlphaMode 1). Chrome, Edge, Firefox and most editors
+     that read WebM play it see-through. */
+  const vint8 = n => { const b = new Uint8Array(8); b[0] = 1; for (let i = 7; i > 0; i--) { b[i] = n & 255; n = Math.floor(n / 256); } return b; };
+  const cat = parts => { const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
+  function blockMore(alpha) {
+    const inner = cat([new Uint8Array([0xEE, 0x81, 0x01, 0xA5]), vint8(alpha.length), alpha]);
+    return cat([new Uint8Array([0xA6]), vint8(inner.length), inner]);
+  }
+  // one frame's pixels → an opaque colour picture (straight, not premultiplied) and the alpha as a raw I420 plane:
+  // going through a canvas would squeeze alpha into video range (16–235), so the Y plane is written directly
+  function splitAlpha(src, colour, yuv) {
+    const w = src.width, h = src.height;
+    const d = src.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h), p = d.data;
+    for (let i = 0, j = 0; i < p.length; i += 4, j++) { yuv[j] = p[i + 3]; p[i + 3] = 255; }
+    colour.getContext('2d').putImageData(d, 0, 0);
+  }
+  async function exportAlphaWebm({ width, height, fps, duration, bitrate, onProgress, signal }) {
+    if (!('VideoEncoder' in window)) return null;
+    let cfg = null;
+    for (const codec of ['vp09.00.51.08', 'vp09.00.50.08', 'vp09.00.41.08', 'vp8']) {
+      const c0 = { codec, width, height, bitrate, framerate: fps, latencyMode: 'quality' };
+      try { const r = await VideoEncoder.isConfigSupported(c0); if (r.supported) { cfg = r.config || c0; break; } } catch (e) { /* next */ }
+    }
+    if (!cfg) return null;
+    if (!window.WebMMuxer) await loadScript(LIBS.webm);
+    const Lib = window.WebMMuxer;
+    const muxer = new Lib.Muxer({ target: new Lib.ArrayBufferTarget(), video: { codec: cfg.codec.startsWith('vp8') ? 'V_VP8' : 'V_VP9', width, height, frameRate: fps, alpha: true } });
+    // the two encoders finish frames at their own pace; pair them up by timestamp and write in order
+    const colourOut = new Map(), alphaOut = new Map(), order = [];
+    let failure = null, next = 0;
+    const flushPairs = () => {
+      while (next < order.length && colourOut.has(order[next]) && alphaOut.has(order[next])) {
+        const ts = order[next], c = colourOut.get(ts), a = alphaOut.get(ts);
+        muxer.addVideoChunkRaw(c.data, c.type, ts, Object.assign({}, c.meta || {}, { additions: blockMore(a) }));
+        colourOut.delete(ts); alphaOut.delete(ts); next++;
+      }
+    };
+    const bytes = ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); return b; };
+    const encC = new VideoEncoder({ output: (ch, meta) => { colourOut.set(ch.timestamp, { data: bytes(ch), type: ch.type, meta }); flushPairs(); }, error: e => { failure = e; } });
+    const encA = new VideoEncoder({ output: ch => { alphaOut.set(ch.timestamp, bytes(ch)); flushPairs(); }, error: e => { failure = e; } });
+    encC.configure(cfg);
+    encA.configure(Object.assign({}, cfg, { bitrate: Math.max(500e3, Math.round(bitrate * 0.35)) }));
+    const mk = () => { const c = document.createElement('canvas'); c.width = width; c.height = height; return c; };
+    const c = mk(), colour = mk(), yuv = new Uint8Array(width * height * 3 / 2);
+    yuv.fill(128, width * height);
+    const frames = Math.max(1, Math.round(duration * fps)), us = 1e6 / fps, doc = S.doc, hasVid = R.hasVideo(doc);
+    R.playing = false; R.pauseVideos();
+    try {
+      for (let i = 0; i < frames; i++) {
+        if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+        if (failure) throw failure;
+        if (hasVid) await R.syncVideos(doc, i / fps, i === 0);
+        R.renderDoc(doc, { canvas: c, time: i / fps, transparent: true });
+        splitAlpha(c, colour, yuv);
+        const ts = Math.round(i * us), key = i % (fps * 2) === 0;
+        order.push(ts);
+        const fc = new VideoFrame(colour, { timestamp: ts, duration: Math.round(us) });
+        encC.encode(fc, { keyFrame: key }); fc.close();
+        const fa = new VideoFrame(yuv, { format: 'I420', codedWidth: width, codedHeight: height, timestamp: ts, duration: Math.round(us) });
+        encA.encode(fa, { keyFrame: key }); fa.close();
+        while (encC.encodeQueueSize > 4 || encA.encodeQueueSize > 4) await sleep(4);
+        onProgress((i + 1) / frames, 'render');
+        if (i % 2 === 0) await sleep(0);
+      }
+      onProgress(1, 'finish');
+      await Promise.all([encC.flush(), encA.flush()]);
+      if (failure) throw failure;
+      flushPairs();
+      muxer.finalize();
+    } finally {
+      for (const e of [encC, encA]) if (e.state !== 'closed') e.close();
+    }
+    return { blob: new Blob([muxer.target.buffer], { type: 'video/webm' }), ext: 'webm', width, height, alpha: true };
+  }
+
+  // every frame as a numbered PNG in a zip — the format video editors import as a see-through clip
+  async function exportFrames({ width, height, fps, duration, transparent, onProgress, signal }) {
+    if (!window.JSZip) await loadScript('vendor/jszip.min.js').catch(() => loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'));
+    const zip = new window.JSZip(), dir = zip.folder('frames');
+    const c = document.createElement('canvas'); c.width = width; c.height = height;
+    const frames = Math.max(1, Math.round(duration * fps)), doc = S.doc, hasVid = R.hasVideo(doc), pad = String(frames).length;
+    R.playing = false; R.pauseVideos();
+    for (let i = 0; i < frames; i++) {
+      if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      if (hasVid) await R.syncVideos(doc, i / fps, i === 0);
+      R.renderDoc(doc, { canvas: c, time: i / fps, transparent });
+      const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+      dir.file(`frame_${String(i + 1).padStart(Math.max(4, pad), '0')}.png`, blob);
+      onProgress((i + 1) / frames * 0.9, 'render');
+    }
+    onProgress(0.95, 'finish');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    return { blob, ext: 'zip', width, height, alpha: transparent, frames };
+  }
 
   // fallback: draw frames on a timer and record the canvas stream
   async function recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal }) {

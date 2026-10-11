@@ -1017,6 +1017,11 @@ body.mobile .inspector .sec.empty:not(.m-hide) .sec-body::before { content: 'Not
 }
 .speed-chips .chip small { opacity: .6; font-weight: 500; }
 
+/* see-through exports: show a checkerboard behind the preview */
+.export-preview > canvas, .export-result img, .export-result.see-through video {
+  background: conic-gradient(#e4e4e8 25%, #ffffff 0 50%, #e4e4e8 0 75%, #ffffff 0) 0 0 / 16px 16px;
+}
+
 </style>
 </head>
 <body>
@@ -3732,7 +3737,8 @@ var WebMMuxer = (() => {
         __privateSet(this, _firstVideoTimestamp, timestamp);
       if (meta)
         __privateMethod(this, _writeVideoDecoderConfig, writeVideoDecoderConfig_fn).call(this, meta);
-      let videoChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, data, type, timestamp, VIDEO_TRACK_NUMBER);
+      // Collage Studio patch: meta.additions (encoded BlockMore bytes) carries the alpha plane of a transparent VP8/VP9 video
+      let videoChunk = __privateMethod(this, _createInternalChunk, createInternalChunk_fn).call(this, data, type, timestamp, VIDEO_TRACK_NUMBER, void 0, meta && meta.additions);
       if (__privateGet(this, _options).video.codec === "V_VP9")
         __privateMethod(this, _fixVP9ColorSpace, fixVP9ColorSpace_fn).call(this, videoChunk);
       __privateSet(this, _lastVideoTimestamp, videoChunk.timestamp);
@@ -4292,7 +4298,9 @@ If you want to allow non-zero first timestamps, set firstTimestampBehavior: 'per
           chunk.data
         ] },
         chunk.duration !== void 0 ? { id: 155 /* BlockDuration */, data: msDuration } : null,
-        chunk.additions ? { id: 30113 /* BlockAdditions */, data: chunk.additions } : null
+        chunk.additions ? { id: 30113 /* BlockAdditions */, data: chunk.additions } : null,
+        // Collage Studio patch: a delta frame in a BlockGroup must reference an earlier block or it reads as a key frame
+        chunk.additions && chunk.type !== "key" ? { id: 251 /* ReferenceBlock */, data: new Uint8Array([255]) } : null
       ] };
       __privateGet(this, _writer).writeEBML(blockGroup);
     }
@@ -11674,8 +11682,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   /* ───────────────────────── background / overlay ───────────────────────── */
 
+  // a see-through canvas shows as a checkerboard while editing
+  let checkerPat = null;
+  function checker(ctx, w, h) {
+    if (!checkerPat) {
+      const t = canvas(32, 32), x = t.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, 32, 32);
+      x.fillStyle = '#e4e4e8'; x.fillRect(0, 0, 16, 16); x.fillRect(16, 16, 16, 16);
+      checkerPat = t;
+    }
+    ctx.save();
+    const k = Math.max(w, h) / 1080;
+    ctx.scale(k, k);
+    ctx.fillStyle = ctx.createPattern(checkerPat, 'repeat');
+    ctx.fillRect(0, 0, w / k, h / k);
+    ctx.restore();
+  }
+  R.isClearBg = doc => !!(doc && doc.background && doc.background.none);
   function drawBackground(ctx, doc, opts = {}) {
     const w = doc.width, h = doc.height, bg = doc.background || {};
+    // "No background": nothing is painted, so PNG / WebM exports stay see-through
+    if (bg.none) { if (opts.editor) checker(ctx, w, h); return; }
     if (!opts.transparent) {
       ctx.fillStyle = makeFill(ctx, { color: bg.color || '#fff', color2: bg.color2, gradient: bg.gradient, angle: bg.angle }, w, h);
       ctx.fillRect(0, 0, w, h);
@@ -12020,12 +12047,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       const copy = canvas(c.width, c.height); copy.getContext('2d').drawImage(c, 0, 0);
       rgbSplit(ctx, copy, ov.rgb / 100 * c.width * 0.006);
     }
+    // on a see-through canvas the finish (grain, vignette, tint…) only lands on the layers, never on the empty parts
+    const clear = (opts.transparent || R.isClearBg(doc)) && hasOverlay(doc);
+    let keep = null;
+    if (clear) { keep = canvas(c.width, c.height); keep.getContext('2d').drawImage(c, 0, 0); }
     ctx.save();
     ctx.scale(sx, sy);
     drawOverlay(ctx, doc, t);
     ctx.restore();
+    if (keep) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(keep, 0, 0); ctx.restore(); }
     return c;
   };
+  function hasOverlay(doc) { const o = doc.overlay || {}; return Object.keys(o).some(k => typeof o[k] === 'number' && o[k] > 0 && k !== 'grainSize' && k !== 'tintAmount' && k !== 'weave'); }
 
   window.StudioRender = R;
 })();
@@ -16234,7 +16267,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   layer.add(artFrame);
   const overlayShape = new Konva.Shape({
     listening: false,
-    sceneFunc: (c) => { const ctx = c._context; if (doc.overlay && doc.overlay.rgb > 0) R.rgbSplit(ctx, doc.overlay.rgb / 100 * doc.width * 0.006 * Math.hypot(ctx.getTransform().a, ctx.getTransform().b)); ctx.save(); R.drawOverlay(ctx, doc); ctx.restore(); },
+    sceneFunc: (c) => { const ctx = c._context; if (doc.overlay && doc.overlay.rgb > 0) R.rgbSplit(ctx, doc.overlay.rgb / 100 * doc.width * 0.006 * Math.hypot(ctx.getTransform().a, ctx.getTransform().b)); ctx.save(); if (doc.background && doc.background.none) ctx.globalCompositeOperation = 'source-atop'; R.drawOverlay(ctx, doc); ctx.restore(); },
   });
 
   // Alt/Option distances: red lines with pixel values between the selection and the canvas or the layer under the pointer
@@ -16467,7 +16500,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   // blend modes need the background on the same canvas as the layers, or they'd mix with nothing while editing
   function placeBackground() {
-    const want = doc.elements.some(e => e.blend && e.blend !== 'normal' && e.blend !== 'source-over') ? layer : bgLayer;
+    // blends mix with the background on the layers' canvas — but never with the see-through checkerboard
+    const want = !(doc.background && doc.background.none) && doc.elements.some(e => e.blend && e.blend !== 'normal' && e.blend !== 'source-over') ? layer : bgLayer;
     if (bgFrame.getLayer() === want) return;
     bgFrame.moveTo(want);
     if (want === layer) bgFrame.moveToBottom();
@@ -17864,6 +17898,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   // generic property setter used by every inspector control
   S.change = function (target, path, value, live) {
     const objs = target === 'doc' ? [doc] : S.selEls();
+    // choosing a colour, photo, pattern… for the background brings the background back
+    if (target === 'doc' && doc.background.none && /^background\.(color|assetId|gradient|pattern|texture|scene|crumple)/.test(path)) doc.background.none = false;
     for (const o of objs) {
       setPath(o, path, value);
       if (target !== 'doc') {
@@ -18181,7 +18217,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       const long = 1440, s = long / Math.max(a.w, a.h);
       const W = Math.round(a.w * s), H = Math.round(a.h * s);
       const d = blankDoc(W, H, '#ffffff');
-      d.background.assetId = a.id;
+      d.background.assetId = a.id; d.background.none = false;
       if (a.video) d.anim = { duration: Math.min(30, Math.round(a.duration * 10) / 10) || 5, fps: 30 };
       S.loadDoc(d, null, { name: a.video ? 'Video edit' : 'Photo edit', project: opts.newProject ? 'new' : undefined });
       if (opts.newProject) { S.uploads.splice(0, 0, ...added.map(x => x.id)); scheduleSave(); }
@@ -18227,7 +18263,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return added;
   };
   S.setBackgroundImage = function (assetId) {
-    doc.background.assetId = assetId;
+    doc.background.assetId = assetId; doc.background.none = false;
     doc.background.crop = { zoom: 1, x: 0.5, y: 0.5 };
     if (R.isVideoAsset(assetId)) fitDurationToVideo(R.assetVideo(assetId).v.duration);
     redraw(); S.commit(); emit('values'); emit('doc');
@@ -18851,8 +18887,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   const S = window.Studio, R = window.StudioRender;
   const LIBS = {
-    mp4: 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/build/mp4-muxer.js',
-    webm: 'https://cdn.jsdelivr.net/npm/webm-muxer@5.0.4/build/webm-muxer.js',
+    // the bundled copies (webm-muxer carries a small patch for transparent video)
+    mp4: 'vendor/mp4-muxer.js',
+    webm: 'vendor/webm-muxer.js',
   };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const even = n => Math.max(2, Math.round(n / 2) * 2);
@@ -18895,11 +18932,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return out;
   };
 
-  S.exportVideo = async function ({ width, height, fps = 30, duration = 5, bitrate, format = 'mp4', onProgress = () => {}, signal }) {
+  S.exportVideo = async function ({ width, height, fps = 30, duration = 5, bitrate, format = 'mp4', transparent = false, onProgress = () => {}, signal }) {
     const doc = S.doc;
     width = even(width); height = even(height);
     bitrate = bitrate || Math.round(width * height * fps * 0.1);
     await R.preload(doc);
+    if (format === 'png') return exportFrames({ width, height, fps, duration, transparent, onProgress, signal });
+    if (transparent) {
+      const t = await exportAlphaWebm({ width, height, fps, duration, bitrate, onProgress, signal });
+      if (t) return t;
+    }
     const enc = await pickEncoder(width, height, fps, bitrate, format);
     if (!enc) return recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal });
     // the single-file build already carries the muxers; otherwise fetch the one we need
@@ -18941,6 +18983,104 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     const type = enc.kind === 'mp4' ? 'video/mp4' : 'video/webm';
     return { blob: new Blob([muxer.target.buffer], { type }), ext: enc.kind, width, height };
   };
+
+  /* ── see-through video ──
+     WebCodecs can't encode alpha, so a transparent WebM is built the way browsers store one: the colour
+     picture as normal VP9, plus the alpha channel encoded as a second greyscale VP9 picture carried in each
+     block's BlockAdditional (BlockAddID 1, track AlphaMode 1). Chrome, Edge, Firefox and most editors
+     that read WebM play it see-through. */
+  const vint8 = n => { const b = new Uint8Array(8); b[0] = 1; for (let i = 7; i > 0; i--) { b[i] = n & 255; n = Math.floor(n / 256); } return b; };
+  const cat = parts => { const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; };
+  function blockMore(alpha) {
+    const inner = cat([new Uint8Array([0xEE, 0x81, 0x01, 0xA5]), vint8(alpha.length), alpha]);
+    return cat([new Uint8Array([0xA6]), vint8(inner.length), inner]);
+  }
+  // one frame's pixels → an opaque colour picture (straight, not premultiplied) and the alpha as a raw I420 plane:
+  // going through a canvas would squeeze alpha into video range (16–235), so the Y plane is written directly
+  function splitAlpha(src, colour, yuv) {
+    const w = src.width, h = src.height;
+    const d = src.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h), p = d.data;
+    for (let i = 0, j = 0; i < p.length; i += 4, j++) { yuv[j] = p[i + 3]; p[i + 3] = 255; }
+    colour.getContext('2d').putImageData(d, 0, 0);
+  }
+  async function exportAlphaWebm({ width, height, fps, duration, bitrate, onProgress, signal }) {
+    if (!('VideoEncoder' in window)) return null;
+    let cfg = null;
+    for (const codec of ['vp09.00.51.08', 'vp09.00.50.08', 'vp09.00.41.08', 'vp8']) {
+      const c0 = { codec, width, height, bitrate, framerate: fps, latencyMode: 'quality' };
+      try { const r = await VideoEncoder.isConfigSupported(c0); if (r.supported) { cfg = r.config || c0; break; } } catch (e) { /* next */ }
+    }
+    if (!cfg) return null;
+    if (!window.WebMMuxer) await loadScript(LIBS.webm);
+    const Lib = window.WebMMuxer;
+    const muxer = new Lib.Muxer({ target: new Lib.ArrayBufferTarget(), video: { codec: cfg.codec.startsWith('vp8') ? 'V_VP8' : 'V_VP9', width, height, frameRate: fps, alpha: true } });
+    // the two encoders finish frames at their own pace; pair them up by timestamp and write in order
+    const colourOut = new Map(), alphaOut = new Map(), order = [];
+    let failure = null, next = 0;
+    const flushPairs = () => {
+      while (next < order.length && colourOut.has(order[next]) && alphaOut.has(order[next])) {
+        const ts = order[next], c = colourOut.get(ts), a = alphaOut.get(ts);
+        muxer.addVideoChunkRaw(c.data, c.type, ts, Object.assign({}, c.meta || {}, { additions: blockMore(a) }));
+        colourOut.delete(ts); alphaOut.delete(ts); next++;
+      }
+    };
+    const bytes = ch => { const b = new Uint8Array(ch.byteLength); ch.copyTo(b); return b; };
+    const encC = new VideoEncoder({ output: (ch, meta) => { colourOut.set(ch.timestamp, { data: bytes(ch), type: ch.type, meta }); flushPairs(); }, error: e => { failure = e; } });
+    const encA = new VideoEncoder({ output: ch => { alphaOut.set(ch.timestamp, bytes(ch)); flushPairs(); }, error: e => { failure = e; } });
+    encC.configure(cfg);
+    encA.configure(Object.assign({}, cfg, { bitrate: Math.max(500e3, Math.round(bitrate * 0.35)) }));
+    const mk = () => { const c = document.createElement('canvas'); c.width = width; c.height = height; return c; };
+    const c = mk(), colour = mk(), yuv = new Uint8Array(width * height * 3 / 2);
+    yuv.fill(128, width * height);
+    const frames = Math.max(1, Math.round(duration * fps)), us = 1e6 / fps, doc = S.doc, hasVid = R.hasVideo(doc);
+    R.playing = false; R.pauseVideos();
+    try {
+      for (let i = 0; i < frames; i++) {
+        if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+        if (failure) throw failure;
+        if (hasVid) await R.syncVideos(doc, i / fps, i === 0);
+        R.renderDoc(doc, { canvas: c, time: i / fps, transparent: true });
+        splitAlpha(c, colour, yuv);
+        const ts = Math.round(i * us), key = i % (fps * 2) === 0;
+        order.push(ts);
+        const fc = new VideoFrame(colour, { timestamp: ts, duration: Math.round(us) });
+        encC.encode(fc, { keyFrame: key }); fc.close();
+        const fa = new VideoFrame(yuv, { format: 'I420', codedWidth: width, codedHeight: height, timestamp: ts, duration: Math.round(us) });
+        encA.encode(fa, { keyFrame: key }); fa.close();
+        while (encC.encodeQueueSize > 4 || encA.encodeQueueSize > 4) await sleep(4);
+        onProgress((i + 1) / frames, 'render');
+        if (i % 2 === 0) await sleep(0);
+      }
+      onProgress(1, 'finish');
+      await Promise.all([encC.flush(), encA.flush()]);
+      if (failure) throw failure;
+      flushPairs();
+      muxer.finalize();
+    } finally {
+      for (const e of [encC, encA]) if (e.state !== 'closed') e.close();
+    }
+    return { blob: new Blob([muxer.target.buffer], { type: 'video/webm' }), ext: 'webm', width, height, alpha: true };
+  }
+
+  // every frame as a numbered PNG in a zip — the format video editors import as a see-through clip
+  async function exportFrames({ width, height, fps, duration, transparent, onProgress, signal }) {
+    if (!window.JSZip) await loadScript('vendor/jszip.min.js').catch(() => loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'));
+    const zip = new window.JSZip(), dir = zip.folder('frames');
+    const c = document.createElement('canvas'); c.width = width; c.height = height;
+    const frames = Math.max(1, Math.round(duration * fps)), doc = S.doc, hasVid = R.hasVideo(doc), pad = String(frames).length;
+    R.playing = false; R.pauseVideos();
+    for (let i = 0; i < frames; i++) {
+      if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      if (hasVid) await R.syncVideos(doc, i / fps, i === 0);
+      R.renderDoc(doc, { canvas: c, time: i / fps, transparent });
+      const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+      dir.file(`frame_${String(i + 1).padStart(Math.max(4, pad), '0')}.png`, blob);
+      onProgress((i + 1) / frames * 0.9, 'render');
+    }
+    onProgress(0.95, 'finish');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    return { blob, ext: 'zip', width, height, alpha: transparent, frames };
+  }
 
   // fallback: draw frames on a timer and record the canvas stream
   async function recordRealtime({ width, height, fps, duration, bitrate, onProgress, signal }) {
@@ -20766,12 +20906,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       h('div.insp-head', null, h('h2', null, 'Canvas')),
       sec('Background', [
         full(h('button.size-btn', { type: 'button', onclick: () => openSizeModal() }, h('span', null, sizeName(d.width, d.height)), h('small', null, `${d.width} × ${d.height}`), ic('resize'))),
-        row('Colour', colorCtl(T, 'background.color')),
-        full(h('div.btn-row', null,
+        toggle(T, 'background.none', 'No background (see-through)', { set: v => { S.change(T, 'background.none', v); S.commit(); renderInspector(); } }),
+        bg.none ? h('p.hint', null, 'Nothing is painted behind your layers. PNG and WEBP images and WEBM videos export see-through, ready to drop over other footage. Grain and other finishes only touch the layers.') : null,
+        bg.none ? null : row('Colour', colorCtl(T, 'background.color')),
+        bg.none ? null : full(h('div.btn-row', null,
           h('button.btn.grow', { type: 'button', onclick: () => setTab('background') }, ic('palette'), 'Backgrounds'),
           h('button.btn.grow', { type: 'button', title: 'Photos and videos both work', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), bg.assetId ? 'Replace' : 'Photo'),
           bg.assetId ? h('button.btn', { type: 'button', title: 'Remove the background photo', 'aria-label': 'Remove the background photo', onclick: removeBgPhoto }, ic('trash')) : null)),
-        more('canvas-grad', [
+        bg.none ? null : more('canvas-grad', [
           row('Gradient', selectCtl(T, 'background.gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'background.gradient', v); renderInspector(); } })),
           grad ? row('To', colorCtl(T, 'background.color2')) : null,
           grad ? row('Angle', num(T, 'background.angle', { min: 0, max: 360, slider: true, unit: '°' })) : null,
@@ -22076,8 +22218,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   }
   async function openExport(startTab) {
     let mode = startTab || (S.hasAnimation() ? 'video' : 'image');
-    let fmt = 'png', res = 1080, transparent = false, quality = 0.92;
-    let vfmt = 'mp4', vres = 1080, fps = S.doc.anim.fps || 30, vq = 'high';
+    // a canvas with no background exports see-through by default
+    const clearBg = R.isClearBg(S.doc);
+    let fmt = 'png', res = 1080, transparent = clearBg, quality = 0.92;
+    let vfmt = clearBg ? 'webm' : 'mp4', vres = 1080, fps = S.doc.anim.fps || 30, vq = 'high', valpha = clearBg;
     let ctrl = null;
     S.pause();
     const preview = h('div.export-preview', null, h('div.hint', null, 'Rendering preview…'));
@@ -22108,17 +22252,24 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         opts.replaceChildren(...[
           anim ? null : h('div.hint', { style: { marginBottom: '8px', color: 'var(--ink)' } }, 'Nothing is animated yet. Use Animate in the top bar to bring layers to life — or export a still video.'),
           anim ? null : h('button.btn', { style: { marginBottom: '10px' }, onclick: () => { closeModal(); openAnimate($('#btn-animate')); } }, ic('film'), 'Animate'),
-          row('Format', h('div.seg', null, segBtn(vfmt, 'mp4', 'MP4', v => { vfmt = v; }), segBtn(vfmt, 'webm', 'WEBM', v => { vfmt = v; }))),
+          h('div.toggle-row', null, h('label', null, 'Transparent background'), h('button.switch' + (valpha ? '.on' : ''), { onclick: () => { valpha = !valpha; if (valpha && vfmt === 'mp4') vfmt = 'webm'; draw(); } })),
+          row('Format', h('div.seg', null,
+            valpha ? null : segBtn(vfmt, 'mp4', 'MP4', v => { vfmt = v; }),
+            segBtn(vfmt, 'webm', 'WEBM', v => { vfmt = v; }),
+            segBtn(vfmt, 'png', 'PNG frames', v => { vfmt = v; }))),
+          valpha ? h('div.hint', { style: { marginBottom: '6px' } }, vfmt === 'png'
+            ? 'A .zip of numbered see-through PNGs — import it as an image sequence in Premiere, After Effects, DaVinci or Final Cut.'
+            : 'See-through WEBM plays in Chrome, Edge and Firefox and imports into editors that read WEBM. MP4 can’t hold transparency; for iPhone apps use PNG frames.') : null,
           row('Size', h('div.seg', null, RES.slice(1).map(([l, v]) => segBtn(vres, v, l.split(' ')[0], x => { vres = x; })))),
           row('Frame rate', h('div.seg', null, [24, 30, 60].map(f => segBtn(fps, f, f + ' fps', x => { fps = x; })))),
-          row('Quality', h('div.seg', null, segBtn(vq, 'standard', 'Standard', v => { vq = v; }), segBtn(vq, 'high', 'High', v => { vq = v; }), segBtn(vq, 'max', 'Max', v => { vq = v; }))),
+          vfmt === 'png' ? null : row('Quality', h('div.seg', null, segBtn(vq, 'standard', 'Standard', v => { vq = v; }), segBtn(vq, 'high', 'High', v => { vq = v; }), segBtn(vq, 'max', 'Max', v => { vq = v; }))),
           row('Length', num('doc', 'anim.duration', { min: 1, max: 60, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); if (!live) draw(); } })),
-          h('div.hint', null, `${sz.w} × ${sz.h} px · ${fps} fps · ${S.doc.anim.duration}s · loops seamlessly`),
+          h('div.hint', null, `${sz.w} × ${sz.h} px · ${fps} fps · ${S.doc.anim.duration}s` + (vfmt === 'png' ? ` · ${Math.round(S.doc.anim.duration * fps)} frames` : ' · loops seamlessly') + (valpha ? ' · see-through' : '')),
           h('div.progress', { hidden: true }, h('div')),
           h('div.hint.vstatus'),
           h('div.btn-row', { style: { marginTop: '14px' } },
             h('button.btn.vcancel', { hidden: true, onclick: () => ctrl && ctrl.abort() }, 'Cancel'),
-            h('button.btn.primary.vgo', { onclick: doVideo, style: { height: '38px' } }, ic('film'), 'Render video')),
+            h('button.btn.primary.vgo', { onclick: doVideo, style: { height: '38px' } }, ic('film'), vfmt === 'png' ? 'Render frames' : 'Render video')),
         ].filter(Boolean));
       }
       hydrateIcons(opts);
@@ -22127,7 +22278,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       const btn = e.currentTarget; btn.disabled = true; btn.lastChild.textContent = 'Rendering…';
       try {
         const sz = sizeFor(res);
-        const c = await S.render({ scale: sz.k, transparent: transparent && fmt !== 'jpeg', time: null });
+        let c = await S.render({ scale: sz.k, transparent: transparent && fmt !== 'jpeg', time: null });
+        if (fmt === 'jpeg' && clearBg) {
+          // JPG has no transparency: put the see-through canvas on white
+          const w = document.createElement('canvas'); w.width = c.width; w.height = c.height;
+          const x = w.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, w.width, w.height); x.drawImage(c, 0, 0); c = w;
+        }
         const blob = await new Promise(r => c.toBlob(r, 'image/' + fmt, quality));
         const name = `${slug()}.${fmt === 'jpeg' ? 'jpg' : fmt}`;
         const url = URL.createObjectURL(blob);
@@ -22157,7 +22313,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       const t0 = performance.now();
       try {
         const out = await S.exportVideo({
-          width: sz.w, height: sz.h, fps, duration: S.doc.anim.duration, format: vfmt,
+          width: sz.w, height: sz.h, fps, duration: S.doc.anim.duration, format: vfmt, transparent: valpha,
           bitrate: Math.min(80e6, Math.round(sz.w * sz.h * fps * bpp)), signal: ctrl.signal,
           onProgress: (f, stage) => {
             fill.style.width = Math.round(f * 100) + '%';
@@ -22167,12 +22323,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         });
         const name = `${slug()}.${out.ext}`;
         const url = URL.createObjectURL(out.blob);
-        preview.replaceChildren(h('div.export-result', null, h('video', { src: url, controls: true, autoplay: true, loop: true, muted: true, playsInline: true }),
-          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If nothing downloaded, use Save again, or right-click the video and choose “Save video as”.`),
+        preview.replaceChildren(h('div.export-result' + (out.alpha ? '.see-through' : ''), null, out.ext === 'zip' ? h('div.hint', null, `${out.frames} PNG frames`) : h('video', { src: url, controls: true, autoplay: true, loop: true, muted: true, playsInline: true }),
+          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If nothing downloaded, use Save again` + (out.ext === 'zip' ? '.' : ', or right-click the video and choose “Save video as”.')),
           h('button.btn', { onclick: () => download(out.blob, name) }, ic('download'), 'Save again')));
         hydrateIcons(preview);
         download(out.blob, name);
-        status.textContent = out.ext !== vfmt ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
+        status.textContent = valpha && !out.alpha ? 'This browser can’t make see-through video here, so the background was left in — try PNG frames.' : out.ext !== (vfmt === 'png' ? 'zip' : vfmt) ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
         toast('Video exported');
       } catch (err) {
         console.error(err);

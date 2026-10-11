@@ -1784,12 +1784,14 @@
       h('div.insp-head', null, h('h2', null, 'Canvas')),
       sec('Background', [
         full(h('button.size-btn', { type: 'button', onclick: () => openSizeModal() }, h('span', null, sizeName(d.width, d.height)), h('small', null, `${d.width} × ${d.height}`), ic('resize'))),
-        row('Colour', colorCtl(T, 'background.color')),
-        full(h('div.btn-row', null,
+        toggle(T, 'background.none', 'No background (see-through)', { set: v => { S.change(T, 'background.none', v); S.commit(); renderInspector(); } }),
+        bg.none ? h('p.hint', null, 'Nothing is painted behind your layers. PNG and WEBP images and WEBM videos export see-through, ready to drop over other footage. Grain and other finishes only touch the layers.') : null,
+        bg.none ? null : row('Colour', colorCtl(T, 'background.color')),
+        bg.none ? null : full(h('div.btn-row', null,
           h('button.btn.grow', { type: 'button', onclick: () => setTab('background') }, ic('palette'), 'Backgrounds'),
           h('button.btn.grow', { type: 'button', title: 'Photos and videos both work', onclick: () => S.pickImages({ asBackground: true }) }, ic('bgimg'), bg.assetId ? 'Replace' : 'Photo'),
           bg.assetId ? h('button.btn', { type: 'button', title: 'Remove the background photo', 'aria-label': 'Remove the background photo', onclick: removeBgPhoto }, ic('trash')) : null)),
-        more('canvas-grad', [
+        bg.none ? null : more('canvas-grad', [
           row('Gradient', selectCtl(T, 'background.gradient', [['none', 'None'], ['linear', 'Linear'], ['radial', 'Radial']], { set: v => { S.change(T, 'background.gradient', v); renderInspector(); } })),
           grad ? row('To', colorCtl(T, 'background.color2')) : null,
           grad ? row('Angle', num(T, 'background.angle', { min: 0, max: 360, slider: true, unit: '°' })) : null,
@@ -3094,8 +3096,10 @@
   }
   async function openExport(startTab) {
     let mode = startTab || (S.hasAnimation() ? 'video' : 'image');
-    let fmt = 'png', res = 1080, transparent = false, quality = 0.92;
-    let vfmt = 'mp4', vres = 1080, fps = S.doc.anim.fps || 30, vq = 'high';
+    // a canvas with no background exports see-through by default
+    const clearBg = R.isClearBg(S.doc);
+    let fmt = 'png', res = 1080, transparent = clearBg, quality = 0.92;
+    let vfmt = clearBg ? 'webm' : 'mp4', vres = 1080, fps = S.doc.anim.fps || 30, vq = 'high', valpha = clearBg;
     let ctrl = null;
     S.pause();
     const preview = h('div.export-preview', null, h('div.hint', null, 'Rendering preview…'));
@@ -3126,17 +3130,24 @@
         opts.replaceChildren(...[
           anim ? null : h('div.hint', { style: { marginBottom: '8px', color: 'var(--ink)' } }, 'Nothing is animated yet. Use Animate in the top bar to bring layers to life — or export a still video.'),
           anim ? null : h('button.btn', { style: { marginBottom: '10px' }, onclick: () => { closeModal(); openAnimate($('#btn-animate')); } }, ic('film'), 'Animate'),
-          row('Format', h('div.seg', null, segBtn(vfmt, 'mp4', 'MP4', v => { vfmt = v; }), segBtn(vfmt, 'webm', 'WEBM', v => { vfmt = v; }))),
+          h('div.toggle-row', null, h('label', null, 'Transparent background'), h('button.switch' + (valpha ? '.on' : ''), { onclick: () => { valpha = !valpha; if (valpha && vfmt === 'mp4') vfmt = 'webm'; draw(); } })),
+          row('Format', h('div.seg', null,
+            valpha ? null : segBtn(vfmt, 'mp4', 'MP4', v => { vfmt = v; }),
+            segBtn(vfmt, 'webm', 'WEBM', v => { vfmt = v; }),
+            segBtn(vfmt, 'png', 'PNG frames', v => { vfmt = v; }))),
+          valpha ? h('div.hint', { style: { marginBottom: '6px' } }, vfmt === 'png'
+            ? 'A .zip of numbered see-through PNGs — import it as an image sequence in Premiere, After Effects, DaVinci or Final Cut.'
+            : 'See-through WEBM plays in Chrome, Edge and Firefox and imports into editors that read WEBM. MP4 can’t hold transparency; for iPhone apps use PNG frames.') : null,
           row('Size', h('div.seg', null, RES.slice(1).map(([l, v]) => segBtn(vres, v, l.split(' ')[0], x => { vres = x; })))),
           row('Frame rate', h('div.seg', null, [24, 30, 60].map(f => segBtn(fps, f, f + ' fps', x => { fps = x; })))),
-          row('Quality', h('div.seg', null, segBtn(vq, 'standard', 'Standard', v => { vq = v; }), segBtn(vq, 'high', 'High', v => { vq = v; }), segBtn(vq, 'max', 'Max', v => { vq = v; }))),
+          vfmt === 'png' ? null : row('Quality', h('div.seg', null, segBtn(vq, 'standard', 'Standard', v => { vq = v; }), segBtn(vq, 'high', 'High', v => { vq = v; }), segBtn(vq, 'max', 'Max', v => { vq = v; }))),
           row('Length', num('doc', 'anim.duration', { min: 1, max: 60, step: 0.5, slider: true, unit: 's', set: (v, live) => { S.change('doc', 'anim.duration', v, live); if (!live) draw(); } })),
-          h('div.hint', null, `${sz.w} × ${sz.h} px · ${fps} fps · ${S.doc.anim.duration}s · loops seamlessly`),
+          h('div.hint', null, `${sz.w} × ${sz.h} px · ${fps} fps · ${S.doc.anim.duration}s` + (vfmt === 'png' ? ` · ${Math.round(S.doc.anim.duration * fps)} frames` : ' · loops seamlessly') + (valpha ? ' · see-through' : '')),
           h('div.progress', { hidden: true }, h('div')),
           h('div.hint.vstatus'),
           h('div.btn-row', { style: { marginTop: '14px' } },
             h('button.btn.vcancel', { hidden: true, onclick: () => ctrl && ctrl.abort() }, 'Cancel'),
-            h('button.btn.primary.vgo', { onclick: doVideo, style: { height: '38px' } }, ic('film'), 'Render video')),
+            h('button.btn.primary.vgo', { onclick: doVideo, style: { height: '38px' } }, ic('film'), vfmt === 'png' ? 'Render frames' : 'Render video')),
         ].filter(Boolean));
       }
       hydrateIcons(opts);
@@ -3145,7 +3156,12 @@
       const btn = e.currentTarget; btn.disabled = true; btn.lastChild.textContent = 'Rendering…';
       try {
         const sz = sizeFor(res);
-        const c = await S.render({ scale: sz.k, transparent: transparent && fmt !== 'jpeg', time: null });
+        let c = await S.render({ scale: sz.k, transparent: transparent && fmt !== 'jpeg', time: null });
+        if (fmt === 'jpeg' && clearBg) {
+          // JPG has no transparency: put the see-through canvas on white
+          const w = document.createElement('canvas'); w.width = c.width; w.height = c.height;
+          const x = w.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, w.width, w.height); x.drawImage(c, 0, 0); c = w;
+        }
         const blob = await new Promise(r => c.toBlob(r, 'image/' + fmt, quality));
         const name = `${slug()}.${fmt === 'jpeg' ? 'jpg' : fmt}`;
         const url = URL.createObjectURL(blob);
@@ -3175,7 +3191,7 @@
       const t0 = performance.now();
       try {
         const out = await S.exportVideo({
-          width: sz.w, height: sz.h, fps, duration: S.doc.anim.duration, format: vfmt,
+          width: sz.w, height: sz.h, fps, duration: S.doc.anim.duration, format: vfmt, transparent: valpha,
           bitrate: Math.min(80e6, Math.round(sz.w * sz.h * fps * bpp)), signal: ctrl.signal,
           onProgress: (f, stage) => {
             fill.style.width = Math.round(f * 100) + '%';
@@ -3185,12 +3201,12 @@
         });
         const name = `${slug()}.${out.ext}`;
         const url = URL.createObjectURL(out.blob);
-        preview.replaceChildren(h('div.export-result', null, h('video', { src: url, controls: true, autoplay: true, loop: true, muted: true, playsInline: true }),
-          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If nothing downloaded, use Save again, or right-click the video and choose “Save video as”.`),
+        preview.replaceChildren(h('div.export-result' + (out.alpha ? '.see-through' : ''), null, out.ext === 'zip' ? h('div.hint', null, `${out.frames} PNG frames`) : h('video', { src: url, controls: true, autoplay: true, loop: true, muted: true, playsInline: true }),
+          h('div.hint', null, `${name} · ${out.width} × ${out.height} · ${(out.blob.size / 1e6).toFixed(1)} MB. If nothing downloaded, use Save again` + (out.ext === 'zip' ? '.' : ', or right-click the video and choose “Save video as”.')),
           h('button.btn', { onclick: () => download(out.blob, name) }, ic('download'), 'Save again')));
         hydrateIcons(preview);
         download(out.blob, name);
-        status.textContent = out.ext !== vfmt ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
+        status.textContent = valpha && !out.alpha ? 'This browser can’t make see-through video here, so the background was left in — try PNG frames.' : out.ext !== (vfmt === 'png' ? 'zip' : vfmt) ? `Your browser can’t encode ${vfmt.toUpperCase()}, so this was saved as ${out.ext.toUpperCase()}.` : 'Done.';
         toast('Video exported');
       } catch (err) {
         console.error(err);

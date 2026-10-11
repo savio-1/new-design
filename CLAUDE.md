@@ -113,6 +113,15 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
 - Camera `move: 'keys'` takes `camera.keys = [{ t, x, y, z, r, ease }]` (x / y ≤ 1 are fractions; ease '' = cubic, 'expo',
   'out', 'linear'); camera motion blur follows any path (big moves accumulate at half size, up to 64 samples).
   Entrance `focus` (Blur in) blurs, scales and fades a layer into focus (`st.gblur`).
+- No background: `background.none` skips every background paint (`R.isClearBg`); the editor draws a checkerboard instead,
+  `placeBackground` never moves it onto the layers' canvas, and `renderDoc` cuts the overlay finish back to the layers'
+  alpha (`destination-in`). Any `S.change` to a background colour / photo / pattern clears it.
+- See-through video (`S.exportVideo({ transparent: true })`, video.js): WebCodecs can't encode alpha, so `exportAlphaWebm`
+  runs two VP9 encoders — the colour frame (un-premultiplied, opaque) and the alpha as a raw I420 Y plane (a canvas would
+  squeeze it to 16–235) — and pairs them by timestamp into one WebM with `alpha: true`; the alpha chunk rides in each
+  block's BlockAdditional via a small patch in `vendor/webm-muxer.js` (`meta.additions`, plus ReferenceBlock on delta
+  frames). `format: 'png'` → `exportFrames` zips numbered PNGs (JSZip). Muxers load from `vendor/` in development.
+  Check with `ffprobe` (`alpha_mode=1`) and `ffmpeg -c:v libvpx-vp9 -i x.webm -pix_fmt rgba`.
 - Frames: add a case to `frameGeometry` (returns `outer`, `inner` clip, `rect`, optional `extra` painter; starting size and colour in `FRAME_START`, ui.js)
   and a label in `R.FRAMES`. Cut-up frames (`strips`, `mosaic`, `mirror`) set `g.paint(ctx, draw)` and place the
   photo piece by piece by calling `draw(rect)`.

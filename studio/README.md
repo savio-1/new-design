@@ -86,6 +86,13 @@ Designs live in this browser's storage, so clearing site data removes them — d
 - **Film camera** template family (10): Contact sheet (strips of negatives with grease-pencil marks), Countdown leader (3-2-1 film leader into your clip), Film strip, Light table (slide mounts), Instant stack, Darkroom (prints drying under the safelight), Negative scan, Half frame (two pictures in one frame), Medium format and Photo booth.
 - Heavy looks on a video (bloom, halation, sharpen) are graded at a smaller size while previewing so playback keeps up; the export uses full size.
 
+## No background (see-through exports)
+
+- **Canvas → No background (see-through)**: nothing is painted behind your layers; the canvas shows a checkerboard while you edit. Choosing a colour, photo, pattern or preset brings a background back.
+- **Images**: PNG and WEBP export see-through (the export switch starts on). JPG can't hold transparency, so it gets white behind it.
+- **Videos** (Export → Video → *Transparent background*): **WEBM** keeps the transparency — it plays see-through in Chrome, Edge and Firefox and in editors that read WEBM. **PNG frames** saves a .zip of numbered see-through PNGs to import as an image sequence (Premiere, After Effects, DaVinci Resolve, Final Cut). MP4 can't hold transparency, so it isn't offered while the switch is on.
+- Grain, vignette and the other canvas finishes only touch the layers, never the empty parts.
+
 ## Video speed and smooth slow motion
 
 Select a video (a layer or the canvas background) and the **Playback** section has:

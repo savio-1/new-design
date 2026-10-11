@@ -3876,8 +3876,27 @@
 
   /* ───────────────────────── background / overlay ───────────────────────── */
 
+  // a see-through canvas shows as a checkerboard while editing
+  let checkerPat = null;
+  function checker(ctx, w, h) {
+    if (!checkerPat) {
+      const t = canvas(32, 32), x = t.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, 32, 32);
+      x.fillStyle = '#e4e4e8'; x.fillRect(0, 0, 16, 16); x.fillRect(16, 16, 16, 16);
+      checkerPat = t;
+    }
+    ctx.save();
+    const k = Math.max(w, h) / 1080;
+    ctx.scale(k, k);
+    ctx.fillStyle = ctx.createPattern(checkerPat, 'repeat');
+    ctx.fillRect(0, 0, w / k, h / k);
+    ctx.restore();
+  }
+  R.isClearBg = doc => !!(doc && doc.background && doc.background.none);
   function drawBackground(ctx, doc, opts = {}) {
     const w = doc.width, h = doc.height, bg = doc.background || {};
+    // "No background": nothing is painted, so PNG / WebM exports stay see-through
+    if (bg.none) { if (opts.editor) checker(ctx, w, h); return; }
     if (!opts.transparent) {
       ctx.fillStyle = makeFill(ctx, { color: bg.color || '#fff', color2: bg.color2, gradient: bg.gradient, angle: bg.angle }, w, h);
       ctx.fillRect(0, 0, w, h);
@@ -4222,12 +4241,18 @@
       const copy = canvas(c.width, c.height); copy.getContext('2d').drawImage(c, 0, 0);
       rgbSplit(ctx, copy, ov.rgb / 100 * c.width * 0.006);
     }
+    // on a see-through canvas the finish (grain, vignette, tint…) only lands on the layers, never on the empty parts
+    const clear = (opts.transparent || R.isClearBg(doc)) && hasOverlay(doc);
+    let keep = null;
+    if (clear) { keep = canvas(c.width, c.height); keep.getContext('2d').drawImage(c, 0, 0); }
     ctx.save();
     ctx.scale(sx, sy);
     drawOverlay(ctx, doc, t);
     ctx.restore();
+    if (keep) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(keep, 0, 0); ctx.restore(); }
     return c;
   };
+  function hasOverlay(doc) { const o = doc.overlay || {}; return Object.keys(o).some(k => typeof o[k] === 'number' && o[k] > 0 && k !== 'grainSize' && k !== 'tintAmount' && k !== 'weave'); }
 
   window.StudioRender = R;
 })();

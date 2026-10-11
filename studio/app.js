@@ -236,7 +236,7 @@
   layer.add(artFrame);
   const overlayShape = new Konva.Shape({
     listening: false,
-    sceneFunc: (c) => { const ctx = c._context; if (doc.overlay && doc.overlay.rgb > 0) R.rgbSplit(ctx, doc.overlay.rgb / 100 * doc.width * 0.006 * Math.hypot(ctx.getTransform().a, ctx.getTransform().b)); ctx.save(); R.drawOverlay(ctx, doc); ctx.restore(); },
+    sceneFunc: (c) => { const ctx = c._context; if (doc.overlay && doc.overlay.rgb > 0) R.rgbSplit(ctx, doc.overlay.rgb / 100 * doc.width * 0.006 * Math.hypot(ctx.getTransform().a, ctx.getTransform().b)); ctx.save(); if (doc.background && doc.background.none) ctx.globalCompositeOperation = 'source-atop'; R.drawOverlay(ctx, doc); ctx.restore(); },
   });
 
   // Alt/Option distances: red lines with pixel values between the selection and the canvas or the layer under the pointer
@@ -469,7 +469,8 @@
   }
   // blend modes need the background on the same canvas as the layers, or they'd mix with nothing while editing
   function placeBackground() {
-    const want = doc.elements.some(e => e.blend && e.blend !== 'normal' && e.blend !== 'source-over') ? layer : bgLayer;
+    // blends mix with the background on the layers' canvas — but never with the see-through checkerboard
+    const want = !(doc.background && doc.background.none) && doc.elements.some(e => e.blend && e.blend !== 'normal' && e.blend !== 'source-over') ? layer : bgLayer;
     if (bgFrame.getLayer() === want) return;
     bgFrame.moveTo(want);
     if (want === layer) bgFrame.moveToBottom();
@@ -1866,6 +1867,8 @@
   // generic property setter used by every inspector control
   S.change = function (target, path, value, live) {
     const objs = target === 'doc' ? [doc] : S.selEls();
+    // choosing a colour, photo, pattern… for the background brings the background back
+    if (target === 'doc' && doc.background.none && /^background\.(color|assetId|gradient|pattern|texture|scene|crumple)/.test(path)) doc.background.none = false;
     for (const o of objs) {
       setPath(o, path, value);
       if (target !== 'doc') {
@@ -2183,7 +2186,7 @@
       const long = 1440, s = long / Math.max(a.w, a.h);
       const W = Math.round(a.w * s), H = Math.round(a.h * s);
       const d = blankDoc(W, H, '#ffffff');
-      d.background.assetId = a.id;
+      d.background.assetId = a.id; d.background.none = false;
       if (a.video) d.anim = { duration: Math.min(30, Math.round(a.duration * 10) / 10) || 5, fps: 30 };
       S.loadDoc(d, null, { name: a.video ? 'Video edit' : 'Photo edit', project: opts.newProject ? 'new' : undefined });
       if (opts.newProject) { S.uploads.splice(0, 0, ...added.map(x => x.id)); scheduleSave(); }
@@ -2229,7 +2232,7 @@
     return added;
   };
   S.setBackgroundImage = function (assetId) {
-    doc.background.assetId = assetId;
+    doc.background.assetId = assetId; doc.background.none = false;
     doc.background.crop = { zoom: 1, x: 0.5, y: 0.5 };
     if (R.isVideoAsset(assetId)) fitDurationToVideo(R.assetVideo(assetId).v.duration);
     redraw(); S.commit(); emit('values'); emit('doc');
