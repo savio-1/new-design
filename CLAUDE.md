@@ -110,6 +110,12 @@ are the bundled photos from `flashes.js`, `film-` from `filmphotos.js`, `ed-` fr
   (worked out at ≤420 px, crisp letters redrawn on top), ink thresholds a blurred + smeared alpha with value noise and sprays
   dots. `blurMap` (box blur ×3 on Float32 alpha) avoids canvas filters; `R.textFxPad` adds the glow / bleed margin to `bleed()`.
   `tfx.move` makes the layer time-varying (thermal shimmer). Gaussian layer blur is baked into the layer cache.
+- Layer blurs for non-photo layers: `el.tblur` holds the photo blur keys (motion, ghost, zoomBlur, spinBlur, blur, tiltShift,
+  motionAngle, blurX/Y, tiltY/Size, blurArea, blurPts, blurFeather). `layerBlur` in `drawLayered` runs the photo blur
+  functions on the cached bitmap, rescaled from the bitmap (with its bleed) to the layer's box; `R.layerBlurPad` widens
+  the bleed. ui.js `blurControls(t, base, { noun, onNone })` is shared by the photo Blur section and the Effects → Blur
+  item; the spot editor (`spotBase` / `spotMap` in app.js) works on `filters` for photos and `tblur` for everything else.
+  `blurSpots` mixes blurred × mask + sharp × (1 − mask) (`lighter`), so see-through layers don't show a sharp copy.
 - Camera `move: 'keys'` takes `camera.keys = [{ t, x, y, z, r, ease }]` (x / y ≤ 1 are fractions; ease '' = cubic, 'expo',
   'out', 'linear'); camera motion blur follows any path (big moves accumulate at half size, up to 64 samples).
   Entrance `focus` (Blur in) blurs, scales and fades a layer into focus (`st.gblur`).

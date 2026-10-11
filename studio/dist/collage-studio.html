@@ -9773,9 +9773,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     };
     if (invert) { mx.fillStyle = '#000'; mx.fillRect(0, 0, w, h); mx.globalCompositeOperation = 'destination-out'; paint(); }
     else paint();
+    // blurred × mask + sharp × (1 − mask): a true mix, so see-through layers don't show the sharp copy under the blur
     const o = canvas(w, h), x = o.getContext('2d');
     x.drawImage(blurred, 0, 0); x.globalCompositeOperation = 'destination-in'; x.drawImage(mask, 0, 0);
-    x.globalCompositeOperation = 'destination-over'; x.drawImage(sharp, 0, 0);
+    const k = canvas(w, h), kx = k.getContext('2d');
+    kx.drawImage(sharp, 0, 0); kx.globalCompositeOperation = 'destination-out'; kx.drawImage(mask, 0, 0);
+    x.globalCompositeOperation = 'lighter'; x.drawImage(k, 0, 0);
     return o;
   }
   // zoom blur streaks out from a centre point; spin blur swirls around it
@@ -11166,7 +11169,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   function bleed(el) {
     const lb = el.lblur || {};
-    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6 + R.textFxPad(el);
+    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6 + R.textFxPad(el) + (el.type === 'image' ? 0 : R.layerBlurPad(el));
   }
   function bleedCore(el) {
     const m = Math.max(el.width, el.height);
@@ -11601,13 +11604,49 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     return out;
   }
 
+  /* ───────────────────────── layer blurs (text, stickers, shapes…) ───────────────────────── */
+
+  // el.tblur uses the photo blur settings — motion, ghost, zoomBlur, spinBlur, blur (soft), tiltShift, their
+  // centre / angle / band, and blurArea + blurPts for spot blurs — measured against the layer's own box
+  const TBLUR_KEYS = ['motion', 'ghost', 'zoomBlur', 'spinBlur', 'blur', 'tiltShift'];
+  const tblurOn = el => !!(el.tblur && TBLUR_KEYS.some(k => el.tblur[k] > 0));
+  R.hasLayerBlur = tblurOn;
+  R.layerBlurPad = function (el) {
+    if (!tblurOn(el)) return 0;
+    const f = el.tblur, M = Math.max(el.width, el.height), a = k => (f[k] || 0) / 100;
+    return M * Math.max(a('motion') * 0.05, a('ghost') * 0.25, a('zoomBlur') * 0.24, a('spinBlur') * 0.1, a('tiltShift') * 0.06, (f.blur || 0) * 0.0032) + 4;
+  };
+  function layerBlur(c, el, s, b) {
+    const f = el.tblur, W = c.width, H = c.height;
+    const bx = b * s, by = b * s, bw = el.width * s, bh = el.height * s, M = Math.max(bw, bh), k = M / Math.max(W, H);
+    // the photo blurs measure against the whole bitmap; scale them to the layer's box instead
+    const ux = u => (bx + u * bw) / W, uy = v => (by + v * bh) / H;
+    const sharp = c;
+    let out = c;
+    if (f.motion) out = motionBlur(out, f.motion * k, f.motionAngle || 0);
+    if (f.ghost) out = ghostBlur(out, f.ghost * k, f.motionAngle || 0);
+    if (f.zoomBlur) out = radialBlur(out, f.zoomBlur, ux(f.blurX ?? 0.5), uy(f.blurY ?? 0.5), 'zoom');
+    if (f.spinBlur) out = radialBlur(out, f.spinBlur, ux(f.blurX ?? 0.5), uy(f.blurY ?? 0.5), 'spin');
+    if (f.tiltShift) out = tiltShift(out, f.tiltShift * k, uy(f.tiltY ?? 0.5), clamp(f.tiltSize ?? 0.25, 0.02, 1) * bh / H);
+    if (f.blur) {
+      const o = canvas(W, H), x = o.getContext('2d');
+      if ('filter' in x) { x.filter = `blur(${f.blur * M / 1000}px)`; x.drawImage(out, 0, 0); out = o; }
+    }
+    const pts = f.blurPts || [];
+    if (f.blurArea && f.blurArea !== 'all' && pts.length && out !== sharp) {
+      const P = pts.map(p => ({ x: ux(p.x), y: uy(p.y), r: (p.r || 0.12) * k }));
+      out = blurSpots(sharp, out, P, f.blurArea === 'sharp', (f.blurFeather ?? 60) / 100);
+    }
+    return out;
+  }
+
   const layerCache = new LRU(60);
   function drawLayered(ctx, el, env) {
     const sh = el.shadow;
     const erased = el.erase && el.erase.length;
     const lb = el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0) ? el.lblur : null;
-    const tfx = fxOn(el);
-    if ((!sh || !sh.on) && !erased && !lb && !tfx) { drawCore(ctx, el, env); return; }
+    const tfx = fxOn(el), tb = el.type !== 'image' && tblurOn(el);
+    if ((!sh || !sh.on) && !erased && !lb && !tfx && !tb) { drawCore(ctx, el, env); return; }
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
     const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
@@ -11634,6 +11673,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         x2.drawImage(mk, 0, 0);
       }
       if (tfx) { const fc = textFx(c, el, s, 'time' in env ? env.time : R.playTime); fc.dirty = c.dirty; c = fc; }
+      if (tb) { const bc = layerBlur(c, el, s, b); bc.dirty = c.dirty; c = bc; }
       if (lb && lb.motion > 0) {
         const sm = motionBlurPx(c, lb.motion * s, lb.angle || 0);
         sm.dirty = c.dirty; c = sm;
@@ -17529,9 +17569,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   const spotGroup = new Konva.Group();
   uiLayer.add(spotGroup);
   function spotEl() { return spotEdit && elMap.get(spotEdit.id); }
+  // photos keep their blur in filters (spots in image space); every other layer in tblur (spots in its own box)
+  const spotBase = el => el.type === 'image' ? 'filters' : 'tblur';
+  const spotMap = el => el.type === 'image' ? R.imageBoxMap(el)
+    : { toBox: (u, v) => ({ x: u * el.width, y: v * el.height }), toImg: (x, y) => ({ u: x / el.width, v: y / el.height }), unit: Math.max(el.width, el.height) };
   S.startBlurSpots = function (id) {
     const el = elMap.get(id);
-    if (!el || el.type !== 'image' || !el.assetId || el.locked) return;
+    if (!el || (el.type === 'image' && !el.assetId) || el.locked) return;
     if (textEdit) finishTextEdit();
     endCrop(); endPathEdit();
     if (R.playTime != null) S.stopPreview();
@@ -17540,7 +17584,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     syncNode(el);
     buildSpotHandles();
     attachTransformer();
-    S.hint('Click the photo to add a blur spot · drag a spot to move it · drag its ring handle to resize · double-click to remove · Esc when done', 4500);
+    S.hint(`Click the ${el.type === 'image' ? 'photo' : 'layer'} to add a blur spot · drag a spot to move it · drag its ring handle to resize · double-click to remove · Esc when done`, 4500);
     emit('spotedit', true);
   };
   function endSpotEdit() {
@@ -17556,27 +17600,28 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   S.endBlurSpots = endSpotEdit;
   S.isEditingSpots = () => !!spotEdit;
   function spotPts(el) {
-    if (!el.filters) el.filters = {};
-    if (!el.filters.blurPts) el.filters.blurPts = [];
-    if (!el.filters.blurArea || el.filters.blurArea === 'all') el.filters.blurArea = 'spots';
-    return el.filters.blurPts;
+    const k = spotBase(el);
+    if (!el[k]) el[k] = {};
+    if (!el[k].blurPts) el[k].blurPts = [];
+    if (!el[k].blurArea || el[k].blurArea === 'all') el[k].blurArea = 'spots';
+    return el[k].blurPts;
   }
   function addSpotAt(p) {
-    const el = spotEl(), n = nodes.get(el.id), map = R.imageBoxMap(el);
+    const el = spotEl(), n = nodes.get(el.id), map = spotMap(el);
     if (!map) return;
     const lp = n.getTransform().copy().invert().point(p), q = map.toImg(lp.x, lp.y);
     if (q.u < 0 || q.u > 1 || q.v < 0 || q.v > 1) return;
     spotPts(el).push({ x: q.u, y: q.v, r: 0.12 });
-    el.filters = Object.assign({}, el.filters);
+    el[spotBase(el)] = Object.assign({}, el[spotBase(el)]);
     layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); emit('spotedit', true);
   }
   function buildSpotHandles() {
     spotGroup.destroyChildren();
-    const el = spotEl(), n = el && nodes.get(el.id), map = el && R.imageBoxMap(el);
+    const el = spotEl(), n = el && nodes.get(el.id), map = el && spotMap(el);
     if (!el || !n || !map) return;
-    const s = S.view.scale, T = n.getTransform();
-    const pts = (el.filters && el.filters.blurPts) || [];
-    const commit = () => { el.filters = Object.assign({}, el.filters, { blurPts: pts.map(p => Object.assign({}, p)) }); layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); };
+    const s = S.view.scale, T = n.getTransform(), k = spotBase(el);
+    const pts = (el[k] && el[k].blurPts) || [];
+    const commit = () => { el[k] = Object.assign({}, el[k], { blurPts: pts.map(p => Object.assign({}, p)) }); syncNode(el); layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); };
     pts.forEach((p, i) => {
       const bc = map.toBox(p.x, p.y), c = T.point(bc), rr = p.r * map.unit;
       const ring = new Konva.Circle({ x: c.x, y: c.y, radius: rr, stroke: '#ffffff', strokeWidth: 2 / s, dash: [6 / s, 5 / s], shadowColor: '#000', shadowBlur: 3, shadowOpacity: 0.6, listening: false });
@@ -19857,15 +19902,23 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     ghost: 'A faint second copy, like a double exposure.',
   };
   function blurSection(t, base) {
+    const type = blurTypeOf(S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {});
+    return sec('Blur', blurControls(t, base), type !== 'none', { key: 'blur-' + t });
+  }
+  const blurTypeOf = ff => Object.keys(BLUR_KEY).find(k => (ff[BLUR_KEY[k]] || 0) > 0) || 'none';
+  // the blur picker: type chips, amount, direction / centre / band, and where it lands (everywhere, on spots, off spots).
+  // Photos keep it in filters; text, stickers, shapes and lines in tblur, with spots placed inside the layer's box.
+  function blurControls(t, base, o = {}) {
     const get = () => S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
-    const typeOf = ff => Object.keys(BLUR_KEY).find(k => (ff[BLUR_KEY[k]] || 0) > 0) || 'none';
-    const type = typeOf(get());
+    const noun = o.noun || 'photo';
+    const type = blurTypeOf(get());
     const amountOf = ff => type === 'soft' ? (ff.blur || 0) * 2.5 : (ff[BLUR_KEY[type]] || 0);
     const setType = nt => {
       const cur = get(), amt = type !== 'none' ? amountOf(cur) : 50;
       const nf = Object.assign({}, cur);
       for (const k of Object.values(BLUR_KEY)) delete nf[k];
       if (nt !== 'none') nf[BLUR_KEY[nt]] = nt === 'soft' ? Math.round(amt / 2.5 * 10) / 10 : amt;
+      if (nt === 'none' && o.onNone) return o.onNone();
       S.change(t, base, nf);
       renderInspector();
     };
@@ -19873,7 +19926,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     // where the blur lands: the whole photo, only around chosen spots, or everywhere except them
     const area = get().blurArea || 'all', pts = get().blurPts || [];
     const selEl = t === 'doc' ? null : S.selEls()[0];
-    const canPlace = !!(selEl && selEl.type === 'image' && selEl.assetId);
+    const canPlace = !!(selEl && (selEl.type !== 'image' || selEl.assetId));
     const editing = canPlace && S.isEditingSpots();
     const setPts = list => { S.change(t, base + '.blurPts', list); renderInspector(); };
     const setArea = a => {
@@ -19885,12 +19938,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     };
     const where = type === 'none' ? [] : [
       label('Where'),
-      full(seg(t, base + '.blurArea', [['all', 'Everywhere', 'Blur the whole photo'], ['spots', 'On spots', 'Blur only around the spots'], ['sharp', 'Off spots', 'Keep the spots sharp, blur the rest']], { get: () => get().blurArea || 'all', set: setArea })),
+      full(seg(t, base + '.blurArea', [['all', 'Everywhere', `Blur the whole ${noun}`], ['spots', 'On spots', 'Blur only around the spots'], ['sharp', 'Off spots', 'Keep the spots sharp, blur the rest']], { get: () => get().blurArea || 'all', set: setArea })),
     ];
     if (type !== 'none' && area !== 'all') {
       where.push(h('p.hint', null, area === 'spots' ? 'Blur fades out from each spot — the rest stays sharp.' : 'Each spot stays in focus — everything around it is blurred.'));
       where.push(full(h('div.btn-row', null,
-        canPlace ? h('button.btn.grow' + (editing ? '.primary' : ''), { type: 'button', onclick: () => { editing ? S.endBlurSpots() : S.startBlurSpots(selEl.id); renderInspector(); } }, ic(editing ? 'check' : 'target'), editing ? 'Done placing' : 'Place on photo') : null,
+        canPlace ? h('button.btn.grow' + (editing ? '.primary' : ''), { type: 'button', onclick: () => { editing ? S.endBlurSpots() : S.startBlurSpots(selEl.id); renderInspector(); } }, ic(editing ? 'check' : 'target'), editing ? 'Done placing' : `Place on ${noun}`) : null,
         h('button.btn.grow', { type: 'button', onclick: () => setPts(pts.concat([{ x: 0.3 + Math.random() * 0.4, y: 0.3 + Math.random() * 0.4, r: 0.12 }])) }, ic('plus'), 'Add spot'))));
       pts.forEach((p, i) => {
         const P = base + '.blurPts.' + i;
@@ -19902,11 +19955,11 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           canPlace ? null : sl('x', 'Across', 0, 100, '%'),
           canPlace ? null : sl('y', 'Down', 0, 100, '%')));
       });
-      if (!pts.length) where.push(h('p.hint', null, 'No spots yet — add one, or click the photo while placing.'));
+      if (!pts.length) where.push(h('p.hint', null, `No spots yet — add one, or click the ${noun} while placing.`));
       where.push(row('Softness', num(t, base + '.blurFeather', { min: 0, max: 100, slider: true, unit: '%', def: 60 })));
     }
-    return sec('Blur', [
-      full(h('div.chips.tight', null, BLUR_TYPES.map(([k, l]) => h('button.chip' + (type === k ? '.on' : ''), { type: 'button', onclick: () => setType(k) }, l)))),
+    return [
+      full(h('div.chips.tight', null, BLUR_TYPES.filter(([k]) => k !== 'none' || !o.onNone).map(([k, l]) => h('button.chip' + (type === k ? '.on' : ''), { type: 'button', onclick: () => setType(k) }, l)))),
       type !== 'none' ? h('p.hint', null, BLUR_HINT[type]) : null,
       type !== 'none' ? row('Amount', num(t, base + '.' + BLUR_KEY[type], { min: 0, max: 100, slider: true, get: () => amountOf(get()), set: (v, live) => S.change(t, base + '.' + BLUR_KEY[type], type === 'soft' ? v / 2.5 : v, live) })) : null,
       type === 'motion' || type === 'ghost' ? row('Direction', num(t, base + '.motionAngle', { min: -90, max: 90, slider: true, unit: '°', def: 0 })) : null,
@@ -19915,7 +19968,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       type === 'tilt' ? pct('tiltY', 'Focus line', 0.5) : null,
       type === 'tilt' ? pct('tiltSize', 'Focus size', 0.25) : null,
       ...where,
-    ], type !== 'none', { key: 'blur-' + t });
+    ];
   }
   const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
   const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border', 'gate', 'scan', 'slide', 'filed'];
@@ -20655,8 +20708,15 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
         ],
       } : null,
+      el.type !== 'image' && el.type !== 'camera' ? {
+        label: 'Blur', icon: 'drop', on: R.hasLayerBlur(el),
+        add: () => { S.change(T, 'tblur', { blur: 12 }); renderInspector(); },
+        remove: () => { if (S.isEditingSpots()) S.endBlurSpots(); S.change(T, 'tblur', null); renderInspector(); },
+        body: () => blurControls(T, 'tblur', { noun: el.type === 'text' ? 'text' : 'layer', onNone: () => { S.change(T, 'tblur', null); renderInspector(); } }),
+      } : null,
       {
-        label: 'Layer blur', icon: 'circle', on: !!(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0)), hidden: el.type === 'camera',
+        // the older plain layer blur: kept for photos, and for other layers that already use it
+        label: 'Layer blur', icon: 'circle', on: !!(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0)), hidden: el.type === 'camera' || (el.type !== 'image' && !(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0))),
         add: () => S.change(T, 'lblur', { gauss: 6, motion: 0, angle: 0 }), remove: () => S.change(T, 'lblur', null),
         body: () => [
           row('Blur', num(T, 'lblur.gauss', { min: 0, max: 60, step: 0.5, slider: true, def: 0 })),

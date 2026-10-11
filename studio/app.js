@@ -1498,9 +1498,13 @@
   const spotGroup = new Konva.Group();
   uiLayer.add(spotGroup);
   function spotEl() { return spotEdit && elMap.get(spotEdit.id); }
+  // photos keep their blur in filters (spots in image space); every other layer in tblur (spots in its own box)
+  const spotBase = el => el.type === 'image' ? 'filters' : 'tblur';
+  const spotMap = el => el.type === 'image' ? R.imageBoxMap(el)
+    : { toBox: (u, v) => ({ x: u * el.width, y: v * el.height }), toImg: (x, y) => ({ u: x / el.width, v: y / el.height }), unit: Math.max(el.width, el.height) };
   S.startBlurSpots = function (id) {
     const el = elMap.get(id);
-    if (!el || el.type !== 'image' || !el.assetId || el.locked) return;
+    if (!el || (el.type === 'image' && !el.assetId) || el.locked) return;
     if (textEdit) finishTextEdit();
     endCrop(); endPathEdit();
     if (R.playTime != null) S.stopPreview();
@@ -1509,7 +1513,7 @@
     syncNode(el);
     buildSpotHandles();
     attachTransformer();
-    S.hint('Click the photo to add a blur spot · drag a spot to move it · drag its ring handle to resize · double-click to remove · Esc when done', 4500);
+    S.hint(`Click the ${el.type === 'image' ? 'photo' : 'layer'} to add a blur spot · drag a spot to move it · drag its ring handle to resize · double-click to remove · Esc when done`, 4500);
     emit('spotedit', true);
   };
   function endSpotEdit() {
@@ -1525,27 +1529,28 @@
   S.endBlurSpots = endSpotEdit;
   S.isEditingSpots = () => !!spotEdit;
   function spotPts(el) {
-    if (!el.filters) el.filters = {};
-    if (!el.filters.blurPts) el.filters.blurPts = [];
-    if (!el.filters.blurArea || el.filters.blurArea === 'all') el.filters.blurArea = 'spots';
-    return el.filters.blurPts;
+    const k = spotBase(el);
+    if (!el[k]) el[k] = {};
+    if (!el[k].blurPts) el[k].blurPts = [];
+    if (!el[k].blurArea || el[k].blurArea === 'all') el[k].blurArea = 'spots';
+    return el[k].blurPts;
   }
   function addSpotAt(p) {
-    const el = spotEl(), n = nodes.get(el.id), map = R.imageBoxMap(el);
+    const el = spotEl(), n = nodes.get(el.id), map = spotMap(el);
     if (!map) return;
     const lp = n.getTransform().copy().invert().point(p), q = map.toImg(lp.x, lp.y);
     if (q.u < 0 || q.u > 1 || q.v < 0 || q.v > 1) return;
     spotPts(el).push({ x: q.u, y: q.v, r: 0.12 });
-    el.filters = Object.assign({}, el.filters);
+    el[spotBase(el)] = Object.assign({}, el[spotBase(el)]);
     layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); emit('spotedit', true);
   }
   function buildSpotHandles() {
     spotGroup.destroyChildren();
-    const el = spotEl(), n = el && nodes.get(el.id), map = el && R.imageBoxMap(el);
+    const el = spotEl(), n = el && nodes.get(el.id), map = el && spotMap(el);
     if (!el || !n || !map) return;
-    const s = S.view.scale, T = n.getTransform();
-    const pts = (el.filters && el.filters.blurPts) || [];
-    const commit = () => { el.filters = Object.assign({}, el.filters, { blurPts: pts.map(p => Object.assign({}, p)) }); layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); };
+    const s = S.view.scale, T = n.getTransform(), k = spotBase(el);
+    const pts = (el[k] && el[k].blurPts) || [];
+    const commit = () => { el[k] = Object.assign({}, el[k], { blurPts: pts.map(p => Object.assign({}, p)) }); syncNode(el); layer.batchDraw(); buildSpotHandles(); S.commit(); emit('values'); };
     pts.forEach((p, i) => {
       const bc = map.toBox(p.x, p.y), c = T.point(bc), rr = p.r * map.unit;
       const ring = new Konva.Circle({ x: c.x, y: c.y, radius: rr, stroke: '#ffffff', strokeWidth: 2 / s, dash: [6 / s, 5 / s], shadowColor: '#000', shadowBlur: 3, shadowOpacity: 0.6, listening: false });

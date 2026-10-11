@@ -735,15 +735,23 @@
     ghost: 'A faint second copy, like a double exposure.',
   };
   function blurSection(t, base) {
+    const type = blurTypeOf(S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {});
+    return sec('Blur', blurControls(t, base), type !== 'none', { key: 'blur-' + t });
+  }
+  const blurTypeOf = ff => Object.keys(BLUR_KEY).find(k => (ff[BLUR_KEY[k]] || 0) > 0) || 'none';
+  // the blur picker: type chips, amount, direction / centre / band, and where it lands (everywhere, on spots, off spots).
+  // Photos keep it in filters; text, stickers, shapes and lines in tblur, with spots placed inside the layer's box.
+  function blurControls(t, base, o = {}) {
     const get = () => S.getPath(t === 'doc' ? S.doc : S.selEls()[0] || {}, base) || {};
-    const typeOf = ff => Object.keys(BLUR_KEY).find(k => (ff[BLUR_KEY[k]] || 0) > 0) || 'none';
-    const type = typeOf(get());
+    const noun = o.noun || 'photo';
+    const type = blurTypeOf(get());
     const amountOf = ff => type === 'soft' ? (ff.blur || 0) * 2.5 : (ff[BLUR_KEY[type]] || 0);
     const setType = nt => {
       const cur = get(), amt = type !== 'none' ? amountOf(cur) : 50;
       const nf = Object.assign({}, cur);
       for (const k of Object.values(BLUR_KEY)) delete nf[k];
       if (nt !== 'none') nf[BLUR_KEY[nt]] = nt === 'soft' ? Math.round(amt / 2.5 * 10) / 10 : amt;
+      if (nt === 'none' && o.onNone) return o.onNone();
       S.change(t, base, nf);
       renderInspector();
     };
@@ -751,7 +759,7 @@
     // where the blur lands: the whole photo, only around chosen spots, or everywhere except them
     const area = get().blurArea || 'all', pts = get().blurPts || [];
     const selEl = t === 'doc' ? null : S.selEls()[0];
-    const canPlace = !!(selEl && selEl.type === 'image' && selEl.assetId);
+    const canPlace = !!(selEl && (selEl.type !== 'image' || selEl.assetId));
     const editing = canPlace && S.isEditingSpots();
     const setPts = list => { S.change(t, base + '.blurPts', list); renderInspector(); };
     const setArea = a => {
@@ -763,12 +771,12 @@
     };
     const where = type === 'none' ? [] : [
       label('Where'),
-      full(seg(t, base + '.blurArea', [['all', 'Everywhere', 'Blur the whole photo'], ['spots', 'On spots', 'Blur only around the spots'], ['sharp', 'Off spots', 'Keep the spots sharp, blur the rest']], { get: () => get().blurArea || 'all', set: setArea })),
+      full(seg(t, base + '.blurArea', [['all', 'Everywhere', `Blur the whole ${noun}`], ['spots', 'On spots', 'Blur only around the spots'], ['sharp', 'Off spots', 'Keep the spots sharp, blur the rest']], { get: () => get().blurArea || 'all', set: setArea })),
     ];
     if (type !== 'none' && area !== 'all') {
       where.push(h('p.hint', null, area === 'spots' ? 'Blur fades out from each spot — the rest stays sharp.' : 'Each spot stays in focus — everything around it is blurred.'));
       where.push(full(h('div.btn-row', null,
-        canPlace ? h('button.btn.grow' + (editing ? '.primary' : ''), { type: 'button', onclick: () => { editing ? S.endBlurSpots() : S.startBlurSpots(selEl.id); renderInspector(); } }, ic(editing ? 'check' : 'target'), editing ? 'Done placing' : 'Place on photo') : null,
+        canPlace ? h('button.btn.grow' + (editing ? '.primary' : ''), { type: 'button', onclick: () => { editing ? S.endBlurSpots() : S.startBlurSpots(selEl.id); renderInspector(); } }, ic(editing ? 'check' : 'target'), editing ? 'Done placing' : `Place on ${noun}`) : null,
         h('button.btn.grow', { type: 'button', onclick: () => setPts(pts.concat([{ x: 0.3 + Math.random() * 0.4, y: 0.3 + Math.random() * 0.4, r: 0.12 }])) }, ic('plus'), 'Add spot'))));
       pts.forEach((p, i) => {
         const P = base + '.blurPts.' + i;
@@ -780,11 +788,11 @@
           canPlace ? null : sl('x', 'Across', 0, 100, '%'),
           canPlace ? null : sl('y', 'Down', 0, 100, '%')));
       });
-      if (!pts.length) where.push(h('p.hint', null, 'No spots yet — add one, or click the photo while placing.'));
+      if (!pts.length) where.push(h('p.hint', null, `No spots yet — add one, or click the ${noun} while placing.`));
       where.push(row('Softness', num(t, base + '.blurFeather', { min: 0, max: 100, slider: true, unit: '%', def: 60 })));
     }
-    return sec('Blur', [
-      full(h('div.chips.tight', null, BLUR_TYPES.map(([k, l]) => h('button.chip' + (type === k ? '.on' : ''), { type: 'button', onclick: () => setType(k) }, l)))),
+    return [
+      full(h('div.chips.tight', null, BLUR_TYPES.filter(([k]) => k !== 'none' || !o.onNone).map(([k, l]) => h('button.chip' + (type === k ? '.on' : ''), { type: 'button', onclick: () => setType(k) }, l)))),
       type !== 'none' ? h('p.hint', null, BLUR_HINT[type]) : null,
       type !== 'none' ? row('Amount', num(t, base + '.' + BLUR_KEY[type], { min: 0, max: 100, slider: true, get: () => amountOf(get()), set: (v, live) => S.change(t, base + '.' + BLUR_KEY[type], type === 'soft' ? v / 2.5 : v, live) })) : null,
       type === 'motion' || type === 'ghost' ? row('Direction', num(t, base + '.motionAngle', { min: -90, max: 90, slider: true, unit: '°', def: 0 })) : null,
@@ -793,7 +801,7 @@
       type === 'tilt' ? pct('tiltY', 'Focus line', 0.5) : null,
       type === 'tilt' ? pct('tiltSize', 'Focus size', 0.25) : null,
       ...where,
-    ], type !== 'none', { key: 'blur-' + t });
+    ];
   }
   const ROUND_FRAMES = ['circle', 'heart', 'star', 'blob', 'scallop', 'flower', 'squircle', 'sparkle', 'arch', 'ticket', 'rounded', 'none'];
   const BORDER_FRAMES = ['polaroid', 'stamp', 'film', 'torn', 'border', 'gate', 'scan', 'slide', 'filed'];
@@ -1533,8 +1541,15 @@
           row('Width', num(T, 'outline.width', { min: 1, max: 80, slider: true })),
         ],
       } : null,
+      el.type !== 'image' && el.type !== 'camera' ? {
+        label: 'Blur', icon: 'drop', on: R.hasLayerBlur(el),
+        add: () => { S.change(T, 'tblur', { blur: 12 }); renderInspector(); },
+        remove: () => { if (S.isEditingSpots()) S.endBlurSpots(); S.change(T, 'tblur', null); renderInspector(); },
+        body: () => blurControls(T, 'tblur', { noun: el.type === 'text' ? 'text' : 'layer', onNone: () => { S.change(T, 'tblur', null); renderInspector(); } }),
+      } : null,
       {
-        label: 'Layer blur', icon: 'circle', on: !!(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0)), hidden: el.type === 'camera',
+        // the older plain layer blur: kept for photos, and for other layers that already use it
+        label: 'Layer blur', icon: 'circle', on: !!(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0)), hidden: el.type === 'camera' || (el.type !== 'image' && !(el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0))),
         add: () => S.change(T, 'lblur', { gauss: 6, motion: 0, angle: 0 }), remove: () => S.change(T, 'lblur', null),
         body: () => [
           row('Blur', num(T, 'lblur.gauss', { min: 0, max: 60, step: 0.5, slider: true, def: 0 })),

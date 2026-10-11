@@ -1967,9 +1967,12 @@
     };
     if (invert) { mx.fillStyle = '#000'; mx.fillRect(0, 0, w, h); mx.globalCompositeOperation = 'destination-out'; paint(); }
     else paint();
+    // blurred × mask + sharp × (1 − mask): a true mix, so see-through layers don't show the sharp copy under the blur
     const o = canvas(w, h), x = o.getContext('2d');
     x.drawImage(blurred, 0, 0); x.globalCompositeOperation = 'destination-in'; x.drawImage(mask, 0, 0);
-    x.globalCompositeOperation = 'destination-over'; x.drawImage(sharp, 0, 0);
+    const k = canvas(w, h), kx = k.getContext('2d');
+    kx.drawImage(sharp, 0, 0); kx.globalCompositeOperation = 'destination-out'; kx.drawImage(mask, 0, 0);
+    x.globalCompositeOperation = 'lighter'; x.drawImage(k, 0, 0);
     return o;
   }
   // zoom blur streaks out from a centre point; spin blur swirls around it
@@ -3360,7 +3363,7 @@
 
   function bleed(el) {
     const lb = el.lblur || {};
-    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6 + R.textFxPad(el);
+    return bleedCore(el) + (lb.gauss || 0) * 2.5 + (lb.motion || 0) * 0.6 + R.textFxPad(el) + (el.type === 'image' ? 0 : R.layerBlurPad(el));
   }
   function bleedCore(el) {
     const m = Math.max(el.width, el.height);
@@ -3795,13 +3798,49 @@
     return out;
   }
 
+  /* ───────────────────────── layer blurs (text, stickers, shapes…) ───────────────────────── */
+
+  // el.tblur uses the photo blur settings — motion, ghost, zoomBlur, spinBlur, blur (soft), tiltShift, their
+  // centre / angle / band, and blurArea + blurPts for spot blurs — measured against the layer's own box
+  const TBLUR_KEYS = ['motion', 'ghost', 'zoomBlur', 'spinBlur', 'blur', 'tiltShift'];
+  const tblurOn = el => !!(el.tblur && TBLUR_KEYS.some(k => el.tblur[k] > 0));
+  R.hasLayerBlur = tblurOn;
+  R.layerBlurPad = function (el) {
+    if (!tblurOn(el)) return 0;
+    const f = el.tblur, M = Math.max(el.width, el.height), a = k => (f[k] || 0) / 100;
+    return M * Math.max(a('motion') * 0.05, a('ghost') * 0.25, a('zoomBlur') * 0.24, a('spinBlur') * 0.1, a('tiltShift') * 0.06, (f.blur || 0) * 0.0032) + 4;
+  };
+  function layerBlur(c, el, s, b) {
+    const f = el.tblur, W = c.width, H = c.height;
+    const bx = b * s, by = b * s, bw = el.width * s, bh = el.height * s, M = Math.max(bw, bh), k = M / Math.max(W, H);
+    // the photo blurs measure against the whole bitmap; scale them to the layer's box instead
+    const ux = u => (bx + u * bw) / W, uy = v => (by + v * bh) / H;
+    const sharp = c;
+    let out = c;
+    if (f.motion) out = motionBlur(out, f.motion * k, f.motionAngle || 0);
+    if (f.ghost) out = ghostBlur(out, f.ghost * k, f.motionAngle || 0);
+    if (f.zoomBlur) out = radialBlur(out, f.zoomBlur, ux(f.blurX ?? 0.5), uy(f.blurY ?? 0.5), 'zoom');
+    if (f.spinBlur) out = radialBlur(out, f.spinBlur, ux(f.blurX ?? 0.5), uy(f.blurY ?? 0.5), 'spin');
+    if (f.tiltShift) out = tiltShift(out, f.tiltShift * k, uy(f.tiltY ?? 0.5), clamp(f.tiltSize ?? 0.25, 0.02, 1) * bh / H);
+    if (f.blur) {
+      const o = canvas(W, H), x = o.getContext('2d');
+      if ('filter' in x) { x.filter = `blur(${f.blur * M / 1000}px)`; x.drawImage(out, 0, 0); out = o; }
+    }
+    const pts = f.blurPts || [];
+    if (f.blurArea && f.blurArea !== 'all' && pts.length && out !== sharp) {
+      const P = pts.map(p => ({ x: ux(p.x), y: uy(p.y), r: (p.r || 0.12) * k }));
+      out = blurSpots(sharp, out, P, f.blurArea === 'sharp', (f.blurFeather ?? 60) / 100);
+    }
+    return out;
+  }
+
   const layerCache = new LRU(60);
   function drawLayered(ctx, el, env) {
     const sh = el.shadow;
     const erased = el.erase && el.erase.length;
     const lb = el.lblur && (el.lblur.gauss > 0 || el.lblur.motion > 0) ? el.lblur : null;
-    const tfx = fxOn(el);
-    if ((!sh || !sh.on) && !erased && !lb && !tfx) { drawCore(ctx, el, env); return; }
+    const tfx = fxOn(el), tb = el.type !== 'image' && tblurOn(el);
+    if ((!sh || !sh.on) && !erased && !lb && !tfx && !tb) { drawCore(ctx, el, env); return; }
     const s = Math.min(4, Math.max(0.25, Math.ceil(deviceScale(ctx) * 4) / 4));
     const b = bleed(el);
     const { x, y, rotation, opacity, name, locked, hidden, anim, ...rest } = el;
@@ -3828,6 +3867,7 @@
         x2.drawImage(mk, 0, 0);
       }
       if (tfx) { const fc = textFx(c, el, s, 'time' in env ? env.time : R.playTime); fc.dirty = c.dirty; c = fc; }
+      if (tb) { const bc = layerBlur(c, el, s, b); bc.dirty = c.dirty; c = bc; }
       if (lb && lb.motion > 0) {
         const sm = motionBlurPx(c, lb.motion * s, lb.angle || 0);
         sm.dirty = c.dirty; c = sm;
