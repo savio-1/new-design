@@ -65,7 +65,7 @@ LOGO = ("data:image/svg+xml;utf8," +
   "<path d='M30.2 45h11.6' stroke='white' stroke-width='5' stroke-linecap='round'/></svg>")
 new_brand = f'''<div class="rail-brand">
         <!-- ═══ CLIENT BRANDING · edit the four marked lines ═══════════
-             1. logo        – any square image; it is drawn in a 36px circle
+             1. logo        – any square image; it is drawn in a 40px circle
              2. name        – the product name the client knows it by
              3. description – one short line under the name
              4. leave "Powered by cogentiq" as it is                  -->
@@ -87,35 +87,34 @@ aside = aside.replace('<aside class="rail"', '<aside class="rail is-open"', 1)
 LOCKUP_CSS = '''
 /* ══════════════════════════════════════════════════════════════════
    Client lockup — the client's mark, and beside it three lines:
-   their name, what it is, and who it runs on. The three stack and sit
-   to the right of the mark, left-aligned, centred on it as a block.
+   their name, what it is, and who it runs on. The three are set tight
+   and sized so the block is the mark's own height, which is what makes
+   mark and text read as one row rather than a mark with a caption.
    ══════════════════════════════════════════════════════════════════ */
 .rail-brand { gap: 10px; }
-/* 36px is the crunched panel's whole content width, so the mark is the
-   same size in both states and nothing jumps when the panel opens. */
-.rail-logo--client { width: 36px; height: 36px; background: var(--backgrounds-page-bg-2); }
+/* 40px in both states, so nothing jumps when the panel opens; the
+   crunched panel centres it over its 36px column. */
+.rail-logo--client { width: 40px; height: 40px; background: var(--backgrounds-page-bg-2); }
 .rail-logo--client img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rail-lockup {
-  display: flex; flex-direction: column; justify-content: center; gap: 1px;
+  display: flex; flex-direction: column; justify-content: center; gap: 0;
   min-width: 0;
 }
 .rail-lockup > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-lockup__name {
-  font: 500 15px/19px var(--font-geist); letter-spacing: -0.5px;
+  font: 500 14px/16px var(--font-geist); letter-spacing: -0.42px;
   color: var(--text-primary);
 }
 .rail-lockup__desc {
-  font: 400 11px/14px var(--font-geist); letter-spacing: -0.11px;
+  font: 400 11px/13px var(--font-geist); letter-spacing: -0.11px;
   color: var(--text-secondary);
 }
-/* The quietest line of the three, and set apart from the two above it
-   by a hair of space: it is a credit, not part of the client's name. */
 .rail-lockup__by {
-  display: flex; align-items: center; gap: 4px; margin-top: 3px;
-  font: 400 10px/12px var(--font-geist); letter-spacing: -0.1px;
+  display: flex; align-items: center; gap: 3px; margin-top: 1px;
+  font: 400 10px/11px var(--font-geist); letter-spacing: -0.1px;
   color: var(--text-teritiary);
 }
-.rail-lockup__by svg { flex: none; width: 10px; height: 8.75px; }
+.rail-lockup__by svg { flex: none; width: 9px; height: 8px; }
 .rail-lockup__by b { font-weight: 500; color: var(--text-secondary); letter-spacing: -0.3px; }
 '''
 
