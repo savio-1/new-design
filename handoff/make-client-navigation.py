@@ -63,7 +63,7 @@ if not MARK.exists():
 LOGO = 'data:image/svg+xml;base64,' + base64.b64encode(MARK.read_bytes()).decode()
 new_brand = f'''<div class="rail-brand">
         <!-- ═══ CLIENT BRANDING · edit the four marked lines ═══════════
-             1. logo        – any square image, shown at 40 × 40px
+             1. logo        – any square image; 28px when collapsed, 40px open
              2. name        – the product name the client knows it by
              3. description – one short line under the name
              4. leave "Powered by cogentiq" as it is                  -->
@@ -93,9 +93,18 @@ LOCKUP_CSS = '''
 /* 40px in both states, so nothing jumps when the panel opens; the
    crunched panel centres it over its 36px column. */
 /* Square, not the product's circle: a client's mark arrives in its own
-   tile, and a circle would cut the corners off it. The radius matches
-   the Lattice tile's own (18 of 120), so the clip never shows. */
-.rail-logo--client { width: 40px; height: 40px; border-radius: 6px; background: none; }
+   tile, and a circle would cut the corners off it. The radius is the
+   Lattice tile's own, as a share (18 of 120), so it scales with the mark.
+
+   28px while the panel is crunched, where the column is 36px wide and the
+   category tiles are 24px; 40px once it opens, where there is room for
+   three lines beside it. The size follows the panel's own width
+   transition, so the mark grows as the panel does rather than snapping. */
+.rail-logo--client {
+  width: 28px; height: 28px; border-radius: 15%; background: none;
+  transition: width .26s cubic-bezier(.4, 0, .2, 1), height .26s cubic-bezier(.4, 0, .2, 1);
+}
+.rail.is-open .rail-logo--client { width: 40px; height: 40px; }
 .rail-logo--client img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rail-lockup {
   display: flex; flex-direction: column; justify-content: center; gap: 0;
