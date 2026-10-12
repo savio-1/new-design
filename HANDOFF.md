@@ -16,6 +16,8 @@ code), then `studio/README.md` (every feature, as the user sees it).
 
 No pull request has been opened; work goes straight to the branch above.
 
+Moving to a different Claude / GitHub account? Follow `SETUP-NEW-ACCOUNT.md` step by step.
+
 ## How to continue in a new chat
 
 **Claude Code (recommended — it can run the app, test and push):** start a session on the repo `savio-1/new-design`,
