@@ -9,6 +9,8 @@ Everything lives in `studio/`. There is no server, framework or build step for d
 Work on this has been done on the branch `claude/charming-mendel-rchh9w`. Don't open pull requests
 unless asked.
 
+`HANDOFF.md` (repo root) has the links, history, open items and how to resume in a new chat.
+
 ## How the owner likes to work
 
 - Requests usually come with reference screenshots or screen recordings (Pinterest / Instagram /
@@ -49,6 +51,7 @@ unless asked.
 | `vendor/` | Konva, muxers, JSZip — inlined into the single-file build so it works offline. |
 | `tools/build_single_file.py` | Builds `dist/collage-studio.html` (everything inlined). |
 | `tools/smoke_test.js` | Playwright smoke test: loads the app, renders every template, reports errors. |
+| `tools/dev/` | Dev harness: `run.js` (headless page + script), `contact_sheet.js`, `export_clips.js`, `tracking_clips.py` (exact-truth clips) + `tracking_accuracy.js`. |
 | `dist/collage-studio.html` | The portable app (copy to any laptop, double-click). Rebuild after changes. |
 | `README.md` | User-facing feature guide. Keep it current. |
 
