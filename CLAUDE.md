@@ -151,7 +151,6 @@ Savio has a Full seat in the Fractal Analytics Figma org. Their personal Starter
 | Verdance 3D flower-garden scroll site | `lucid-carson-r5hgvx` | `verdance.html` · https://claude.ai/artifact/7qm8qDzi5CoV6qLAXKXpvJ |
 | Personal floral-garden love-letter page (mobile) | `sharp-pasteur-7xdpkk` | `floral-garden.html` · https://claude.ai/artifact/6heQynBwVJMCePiDeQiz7Y |
 | Eight Wonders 3D globe | `adoring-ritchie-vd3evo` | `wonders/index.html` |
-| Alaro smart-camera site | `trusting-archimedes-px8129` | `alaro/index.html` |
 | Readback TTS + XTTS-v2 voice cloning | `nifty-hawking-f7k2au` | `audio-generator.html`, `voice/clone_voice.py` |
 | Coastal Kodachrome LUT + Emulsion Bench | `film-look-lut-reference-8hsbhr` | `luts/`, `film/emulsion-bench.html` |
 | IRU website (React/Vite, GitHub Pages) | `iru-website-react-wtaq5i` | `src/App.jsx` |
