@@ -56,25 +56,23 @@ place = hub[p0:p1]
 
 # ── the lockup ─────────────────────────────────────────────────────
 old_brand = re.search(r'<div class="rail-brand">.*?</div>', aside, re.S).group(0)
-LOGO = ("data:image/svg+xml;utf8," +
-  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'>"
-  "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>"
-  "<stop offset='0' stop-color='%2300a2c2'/><stop offset='1' stop-color='%235860ed'/></linearGradient></defs>"
-  "<rect width='72' height='72' fill='url(%23g)'/>"
-  "<path d='M36 17 54 53H45.6L36 33.4 26.4 53H18Z' fill='white'/>"
-  "<path d='M30.2 45h11.6' stroke='white' stroke-width='5' stroke-linecap='round'/></svg>")
+import base64
+MARK = pathlib.Path(__file__).with_name('lattice-mark.svg')
+if not MARK.exists():
+    MARK = pathlib.Path('/tmp/claude-0/-home-user-new-design/77d479b4-7c7c-5ee6-b028-4c05d7724b85/scratchpad/nav/lattice-mark.svg')
+LOGO = 'data:image/svg+xml;base64,' + base64.b64encode(MARK.read_bytes()).decode()
 new_brand = f'''<div class="rail-brand">
         <!-- ═══ CLIENT BRANDING · edit the four marked lines ═══════════
-             1. logo        – any square image; it is drawn in a 40px circle
+             1. logo        – any square image, shown at 40 × 40px
              2. name        – the product name the client knows it by
              3. description – one short line under the name
              4. leave "Powered by cogentiq" as it is                  -->
         <span class="rail-logo rail-logo--client">
-          <img src="{LOGO}" alt="" />                                   <!-- 1 -->
+          <img src="{LOGO}" alt="Lattice" />                                   <!-- 1 -->
         </span>
         <span class="rail-lbl rail-lockup">
-          <span class="rail-lockup__name">Acme</span>                  <!-- 2 -->
-          <span class="rail-lockup__desc">Enterprise AI platform</span> <!-- 3 -->
+          <span class="rail-lockup__name">Lattice</span>                  <!-- 2 -->
+          <span class="rail-lockup__desc">Agentic AI platform</span> <!-- 3 -->
           <span class="rail-lockup__by">Powered by
             <svg viewBox="0 0 20 17.5" aria-hidden="true"><use href="#ic-logoonly"/></svg><b>cogentiq</b></span>
         </span>
@@ -94,7 +92,10 @@ LOCKUP_CSS = '''
 .rail-brand { gap: 10px; }
 /* 40px in both states, so nothing jumps when the panel opens; the
    crunched panel centres it over its 36px column. */
-.rail-logo--client { width: 40px; height: 40px; background: var(--backgrounds-page-bg-2); }
+/* Square, not the product's circle: a client's mark arrives in its own
+   tile, and a circle would cut the corners off it. The radius matches
+   the Lattice tile's own (18 of 120), so the clip never shows. */
+.rail-logo--client { width: 40px; height: 40px; border-radius: 6px; background: none; }
 .rail-logo--client img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rail-lockup {
   display: flex; flex-direction: column; justify-content: center; gap: 0;
