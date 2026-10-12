@@ -49,21 +49,12 @@ def rail(v, open_):
     return a
 
 V = [
-  dict(key='now', title='Current', lines=3,
-       spec='40px collapsed · 40px open · credit beside the name',
-       why='The baseline. Collapsed, the mark is the heaviest thing in the column — bigger than the 36px buttons under it.'),
   dict(key='a', title='A · Grows when it opens', lines=3,
        spec='28px collapsed · 40px open · credit beside the name',
        why='Collapsed it sits just above the 24px category tiles; open it gets the room for three lines. The mark changes size as the panel opens.'),
-  dict(key='b', title='B · Credit in the footer', lines=2, credit='foot', rec=True,
-       spec='28px in both states · name and description beside it · credit at the foot',
-       why='Nothing changes size. Two lines fill the mark exactly, and "Powered by" goes where credits usually live. Collapsed, the foot keeps a small cogentiq mark.'),
-  dict(key='c', title='C · Credit under the header', lines=2, credit='under',
-       spec='32px in both states · name and description beside it · credit on its own line',
-       why='Keeps the credit near the client\'s name without crowding it. 32px is the size the product\'s own logo was drawn at.'),
-  dict(key='d', title='D · Header card', lines=3,
-       spec='28px collapsed · 36px open, inside a card · credit beside the name',
-       why='Open, the lockup sits in a soft card, so the mark and its three lines read as one unit. Collapsed, the card goes and the mark stays small.'),
+  dict(key='c', title='C · Credit under the logo', lines=2, credit='under',
+       spec='32px in both states · name and description beside it · credit tucked directly under the logo row',
+       why='The credit sits right under the mark, close enough that logo, name, description and credit read as one set. 32px in both states, so nothing resizes.'),
 ]
 
 CSS = '''
@@ -76,7 +67,7 @@ body { overflow: auto; padding: 32px 32px 56px; }
 .bd-mode { margin-left: auto; display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--backgrounds-seg-control-tabs-1); }
 .bd-mode button { padding: 4px 12px; border-radius: 8px; color: var(--text-secondary); font: 500 13px/20px var(--font-geist); }
 .bd-mode button[aria-pressed="true"] { background: var(--backgrounds-card-bg-2); color: var(--text-primary); }
-.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(392px, 1fr)); gap: 20px; }
+.bd-grid { display: grid; grid-template-columns: repeat(2, minmax(392px, 460px)); gap: 20px; }
 .bd-card {
   display: flex; flex-direction: column; gap: 14px; padding: 20px;
   border-radius: 14px; border: 1px solid var(--strokes-type-default);
@@ -136,9 +127,13 @@ body { overflow: auto; padding: 32px 32px 56px; }
 .v-c .rail { --lk: 32px; }
 .v-c .lk-name { line-height: 17px; }
 .v-c .lk-desc { line-height: 14px; margin-top: 1px; }
-.lk-credit { margin: -8px 0 -2px; }
+/* The head carries 8px of padding below the logo and the rail 16px of
+   gap below the head; the credit gives both back, so it lands 4px under
+   the mark and reads as the lockup's last line rather than as a new row.
+   It is left-aligned with the mark's own left edge. */
+.lk-credit { margin: -20px 0 -4px; padding-left: 1px; }
 .rail:not(.is-open) .lk-credit { display: none; }
-.lk-credit .lk-by { margin: 0; font-size: 10.5px; }
+.lk-credit .lk-by { margin: 0; font-size: 10.5px; line-height: 12px; }
 /* D — 28 collapsed; open, 36 inside a card */
 .v-d .rail { --lk: 28px; }
 .v-d .rail.is-open { --lk: 36px; }
@@ -189,9 +184,8 @@ html = f'''<!DOCTYPE html>
 {sprite}
 <header class="bd-head">
   <div>
-    <h1>Client lockup · five ways</h1>
-    <p>The same panel each time, collapsed and open. What changes is how big the client's mark is in each
-      state, and where "Powered by cogentiq" lives. For scale: the category tiles are 24px, the Home and
+    <h1>Client lockup · two ways</h1>
+    <p>The same panel each time, collapsed and open. For scale: the category tiles are 24px, the Home and
       Marketplace buttons 36px.</p>
   </div>
   <div class="bd-mode" role="group" aria-label="Theme">
