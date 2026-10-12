@@ -1,5 +1,8 @@
 # Moving Collage Studio to a new Claude account and a new GitHub account
 
+**No terminal? Use `PASTE-THIS-FIRST.md` instead** — you only click, and Claude restores the repo itself.
+This file is the manual route.
+
 You need: the handoff zip, a computer with **git** installed (https://git-scm.com/downloads) — or GitHub Desktop
 (https://desktop.github.com) if you'd rather not use a terminal — and the new GitHub + Claude accounts.
 
@@ -70,8 +73,9 @@ Paste this (fill in your repo name):
 > Run `node studio/tools/smoke_test.js` to check everything works, then publish the app as a new private artifact
 > with `python3 studio/tools/build_single_file.py --artifact <dir>` and record the new artifact link in CLAUDE.md and
 > HANDOFF.md. Background removal in the artifact needs the model shipped alongside it: download RMBG-1.4
-> (`briaai/RMBG-1.4`, `onnx/model.onnx`) from Hugging Face, base64-encode it and publish it as 5 parts
-> `models/rmbg.part0.txt … part4.txt`, plus `vendor/ort-wasm-simd.wasm` (see bgremove.js). Commit and push.
+> (`briaai/RMBG-1.4`, `onnx/model_quantized.onnx`) from Hugging Face, base64-encode it and publish it as 5 parts
+> `models/rmbg.part0.txt … part4.txt`, plus `models/ultraface.txt` (base64 of onnxmodelzoo `version-RFB-320.onnx`)
+> and `vendor/ort-wasm-simd.wasm` (onnxruntime-web 1.16.3) — see bgremove.js. Commit and push.
 
 After that, ask for changes as before — the working rules (test in the browser, update README + CLAUDE.md, rebuild the
 single file, commit, push, republish, send a demo) are in CLAUDE.md, so the new chat follows them.
