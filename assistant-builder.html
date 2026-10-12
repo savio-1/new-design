@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Assistant Builder — Tools</title>
-  <meta name="description" content="Assistant builder canvas with the Tools side panel open (Figma: AI assistant <> User, node 6411:208104)." />
+  <meta name="description" content="Assistant builder canvas with the Tools side panel, including per-tool human review (HITL) checkpoints (Figma: AI assistant <> User, node 6411:208104)." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -445,7 +445,7 @@
       border: 0;
       outline: 0;
       background: transparent;
-      font: inherit;
+      font-family: inherit;
       color: var(--text-primary);
       caret-color: var(--text-primary);
       padding: 0;
@@ -514,6 +514,157 @@
     }
     .link-btn:hover { background: var(--bg-tonal-1); }
     .options-empty { padding: 6px 12px; color: var(--text-tertiary); }
+    .option-check { width: 16px; height: 16px; flex-shrink: 0; color: var(--text-blue); visibility: hidden; }
+    .option[aria-selected="true"] .option-check { visibility: visible; }
+
+    /* ── Selected tools + human review (HITL) ────────────────── */
+    .sidebar-inner { overflow: hidden; }
+    .sidebar-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-bottom: 8px;
+    }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .section-title { color: var(--text-primary); font-weight: 500; }
+    .count { color: var(--text-tertiary); font-weight: 400; }
+    .muted { color: var(--text-secondary); }
+    .faint { color: var(--text-tertiary); }
+
+    .switch {
+      position: relative;
+      width: 28px;
+      height: 16px;
+      flex-shrink: 0;
+      border-radius: 16px;
+      background: var(--stroke-default);
+      transition: background 0.15s ease;
+    }
+    .switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(18, 18, 18, 0.2);
+      transition: transform 0.15s ease;
+    }
+    .switch[aria-checked="true"] { background: var(--bg-primary); }
+    .switch[aria-checked="true"]::after { transform: translateX(12px); }
+    .switch:focus-visible, .ghost-btn:focus-visible, .tool-card-toggle:focus-visible {
+      outline: 2px solid rgba(13, 153, 255, 0.5);
+      outline-offset: 2px;
+    }
+
+    .hitl-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 11px;
+      border-radius: 12px;
+      background: var(--bg-page-1);
+      border: 1px solid var(--stroke-card);
+    }
+    .hitl-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .hitl-card .switch { margin-top: 2px; }
+
+    .tool-list { display: flex; flex-direction: column; gap: 8px; }
+    .tool-empty {
+      padding: 15px 11px;
+      border-radius: 12px;
+      border: 1px dashed var(--stroke-default);
+      text-align: center;
+      color: var(--text-tertiary);
+    }
+    .tool-card {
+      border-radius: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--stroke-card);
+      box-shadow: var(--shadow-card);
+      overflow: hidden;
+    }
+    .tool-card-head { display: flex; align-items: center; gap: 4px; padding: 7px 7px 7px 11px; }
+    .tool-card-toggle {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      border-radius: 6px;
+    }
+    .tool-card-toggle:disabled { cursor: default; }
+    .tool-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .review-pills { display: flex; gap: 4px; flex-shrink: 0; }
+    .review-pill {
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--bg-tonal-1);
+      color: var(--text-tonal-1);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .chevron { width: 16px; height: 16px; flex-shrink: 0; transition: transform 0.15s ease; }
+    .tool-card.is-open .chevron { transform: rotate(180deg); }
+    .ghost-btn svg { width: 16px; height: 16px; color: var(--text-tonal-2); }
+
+    .tool-card-body { border-top: 1px solid var(--stroke-line); padding: 4px 12px 12px; }
+    .tool-card-body[hidden] { display: none; }
+    .checkpoint { padding-top: 8px; }
+    .checkpoint + .checkpoint { margin-top: 8px; border-top: 1px solid var(--stroke-line); }
+    .checkpoint-row { display: flex; align-items: flex-start; gap: 12px; }
+    .checkpoint-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .checkpoint-title { font-weight: 500; }
+    .checkpoint-row .switch { margin-top: 2px; }
+
+    .condition { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .condition[hidden] { display: none; }
+    .condition-label { font-weight: 500; color: var(--text-primary); }
+    .condition textarea {
+      width: 100%;
+      min-height: 56px;
+      resize: vertical;
+      padding: 7px 9px;
+      border-radius: 8px;
+      background: var(--bg-field);
+      border: 1px solid var(--stroke-default);
+      font-family: inherit;
+      color: var(--text-primary);
+      outline: 0;
+    }
+    .condition textarea:focus { border-color: var(--stroke-focus); background: var(--bg-card); }
+    .condition textarea::placeholder { color: var(--text-tertiary); }
+    .condition-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--text-tertiary); }
+    .condition-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+    .json-preview { border-radius: 12px; border: 1px solid var(--stroke-card); background: var(--bg-page-1); }
+    .json-preview summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 11px;
+      cursor: pointer;
+      list-style: none;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+    .json-preview summary::-webkit-details-marker { display: none; }
+    .json-preview[open] .chevron { transform: rotate(180deg); }
+    .json-preview pre {
+      margin: 0;
+      padding: 0 11px 11px;
+      font: 11px/16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -646,7 +797,7 @@
               Tools
             </span>
             <div class="node-card is-active">
-              <p class="node-placeholder t-caption w-400">Connect actions to perform</p>
+              <p class="node-placeholder t-caption w-400" id="tools-node-text">Connect actions to perform</p>
               <button class="plus-btn" type="button" aria-label="Add tool" data-open-tools>
                 <img class="icon-16" src="assets/assistant-builder/plus.svg" width="16" height="16" alt="" />
               </button>
@@ -736,47 +887,52 @@
           <div class="sidebar-body">
             <div class="field">
               <label class="field-label t-body3 w-400" for="tool-search">Select tools <span class="req">*</span></label>
-              <div class="combo is-open" id="tool-combo">
+              <div class="combo" id="tool-combo">
                 <input class="combo-input t-body3" id="tool-search" type="text" autocomplete="off"
-                       role="combobox" autofocus aria-expanded="true" aria-controls="tool-options" aria-autocomplete="list" />
+                       role="combobox" aria-expanded="false" placeholder="Search tools" aria-controls="tool-options" aria-autocomplete="list" />
                 <button class="btn-primary-sm t-caption" type="button">+New Tool</button>
 
-                <div class="options" id="tool-options-wrap">
+                <div class="options" id="tool-options-wrap" hidden>
                   <ul class="options-list" id="tool-options" role="listbox" aria-multiselectable="true">
-                    <li class="option" role="option" aria-selected="false">
+                    <li class="option" role="option" aria-selected="false" data-tool-id="3f6c2a1e-8b4d-4e5f-9a7c-1d2e3f4a5b6c">
                       <span class="option-main t-body3">
                         <span class="option-icon"><img class="fill" src="assets/assistant-builder/tool-quantum.svg" width="20" height="20" alt="" /></span>
                         <span>Quantum Sync Module</span>
                       </span>
                       <span class="tag t-caption">Doc class..</span>
+                      <svg class="option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </li>
-                    <li class="option" role="option" aria-selected="false">
+                    <li class="option" role="option" aria-selected="false" data-tool-id="7a9e4b2c-1f3d-4c8e-b5a6-2e7f9d1c3b4a">
                       <span class="option-main t-body3">
                         <span class="option-icon"><img class="fill" src="assets/assistant-builder/tool-visionlens.svg" width="20" height="20" alt="" /></span>
                         <span>VisionLens Analytics</span>
                       </span>
                       <span class="tag t-caption">Code</span>
+                      <svg class="option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </li>
-                    <li class="option" role="option" aria-selected="false">
+                    <li class="option" role="option" aria-selected="false" data-tool-id="c2d8f6e1-5a7b-4d9c-8e3f-6b1a2c4d5e7f">
                       <span class="option-main t-body3">
                         <span class="option-icon"><img class="gmail" src="assets/assistant-builder/tool-gmail.svg" width="16" height="12" alt="" /></span>
                         <span>Client calendar</span>
                       </span>
                       <span class="tag t-caption">App</span>
+                      <svg class="option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </li>
-                    <li class="option" role="option" aria-selected="false">
+                    <li class="option" role="option" aria-selected="false" data-tool-id="e9b1c3d5-7f2a-4b6c-9d8e-3a5f7c1e2b4d">
                       <span class="option-main t-body3">
                         <span class="option-icon"><img class="gmail" src="assets/assistant-builder/tool-gmail.svg" width="16" height="12" alt="" /></span>
                         <span>EcoFleet Manager</span>
                       </span>
                       <span class="tag t-caption">App</span>
+                      <svg class="option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </li>
-                    <li class="option" role="option" aria-selected="false">
+                    <li class="option" role="option" aria-selected="false" data-tool-id="5d4e6f8a-2b1c-4e3d-a7f9-8c6b4d2e1f3a">
                       <span class="option-main t-body3">
                         <span class="option-icon"><img class="gcal" src="assets/assistant-builder/tool-gcal.svg" width="16" height="16" alt="" /></span>
                         <span>QuantumCoder</span>
                       </span>
                       <span class="tag t-caption">App</span>
+                      <svg class="option-check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </li>
                   </ul>
                   <p class="options-empty t-body3" hidden>No tools match.</p>
@@ -789,6 +945,31 @@
                 </div>
               </div>
             </div>
+
+            <!-- Assistant-level HITL switch: per-tool rules only apply while this is on -->
+            <div class="hitl-card">
+              <div class="hitl-copy">
+                <p class="t-body3 w-500">Human review</p>
+                <p class="t-caption muted">Pause for a person to approve. SQL writes and requests for user input always pause while this is on.</p>
+              </div>
+              <button class="switch" type="button" role="switch" aria-checked="true" aria-label="Human review" id="hitl-switch"></button>
+            </div>
+
+            <section class="field" aria-labelledby="selected-tools-title">
+              <div class="section-head">
+                <h3 class="section-title t-body3" id="selected-tools-title" style="margin:0;">Selected tools <span class="count" id="selected-count"></span></h3>
+              </div>
+              <p class="t-caption muted" id="hitl-tools-hint">Add extra review steps to individual tools.</p>
+              <div class="tool-list" id="tool-list"></div>
+            </section>
+
+            <details class="json-preview">
+              <summary class="t-caption">
+                Config preview
+                <img class="chevron" src="assets/assistant-builder/bp-arrow-down.svg" width="16" height="16" alt="" />
+              </summary>
+              <pre id="config-json"></pre>
+            </details>
           </div>
         </div>
       </aside>
@@ -856,11 +1037,188 @@
         empty.hidden = shown > 0;
         setOptionsOpen(true);
       });
+      // ── Selected tools + per-tool human review (HITL) ─────────
+      // Mirrors the assistant config: hitl_enabled + tools{ [assistant_tools.id]: { verify_input, verify_output } }.
+      const CONDITION_MAX = 500;
+      const CHECKPOINTS = [
+        { key: 'verify_input', title: 'Before it runs', pill: 'Before run',
+          desc: 'A person approves each call before the tool executes.' },
+        { key: 'verify_output', title: 'Before the result is used', pill: 'After run',
+          desc: 'A person checks the result before the assistant uses it. Not used for SQL writes, which have already run.' },
+      ];
+      const catalog = new Map(options.map((o) => [o.dataset.toolId, {
+        name: o.querySelector('.option-main > span:last-child').textContent.trim(),
+        iconHTML: o.querySelector('.option-icon').outerHTML,
+      }]));
+      const newRule = () => ({
+        verify_input: { enabled: false, condition: '' },
+        verify_output: { enabled: false, condition: '' },
+        open: false,
+      });
+      const state = { hitl: true, tools: new Map() };
+
+      // Demo seed: one tool with a conditional pre-check, one with a post-check.
+      const seed = (o, fn) => { const r = newRule(); fn(r); state.tools.set(o.dataset.toolId, r); };
+      seed(options[0], (r) => {
+        r.verify_input = { enabled: true, condition: 'Pause only when the retrieval query is about employee PII.' };
+        r.open = true;
+      });
+      seed(options[2], (r) => { r.verify_output.enabled = true; });
+
+      const hitlSwitch = document.getElementById('hitl-switch');
+      const toolList = document.getElementById('tool-list');
+      const selectedCount = document.getElementById('selected-count');
+      const toolsHint = document.getElementById('hitl-tools-hint');
+      const configJson = document.getElementById('config-json');
+      const nodeText = document.getElementById('tools-node-text');
+
+      const esc = (str) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const normCondition = (cp) => (cp.enabled && cp.condition.trim() ? cp.condition.trim() : null);
+      const hasReview = (rule) => rule.verify_input.enabled || rule.verify_output.enabled;
+
+      // Only tools with at least one enabled checkpoint are written; omitted checkpoints default to off.
+      const serialize = () => {
+        const tools = {};
+        state.tools.forEach((rule, id) => {
+          if (!hasReview(rule)) return;
+          tools[id] = {
+            verify_input: { enabled: rule.verify_input.enabled, condition: normCondition(rule.verify_input) },
+            verify_output: { enabled: rule.verify_output.enabled, condition: normCondition(rule.verify_output) },
+          };
+        });
+        return { hitl_enabled: state.hitl, tools };
+      };
+
+      const pillsHTML = (rule) => (state.hitl
+        ? CHECKPOINTS.filter((c) => rule[c.key].enabled)
+            .map((c) => `<span class="review-pill t-caption">${c.pill}</span>`).join('')
+        : '');
+
+      const conditionHint = (cp) => (cp.condition.trim()
+        ? 'An AI check decides if a call matches. If unsure, it pauses.'
+        : 'Leave empty to pause on every call.');
+
+      const checkpointHTML = (id, name, rule, c) => {
+        const cp = rule[c.key];
+        const fieldId = `cond-${c.key}-${id}`;
+        return `
+          <div class="checkpoint" data-key="${c.key}">
+            <div class="checkpoint-row">
+              <div class="checkpoint-copy">
+                <p class="checkpoint-title t-caption">${c.title}</p>
+                <p class="t-caption muted">${c.desc}</p>
+              </div>
+              <button class="switch" type="button" role="switch" aria-checked="${cp.enabled}"
+                      aria-label="${esc(name)}: pause ${c.title.toLowerCase()}" data-action="toggle-checkpoint"></button>
+            </div>
+            <div class="condition"${cp.enabled ? '' : ' hidden'}>
+              <label class="condition-label t-caption" for="${fieldId}">Only pause when… <span class="faint w-400">(optional)</span></label>
+              <textarea class="t-caption" id="${fieldId}" rows="2" maxlength="${CONDITION_MAX}"
+                        placeholder="e.g. The retrieval query is about employee PII">${esc(cp.condition)}</textarea>
+              <div class="condition-meta t-caption">
+                <span data-role="hint">${conditionHint(cp)}</span>
+                <span class="condition-count" data-role="count">${cp.condition.length}/${CONDITION_MAX}</span>
+              </div>
+            </div>
+          </div>`;
+      };
+
+      const cardHTML = (id, rule) => {
+        const { name, iconHTML } = catalog.get(id);
+        const open = state.hitl && rule.open;
+        return `
+          <div class="tool-card${open ? ' is-open' : ''}" data-id="${id}">
+            <div class="tool-card-head">
+              <button class="tool-card-toggle" type="button" data-action="toggle-card"
+                      aria-expanded="${open}" aria-controls="rules-${id}"${state.hitl ? '' : ' disabled'}>
+                ${iconHTML}
+                <span class="tool-name t-body3">${esc(name)}</span>
+                <span class="review-pills">${pillsHTML(rule)}</span>
+                ${state.hitl ? '<img class="chevron" src="assets/assistant-builder/bp-arrow-down.svg" width="16" height="16" alt="" />' : ''}
+              </button>
+              <button class="ghost-btn" type="button" data-action="remove" aria-label="Remove ${esc(name)}">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 4.5l7 7m0-7l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              </button>
+            </div>
+            <div class="tool-card-body" id="rules-${id}"${open ? '' : ' hidden'}>
+              ${CHECKPOINTS.map((c) => checkpointHTML(id, name, rule, c)).join('')}
+            </div>
+          </div>`;
+      };
+
+      const renderSummary = () => {
+        const n = state.tools.size;
+        const reviewed = [...state.tools.values()].filter(hasReview).length;
+        selectedCount.textContent = n ? `(${n})` : '';
+        nodeText.textContent = n
+          ? `${n} tool${n === 1 ? '' : 's'} connected${state.hitl && reviewed ? ` · ${reviewed} with review` : ''}`
+          : 'Connect actions to perform';
+        configJson.textContent = JSON.stringify(serialize(), null, 2);
+      };
+
+      const render = () => {
+        hitlSwitch.setAttribute('aria-checked', String(state.hitl));
+        toolsHint.textContent = state.hitl
+          ? 'Open a tool to add a review step before or after it runs.'
+          : 'Turn on human review to add review steps to individual tools.';
+        toolList.innerHTML = state.tools.size
+          ? [...state.tools].map(([id, rule]) => cardHTML(id, rule)).join('')
+          : '<p class="tool-empty t-caption">No tools selected yet.</p>';
+        options.forEach((o) => o.setAttribute('aria-selected', String(state.tools.has(o.dataset.toolId))));
+        renderSummary();
+      };
+
       options.forEach((o) => {
         o.addEventListener('click', () => {
-          o.setAttribute('aria-selected', String(o.getAttribute('aria-selected') !== 'true'));
+          const id = o.dataset.toolId;
+          if (state.tools.has(id)) state.tools.delete(id);
+          else state.tools.set(id, newRule());
+          render();
         });
       });
+
+      hitlSwitch.addEventListener('click', () => { state.hitl = !state.hitl; render(); });
+
+      toolList.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const card = btn.closest('.tool-card');
+        const id = card.dataset.id;
+        const rule = state.tools.get(id);
+        if (btn.dataset.action === 'remove') {
+          state.tools.delete(id);
+          render();
+          return;
+        }
+        if (btn.dataset.action === 'toggle-card') {
+          rule.open = !rule.open;
+          render();
+          toolList.querySelector(`[data-id="${id}"] .tool-card-toggle`).focus();
+          return;
+        }
+        if (btn.dataset.action === 'toggle-checkpoint') {
+          const key = btn.closest('.checkpoint').dataset.key;
+          rule[key].enabled = !rule[key].enabled;
+          render();
+          const next = toolList.querySelector(`[data-id="${id}"] [data-key="${key}"]`);
+          if (rule[key].enabled) next.querySelector('textarea').focus();
+          else next.querySelector('.switch').focus();
+        }
+      });
+
+      // Typing updates state in place so the textarea keeps focus.
+      toolList.addEventListener('input', (e) => {
+        if (e.target.tagName !== 'TEXTAREA') return;
+        const card = e.target.closest('.tool-card');
+        const checkpoint = e.target.closest('.checkpoint');
+        const cp = state.tools.get(card.dataset.id)[checkpoint.dataset.key];
+        cp.condition = e.target.value.slice(0, CONDITION_MAX);
+        checkpoint.querySelector('[data-role="count"]').textContent = `${cp.condition.length}/${CONDITION_MAX}`;
+        checkpoint.querySelector('[data-role="hint"]').textContent = conditionHint(cp);
+        renderSummary();
+      });
+
+      render();
 
       // Close popovers on outside click / Escape
       document.addEventListener('click', (e) => {
