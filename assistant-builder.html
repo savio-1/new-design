@@ -629,39 +629,93 @@
     .hc-check input:checked + span svg { visibility: visible; }
 
     .cond-link {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      max-width: calc(100% - 39px);
       margin: 2px 0 0 39px;
       padding: 0 4px;
       border-radius: 4px;
       color: var(--text-tonal-1);
       font-weight: 500;
+      text-align: left;
     }
     .cond-link:hover { text-decoration: underline; }
-    .cond-fields { display: flex; flex-direction: column; gap: 6px; padding: 6px 11px 2px 39px; }
-    .cond-fields[hidden] { display: none; }
-    .cond-field {
+    .cond-link--set { color: var(--text-secondary); font-weight: 400; }
+    .cond-link--set b { flex-shrink: 0; font-weight: 500; color: var(--text-primary); }
+    .cond-link--set span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cond-link--set svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-tonal-1); }
+    .hc-empty { padding: 8px 11px 4px; color: var(--text-tertiary); }
+
+    /* ── Condition modal ─────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(18, 18, 18, 0.32);
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .modal {
+      width: 440px;
+      max-width: 100%;
+      max-height: calc(100% - 32px);
+      overflow-y: auto;
       display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 0 8px;
-      height: 28px;
+      flex-direction: column;
+      border-radius: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--stroke-default);
+      box-shadow: 0 16px 40px rgba(18, 18, 18, 0.18), 0 2px 6px rgba(18, 18, 18, 0.08);
+    }
+    .modal-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--stroke-line);
+    }
+    #cond-icon { display: flex; margin-top: 2px; flex-shrink: 0; }
+    .modal-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .modal-title { margin: 0; font-weight: 500; }
+    .modal-close { display: inline-flex; padding: 4px; border-radius: 6px; color: var(--text-tonal-2); }
+    .modal-close:hover { background: var(--bg-hover); }
+    .modal-close svg { width: 16px; height: 16px; }
+    .modal-body { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+    .mc { display: flex; flex-direction: column; gap: 8px; }
+    .mc-head { display: flex; align-items: flex-start; gap: 12px; }
+    .mc-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .mc-head .switch { margin-top: 2px; }
+    .mc textarea {
+      width: 100%;
+      min-height: 76px;
+      resize: vertical;
+      padding: 9px 11px;
       border-radius: 8px;
       background: var(--bg-field);
       border: 1px solid var(--stroke-default);
-    }
-    .cond-field:focus-within { border-color: var(--stroke-focus); background: var(--bg-card); }
-    .cond-field b { flex-shrink: 0; font-weight: 500; color: var(--text-secondary); }
-    .cond-field input {
-      flex: 1;
-      min-width: 0;
-      border: 0;
-      outline: 0;
-      background: transparent;
       font-family: inherit;
       color: var(--text-primary);
-      padding: 0;
+      outline: 0;
     }
-    .cond-field input::placeholder { color: var(--text-tertiary); }
-    .hc-empty { padding: 8px 11px 4px; color: var(--text-tertiary); }
+    .mc textarea:focus { border-color: var(--stroke-focus); background: var(--bg-card); box-shadow: 0 0 0 2.5px rgba(13, 153, 255, 0.2); }
+    .mc textarea::placeholder { color: var(--text-tertiary); }
+    .mc-meta { display: flex; justify-content: space-between; gap: 8px; color: var(--text-tertiary); }
+    .mc-count { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .modal-divider { height: 1px; background: var(--stroke-line); }
+    .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px 16px; }
+    .btn-sm { padding: 5px 12px; border-radius: 8px; font-weight: 500; }
+    .btn-sm--ghost { border: 1px solid var(--stroke-default); color: var(--text-tonal-2); }
+    .btn-sm--ghost:hover { background: var(--bg-hover); }
+    .btn-sm--primary { background: var(--bg-primary); color: #fff; }
+    .btn-sm--primary:hover { filter: brightness(0.94); }
+    .modal :focus-visible { outline: 2px solid rgba(13, 153, 255, 0.5); outline-offset: 2px; }
+    @media (prefers-reduced-motion: no-preference) {
+      .modal-backdrop:not([hidden]) .modal { animation: modal-in 0.14s ease-out; }
+      @keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+    }
   </style>
 </head>
 <body>
@@ -966,6 +1020,27 @@
         </div>
       </aside>
     </div>
+
+    <!-- Condition modal: per-tool pause conditions -->
+    <div class="modal-backdrop" id="cond-modal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cond-title" aria-describedby="cond-desc">
+        <div class="modal-head">
+          <span id="cond-icon"></span>
+          <div class="modal-titles">
+            <h2 class="modal-title t-body2" id="cond-title">Pause conditions</h2>
+            <p class="t-caption muted" id="cond-desc">Leave a condition empty to pause on every call.</p>
+          </div>
+          <button class="modal-close" type="button" data-modal-close aria-label="Close">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 4.5l7 7m0-7l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="modal-body" id="cond-body"></div>
+        <div class="modal-foot">
+          <button class="btn-sm btn-sm--ghost t-body3" type="button" data-modal-close>Cancel</button>
+          <button class="btn-sm btn-sm--primary t-body3" type="button" id="cond-save">Save</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -1043,7 +1118,6 @@
       const newRule = () => ({
         verify_input: { enabled: false, condition: '' },
         verify_output: { enabled: false, condition: '' },
-        showConditions: false,
       });
       const state = { hitl: true, tools: new Map() };
 
@@ -1051,7 +1125,6 @@
       const seed = (i, fn) => { const r = newRule(); fn(r); state.tools.set(options[i].dataset.toolId, r); };
       seed(0, (r) => {
         r.verify_input = { enabled: true, condition: 'the query is about employee PII' };
-        r.showConditions = true;
       });
       seed(2, (r) => { r.verify_output.enabled = true; });
       seed(4, () => {});
@@ -1065,6 +1138,7 @@
       const esc = (str) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const hasPause = (rule) => rule.verify_input.enabled || rule.verify_output.enabled;
       const tick = '<svg viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const pencil = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.6 2.4l2 2L4.2 9.8H2.2v-2l5.4-5.4z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>';
       const cross = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.5 3.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 
       // Only tools with a pause are written; a condition is null unless its pause is on and non-blank.
@@ -1090,10 +1164,16 @@
 
       const rowHTML = (id, rule) => {
         const { name, iconHTML } = catalog.get(id);
-        const enabled = CHECKS.filter((c) => rule[c.key].enabled);
-        const conditionCount = enabled.filter((c) => rule[c.key].condition.trim()).length;
-        const linkText = rule.showConditions ? 'Hide conditions'
-          : conditionCount ? `Edit condition${conditionCount > 1 ? 's' : ''}` : '+ Only pause when…';
+        const set = CHECKS.filter((c) => rule[c.key].enabled && rule[c.key].condition.trim());
+        const link = set.length
+          ? `<button class="cond-link cond-link--set t-caption" type="button" data-action="conditions"
+                     aria-label="Edit conditions for ${esc(name)}">
+               <b>${set.length > 1 ? 'Conditions:' : `${set[0].label}:`}</b>
+               <span>${set.length > 1 ? `${set.length} set` : esc(rule[set[0].key].condition.trim())}</span>
+               ${pencil}
+             </button>`
+          : `<button class="cond-link t-caption" type="button" data-action="conditions"
+                     aria-label="Add condition for ${esc(name)}">+ Add condition</button>`;
         return `
           <div class="hc-item" data-id="${id}">
             <div class="hc-row">
@@ -1105,16 +1185,7 @@
                   <span>${tick}</span>
                 </label>`).join('')}
             </div>
-            ${enabled.length ? `
-              <button class="cond-link t-caption" type="button" data-action="conditions" aria-expanded="${rule.showConditions}">${linkText}</button>
-              <div class="cond-fields"${rule.showConditions ? '' : ' hidden'}>
-                ${enabled.map((c) => `
-                  <label class="cond-field t-caption">
-                    <b>${c.label}</b>
-                    <input type="text" data-key="${c.key}" maxlength="${CONDITION_MAX}" value="${esc(rule[c.key].condition)}"
-                           placeholder="Every call, or describe when…" aria-label="${esc(name)}: pause ${c.hint.toLowerCase()} only when" />
-                  </label>`).join('')}
-              </div>` : ''}
+            ${link}
           </div>`;
       };
 
@@ -1167,20 +1238,106 @@
 
       hcList.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action="conditions"]');
-        if (!btn) return;
-        const id = btn.closest('.hc-item').dataset.id;
-        const rule = state.tools.get(id);
-        rule.showConditions = !rule.showConditions;
-        render();
-        const item = hcList.querySelector(`[data-id="${id}"]`);
-        (rule.showConditions ? item.querySelector('.cond-field input') : item.querySelector('.cond-link')).focus();
+        if (btn) openConditions(btn.closest('.hc-item').dataset.id);
       });
 
-      // Typing updates state in place so the input keeps focus.
-      hcList.addEventListener('input', (e) => {
-        if (e.target.type !== 'text') return;
-        const rule = state.tools.get(e.target.closest('.hc-item').dataset.id);
-        rule[e.target.dataset.key].condition = e.target.value.slice(0, CONDITION_MAX);
+      // ── Condition modal ───────────────────────────────────────
+      // Edits a draft copy of one tool's rule; Save commits it, Cancel/Escape/backdrop discards it.
+      const modal = document.getElementById('cond-modal');
+      const modalBody = document.getElementById('cond-body');
+      const modalIcon = document.getElementById('cond-icon');
+      const modalTitle = document.getElementById('cond-title');
+      let editing = null; // { id, draft, returnFocus }
+
+      const conditionHint = (text) => (text.trim()
+        ? 'An AI check decides if a call matches. If unsure, it pauses.'
+        : 'Empty: pauses on every call.');
+
+      const modalSectionHTML = (c, cp) => `
+        <section class="mc" data-key="${c.key}">
+          <div class="mc-head">
+            <div class="mc-copy">
+              <p class="t-body3 w-500" id="mc-${c.key}">Pause ${c.hint.toLowerCase()}</p>
+              <p class="t-caption muted">${c.key === 'verify_input'
+                ? 'A person approves the call before the tool executes.'
+                : 'A person reviews the result before the assistant uses it. Not used for SQL writes.'}</p>
+            </div>
+            <button class="switch" type="button" role="switch" aria-checked="${cp.enabled}" aria-labelledby="mc-${c.key}"></button>
+          </div>
+          ${cp.enabled ? `
+          <textarea class="t-body3" id="cond-${c.key}" rows="3" maxlength="${CONDITION_MAX}"
+                    placeholder="Only pause when… e.g. the query is about employee PII"
+                    aria-label="Pause ${c.hint.toLowerCase()} only when">${esc(cp.condition)}</textarea>
+          <div class="mc-meta t-caption">
+            <span data-role="hint">${conditionHint(cp.condition)}</span>
+            <span class="mc-count" data-role="count">${cp.condition.length}/${CONDITION_MAX}</span>
+          </div>` : ''}
+        </section>`;
+
+      const renderModal = () => {
+        const { name, iconHTML } = catalog.get(editing.id);
+        modalIcon.innerHTML = iconHTML;
+        modalTitle.textContent = name;
+        modalBody.innerHTML = CHECKS.map((c) => modalSectionHTML(c, editing.draft[c.key])).join('<div class="modal-divider"></div>');
+      };
+
+      const openConditions = (id) => {
+        const rule = state.tools.get(id);
+        editing = {
+          id,
+          draft: { verify_input: { ...rule.verify_input }, verify_output: { ...rule.verify_output } },
+          returnFocus: document.activeElement,
+        };
+        renderModal();
+        modal.hidden = false;
+        (modalBody.querySelector('textarea') || modalBody.querySelector('.switch')).focus();
+      };
+
+      const closeConditions = (save) => {
+        if (!editing) return;
+        const { id, draft, returnFocus } = editing;
+        if (save) {
+          const rule = state.tools.get(id);
+          CHECKS.forEach(({ key }) => { rule[key] = { enabled: draft[key].enabled, condition: draft[key].condition }; });
+          render();
+        }
+        modal.hidden = true;
+        editing = null;
+        const back = hcList.querySelector(`[data-id="${id}"] [data-action="conditions"]`) || returnFocus;
+        if (back && back.isConnected) back.focus();
+      };
+
+      modalBody.addEventListener('click', (e) => {
+        const sw = e.target.closest('.switch');
+        if (!sw) return;
+        const key = sw.closest('.mc').dataset.key;
+        editing.draft[key].enabled = !editing.draft[key].enabled;
+        renderModal();
+        const section = modalBody.querySelector(`[data-key="${key}"]`);
+        (editing.draft[key].enabled ? section.querySelector('textarea') : section.querySelector('.switch')).focus();
+      });
+
+      modalBody.addEventListener('input', (e) => {
+        if (e.target.tagName !== 'TEXTAREA') return;
+        const section = e.target.closest('.mc');
+        const cp = editing.draft[section.dataset.key];
+        cp.condition = e.target.value.slice(0, CONDITION_MAX);
+        section.querySelector('[data-role="count"]').textContent = `${cp.condition.length}/${CONDITION_MAX}`;
+        section.querySelector('[data-role="hint"]').textContent = conditionHint(cp.condition);
+      });
+
+      document.getElementById('cond-save').addEventListener('click', () => closeConditions(true));
+      modal.querySelectorAll('[data-modal-close]').forEach((b) => b.addEventListener('click', () => closeConditions(false)));
+      modal.addEventListener('mousedown', (e) => { if (e.target === modal) closeConditions(false); });
+      modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.stopPropagation(); closeConditions(false); return; }
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { closeConditions(true); return; }
+        if (e.key !== 'Tab') return;
+        // Keep focus inside the dialog.
+        const f = [...modal.querySelectorAll('button, textarea')];
+        const first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       });
 
       render();
