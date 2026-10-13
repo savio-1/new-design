@@ -581,7 +581,7 @@
     .switch[aria-checked="true"] { background: var(--bg-primary); }
     .switch[aria-checked="true"]::after { transform: translateX(12px); }
     .switch:disabled { opacity: 0.5; cursor: not-allowed; }
-    .switch:focus-visible, .pill-remove:focus-visible, .cond-link:focus-visible, .hc-check input:focus-visible + span {
+    .switch:focus-visible, .pill-remove:focus-visible, .cond-btn:focus-visible {
       outline: 2px solid rgba(13, 153, 255, 0.5);
       outline-offset: 2px;
     }
@@ -594,58 +594,60 @@
     }
     .hc-head { display: flex; align-items: center; gap: 12px; padding: 11px; }
     .hc-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .hc-body { border-top: 1px solid var(--stroke-line); padding: 4px 0 8px; }
+    .hc-body { border-top: 1px solid var(--stroke-line); }
     .hc-body[hidden] { display: none; }
 
-    /* Tool × checkpoint grid: name | Before | After */
-    .hc-grid-head, .hc-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 52px 52px;
-      align-items: center;
-      gap: 4px;
-      padding: 0 11px;
-    }
-    .hc-grid-head { padding-top: 6px; padding-bottom: 4px; color: var(--text-tertiary); }
-    .hc-grid-head span:not(:first-child) { text-align: center; }
-    .hc-item { padding: 6px 0; }
+    /* One row per tool: name + condition button, saved conditions previewed beneath */
+    .hc-item { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
     .hc-item + .hc-item { border-top: 1px solid var(--stroke-line); }
-    .hc-tool { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 500; }
+    .hc-row { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+    .hc-tool { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; font-weight: 500; }
     .hc-tool .pill-name { flex: 1; min-width: 0; }
-    .hc-check { display: flex; justify-content: center; cursor: pointer; }
-    .hc-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-    .hc-check span {
-      width: 16px;
-      height: 16px;
-      border-radius: 4px;
-      border: 1.5px solid #c2c2c2;
-      background: var(--bg-card);
-      display: grid;
-      place-items: center;
-      transition: background 0.1s ease, border-color 0.1s ease;
-    }
-    .hc-check:hover span { border-color: var(--stroke-focus); }
-    .hc-check input:checked + span { background: var(--bg-primary); border-color: var(--bg-primary); }
-    .hc-check span svg { width: 10px; height: 10px; color: #fff; visibility: hidden; }
-    .hc-check input:checked + span svg { visibility: visible; }
-
-    .cond-link {
-      display: flex;
+    .cond-btn {
+      flex-shrink: 0;
+      display: inline-flex;
       align-items: center;
       gap: 4px;
-      max-width: calc(100% - 39px);
-      margin: 2px 0 0 39px;
-      padding: 0 4px;
-      border-radius: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
       color: var(--text-tonal-1);
       font-weight: 500;
-      text-align: left;
+      white-space: nowrap;
     }
-    .cond-link:hover { text-decoration: underline; }
-    .cond-link--set { color: var(--text-secondary); font-weight: 400; }
-    .cond-link--set b { flex-shrink: 0; font-weight: 500; color: var(--text-primary); }
-    .cond-link--set span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .cond-link--set svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-tonal-1); }
-    .hc-empty { padding: 8px 11px 4px; color: var(--text-tertiary); }
+    .cond-btn:hover { background: var(--bg-tonal-1); }
+    .cond-btn svg { width: 12px; height: 12px; }
+    .cond-btn--edit { color: var(--text-tonal-2); }
+    .cond-btn--edit:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    .cond-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-left: 28px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--bg-page-1);
+      border: 1px solid var(--stroke-card);
+    }
+    .cond-line { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 8px; }
+    .cond-tag {
+      justify-self: start;
+      padding: 0 6px;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .cond-tag--before { background: var(--bg-tonal-1); color: var(--text-tonal-1); }
+    .cond-tag--after { background: var(--bg-badge-purple); color: var(--text-purple); }
+    .cond-text {
+      color: var(--text-primary);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow-wrap: anywhere;
+    }
+    .cond-text--any { color: var(--text-tertiary); }
+    .hc-empty { padding: 12px; color: var(--text-tertiary); }
 
     /* ── Condition modal ─────────────────────────────────────── */
     .modal-backdrop {
@@ -1005,14 +1007,11 @@
               <div class="hc-head">
                 <div class="hc-copy">
                   <p class="t-body3 w-500" id="hc-title">Human checkpoint</p>
-                  <p class="t-caption muted">Pause for a person to approve a tool call. SQL writes always pause.</p>
+                  <p class="t-caption muted">Add a condition to pause a tool for a person to review. SQL writes always pause.</p>
                 </div>
                 <button class="switch" type="button" role="switch" aria-checked="true" aria-labelledby="hc-title" id="hitl-switch"></button>
               </div>
               <div class="hc-body" id="hc-body">
-                <div class="hc-grid-head t-caption" aria-hidden="true">
-                  <span>Pause tool</span><span>Before</span><span>After</span>
-                </div>
                 <div id="hc-list"></div>
               </div>
             </section>
@@ -1028,7 +1027,7 @@
           <span id="cond-icon"></span>
           <div class="modal-titles">
             <h2 class="modal-title t-body2" id="cond-title">Pause conditions</h2>
-            <p class="t-caption muted" id="cond-desc">Leave a condition empty to pause on every call.</p>
+            <p class="t-caption muted" id="cond-desc">Choose when a person reviews this tool. Leave a condition empty to pause on every call.</p>
           </div>
           <button class="modal-close" type="button" data-modal-close aria-label="Close">
             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4.5 4.5l7 7m0-7l-7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -1124,9 +1123,12 @@
       // Example setup so the checkpoint list isn't empty on first view.
       const seed = (i, fn) => { const r = newRule(); fn(r); state.tools.set(options[i].dataset.toolId, r); };
       seed(0, (r) => {
-        r.verify_input = { enabled: true, condition: 'the query is about employee PII' };
+        r.verify_input = { enabled: true, condition: 'The retrieval query is about employee PII' };
+        r.verify_output.enabled = true;
       });
-      seed(2, (r) => { r.verify_output.enabled = true; });
+      seed(2, (r) => {
+        r.verify_output = { enabled: true, condition: 'The result contains a client phone number or home address' };
+      });
       seed(4, () => {});
 
       const pills = document.getElementById('tool-pills');
@@ -1137,7 +1139,6 @@
 
       const esc = (str) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
       const hasPause = (rule) => rule.verify_input.enabled || rule.verify_output.enabled;
-      const tick = '<svg viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M2 5.2l2 2 4-4.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const pencil = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M7.6 2.4l2 2L4.2 9.8H2.2v-2l5.4-5.4z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg>';
       const cross = '<svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.5 3.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
 
@@ -1164,28 +1165,28 @@
 
       const rowHTML = (id, rule) => {
         const { name, iconHTML } = catalog.get(id);
-        const set = CHECKS.filter((c) => rule[c.key].enabled && rule[c.key].condition.trim());
-        const link = set.length
-          ? `<button class="cond-link cond-link--set t-caption" type="button" data-action="conditions"
-                     aria-label="Edit conditions for ${esc(name)}">
-               <b>${set.length > 1 ? 'Conditions:' : `${set[0].label}:`}</b>
-               <span>${set.length > 1 ? `${set.length} set` : esc(rule[set[0].key].condition.trim())}</span>
-               ${pencil}
-             </button>`
-          : `<button class="cond-link t-caption" type="button" data-action="conditions"
-                     aria-label="Add condition for ${esc(name)}">+ Add condition</button>`;
+        const active = CHECKS.filter((c) => rule[c.key].enabled);
         return `
           <div class="hc-item" data-id="${id}">
             <div class="hc-row">
               <span class="hc-tool t-body3">${iconHTML}<span class="pill-name">${esc(name)}</span></span>
-              ${CHECKS.map((c) => `
-                <label class="hc-check" title="Pause ${c.hint.toLowerCase()}">
-                  <input type="checkbox" data-key="${c.key}" ${rule[c.key].enabled ? 'checked' : ''}
-                         aria-label="${esc(name)}: pause ${c.hint.toLowerCase()}" />
-                  <span>${tick}</span>
-                </label>`).join('')}
+              ${active.length
+                ? `<button class="cond-btn cond-btn--edit t-caption" type="button" data-action="conditions"
+                           aria-label="Edit condition for ${esc(name)}">${pencil}Edit</button>`
+                : `<button class="cond-btn t-caption" type="button" data-action="conditions"
+                           aria-label="Add condition for ${esc(name)}">+ Add condition</button>`}
             </div>
-            ${link}
+            ${active.length ? `
+              <div class="cond-preview">
+                ${active.map((c) => {
+                  const text = rule[c.key].condition.trim();
+                  return `
+                    <div class="cond-line">
+                      <span class="cond-tag cond-tag--${c.label.toLowerCase()} t-caption">${c.label}</span>
+                      <span class="cond-text t-caption${text ? '' : ' cond-text--any'}"${text ? ` title="${esc(text)}"` : ''}>${text ? esc(text) : 'Every call'}</span>
+                    </div>`;
+                }).join('')}
+              </div>` : ''}
           </div>`;
       };
 
@@ -1225,15 +1226,6 @@
         if (!btn) return;
         state.tools.delete(btn.closest('.pill').dataset.id);
         render();
-      });
-
-      hcList.addEventListener('change', (e) => {
-        if (e.target.type !== 'checkbox') return;
-        const id = e.target.closest('.hc-item').dataset.id;
-        const key = e.target.dataset.key;
-        state.tools.get(id)[key].enabled = e.target.checked;
-        render();
-        hcList.querySelector(`[data-id="${id}"] input[type="checkbox"][data-key="${key}"]`).focus();
       });
 
       hcList.addEventListener('click', (e) => {
