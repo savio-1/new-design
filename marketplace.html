@@ -2358,17 +2358,16 @@ body.cq { margin: 0; }
     .mk-note--todo { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); }
     .mk-note--todo .mk-note__ic { color: var(--mk-warn-fg); }
     .mk-disclaimer {
-      display: flex; flex-direction: column; gap: 10px;
+      display: flex; flex-direction: column; gap: 8px;
       padding: 12px; border-radius: var(--radius-md);
       background: var(--backgrounds-card-bg-4);
       border: 1px solid var(--strokes-card-default);
     }
     .mk-disclaimer__head { display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
     .mk-disclaimer__head .cq-ic { color: var(--mk-warn-fg); flex: none; }
-    .mk-disclaimer__list { margin: 0; padding: 0 0 0 24px; list-style: none; display: flex; flex-direction: column; gap: 8px; }
-    .mk-disclaimer__list li { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; }
-    .mk-disclaimer__list li > :first-child { color: var(--text-primary); }
-    .mk-disclaimer__list li > :last-child { color: var(--text-secondary); }
+    .mk-disclaimer__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .mk-disclaimer__list li { display: flex; align-items: flex-start; gap: 8px; color: var(--text-secondary); }
+    .mk-disclaimer__list li .cq-ic { flex: none; margin-top: 2px; color: var(--text-teritiary); }
     .mk-pv__lede { margin: -4px 0 0; color: var(--text-secondary); max-width: 64ch; }
     .mk-inside { display: flex; flex-direction: column; border: 1px solid var(--strokes-card-default); border-radius: var(--radius-lg); overflow: hidden; }
     .mk-inside__row { display: flex; align-items: flex-start; gap: 16px; padding: 12px; }
@@ -2665,6 +2664,9 @@ body.cq { margin: 0; }
   </symbol>
   <symbol id="mk-heart" viewBox="0 0 20 20" fill="none"><path d="M10 6.41152C8.33333 2.49949 2.5 2.91616 2.5 7.91618C2.5 12.9162 10 17.083 10 17.083C10 17.083 17.5 12.9162 17.5 7.91618C17.5 2.91616 11.6667 2.49949 10 6.41152Z" stroke="currentColor" stroke-width="1.245" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="mk-info" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.25v3.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5.1" r=".85" fill="currentColor"/></symbol>
+  <symbol id="mk-coin" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.4"/><path d="M9.9 6.1C9.6 5.5 8.9 5.1 8 5.1c-1.1 0-1.9.6-1.9 1.4 0 1.9 3.8 1 3.8 2.9 0 .8-.8 1.5-1.9 1.5-.9 0-1.7-.4-2-1.1M8 4v1.1M8 10.9V12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+  <symbol id="mk-lock" viewBox="0 0 16 16" fill="none"><rect x="3.25" y="7" width="9.5" height="6.75" rx="1.6" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 7V5.1a2.5 2.5 0 0 1 5 0V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="10.3" r=".9" fill="currentColor"/></symbol>
+  <symbol id="mk-sync" viewBox="0 0 16 16" fill="none"><path d="M13 6.2A5.2 5.2 0 0 0 3.6 4.6M3 9.8a5.2 5.2 0 0 0 9.4 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M13.2 2.9v3.4H9.8M2.8 13.1V9.7h3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="mk-close" viewBox="0 0 20 20" fill="none"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
   <symbol id="mk-arrow-left" viewBox="0 0 16 16" fill="none"><path d="M10 4L6 8L10 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="mk-arrow-right" viewBox="0 0 16 16" fill="none"><path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -3613,17 +3615,18 @@ function disclaimerOf(a) {
   const integs = a.conns.filter(c => c.shared).map(c => INTEGRATIONS[c.key].name);
   const model = a.model && a.model.shared ? a.model.m : null;
   if (!integs.length && !model) return '';
-  const w = TYPE_WORD[a.type];
+  const what = integs.length && model ? 'connections and model' : integs.length ? 'connections' : 'model';
   const items = [];
-  if (model) items.push(['Charges', `Every run calls the publisher's ${esc(model.name)} deployment. That usage is charged to your Finance workspace, at the rate set for the publisher's model.`]);
-  if (integs.length) items.push(['Your data', `Anything this ${w} reads or writes through ${esc(listJoin(integs))} goes through the publisher's accounts. Admins in the publisher's organisation can see that activity.`]);
-  if (model) items.push(['Model terms', `Prompts and outputs are processed under the publisher's agreement with ${esc(model.vendor)}, not yours. Check it meets your data policy before sending confidential information.`]);
-  items.push(['Availability', `The publisher can change or remove what they share at any time. You can switch to your own ${integs.length && model ? 'connections and model' : integs.length ? 'connections' : 'model'} from the ${w}'s settings.`]);
+  if (model) items.push(['mk-coin', `Runs use the publisher's ${esc(model.name)}. Usage is charged to your workspace.`]);
+  items.push(['mk-lock', integs.length
+    ? `Your data passes through the publisher's ${esc(listJoin(integs))} accounts${model ? `, and their ${esc(model.vendor)} model` : ''}.`
+    : `Prompts and outputs are processed by the publisher's ${esc(model.vendor)} model.`]);
+  items.push(['mk-sync', `The publisher can change or remove access. Switch to your own ${what} anytime.`]);
   return `<div class="mk-disclaimer__head">
       <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#mk-info"/></svg>
-      <span class="cq-body2-med">You'll be using the publisher's ${integs.length && model ? 'connections and model' : integs.length ? 'connections' : 'model'}</span>
+      <span class="cq-body2-med">Using the publisher's ${what}</span>
     </div>
-    <ul class="mk-disclaimer__list">${items.map(([k, v]) => `<li><span class="cq-caption-med">${k}</span><span class="cq-caption-reg">${v}</span></li>`).join('')}</ul>`;
+    <ul class="mk-disclaimer__list">${items.map(([ic, v]) => `<li><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#${ic}"/></svg><span class="cq-body2-reg">${v}</span></li>`).join('')}</ul>`;
 }
 
 function connRow(c) {
