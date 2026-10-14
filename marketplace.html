@@ -3548,7 +3548,7 @@ const stateIcon = { shared: 'i-check', byo: 'ic-pp_integrations', model: 'ic-pp_
 function statePill(shared, isModel) {
   return shared
     ? `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>Shared by publisher</span>`
-    : `<span class="mk-state mk-state--todo cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#${isModel ? 'ic-pp_brain' : 'ic-pp_integrations'}"/></svg>${isModel ? 'You choose' : 'You connect'}</span>`;
+    : `<span class="mk-state mk-state--todo cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#${isModel ? 'ic-pp_brain' : 'ic-pp_integrations'}"/></svg>Needs to be added</span>`;
 }
 function shareBadge(a) {
   const todo = setupNeeds(a);
@@ -3556,7 +3556,7 @@ function shareBadge(a) {
   if (!todo.length) return `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>Included by publisher</span>`;
   return a.conns.some(c => c.shared)
     ? `<span class="mk-state mk-state--part cq-caption-med">Partly included</span>`
-    : `<span class="mk-state mk-state--todo cq-caption-med">Bring your own</span>`;
+    : `<span class="mk-state mk-state--todo cq-caption-med">Needs to be added</span>`;
 }
 function setupNeeds(a) {
   const n = a.conns.filter(c => !c.shared).map(c => INTEGRATIONS[c.key].name);
@@ -3569,8 +3569,9 @@ function connLede(a) {
   const w = TYPE_WORD[a.type];
   if (!a.conns.length && !a.model) return `This ${w} runs on the platform's built-in policy engine. There's nothing to connect.`;
   if (!setupNeeds(a).length) return `${a.creator.name} shares their connections and model with this ${w}. It works as soon as you add it, using the publisher's connected accounts and model.`;
-  if (a.conns.some(c => c.shared)) return `${a.creator.name} shares some connections but not all of them. After adding, connect the rest with your own accounts${a.model && !a.model.shared ? ' and choose a model' : ''} before the first run.`;
-  return `${a.creator.name} hasn't shared their connections or model. After you add this ${w}, connect your own accounts${a.model ? ' and choose a model' : ''} before it can run.`;
+  if (a.conns.some(c => c.shared)) return `${a.creator.name} shares some connections but not all of them. The ones marked below need to be added${a.model && !a.model.shared ? ', along with a model,' : ''} before the first run.`;
+  const what = [a.conns.length ? (a.conns.length === 1 ? 'integration' : 'integrations') : '', a.model ? 'model' : ''].filter(Boolean).join(' and ');
+  return `${a.creator.name} hasn't shared their ${a.conns.length ? 'connections or ' : ''}model. After you add this ${w}, the ${what} below need${what === 'model' || what === 'integration' ? 's' : ''} to be added before it can run.`;
 }
 
 function connRow(c) {
@@ -3579,7 +3580,7 @@ function connRow(c) {
     <span class="mk-conn__mark">${i.mark()}</span>
     <span class="mk-conn__text">
       <span class="cq-body2-med">${esc(i.name)}</span>
-      <span class="mk-conn__sub cq-caption-reg">${c.shared ? 'Publisher’s account' : 'Your account'}${c.used.length ? ` · used by ${esc(listJoin(c.used))}` : ''}</span>
+      <span class="mk-conn__sub cq-caption-reg">${c.shared ? 'Publisher’s account' : 'Not included'}${c.used.length ? ` · used by ${esc(listJoin(c.used))}` : ''}</span>
     </span>
     ${statePill(c.shared, false)}
   </div>`;
@@ -3589,7 +3590,7 @@ function modelRow(mo) {
     <span class="mk-conn__mark">${mo.shared ? mo.m.mark() : '<svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>'}</span>
     <span class="mk-conn__text">
       <span class="cq-body2-med">${mo.shared ? esc(mo.m.name) : 'Any chat model'}</span>
-      <span class="mk-conn__sub cq-caption-reg">${mo.shared ? `Model · ${esc(mo.m.vendor)} · publisher’s deployment` : `Model · tested by the publisher with ${esc(mo.m.name)}`}</span>
+      <span class="mk-conn__sub cq-caption-reg">${mo.shared ? `Model · ${esc(mo.m.vendor)} · publisher’s deployment` : `Model · not included · publisher tested with ${esc(mo.m.name)}`}</span>
     </span>
     ${statePill(mo.shared, true)}
   </div>`;
@@ -3719,8 +3720,8 @@ function renderPreview() {
   const todo = setupNeeds(a);
   $('mkPvSetup').className = `mk-box mk-setup ${todo.length ? 'mk-setup--todo' : 'mk-setup--ok'}`;
   $('mkPvSetup').innerHTML = todo.length
-    ? `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg><span class="cq-body2-med">Setup needed after adding</span></span>
-       <ul class="mk-setup__list cq-caption-reg">${a.conns.filter(x => !x.shared).map(x => `<li>Connect ${esc(INTEGRATIONS[x.key].name)}</li>`).join('')}${a.model && !a.model.shared ? '<li>Choose a model</li>' : ''}</ul>`
+    ? `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg><span class="cq-body2-med">To be added before first run</span></span>
+       <ul class="mk-setup__list cq-caption-reg">${a.conns.filter(x => !x.shared).map(x => `<li>${esc(INTEGRATIONS[x.key].name)} integration</li>`).join('')}${a.model && !a.model.shared ? '<li>A model</li>' : ''}</ul>`
     : `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to run</span></span>
        <span class="mk-setup__note cq-caption-reg">${a.conns.length || a.model ? 'Connections and model are included by the publisher.' : 'Nothing to connect.'}</span>`;
 
@@ -3782,7 +3783,7 @@ $('mkPvAdd').addEventListener('click', () => {
   $('mkPvAddLabel').textContent = 'Added to workspace';
   const todo = setupNeeds(pv);
   toast(todo.length
-    ? `${pv.title} added to Finance. Connect ${listJoin(todo.map(t => t === 'a model' ? 'a model' : t))} to finish setup.`
+    ? `${pv.title} added to Finance. ${listJoin(todo).replace(/^a/, 'A')} still need${todo.length === 1 ? 's' : ''} to be added.`
     : `${pv.title} added to Finance and ready to run`);
 });
 $('mkPvForm').addEventListener('submit', e => {
