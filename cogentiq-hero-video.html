@@ -214,6 +214,28 @@ input,select,textarea{font:inherit}
 .prog i{display:block;height:100%;width:0;background:var(--gold)}
 .prog i.run{animation:prog linear forwards}
 @keyframes prog{from{width:0}to{width:100%}}
+/* tour · vertical: tab bar, a full-width player below it, then the caption row */
+.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;max-width:1200px;margin-left:auto;margin-right:auto}
+.tab{position:relative;min-width:0;display:flex;align-items:center;justify-content:center;gap:10px;padding:16px 14px;overflow:hidden}
+.tab .tn{font:500 12px/1 var(--display);letter-spacing:.06em;color:var(--gold);transition:color .2s}
+.tab[aria-selected="true"] .tn{color:#fff;opacity:.8}
+.tab .tp{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--gold)}
+.tab .tp.run{animation:prog linear forwards}
+.tour{max-width:calc(1200px + var(--gut) * 2);grid-template-columns:1fr;gap:16px;margin-top:16px}
+.stage-shell{padding:14px 14px 12px}
+.tour .tour-side{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0;padding:26px 30px}
+.tour .tour-side .blk+.blk{padding-top:0;border-top:0}
+.tour .tour-side .blk:nth-child(2){padding-left:32px;margin-left:32px;border-left:1px solid var(--line)}
+.tour .tour-side .blk:nth-child(3){grid-column:1/-1;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+.tour .tour-side .tour-steps{display:none}
+@media (max-width:900px){
+  .tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+  .tab{flex:initial;flex-direction:column;gap:6px;padding:12px 4px;font-size:13px}
+  .tour .tour-side{grid-template-columns:1fr;padding:22px}
+  .tour .tour-side .blk:nth-child(2){padding-left:0;margin-left:0;border-left:0;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+}
+@media (max-width:420px){.tab{font-size:12px}.tab .tn{font-size:11px}}
+
 .tour-side{background:var(--card);border-radius:var(--r-card);padding:30px;display:flex;flex-direction:column;gap:22px}
 .tour-side h3{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
 .tour-side .cap{margin-top:10px;font-family:var(--display);font-weight:700;font-size:23px;line-height:1.35}
@@ -1337,7 +1359,6 @@ footer nav a:hover{color:#fff}
   .crumbs{display:none}
   .pagebar .btn{margin-left:auto}
   .stage-pick{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .tab{min-width:0;flex:1 1 40%;padding:12px 14px}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -2695,7 +2716,8 @@ let cur = 0, tl = null, userPaused = false, inView = false;
 function fit() { canvas.style.transform = `scale(${stage.clientWidth / 960})`; }
 new ResizeObserver(fit).observe(stage);
 
-function stop() { if (tl) tl.stop(); tl = null; prog.style.animationPlayState = "paused"; }
+const tp = () => $(`#tab-${cur} .tp`);
+function stop() { if (tl) tl.stop(); tl = null; prog.style.animationPlayState = "paused"; $$(".tab .tp").forEach(e => e.style.animationPlayState = "paused"); }
 function render(i, instant) {
   stop();
   const S = SCENES[i];
@@ -2705,8 +2727,11 @@ function render(i, instant) {
   tl = Timeline(root, instant);
   S.play(tl);
   prog.classList.remove("run"); void prog.offsetWidth;
-  if (instant) { prog.style.width = "100%"; tl.run(); return; }
+  $$(".tab .tp").forEach(e => { e.classList.remove("run"); e.style.width = ""; });
+  const t = tp(); void t.offsetWidth;
+  if (instant) { prog.style.width = "100%"; t.style.width = "100%"; tl.run(); return; }
   prog.style.width = ""; prog.style.animationDuration = S.dur + "ms"; prog.style.animationPlayState = "running"; prog.classList.add("run");
+  t.style.animationDuration = S.dur + "ms"; t.style.animationPlayState = "running"; t.classList.add("run");
   tl.run(() => render(cur, false), S.dur);
 }
 function play() { render(cur, reduce.matches || userPaused || !inView); }
@@ -2722,7 +2747,7 @@ pp.addEventListener("click", () => {
 });
 
 const tabs = $("#tabs"), steps = $("#steps");
-tabs.innerHTML = TOUR.map((t, i) => `<button class="tab" role="tab" id="tab-${i}" aria-controls="stage" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-i="${i}">${t.label}</button>`).join("");
+tabs.innerHTML = TOUR.map((t, i) => `<button class="tab" role="tab" id="tab-${i}" aria-controls="stage" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-i="${i}"><span class="tn">0${i + 1}</span>${t.label}<i class="tp"></i></button>`).join("");
 steps.innerHTML = TOUR.map((t, i) => `<button data-i="${i}"><span class="num">${i + 1}</span>${t.label} — ${t.caption.split(",")[0].toLowerCase()}</button>`).join("");
 function select(i, focus) {
   cur = i;
