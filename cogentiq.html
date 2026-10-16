@@ -1708,21 +1708,23 @@ html[data-v="b"] .op-steps{position:absolute;width:1px;height:1px;overflow:hidde
 .opo-wrap{margin-top:12px}
 .opo{font-family:var(--kf);color:#fff}
 .opo svg.ol{position:absolute;inset:0;overflow:visible}
-.opo .seg{stroke:#2e2e36;stroke-width:2;transition:stroke .4s}
+.opo .trk{fill:none;stroke:#26262c;stroke-width:2}
+.opo .seg{fill:none;stroke:transparent;stroke-width:2.5;transition:stroke .4s}
 .opo .seg.done{stroke:#14ae5c}
 .opo .spoke{stroke:#0d99ff;stroke-width:2;stroke-dasharray:4 6;opacity:0;transition:opacity .3s;animation:dash 1s linear infinite}
 .opo .spoke.on{opacity:1}
-.opo-hub{position:absolute;z-index:1;left:220px;top:165px;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;background:#16161b;display:grid;place-items:center;box-shadow:0 0 0 10px rgba(13,153,255,.06),0 10px 30px rgba(0,0,0,.5)}
+.opo-hub{position:absolute;z-index:1;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;background:#16161b;display:grid;place-items:center;box-shadow:0 0 0 10px rgba(13,153,255,.06),0 10px 30px rgba(0,0,0,.5)}
 .opo-hub::before{content:"";position:absolute;inset:-2px;border-radius:50%;padding:2px;background:conic-gradient(from var(--kang),#0d99ff,#5860ed,#f24822,#ffca28,#ffffff,#0d99ff);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:k-spinang 6s linear infinite}
 .opo-hub svg{width:40px;height:36px;transform:translateY(-2px)}
 .opo-n{position:absolute;width:0;height:0;z-index:1}
 .opo-n .ot{position:absolute;left:-24px;top:-24px;width:48px;height:48px;box-sizing:border-box;border-radius:14px;display:grid;place-items:center;background:#16161b;border:1px solid #33333b;color:#8c8c8c;transition:background .35s,border-color .35s,color .35s,box-shadow .35s,transform .35s}
-.opo-n small{position:absolute;transform:translate(-50%,-50%);font:500 12px/1 var(--kf);color:#8c8c8c;white-space:nowrap;transition:color .3s}
+.opo-n small{position:absolute;left:0;top:32px;transform:translateX(-50%);padding:3px 7px;border-radius:6px;background:#101014;font:500 12px/1 var(--kf);color:#8c8c8c;white-space:nowrap;transition:color .3s}
 .opo-n.run .ot{background:#0d193f;border-color:#0d99ff;color:#44aaf3;box-shadow:0 0 0 6px rgba(13,153,255,.12),0 0 26px rgba(13,153,255,.35);transform:scale(1.12)}
 .opo-n.run small{color:#fff}
 .opo-n.ok .ot{background:#0f1f16;border-color:rgba(20,174,92,.6);color:#85e0a3}
 .opo-n.ok small{color:#bdbdbd}
-.opo-tok{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#ffca28;box-shadow:0 0 12px 3px rgba(255,202,40,.7);transition:left .6s cubic-bezier(.5,0,.3,1),top .6s cubic-bezier(.5,0,.3,1),opacity .3s;z-index:0;opacity:0}
+.opo-rot{position:absolute;width:0;height:0;z-index:0;transition:transform .7s cubic-bezier(.5,0,.3,1)}
+.opo-tok{position:absolute;left:0;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#ffca28;box-shadow:0 0 12px 3px rgba(255,202,40,.7);transition:opacity .3s;opacity:0}
 .opo-tok.on{opacity:1}
 .op-now{margin-top:8px;min-height:58px;padding:12px 16px;border-radius:12px;background:#121a2e;border:1px solid rgba(13,153,255,.35);text-align:center}
 .op-now b{display:block;font:600 15px/20px var(--kf);color:#fff}
@@ -2624,15 +2626,16 @@ const XI = {
   const op = $("#op"), el = $("#opo"); if (!op || !el) return;
   const lis = $$(".op-steps li", op), now = $(".op-now", op);
   const LB = ["Brief", "Context", "Glossary", "Connect", "Agents", "Approval", "Audit"];
-  const CX = 220, CY = 165, RX = 145, RY = 105;
-  const A = lis.map((_, i) => (-90 + i * 360 / lis.length) * Math.PI / 180);
-  const P = A.map(a => [+(CX + RX * Math.cos(a)).toFixed(1), +(CY + RY * Math.sin(a)).toFixed(1)]);
-  el.innerHTML = `<svg class="ol" width="440" height="330">${P.slice(0, -1).map((p, i) => `<line class="seg" x1="${p[0]}" y1="${p[1]}" x2="${P[i + 1][0]}" y2="${P[i + 1][1]}"/>`).join("")}<line class="spoke" x1="${CX}" y1="${CY}" x2="${CX}" y2="${CY}"/></svg>
-    <div class="opo-hub">${LOGO}</div><i class="opo-tok"></i>
-    ${P.map(([x, y], i) => `<div class="opo-n" style="left:${x}px;top:${y}px"><span class="ot">${ki(lis[i].dataset.ic, 20, 1.6)}</span><small style="left:${(Math.cos(A[i]) * 42).toFixed(1)}px;top:${(Math.sin(A[i]) * 38).toFixed(1)}px">${LB[i]}</small></div>`).join("")}`;
-  const ns = $$(".opo-n", el), segs = $$(".seg", el), spoke = $(".spoke", el), tok = $(".opo-tok", el);
+  const CX = 220, CY = 158, R = 128, STEP = 360 / lis.length;
+  const A = lis.map((_, i) => (-90 + i * STEP) * Math.PI / 180);
+  const P = A.map(a => [+(CX + R * Math.cos(a)).toFixed(1), +(CY + R * Math.sin(a)).toFixed(1)]);
+  el.innerHTML = `<svg class="ol" width="440" height="330"><circle class="trk" cx="${CX}" cy="${CY}" r="${R}"/>${P.slice(0, -1).map((p, i) => `<path class="seg" d="M${p[0]} ${p[1]} A ${R} ${R} 0 0 1 ${P[i + 1][0]} ${P[i + 1][1]}"/>`).join("")}<line class="spoke" x1="${CX}" y1="${CY}" x2="${CX}" y2="${CY}"/></svg>
+    <div class="opo-hub" style="left:${CX}px;top:${CY}px"></div><div class="opo-rot" style="left:${CX}px;top:${CY}px"><i class="opo-tok" style="top:${-R}px"></i></div>
+    ${P.map(([x, y], i) => `<div class="opo-n" style="left:${x}px;top:${y}px"><span class="ot">${ki(lis[i].dataset.ic, 20, 1.6)}</span><small>${LB[i]}</small></div>`).join("")}`;
+  $(".opo-hub", el).innerHTML = LOGO;
+  const ns = $$(".opo-n", el), segs = $$(".seg", el), spoke = $(".spoke", el), tok = $(".opo-tok", el), rot = $(".opo-rot", el);
   const say = (b, s, done) => { now.innerHTML = `<div class="in"><b>${b}</b>${s ? `<span>${s}</span>` : ""}</div>`; now.classList.toggle("done", !!done); };
-  const park = () => { tok.style.transition = "none"; tok.style.left = P[0][0] + "px"; tok.style.top = P[0][1] + "px"; void tok.offsetWidth; tok.style.transition = ""; };
+  const park = () => { rot.style.transition = "none"; rot.style.transform = "rotate(0deg)"; void rot.offsetWidth; rot.style.transition = ""; };
   op.addEventListener("opstep", e => {
     const i = e.detail;
     ns.forEach((n, j) => { n.classList.toggle("ok", i >= 0 && j < i); n.classList.toggle("run", j === i); });
@@ -2640,7 +2643,7 @@ const XI = {
     if (i < 0) { spoke.classList.remove("on"); tok.classList.remove("on"); park(); say("Waiting for a brief", "Type what you want the agent to do", false); }
     else if (i < P.length) {
       spoke.setAttribute("x2", P[i][0]); spoke.setAttribute("y2", P[i][1]); spoke.classList.add("on");
-      tok.classList.add("on"); tok.style.left = P[i][0] + "px"; tok.style.top = P[i][1] + "px";
+      tok.classList.add("on"); rot.style.transform = `rotate(${i * STEP}deg)`;
       say(lis[i].querySelector("b").textContent, lis[i].querySelector("span").textContent, false);
     } else { spoke.classList.remove("on"); tok.classList.remove("on"); say("Done in one platform", "Every step grounded, governed and logged", true); }
   });
