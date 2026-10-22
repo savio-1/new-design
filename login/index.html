@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Cogentiq Sign In</title>
+<meta name="claude:viewport-fit-sides" content="cover" />
+<meta name="description" content="Sign-in flow for the Cogentiq platform: username and password, single sign-on, and the signed-in hand-off." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Layout: Figma "Login Screen" (1440 × 820). A 540 × 804 showcase panel inset
+     8px on the left; a 360px form column centred in the space that remains,
+     12px above the vertical centre; the legal line 24px off the bottom.
+     Tokens are the Cogentiq Figma variables, named as the platform names them. */
+  :root {
+    --backgrounds-page-bg-1:          #fafafa;
+    --backgrounds-type-default-bg-1:  #f5f5f5;
+    --backgrounds-button-primary:     #0d99ff;
+    --backgrounds-button-primary-hover: #007be5;
+    --backgrounds-disabled-tonal-2:   #eeeeee;
+    --backgrounds-card-bg-4:          #f5f5f5;
+    --backgrounds-badge-red:          #fff5f5;
+    --strokes-type-default:           #e0e0e0;
+    --strokes-type-hover:             #bdbdbd;
+    --strokes-type-focus:             #0d99ff;
+    --strokes-type-error:             #f24822;
+    --strokes-icon-default:           #616161;
+    --text-primary:                   #121212;
+    --text-secondary:                 #616161;
+    --text-teritiary:                 #8c8c8c;
+    --text-error:                     #dc3412;
+    --text-button-white:              #ffffff;
+    --text-disabled-tonal-2:          #bdbdbd;
+    --text-coloured-blue:             #0d99ff;
+    --logo-ring:                      #e0e0e0;
+    --icon-light-display:             block;
+    --icon-dark-display:              none;
+
+    --font-geist: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --fs-caption: 12px;
+    --fs-body-3:  14px;
+    --fs-body-2:  16px;
+    --lh-body-3:  20px;
+    --lh-body-2:  24px;
+    --radius-md:  8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --backgrounds-page-bg-1:          #121212;
+      --backgrounds-type-default-bg-1:  #323232;
+      --backgrounds-button-primary:     #0d99ff;
+      --backgrounds-button-primary-hover: #007be5;
+      --backgrounds-disabled-tonal-2:   #424242;
+      --backgrounds-card-bg-4:          #323232;
+      --backgrounds-badge-red:          #3f0907;
+      --strokes-type-default:           #424242;
+      --strokes-type-hover:             #616161;
+      --strokes-type-focus:             #007be5;
+      --strokes-type-error:             #f24822;
+      --strokes-icon-default:           #9e9e9e;
+      --text-primary:                   #ffffff;
+      --text-secondary:                 #bdbdbd;
+      --text-teritiary:                 #8c8c8c;
+      --text-error:                     #ffafa3;
+      --text-button-white:              #ffffff;
+      --text-disabled-tonal-2:          #757575;
+      --text-coloured-blue:             #44aaf3;
+      --logo-ring:                      #424242;
+      --icon-light-display:             none;
+      --icon-dark-display:              block;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --backgrounds-page-bg-1:          #121212;
+    --backgrounds-type-default-bg-1:  #323232;
+    --backgrounds-button-primary:     #0d99ff;
+    --backgrounds-button-primary-hover: #007be5;
+    --backgrounds-disabled-tonal-2:   #424242;
+    --backgrounds-card-bg-4:          #323232;
+    --backgrounds-badge-red:          #3f0907;
+    --strokes-type-default:           #424242;
+    --strokes-type-hover:             #616161;
+    --strokes-type-focus:             #007be5;
+    --strokes-type-error:             #f24822;
+    --strokes-icon-default:           #9e9e9e;
+    --text-primary:                   #ffffff;
+    --text-secondary:                 #bdbdbd;
+    --text-teritiary:                 #8c8c8c;
+    --text-error:                     #ffafa3;
+    --text-button-white:              #ffffff;
+    --text-disabled-tonal-2:          #757575;
+    --text-coloured-blue:             #44aaf3;
+    --logo-ring:                      #424242;
+    --icon-light-display:             none;
+    --icon-dark-display:              block;
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--backgrounds-page-bg-1);
+    color: var(--text-primary);
+    font-family: var(--font-geist);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input  { font: inherit; color: inherit; }
+  img { max-width: none; }
+  [hidden] { display: none !important; }
+
+  /* Type ramps — Head2/Med, Body2/Reg, Body2/Med, Caption1/Med */
+  .t-head2-med   { font: 500 36px/40px var(--font-geist); letter-spacing: -1.44px; }
+  .t-body1-med   { font: 500 var(--fs-body-2)/var(--lh-body-2) var(--font-geist); letter-spacing: -0.64px; }
+  .t-body2-reg   { font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
+  .t-body2-med   { font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px; }
+  .t-caption-med { font: 500 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px; }
+  .t-caption-reg { font: 400 var(--fs-caption)/var(--fs-body-2) var(--font-geist); letter-spacing: -0.24px; }
+
+  /* ═════════════════════════ SHELL ═════════════════════════ */
+  .shell {
+    display: flex;
+    min-height: 100%;
+    padding: 8px;
+  }
+
+  /* ═════════════════════ SHOWCASE PANEL ═════════════════════
+     The art is laid out on the Figma frame's own 540 × 804 grid and scaled to
+     the panel, so every card, orbit and sparkle keeps its exact position. The
+     panel keeps the frame's aspect ratio and takes the viewport's height. */
+  .showcase {
+    position: relative;
+    flex: none;
+    height: max(624px, calc(100dvh - 16px));
+    aspect-ratio: 540 / 804;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .stage {
+    position: absolute; left: 0; top: 0;
+    width: 540px; height: 804px;
+    transform-origin: 0 0;
+    transform: scale(var(--s, 1));
+  }
+  .abs { position: absolute; }
+
+  /* Gradient field — five rotated pills, blended as drawn. The frame passes
+     blending through to the page behind it, as Figma does. */
+  .blob { position: absolute; display: flex; align-items: center; justify-content: center; }
+  .blob > div { flex: none; border-radius: 132px; }
+  .blob-1 { left: -124.12px; top: -85.74px; width: 785.633px; height: 956.786px; }
+  .blob-1 > div { width: 749.198px; height: 927.616px; opacity: .2; transform: rotate(-2.29deg);
+    background-image: linear-gradient(96.81deg, #fff 18.453%, #5860ed 28.812%, #f24822 69.937%, #ffca28 87.265%); }
+  .blob-2 { left: -374.76px; top: -262.54px; width: 1297.662px; height: 1289.297px; }
+  .blob-2 > div { width: 944.857px; height: 906.214px; opacity: .3; transform: rotate(-36.2deg);
+    background-image: linear-gradient(100.6deg, #0d99ff 16.299%, #5860ed 35.144%, #f24822 67.965%, #ffca28 85.355%); }
+  .blob-3 { left: -145px; top: -41.37px; width: 624.457px; height: 900.56px; mix-blend-mode: overlay; }
+  .blob-3 > div { width: 509.079px; height: 852.396px; opacity: .4; transform: rotate(-6.37deg) skewX(1.63deg);
+    background-image: linear-gradient(95.05deg, #fff 18.453%, #5860ed 28.812%, #f24822 69.937%, #ffca28 87.265%); }
+  .blob-4 { left: -659px; top: -617px; width: 1849.87px; height: 1923.574px; mix-blend-mode: plus-lighter; }
+  .blob-4 > div { width: 1109.551px; height: 1603.13px; opacity: .5; transform: rotate(-33.68deg) skewX(1.63deg);
+    background-image: linear-gradient(95.84deg, #fff 18.453%, #5860ed 28.812%, #f24822 69.937%, #ffca28 87.265%); }
+  .blob-5 { left: -405.93px; top: -49.64px; width: 1277.78px; height: 1160.509px; mix-blend-mode: soft-light; }
+  .blob-5 > div { width: 1149.337px; height: 963.91px; opacity: .99; filter: blur(20px); transform: rotate(10.42deg) skewX(1.63deg);
+    background-image: linear-gradient(100deg, #fff 18.453%, #5860ed 28.812%, #f24822 69.937%, #ffca28 87.265%); }
+
+  .brand {
+    position: absolute; top: 24px; left: calc(50% - 181.93px); transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .logo-disc {
+    position: relative; flex: none;
+    width: 36px; height: 36px; border-radius: 100px; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-disc img { display: block; }
+
+  /* Slides */
+  .slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s linear .5s; }
+  .slide.is-active { opacity: 1; visibility: visible; transition: opacity .5s ease; }
+  .slide .art { position: absolute; inset: 0; }
+  .slide .art > * { transition: transform .7s cubic-bezier(.2,.8,.2,1), opacity .7s ease; }
+  .slide:not(.is-active) .art > * { transform: translateY(10px); opacity: 0; }
+  .slide.is-active .art > :nth-child(2) { transition-delay: .05s; }
+  .slide.is-active .art > :nth-child(3) { transition-delay: .1s; }
+  .slide.is-active .art > :nth-child(4) { transition-delay: .15s; }
+  .slide.is-active .art > :nth-child(5) { transition-delay: .2s; }
+  .slide.is-active .art > :nth-child(6) { transition-delay: .25s; }
+  .headline {
+    position: absolute; top: 628px; left: 50%; transform: translateX(-50%);
+    width: 356px; margin: 0;
+    font: 500 36px/38px var(--font-geist); letter-spacing: -1.44px;
+    color: #fff; text-align: center; text-wrap: balance;
+  }
+  .spk { position: absolute; display: block; }
+
+  /* Slide 1 · workflow */
+  .step { position: absolute; display: flex; flex-direction: column; align-items: center; }
+  .step-tab {
+    width: 100px; padding: 4px 6px; border-radius: 8px 8px 0 0;
+    background: rgba(255,255,255,.16); color: #fff;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .step-tab img { display: block; }
+  .step-card {
+    background: #fff; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 2px 12px 0 rgba(33,33,33,.3);
+    display: flex; align-items: center; color: #121212;
+  }
+  .step-card.is-pill { gap: 4px; padding: 8px 12px; }
+  .step-card.is-result { gap: 6px; padding: 8px 12px; }
+  .step-card.is-agent {
+    width: 396px; padding: 12px; border-radius: 16px;
+    flex-direction: column; align-items: flex-start; gap: 4px;
+  }
+  .avatars { display: flex; align-items: center; }
+  .avatars img { display: block; width: 20px; height: 20px; }
+  .avatars img + img { margin-left: -6px; }
+  .exec { display: flex; align-items: center; gap: 4px; }
+  .exec-label {
+    background-image: linear-gradient(219.42deg, #d9b8ff 7.95%, #0d99ff 36.77%, #007be5 85.95%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .agent-body { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+  .agent-text { display: flex; flex-direction: column; gap: 2px; }
+  .agent-text p { margin: 0; }
+  .agent-desc { color: #616161; }
+  .badge {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 8px; border-radius: 80px; background: #f5f5f5; color: #007be5;
+  }
+  .badge img { display: block; width: 14px; height: 14px; object-fit: cover; }
+
+  /* Slide 2 · assistants */
+  .tilt { position: absolute; display: flex; align-items: center; justify-content: center; }
+  .a-card {
+    flex: none; width: 394.333px; padding: 16px; border-radius: 20px; overflow: hidden;
+    background: #fff;
+    box-shadow: 0 8px 12px 0 rgba(0,0,0,.12), 0 -8px 12px 0 rgba(0,0,0,.08);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .a-card.is-ghost-1 { background: rgba(255,255,255,.5); filter: blur(10px); opacity: .4; }
+  .a-card.is-ghost-2 { background: rgba(255,255,255,.4); filter: blur(12.5px); opacity: .4; }
+  .a-text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .a-text p { margin: 0; }
+  .a-title { color: #121212; white-space: nowrap; }
+  .a-desc { color: #616161; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .a-veil {
+    position: absolute; left: 38px; top: 282px; width: 394px; height: 78px;
+    background: #fff; filter: blur(12.5px); border-radius: 20px;
+    border-left: 1px solid #fff; border-top: 2px solid #fff;
+  }
+  /* Assistant icon: four glows and three additive glows behind the mark,
+     drawn upside down as in the component. Each glow is placed by its
+     ellipse's box; the exported SVG carries 17.62px of blur room around it. */
+  .a-icon {
+    position: relative; flex: none; overflow: hidden;
+    width: 32px; height: 32px; border-radius: 8.96px; background: #fff;
+    transform: rotate(180deg);
+  }
+  .a-icon .g { position: absolute; display: block; }
+  .a-icon .g.add { mix-blend-mode: plus-lighter; }
+  .a-icon .mark {
+    position: absolute; left: calc(50% - 0.2px); top: calc(50% + 1.2px);
+    width: 19.748px; height: 17.248px; transform: translate(-50%, -50%) rotate(180deg);
+  }
+  .a-icon .mark img { position: absolute; left: 1.187px; top: 1.88px; display: block; }
+
+  /* Slide 3 · integrations */
+  .orbit-wrap { position: absolute; left: 57.99px; top: 205.9px; width: 418.272px; height: 286.465px;
+    display: flex; align-items: center; justify-content: center; }
+  .orbit { position: relative; flex: none; width: 396px; height: 138.6px; }
+  .orbit.is-a { transform: rotate(-23.77deg); }
+  .orbit.is-b { transform: rotate(-156.23deg) scaleY(-1); }
+  .orbit img { position: absolute; display: block; }
+  .orbit .line { left: -6px; top: -6px; }
+  .orbit .glow { left: 0; top: 0; }
+  .app {
+    position: absolute; width: 45.76px; height: 45.76px; padding: 10.56px; border-radius: 14.08px;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+  }
+  .app img { display: block; flex: none; }
+  .app .png { object-fit: cover; }
+
+  /* Pager — the Figma dots, made pressable */
+  .pager {
+    position: absolute; top: 764px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 5px;
+  }
+  .pager button {
+    position: relative; width: 8px; height: 8px; border-radius: 50%;
+    background: #fff; opacity: .4; transition: opacity .2s ease;
+  }
+  .pager button::before { content: ""; position: absolute; inset: -6px -3px; }
+  .pager button:hover { opacity: .7; }
+  .pager button[aria-current="true"] { opacity: 1; }
+  .pager button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  /* ═════════════════════════ AUTH ═════════════════════════ */
+  .auth {
+    position: relative; flex: 1 1 auto; min-width: 0;
+    display: flex; flex-direction: column; align-items: center;
+    padding-inline: 16px;
+  }
+  .auth-main {
+    flex: 1 1 auto; width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding-block: 56px 32px;
+  }
+  .view {
+    width: 360px; max-width: 100%;
+    display: flex; flex-direction: column; align-items: center; gap: 32px;
+    transform: translateY(-12px);
+    animation: view-in .32s cubic-bezier(.22,.8,.3,1) both;
+  }
+  @keyframes view-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(-12px); } }
+
+  .compact-logo { display: none; }
+  .view-head { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; text-align: center; }
+  .view-head h1 { margin: 0; text-wrap: balance; }
+  .view-head p { margin: 0; color: var(--text-secondary); text-wrap: pretty; }
+
+  .form { display: flex; flex-direction: column; gap: 32px; width: 100%; align-items: center; }
+  .form-main { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+  .fields { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+  .field { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+  .field label { color: var(--text-primary); }
+  .control {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    background: var(--backgrounds-type-default-bg-1);
+    border: 1px solid var(--strokes-type-default);
+    border-radius: var(--radius-md);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .control:hover { border-color: var(--strokes-type-hover); }
+  .control:focus-within { border-color: var(--strokes-type-focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--strokes-type-focus) 20%, transparent); }
+  .field.is-invalid .control { border-color: var(--strokes-type-error); }
+  .field.is-invalid .control:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--strokes-type-error) 20%, transparent); }
+  .control input {
+    flex: 1 1 auto; min-width: 0;
+    height: 44px; padding: 12px 0; border: 0; outline: 0; background: none;
+    font: 400 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+    color: var(--text-primary);
+  }
+  .control input::placeholder { color: var(--text-teritiary); opacity: 1; }
+  .control input:-webkit-autofill { -webkit-text-fill-color: var(--text-primary); transition: background-color 9999s; }
+  .reveal {
+    flex: none; width: 20px; height: 20px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-primary);
+  }
+  .reveal:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; }
+  .reveal .ic-hide-light { display: var(--icon-light-display); }
+  .reveal .ic-hide-dark  { display: var(--icon-dark-display); }
+  .reveal svg { display: block; }
+  .field-error {
+    display: flex; align-items: flex-start; gap: 6px; margin: 2px 0 0;
+    color: var(--text-error);
+  }
+  .field-error svg { flex: none; margin-top: 2px; }
+
+  .btn {
+    width: 100%; min-height: 44px; padding: 12px 16px;
+    border-radius: var(--radius-md);
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+    text-decoration: none;
+    transition: background-color .15s ease, color .15s ease;
+  }
+  .btn:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; }
+  .btn-primary { background: var(--backgrounds-button-primary); color: var(--text-button-white); }
+  .btn-primary:hover { background: var(--backgrounds-button-primary-hover); }
+  .btn-primary:disabled, .btn-primary[aria-disabled="true"] {
+    background: var(--backgrounds-disabled-tonal-2); color: var(--text-disabled-tonal-2); cursor: default;
+  }
+  .btn-primary.is-busy { cursor: progress; }
+  /* "Social" button — primary fill with the 1px input stroke, 10px vertical padding */
+  .btn-social {
+    min-height: 0; padding: 10px 16px;
+    background: var(--backgrounds-button-primary); color: var(--text-button-white);
+    border: 1px solid var(--strokes-type-default);
+  }
+  .btn-social:hover { background: var(--backgrounds-button-primary-hover); }
+  .spinner {
+    width: 16px; height: 16px; flex: none; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .divider { display: flex; align-items: center; gap: 2px; color: var(--text-teritiary); }
+  .divider::before, .divider::after { content: ""; width: 135px; height: 1px; background: var(--strokes-type-default); }
+  .divider span { padding: 0 6px; }
+
+  .link {
+    color: var(--text-primary);
+    font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+    text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--strokes-type-hover);
+  }
+  .link:hover { text-decoration-color: currentColor; }
+  .link:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; border-radius: 2px; }
+  .back {
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--text-secondary);
+    font: 500 var(--fs-body-3)/var(--lh-body-3) var(--font-geist); letter-spacing: -0.56px;
+    border-radius: 4px;
+  }
+  .back:hover { color: var(--text-primary); }
+  .back:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; }
+
+  .alert {
+    width: 100%; display: flex; gap: 8px; align-items: flex-start;
+    padding: 10px 12px; border-radius: var(--radius-md);
+    background: var(--backgrounds-badge-red); color: var(--text-error);
+    border: 1px solid color-mix(in srgb, var(--strokes-type-error) 35%, transparent);
+  }
+  .alert svg { flex: none; margin-top: 2px; }
+  .alert p { margin: 0; }
+
+  /* Redirect + signed-in states */
+  .status-card {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    padding: 12px; border-radius: 12px;
+    background: var(--backgrounds-type-default-bg-1);
+    border: 1px solid var(--strokes-type-default);
+  }
+  .status-card .meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  .status-card .meta span:last-child { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .initials {
+    flex: none; width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; background-image: linear-gradient(135deg, #5860ed, #f24822 70%, #ffca28);
+  }
+  .status-card .spinner { color: var(--text-coloured-blue); }
+  .done-badge {
+    flex: none; width: 20px; height: 20px; border-radius: 50%;
+    background: #14ae5c; color: #fff; display: flex; align-items: center; justify-content: center;
+  }
+  .stack-8 { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+
+  .legal {
+    margin: 0 0 16px; width: 326px; max-width: 100%;
+    text-align: center; color: var(--text-secondary);
+  }
+  .legal a {
+    color: var(--text-primary); font-weight: 500;
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  .legal .nowrap { white-space: nowrap; }
+  .legal a:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; border-radius: 2px; }
+
+  .theme-toggle {
+    position: absolute; top: 16px; right: 16px;
+    width: 32px; height: 32px; border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--strokes-icon-default);
+    border: 1px solid transparent;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .theme-toggle:hover { background: var(--backgrounds-card-bg-4); border-color: var(--strokes-type-default); color: var(--text-primary); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* ═════════════════════ NARROW SCREENS ═════════════════════ */
+  @media (max-width: 960px) {
+    .showcase { display: none; }
+    .shell { padding: 0; }
+    .auth {
+      padding-left: max(16px, env(safe-area-inset-left, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
+    }
+    .compact-logo {
+      display: flex; width: 44px; height: 44px; border-radius: 100px;
+      background: #fff; box-shadow: inset 0 0 0 1px var(--logo-ring);
+      align-items: center; justify-content: center;
+    }
+  }
+  @media (max-width: 480px) {
+    .t-head2-med { font-size: 30px; line-height: 36px; letter-spacing: -1.2px; }
+    .auth-main { padding-block: 64px 24px; }
+    .view { gap: 28px; }
+    .divider::before, .divider::after { width: auto; flex: 1 1 0; }
+    .divider { width: 100%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide, .slide.is-active, .slide .art > * { transition: none !important; }
+    .slide:not(.is-active) .art > * { transform: none; }
+    .view { animation: none; }
+    .spinner { animation-duration: 2s; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ─────────── Showcase ─────────── -->
+  <aside class="showcase" id="showcase" aria-roledescription="carousel" aria-label="What you can do with Cogentiq">
+    <div class="stage" id="stage">
+      <div class="blob blob-1" aria-hidden="true"><div></div></div>
+      <div class="blob blob-2" aria-hidden="true"><div></div></div>
+      <div class="blob blob-3" aria-hidden="true"><div></div></div>
+      <div class="blob blob-4" aria-hidden="true"><div></div></div>
+      <div class="blob blob-5" aria-hidden="true"><div></div></div>
+
+      <!-- Slide 1 · Automate your business outcomes -->
+      <section class="slide is-active" id="slide-1" aria-roledescription="slide" aria-label="1 of 3">
+        <div class="art" aria-hidden="true">
+          <div class="step" style="left:179px; top:159px;">
+            <div class="step-tab t-body2-med"><img src="assets/icon-play.svg" width="16" height="16" alt="" />Trigger</div>
+            <div class="step-card is-pill t-body2-med"><img src="assets/icon-doc.svg" width="24" height="24" alt="" />New Invoice received</div>
+          </div>
+          <div>
+            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" style="left:265px; top:207px;" />
+            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" style="left:265px; top:417px;" />
+          </div>
+          <div class="step" style="left:72px; top:299px;">
+            <div class="step-tab t-body2-med"><img src="assets/icon-agent.svg" width="16" height="16" alt="" />Agent</div>
+            <div class="step-card is-agent">
+              <div class="exec">
+                <img src="assets/icon-finished.svg" width="20" height="20" alt="" />
+                <span class="exec-label t-caption-med">Finished execution</span>
+              </div>
+              <div class="agent-body">
+                <div class="agent-text">
+                  <p class="t-body1-med">Invoice Validator</p>
+                  <p class="agent-desc t-body2-reg">Reviews invoice for accuracy, compliance, and payment terms</p>
+                </div>
+                <span class="badge t-caption-med"><img src="assets/gemini.png" alt="" />Gemini</span>
+              </div>
+            </div>
+          </div>
+          <div class="step" style="left:194px; top:509px;">
+            <div class="step-tab t-body2-med"><img src="assets/icon-done-white.svg" width="16" height="16" alt="" />Result</div>
+            <div class="step-card is-result t-body2-med">
+              <span class="avatars"><img src="assets/avatar-1.png" alt="" /><img src="assets/avatar-2.png" alt="" /></span>
+              Approved
+              <img src="assets/icon-done-green.svg" width="20" height="20" alt="" />
+            </div>
+          </div>
+          <div>
+            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:271px; top:273px;" />
+            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:131px; top:483px;" />
+            <img class="spk" src="assets/s1-spark-b.svg" width="10" height="10" alt="" style="left:311px; top:283px;" />
+            <img class="spk" src="assets/s1-spark-c.svg" width="12" height="12" alt="" style="left:170px; top:252px;" />
+            <img class="spk" src="assets/s1-spark-d.svg" width="12" height="12" alt="" style="left:361px; top:243px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:141px; top:293px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:331px; top:303px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:331px; top:483px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:361px; top:463px;" />
+          </div>
+        </div>
+        <h2 class="headline">Automate your business outcomes</h2>
+      </section>
+
+      <!-- Slide 2 · Accelerate decisions with your assistants -->
+      <section class="slide" id="slide-2" aria-roledescription="slide" aria-label="2 of 3">
+        <div class="art" aria-hidden="true">
+          <div class="tilt" style="left:90.63px; top:491.07px; width:395.08px; height:81.866px;">
+            <div class="a-card is-ghost-2" style="transform:rotate(.56deg)" data-icon="1">
+              <p class="a-title t-body1-med">Data Connector</p>
+              <p class="a-desc t-body2-reg">Integrates multiple data sources for seamless analysis</p>
+            </div>
+          </div>
+          <div class="tilt" style="left:77.65px; top:207.2px; width:395.031px; height:81.605px;">
+            <div class="a-card" style="transform:rotate(.52deg)" data-icon="2">
+              <p class="a-title t-body1-med">Invoice Tracker</p>
+              <p class="a-desc t-body2-reg">Follows up on outstanding invoices and payment statuses</p>
+            </div>
+          </div>
+          <div class="a-veil"></div>
+          <div class="tilt" style="left:37.07px; top:277px; width:396.189px; height:87.999px;">
+            <div class="a-card" style="transform:rotate(-1.46deg)" data-icon="3">
+              <p class="a-title t-body1-med">Outreach Writer</p>
+              <p class="a-desc t-body2-reg">Drafts personalized cold emails and follow-ups for prospects</p>
+            </div>
+          </div>
+          <div class="tilt" style="left:49.34px; top:412.51px; width:397.645px; height:96.988px;">
+            <div class="a-card is-ghost-1" style="transform:rotate(-2.77deg)" data-icon="2">
+              <p class="a-title t-body1-med">Trend Analyzer</p>
+              <p class="a-desc t-body2-reg">Identifies and visualizes emerging patterns over time</p>
+            </div>
+          </div>
+          <div class="tilt" style="left:98.23px; top:350.87px; width:395.882px; height:86.251px;">
+            <div class="a-card" style="transform:rotate(1.2deg)" data-icon="1">
+              <p class="a-title t-body1-med">Report Builder</p>
+              <p class="a-desc t-body2-reg">Compiles weekly or monthly performance reports</p>
+            </div>
+          </div>
+          <div>
+            <img class="spk" src="assets/s2-spark-a.svg" width="14" height="14" alt="" style="left:349px; top:181px;" />
+            <img class="spk" src="assets/s2-spark-b.svg" width="10" height="10" alt="" style="left:271px; top:143px;" />
+            <img class="spk" src="assets/s2-spark-c.svg" width="10" height="10" alt="" style="left:451px; top:323px;" />
+            <img class="spk" src="assets/s2-spark-d.svg" width="12" height="12" alt="" style="left:130px; top:192px;" />
+            <img class="spk" src="assets/s2-spark-e.svg" width="12" height="12" alt="" style="left:471px; top:163px;" />
+            <img class="spk" src="assets/s2-spark-f.svg" width="8" height="8" alt="" style="left:51px; top:183px;" />
+            <img class="spk" src="assets/s2-spark-f.svg" width="8" height="8" alt="" style="left:411px; top:213px;" />
+            <img class="spk" src="assets/s2-spark-f.svg" width="8" height="8" alt="" style="left:471px; top:443px;" />
+            <img class="spk" src="assets/s2-spark-f.svg" width="8" height="8" alt="" style="left:81px; top:513px;" />
+            <img class="spk" src="assets/s2-spark-f.svg" width="8" height="8" alt="" style="left:71px; top:393px;" />
+          </div>
+        </div>
+        <h2 class="headline">Accelerate decisions with your assistants</h2>
+      </section>
+
+      <!-- Slide 3 · Connect your enterprise. Power every workflow. -->
+      <section class="slide" id="slide-3" aria-roledescription="slide" aria-label="3 of 3">
+        <div class="art" aria-hidden="true">
+          <div>
+            <img class="abs" src="assets/s3-orbit-v.svg" width="228" height="389.7" alt="" style="left:150.79px; top:163.4px;" />
+            <img class="abs" src="assets/s3-orbit-v-glow.svg" width="220" height="381.7" alt="" style="left:154.79px; top:167.4px;" />
+            <img class="abs" src="assets/s3-core.svg" width="70.4" height="70.4" alt="" style="left:233.99px; top:315.9px;" />
+            <div class="orbit-wrap"><div class="orbit is-a">
+              <img class="line" src="assets/s3-orbit-a.svg" width="408" height="150.6" alt="" />
+              <img class="glow" src="assets/s3-orbit-a-glow.svg" width="396" height="138.6" alt="" />
+            </div></div>
+            <div class="orbit-wrap"><div class="orbit is-b">
+              <img class="line" src="assets/s3-orbit-b.svg" width="408" height="150.6" alt="" />
+              <img class="glow" src="assets/s3-orbit-b-glow.svg" width="396" height="138.6" alt="" />
+            </div></div>
+          </div>
+          <div>
+            <span class="app" style="left:399px; top:305px;"><img src="assets/notion.svg" width="28.6" height="28.6" alt="" /></span>
+            <span class="app" style="left:66px; top:237px;"><img src="assets/zoom.svg" width="28" height="28" alt="" /></span>
+            <span class="app" style="left:333px; top:363px;"><img class="png" src="assets/teams.png" alt="" style="width:26.4px; height:27.885px;" /></span>
+            <span class="app" style="left:243px; top:146px;"><img src="assets/jira.svg" width="27.28" height="27.914" alt="" /></span>
+            <span class="app" style="left:422px; top:406px;"><img src="assets/google.svg" width="24" height="24" alt="" /></span>
+          </div>
+          <div>
+            <span class="app" style="left:166px; top:475px;"><img class="png" src="assets/gmail.png" alt="" style="width:28.16px; height:21.12px;" /></span>
+            <span class="app" style="left:315px; top:475px;"><span style="position:relative; display:block; width:31.68px; height:22.164px;"><img src="assets/salesforce.svg" width="31.564" height="22.048" alt="" style="position:absolute; left:0.006px; top:0.058px;" /></span></span>
+            <span class="app" style="left:77px; top:360px;"><img src="assets/hubspot.svg" width="26.4" height="26.4" alt="" /></span>
+            <span class="app" style="left:167px; top:283px;"><img src="assets/slack.svg" width="28.16" height="28.16" alt="" /></span>
+            <span class="app" style="left:346px; top:228px;"><img src="assets/dropbox.svg" width="28.16" height="26.195" alt="" /></span>
+          </div>
+          <div>
+            <img class="spk" src="assets/s3-spark-a.svg" width="10" height="10" alt="" style="left:211px; top:334px;" />
+            <img class="spk" src="assets/s3-spark-b.svg" width="10" height="10" alt="" style="left:327px; top:332px;" />
+            <img class="spk" src="assets/s3-spark-c.svg" width="14" height="14" alt="" style="left:179px; top:360px;" />
+            <img class="spk" src="assets/s3-spark-d.svg" width="12" height="12" alt="" style="left:295px; top:283px;" />
+            <img class="spk" src="assets/s3-spark-a.svg" width="10" height="10" alt="" style="left:275px; top:434px;" />
+            <img class="spk" src="assets/s3-spark-e.svg" width="12" height="12" alt="" style="left:264px; top:253px;" />
+            <img class="spk" src="assets/s3-spark-f.svg" width="8" height="8" alt="" style="left:211px; top:411px;" />
+            <img class="spk" src="assets/s3-spark-a.svg" width="10" height="10" alt="" style="left:242px; top:385px;" />
+            <img class="spk" src="assets/s3-spark-g.svg" width="9" height="9" alt="" style="left:293px; top:388px;" />
+          </div>
+        </div>
+        <h2 class="headline" style="width:387px; left:calc(50% + 0.5px);">Connect your enterprise. Power every workflow.</h2>
+      </section>
+
+      <div class="brand">
+        <span class="logo-disc"><img src="assets/logo-mark.svg" width="20" height="17.6389" alt="" /></span>
+        <img src="assets/wordmark.svg" width="90" height="21.3918" alt="cogentiq" />
+      </div>
+
+      <div class="pager" role="group" aria-label="Choose slide">
+        <button type="button" id="dot-1" data-go="0" aria-controls="slide-1" aria-current="true"><span class="sr-only">Automate your business outcomes</span></button>
+        <button type="button" id="dot-2" data-go="1" aria-controls="slide-2" aria-current="false"><span class="sr-only">Accelerate decisions with your assistants</span></button>
+        <button type="button" id="dot-3" data-go="2" aria-controls="slide-3" aria-current="false"><span class="sr-only">Connect your enterprise</span></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─────────── Sign in ─────────── -->
+  <main class="auth">
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark theme">
+      <svg id="themeIcon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+    </button>
+
+    <div class="auth-main" id="authMain" aria-live="polite"></div>
+
+    <p class="legal t-caption-reg">By signing in you accept Cogentiq’s <span class="nowrap"><a href="#terms">Terms of use</a> &amp; <a href="#privacy">Privacy Policy</a>.</span></p>
+  </main>
+</div>
+
+<!-- View templates -->
+<template id="tpl-signin">
+  <div class="view" data-view="signin">
+    <div class="view-head">
+      <span class="compact-logo" aria-hidden="true"><img src="assets/logo-mark.svg" width="20" height="17.6389" alt="" /></span>
+      <h1 class="t-head2-med">Sign in to cogentiq</h1>
+    </div>
+    <form class="form" id="signinForm" novalidate>
+      <div class="form-main">
+        <div class="alert t-body2-reg" id="signinAlert" role="alert" hidden>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.75v3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="10.9" r=".9" fill="currentColor"/></svg>
+          <p id="signinAlertText"></p>
+        </div>
+        <div class="fields">
+          <div class="field" id="fUser">
+            <label class="t-body2-reg" for="username">Username</label>
+            <div class="control"><input id="username" name="username" type="text" placeholder="Enter username" autocomplete="username" autocapitalize="off" spellcheck="false" /></div>
+          </div>
+          <div class="field" id="fPass">
+            <label class="t-body2-reg" for="password">Password</label>
+            <div class="control">
+              <input id="password" name="password" type="password" placeholder="Enter password" autocomplete="current-password" />
+              <button class="reveal" id="reveal" type="button" aria-label="Show password" aria-pressed="false" aria-controls="password">
+                <img class="ic-hide-light" src="assets/icon-hide-light.svg" width="20" height="20" alt="" /><img class="ic-hide-dark" src="assets/icon-hide-dark.svg" width="20" height="20" alt="" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="signinBtn" type="submit" aria-disabled="true">Sign in</button>
+      </div>
+      <div class="divider t-caption-med" aria-hidden="true"><span>OR</span></div>
+      <button class="btn btn-social" id="ssoBtn" type="button">Single sign on (SSO)</button>
+    </form>
+  </div>
+</template>
+
+<template id="tpl-sso">
+  <div class="view" data-view="sso">
+    <div class="view-head">
+      <span class="compact-logo" aria-hidden="true"><img src="assets/logo-mark.svg" width="20" height="17.6389" alt="" /></span>
+      <h1 class="t-head2-med">Sign in with SSO</h1>
+      <p class="t-body2-reg">Enter your work email. We’ll send you to your organization’s sign-in page.</p>
+    </div>
+    <form class="form" id="ssoForm" novalidate>
+      <div class="form-main">
+        <div class="fields">
+          <div class="field" id="fEmail">
+            <label class="t-body2-reg" for="ssoEmail">Work email</label>
+            <div class="control"><input id="ssoEmail" name="email" type="email" placeholder="name@company.com" autocomplete="email" autocapitalize="off" spellcheck="false" /></div>
+            <p class="field-error t-caption-reg" id="ssoError" hidden>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.75v3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="10.9" r=".9" fill="currentColor"/></svg>
+              <span id="ssoErrorText"></span>
+            </p>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="ssoContinue" type="submit" aria-disabled="true">Continue with SSO</button>
+      </div>
+      <button class="back" id="backToSignin" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 4 5.5 8l4 4"/></svg>
+        Sign in with username and password
+      </button>
+    </form>
+  </div>
+</template>
+
+<template id="tpl-redirect">
+  <div class="view" data-view="redirect">
+    <div class="view-head">
+      <span class="compact-logo" aria-hidden="true"><img src="assets/logo-mark.svg" width="20" height="17.6389" alt="" /></span>
+      <h1 class="t-head2-med">Redirecting you</h1>
+      <p class="t-body2-reg">Finish signing in on your organization’s page. You’ll come back here automatically.</p>
+    </div>
+    <div class="stack-8">
+      <div class="status-card">
+        <span class="initials t-body2-med" data-slot="orgInitial"></span>
+        <span class="meta"><span class="t-body2-med" data-slot="orgName"></span><span class="t-caption-reg" data-slot="orgHost"></span></span>
+        <span class="spinner" role="img" aria-label="Waiting for your identity provider"></span>
+      </div>
+      <button class="back" id="cancelSso" type="button">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 4 5.5 8l4 4"/></svg>
+        Cancel and go back
+      </button>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-success">
+  <div class="view" data-view="success">
+    <div class="view-head">
+      <span class="compact-logo" aria-hidden="true"><img src="assets/logo-mark.svg" width="20" height="17.6389" alt="" /></span>
+      <h1 class="t-head2-med" data-slot="greeting">Welcome back</h1>
+      <p class="t-body2-reg">You’re signed in. Your assistants and automations are ready.</p>
+    </div>
+    <div class="stack-8">
+      <div class="status-card">
+        <span class="initials t-body2-med" data-slot="initial"></span>
+        <span class="meta"><span class="t-body2-med" data-slot="who"></span><span class="t-caption-reg" data-slot="how"></span></span>
+        <span class="done-badge" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.25 5 8.5l4.5-5"/></svg></span>
+      </div>
+      <a class="btn btn-primary" id="openPlatform" href="https://claude.ai/artifact/TnLbcVQR4ZpyPTFYS6crrF" target="_blank" rel="noopener">Open cogentiq</a>
+      <button class="back" id="signOut" type="button">Sign in as someone else</button>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  /* ───────── Theme ───────── */
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('themeToggle');
+  var themeIcon = document.getElementById('themeIcon');
+  var SUN = '<circle cx="10" cy="10" r="3.25"/><path d="M10 2.5v1.5M10 16v1.5M2.5 10H4M16 10h1.5M4.7 4.7l1.06 1.06M14.24 14.24l1.06 1.06M4.7 15.3l1.06-1.06M14.24 5.76l1.06-1.06"/>';
+  var MOON = '<path d="M16.5 11.9A6.75 6.75 0 0 1 8.1 3.5a6.75 6.75 0 1 0 8.4 8.4Z"/>';
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  function isDark() {
+    var t = root.getAttribute('data-theme');
+    return t ? t === 'dark' : mq.matches;
+  }
+  function paintToggle() {
+    var dark = isDark();
+    themeIcon.innerHTML = dark ? SUN : MOON;
+    themeBtn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  }
+  try { var saved = localStorage.getItem('cq-theme'); if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved); } catch (e) {}
+  themeBtn.addEventListener('click', function () {
+    var next = isDark() ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('cq-theme', next); } catch (e) {}
+    paintToggle();
+  });
+  if (mq.addEventListener) mq.addEventListener('change', paintToggle);
+  paintToggle();
+
+  /* ───────── Showcase: fit the 540 × 804 art to the panel ───────── */
+  var showcase = document.getElementById('showcase');
+  var stage = document.getElementById('stage');
+  function fit() {
+    var h = showcase.clientHeight;
+    if (h) stage.style.setProperty('--s', (h / 804).toFixed(4));
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(showcase);
+  window.addEventListener('resize', fit);
+  fit();
+
+  /* Assistant icons on slide 2 — three glow arrangements from the component */
+  var GLOWS = {
+    1: [[314,-31.09,-0.26],[315,-11.2,14],[316,12.74,16.94],[317,8.4,-29.4],[318,-31.09,-0.26,1],[319,-21,-8.4,1],[320,-74.06,-6.77,1]],
+    2: [[314,-31.09,-0.26],[315,-8.87,14],[316,16.48,9.94],[317,-28.47,-28],[318,10.91,-40.86,1],[321,-0.47,1.4,1],[320,-74.06,-6.77,1]],
+    3: [[314,-31.09,-0.26],[315,-5.6,14],[316,16.94,4.34],[317,-22.4,-26.6],[318,10.91,-40.86,1],[319,-21,-8.4,1],[320,-74.06,-6.77,1]]
+  };
+  var SIZE = { 314: 68.6934, 315: 66.0358, 316: 68.6934, 317: 78.6358, 318: 68.6934, 319: 56.2358, 320: 68.6934, 321: 50.6358 };
+  document.querySelectorAll('.a-card[data-icon]').forEach(function (card) {
+    var icon = document.createElement('span');
+    icon.className = 'a-icon';
+    var html = '';
+    GLOWS[card.getAttribute('data-icon')].forEach(function (g) {
+      var s = SIZE[g[0]];
+      html += '<img class="g' + (g[3] ? ' add' : '') + '" src="assets/s2-ellipse-' + g[0] + '.svg" width="' + s + '" height="' + s +
+              '" alt="" style="left:' + (g[1] - 17.62).toFixed(2) + 'px; top:' + (g[2] - 17.62).toFixed(2) + 'px;" />';
+    });
+    html += '<span class="mark"><img src="assets/s2-assistant-glyph.svg" width="17.4172" height="15.9843" alt="" /></span>';
+    icon.innerHTML = html;
+    var text = document.createElement('div');
+    text.className = 'a-text';
+    while (card.firstChild) text.appendChild(card.firstChild);
+    card.appendChild(icon);
+    card.appendChild(text);
+  });
+
+  /* ───────── Carousel ───────── */
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var dots = Array.prototype.slice.call(document.querySelectorAll('.pager button'));
+  var current = 0, timer = null, paused = false;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function show(i) {
+    current = (i + slides.length) % slides.length;
+    slides.forEach(function (s, k) {
+      s.classList.toggle('is-active', k === current);
+      s.setAttribute('aria-hidden', k === current ? 'false' : 'true');
+    });
+    dots.forEach(function (d, k) { d.setAttribute('aria-current', k === current ? 'true' : 'false'); });
+  }
+  function schedule() {
+    clearTimeout(timer);
+    if (reduce || paused || document.hidden) return;
+    timer = setTimeout(function () { show(current + 1); schedule(); }, 6000);
+  }
+  dots.forEach(function (d) {
+    d.addEventListener('click', function () { show(+d.getAttribute('data-go')); schedule(); });
+  });
+  showcase.addEventListener('mouseenter', function () { paused = true; schedule(); });
+  showcase.addEventListener('mouseleave', function () { paused = false; schedule(); });
+  showcase.addEventListener('focusin', function () { paused = true; schedule(); });
+  showcase.addEventListener('focusout', function () { paused = false; schedule(); });
+  document.addEventListener('visibilitychange', schedule);
+  show(0);
+  schedule();
+
+  /* ───────── Auth flow ───────── */
+  var main = document.getElementById('authMain');
+  var session = { who: '', how: '' };
+  var pending = null;
+
+  function mount(name) {
+    clearTimeout(pending);
+    var tpl = document.getElementById('tpl-' + name);
+    main.innerHTML = '';
+    main.appendChild(tpl.content.cloneNode(true));
+    var setup = VIEWS[name];
+    if (setup) setup(main.firstElementChild);
+  }
+  function initialOf(s) { return (s.trim()[0] || '?').toUpperCase(); }
+  function errorIcon() {
+    return '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.75v3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="10.9" r=".9" fill="currentColor"/></svg>';
+  }
+  var EYE_OPEN = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 10s2.73-5 7.5-5 7.5 5 7.5 5-2.73 5-7.5 5-7.5-5-7.5-5Z"/><circle cx="10" cy="10" r="2.08"/></svg>';
+  var EYE_HIDE = '<img class="ic-hide-light" src="assets/icon-hide-light.svg" width="20" height="20" alt="" /><img class="ic-hide-dark" src="assets/icon-hide-dark.svg" width="20" height="20" alt="" />';
+
+  function setBusy(btn, busy, label) {
+    btn.classList.toggle('is-busy', busy);
+    btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+    btn.innerHTML = busy ? '<span class="spinner" aria-hidden="true"></span>' + label : label;
+  }
+
+  var VIEWS = {
+    signin: function (el) {
+      var form = el.querySelector('#signinForm');
+      var user = el.querySelector('#username');
+      var pass = el.querySelector('#password');
+      var btn = el.querySelector('#signinBtn');
+      var reveal = el.querySelector('#reveal');
+      var alertBox = el.querySelector('#signinAlert');
+      var fUser = el.querySelector('#fUser'), fPass = el.querySelector('#fPass');
+      var busy = false;
+
+      function ready() { return user.value.trim() !== '' && pass.value !== ''; }
+      function sync() { btn.setAttribute('aria-disabled', ready() ? 'false' : 'true'); }
+      function clearError() {
+        alertBox.hidden = true;
+        fUser.classList.remove('is-invalid'); fPass.classList.remove('is-invalid');
+        user.removeAttribute('aria-invalid'); pass.removeAttribute('aria-invalid');
+      }
+      user.addEventListener('input', function () { clearError(); sync(); });
+      pass.addEventListener('input', function () { clearError(); sync(); });
+
+      reveal.addEventListener('click', function () {
+        var showing = pass.type === 'text';
+        pass.type = showing ? 'password' : 'text';
+        reveal.setAttribute('aria-pressed', showing ? 'false' : 'true');
+        reveal.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+        reveal.innerHTML = showing ? EYE_HIDE : EYE_OPEN;
+        pass.focus();
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (busy) return;
+        if (!ready()) {
+          (user.value.trim() ? pass : user).focus();
+          return;
+        }
+        busy = true; sync();
+        setBusy(btn, true, 'Signing in…');
+        pending = setTimeout(function () {
+          busy = false;
+          // Prototype rule: passwords under 8 characters are rejected so the
+          // error state can be reviewed. Anything else signs in.
+          if (pass.value.length < 8) {
+            setBusy(btn, false, 'Sign in'); sync();
+            document.getElementById('signinAlertText').textContent =
+              'That username and password don’t match. Check both and try again, or sign in with SSO.';
+            alertBox.hidden = false;
+            fUser.classList.add('is-invalid'); fPass.classList.add('is-invalid');
+            user.setAttribute('aria-invalid', 'true'); pass.setAttribute('aria-invalid', 'true');
+            pass.select();
+            return;
+          }
+          session.who = user.value.trim();
+          session.how = 'Signed in with password';
+          mount('success');
+        }, 1100);
+      });
+
+      el.querySelector('#ssoBtn').addEventListener('click', function () { mount('sso'); });
+      sync();
+      user.focus({ preventScroll: true });
+    },
+
+    sso: function (el) {
+      var form = el.querySelector('#ssoForm');
+      var email = el.querySelector('#ssoEmail');
+      var btn = el.querySelector('#ssoContinue');
+      var field = el.querySelector('#fEmail');
+      var err = el.querySelector('#ssoError');
+      var errText = el.querySelector('#ssoErrorText');
+      var PUBLIC = ['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'yahoo.com', 'icloud.com', 'proton.me', 'aol.com'];
+      var busy = false;
+
+      function sync() { btn.setAttribute('aria-disabled', email.value.trim() ? 'false' : 'true'); }
+      function fail(msg) {
+        errText.textContent = msg; err.hidden = false;
+        field.classList.add('is-invalid'); email.setAttribute('aria-invalid', 'true');
+        email.setAttribute('aria-describedby', 'ssoError');
+        email.focus();
+      }
+      email.addEventListener('input', function () {
+        err.hidden = true; field.classList.remove('is-invalid'); email.removeAttribute('aria-invalid'); sync();
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (busy) return;
+        var v = email.value.trim().toLowerCase();
+        if (!v) { email.focus(); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { fail('Enter an email address like name@company.com.'); return; }
+        var domain = v.split('@')[1];
+        busy = true; sync();
+        setBusy(btn, true, 'Finding your organization…');
+        pending = setTimeout(function () {
+          busy = false; setBusy(btn, false, 'Continue with SSO'); sync();
+          if (PUBLIC.indexOf(domain) !== -1) {
+            fail('SSO isn’t set up for ' + domain + '. Use your work email, or go back and sign in with a username and password.');
+            return;
+          }
+          var org = domain.split('.')[0];
+          session.org = org.charAt(0).toUpperCase() + org.slice(1);
+          session.host = 'login.' + domain;
+          session.who = v;
+          session.how = 'Signed in with ' + session.org + ' SSO';
+          mount('redirect');
+        }, 900);
+      });
+
+      el.querySelector('#backToSignin').addEventListener('click', function () { mount('signin'); });
+      sync();
+      email.focus({ preventScroll: true });
+    },
+
+    redirect: function (el) {
+      el.querySelector('[data-slot="orgInitial"]').textContent = initialOf(session.org);
+      el.querySelector('[data-slot="orgName"]').textContent = session.org;
+      el.querySelector('[data-slot="orgHost"]').textContent = session.host;
+      el.querySelector('#cancelSso').addEventListener('click', function () { mount('sso'); });
+      pending = setTimeout(function () { mount('success'); }, 2200);
+    },
+
+    success: function (el) {
+      var name = session.who.split('@')[0].split(/[._-]/)[0];
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+      el.querySelector('[data-slot="greeting"]').textContent = 'Welcome back, ' + name;
+      el.querySelector('[data-slot="initial"]').textContent = initialOf(name);
+      el.querySelector('[data-slot="who"]').textContent = session.who;
+      el.querySelector('[data-slot="how"]').textContent = session.how;
+      el.querySelector('#signOut').addEventListener('click', function () { session = { who: '', how: '' }; mount('signin'); });
+      el.querySelector('#openPlatform').focus({ preventScroll: true });
+    }
+  };
+
+  mount('signin');
+})();
+</script>
+</body>
+</html>
