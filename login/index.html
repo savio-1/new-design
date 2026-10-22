@@ -156,13 +156,20 @@
   .slide { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s linear .5s; }
   .slide.is-active { opacity: 1; visibility: visible; transition: opacity .5s ease; }
   .slide .art { position: absolute; inset: 0; }
-  .slide .art > * { transition: transform .7s cubic-bezier(.2,.8,.2,1), opacity .7s ease; }
-  .slide:not(.is-active) .art > * { transform: translateY(10px); opacity: 0; }
-  .slide.is-active .art > :nth-child(2) { transition-delay: .05s; }
-  .slide.is-active .art > :nth-child(3) { transition-delay: .1s; }
-  .slide.is-active .art > :nth-child(4) { transition-delay: .15s; }
-  .slide.is-active .art > :nth-child(5) { transition-delay: .2s; }
-  .slide.is-active .art > :nth-child(6) { transition-delay: .25s; }
+  /* Motion — each slide plays one short sequence when it comes into view.
+     [data-in] rises into place after --d; [data-draw] reveals a connector
+     from its source end. Both restart whenever the slide becomes active. */
+  .slide.is-active [data-in]   { animation: cq-rise .6s cubic-bezier(.2,.8,.2,1) var(--d, 0ms) both; }
+  .slide.is-active [data-draw] { animation: cq-draw .5s ease-out var(--d, 0ms) both; }
+  .slide.is-active [data-pop]  { animation: cq-pop .45s cubic-bezier(.3,1.4,.5,1) var(--d, 0ms) both; }
+  @keyframes cq-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes cq-draw { from { clip-path: inset(0 0 100% 0); } to { clip-path: inset(0); } }
+  @keyframes cq-pop  { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+  /* Ambient: sparkles twinkle out of step with one another */
+  .slide.is-active .spk { animation: cq-twinkle 3.2s ease-in-out infinite; }
+  .slide.is-active .spk:nth-child(3n+1) { animation-delay: -1.1s; }
+  .slide.is-active .spk:nth-child(3n+2) { animation-delay: -2.2s; }
+  @keyframes cq-twinkle { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
   .headline {
     position: absolute; top: 628px; left: 50%; transform: translateX(-50%);
     width: 356px; margin: 0;
@@ -282,6 +289,17 @@
   .a-status.is-green  { background: #ebffee; color: #14ae5c; }
   .a-status.is-blue   { background: #f2f9ff; color: #0d99ff; }
   .a-status.is-indigo { background: #f0f1fe; color: #5860ed; }
+  .a-status.is-cyan   { background: #effcff; color: #00a2c2; }
+  .slide.is-active .a-status::before { animation: cq-live 1.6s ease-in-out infinite; }
+  @keyframes cq-live { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+  /* Slide 3 · the tools drift, the hub breathes */
+  .slide.is-active .app > * { animation: cq-bob 4.2s ease-in-out infinite; }
+  .slide.is-active .app:nth-child(2n) > * { animation-delay: -1.4s; }
+  .slide.is-active .app:nth-child(3n) > * { animation-delay: -2.8s; }
+  @keyframes cq-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  .slide.is-active .hub { animation: cq-pop .6s cubic-bezier(.3,1.4,.5,1) both, cq-breathe 3.6s ease-in-out .6s infinite; }
+  @keyframes cq-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 
   /* Slide 5 · marketplace — search, then results listed one under another */
   .chips { position: absolute; left: 50%; translate: -50% 0; display: flex; gap: 6px; }
@@ -305,7 +323,35 @@
     flex: none; height: 28px; padding: 0 12px; border-radius: 8px;
     display: inline-flex; align-items: center; white-space: nowrap;
   }
-  .m-add { background: #0d99ff; color: #fff; }
+  .m-add { background: #0d99ff; color: #fff; display: inline-grid; justify-items: center; }
+  .m-add > span { grid-area: 1 / 1; }
+  .m-add .lbl-b { opacity: 0; }
+  .q-txt { color: #121212; }
+  .q-caret { display: none; width: 1.5px; height: 18px; margin-left: -3px; background: #0d99ff; }
+  .search-pill.is-typing .q-ph { display: none; }
+  .search-pill.is-typing .q-caret { display: block; animation: cq-caret 1s steps(1) infinite; }
+  @keyframes cq-caret { 50% { opacity: 0; } }
+  .m-cursor { position: absolute; left: 0; top: 0; opacity: 0; pointer-events: none; }
+
+  /* Slide 5 sequence: type (JS) → results → cursor clicks Add → added */
+  .slide.is-active .m-row.is-picked { animation: cq-rise .6s cubic-bezier(.2,.8,.2,1) var(--d) both, cq-pick .3s ease 2.55s both; }
+  @keyframes cq-pick { from { box-shadow: 0 8px 12px 0 rgba(0,0,0,.12), 0 -8px 12px 0 rgba(0,0,0,.08); } }
+  .slide.is-active .m-add { animation: cq-press .3s ease 2.4s both, cq-done .3s ease 2.55s both; }
+  @keyframes cq-press { 50% { transform: scale(.9); } }
+  @keyframes cq-done { to { background: #14ae5c; } }
+  .slide.is-active .m-add .lbl-a { animation: cq-out .2s ease 2.55s both; }
+  .slide.is-active .m-add .lbl-b { animation: cq-in .2s ease 2.6s both; }
+  @keyframes cq-out { to { opacity: 0; } }
+  @keyframes cq-in  { to { opacity: 1; } }
+  .slide.is-active .m-cursor { animation: cq-cursor 3.4s cubic-bezier(.45,0,.2,1) both; }
+  @keyframes cq-cursor {
+    0%, 45% { opacity: 0; transform: translate(470px, 560px); }
+    52%     { opacity: 1; transform: translate(470px, 560px); }
+    68%     { opacity: 1; transform: translate(var(--cx), var(--cy)); }
+    72%     { opacity: 1; transform: translate(var(--cx), var(--cy)) scale(.85); }
+    76%, 88%{ opacity: 1; transform: translate(var(--cx), var(--cy)); }
+    100%    { opacity: 0; transform: translate(var(--cx), var(--cy)); }
+  }
   .m-get { background: #e5f4ff; color: #007be5; }
 
   /* Pager — the Figma dots, made pressable */
@@ -514,8 +560,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .slide, .slide.is-active, .slide .art > * { transition: none !important; }
-    .slide:not(.is-active) .art > * { transform: none; }
+    .slide, .slide.is-active { transition: none !important; }
+    .slide.is-active *, .slide.is-active *::before { animation: none !important; }
+    .m-cursor { display: none; }
     .view { animation: none; }
     .spinner { animation-duration: 2s; }
   }
@@ -533,15 +580,15 @@
       <!-- Slide 1 · Automate your business outcomes -->
       <section class="slide is-active" id="slide-1" aria-roledescription="slide" aria-label="1 of 5">
         <div class="art" aria-hidden="true">
-          <div class="step" style="left:179px; top:159px;">
+          <div class="step" data-in style="--d:100ms; left:179px; top:159px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-play.svg" width="16" height="16" alt="" />Trigger</div>
             <div class="step-card is-pill t-body2-med"><img src="assets/icon-doc.svg" width="24" height="24" alt="" />New Invoice received</div>
           </div>
           <div>
-            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" style="left:265px; top:207px;" />
-            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" style="left:265px; top:417px;" />
+            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" data-draw style="--d:500ms; left:265px; top:207px;" />
+            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" data-draw style="--d:1300ms; left:265px; top:417px;" />
           </div>
-          <div class="step" style="left:72px; top:299px;">
+          <div class="step" data-in style="--d:800ms; left:72px; top:299px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-agent.svg" width="16" height="16" alt="" />Agent</div>
             <div class="step-card is-agent">
               <div class="exec">
@@ -553,11 +600,11 @@
                   <p class="t-body1-med">Invoice Validator</p>
                   <p class="agent-desc t-body2-reg">Reviews invoice for accuracy, compliance, and payment terms</p>
                 </div>
-                <span class="badge t-caption-med"><img src="assets/gemini.png" alt="" />Gemini</span>
+                <span class="badge t-caption-med" data-pop style="--d:1150ms;"><img src="assets/gemini.png" alt="" />Gemini</span>
               </div>
             </div>
           </div>
-          <div class="step" style="left:194px; top:509px;">
+          <div class="step" data-in style="--d:1600ms; left:194px; top:509px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-done-white.svg" width="16" height="16" alt="" />Result</div>
             <div class="step-card is-result t-body2-med">
               <span class="avatars"><img src="assets/avatar-1.png" alt="" /><img src="assets/avatar-2.png" alt="" /></span>
@@ -583,13 +630,13 @@
       <!-- Slide 2 · Accelerate decisions with your assistants -->
       <section class="slide" id="slide-2" aria-roledescription="slide" aria-label="2 of 5">
         <div class="art" aria-hidden="true">
-          <div class="tilt" style="left:90.63px; top:491.07px; width:395.08px; height:81.866px;">
+          <div class="tilt" data-in style="--d:1000ms; left:90.63px; top:515px; width:395.08px; height:81.866px;">
             <div class="a-card is-ghost-2" style="transform:rotate(.56deg)" data-icon="1">
               <p class="a-title t-body1-med">Data Connector</p>
               <p class="a-desc t-body2-reg">Integrates multiple data sources for seamless analysis</p>
             </div>
           </div>
-          <div class="tilt" style="left:77.65px; top:179.2px; width:395.031px; height:109.605px;">
+          <div class="tilt" data-in style="--d:100ms; left:77.65px; top:179.2px; width:395.031px; height:109.605px;">
             <div class="a-stack" style="transform:rotate(.52deg)">
               <div class="step-tab is-auto t-body2-med"><img src="assets/icon-agent.svg" width="16" height="16" alt="" />Your AI assistants</div>
               <div class="a-card" data-icon="2">
@@ -598,23 +645,23 @@
               </div>
             </div>
           </div>
-          <div class="a-veil"></div>
-          <div class="tilt" style="left:37.07px; top:277px; width:396.189px; height:87.999px;">
+          <div class="a-veil" data-in style="--d:300ms;"></div>
+          <div class="tilt" data-in style="--d:350ms; left:37.07px; top:277px; width:396.189px; height:87.999px;">
             <div class="a-card" style="transform:rotate(-1.46deg)" data-icon="3">
               <div class="a-row"><p class="a-title t-body1-med">Outreach Writer</p><span class="a-status is-blue t-caption-med">Drafting</span></div>
               <p class="a-desc t-body2-reg">Drafts personalized cold emails and follow-ups for prospects</p>
             </div>
           </div>
-          <div class="tilt" style="left:49.34px; top:412.51px; width:397.645px; height:96.988px;">
-            <div class="a-card is-ghost-1" style="transform:rotate(-2.77deg)" data-icon="2">
-              <p class="a-title t-body1-med">Trend Analyzer</p>
-              <p class="a-desc t-body2-reg">Identifies and visualizes emerging patterns over time</p>
-            </div>
-          </div>
-          <div class="tilt" style="left:98.23px; top:350.87px; width:395.882px; height:86.251px;">
+          <div class="tilt" data-in style="--d:600ms; left:98.23px; top:350.87px; width:395.882px; height:86.251px;">
             <div class="a-card" style="transform:rotate(1.2deg)" data-icon="1">
               <div class="a-row"><p class="a-title t-body1-med">Report Builder</p><span class="a-status is-indigo t-caption-med">Scheduled</span></div>
               <p class="a-desc t-body2-reg">Compiles weekly or monthly performance reports</p>
+            </div>
+          </div>
+          <div class="tilt" data-in style="--d:850ms; left:50px; top:424px; width:397.645px; height:90px;">
+            <div class="a-card" style="transform:rotate(-1.6deg)" data-icon="2">
+              <div class="a-row"><p class="a-title t-body1-med">Trend Analyzer</p><span class="a-status is-cyan t-caption-med">Analyzing</span></div>
+              <p class="a-desc t-body2-reg">Identifies and visualizes emerging patterns over time</p>
             </div>
           </div>
           <div>
@@ -639,29 +686,29 @@
           <div>
             <img class="abs" src="assets/s3-orbit-v.svg" width="228" height="389.7" alt="" style="left:150.79px; top:163.4px;" />
             <img class="abs" src="assets/s3-orbit-v-glow.svg" width="220" height="381.7" alt="" style="left:154.79px; top:167.4px;" />
-            <img class="abs" src="assets/s3-hub.svg" width="70.4" height="70.4" alt="" style="left:233.99px; top:315.9px;" />
-            <div class="orbit-wrap"><div class="orbit is-a">
+            <img class="abs hub" src="assets/s3-hub.svg" width="70.4" height="70.4" alt="" style="left:233.99px; top:315.9px;" />
+            <div class="orbit-wrap" data-in style="--d:100ms;"><div class="orbit is-a">
               <img class="line" src="assets/s3-orbit-a.svg" width="408" height="150.6" alt="" />
               <img class="glow" src="assets/s3-orbit-a-glow.svg" width="396" height="138.6" alt="" />
             </div></div>
-            <div class="orbit-wrap"><div class="orbit is-b">
+            <div class="orbit-wrap" data-in style="--d:250ms;"><div class="orbit is-b">
               <img class="line" src="assets/s3-orbit-b.svg" width="408" height="150.6" alt="" />
               <img class="glow" src="assets/s3-orbit-b-glow.svg" width="396" height="138.6" alt="" />
             </div></div>
           </div>
           <div>
-            <span class="app" style="left:399px; top:305px;"><img src="assets/notion.svg" width="28.6" height="28.6" alt="" /></span>
-            <span class="app" style="left:66px; top:237px;"><img src="assets/zoom.svg" width="28" height="28" alt="" /></span>
-            <span class="app" style="left:333px; top:363px;"><img class="png" src="assets/teams.png" alt="" style="width:26.4px; height:27.885px;" /></span>
-            <span class="app" style="left:243px; top:146px;"><img src="assets/jira.svg" width="27.28" height="27.914" alt="" /></span>
-            <span class="app" style="left:422px; top:406px;"><img src="assets/google.svg" width="24" height="24" alt="" /></span>
+            <span class="app" data-pop style="--d:390ms; left:399px; top:305px;"><img src="assets/notion.svg" width="28.6" height="28.6" alt="" /></span>
+            <span class="app" data-pop style="--d:480ms; left:66px; top:237px;"><img src="assets/zoom.svg" width="28" height="28" alt="" /></span>
+            <span class="app" data-pop style="--d:570ms; left:333px; top:363px;"><img class="png" src="assets/teams.png" alt="" style="width:26.4px; height:27.885px;" /></span>
+            <span class="app" data-pop style="--d:660ms; left:243px; top:146px;"><img src="assets/jira.svg" width="27.28" height="27.914" alt="" /></span>
+            <span class="app" data-pop style="--d:750ms; left:422px; top:406px;"><img src="assets/google.svg" width="24" height="24" alt="" /></span>
           </div>
           <div>
-            <span class="app" style="left:166px; top:475px;"><img class="png" src="assets/gmail.png" alt="" style="width:28.16px; height:21.12px;" /></span>
-            <span class="app" style="left:315px; top:475px;"><span style="position:relative; display:block; width:31.68px; height:22.164px;"><img src="assets/salesforce.svg" width="31.564" height="22.048" alt="" style="position:absolute; left:0.006px; top:0.058px;" /></span></span>
-            <span class="app" style="left:77px; top:360px;"><img src="assets/hubspot.svg" width="26.4" height="26.4" alt="" /></span>
-            <span class="app" style="left:167px; top:283px;"><img src="assets/slack.svg" width="28.16" height="28.16" alt="" /></span>
-            <span class="app" style="left:346px; top:228px;"><img src="assets/dropbox.svg" width="28.16" height="26.195" alt="" /></span>
+            <span class="app" data-pop style="--d:840ms; left:166px; top:475px;"><img class="png" src="assets/gmail.png" alt="" style="width:28.16px; height:21.12px;" /></span>
+            <span class="app" data-pop style="--d:930ms; left:315px; top:475px;"><span style="position:relative; display:block; width:31.68px; height:22.164px;"><img src="assets/salesforce.svg" width="31.564" height="22.048" alt="" style="position:absolute; left:0.006px; top:0.058px;" /></span></span>
+            <span class="app" data-pop style="--d:1020ms; left:77px; top:360px;"><img src="assets/hubspot.svg" width="26.4" height="26.4" alt="" /></span>
+            <span class="app" data-pop style="--d:1110ms; left:167px; top:283px;"><img src="assets/slack.svg" width="28.16" height="28.16" alt="" /></span>
+            <span class="app" data-pop style="--d:1200ms; left:346px; top:228px;"><img src="assets/dropbox.svg" width="28.16" height="26.195" alt="" /></span>
           </div>
           <div>
             <img class="spk" src="assets/s3-spark-a.svg" width="10" height="10" alt="" style="left:211px; top:334px;" />
@@ -681,7 +728,7 @@
       <!-- Slide 4 · Give your agents what your company knows -->
       <section class="slide" id="slide-4" aria-roledescription="slide" aria-label="4 of 5">
         <div class="art" aria-hidden="true">
-          <div class="step is-c" style="left:270px; top:150px;">
+          <div class="step is-c" data-in style="--d:100ms; left:270px; top:150px;">
             <div class="step-tab t-body2-med"><img src="assets/ctx-ask.svg" width="16" height="16" alt="" />Ask</div>
             <div class="step-card is-pill t-body2-med">
               <span class="avatars"><img src="assets/avatar-2.png" alt="" /></span>
@@ -689,24 +736,24 @@
             </div>
           </div>
           <div>
-            <img class="abs" src="assets/ctx-fan.svg" width="360" height="48" alt="" style="left:89.5px; top:214px;" />
-            <img class="abs" src="assets/ctx-merge.svg" width="360" height="60" alt="" style="left:89.5px; top:330px;" />
+            <img class="abs" src="assets/ctx-fan.svg" width="360" height="48" alt="" data-draw style="--d:550ms; left:89.5px; top:214px;" />
+            <img class="abs" src="assets/ctx-merge.svg" width="360" height="60" alt="" data-draw style="--d:1400ms; left:89.5px; top:330px;" />
           </div>
           <div>
-            <div class="step is-c" style="left:100px; top:262px;">
+            <div class="step is-c" data-in style="--d:850ms; left:100px; top:262px;">
               <div class="step-tab t-body2-med"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Solution</div>
               <div class="step-card is-pill is-layer t-body2-med"><img src="assets/ctx-policy.svg" width="24" height="24" alt="" />Policies</div>
             </div>
-            <div class="step is-c" style="left:270px; top:262px;">
+            <div class="step is-c" data-in style="--d:1000ms; left:270px; top:262px;">
               <div class="step-tab t-body2-med"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Organization</div>
               <div class="step-card is-pill is-layer t-body2-med"><img src="assets/ctx-glossary.svg" width="24" height="24" alt="" />Glossary</div>
             </div>
-            <div class="step is-c" style="left:440px; top:262px;">
+            <div class="step is-c" data-in style="--d:1150ms; left:440px; top:262px;">
               <div class="step-tab t-body2-med"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Domain</div>
               <div class="step-card is-pill is-layer t-body2-med"><img src="assets/ctx-ontology.svg" width="24" height="24" alt="" />Ontology</div>
             </div>
           </div>
-          <div class="step" style="left:72px; top:390px;">
+          <div class="step" data-in style="--d:1700ms; left:72px; top:390px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-agent.svg" width="16" height="16" alt="" />Assistant</div>
             <div class="step-card is-agent">
               <div class="exec">
@@ -719,8 +766,8 @@
                   <p class="agent-desc t-body2-reg">Accruals cut off on business day 3, per the close calendar.</p>
                 </div>
                 <div class="badges">
-                  <span class="badge t-caption-med"><img class="b-ic" src="assets/ctx-policy.svg" alt="" />Close calendar</span>
-                  <span class="badge t-caption-med"><img class="b-ic" src="assets/ctx-glossary.svg" alt="" />Accrual</span>
+                  <span class="badge t-caption-med" data-pop style="--d:2150ms;"><img class="b-ic" src="assets/ctx-policy.svg" alt="" />Close calendar</span>
+                  <span class="badge t-caption-med" data-pop style="--d:2300ms;"><img class="b-ic" src="assets/ctx-glossary.svg" alt="" />Accrual</span>
                 </div>
               </div>
             </div>
@@ -743,29 +790,29 @@
       <!-- Slide 5 · Launch faster with ready-made agents -->
       <section class="slide" id="slide-5" aria-roledescription="slide" aria-label="5 of 5">
         <div class="art" aria-hidden="true">
-          <div class="step is-c" style="left:270px; top:140px;">
+          <div class="step is-c" data-in style="--d:0ms; left:270px; top:140px;">
             <div class="step-tab t-body2-med"><img src="assets/mkt-store.svg" width="16" height="16" alt="" />Marketplace</div>
-            <div class="step-card is-pill search-pill t-body2-reg"><img src="assets/mkt-search.svg" width="24" height="24" alt="" />Search agents, automations, skills</div>
+            <div class="step-card is-pill search-pill t-body2-reg" id="mktSearch"><img src="assets/mkt-search.svg" width="24" height="24" alt="" /><span class="q-ph">Search agents, automations, skills</span><span class="q-txt" id="mktQuery"></span><span class="q-caret"></span></div>
           </div>
-          <div class="chips t-caption-med" style="top:220px;">
+          <div class="chips t-caption-med" data-in style="--d:150ms; top:220px;">
             <span class="chip is-on">Finance</span><span class="chip">Healthcare</span><span class="chip">Retail</span><span class="chip">IT ops</span><span class="chip">Insurance</span>
           </div>
           <div class="m-list" style="left:72px; top:262px;">
-            <div class="a-card m-row">
+            <div class="a-card m-row" data-in style="--d:1200ms;">
               <div class="m-head" data-icon="1">
                 <p class="a-title t-body1-med">KYC Document Checker</p>
                 <div class="m-meta"><span class="badge t-caption-med">Agent</span><span class="m-rating t-caption-reg"><img src="assets/mkt-star.svg" width="12" height="12" alt="" />4.6 · 860 installs</span></div>
               </div>
               <span class="m-get t-caption-med">Add</span>
             </div>
-            <div class="a-card m-row is-picked">
+            <div class="a-card m-row is-picked" style="--d:1350ms;">
               <div class="m-head" data-icon="2">
                 <p class="a-title t-body1-med">Invoice Processing Automator</p>
                 <div class="m-meta"><span class="badge t-caption-med">Automation</span><span class="m-rating t-caption-reg"><img src="assets/mkt-star.svg" width="12" height="12" alt="" />4.8 · 1.2k installs</span></div>
               </div>
-              <span class="m-add t-caption-med">Add</span>
+              <span class="m-add t-caption-med"><span class="lbl-a">Add</span><span class="lbl-b">Added</span></span>
             </div>
-            <div class="a-card m-row">
+            <div class="a-card m-row" data-in style="--d:1500ms;">
               <div class="m-head" data-icon="3">
                 <p class="a-title t-body1-med">Finance Close Assistant</p>
                 <div class="m-meta"><span class="badge t-caption-med">Assistant</span><span class="m-rating t-caption-reg"><img src="assets/mkt-star.svg" width="12" height="12" alt="" />4.7 · 2.1k installs</span></div>
@@ -773,10 +820,11 @@
               <span class="m-get t-caption-med">Add</span>
             </div>
           </div>
-          <img class="abs" src="assets/mkt-link.svg" width="9" height="32" alt="" style="left:265.5px; top:500px;" />
-          <div class="step is-c" style="left:270px; top:532px;">
+          <img class="abs" src="assets/mkt-link.svg" width="9" height="32" alt="" data-draw style="--d:2750ms; left:265.5px; top:500px;" />
+          <div class="step is-c" data-in style="--d:3000ms; left:270px; top:532px;">
             <div class="step-card is-result t-body2-med">Invoice Processing Automator added <img src="assets/icon-done-green.svg" width="20" height="20" alt="" /></div>
           </div>
+          <img class="m-cursor" id="mktCursor" src="assets/mkt-cursor.svg" width="20" height="20" alt="" style="--cx:417px; --cy:371px;" />
           <div>
             <img class="spk" src="assets/s2-spark-a.svg" width="14" height="14" alt="" style="left:79px; top:171px;" />
             <img class="spk" src="assets/s2-spark-d.svg" width="12" height="12" alt="" style="left:451px; top:131px;" />
@@ -987,18 +1035,38 @@
   var dots = Array.prototype.slice.call(document.querySelectorAll('.pager button'));
   var current = 0, timer = null, paused = false;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var typing = null;
+  function typeQuery() {
+    var pill = document.getElementById('mktSearch');
+    var out = document.getElementById('mktQuery');
+    var word = 'finance', n = 0;
+    clearInterval(typing);
+    pill.classList.remove('is-typing');
+    out.textContent = '';
+    if (reduce) { pill.classList.add('is-typing'); out.textContent = word; return; }
+    typing = setTimeout(function () {
+      pill.classList.add('is-typing');
+      typing = setInterval(function () {
+        out.textContent = word.slice(0, ++n);
+        if (n >= word.length) clearInterval(typing);
+      }, 85);
+    }, 450);
+  }
   function show(i) {
     current = (i + slides.length) % slides.length;
     slides.forEach(function (s, k) {
-      s.classList.toggle('is-active', k === current);
-      s.setAttribute('aria-hidden', k === current ? 'false' : 'true');
+      var on = k === current;
+      if (on && !s.classList.contains('is-active')) void s.offsetWidth;
+      s.classList.toggle('is-active', on);
+      s.setAttribute('aria-hidden', on ? 'false' : 'true');
     });
     dots.forEach(function (d, k) { d.setAttribute('aria-current', k === current ? 'true' : 'false'); });
+    if (slides[current].id === 'slide-5') typeQuery();
   }
   function schedule() {
     clearTimeout(timer);
     if (reduce || paused || document.hidden) return;
-    timer = setTimeout(function () { show(current + 1); schedule(); }, 6000);
+    timer = setTimeout(function () { show(current + 1); schedule(); }, 7000);
   }
   dots.forEach(function (d) {
     d.addEventListener('click', function () { show(+d.getAttribute('data-go')); schedule(); });
