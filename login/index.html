@@ -264,7 +264,6 @@
   .step.is-c .step-tab, .step-tab.is-auto { width: auto; min-width: 100px; padding-inline: 8px; }
   /* Layer pills are wider than their tabs, so every tab sits on its pill */
   .step-card.is-pill.is-layer { width: 140px; justify-content: center; }
-  .step-card .avatars img { width: 24px; height: 24px; }
   .badges { display: flex; gap: 6px; flex-wrap: wrap; }
   .badge .b-ic { width: 14px; height: 14px; }
 
@@ -296,6 +295,41 @@
   .swap .s-b { opacity: 0; }
   .slide.is-active .swap .s-a { animation: cq-out .25s ease var(--t) forwards; }
   .slide.is-active .swap .s-b { animation: cq-in .25s ease var(--t) forwards; }
+
+  /* Slide 1 · the agent works through its subtasks: each goes
+     waiting → in progress → done, then the run finishes. */
+  .exec { width: 100%; }
+  .exec .badge { margin-left: auto; }
+  .tasks {
+    width: 100%; display: flex; flex-direction: column; gap: 6px;
+    padding: 8px 12px; border-radius: 12px; background: #fafafa; border: 1px solid #eeeeee;
+  }
+  .task { display: flex; align-items: center; gap: 8px; color: #121212; }
+  .task-ic { display: grid; width: 16px; height: 16px; flex: none; }
+  .task-ic > * { grid-area: 1 / 1; }
+  .task-ic .t-wait { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px #bdbdbd; }
+  .task-ic .t-run  { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #0d99ff; border-right-color: transparent; opacity: 0; }
+  .task-ic .t-done { display: block; opacity: 0; }
+  .task-time { margin-left: auto; color: #8c8c8c; opacity: 0; }
+  .slide.is-active .task .t-wait { animation: cq-out .15s ease var(--t1) forwards; }
+  .slide.is-active .task .t-run  { animation: cq-in .15s ease var(--t1) forwards, cq-spin .7s linear infinite, cq-out .15s ease var(--t2) forwards; }
+  .slide.is-active .task .t-done { animation: cq-pop .35s cubic-bezier(.3,1.4,.5,1) var(--t2) both; }
+  .slide.is-active .task .task-txt { animation: cq-ink .2s ease var(--t1) both; }
+  .slide.is-active .task .task-time { animation: cq-in .2s ease var(--t2) forwards; }
+  @keyframes cq-ink  { from { color: #8c8c8c; } to { color: #121212; } }
+  @keyframes cq-spin { to { transform: rotate(360deg); } }
+  .link { position: absolute; display: block; }
+
+  /* Slide 4 · the kinds of context a bundle is made of */
+  .ctx-type {
+    position: absolute; width: 150px; translate: -50% 0;
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: #fff; border-radius: 12px; box-shadow: 0 2px 12px 0 rgba(33,33,33,.3);
+  }
+  .ctx-type img { display: block; flex: none; }
+  .ctx-type span { display: flex; flex-direction: column; min-width: 0; }
+  .ctx-type b { font-weight: 500; color: #121212; white-space: nowrap; }
+  .ctx-type i { font-style: normal; color: #616161; white-space: nowrap; }
 
   /* Slide 2 · one assistant in a chat: the question is typed and sent,
      the assistant types, then answers from your data with a chart. */
@@ -379,7 +413,7 @@
   .m-meta .badge { padding: 0 8px; }
   .m-rating { display: inline-flex; align-items: center; gap: 4px; color: #616161; white-space: nowrap; }
   .m-rating img { display: block; }
-  .m-add, .m-get {
+  .m-add {
     flex: none; height: 28px; padding: 0 12px; border-radius: 8px;
     display: inline-flex; align-items: center; white-space: nowrap;
   }
@@ -396,11 +430,11 @@
   /* Slide 5 sequence: type (JS) → results → cursor clicks Add → added */
   .slide.is-active .m-row.is-picked { animation: cq-rise .6s cubic-bezier(.2,.8,.2,1) var(--d) both, cq-pick .3s ease 3.65s both; }
   @keyframes cq-pick { from { box-shadow: 0 8px 12px 0 rgba(0,0,0,.12), 0 -8px 12px 0 rgba(0,0,0,.08); } }
-  .slide.is-active .m-add { animation: cq-press .3s ease 3.5s both, cq-done .3s ease 3.65s both; }
+  .slide.is-active .is-picked .m-add { animation: cq-press .3s ease 3.5s both, cq-done .3s ease 3.65s both; }
   @keyframes cq-press { 50% { transform: scale(.9); } }
   @keyframes cq-done { to { background: #14ae5c; } }
-  .slide.is-active .m-add .lbl-a { animation: cq-out .2s ease 3.65s both; }
-  .slide.is-active .m-add .lbl-b { animation: cq-in .2s ease 3.7s both; }
+  .slide.is-active .is-picked .m-add .lbl-a { animation: cq-out .2s ease 3.65s both; }
+  .slide.is-active .is-picked .m-add .lbl-b { animation: cq-in .2s ease 3.7s both; }
   @keyframes cq-out { to { opacity: 0; } }
   @keyframes cq-in  { to { opacity: 1; } }
   .slide.is-active .m-cursor { animation: cq-cursor 3.4s cubic-bezier(.45,0,.2,1) 1.1s both; }
@@ -412,7 +446,6 @@
     76%, 88%{ opacity: 1; transform: translate(var(--cx), var(--cy)); }
     100%    { opacity: 0; transform: translate(var(--cx), var(--cy)); }
   }
-  .m-get { background: #e5f4ff; color: #007be5; }
 
   /* Pager — the Figma dots, made pressable */
   .pager {
@@ -634,6 +667,7 @@
     .slide, .slide.is-active { transition: none !important; }
     .slide.is-active *, .slide.is-active *::before { animation: none !important; }
     .swap .s-a { opacity: 0; } .swap .s-b { opacity: 1; }
+    .task .t-wait, .task .t-run { opacity: 0; } .task .t-done, .task .task-time { opacity: 1; }
     .m-cursor { display: none; }
     .view { animation: none; }
     .spinner { animation-duration: 2s; }
@@ -650,52 +684,69 @@
       <img class="panel-gradient" src="assets/panel-gradient.png" width="540" height="804" alt="" aria-hidden="true" />
 
       <!-- Slide 1 · Automate your business outcomes -->
-      <section class="slide is-active" id="slide-1" aria-roledescription="slide" aria-label="1 of 5" data-length="3600">
+      <section class="slide is-active" id="slide-1" aria-roledescription="slide" aria-label="1 of 5" data-length="4400">
         <div class="art" aria-hidden="true">
-          <div class="step" data-in style="--d:100ms; left:179px; top:159px;">
+          <div class="step is-c" data-in style="--d:100ms; left:270px; top:130px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-play.svg" width="16" height="16" alt="" />Trigger</div>
             <div class="step-card is-pill t-body2-med"><img src="assets/icon-doc.svg" width="24" height="24" alt="" />New Invoice received</div>
           </div>
           <div>
-            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" data-draw style="--d:500ms; left:265px; top:207px;" />
-            <img class="abs" src="assets/connector.svg" width="9" height="96" alt="" data-draw style="--d:2400ms; left:265px; top:417px;" />
-            <span class="pulse" style="--d:700ms; --len:88px; left:265.5px; top:207px;"></span>
-            <span class="pulse" style="--d:2550ms; --len:88px; left:265.5px; top:417px;"></span>
+            <img class="link" src="assets/mkt-link.svg" width="9" height="32" alt="" data-draw style="--d:450ms; left:265.5px; top:198px;" />
+            <img class="link" src="assets/mkt-link.svg" width="9" height="32" alt="" data-draw style="--d:3400ms; left:265.5px; top:464px;" />
+            <span class="pulse" style="--d:600ms; --len:24px; left:265.5px; top:200px;"></span>
+            <span class="pulse" style="--d:3550ms; --len:24px; left:265.5px; top:466px;"></span>
           </div>
-          <div class="step" data-in style="--d:1200ms; left:72px; top:299px;">
+          <div class="step" data-in style="--d:800ms; left:72px; top:230px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-agent.svg" width="16" height="16" alt="" />Agent</div>
             <div class="step-card is-agent">
               <div class="exec">
                 <img src="assets/icon-finished.svg" width="20" height="20" alt="" />
-                <span class="swap t-caption-med" style="--t:2250ms;"><span class="s-a">Running…</span><span class="s-b exec-label">Finished execution</span></span>
+                <span class="swap t-caption-med" style="--t:3250ms;"><span class="s-a">Running…</span><span class="s-b exec-label">Finished execution</span></span>
+                <span class="badge t-caption-med" data-pop style="--d:1100ms;"><img src="assets/gemini.png" alt="" />Gemini</span>
               </div>
               <div class="agent-body">
                 <div class="agent-text">
                   <p class="t-body1-med">Invoice Validator</p>
                   <p class="agent-desc t-body2-reg">Reviews invoice for accuracy, compliance, and payment terms</p>
                 </div>
-                <span class="badge t-caption-med" data-pop style="--d:1650ms;"><img src="assets/gemini.png" alt="" />Gemini</span>
+                <div class="tasks">
+                <div class="task" style="--t1:1300ms; --t2:1900ms;">
+                  <span class="task-ic"><span class="t-wait"></span><span class="t-run"></span><img class="t-done" src="assets/icon-done-green.svg" width="16" height="16" alt="" /></span>
+                  <span class="task-txt t-body2-reg">Extract invoice fields</span>
+                  <span class="task-time t-caption-reg">0.6s</span>
+                </div>
+                <div class="task" style="--t1:1900ms; --t2:2500ms;">
+                  <span class="task-ic"><span class="t-wait"></span><span class="t-run"></span><img class="t-done" src="assets/icon-done-green.svg" width="16" height="16" alt="" /></span>
+                  <span class="task-txt t-body2-reg">Match PO #4821 and receipt</span>
+                  <span class="task-time t-caption-reg">0.6s</span>
+                </div>
+                <div class="task" style="--t1:2500ms; --t2:3100ms;">
+                  <span class="task-ic"><span class="t-wait"></span><span class="t-run"></span><img class="t-done" src="assets/icon-done-green.svg" width="16" height="16" alt="" /></span>
+                  <span class="task-txt t-body2-reg">Check payment terms</span>
+                  <span class="task-time t-caption-reg">0.5s</span>
+                </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="step" data-in style="--d:3050ms; left:194px; top:509px;">
+          <div class="step is-c" data-in style="--d:3800ms; left:270px; top:496px;">
             <div class="step-tab t-body2-med"><img src="assets/icon-done-white.svg" width="16" height="16" alt="" />Result</div>
             <div class="step-card is-result t-body2-med">
               <span class="avatars"><img src="assets/avatar-1.png" alt="" /><img src="assets/avatar-2.png" alt="" /></span>
-              Approved
-              <img src="assets/icon-done-green.svg" width="20" height="20" alt="" data-pop style="--d:3350ms;" />
+              Approved for payment
+              <img src="assets/icon-done-green.svg" width="20" height="20" alt="" data-pop style="--d:4100ms;" />
             </div>
           </div>
           <div>
-            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:271px; top:273px;" />
-            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:131px; top:483px;" />
-            <img class="spk" src="assets/s1-spark-b.svg" width="10" height="10" alt="" style="left:311px; top:283px;" />
-            <img class="spk" src="assets/s1-spark-c.svg" width="12" height="12" alt="" style="left:170px; top:252px;" />
-            <img class="spk" src="assets/s1-spark-d.svg" width="12" height="12" alt="" style="left:361px; top:243px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:141px; top:293px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:331px; top:303px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:331px; top:483px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:361px; top:463px;" />
+            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:121px; top:163px;" />
+            <img class="spk" src="assets/s1-spark-c.svg" width="12" height="12" alt="" style="left:402px; top:146px;" />
+            <img class="spk" src="assets/s1-spark-b.svg" width="10" height="10" alt="" style="left:31px; top:263px;" />
+            <img class="spk" src="assets/s1-spark-d.svg" width="12" height="12" alt="" style="left:494px; top:283px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:41px; top:413px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:497px; top:443px;" />
+            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:141px; top:533px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:401px; top:563px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:321px; top:113px;" />
           </div>
         </div>
         <h2 class="headline">Automate your business outcomes</h2>
@@ -804,62 +855,47 @@
       </section>
 
       <!-- Slide 4 · Give your agents what your company knows -->
-      <section class="slide" id="slide-4" aria-roledescription="slide" aria-label="4 of 5" data-length="2700">
+      <section class="slide" id="slide-4" aria-roledescription="slide" aria-label="4 of 5" data-length="2800">
         <div class="art" aria-hidden="true">
-          <div class="step is-c" data-in style="--d:100ms; left:270px; top:150px;">
-            <div class="step-tab t-body2-med"><img src="assets/ctx-ask.svg" width="16" height="16" alt="" />Ask</div>
-            <div class="step-card is-pill t-body2-med">
-              <span class="avatars"><img src="assets/avatar-2.png" alt="" /></span>
-              What’s our Q3 accrual cutoff?
-            </div>
-          </div>
+          <div class="step-tab t-body2-med is-auto" data-in style="--d:0ms; position:absolute; left:270px; top:130px; translate:-50% 0; width:max-content; border-radius:8px;"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Context Studio</div>
           <div>
-            <img class="abs" src="assets/ctx-fan.svg" width="360" height="48" alt="" data-draw style="--d:550ms; left:89.5px; top:214px;" />
-            <img class="abs" src="assets/ctx-merge.svg" width="360" height="60" alt="" data-draw style="--d:1400ms; left:89.5px; top:330px;" />
+            <div class="ctx-type" data-pop style="--d:150ms; left:100px; top:170px;"><img src="assets/ctx-glossary.svg" width="24" height="24" alt="" /><span><b class="t-body2-med">Glossary</b><i class="t-caption-reg">248 terms</i></span></div>
+            <div class="ctx-type" data-pop style="--d:300ms; left:270px; top:170px;"><img src="assets/ctx-ontology.svg" width="24" height="24" alt="" /><span><b class="t-body2-med">Ontology</b><i class="t-caption-reg">36 entities</i></span></div>
+            <div class="ctx-type" data-pop style="--d:450ms; left:440px; top:170px;"><img src="assets/ctx-policy.svg" width="24" height="24" alt="" /><span><b class="t-body2-med">Rules &amp; policies</b><i class="t-caption-reg">12 rules</i></span></div>
+            <div class="ctx-type" data-pop style="--d:600ms; left:100px; top:234px;"><img src="assets/ctx-data.svg" width="24" height="24" alt="" /><span><b class="t-body2-med">Data binding</b><i class="t-caption-reg">4 sources</i></span></div>
+            <div class="ctx-type" data-pop style="--d:750ms; left:270px; top:234px;"><img src="assets/ctx-tool.svg" width="24" height="24" alt="" /><span><b class="t-body2-med">Tool binding</b><i class="t-caption-reg">6 tools</i></span></div>
+            <div class="ctx-type" data-pop style="--d:900ms; left:440px; top:234px;"><img src="assets/ctx-prompt.svg" width="24" height="24" alt="" /><span><b class="t-body2-med">Prompts</b><i class="t-caption-reg">9 templates</i></span></div>
           </div>
-          <div>
-            <div class="step is-c" data-in style="--d:850ms; left:100px; top:262px;">
-              <div class="step-tab t-body2-med"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Solution</div>
-              <div class="step-card is-pill is-layer t-body2-med"><img src="assets/ctx-policy.svg" width="24" height="24" alt="" />Policies</div>
-            </div>
-            <div class="step is-c" data-in style="--d:1000ms; left:270px; top:262px;">
-              <div class="step-tab t-body2-med"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Organization</div>
-              <div class="step-card is-pill is-layer t-body2-med"><img src="assets/ctx-glossary.svg" width="24" height="24" alt="" />Glossary</div>
-            </div>
-            <div class="step is-c" data-in style="--d:1150ms; left:440px; top:262px;">
-              <div class="step-tab t-body2-med"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Domain</div>
-              <div class="step-card is-pill is-layer t-body2-med"><img src="assets/ctx-ontology.svg" width="24" height="24" alt="" />Ontology</div>
-            </div>
-          </div>
-          <div class="step" data-in style="--d:1700ms; left:72px; top:390px;">
-            <div class="step-tab t-body2-med"><img src="assets/icon-agent.svg" width="16" height="16" alt="" />Assistant</div>
+          <img class="abs" src="assets/ctx-merge.svg" width="360" height="60" alt="" data-draw style="--d:1150ms; left:89.5px; top:288px;" />
+          <div class="step" data-in style="--d:1400ms; left:72px; top:350px;">
+            <div class="step-tab t-body2-med is-auto"><img src="assets/ctx-layers.svg" width="16" height="16" alt="" />Context bundle</div>
             <div class="step-card is-agent">
               <div class="exec">
                 <img src="assets/icon-finished.svg" width="20" height="20" alt="" />
-                <span class="exec-label t-caption-med">Answered from context</span>
+                <span class="swap t-caption-med" style="--t:2000ms;"><span class="s-a">Bundling 6 artifacts…</span><span class="s-b exec-label">Ready for your assistants</span></span>
               </div>
               <div class="agent-body">
                 <div class="agent-text">
-                  <p class="t-body1-med">Finance Close Assistant</p>
-                  <p class="agent-desc t-body2-reg">Accruals cut off on business day 3, per the close calendar.</p>
+                  <p class="t-body1-med">Finance close</p>
+                  <p class="agent-desc t-body2-reg">Terms, rules, data and tools your finance assistants work from</p>
                 </div>
                 <div class="badges">
-                  <span class="badge t-caption-med" data-pop style="--d:2150ms;"><img class="b-ic" src="assets/ctx-policy.svg" alt="" />Close calendar</span>
-                  <span class="badge t-caption-med" data-pop style="--d:2300ms;"><img class="b-ic" src="assets/ctx-glossary.svg" alt="" />Accrual</span>
+                  <span class="badge t-caption-med" data-pop style="--d:2150ms;">Solution</span>
+                  <span class="badge t-caption-med" data-pop style="--d:2250ms;">Organization</span>
+                  <span class="badge t-caption-med" data-pop style="--d:2350ms;">Domain</span>
                 </div>
               </div>
             </div>
           </div>
           <div>
-            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:121px; top:183px;" />
-            <img class="spk" src="assets/s1-spark-c.svg" width="12" height="12" alt="" style="left:402px; top:166px;" />
-            <img class="spk" src="assets/s1-spark-b.svg" width="10" height="10" alt="" style="left:455px; top:224px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:61px; top:233px;" />
-            <img class="spk" src="assets/s1-spark-d.svg" width="12" height="12" alt="" style="left:183px; top:357px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:353px; top:361px;" />
-            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:473px; top:373px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:41px; top:563px;" />
-            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:491px; top:551px;" />
+            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:121px; top:123px;" />
+            <img class="spk" src="assets/s1-spark-c.svg" width="12" height="12" alt="" style="left:402px; top:116px;" />
+            <img class="spk" src="assets/s1-spark-b.svg" width="10" height="10" alt="" style="left:15px; top:304px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:61px; top:333px;" />
+            <img class="spk" src="assets/s1-spark-d.svg" width="12" height="12" alt="" style="left:495px; top:337px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:473px; top:303px;" />
+            <img class="spk" src="assets/s1-spark-a.svg" width="10" height="10" alt="" style="left:41px; top:553px;" />
+            <img class="spk" src="assets/s1-spark-e.svg" width="8" height="8" alt="" style="left:491px; top:541px;" />
           </div>
         </div>
         <h2 class="headline">Give your agents what your company knows</h2>
@@ -881,7 +917,7 @@
                 <p class="a-title t-body1-med">Invoice Validator</p>
                 <div class="m-meta"><span class="badge t-caption-med">Agent</span><span class="m-rating t-caption-reg"><img src="assets/mkt-star.svg" width="12" height="12" alt="" />4.6 · 860 installs</span></div>
               </div>
-              <span class="m-get t-caption-med">Add</span>
+              <span class="m-add t-caption-med"><span class="lbl-a">Add</span></span>
             </div>
             <div class="a-card m-row is-picked" style="--d:2350ms;">
               <div class="m-head" data-icon="2">
@@ -895,7 +931,7 @@
                 <p class="a-title t-body1-med">Finance Close Assistant</p>
                 <div class="m-meta"><span class="badge t-caption-med">Assistant</span><span class="m-rating t-caption-reg"><img src="assets/mkt-star.svg" width="12" height="12" alt="" />4.7 · 2.1k installs</span></div>
               </div>
-              <span class="m-get t-caption-med">Add</span>
+              <span class="m-add t-caption-med"><span class="lbl-a">Add</span></span>
             </div>
           </div>
           <img class="abs" src="assets/mkt-link.svg" width="9" height="32" alt="" data-draw style="--d:3850ms; left:265.5px; top:500px;" />
