@@ -2215,6 +2215,29 @@ button.gv-type:hover { border-color: var(--strokes-line-1); }
 .cq-avatar .cq-ic { width: 12px; height: 12px; }
 @media (max-width: 1100px) { .gv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gv-stat:nth-child(3) { border-left: 0; } .gv-stat:nth-child(n+3) { border-top: 1px solid var(--strokes-line-3); } }
 @media (max-width: 600px) { .gv-stats { grid-template-columns: minmax(0, 1fr); } .gv-stat + .gv-stat { border-left: 0; border-top: 1px solid var(--strokes-line-3); } }
+
+/* ══ Create rules chooser ══════════════════════════════════════ */
+.gv-paths { display: flex; flex-direction: column; gap: 8px; }
+.gv-path { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--radius-lg); border: 1px solid var(--strokes-line-1); background: var(--gv-nested); text-align: left; color: var(--text-teritiary); transition: border-color .15s, background .15s; }
+.gv-path:hover { border-color: var(--strokes-card-selected); background: var(--backgrounds-table-select); color: var(--text-coloured-blue); }
+.gv-path .gv-well { width: 40px; height: 40px; border-radius: 10px; }
+.gv-path__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.gv-path__title { color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+
+/* ══ Multi-select dropdown (tools, models) ═════════════════════ */
+.gv-dd { position: relative; }
+.gv-dd__trigger { width: 100%; min-height: 42px; display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 12px; border-radius: var(--radius-md); background: var(--backgrounds-type-default-bg-1); border: 1px solid var(--strokes-type-default); text-align: left; color: var(--text-teritiary); }
+.gv-dd.is-open .gv-dd__trigger, .gv-dd__trigger:focus-visible { border-color: var(--strokes-type-focus); }
+.gv-dd__trigger > .cq-ic { margin-left: auto; transition: transform .2s; }
+.gv-dd.is-open .gv-dd__trigger > .cq-ic { transform: rotate(180deg); }
+.gv-dd__ph { font: 400 14px/20px var(--font-geist); letter-spacing: -0.4px; }
+.gv-dd__chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.gv-dd__chip { height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: var(--radius-sm); background: var(--backgrounds-badge-blue); border: 1px solid var(--strokes-colour-blue); color: var(--text-coloured-blue); font: 400 12px/1 var(--font-geist-mono); }
+.gv-dd__menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; max-height: 280px; overflow-y: auto; padding: 4px; border-radius: var(--radius-lg); background: var(--backgrounds-card-bg-3); border: 1px solid var(--strokes-card-default); box-shadow: var(--shadow-pop); }
+.gv-dd__head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px 8px; color: var(--text-teritiary); border-bottom: 1px solid var(--strokes-line-3); margin-bottom: 4px; }
+.gv-dd__opt { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-md); text-align: left; }
+.gv-dd__opt:hover { background: var(--backgrounds-card-bg-4); }
+.gv-dd__opt .cq-checkbox { flex: none; }
 </style>
 </head>
 <body class="cq">
@@ -2768,7 +2791,7 @@ function rolloutSteps() {
   steps.push(S.mode !== 'off' ? { st: 'done', title: 'Monitor on', meta: fmtWhen(S.monitorSince) }
     : { st: 'todo', title: 'Turn on Monitor', meta: 'Records, never blocks', act: `<button class="cq-btn cq-btn--xs cq-btn--primary" data-act="openMode" data-mode="monitor">Turn on</button>` });
   steps.push(lv ? { st: 'done', title: 'Rules live', meta: `${plural(lv.rules.length, 'rule')}` }
-    : { st: 'todo', title: 'Make rules live', meta: 'Start with starter rules', act: `<button class="cq-btn cq-btn--xs cq-btn--primary" data-act="openBuilder">Add rules</button>` });
+    : { st: 'todo', title: 'Make rules live', meta: 'Decide what’s allowed', act: `<button class="cq-btn cq-btn--xs cq-btn--primary" data-act="openCreate">Create rules</button>` });
   if (S.mode === 'enforce') steps.push({ st: 'done', title: 'Observed', meta: dur((S.enforceSince - S.monitorSince) / H) });
   else if (S.mode === 'monitor') {
     const el = (NOW - S.monitorSince) / H;
@@ -2822,7 +2845,7 @@ function attentionItems() {
     else if (c.kind === 'stale') items.push({ tone: 'orange', icon: 'ds-Tool', title: `${c.missing.join(', ')} not covered`, sub: A(c.asst).name, act: ['openBuilder', 'Fix', `data-starter="${c.asst}"`] });
     else if (c.tone === 'bad') items.push({ tone: 'red', icon: 'ds-Error', title: 'Live rules allow nothing', sub: 'Enforce would block everything', act: ['openBuilder', 'Fix', ''] });
   });
-  else if (S.mode !== 'off') items.push({ tone: 'blue', icon: 'ds-Checklist', title: 'No rules yet', sub: 'Start with starter rules', act: ['openBuilder', 'Add', ''] });
+  else if (S.mode !== 'off') items.push({ tone: 'blue', icon: 'ds-Checklist', title: 'No rules yet', sub: 'Decide what’s allowed', act: ['openCreate', 'Create', ''] });
   const w = S.records.filter(r => r.verdict === 'deny' && !r.enforced).length;
   if (S.mode === 'monitor' && w) items.push({ tone: 'orange', icon: 'i-alert', title: `${w} would-block calls`, sub: 'Check them before Enforce', act: ['goAct', 'Review', 'data-filter="would"'] });
   const c = cand();
@@ -2865,7 +2888,7 @@ function todayCard() {
 /* Live rules as a picture: allow vs block, and which assistants they cover. */
 function liveRulesCard() {
   const lv = live();
-  if (!lv) return cardHead('Live rules') + `<div class="gv-allclear"><span class="gv-ring-ok" data-tone="blue">${ic('ds-Checklist', 20)}</span><span class="cq-body2-med">No rules yet</span><button class="cq-btn cq-btn--xs cq-btn--primary" data-act="openBuilder">Add starter rules</button></div>`;
+  if (!lv) return cardHead('Live rules') + `<div class="gv-allclear"><span class="gv-ring-ok" data-tone="blue">${ic('ds-Checklist', 20)}</span><span class="cq-body2-med">No rules yet</span><button class="cq-btn cq-btn--xs cq-btn--primary" data-act="openCreate">Create rules</button></div>`;
   const al = lv.rules.filter(r => r.effect === 'allow').length, bl = lv.rules.length - al;
   return cardHead('Live rules', linkBtn('Rules', 'go', 'data-page="rules"')) + `
     <div class="gv-lr__name cq-body2-med cq-truncate">${esc(lv.name)}</div>
@@ -2942,7 +2965,7 @@ function pageRules() {
   h += head('Rules', 'One version is live at a time. A new version always starts from the live rules.',
     `<button class="cq-icon-btn gv-icon-btn--bordered" data-act="openTest" title="Test a call" aria-label="Test a call">${ic('ds-Play', 16)}</button><button class="cq-btn cq-btn--sm cq-btn--primary" data-act="openBuilder">${ic('ds-Plus', 14)}New version</button>`);
   if (!S.versions.length) {
-    return h + `<section class="gv-card"><div class="gv-empty"><span class="gv-well" data-tone="blue">${ic('ds-Checklist', 20)}</span><div class="gv-empty__title cq-body1-med">No rules yet</div><div class="gv-empty__desc cq-body2-reg">Starter rules allow exactly what each assistant already uses.</div><button class="cq-btn cq-btn--primary" data-act="openBuilder">${ic('ds-Plus', 16)}Add starter rules</button></div></section>`;
+    return h + `<section class="gv-card"><div class="gv-empty"><span class="gv-well" data-tone="blue">${ic('ds-Checklist', 20)}</span><div class="gv-empty__title cq-body1-med">No rules yet</div><div class="gv-empty__desc cq-body2-reg">Rules decide which tool and model calls your assistants may make.</div><button class="cq-btn cq-btn--primary" data-act="openCreate">${ic('ds-Plus', 16)}Create rules</button></div></section>`;
   }
   // How a version goes live, drawn as a flow for the current mode
   const flow = enf ? [['ds-Edit', 'Publish'], ['ds-ClockOrTime', `Trial ${dur(S.windowH)}`], ['ds-HITL', 'Approve'], ['i-check', 'Live']] : [['ds-Edit', 'Publish'], ['i-check', 'Make live']];
@@ -3019,6 +3042,7 @@ function openBuilder(d) {
   B = { view: 'list', base: from, baseLive: live(), rules: from ? JSON.parse(JSON.stringify(from.rules)) : [], name: '', reason: '', tpl: null, tv: {}, starterSel: {}, write: '', writeErr: '', menu: null };
   B.name = from ? suggestName(from) : 'Starter rules';
   if (d.starter) { B.view = 'starter'; B.starterSel = { [d.starter]: true }; }
+  else if (d.view) { B.view = d.view; if (d.view === 'starter') governed().forEach(a => B.starterSel[a.id] = true); if (d.view === 'write') B.write = WRITE_EXAMPLE; if (!from) B.name = d.view === 'starter' ? 'Starter rules' : 'First rules'; }
   else if (!from) { B.view = 'starter'; governed().forEach(a => B.starterSel[a.id] = true); }
   openModal('lg', renderBuilder);
 }
@@ -3035,7 +3059,7 @@ function renderBuilder() {
     main = `<div class="cq-row-flex" style="justify-content:space-between"><div><div class="cq-body1-med" style="color:var(--text-primary)">Rules in this version <span class="gv-muted">${B.rules.length}</span></div><div class="cq-caption-reg gv-muted">${B.base ? `Started from ${B.base.id === (lv && lv.id) ? 'the live rules' : 'version'}: ${esc(B.base.name)}` : 'No rules are live yet — this will be the first version.'}</div></div>${lv ? `<div class="gv-diff">${diffChips(d)}</div>` : ''}</div>
       ${B.rules.length ? `<div class="gv-rules">${B.rules.map((r, i) => { const dk = lv ? (d.list.find(x => x.r.id === r.id && x.k !== 'removed') || {}).k : 'added'; return `<div class="gv-rule ${dk ? 'is-' + dk : ''}">${effectChip(r.effect)}<div style="min-width:0"><div class="gv-rule__name cq-body2-med">${esc(r.label)}</div><div class="gv-rule__desc cq-caption-reg">${esc(r.desc || '')}</div></div><div class="gv-rule__end">${dk ? `<span class="cq-badge" data-tone="${dk === 'added' ? 'green' : 'orange'}">${dk === 'added' ? 'New' : 'Changed'}</span>` : ''}<span class="cq-tag">${SOURCE[r.source]}</span>${icBtn('ruleMenu', 'i-dots', 'Rule options', `data-i="${i}"`)}</div></div>`; }).join('')}
         ${lv ? d.list.filter(x => x.k === 'removed').map(x => ruleRow(x.r, 'is-removed')).join('') : ''}</div>`
-        : `<div class="gv-inline cq-body2-reg" data-tone="orange">${ic('i-alert', 16)}<div><b>No rules in this version.</b> Add starter rules to begin.</div></div>`}
+        : `<div class="gv-inline cq-body2-reg" data-tone="orange">${ic('i-alert', 16)}<div><b>No rules in this version.</b> Add a rule below to begin.</div></div>`}
       <div><div class="cq-body2-med" style="color:var(--text-primary);margin-bottom:8px">Add a rule</div><div class="gv-builder__adds">
         <button class="gv-add" data-act="bView" data-view="starter"><span class="gv-add__title cq-body2-med">${ic('ic-pp_aiassistant', 16)}Starter rules ${chip('Recommended', 'blue', null, 1)}</span><span class="gv-add__desc cq-caption-reg">Allow exactly what an assistant already uses — its tools, MCP servers, contexts and models.</span></button>
         <button class="gv-add" data-act="bView" data-view="template"><span class="gv-add__title cq-body2-med">${ic('ds-Templates', 16)}From a template</span><span class="gv-add__desc cq-caption-reg">Fill in a ready-made rule, like “Limit a tool input: amount ≤ 5,000”.</span></button>
@@ -3087,9 +3111,10 @@ function builderTemplate() {
   if (t) {
     const v = B.tv;
     const asstSel = `<div class="gv-field"><div class="gv-label cq-body2-reg">Applies to</div><select data-bind="B.tv.asst" data-rerender="1"><option value="">All governed assistants</option>${governed().map(a => `<option value="${a.id}"${v.asst === a.id ? ' selected' : ''}>${esc(a.name)}</option>`).join('')}</select><div class="gv-hint cq-caption-reg">Agents, tools and workflows will be choosable here when they’re governed.</div></div>`;
-    const multi = key => `<div class="gv-multi">${tools.map(x => `<button data-act="bTplToggle" data-key="${key}" data-v="${x}" class="${(v[key] || []).includes(x) ? 'is-on' : ''}">${x}</button>`).join('')}</div>`;
+    const toolOpts = tools.map(x => ({ v: x, sub: governed().filter(a => a.tools.includes(x)).map(a => a.name).join(', ') }));
+    const multi = key => multiSelect(key, toolOpts, 'Select tools', 'tools');
     if (t.id === 'allowed_tools' || t.id === 'block_tools') form = `<div class="gv-field"><div class="gv-label cq-body2-reg"><span>Tools<span class="req">*</span></span></div>${multi('tools')}</div>${asstSel}`;
-    if (t.id === 'allowed_models') form = `<div class="gv-field"><div class="gv-label cq-body2-reg"><span>Models<span class="req">*</span></span></div><div class="gv-multi">${MODELS.map(x => `<button data-act="bTplToggle" data-key="models" data-v="${x}" class="${(v.models || []).includes(x) ? 'is-on' : ''}">${x}</button>`).join('')}</div><div class="gv-hint cq-caption-reg">Starter rules allow every model. To restrict models, add this and remove the starter “models” rules.</div></div>${asstSel}`;
+    if (t.id === 'allowed_models') form = `<div class="gv-field"><div class="gv-label cq-body2-reg"><span>Models<span class="req">*</span></span></div>${multiSelect('models', MODELS.map(x => ({ v: x, sub: { 'gpt-4o': 'OpenAI', 'gpt-4o-mini': 'OpenAI', 'claude-sonnet-4': 'Anthropic', 'gemini-2.5-pro': 'Google' }[x] })), 'Select models', 'models')}<div class="gv-hint cq-caption-reg">Starter rules allow every model. To restrict models, add this and remove the starter “models” rules.</div></div>${asstSel}`;
     if (t.id === 'tool_input_limit') form = `<div class="gv-row2"><div class="gv-field"><div class="gv-label cq-body2-reg"><span>Tool<span class="req">*</span></span></div><select data-bind="B.tv.tool" data-rerender="1">${tools.map(x => `<option${v.tool === x ? ' selected' : ''}>${x}</option>`).join('')}</select></div>
       <div class="gv-field"><div class="gv-label cq-body2-reg"><span>Input name<span class="req">*</span></span></div><input type="text" data-bind="B.tv.arg" data-rerender="lazy" value="${esc(v.arg || '')}" placeholder="e.g. amount" /></div></div>
       <div class="gv-row2"><div class="gv-field"><div class="gv-label cq-body2-reg"><span>Maximum<span class="req">*</span></span></div><input type="number" data-bind="B.tv.max" data-rerender="lazy" value="${esc(v.max || '')}" /></div>
@@ -3134,6 +3159,21 @@ function parseWritten(txt) {
   if (!id) return { err: 'Add @id("rule-name") at the top so activity can name this rule.' };
   const lbl = (t.match(/@description\("([^"]+)"\)/) || [])[1] || id;
   return { ok: true, rule: { id, label: lbl, effect: /\bforbid\b/.test(t) ? 'block' : 'allow', source: 'written', desc: 'Written rule', raw: t.replace(/@id\([^)]*\)\s*/, '').replace(/@description\([^)]*\)\s*/, '') } };
+}
+
+/* A dropdown that opens a checklist: used for picking tools and models. */
+function multiSelect(key, opts, placeholder, noun) {
+  const sel = B.tv[key] || [];
+  const open = B.dd === key;
+  const shown = sel.slice(0, 3);
+  return `<div class="gv-dd${open ? ' is-open' : ''}">
+    <button type="button" class="gv-dd__trigger" data-act="bDd" data-key="${key}" aria-expanded="${open}">
+      ${sel.length ? `<span class="gv-dd__chips">${shown.map(x => `<span class="gv-dd__chip">${esc(x)}</span>`).join('')}${sel.length > 3 ? `<span class="gv-dd__chip">+${sel.length - 3}</span>` : ''}</span>` : `<span class="gv-dd__ph">${placeholder}</span>`}
+      ${ic('ic-pp_chevron', 16)}</button>
+    ${open ? `<div class="gv-dd__menu" role="listbox" aria-multiselectable="true">
+      <div class="gv-dd__head cq-caption-reg"><span>${sel.length} of ${opts.length} ${noun} selected</span><button type="button" class="gv-link-btn" data-act="bDdAll" data-key="${key}">${sel.length === opts.length ? 'Clear' : 'Select all'}</button></div>
+      ${opts.map(o => { const on = sel.includes(o.v); return `<button type="button" class="gv-dd__opt${on ? ' is-checked' : ''}" data-act="bTplToggle" data-key="${key}" data-v="${o.v}" role="option" aria-selected="${on}"><span class="cq-checkbox${on ? ' is-checked' : ''}"><svg viewBox="0 0 12 12"><use href="#i-check"/></svg></span><span class="gv-cell-main"><span class="gv-callname">${esc(o.v)}</span>${o.sub ? `<span class="cq-caption-reg">${esc(o.sub)}</span>` : ''}</span></button>`; }).join('')}
+    </div>` : ''}</div>`;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -3399,7 +3439,7 @@ function renderMode() {
       <button class="gv-radio${M.fail === 'continue' ? ' is-on' : ''}" data-act="mFail" data-k="continue"><span class="gv-radio__dot"></span><span class="gv-radio__main"><span class="gv-radio__title cq-body2-med">Continue the call</span><span class="gv-radio__desc cq-caption-reg">Assistants keep working; that call isn’t checked.</span></span></button>
       <button class="gv-radio${M.fail === 'stop' ? ' is-on' : ''}" data-act="mFail" data-k="stop"><span class="gv-radio__dot"></span><span class="gv-radio__main"><span class="gv-radio__title cq-body2-med">Stop the call</span><span class="gv-radio__desc cq-caption-reg">Safer, but assistants stop if governance is down.</span></span></button></div>
       <div class="gv-hint cq-caption-reg">Only matters in Enforce. There’s no default — pick what’s right for ${esc(WSN())}.</div></div>`;
-    if (!lv) extra += `<div class="gv-inline cq-body2-reg" data-tone="red">${ic('ds-Error', 16)}<div><b>No rules are live.</b> Enforce would block every call. Add starter rules first.<div class="gv-inline__act"><button class="cq-btn cq-btn--xs cq-btn--tonal" data-act="openBuilder">Add starter rules</button></div></div></div>`;
+    if (!lv) extra += `<div class="gv-inline cq-body2-reg" data-tone="red">${ic('ds-Error', 16)}<div><b>No rules are live.</b> Enforce would block every call. Create rules first.<div class="gv-inline__act"><button class="cq-btn cq-btn--xs cq-btn--tonal" data-act="openCreate">Create rules</button></div></div></div>`;
     else {
       extra += `<div><div class="cq-body2-reg" style="color:var(--text-primary);margin-bottom:6px">Rules that will enforce: <b style="font-weight:500">${esc(lv.name)}</b></div><div class="gv-checks cq-caption-reg">${chk.map(checkRow).join('')}</div></div>`;
       if (chk.some(c => c.tone === 'warn')) extra += `<button class="gv-tick cq-body2-reg${M.understand ? ' is-checked' : ''}" data-act="mUnderstand"><span class="cq-checkbox${M.understand ? ' is-checked' : ''}"><svg viewBox="0 0 12 12"><use href="#i-check"/></svg></span><span>I understand: calls from assistants without rules will be blocked.</span></button>`;
@@ -3651,6 +3691,18 @@ function runTest() {
   refreshDrawer();
 }
 
+/* ── Create rules: choose how to start, then go to that path ──────── */
+function openCreate() { openModal('md', renderCreate); }
+function renderCreate() {
+  const paths = [
+    ['starter', 'ic-pp_aiassistant', 'blue', 'Starter rules', 'Allow exactly what each assistant already uses — its tools, MCP servers, contexts and models. The safest way to begin.', true],
+    ['template', 'ds-Templates', 'purple', 'From a template', 'Fill in a ready-made rule: allow or block tools, allow models, or limit a tool input like amount ≤ 5,000.'],
+    ['write', 'ds-Code', 'grey', 'Write a rule', 'For advanced cases. Write the rule text yourself and check it before adding.'],
+  ];
+  return mHead('Create rules', 'ds-Checklist') + `<div class="gv-modal__body"><div class="gv-modal__lead cq-body2-reg">How do you want to start? You can add more rules of any kind afterwards.</div>
+    <div class="gv-paths">${paths.map(([k, icon, tone, title, desc, rec]) => `<button class="gv-path" data-act="createPick" data-view="${k}"><span class="gv-well" data-tone="${tone}">${ic(icon, 18)}</span><span class="gv-path__txt"><span class="gv-path__title cq-body1-med">${title}${rec ? ` ${chip('Recommended', 'blue', null, 1)}` : ''}</span><span class="cq-caption-reg gv-muted">${desc}</span></span>${ic('i-chev-right', 16)}</button>`).join('')}</div></div>`;
+}
+
 /* ══════════════════════════════════════════════════════════════════
    ALL WORKSPACES — one view across every workspace the admin runs.
    Each workspace keeps its own state; this scope only reads them and
@@ -3887,7 +3939,11 @@ const ACT = {
   rSave: () => { const p = S.pauses.find(x => x.id === M.id); S.pauses = S.pauses.filter(x => x.id !== M.id); adminLog('Resumed', M.reason, [['Resumed', p.asst ? A(p.asst).name : 'Every assistant']]); closeModal(); render(); toast('Resumed', 'New chats work again.'); },
   openVersion: d => { closeModal(); openDrawer('version', d.id); },
   confirmLife: d => openLife(d), lifeSave: () => saveLife(), lifeSwitch: d => { M.op = d.op; M.err = null; paintModal(); },
-  openBuilder: d => { closeDrawer(); openBuilder(d); },
+  openBuilder: d => { closeDrawer(); if (!live() && !d.from && !d.starter && !d.view && !S.versions.length) return openCreate(); openBuilder(d); },
+  openCreate: () => { closeDrawer(); openCreate(); },
+  createPick: d => openBuilder({ view: d.view }),
+  bDd: d => { B.dd = B.dd === d.key ? null : d.key; paintModal(); },
+  bDdAll: d => { const all = d.key === 'models' ? MODELS : [...new Set(governed().flatMap(a => a.tools))]; B.tv[d.key] = (B.tv[d.key] || []).length === all.length ? [] : all.slice(); paintModal(); },
   bView: d => { B.view = d.view; if (d.view === 'write' && !B.write) B.write = WRITE_EXAMPLE; paintModal(); },
   bStarterFor: d => { B.view = 'starter'; B.starterSel = { [d.asst]: true }; paintModal(); },
   bStarterToggle: d => { B.starterSel[d.asst] = !B.starterSel[d.asst]; paintModal(); },
@@ -3955,6 +4011,7 @@ const ACT = {
 /* ── Events ───────────────────────────────────────────────────────── */
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]');
+  if (B && B.dd && !e.target.closest('.gv-dd')) { B.dd = null; if (!t) paintModal(); }
   if (!t) { if (!e.target.closest('#pop')) closePop(); if (e.target === $('scrim')) ACT.closeModal(); return; }
   if (!['ruleMenu', 'asstMenu', 'scopeMenu', 'protoScenario'].includes(t.dataset.act)) closePop();
   const act = t.dataset.act;
