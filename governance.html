@@ -2192,6 +2192,29 @@ button.gv-type:hover { border-color: var(--strokes-line-1); }
   .gv-proto { left: 8px; }
 }
 @media (max-width: 600px) { #hdrTitle { display: none; } }
+
+/* ══ All workspaces ════════════════════════════════════════════ */
+.gv-modebar { display: flex; gap: 3px; height: 8px; width: min(420px, 100%); margin-top: 10px; }
+.gv-modebar > i { display: block; border-radius: 4px; }
+.gv-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--strokes-line-3); }
+.gv-stat { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; padding: 16px 20px; text-align: left; }
+.gv-stat + .gv-stat { border-left: 1px solid var(--strokes-line-3); }
+.gv-stat:hover { background: var(--backgrounds-card-bg-4); }
+.gv-stat .gv-well { grid-row: 1 / 3; }
+.gv-stat__n { font: 500 20px/24px var(--font-geist-mono); color: var(--text-primary); letter-spacing: -0.4px; }
+.gv-stat__l { color: var(--text-teritiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gv-mini { display: flex; gap: 2px; height: 6px; width: 100%; max-width: 160px; margin-bottom: 4px; }
+.gv-mini > i { display: block; border-radius: 3px; }
+.gv-minitrack { display: flex; align-items: center; gap: 3px; margin-bottom: 4px; }
+.gv-minitrack > i { width: 18px; height: 4px; border-radius: 2px; background: var(--strokes-line-1); display: block; }
+.gv-minitrack > i.is-done { background: var(--green-600); }
+.gv-minitrack > i.is-now { background: var(--backgrounds-button-primary); }
+.gv-minitrack > i.is-wait { background: var(--orange-600); }
+.gv-wstag { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font: 400 13px/18px var(--font-geist); }
+.gv-wstag .cq-avatar, .gv-table .cq-cell > .cq-avatar { width: 20px; height: 20px; font-size: 10px; }
+.cq-avatar .cq-ic { width: 12px; height: 12px; }
+@media (max-width: 1100px) { .gv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gv-stat:nth-child(3) { border-left: 0; } .gv-stat:nth-child(n+3) { border-top: 1px solid var(--strokes-line-3); } }
+@media (max-width: 600px) { .gv-stats { grid-template-columns: minmax(0, 1fr); } .gv-stat + .gv-stat { border-left: 0; border-top: 1px solid var(--strokes-line-3); } }
 </style>
 </head>
 <body class="cq">
@@ -2561,12 +2584,32 @@ function allowedFill(R, assts, n, version, minH = 0) {
 
 /* ── State ────────────────────────────────────────────────────────── */
 let S = null;
+/* Every workspace keeps its own governance state. Names differ per
+   workspace; the example assistants share ids so the data model stays one. */
+const WORKSPACES = [
+  { id: 'support', name: 'Support', letter: 'S', color: 'var(--indigo-500)', scenario: 'monitor',
+    names: { csa: 'Customer Support Assistant', ota: 'Order Tracking Assistant', ra: 'Research Assistant', hr: 'HR Policy Helper', ob: 'Onboarding Buddy' } },
+  { id: 'sales', name: 'Sales', letter: 'S', color: 'var(--green-600)', scenario: 'approval',
+    names: { csa: 'Deal Desk Assistant', ota: 'Quote Tracker', ra: 'Account Researcher', hr: 'Sales Playbook Bot', ob: 'Rep Onboarding' } },
+  { id: 'finance', name: 'Finance Ops', letter: 'F', color: 'var(--orange-800)', scenario: 'enforce',
+    names: { csa: 'Refunds Assistant', ota: 'Invoice Tracker', ra: 'Spend Analyst', hr: 'Policy Q&A', ob: 'Close Checklist Bot' } },
+  { id: 'people', name: 'People Team', letter: 'P', color: 'var(--purple-500)', scenario: 'off',
+    names: { csa: 'Benefits Assistant', ota: 'Leave Tracker', ra: 'Policy Researcher', hr: 'HR Policy Helper', ob: 'Onboarding Buddy' } },
+];
+const WSD = {};
+let CUR = 'support';
+const W = () => WORKSPACES.find(w => w.id === CUR);
+const WSN = () => W().name;
+function useWs(id) { CUR = id; const w = W(); ASSISTANTS.forEach(a => { a.name = w.names[a.id]; }); S = WSD[id]; }
+function buildWs(id, key) { const prev = CUR; useWs(id); WSD[id] = buildScenario(key); S = WSD[id]; if (prev !== id && WSD[prev]) useWs(prev); }
+function withWs(id, fn) { const prev = CUR; useWs(id); try { return fn(); } finally { useWs(prev); } }
 const UI = {
-  page: 'overview', scope: 'ws', user: 'priya',
+  page: 'overview', scope: 'all', user: 'priya',
   act: { filter: 'all', asst: '', type: 'all', shown: 25, find: '' },
   cov: 'assistant', appr: 'pending', open: { gov: true },
 };
-function load(key) { S = buildScenario(key); UI.act = { filter: 'all', asst: '', type: 'all', shown: 25, find: '' }; }
+function load(key) { buildWs(CUR, key); useWs(CUR); UI.act = { filter: 'all', asst: '', type: 'all', shown: 25, find: '', ws: '' }; }
+function loadAll() { WORKSPACES.forEach(w => buildWs(w.id, w.scenario)); useWs('support'); UI.act = { filter: 'all', asst: '', type: 'all', shown: 25, find: '', ws: '' }; }
 
 /* ── Derived facts ────────────────────────────────────────────────── */
 const V = id => S.versions.find(v => v.id === id);
@@ -2654,7 +2697,7 @@ function head(title, desc, actions = '') {
 function banners() {
   let h = '';
   S.pauses.forEach(p => {
-    const who = p.asst ? `<b>${esc(A(p.asst).name)} is paused.</b>` : `<b>Every assistant in Support is paused.</b>`;
+    const who = p.asst ? `<b>${esc(A(p.asst).name)} is paused.</b>` : `<b>Every assistant in ${esc(WSN())} is paused.</b>`;
     h += `<div class="gv-banner gv-fade" data-tone="orange">${ic('ds-Stop', 18)}<div class="gv-banner__txt cq-body2-reg">${who} <span class="gv-muted">“${esc(p.reason)}”</span></div><button class="cq-btn cq-btn--sm cq-btn--tonal-2" data-act="resume" data-id="${p.id}">${ic('ds-Play', 14)}Resume</button></div>`;
   });
   if (UI.scope === 'ws' && S.installMode === 'off' && S.mode !== 'off') {
@@ -2671,6 +2714,7 @@ const icBtn = (act, icon, title, data = '') => `<button class="cq-icon-btn" data
    Row 3 · Activity by hour, and what's governed.
    ══════════════════════════════════════════════════════════════════ */
 function pageOverview() {
+  if (UI.scope === 'all') return allOverview();
   if (UI.scope === 'inst') return pageInstallation();
   let h = banners();
   if (S.mode === 'off' && !S.liveId) return h + heroFirstRun();
@@ -2753,7 +2797,7 @@ function hero() {
   return `<section class="gv-card gv-hero gv-fade">
     <div class="gv-hero__top">
       <span class="gv-hero__icon" data-tone="${m.tone}">${ic(m.icon, 22)}</span>
-      <div class="gv-hero__txt"><div class="gv-hero__eyebrow cq-caption-reg">Mode · ${S.modeSource === 'workspace' ? 'set for Support' : 'following the platform'}</div>
+      <div class="gv-hero__txt"><div class="gv-hero__eyebrow cq-caption-reg">Mode · ${S.modeSource === 'workspace' ? `set for ${WSN()}` : 'following the platform'}</div>
         <div class="gv-hero__mode-name">${m.label}</div><div class="gv-hero__lead cq-body2-reg">${lead}</div></div>
       <div class="gv-hero__actions">
         <button class="cq-btn cq-btn--sm cq-btn--tonal-2" data-act="openPause" title="Emergency stop for every assistant">${ic('ds-Stop', 12)}Pause all</button>
@@ -2890,6 +2934,7 @@ function ruleRow(r, extra = '') {
    RULES — versions, the live one, and how a version goes live.
    ══════════════════════════════════════════════════════════════════ */
 function pageRules() {
+  if (UI.scope === 'all') return allRules();
   if (UI.scope === 'inst') return instEmpty('Rules', 'Installation-wide rules apply to Playground assistants and sit beside each workspace’s own rules.', 'ds-Checklist');
   const lv = live();
   let h = banners();
@@ -3111,6 +3156,7 @@ function actRows() {
   });
 }
 function pageActivity() {
+  if (UI.scope === 'all') return allActivity();
   if (UI.scope === 'inst') return instEmpty('Activity', 'Installation activity shows Playground assistants and platform-wide changes only.', 'ds-Log');
   let h = banners();
   h += head('Activity', 'Every governed call and admin change. Open a row to see why.',
@@ -3138,11 +3184,11 @@ function activityTable(rows, compact) {
   return `<div class="cq-table gv-table" style="--cq-cols:150px 150px minmax(170px,1fr) minmax(150px,1fr) minmax(200px,1.6fr) 150px;${compact ? '' : 'border:0;border-radius:0'}">
     <div class="cq-thead"><span>Time</span><span>Result</span><span>Assistant</span><span>Call</span><span>Why</span><span>By</span></div>
     ${rows.map(r => {
-      if (r.kind === 'human_action') return `<button class="cq-row" data-act="openWhy" data-id="${r.id}"><span class="cq-cell gv-cell-time">${fmtWhen(r.at)}</span><span class="cq-cell">${resultChip(r, 1)}</span><span class="cq-cell cq-body2-med" style="color:var(--text-primary)"><span class="cq-truncate">${esc(r.label)}</span></span><span class="cq-cell cq-caption-reg gv-muted"><span class="cq-truncate">${esc(r.details[0] ? r.details[0][1] : '')}</span></span><span class="cq-cell cq-caption-reg gv-sec"><span class="cq-truncate">“${esc(r.reason)}”</span></span><span class="cq-cell"><span class="gv-who">${avatar(USERS[r.actor])}<span class="cq-caption-reg cq-truncate">${USERS[r.actor].short} · admin</span></span></span></button>`;
+      if (r.kind === 'human_action') return `<button class="cq-row" data-act="openWhy" data-id="${r.id}" ${r._ws ? `data-wsview="${r._ws}"` : ''}><span class="cq-cell gv-cell-time">${fmtWhen(r.at)}</span><span class="cq-cell">${resultChip(r, 1)}</span><span class="cq-cell"><span class="gv-cell-main"><span class="cq-body2-med">${esc(r.label)}</span>${r._ws ? `<span class="cq-caption-reg">${esc(WORKSPACES.find(w => w.id === r._ws).name)}</span>` : ''}</span></span><span class="cq-cell cq-caption-reg gv-muted"><span class="cq-truncate">${esc(r.details[0] ? r.details[0][1] : '')}</span></span><span class="cq-cell cq-caption-reg gv-sec"><span class="cq-truncate">“${esc(r.reason)}”</span></span><span class="cq-cell"><span class="gv-who">${avatar(USERS[r.actor])}<span class="cq-caption-reg cq-truncate">${USERS[r.actor].short} · admin</span></span></span></button>`;
       const rule = r.rule && ruleById(r.rule, r.version);
       const why = r.verdict === 'paused' ? 'Paused by an admin' : r.defaultDeny ? 'No rule allows this call' : rule ? (r.verdict === 'allow' ? 'Allowed by ' : '') + rule.label : r.summary;
-      return `<button class="cq-row" data-act="openWhy" data-id="${r.id}"><span class="cq-cell gv-cell-time">${fmtWhen(r.at)}</span><span class="cq-cell">${resultChip(r, 1)}${r.candidate && r.candidate.differs ? ' <span class="cq-badge" data-tone="orange" title="The trial would decide differently">Δ</span>' : ''}</span>
-        <span class="cq-cell"><span class="gv-cell-main"><span class="cq-body2-reg">${esc(r.asstName)}</span></span></span>
+      return `<button class="cq-row" data-act="openWhy" data-id="${r.id}" ${r._ws ? `data-wsview="${r._ws}"` : ''}><span class="cq-cell gv-cell-time">${fmtWhen(r.at)}</span><span class="cq-cell">${resultChip(r, 1)}${r.candidate && r.candidate.differs ? ' <span class="cq-badge" data-tone="orange" title="The trial would decide differently">Δ</span>' : ''}</span>
+        <span class="cq-cell"><span class="gv-cell-main"><span class="cq-body2-reg">${esc(r.asstName)}</span>${r._ws ? `<span class="cq-caption-reg">${esc(WORKSPACES.find(w => w.id === r._ws).name)}</span>` : ''}</span></span>
         <span class="cq-cell"><span class="gv-muted" style="flex:none" title="${r.call.kind} call">${ic(r.call.kind === 'tool' ? 'ds-Tool' : 'ic-pp_brain', 14)}</span><span class="gv-callname cq-truncate">${esc(r.call.name)}</span></span>
         <span class="cq-cell cq-caption-reg gv-sec"><span class="cq-truncate">${esc(why)}</span></span>
         <span class="cq-cell"><span class="gv-who">${avatar(r.user)}<span class="cq-caption-reg cq-truncate">${esc(r.user.name)}</span></span></span></button>`;
@@ -3192,6 +3238,7 @@ function whyDrawer(id) {
    agents, tools and workflows slot in without a redesign.
    ══════════════════════════════════════════════════════════════════ */
 function pageCoverage() {
+  if (UI.scope === 'all') return allCoverage();
   if (UI.scope === 'inst') return instEmpty('Coverage', 'At installation level, governance covers Playground assistants.', 'ds-Guardrails');
   let h = banners();
   const t = RESOURCE_TYPES.find(x => x.key === UI.cov);
@@ -3222,6 +3269,7 @@ function pageCoverage() {
    APPROVALS — four-eyes. The requester can cancel, never approve.
    ══════════════════════════════════════════════════════════════════ */
 function pageApprovals() {
+  if (UI.scope === 'all') return allApprovals();
   if (UI.scope === 'inst') return instEmpty('Approvals', 'Installation requests need another platform admin.', 'ds-HITL');
   let h = banners();
   const pend = pending(), hist = S.requests.filter(r => r.status !== 'pending');
@@ -3247,7 +3295,7 @@ function requestCard(r) {
   const diffN = S.records.filter(x => x.candidate && x.candidate.differs).length;
   return `<section class="gv-card gv-req gv-fade" style="margin-bottom:12px">
     <div class="gv-req__head"><span class="gv-well" data-tone="${isMode ? 'green' : 'blue'}">${ic(isMode ? 'ds-Guardrails' : 'ds-Checklist', 16)}</span><div>
-      <div class="gv-req__title cq-body1-med">${isMode ? 'Turn on Enforce for Support' : `Make “${esc(target.name)}” live`} ${chip('Waiting for approval', 'orange', 'i-clock', 1)}</div>
+      <div class="gv-req__title cq-body1-med">${isMode ? `Turn on Enforce for ${esc(WSN())}` : `Make “${esc(target.name)}” live`} ${chip('Waiting for approval', 'orange', 'i-clock', 1)}</div>
       <div class="gv-req__by cq-caption-reg">Asked by ${USERS[r.by].name}${mine ? ' (you)' : ''} · ${rel(r.at)}</div></div></div>
     <div class="gv-req__quote cq-body2-reg">“${esc(r.reason)}”</div>
     ${isMode ? `<div class="gv-req__grid">
@@ -3261,7 +3309,7 @@ function requestCard(r) {
       <div class="cq-row-flex">${isMode ? `<button class="cq-btn cq-btn--xs cq-btn--tonal-2" data-act="goAct" data-filter="would">${ic('i-alert', 14)}Review what would have been blocked (${would})</button><span class="cq-caption-reg gv-muted">Observed for ${dur((NOW - S.monitorSince) / H)} · window ${dur(r.windowH)}</span>`
         : `<button class="cq-btn cq-btn--xs cq-btn--tonal-2" data-act="goAct" data-filter="differs">${ic('ds-ClockOrTime', 14)}Review trial activity (${diffN} differ)</button>`}</div>
     </div>
-    <div class="gv-req__foot"><span class="note cq-caption-reg">${ic('ds-UserRole', 14)}${isMode ? 'Another admin of Support, or any platform admin, can approve.' : 'A different admin must approve.'} The requester can only cancel.</span>
+    <div class="gv-req__foot"><span class="note cq-caption-reg">${ic('ds-UserRole', 14)}${isMode ? `Another admin of ${esc(WSN())}, or any platform admin, can approve.` : 'A different admin must approve.'} The requester can only cancel.</span>
       ${mine ? `<button class="cq-btn cq-btn--sm cq-btn--tonal-2" data-act="decide" data-id="${r.id}" data-ok="cancel">Cancel my request</button>` : ''}
       <button class="cq-btn cq-btn--sm cq-btn--tonal-2" data-act="decide" data-id="${r.id}" data-ok="0">Reject</button>
       <button class="cq-btn cq-btn--sm cq-btn--primary" data-act="decide" data-id="${r.id}" data-ok="1">${ic('i-check', 14)}Approve</button></div>
@@ -3275,20 +3323,20 @@ function pageInstallation() {
   const im = S.installMode;
   const desc = { off: 'Off everywhere. This is the master switch — no workspace is checked.', monitor: 'Each workspace chooses its own mode. Workspaces that never chose follow this setting.', enforce: 'Every workspace enforces. Workspaces can’t go below this — they can still pause assistants.' };
   const wss = [
-    { n: 'Support', l: 'S', m: S.mode, own: true }, { n: 'Finance Ops', l: 'F', m: 'off', own: true }, { n: 'Sales', l: 'S', m: 'monitor', own: false }, { n: 'People Team', l: 'P', m: 'monitor', own: true },
+    ...WORKSPACES.map(w => ({ n: w.name, l: w.letter, c: w.color, m: WSD[w.id].mode, own: w.id !== 'sales' })),
   ];
   return `${head('Installation · all workspaces', 'Platform-wide settings. Only platform admins can change them.')}
     <section class="gv-card gv-hero"><div class="gv-hero__top"><div><div class="gv-hero__eyebrow cq-caption-med">${ic('ds-Guardrails', 14)}Installation mode</div><div class="gv-hero__mode"><span class="gv-hero__mode-name">${MODE[im].label}</span>${modeChip(im)}</div><div class="gv-hero__lead cq-body2-reg">${desc[im]}</div></div>
     <div class="gv-hero__actions"><button class="cq-btn cq-btn--sm cq-btn--tonal" data-act="openInstMode">${ic('ds-Settings', 14)}Change mode</button></div></div>
     <div class="gv-how" style="padding-top:0">${['off', 'monitor', 'enforce'].map(k => `<div class="gv-how__item" style="${k === im ? 'border-color:var(--strokes-card-selected)' : ''}"><span class="gv-how__title cq-body2-med">${modeChip(k, 1)}${k === im ? '<span class="cq-caption-reg gv-muted">current</span>' : ''}</span><span class="gv-how__desc cq-caption-reg">${desc[k]}</span></div>`).join('')}</div></section>
     <div class="gv-grid"><section class="gv-card gv-card--flush gv-span-7"><div class="gv-card__head"><div><span class="gv-card__title cq-body1-med">Workspaces</span><span class="gv-card__sub cq-caption-reg">The mode each workspace actually runs in.</span></div></div><div style="padding:0 16px 16px"><div class="cq-table gv-table" style="--cq-cols:minmax(180px,1fr) 130px minmax(180px,1fr)"><div class="cq-thead"><span>Workspace</span><span>Mode</span><span>Where it comes from</span></div>
-      ${wss.map(w => { const eff = im === 'off' ? 'off' : im === 'enforce' ? 'enforce' : w.m; return `<div class="cq-row"><span class="cq-cell"><span class="cq-avatar">${w.l}</span><span class="cq-body2-reg">${w.n}</span></span><span class="cq-cell">${modeChip(eff, 1)}</span><span class="cq-cell cq-caption-reg gv-sec">${im !== 'monitor' ? 'The platform setting overrides it' : w.own ? 'Its own setting' : 'Following the platform setting'}</span></div>`; }).join('')}</div></div></section>
+      ${wss.map(w => { const eff = im === 'off' ? 'off' : im === 'enforce' ? 'enforce' : w.m; return `<div class="cq-row"><span class="cq-cell"><span class="cq-avatar" style="background:${w.c}">${w.l}</span><span class="cq-body2-reg">${w.n}</span></span><span class="cq-cell">${modeChip(eff, 1)}</span><span class="cq-cell cq-caption-reg gv-sec">${im !== 'monitor' ? 'The platform setting overrides it' : w.own ? 'Its own setting' : 'Following the platform setting'}</span></div>`; }).join('')}</div></div></section>
     <section class="gv-card gv-span-5" style="align-self:start"><div class="gv-card__head"><div><span class="gv-card__title cq-body1-med">${ic('ds-Key', 16)}Privacy</span><span class="gv-card__sub cq-caption-reg">Erase a user’s link to governance records — for example, for a GDPR request. The records stay, but no longer show who the user was.</span></div></div>
       <div class="gv-field"><div class="gv-label cq-body2-reg">User</div><select id="eraseUser">${END_USERS.map(u => `<option>${u.name}</option>`).join('')}</select></div>
       <div class="gv-card__foot"><button class="cq-btn cq-btn--sm cq-btn--tonal-2" data-act="openErase" style="color:var(--text-coloured-red)">${ic('ds-Delete', 14)}Erase link…</button></div></section></div>`;
 }
 function instEmpty(title, desc, icon) {
-  return head(title, desc) + `<section class="gv-card"><div class="gv-empty"><span class="gv-well" data-tone="grey">${ic(icon, 20)}</span><div class="gv-empty__title cq-body1-med">Nothing here yet</div><div class="gv-empty__desc cq-body2-reg">${desc} Switch to a workspace to see its ${title.toLowerCase()}.</div><button class="cq-btn cq-btn--sm cq-btn--tonal" data-act="setScope" data-scope="ws">Go to Support</button></div></section>`;
+  return head(title, desc) + `<section class="gv-card"><div class="gv-empty"><span class="gv-well" data-tone="grey">${ic(icon, 20)}</span><div class="gv-empty__title cq-body1-med">Nothing here yet</div><div class="gv-empty__desc cq-body2-reg">${desc} Switch to a workspace to see its ${title.toLowerCase()}.</div><button class="cq-btn cq-btn--sm cq-btn--tonal" data-act="setScope" data-scope="all">See all workspaces</button></div></section>`;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -3350,7 +3398,7 @@ function renderMode() {
     extra += `<div><div class="gv-label cq-body2-reg"><span>If governance itself can’t answer<span class="req">*</span></span></div><div class="gv-radios gv-radios--row">
       <button class="gv-radio${M.fail === 'continue' ? ' is-on' : ''}" data-act="mFail" data-k="continue"><span class="gv-radio__dot"></span><span class="gv-radio__main"><span class="gv-radio__title cq-body2-med">Continue the call</span><span class="gv-radio__desc cq-caption-reg">Assistants keep working; that call isn’t checked.</span></span></button>
       <button class="gv-radio${M.fail === 'stop' ? ' is-on' : ''}" data-act="mFail" data-k="stop"><span class="gv-radio__dot"></span><span class="gv-radio__main"><span class="gv-radio__title cq-body2-med">Stop the call</span><span class="gv-radio__desc cq-caption-reg">Safer, but assistants stop if governance is down.</span></span></button></div>
-      <div class="gv-hint cq-caption-reg">Only matters in Enforce. There’s no default — pick what’s right for Support.</div></div>`;
+      <div class="gv-hint cq-caption-reg">Only matters in Enforce. There’s no default — pick what’s right for ${esc(WSN())}.</div></div>`;
     if (!lv) extra += `<div class="gv-inline cq-body2-reg" data-tone="red">${ic('ds-Error', 16)}<div><b>No rules are live.</b> Enforce would block every call. Add starter rules first.<div class="gv-inline__act"><button class="cq-btn cq-btn--xs cq-btn--tonal" data-act="openBuilder">Add starter rules</button></div></div></div>`;
     else {
       extra += `<div><div class="cq-body2-reg" style="color:var(--text-primary);margin-bottom:6px">Rules that will enforce: <b style="font-weight:500">${esc(lv.name)}</b></div><div class="gv-checks cq-caption-reg">${chk.map(checkRow).join('')}</div></div>`;
@@ -3403,12 +3451,12 @@ function openPause(d) { openModal('sm', renderPause, { asst: d.asst || null, con
 function renderPause() {
   const a = M.asst && A(M.asst);
   const off = S.mode === 'off';
-  M.sync = () => syncOk(!off && M.reason.trim() && (a || M.confirm.trim() === 'Support'));
-  return mHead(a ? `Pause ${esc(a.name)}?` : 'Pause every assistant in Support?', 'ds-Stop', 'orange') + `<div class="gv-modal__body">
+  M.sync = () => syncOk(!off && M.reason.trim() && (a || M.confirm.trim() === WSN()));
+  return mHead(a ? `Pause ${esc(a.name)}?` : `Pause every assistant in ${esc(WSN())}?`, 'ds-Stop', 'orange') + `<div class="gv-modal__body">
     ${off ? `<div class="gv-inline cq-body2-reg" data-tone="red">${ic('ds-Error', 16)}<div><b>Governance is off here, so a pause would have no effect.</b> Turn on Monitor first.</div></div>` : ''}
     <div class="gv-modal__lead cq-body2-reg">An emergency stop. New chats are refused with your reason, and a running answer stops at its next step. Takes effect within about 10 seconds, in Monitor or Enforce.</div>
     ${reasonField('Reason — end users will see this', 'e.g. Refund incident INC-4471 under investigation', '')}
-    ${a ? '' : `<div class="gv-field"><div class="gv-label cq-body2-reg"><span>Type <b style="font-weight:500">Support</b> to confirm<span class="req">*</span></span></div><input type="text" data-bind="M.confirm" value="${esc(M.confirm)}" autocomplete="off" /></div>`}</div>` + mFoot('pSave', 'Pause', { danger: true });
+    ${a ? '' : `<div class="gv-field"><div class="gv-label cq-body2-reg"><span>Type <b style="font-weight:500">${esc(WSN())}</b> to confirm<span class="req">*</span></span></div><input type="text" data-bind="M.confirm" value="${esc(M.confirm)}" autocomplete="off" /></div>`}</div>` + mFoot('pSave', 'Pause', { danger: true });
 }
 function openResume(d) { openModal('sm', renderResume, { id: d.id }); }
 function renderResume() {
@@ -3482,7 +3530,7 @@ function renderDecide() {
   if (M.ok === '0') return mHead('Reject this request?', 'ds-Disable', 'red') + `<div class="gv-modal__body"><div class="gv-modal__lead cq-body2-reg">Nothing changes. ${USERS[r.by].short} sees your reason${isMode ? '' : ' and the version stays on trial'}.</div>${reasonField('Reason', 'e.g. Too many would-block results on refunds; adjust the limit first', `${USERS[r.by].short} will see this.`)}</div>` + mFoot('dSave', 'Reject', { danger: true });
   return mHead(isMode ? 'Approve and turn on Enforce?' : `Approve and make “${esc(v.name)}” live?`, 'ds-Guardrails', 'green') + `<div class="gv-modal__body">
     ${M.err ? `<div class="gv-inline cq-body2-reg" data-tone="orange">${ic('i-alert', 16)}<div>${M.err}</div></div>` : ''}
-    <div class="gv-modal__lead cq-body2-reg">${isMode ? 'From now on, calls the live rules don’t allow will be blocked for every governed assistant in Support. Users see why, with a decision id.' : `It replaces <b>${esc(live().name)}</b> for every governed assistant in Support, starting now.`}</div>
+    <div class="gv-modal__lead cq-body2-reg">${isMode ? 'From now on, calls the live rules don’t allow will be blocked for every governed assistant in ${esc(WSN())}. Users see why, with a decision id.' : `It replaces <b>${esc(live().name)}</b> for every governed assistant in ${esc(WSN())}, starting now.`}</div>
     <div class="gv-kv cq-body2-reg">${isMode ? `<span class="k">Rules</span><span class="v">${esc((V(r.liveId) || live()).name)}</span><span class="k">If governance can’t answer</span><span class="v">${FAIL[r.failMode]}</span><span class="k">Asked by</span><span class="v">${USERS[r.by].name}</span>` : `<span class="k">Trial ran</span><span class="v">${dur((NOW - S.candidateSince) / H)}</span><span class="k">Asked by</span><span class="v">${USERS[r.by].name}</span>`}</div>
     ${reasonField('Reason', 'e.g. Reviewed the activity log; no false positives')}</div>` + mFoot('dSave', 'Approve');
 }
@@ -3603,10 +3651,132 @@ function runTest() {
   refreshDrawer();
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   ALL WORKSPACES — one view across every workspace the admin runs.
+   Each workspace keeps its own state; this scope only reads them and
+   hands off to the workspace when the admin wants to act.
+   ══════════════════════════════════════════════════════════════════ */
+const allWs = fn => WORKSPACES.map(w => withWs(w.id, () => fn(w)));
+const wsAvatar = w => `<span class="cq-avatar" style="background:${w.color}">${w.letter}</span>`;
+const wsTag = w => `<span class="gv-wstag">${wsAvatar(w)}${esc(w.name)}</span>`;
+const openWs = (w, label = 'Open', page = 'overview') => `<button class="gv-more cq-caption-med" data-act="go" data-page="${page}" data-ws="${w.id}">${label}${ic('i-chev-right', 14)}</button>`;
+
+function wsSummary(w) {
+  const lv = live(), p = pending().length, s = S.stats;
+  const enf = S.mode === 'enforce';
+  return { w, mode: S.mode, steps: S.mode === 'off' && !S.liveId ? [] : rolloutSteps(), todo: attentionItems().map(i => Object.assign(i, { w })), pend: p,
+    paused: S.pauses.length, checked: s.checked, allow: s.allow, bad: enf ? s.block : s.would, badLabel: enf ? 'blocked' : 'would block', enf,
+    covered: lv ? governed().filter(a => asstRuleState(a, lv.rules).k === 'ok').length : 0, gov: governed().length, live: lv, cand: cand() };
+}
+
+function allOverview() {
+  const rows = allWs(wsSummary);
+  const byMode = { off: 0, monitor: 0, enforce: 0 };
+  rows.forEach(r => byMode[r.mode]++);
+  const sum = k => rows.reduce((a, r) => a + r[k], 0);
+  const todo = rows.flatMap(r => r.todo);
+  const tones = { off: 'var(--strokes-icon-default)', monitor: 'var(--blue-500)', enforce: 'var(--green-600)' };
+  const stat = (icon, tone, n, label, act) => `<button class="gv-stat" ${act}><span class="gv-well gv-well--sm" data-tone="${tone}">${ic(icon, 14)}</span><span class="gv-stat__n">${num(n)}</span><span class="gv-stat__l cq-caption-reg">${label}</span></button>`;
+  let h = `<section class="gv-card gv-hero gv-fade">
+    <div class="gv-hero__top">
+      <span class="gv-hero__icon" data-tone="blue">${ic('i-layers', 22)}</span>
+      <div class="gv-hero__txt"><div class="gv-hero__eyebrow cq-caption-reg">All workspaces you administer</div>
+        <div class="gv-hero__mode-name">${rows.length} workspaces</div>
+        <div class="gv-modebar" role="img" aria-label="${byMode.off} off, ${byMode.monitor} monitor, ${byMode.enforce} enforce">${['off', 'monitor', 'enforce'].filter(k => byMode[k]).map(k => `<i style="flex:${byMode[k]};background:${tones[k]}"></i>`).join('')}</div>
+        <div class="gv-keys cq-caption-reg" style="margin-top:8px">${['off', 'monitor', 'enforce'].map(k => `<span><i style="background:${tones[k]}"></i>${MODE[k].label} ${byMode[k]}</span>`).join('')}</div></div>
+    </div>
+    <div class="gv-stats">
+      ${stat('ds-HITL', 'purple', sum('pend'), 'waiting for approval', 'data-act="go" data-page="approvals"')}
+      ${stat('ds-Stop', 'orange', sum('paused'), 'assistants paused', 'data-act="go" data-page="coverage"')}
+      ${stat('i-alert', 'red', sum('bad'), 'blocked or would block today', 'data-act="go" data-page="activity"')}
+      ${stat('ic-pp_aiassistant', 'green', sum('covered'), `of ${sum('gov')} assistants covered by rules`, 'data-act="go" data-page="coverage"')}
+    </div>
+  </section>`;
+  h += `<div class="gv-grid gv-grid--even">
+    <section class="gv-card gv-card--flush gv-span-8">${cardHead('Workspaces')}
+      <div class="cq-table gv-table gv-table--flat" style="--cq-cols:minmax(150px,1.1fr) 120px 150px minmax(170px,1.3fr) 90px 40px">
+        <div class="cq-thead"><span>Workspace</span><span>Mode</span><span>Rollout</span><span>Last 24 hours</span><span>To do</span><span></span></div>
+        ${rows.map(r => `<button class="cq-row" data-act="go" data-page="overview" data-ws="${r.w.id}">
+          <span class="cq-cell">${wsAvatar(r.w)}<span class="cq-body2-med" style="color:var(--text-primary)">${esc(r.w.name)}</span></span>
+          <span class="cq-cell">${modeChip(r.mode, 1)}</span>
+          <span class="cq-cell">${miniTrack(r.steps)}</span>
+          <span class="cq-cell">${r.checked ? `<span class="gv-cell-main" style="width:100%"><span class="gv-mini"><i style="flex:${r.allow};background:var(--green-600)"></i><i style="flex:${Math.max(r.bad, r.checked * 0.012)};background:${r.enf ? 'var(--red-500)' : 'var(--orange-600)'}"></i></span><span class="cq-caption-reg">${num(r.checked)} calls · ${r.bad} ${r.badLabel}</span></span>` : '<span class="cq-caption-reg gv-muted">Not recording</span>'}</span>
+          <span class="cq-cell">${r.todo.length ? `<span class="gv-count-dot">${r.todo.length}</span>` : `<span class="gv-sec">${ic('i-check', 14)}</span>`}</span>
+          <span class="cq-cell gv-cell-end gv-muted">${ic('i-chev-right', 16)}</span></button>`).join('')}
+      </div></section>
+    <section class="gv-card gv-span-4">${cardHead(`To do${todo.length ? ` <span class="gv-count-dot">${todo.length}</span>` : ''}`)}
+      ${todo.length ? `<div class="gv-todo">${todo.slice(0, 6).map(i => `<div class="gv-todo__row"><span class="gv-well gv-well--sm" data-tone="${i.tone}">${ic(i.icon, 14)}</span><div class="gv-todo__txt"><div class="gv-todo__title cq-body2-med cq-truncate">${esc(i.title)}</div><div class="gv-todo__desc cq-caption-reg cq-truncate">${esc(i.w.name)} · ${esc(i.sub)}</div></div><button class="cq-btn cq-btn--xs cq-btn--tonal-2" data-act="${i.act[0]}" ${i.act[2]} data-ws="${i.w.id}">${i.act[1]}</button></div>`).join('')}</div>${todo.length > 6 ? `<div class="cq-caption-reg gv-muted" style="margin-top:12px">+ ${todo.length - 6} more in the workspaces</div>` : ''}`
+        : `<div class="gv-allclear"><span class="gv-ring-ok">${ic('i-check', 22)}</span><span class="cq-body2-med">All clear</span></div>`}
+    </section></div>`;
+  return h;
+}
+function miniTrack(steps) {
+  if (!steps.length) return '<span class="cq-caption-reg gv-muted">Not started</span>';
+  const done = steps.filter(s => s.st === 'done').length;
+  const label = done === steps.length ? 'Enforcing' : steps.find(s => s.st !== 'done').title;
+  return `<span class="gv-cell-main"><span class="gv-minitrack">${steps.map(s => `<i class="is-${s.st}"></i>`).join('')}</span><span class="cq-caption-reg">${esc(label)}</span></span>`;
+}
+
+function allRules() {
+  let h = head('Rules', 'Each workspace has its own rules. Open a workspace to change them.');
+  const rows = allWs(w => ({ w, lv: live(), c: cand(), n: S.versions.length, gov: governed() }));
+  h += `<section class="gv-card gv-card--flush"><div class="cq-table gv-table gv-table--flat" style="border-top:0;--cq-cols:minmax(150px,1fr) minmax(200px,1.3fr) 170px minmax(150px,1fr) 110px 40px">
+    <div class="cq-thead"><span>Workspace</span><span>Live version</span><span>Allow · block</span><span>Assistants covered</span><span>Trial</span><span></span></div>
+    ${rows.map(r => { const al = r.lv ? r.lv.rules.filter(x => x.effect === 'allow').length : 0, bl = r.lv ? r.lv.rules.length - al : 0;
+      return `<button class="cq-row" data-act="go" data-page="rules" data-ws="${r.w.id}"><span class="cq-cell">${wsAvatar(r.w)}<span class="cq-body2-med" style="color:var(--text-primary)">${esc(r.w.name)}</span></span>
+      <span class="cq-cell">${r.lv ? `<span class="gv-cell-main"><span class="cq-body2-reg">${esc(r.lv.name)}</span><span class="cq-caption-reg">v${r.lv.n} · ${plural(r.n, 'version')}</span></span>` : '<span class="cq-caption-reg gv-muted">No rules yet</span>'}</span>
+      <span class="cq-cell">${r.lv ? `<span class="gv-cell-main" style="width:100%"><span class="gv-mini"><i style="flex:${al};background:var(--green-600)"></i><i style="flex:${Math.max(bl, 0.001)};background:var(--red-500)"></i></span><span class="cq-caption-reg">${al} allow · ${bl} block</span></span>` : '—'}</span>
+      <span class="cq-cell">${r.lv ? withWs(r.w.id, () => `<span class="gv-covers" style="padding:0;margin:0">${governed().map(a => `<span class="gv-cover" data-st="${asstRuleState(a, r.lv.rules).k}" title="${esc(a.name)}"><span class="gv-tile grad-blue rail-tile">${ic('ic-pp_aiassistant', 13)}</span><span class="gv-cover__dot"></span></span>`).join('')}</span>`) : '—'}</span>
+      <span class="cq-cell">${r.c ? chip('Trial', 'indigo', 'ds-ClockOrTime', 1) : '<span class="cq-caption-reg gv-muted">—</span>'}</span>
+      <span class="cq-cell gv-cell-end gv-muted">${ic('i-chev-right', 16)}</span></button>`; }).join('')}</div></section>`;
+  return h;
+}
+
+function allCoverage() {
+  let h = head('Coverage', 'Every assistant in every workspace, and whether it’s ready for Enforce.');
+  h += `<nav class="gv-sub" role="tablist">${RESOURCE_TYPES.map(x => `<button class="gv-sub__tab${UI.cov === x.key ? ' is-active' : ''}" data-act="covTab" data-k="${x.key}">${ic(x.icon, 16)}${x.label}${x.live ? '' : '<span class="gv-soon">Soon</span>'}</button>`).join('')}</nav>`;
+  const t = RESOURCE_TYPES.find(x => x.key === UI.cov);
+  if (!t.live) return h + `<section class="gv-card"><div class="gv-empty"><div class="gv-empty__title cq-body1-med">Governance for ${t.label.toLowerCase()} is coming</div><div class="gv-empty__desc cq-body2-reg">${t.soon}</div></div></section>`;
+  const rows = allWs(w => { const lv = live(); return ASSISTANTS.map(a => ({ w, a: { ...a }, st: asstRuleState(a, lv && lv.rules), ps: pauseFor(a.id) || scopePause(), mode: S.mode })); }).flat();
+  h += `<section class="gv-card gv-card--flush"><div class="cq-table gv-table gv-table--flat" style="border-top:0;--cq-cols:minmax(220px,1.5fr) minmax(140px,1fr) 120px minmax(170px,1.1fr) 110px">
+    <div class="cq-thead"><span>Assistant</span><span>Workspace</span><span>Mode</span><span>Rules</span><span>Status</span></div>
+    ${rows.map(r => `<button class="cq-row" data-act="go" data-page="coverage" data-ws="${r.w.id}"><span class="cq-cell"><span class="gv-tile ${r.a.governed ? 'grad-blue rail-tile' : 'gv-tile--grey'}">${ic('ic-pp_aiassistant', 14)}</span><span class="gv-cell-main"><span class="cq-body2-med">${esc(r.a.name)}</span><span class="cq-caption-reg">${r.a.governed ? r.a.kind : 'Not governed yet'}</span></span></span>
+      <span class="cq-cell">${wsTag(r.w)}</span><span class="cq-cell">${r.a.governed ? modeChip(r.mode, 1) : '—'}</span>
+      <span class="cq-cell">${r.st ? chip(r.st.label, r.st.tone, r.st.icon, 1) : '<span class="cq-caption-reg gv-muted">—</span>'}</span>
+      <span class="cq-cell">${!r.a.governed ? '<span class="cq-caption-reg gv-muted">—</span>' : r.ps && r.mode !== 'off' ? chip('Paused', 'orange', 'ds-Stop', 1) : r.mode === 'off' ? chip('Not checked', 'grey', null, 1) : chip('Active', 'green', null, 1)}</span></button>`).join('')}</div></section>`;
+  return h;
+}
+
+function allActivity() {
+  let h = head('Activity', 'Every workspace in one log. Open a row to see why.');
+  const recs = allWs(w => S.records.map(r => Object.assign({}, r, { _ws: w.id }))).flat().sort((a, b) => b.at - a.at);
+  const counts = { all: recs.length };
+  recs.forEach(r => { const k = resultOf(r).k; counts[k] = (counts[k] || 0) + 1; });
+  h += `<div class="gv-toolbar">${ACT_FILTERS.filter(f => f.k === 'all' || counts[f.k]).map(f => `<button class="gv-chipbtn${UI.act.filter === f.k ? ' is-active' : ''}" data-act="actFilter" data-filter="${f.k}">${f.label}<span class="n">${num(counts[f.k] || 0)}</span></button>`).join('')}
+    <div class="gv-toolbar__end"><span class="gv-select"><select data-bind="UI.act.ws" data-rerender="1" aria-label="Workspace"><option value="">All workspaces</option>${WORKSPACES.map(w => `<option value="${w.id}"${UI.act.ws === w.id ? ' selected' : ''}>${esc(w.name)}</option>`).join('')}</select>${ic('ic-pp_chevron', 16)}</span></div></div>`;
+  const rows = recs.filter(r => (UI.act.filter === 'all' || resultOf(r).k === UI.act.filter) && (!UI.act.ws || r._ws === UI.act.ws));
+  h += `<section class="gv-card gv-card--flush" style="padding:0">${activityTable(rows.slice(0, UI.act.shown))}
+    <div class="gv-table-foot cq-caption-reg"><span>Showing ${Math.min(UI.act.shown, rows.length)} of ${num(rows.length)}</span>${rows.length > UI.act.shown ? `<button class="cq-btn cq-btn--xs cq-btn--tonal-2" data-act="actMore">Load more</button>` : '<span>End of results</span>'}</div></section>`;
+  return h;
+}
+
+function allApprovals() {
+  let h = head('Approvals', 'Requests waiting in any workspace. Review opens the request in its workspace.');
+  const reqs = allWs(w => S.requests.map(r => ({ w, r, name: r.kind === 'mode_change' ? 'Turn on Enforce' : `Make “${V(r.versionId).name}” live` }))).flat();
+  const pend = reqs.filter(x => x.r.status === 'pending'), hist = reqs.filter(x => x.r.status !== 'pending');
+  if (!pend.length) h += `<section class="gv-card"><div class="gv-empty"><span class="gv-well" data-tone="green">${ic('i-check', 20)}</span><div class="gv-empty__title cq-body1-med">Nothing to approve</div></div></section>`;
+  else h += `<section class="gv-card gv-card--flush">${cardHead('Waiting')}<div class="cq-table gv-table gv-table--flat" style="--cq-cols:minmax(150px,1fr) minmax(200px,1.4fr) 160px 130px 110px">
+    <div class="cq-thead"><span>Workspace</span><span>Request</span><span>Asked by</span><span>When</span><span></span></div>
+    ${pend.map(x => `<div class="cq-row"><span class="cq-cell">${wsAvatar(x.w)}<span class="cq-body2-med" style="color:var(--text-primary)">${esc(x.w.name)}</span></span><span class="cq-cell cq-body2-reg">${esc(x.name)}</span><span class="cq-cell"><span class="gv-who">${avatar(USERS[x.r.by])}<span class="cq-caption-reg">${USERS[x.r.by].short}${x.r.by === UI.user ? ' (you)' : ''}</span></span></span><span class="cq-cell gv-cell-time">${rel(x.r.at)}</span><span class="cq-cell gv-cell-end"><button class="cq-btn cq-btn--xs cq-btn--${x.r.by === UI.user ? 'tonal-2' : 'primary'}" data-act="go" data-page="approvals" data-ws="${x.w.id}">${x.r.by === UI.user ? 'View' : 'Review'}</button></span></div>`).join('')}</div></section>`;
+  if (hist.length) h += `<section class="gv-card gv-card--flush">${cardHead('Decided')}<div class="cq-table gv-table gv-table--flat" style="--cq-cols:minmax(150px,1fr) minmax(200px,1.4fr) 130px 170px"><div class="cq-thead"><span>Workspace</span><span>Request</span><span>Status</span><span>Decided</span></div>
+    ${hist.map(x => `<div class="cq-row"><span class="cq-cell">${wsAvatar(x.w)}<span class="cq-body2-reg">${esc(x.w.name)}</span></span><span class="cq-cell cq-body2-reg">${esc(x.name)}</span><span class="cq-cell">${chip(x.r.status[0].toUpperCase() + x.r.status.slice(1), x.r.status === 'approved' ? 'green' : x.r.status === 'rejected' ? 'red' : 'grey', null, 1)}</span><span class="cq-cell gv-cell-time">${fmtWhen(x.r.decidedAt)}${x.r.decidedBy ? ' · ' + USERS[x.r.decidedBy].short : ''}</span></div>`).join('')}</div></section>`;
+  return h;
+}
+
 /* ── Drawer ───────────────────────────────────────────────────────── */
 let D = null;
-function openDrawer(type, id) {
-  D = { type, id };
+function openDrawer(type, id, ws) {
+  D = { type, id, ws: ws || null };
   const over = !!M; // opened from inside a dialog (the builder's Test this version)
   $('drawer').style.zIndex = over ? 96 : ''; $('drawerScrim').style.zIndex = over ? 95 : '';
   $('drawer').classList.add('is-open'); $('drawerScrim').classList.add('is-open');
@@ -3616,7 +3786,8 @@ function openDrawer(type, id) {
 function refreshDrawer() {
   if (!D) return;
   const a = document.activeElement, bind = a && a.dataset && a.dataset.bind;
-  $('drawer').innerHTML = D.type === 'version' ? (V(D.id) ? versionDrawer(D.id) : '') : D.type === 'why' ? whyDrawer(D.id) : testDrawer();
+  const paint = () => D.type === 'version' ? (V(D.id) ? versionDrawer(D.id) : '') : D.type === 'why' ? whyDrawer(D.id) : testDrawer();
+  $('drawer').innerHTML = D.ws ? withWs(D.ws, paint) : paint();
   if (bind) { const el = $('drawer').querySelector(`[data-bind="${bind}"]`); if (el) el.focus(); }
 }
 function closeDrawer() {
@@ -3661,7 +3832,7 @@ const NAV = [
   { k: 'approvals', label: 'Approvals', icon: 'ds-HITL' },
 ];
 function renderChrome() {
-  const p = pending().length;
+  const p = UI.scope === 'all' ? WORKSPACES.reduce((n, w) => n + WSD[w.id].requests.filter(r => r.status === 'pending').length, 0) : pending().length;
   // Admin panel categories, as in the Figma admin frame: Dashboard, Manage, then Governance.
   const grp = (k, label, tile, icon, items) => `<div class="adm-group">
       <button class="adm-cat" ${items ? `data-act="navGroup" data-k="${k}" aria-expanded="${!!UI.open[k]}"` : `data-act="navOther" data-l="${label}"`}>
@@ -3672,18 +3843,19 @@ function renderChrome() {
     <nav class="adm-nav">
       ${grp('dash', 'Dashboard', 'grad-orange', 'ds-Dashboard', null)}
       ${grp('manage', 'Manage', 'grad-purple', 'ds-Settings', [['Users', 'ds-Users'], ['Workspace', 'i-people'], ['Roles', 'ds-UserRole']].map(([l, i]) => sub(l, i, `data-act="navOther" data-l="${l}"`, false)).join(''))}
-      ${grp('gov', 'Governance', 'grad-blue', 'ds-Guardrails', NAV.map(n => sub(n.label, n.icon, `data-act="go" data-page="${n.k}"`, UI.page === n.k, n.k === 'approvals' && p && UI.scope === 'ws' ? `<span class="cq-badge" data-tone="orange">${p}</span>` : '')).join(''))}
+      ${grp('gov', 'Governance', 'grad-blue', 'ds-Guardrails', NAV.map(n => sub(n.label, n.icon, `data-act="go" data-page="${n.k}"`, UI.page === n.k, n.k === 'approvals' && p && UI.scope !== 'inst' ? `<span class="cq-badge" data-tone="orange">${p}</span>` : '')).join(''))}
     </nav>
     <button class="adm-portal" data-act="navOther" data-l="Builder portal">${ic('ic-pp_automation', 16)}<span>Builder portal</span>${ic('i-extlink', 16)}</button>`;
   $('hdrTitle').textContent = UI.scope === 'inst' && UI.page === 'overview' ? 'Governance · Installation' : 'Governance · ' + NAV.find(n => n.k === UI.page).label;
   const inst = UI.scope === 'inst';
-  $('scopeAvatar').textContent = inst ? '∗' : 'S';
-  $('scopeAvatar').style.background = inst ? 'var(--backgrounds-card-bg-4)' : '';
-  $('scopeAvatar').style.color = inst ? 'var(--text-secondary)' : '';
-  $('scopeName').textContent = inst ? 'Installation' : 'Support';
-  $('scopeChip').innerHTML = modeChip(inst ? S.installMode : S.mode, 1);
+  const all = UI.scope === 'all';
+  $('scopeAvatar').innerHTML = inst ? '∗' : all ? ic('i-layers', 12) : W().letter;
+  $('scopeAvatar').style.background = inst || all ? 'var(--backgrounds-card-bg-4)' : W().color;
+  $('scopeAvatar').style.color = inst || all ? 'var(--text-secondary)' : '';
+  $('scopeName').textContent = inst ? 'Installation' : all ? 'All workspaces' : WSN();
+  $('scopeChip').innerHTML = all ? `<span class="cq-badge" data-tone="grey">${WORKSPACES.length}</span>` : modeChip(inst ? S.installMode : S.mode, 1);
   $('hdrSub').textContent = '';
-  $('protoScenario').textContent = SCENARIOS.find(s => s.key === S.scenario).label;
+  $('protoScenario').textContent = `${WSN()} · ${SCENARIOS.find(s => s.key === S.scenario).label}`;
   $('protoUser').textContent = 'Signed in as ' + USERS[UI.user].short;
 }
 let lastPage = null;
@@ -3710,7 +3882,7 @@ const ACT = {
   openWindow: () => openWindow(), wPreset: d => { M.hours = +d.h; paintModal(); },
   wSave: () => { const old = S.windowH; S.windowH = +M.hours; adminLog('Changed the monitor window', M.reason, [['From', old + ' h'], ['To', S.windowH + ' h']]); closeModal(); render(); toast(`Monitor window set to ${S.windowH} hours`, S.mode === 'monitor' ? (isReady() ? 'Enforce is possible now.' : `Enforce possible after ${fmtWhen(readyAt())}.`) : ''); },
   openPause: d => openPause(d),
-  pSave: () => { S.pauses.push({ id: 'p-' + Date.now(), asst: M.asst, reason: M.reason.trim(), at: NOW, by: UI.user }); adminLog('Paused', M.reason, [['Paused', M.asst ? A(M.asst).name : 'Every assistant in Support']]); closeModal(); render(); toast('Paused', 'New chats will be refused within 10 seconds.', 'warn'); },
+  pSave: () => { S.pauses.push({ id: 'p-' + Date.now(), asst: M.asst, reason: M.reason.trim(), at: NOW, by: UI.user }); adminLog('Paused', M.reason, [['Paused', M.asst ? A(M.asst).name : `Every assistant in ${WSN()}`]]); closeModal(); render(); toast('Paused', 'New chats will be refused within 10 seconds.', 'warn'); },
   resume: d => { if (!S.pauses.find(p => p.id === d.id)) { render(); return toast('Already resumed', '', 'info'); } openResume(d); },
   rSave: () => { const p = S.pauses.find(x => x.id === M.id); S.pauses = S.pauses.filter(x => x.id !== M.id); adminLog('Resumed', M.reason, [['Resumed', p.asst ? A(p.asst).name : 'Every assistant']]); closeModal(); render(); toast('Resumed', 'New chats work again.'); },
   openVersion: d => { closeModal(); openDrawer('version', d.id); },
@@ -3754,28 +3926,29 @@ const ACT = {
   actFor: d => { closePop(); UI.act = { filter: 'all', asst: d.asst, type: 'all', shown: 25, find: '' }; go('activity'); },
   actFilter: d => { UI.act.filter = d.filter; UI.act.shown = 25; render(); },
   actMore: () => { UI.act.shown += 25; render(); },
-  openWhy: d => openDrawer('why', d.id),
+  openWhy: d => openDrawer('why', d.id, d.wsview),
   copyId: d => { try { navigator.clipboard.writeText(d.id); } catch (e) {} toast('Decision id copied', d.id); },
   openTest: d => { closePop(); openTest(d); },
   tKind: d => { T.kind = d.k; T.result = null; refreshDrawer(); }, tSrc: d => { T.src = d.k; T.result = null; refreshDrawer(); }, tRun: () => runTest(),
   closeModal: () => { if (M && M.prev) return ACT.backToBuilder(); closeModal(); }, closeDrawer: () => closeDrawer(),
-  scopeMenu: (d, el) => openPop(el, `<div class="gv-pop__label cq-caption-reg">Workspaces you administer</div>
-      ${[['Support', 'S', S.mode, 'ws'], ['Finance Ops', 'F', 'off', ''], ['People Team', 'P', 'monitor', '']].map(([n, l, m, k]) => `<button class="gv-pop__item${UI.scope === 'ws' && k === 'ws' ? ' is-picked' : ''}" data-act="setScope" data-scope="${k}" data-n="${n}"><span class="cq-avatar">${l}</span><span>${n}</span><span class="end">${modeChip(m, 1)}</span></button>`).join('')}
+  scopeMenu: (d, el) => openPop(el, `<button class="gv-pop__item${UI.scope === 'all' ? ' is-picked' : ''}" data-act="setScope" data-scope="all"><span class="cq-avatar" style="background:var(--backgrounds-card-bg-4);color:var(--text-secondary)">${ic('i-layers', 12)}</span><span>All workspaces</span><span class="end"><span class="cq-badge" data-tone="grey">${WORKSPACES.length}</span></span></button>
+      <div class="gv-pop__sep"></div><div class="gv-pop__label cq-caption-reg">Workspaces you administer</div>
+      ${WORKSPACES.map(w => `<button class="gv-pop__item${UI.scope === 'ws' && CUR === w.id ? ' is-picked' : ''}" data-act="setScope" data-scope="ws" data-ws="${w.id}"><span class="cq-avatar" style="background:${w.color}">${w.letter}</span><span>${esc(w.name)}</span><span class="end">${modeChip(WSD[w.id].mode, 1)}</span></button>`).join('')}
       <div class="gv-pop__sep"></div><div class="gv-pop__label cq-caption-reg">Platform admins</div>
-      <button class="gv-pop__item${UI.scope === 'inst' ? ' is-picked' : ''}" data-act="setScope" data-scope="inst"><span class="cq-avatar" style="background:var(--backgrounds-card-bg-4);color:var(--text-secondary)">∗</span><span>Installation (all workspaces)</span><span class="end">${modeChip(S.installMode, 1)}</span></button>`),
-  setScope: d => { closePop(); if (!d.scope) return toast(`${d.n} isn’t part of this prototype`, 'The example data lives in Support.', 'info'); UI.scope = d.scope; if (UI.scope === 'inst' && UI.page === 'coverage') UI.page = 'overview'; render(); },
+      <button class="gv-pop__item${UI.scope === 'inst' ? ' is-picked' : ''}" data-act="setScope" data-scope="inst"><span class="cq-avatar" style="background:var(--backgrounds-card-bg-4);color:var(--text-secondary)">∗</span><span>Installation settings</span><span class="end">${modeChip(S.installMode, 1)}</span></button>`, 'right'),
+  setScope: d => { closePop(); closeDrawer(); if (d.ws) useWs(d.ws); UI.scope = d.scope; UI.act.ws = ''; if (UI.scope === 'inst' && UI.page === 'coverage') UI.page = 'overview'; render(); },
   openInstMode: () => openInstMode(),
   instSave: () => { if (M.sel === 'enforce') { closeModal(); return toast('Approval requested', 'Another platform admin must approve it.', 'info'); } S.installMode = M.sel; closeModal(); render(); toast(`Installation mode changed to ${MODE[S.installMode].label}`, 'This affects every workspace.'); },
   openErase: () => openErase(), eraseSave: () => { closeModal(); toast('Link erased', 'Their records now show “Unknown or erased user”.'); },
   protoScenario: (d, el) => openPop(el, `<div class="gv-pop__label cq-caption-reg">Jump to a point in the rollout</div>${SCENARIOS.map((s, i) => `<button class="gv-pop__item${S.scenario === s.key ? ' is-picked' : ''}" data-act="setScenario" data-k="${s.key}" style="height:auto;padding:8px 10px;align-items:flex-start"><span class="gv-step__mark" style="margin-top:1px">${i + 1}</span><span style="display:flex;flex-direction:column;white-space:normal"><span class="cq-body2-med">${s.label}</span><span class="cq-caption-reg gv-muted">${s.hint}</span></span></button>`).join('')}`),
-  setScenario: d => { closePop(); closeModal(); closeDrawer(); load(d.k); UI.scope = 'ws'; lastPage = null; render(); toast(SCENARIOS.find(s => s.key === d.k).label, SCENARIOS.find(s => s.key === d.k).hint, 'info'); },
+  setScenario: d => { closePop(); closeModal(); closeDrawer(); load(d.k); if (UI.scope === 'inst') UI.scope = 'ws'; lastPage = null; render(); toast(SCENARIOS.find(s => s.key === d.k).label, SCENARIOS.find(s => s.key === d.k).hint, 'info'); },
   protoUser: () => {
     UI.user = UI.user === 'priya' ? 'rahul' : 'priya';
     const img = document.querySelector('.hdr-avatar');
     if (img) img.style.filter = UI.user === 'rahul' ? 'grayscale(1) brightness(.8)' : '';
     if (M && M.err && M.render === renderDecide) M.err = null;
     render(); if (M) paintModal();
-    toast(`Signed in as ${USERS[UI.user].name}`, 'Workspace admin of Support. Approvals need a different admin than the requester.', 'info');
+    toast(`Signed in as ${USERS[UI.user].name}`, 'Admin of these workspaces. Approvals need a different admin than the requester.', 'info');
   },
 };
 
@@ -3784,7 +3957,10 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-act]');
   if (!t) { if (!e.target.closest('#pop')) closePop(); if (e.target === $('scrim')) ACT.closeModal(); return; }
   if (!['ruleMenu', 'asstMenu', 'scopeMenu', 'protoScenario'].includes(t.dataset.act)) closePop();
-  const fn = ACT[t.dataset.act];
+  const act = t.dataset.act;
+  if (t.dataset.ws && act !== 'setScope') { useWs(t.dataset.ws); UI.scope = 'ws'; UI.act.ws = ''; }
+  else if (D && D.ws && t.closest('#drawer') && !['closeDrawer', 'copyId'].includes(act)) { useWs(D.ws); UI.scope = 'ws'; D.ws = null; }
+  const fn = ACT[act];
   if (fn) { e.preventDefault(); fn(Object.assign({}, t.dataset), t); }
 });
 function setPath(path, val) {
@@ -3831,7 +4007,7 @@ const viewer = root.getAttribute('data-theme');
 setTheme(viewer === 'light' || viewer === 'dark' ? viewer : saved === 'light' ? 'light' : 'dark');
 
 /* ── Boot ─────────────────────────────────────────────────────────── */
-load('monitor');
+loadAll();
 const h0 = (location.hash || '').replace('#', '').split('?')[0];
 if (NAV.some(n => n.k === h0)) UI.page = h0;
 render();
