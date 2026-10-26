@@ -2702,7 +2702,7 @@ function useWs(id) { CUR = id; const w = W(); ASSISTANTS.forEach(a => { a.name =
 function buildWs(id, key) { const prev = CUR; useWs(id); WSD[id] = buildScenario(key); S = WSD[id]; if (prev !== id && WSD[prev]) useWs(prev); }
 function withWs(id, fn) { const prev = CUR; useWs(id); try { return fn(); } finally { useWs(prev); } }
 const UI = {
-  page: 'overview', scope: 'all', user: 'priya',
+  page: (window.GV_ONLY || 'overview'), scope: window.GV_ONLY ? 'ws' : 'all', user: 'priya',
   act: { filter: 'all', asst: '', type: 'all', shown: 25, find: '' },
   cov: 'assistant', appr: 'pending', open: { gov: true },
 };
@@ -3928,6 +3928,7 @@ function closeDrawer() {
 
 /* ── Toasts ───────────────────────────────────────────────────────── */
 function toast(title, sub, tone, action) {
+  if (action && window.GV_ONLY && action.page && action.page !== window.GV_ONLY) action = null;
   const el = document.createElement('div');
   el.className = 'gv-toast'; if (tone) el.dataset.tone = tone;
   el.innerHTML = `${ic(tone === 'warn' ? 'i-alert' : tone === 'info' ? 'i-info' : 'i-check', 18)}<div class="gv-toast__txt"><div class="cq-body2-med">${esc(title)}</div>${sub ? `<div class="gv-toast__sub cq-caption-reg">${esc(sub)}</div>` : ''}</div>${action ? `<button class="cq-btn cq-btn--xs cq-btn--tonal" data-act="${action.act}" data-page="${action.page || ''}" data-id="${action.id || ''}">${esc(action.label)}</button>` : ''}`;
@@ -3974,7 +3975,7 @@ function renderChrome() {
     <nav class="adm-nav">
       ${grp('dash', 'Dashboard', 'grad-orange', 'ds-Dashboard', null)}
       ${grp('manage', 'Manage', 'grad-purple', 'ds-Settings', [['Users', 'ds-Users'], ['Workspace', 'i-people'], ['Roles', 'ds-UserRole']].map(([l, i]) => sub(l, i, `data-act="navOther" data-l="${l}"`, false)).join(''))}
-      ${grp('gov', 'Governance', 'grad-blue', 'ds-Guardrails', NAV.map(n => sub(n.label, n.icon, `data-act="go" data-page="${n.k}"`, UI.page === n.k, n.k === 'approvals' && p && UI.scope !== 'inst' ? `<span class="cq-badge" data-tone="orange">${p}</span>` : '')).join(''))}
+      ${grp('gov', 'Governance', 'grad-blue', 'ds-Guardrails', NAV.map(n => sub(n.label, n.icon, `data-act="go" data-page="${n.k}"${window.GV_ONLY && n.k !== window.GV_ONLY ? ' style="opacity:.5"' : ''}`, UI.page === n.k, n.k === 'approvals' && p && UI.scope !== 'inst' ? `<span class="cq-badge" data-tone="orange">${p}</span>` : '')).join(''))}
     </nav>
     <button class="adm-portal" data-act="navOther" data-l="Builder portal">${ic('ic-pp_automation', 16)}<span>Builder portal</span>${ic('i-extlink', 16)}</button>`;
   $('hdrTitle').textContent = UI.scope === 'inst' && UI.page === 'overview' ? 'Governance · Installation' : 'Governance · ' + NAV.find(n => n.k === UI.page).label;
@@ -4000,12 +4001,19 @@ function render() {
   lastPage = UI.page + UI.scope;
   if (D) refreshDrawer();
 }
+// A file scoped to one tab (window.GV_ONLY) keeps the admin shell but only runs that tab's flow.
+function offFlow(page) {
+  if (!window.GV_ONLY || page === window.GV_ONLY) return false;
+  const n = NAV.find(x => x.k === page);
+  toast(`${n ? n.label : 'That page'} isn’t part of this flow`, `This file covers the ${NAV.find(x => x.k === window.GV_ONLY).label} tab.`, 'info');
+  return true;
+}
 function go(page) { UI.page = page; closePop(); if (D && D.type !== 'test') closeDrawer(); render(); try { history.replaceState(null, '', '#' + page); } catch (e) {} }
 
 /* ── Actions ──────────────────────────────────────────────────────── */
 const ACT = {
-  go: d => { closeModal(); go(d.page); },
-  goAct: d => { closeModal(); UI.act.filter = d.filter; UI.act.shown = 25; go('activity'); },
+  go: d => { if (offFlow(d.page)) return; closeModal(); go(d.page); },
+  goAct: d => { if (offFlow('activity')) return; closeModal(); UI.act.filter = d.filter; UI.act.shown = 25; go('activity'); },
   navGroup: d => { UI.open[d.k] = !UI.open[d.k]; renderChrome(); },
   navOther: d => toast(`${d.l} isn’t part of this prototype`, 'Governance is the part being designed here.', 'info'),
   openMode: d => openMode(d), mSel: d => { M.sel = d.k; M.err = null; paintModal(); }, mFail: d => { M.fail = d.k; paintModal(); },
@@ -4146,7 +4154,7 @@ setTheme(viewer === 'light' || viewer === 'dark' ? viewer : saved === 'light' ? 
 /* ── Boot ─────────────────────────────────────────────────────────── */
 loadAll();
 const h0 = (location.hash || '').replace('#', '').split('?')[0];
-if (NAV.some(n => n.k === h0)) UI.page = h0;
+if (!window.GV_ONLY && NAV.some(n => n.k === h0)) UI.page = h0;
 render();
 const dq = (location.hash.match(/decision=([0-9a-f-]{36})/i) || [])[1];
 if (dq) openDrawer('why', dq);
