@@ -1,0 +1,823 @@
+<title>Cogentiq Agents Handoff</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Developer handoff for the Cogentiq Agents page and the Register a remote agent (A2A) flow: every screen and state, validation, copy, data model and tokens.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: a spec sheet. Sticky contents rail on the left at desktop width,
+   one reading column beside it; state cards in a two-up grid. Built on the
+   product's own palette so screenshots and page read as one system. */
+:root {
+  --bg:        #f7f7f8;
+  --surface:   #ffffff;
+  --sunken:    #f0f1f3;
+  --line:      #e3e5e8;
+  --fg:        #121212;
+  --fg-2:      #5c6066;
+  --fg-3:      #8a8e94;
+  --accent:    #0b84e0;
+  --accent-bg: #e8f4ff;
+  --ok:        #12924f;
+  --warn:      #b86a00;
+  --bad:       #cf3a3a;
+  --code-bg:   #f3f4f6;
+  --shot-bg:   #e9eaed;
+  --font:      "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono:      "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r:         10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121212; --surface: #1b1b1c; --sunken: #171718; --line: #2e2f31;
+    --fg: #f2f2f3; --fg-2: #b4b7bc; --fg-3: #85898f;
+    --accent: #3fa9f5; --accent-bg: #0d2238;
+    --ok: #5fd593; --warn: #f0a640; --bad: #ff7a7a;
+    --code-bg: #161617; --shot-bg: #0c0c0d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121212; --surface: #1b1b1c; --sunken: #171718; --line: #2e2f31;
+  --fg: #f2f2f3; --fg-2: #b4b7bc; --fg-3: #85898f;
+  --accent: #3fa9f5; --accent-bg: #0d2238;
+  --ok: #5fd593; --warn: #f0a640; --bad: #ff7a7a;
+  --code-bg: #161617; --shot-bg: #0c0c0d;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 400 15px/1.6 var(--font); letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-underline-offset: 2px; }
+code, kbd, pre { font-family: var(--mono); }
+:not(pre) > code {
+  font-size: .86em; padding: 1px 5px; border-radius: 5px;
+  background: var(--code-bg); border: 1px solid var(--line); color: var(--fg);
+  overflow-wrap: anywhere;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.page {
+  max-width: 1320px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 96px;
+  display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 48px;
+}
+@media (max-width: 960px) { .page { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 24px 64px; } }
+
+/* ── Contents rail ── */
+.toc { position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); align-self: start; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a {
+  display: block; padding: 5px 10px; border-radius: 7px;
+  color: var(--fg-2); text-decoration: none; font-size: 13.5px;
+}
+.toc a:hover { background: var(--sunken); color: var(--fg); }
+.toc .sub a { padding-left: 22px; font-size: 13px; color: var(--fg-3); }
+.toc__label { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); margin: 0 0 10px 10px; }
+@media (max-width: 960px) {
+  .toc { position: static; }
+  .toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
+  .toc .sub { display: none; }
+  .toc a { border: 1px solid var(--line); background: var(--surface); }
+}
+
+main { min-width: 0; display: grid; gap: 64px; }
+section { display: grid; gap: 20px; scroll-margin-top: 24px; min-width: 0; }
+
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; letter-spacing: -0.025em; }
+h1 { font: 600 34px/1.15 var(--font); letter-spacing: -0.035em; }
+h2 { font: 600 24px/1.25 var(--font); }
+h3 { font: 600 17px/1.35 var(--font); }
+h4 { font: 500 14px/1.4 var(--font); }
+p { margin: 0; max-width: 72ch; }
+.lede { font-size: 17px; color: var(--fg-2); max-width: 64ch; }
+.eyebrow { font: 500 11.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-3); }
+.muted { color: var(--fg-2); }
+
+/* ── Header ── */
+.hero { display: grid; gap: 14px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 6px; font-size: 13.5px; color: var(--fg-2); }
+.facts b { font-weight: 500; color: var(--fg); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px;
+  border-radius: 8px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--fg); font: 500 14px/1 var(--font); text-decoration: none; cursor: pointer;
+}
+.btn:hover { border-color: var(--fg-3); }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn--primary:hover { filter: brightness(1.06); border-color: var(--accent); }
+
+/* ── Live prototype ── */
+.live { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+.live__bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+}
+.live__bar label { font-size: 13px; color: var(--fg-2); display: flex; align-items: center; gap: 8px; min-width: 0; }
+select, .seg button { font: 500 13px/1 var(--font); color: var(--fg); }
+select {
+  height: 32px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line);
+  background: var(--sunken); max-width: 100%; min-width: 0;
+}
+.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--sunken); border: 1px solid var(--line); }
+.seg button { height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: none; color: var(--fg-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.live__spacer { flex: 1 1 auto; }
+.live__stage { position: relative; background: var(--shot-bg); overflow: hidden; }
+.live__stage iframe {
+  position: absolute; top: 0; left: 0; width: 1440px; height: 900px; border: 0;
+  transform-origin: 0 0;
+}
+.live__note { padding: 10px 12px; font-size: 12.5px; color: var(--fg-3); border-top: 1px solid var(--line); }
+.live__note code { white-space: nowrap; }
+
+/* ── Flow map ── */
+.flow { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); padding: 20px; }
+.flow__grid {
+  min-width: 940px;
+  display: grid; grid-template-columns: 150px 24px 150px 24px 150px 24px minmax(250px, 1fr) 24px 150px;
+  align-items: center; row-gap: 12px;
+}
+.node {
+  display: grid; gap: 2px; padding: 10px 12px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--sunken);
+  color: var(--fg); text-decoration: none; font-size: 13px; line-height: 1.35;
+}
+.node:hover { border-color: var(--accent); }
+.node b { font-weight: 500; }
+.node span { color: var(--fg-3); font-size: 12px; }
+.node--key { border-color: var(--accent); background: var(--accent-bg); }
+.arrow { height: 1px; background: var(--fg-3); position: relative; }
+.arrow::after { content: ""; position: absolute; right: -1px; top: -4px; border: 4.5px solid transparent; border-left: 6px solid var(--fg-3); border-right: 0; }
+.routes { display: grid; gap: 8px; }
+.route { display: grid; grid-template-columns: 112px minmax(0,1fr); gap: 8px; align-items: center; }
+.route__tag { font: 500 11px/1.2 var(--mono); color: var(--fg-2); text-transform: uppercase; letter-spacing: .05em; }
+.route .node { padding: 7px 10px; }
+
+/* ── State gallery ── */
+.group { display: grid; gap: 14px; scroll-margin-top: 24px; }
+.group__head { display: grid; gap: 4px; }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.shot {
+  display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden;
+  scroll-margin-top: 24px;
+}
+.shot:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
+.shot__img { display: block; aspect-ratio: 1440 / 900; max-width: 100%; background: var(--shot-bg); border-bottom: 1px solid var(--line); cursor: zoom-in; padding: 0; border-width: 0 0 1px; width: 100%; }
+.shot__img img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.shot__body { display: grid; gap: 8px; padding: 14px 16px 16px; align-content: start; flex: 1 1 auto; }
+.shot__id { font: 400 11.5px/1 var(--mono); color: var(--fg-3); }
+.shot__how { font-size: 13px; color: var(--fg-2); }
+.shot__how b { font-weight: 500; color: var(--fg); }
+.shot ul { margin: 0; padding-left: 18px; font-size: 13.5px; display: grid; gap: 3px; }
+.shot__foot { display: flex; gap: 14px; padding: 0 16px 14px; font-size: 13px; }
+.shot__foot button { all: unset; cursor: pointer; color: var(--accent); }
+.shot__foot button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* ── Tables ── */
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--line); }
+thead th { border-top: 0; background: var(--sunken); font: 500 12px/1.3 var(--font); color: var(--fg-2); white-space: nowrap; }
+td:first-child { white-space: nowrap; }
+td.wrap { white-space: normal; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font: 500 12px/18px var(--font); border: 1px solid var(--line); white-space: nowrap; }
+.pill--ok { color: var(--ok); } .pill--warn { color: var(--warn); } .pill--bad { color: var(--bad); } .pill--mute { color: var(--fg-3); }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; border: 1px solid var(--line); }
+
+/* ── Code ── */
+pre {
+  margin: 0; padding: 14px 16px; overflow-x: auto;
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--r);
+  font-size: 12.5px; line-height: 1.6; color: var(--fg);
+}
+.pre-wrap { position: relative; min-width: 0; }
+.copy { position: absolute; top: 8px; right: 8px; height: 26px; padding: 0 9px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: 500 12px/1 var(--font); cursor: pointer; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+.cols > * { min-width: 0; }
+
+/* ── Lists of rules ── */
+.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.rules li { padding: 12px 16px; border-top: 1px solid var(--line); display: grid; gap: 2px; }
+.rules li:first-child { border-top: 0; }
+.rules b { font-weight: 500; }
+.rules span { color: var(--fg-2); font-size: 14px; }
+.q { counter-reset: q; }
+.q li { grid-template-columns: 28px minmax(0, 1fr); column-gap: 6px; }
+.q li::before { counter-increment: q; content: counter(q, decimal-leading-zero); font: 500 12px/22px var(--mono); color: var(--fg-3); grid-row: span 2; }
+
+/* ── Lightbox ── */
+.lb { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; background: rgba(8,8,10,.86); padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); cursor: zoom-out; }
+.lb.is-open { display: grid; }
+.lb img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+@media (prefers-reduced-motion: no-preference) { .shot, .node, .btn { transition: border-color .15s ease, box-shadow .15s ease; } }
+</style>
+
+<div class="page">
+  <nav class="toc" aria-label="Contents">
+    <p class="toc__label">Contents</p>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#live">Live prototype</a></li>
+      <li><a href="#flow">Flow map</a></li>
+      <li><a href="#states">Screens and states</a></li>
+      <li class="sub"><a href="#g-page">Agents page</a></li>
+      <li class="sub"><a href="#g-panel">Detail panel</a></li>
+      <li class="sub"><a href="#g-step1">Step 1 · Details</a></li>
+      <li class="sub"><a href="#g-direct">Step 2 · Direct</a></li>
+      <li class="sub"><a href="#g-a2a">Step 2 · A2A server</a></li>
+      <li class="sub"><a href="#g-rest">Step 2 · Plain API</a></li>
+      <li class="sub"><a href="#g-step3">Step 3 · Review</a></li>
+      <li class="sub"><a href="#g-done">Outcome</a></li>
+      <li><a href="#rules">Validation and copy</a></li>
+      <li><a href="#behaviour">Behaviour</a></li>
+      <li><a href="#model">Data model</a></li>
+      <li><a href="#cards">Agent Card output</a></li>
+      <li><a href="#tokens">Design tokens</a></li>
+      <li><a href="#questions">Open questions</a></li>
+      <li><a href="#files">Files</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <!-- ════════ Overview ════════ -->
+    <section id="overview" class="hero">
+      <span class="eyebrow">Cogentiq · Build · Agents · Dev handoff</span>
+      <h1>Agents page and remote agent registration</h1>
+      <p class="lede">
+        The full Agents flow: the inventory of agents, orchestrators and remote agents, the detail panel for each,
+        and the three-step wizard that registers an agent running outside Cogentiq, over A2A, a direct
+        integration, or a plain API wrapped by the managed adapter.
+      </p>
+      <div class="facts">
+        <span><b>Frame</b> 1440 × 900</span>
+        <span><b>Themes</b> dark (default) and light</span>
+        <span><b>States</b> <span id="stateCount">39</span>, each deep-linkable</span>
+        <span><b>Source</b> <a href="https://claude.ai/artifact/JeuNWCoxEjXNC9sKE43Axx" target="_blank" rel="noopener">Cogentiq Agents prototype</a></span>
+        <span><b>Captured</b> 27 Oct 2026</span>
+      </div>
+      <div class="actions">
+        <a class="btn btn--primary" href="prototype.html">Open the prototype</a>
+        <a class="btn" href="#states">Browse every state</a>
+      </div>
+    </section>
+
+    <!-- ════════ Live prototype ════════ -->
+    <section id="live">
+      <div class="group__head">
+        <h2>Live prototype</h2>
+        <p class="muted">The real, clickable page. Pick a state to load it with the controls already driven there, then keep clicking from that point.</p>
+      </div>
+      <div class="live">
+        <div class="live__bar">
+          <label for="liveState">State <select id="liveState"></select></label>
+          <div class="seg" role="group" aria-label="Prototype theme">
+            <button type="button" data-live-mode="dark" aria-pressed="true">Dark</button>
+            <button type="button" data-live-mode="light" aria-pressed="false">Light</button>
+          </div>
+          <span class="live__spacer"></span>
+          <a class="btn" id="liveOpen" href="prototype.html">Open full page</a>
+        </div>
+        <div class="live__stage" id="liveStage">
+          <iframe id="liveFrame" title="Cogentiq Agents prototype" src="prototype.html#list-cards--dark" loading="lazy"></iframe>
+        </div>
+        <p class="live__note">Scaled from the 1440 px frame. Deep link any state with <code>prototype.html#&lt;state-id&gt;</code>, adding <code>--light</code> for the light theme.</p>
+      </div>
+    </section>
+
+    <!-- ════════ Flow map ════════ -->
+    <section id="flow">
+      <div class="group__head">
+        <h2>Flow map</h2>
+        <p class="muted">Registration is linear across three steps; the second step forks by where the agent lives. Every route ends holding one A2A Agent Card and lands the agent in governance review.</p>
+      </div>
+      <div class="flow">
+        <div class="flow__grid">
+          <a class="node" href="#s-list-cards"><b>Agents page</b><span>cards or table</span></a>
+          <i class="arrow"></i>
+          <a class="node" href="#s-new-menu"><b>Create new agent</b><span>Remote agent (A2A)</span></a>
+          <i class="arrow"></i>
+          <a class="node" href="#s-wiz-1-filled"><b>1 · Details</b><span>name, description</span></a>
+          <i class="arrow"></i>
+          <div class="routes">
+            <div class="route"><span class="route__tag">Connect directly</span><a class="node" href="#s-wiz-2-direct-done"><b>Pick an integration</b><span>or create one in a modal</span></a></div>
+            <div class="route"><span class="route__tag">Already an agent</span><a class="node node--key" href="#s-wiz-2-a2a-done"><b>Pick an A2A server</b><span>or register one and discover its cards</span></a></div>
+            <div class="route"><span class="route__tag">Plain API</span><a class="node" href="#s-wiz-2-rest-done"><b>Upload the API document</b><span>OpenAPI 3.x or agent manifest</span></a></div>
+          </div>
+          <i class="arrow"></i>
+          <a class="node" href="#s-wiz-3-a2a-ready"><b>3 · Review</b><span>A2A: choose card and authenticate. Others: preview.</span></a>
+        </div>
+        <div class="flow__grid" style="margin-top:14px">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span class="muted" style="font-size:12.5px;text-align:right;padding-right:10px">Register agent →</span>
+          <i class="arrow"></i>
+          <a class="node" href="#s-registered"><b>Registered</b><span>In review, panel open</span></a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ States ════════ -->
+    <section id="states">
+      <div class="group__head" style="display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px">
+        <div style="display:grid;gap:4px">
+          <h2>Screens and states</h2>
+          <p class="muted">Each card is a capture of the prototype at 1440 × 900. Click a capture for full size, or load it live above.</p>
+        </div>
+        <div class="seg" role="group" aria-label="Screenshot theme">
+          <button type="button" data-shot-mode="dark" aria-pressed="true">Dark</button>
+          <button type="button" data-shot-mode="light" aria-pressed="false">Light</button>
+        </div>
+      </div>
+      <div id="gallery" style="display:grid;gap:44px"></div>
+    </section>
+
+    <!-- ════════ Validation and copy ════════ -->
+    <section id="rules">
+      <div class="group__head">
+        <h2>Validation and copy</h2>
+        <p class="muted">Continue reads one predicate for the step in front of it. When it fails, the button stays focusable but carries <code>aria-disabled="true"</code>, the footer shows the hint, and clicking it shows the hint again as a toast.</p>
+      </div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Step</th><th>Route</th><th>Continue is enabled when</th><th>Footer hint while blocked</th></tr></thead>
+          <tbody>
+            <tr><td>1 · Details</td><td>all</td><td class="wrap">Agent name is not blank. Description is optional.</td><td class="wrap">Give the agent a name.</td></tr>
+            <tr><td>2 · Connection</td><td>Connect directly</td><td class="wrap">An integration is selected.</td><td class="wrap">Choose an integration, or create a new one.</td></tr>
+            <tr><td>2 · Connection</td><td>Already an agent</td><td class="wrap">An A2A server is selected.</td><td class="wrap">Choose a server, or register a new one.</td></tr>
+            <tr><td>2 · Connection</td><td>Plain API</td><td class="wrap">A document is uploaded and has validated.</td><td class="wrap">Upload the API document that describes this service. <span class="muted">/</span> Wait for the document to finish validating.</td></tr>
+            <tr><td>3 · Review</td><td>Already an agent</td><td class="wrap">An agent card is selected and its credential is filled (see auth table).</td><td class="wrap">Select an agent card. <span class="muted">/</span> Enter the credentials for this card.</td></tr>
+            <tr><td>3 · Review</td><td>Direct, Plain API</td><td class="wrap">Always. Nothing is left to answer; the step is a preview.</td><td class="wrap muted">none</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:8px">Credentials per auth type</h3>
+      <p class="muted">Used in two places with the same options: the agent card credential on step 3 (A2A) and the New integration modal. Bearer Token is preselected in the modal; on step 3 the option follows the card's declared auth.</p>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Auth type</th><th>Required fields</th><th>Optional</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>API key</td><td class="wrap">API key (password input)</td><td class="wrap">Header name, default <code>X-API-Key</code></td><td class="wrap"></td></tr>
+            <tr><td>Basic Auth</td><td class="wrap">Username, Password</td><td></td><td></td></tr>
+            <tr><td>Bearer Token</td><td class="wrap">Bearer token (password input)</td><td></td><td class="wrap">Default selection.</td></tr>
+            <tr><td>OAuth 2.0</td><td class="wrap">Client ID, Client secret</td><td></td><td class="wrap">The integration modal also requires Token URL.</td></tr>
+            <tr><td>mTLS</td><td class="wrap">Client certificate (PEM)</td><td></td><td class="wrap">The integration modal also requires Client key (PEM).</td></tr>
+            <tr><td>No Auth</td><td class="wrap muted">none</td><td></td><td class="wrap">Shows “Cogentiq calls this card without an auth header.”</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:8px">New integration modal</h3>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Field</th><th>Required</th><th>Default / placeholder</th><th>Error toast when missing</th></tr></thead>
+          <tbody>
+            <tr><td>Name</td><td>yes</td><td class="wrap">e.g. Acme Claims Agent</td><td class="wrap">Give the integration a name.</td></tr>
+            <tr><td>Timeout (seconds)</td><td>no</td><td>60 (integer, min 1)</td><td></td></tr>
+            <tr><td>Description</td><td>no</td><td class="wrap">What this connection is for, in one line.</td><td></td></tr>
+            <tr><td>Base URL</td><td>yes</td><td class="wrap"><code>https://agents.acme.internal:8443</code></td><td class="wrap">Give the integration a base URL.</td></tr>
+            <tr><td>Authentication type</td><td>yes</td><td>Bearer Token</td><td class="wrap muted">The modal does not yet check the credential fields.</td></tr>
+            <tr><td>Method</td><td>no</td><td>POST · GET · PUT · PATCH</td><td></td></tr>
+            <tr><td>Path</td><td>yes</td><td><code>/v1/chat</code></td><td class="wrap">Give the request a path.</td></tr>
+            <tr><td>Message field</td><td>yes</td><td><code>$.query</code> (JSON path)</td><td class="wrap muted">Falls back to <code>$.query</code></td></tr>
+            <tr><td>Response field</td><td>yes</td><td><code>$.answer</code> (JSON path)</td><td class="wrap muted">Falls back to <code>$.answer</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:8px">Toasts</h3>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Trigger</th><th>Message</th></tr></thead>
+          <tbody>
+            <tr><td>Register agent</td><td class="wrap"><code>{name}</code> registered — awaiting governance approval.</td></tr>
+            <tr><td>Create integration</td><td class="wrap"><code>{name}</code> created.</td></tr>
+            <tr><td>Discover agent cards</td><td class="wrap"><code>{n}</code> agent cards discovered on <code>{url}</code></td></tr>
+            <tr><td>Discover, fields blank</td><td class="wrap">Enter a server name and URL first.</td></tr>
+            <tr><td>Register server</td><td class="wrap"><code>{server}</code> registered — <code>{n}</code> agent cards discovered.</td></tr>
+            <tr><td>Register server, not discovered</td><td class="wrap">Discover the server’s agent cards first.</td></tr>
+            <tr><td>Run agent, Failing</td><td class="wrap">This agent cannot run until its connection is fixed.</td></tr>
+            <tr><td>Run agent, In review</td><td class="wrap">Waiting on governance approval — it will run once approved.</td></tr>
+            <tr><td>Run agent</td><td class="wrap">Running <code>{name}</code>…</td></tr>
+            <tr><td>Add to workspace (Marketplace)</td><td class="wrap"><code>{name}</code> added to this workspace.</td></tr>
+            <tr><td>New agent / New orchestrator</td><td class="wrap">Opening the agent builder… / Opening the orchestrator builder… <span class="muted">(stand-ins for the builders)</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:13.5px">Toasts sit bottom-centre, announce through <code>role="status"</code> <code>aria-live="polite"</code>, and hide after 3.2 s.</p>
+    </section>
+
+    <!-- ════════ Behaviour ════════ -->
+    <section id="behaviour">
+      <div class="group__head"><h2>Behaviour</h2></div>
+      <ul class="rules">
+        <li><b>Esc closes the top layer only</b><span>Order: New integration modal, then the “Which connection method?” sheet, then the wizard. Open popovers and the Create menu close first and return focus to their trigger.</span></li>
+        <li><b>Scrim click closes</b><span>Clicking the dimmed area outside a modal closes that modal. Clicks inside popovers stop propagation; any other click closes open popovers.</span></li>
+        <li><b>Step tabs go backwards only</b><span>Details / Connection / Review are tabs, but only earlier steps are clickable. Forward movement is Continue. Each step opens scrolled to its top. The last step's primary button reads “Register agent”.</span></li>
+        <li><b>Reopening the wizard resets it</b><span>Every field, selection and uploaded document is cleared; the route resets to Connect directly.</span></li>
+        <li><b>Changing an upstream choice clears downstream ones</b><span>Switching route, server or integration clears the selected agent card. Removing the API document clears its validation.</span></li>
+        <li><b>The card decides its auth default</b><span>Picking an agent card preselects the auth type the card declares (for example “API key (Bearer)” selects API key), so the badge and the radio never disagree.</span></li>
+        <li><b>Card JSON appears only once it could be fetched</b><span>On step 3 (A2A) the Agent Card document is shown after a card is picked and its credential is filled, labelled “Fetched from <code>{server}{card path}</code>”, with Copy.</span></li>
+        <li><b>Registering a server happens in place</b><span>“Register a new server” at the foot of the server list opens an inline form: name, URL, Discover agent cards. Each discovered card shows its path and an editable auth select. Register server adds it to the top of the list and selects it.</span></li>
+        <li><b>New integration sits over the wizard</b><span>Creating one keeps the half-filled wizard behind it. On save the integration is added to the top of the list and becomes the selection.</span></li>
+        <li><b>API document validation</b><span>Accepts JSON or YAML by drop, browse or “Use a sample spec instead”. Shows a spinner and “Validating…”, then “Valid OpenAPI 3.0.3 · 4 operations · {url}” or the error “Could not read this file — expected OpenAPI 3.x or an agent manifest.” The prototype always succeeds after 0.9 s.</span></li>
+        <li><b>After Register agent</b><span>The wizard closes, filters reset to In workspace + Type Remote, the new agent is first in the list with status In review and Created by You, its detail panel opens, and the toast confirms.</span></li>
+        <li><b>Detail panel actions follow state</b><span>Run agent is primary. The secondary reads Edit for built agents, Connection for remote agents, and Preview in the Marketplace, where the primary becomes Add to workspace.</span></li>
+        <li><b>Platform rail</b><span>Crunched at 68 px, opens to 240 px on hover after 140 ms and closes 200 ms after leaving. It overlays the page; the page keeps a fixed 68 px gutter. One category is open at a time.</span></li>
+        <li><b>Card and table selection</b><span>Selecting an item marks it selected (blue border on cards, tinted row with a 3 px inset bar in the table) and opens the panel. Search, filter or source changes clear the selection and close the panel.</span></li>
+      </ul>
+    </section>
+
+    <!-- ════════ Data model ════════ -->
+    <section id="model">
+      <div class="group__head">
+        <h2>Data model</h2>
+        <p class="muted">The shapes the prototype renders from, written as TypeScript. Field names match the prototype source so the two can be read side by side.</p>
+      </div>
+      <div class="cols">
+        <div class="pre-wrap"><button class="copy" type="button">Copy</button><pre>type AgentType  = 'agent' | 'orchestrator' | 'remote';
+type AgentState = 'running' | 'idle' | 'review' | 'error' | 'draft';
+//   labels:      Running   Idle    In review  Failing  Draft
+
+interface Agent {
+  name: string;
+  type: AgentType;
+  state: AgentState;
+  desc: string;
+  by: string;              // creator or publisher
+  tags: string[];
+  updated: string;         // relative, e.g. "4h ago"
+  runs: number;            // last 30 days
+  usedBy: { name: string; kind: 'automation' | 'assistant' }[];
+  problem?: string;        // shown as NEEDS ATTENTION
+
+  // built agents and orchestrators
+  model?: string;          // '—' when not configured
+  tools?: string[];
+  skills?: string[];
+  guards?: string[];       // guardrails
+  parent?: string;         // orchestrated by
+  members?: { name: string; role: string; remote: boolean }[];
+
+  // marketplace only
+  installs?: number;
+}</pre></div>
+        <div class="pre-wrap"><button class="copy" type="button">Copy</button><pre>type Connection = 'a2a' | 'direct' | 'rest';
+
+interface RemoteAgent extends Agent {
+  type: 'remote';
+  conn: Connection;
+  endpoint: string;        // host + path, no scheme
+  server: string;          // A2A server, integration,
+                           // or "Cogentiq Managed A2A"
+  auth: string;            // human label
+  cards: string[];         // agent card names
+  agentSkills: string[];   // skill ids, e.g. fraud.score
+
+  // direct only
+  reqMethod?: 'POST' | 'GET' | 'PUT' | 'PATCH';
+  reqPath?: string;
+  msgField?: string;       // JSON path, e.g. $.query
+  respField?: string;      // JSON path, e.g. $.answer
+  ctxField?: string;       // session field, optional
+}
+
+// A newly registered agent always starts as
+// { state: 'review', by: 'You', runs: 0, tags: [] }</pre></div>
+        <div class="pre-wrap"><button class="copy" type="button">Copy</button><pre>interface A2AServer {
+  id: string;
+  name: string;            // "Acme Bank A2A"
+  url: string;             // no scheme
+  updated: string;
+  managed?: boolean;       // Cogentiq Managed A2A
+  cards: AgentCardRef[];
+}
+
+interface AgentCardRef {
+  name: string;
+  desc: string;
+  skills: string[];
+  auth: 'API key (Bearer)' | 'OAuth 2.0' | 'mTLS'
+      | 'Basic auth' | 'None';
+  path: string;            // /.well-known/agents/&lt;slug&gt;.json
+}</pre></div>
+        <div class="pre-wrap"><button class="copy" type="button">Copy</button><pre>interface Integration {
+  id: string;
+  name: string;
+  url: string;             // base URL, with scheme
+  desc: string;
+  auth: string;            // Bearer token, API key, ...
+  timeout: number;         // seconds, default 60
+  skills: string[];        // one skill, slug of name
+  method: 'POST' | 'GET' | 'PUT' | 'PATCH';
+  path: string;
+  msg: string;             // message JSON path
+  resp: string;            // response JSON path
+}
+
+type AuthKey = 'apikey' | 'basic' | 'bearer'
+             | 'oauth' | 'mtls' | 'none';</pre></div>
+      </div>
+    </section>
+
+    <!-- ════════ Agent Card output ════════ -->
+    <section id="cards">
+      <div class="group__head">
+        <h2>Agent Card output</h2>
+        <p class="muted">Every route produces the same document, an A2A Agent Card, so the three can be compared. The server returns it, the integration builds it, or the managed adapter generates it from the uploaded spec.</p>
+      </div>
+      <div class="cols">
+        <div class="pre-wrap"><button class="copy" type="button">Copy</button><pre>// Already an agent: fetched from the server
+{
+  "name": "Fraud Signals",
+  "description": "Scores transactions for fraud patterns and explains the risk.",
+  "version": "1.0.0",
+  "url": "https://agents.acmebank.com/a2a/.well-known/agents/fraud-signals",
+  "provider": { "organization": "Acme Bank A2A" },
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": true
+  },
+  "authentication": { "schemes": ["API key"] },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    { "id": "fraud.score", "name": "Score",
+      "description": "Scores transactions for fraud patterns and explains the risk.",
+      "tags": ["fraud", "score"] }
+  ]
+}</pre></div>
+        <div class="pre-wrap"><button class="copy" type="button">Copy</button><pre>// Connect directly: built from the integration
+{
+  "name": "Acme Claims Agent",
+  "description": "Assess a claim and assign a severity band.",
+  "version": "1.0.0",
+  "url": "https://agents.acme.internal:8443",
+  "capabilities": { "streaming": false, "pushNotifications": false },
+  "authentication": { "schemes": ["Bearer token"] },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["text/plain"],
+  "skills": [
+    { "id": "claims.triage", "name": "Acme Claims Agent",
+      "description": "Assess a claim and assign a severity band.",
+      "tags": ["claims", "triage"] }
+  ],
+  "adapter": {
+    "request":  { "method": "POST", "path": "/v1/chat", "message": "$.query" },
+    "response": { "text": "$.answer" },
+    "timeoutSeconds": 60
+  }
+}</pre></div>
+      </div>
+      <p class="muted" style="font-size:13.5px">The Plain API route generates the same shape with <code>provider.organization</code> set to Cogentiq Managed A2A, the name and description from step 1, and one skill per operation in the spec (<code>weather.forecast</code>, <code>weather.current</code>, <code>weather.alerts</code>, <code>weather.history</code> in the sample).</p>
+    </section>
+
+    <!-- ════════ Tokens ════════ -->
+    <section id="tokens">
+      <div class="group__head">
+        <h2>Design tokens</h2>
+        <p class="muted">Token names match the Figma variables one for one (Cogentiq · Builder library). The full sheet is sections 1 and 2 of the prototype's first <code>&lt;style&gt;</code> block; components are written against tokens only, so both themes come from the same rules. Dark is the product default; light is <code>data-mode="light"</code> on the root.</p>
+      </div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Token</th><th>Dark</th><th>Light</th><th>Used for</th></tr></thead>
+          <tbody>
+            <tr><td><code>--backgrounds-page-bg-1</code></td><td><i class="swatch" style="background:#121212"></i>#121212</td><td><i class="swatch" style="background:#fafafa"></i>#fafafa</td><td class="wrap">App ground</td></tr>
+            <tr><td><code>--backgrounds-page-bg-2</code></td><td><i class="swatch" style="background:#212121"></i>#212121</td><td><i class="swatch" style="background:#ffffff"></i>#ffffff</td><td class="wrap">Cards, modals</td></tr>
+            <tr><td><code>--backgrounds-card-bg-5</code></td><td><i class="swatch" style="background:#1b1b1b"></i>#1b1b1b</td><td><i class="swatch" style="background:#ffffff"></i>#ffffff</td><td class="wrap">Header, sidebar, filter bar</td></tr>
+            <tr><td><code>--backgrounds-type-default-bg-1</code></td><td><i class="swatch" style="background:#323232"></i>#323232</td><td><i class="swatch" style="background:#f5f5f5"></i>#f5f5f5</td><td class="wrap">Input fill</td></tr>
+            <tr><td><code>--backgrounds-button-primary</code></td><td><i class="swatch" style="background:#0d99ff"></i>#0d99ff</td><td><i class="swatch" style="background:#0d99ff"></i>#0d99ff</td><td class="wrap">Primary button</td></tr>
+            <tr><td><code>--backgrounds-table-select</code></td><td><i class="swatch" style="background:#0d193f"></i>#0d193f</td><td><i class="swatch" style="background:#e5f4ff"></i>#e5f4ff</td><td class="wrap">Selected row, active nav item</td></tr>
+            <tr><td><code>--strokes-line-3</code></td><td><i class="swatch" style="background:#323232"></i>#323232</td><td><i class="swatch" style="background:#f5f5f5"></i>#f5f5f5</td><td class="wrap">Hairline dividers</td></tr>
+            <tr><td><code>--strokes-type-focus</code></td><td><i class="swatch" style="background:#007be5"></i>#007be5</td><td><i class="swatch" style="background:#0d99ff"></i>#0d99ff</td><td class="wrap">Focused input, selected card</td></tr>
+            <tr><td><code>--text-primary</code></td><td><i class="swatch" style="background:#ffffff"></i>#ffffff</td><td><i class="swatch" style="background:#121212"></i>#121212</td><td class="wrap">Primary text</td></tr>
+            <tr><td><code>--text-secondary</code></td><td><i class="swatch" style="background:#bdbdbd"></i>#bdbdbd</td><td><i class="swatch" style="background:#616161"></i>#616161</td><td class="wrap">Secondary text</td></tr>
+            <tr><td><code>--text-teritiary</code></td><td><i class="swatch" style="background:#8c8c8c"></i>#8c8c8c</td><td><i class="swatch" style="background:#8c8c8c"></i>#8c8c8c</td><td class="wrap">Hints, captions (spelling per Figma)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cols">
+        <ul class="rules">
+          <li><b>Type</b><span>Geist and Geist Mono. Ramp: subhead1 24/32 · subhead2 18/24 · body1 16/24 · body2 14/20 · caption 12/16 · mono 11. Medium is 500.</span></li>
+          <li><b>Radius</b><span>6 tags and small tiles · 8 buttons and inputs · 12 cards, modals, pills · 14 floating prompt bars.</span></li>
+          <li><b>Controls</b><span>Buttons 36 px (32 small). Inputs 12 px padding. Borders sit inside the box, so every bordered control carries an explicit height.</span></li>
+        </ul>
+        <ul class="rules">
+          <li><b>Layout constants</b><span>Rail 68 / 240 · type sidebar 240 · detail panel 420 · card height 120 (auto for agents) · card grid min 430 px, 2-up at 1076 px content width.</span></li>
+          <li><b>Status tones</b><span>Running green · Idle grey · In review orange · Failing red · Draft grey. Type tones: Agent blue · Orchestrator indigo · Remote cyan.</span></li>
+          <li><b>Modal</b><span>Register wizard 760 × 660 px (never taller than the window less 48), single-line inputs 44 px, steps segment under the title, footer with the hint on the left and Back · Cancel · primary on the right.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ════════ Open questions ════════ -->
+    <section id="questions">
+      <div class="group__head">
+        <h2>Open questions</h2>
+        <p class="muted">Things the prototype leaves open or stubs. Settle these with design before building.</p>
+      </div>
+      <ol class="rules q">
+        <li><b>Direct route names the card after the integration</b><span>The step 1 name becomes the agent's name, but the Agent Card's <code>name</code> and the panel's Skill row use the integration name (Acme Claims Agent). Should the card take the agent's name?</span></li>
+        <li><b>Where auth for an A2A card is defined</b><span>Auth is set per card twice: when registering a server (“stored with the server and used on every call”) and again on step 3 with the credential. Which one is the source of truth, and is the step 3 value scoped to this agent or to the card?</span></li>
+        <li><b>“API key (Bearer)”</b><span>Server cards declare “API key (Bearer)”, which maps to the API key option with an <code>X-API-Key</code> header, not to Bearer Token. Confirm the mapping, or split the label.</span></li>
+        <li><b>No preview on step 3 for A2A</b><span>Direct and Plain API show “The agent you are adding”; the A2A route shows only the card picker, credential and fetched JSON. The source says this is deliberate. Confirm.</span></li>
+        <li><b>Stubs to replace</b><span>Discovery returns a fixed list of four cards for any URL. Spec validation always passes and reads 4 operations. Run, Edit, Connection, the ⋯ menu (Duplicate · Export · Archive) and the agent and orchestrator builders are toasts.</span></li>
+        <li><b>Credential checks in New integration</b><span>The modal requires name, URL and path, but not the fields of the chosen auth type, and stores only the auth label. Should it block like step 3 does?</span></li>
+        <li><b>Description fallback</b><span>When the description is left blank, A2A uses the card's description, Direct the integration's, and Plain API a generated sentence. Confirm this is wanted rather than requiring one.</span></li>
+      </ol>
+    </section>
+
+    <!-- ════════ Files ════════ -->
+    <section id="files">
+      <div class="group__head"><h2>Files</h2></div>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>File</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td><a href="prototype.html"><code>prototype.html</code></a></td><td class="wrap">The complete interactive prototype as one standalone file: tokens, components, markup, data and behaviour. Unchanged from the source except for the document wrapper and a final, clearly marked script that powers the state links.</td></tr>
+            <tr><td><code>index.html</code></td><td class="wrap">This page.</td></tr>
+            <tr><td><code>screens/&lt;state&gt;.png</code></td><td class="wrap">Dark capture of each state at 1440 × 900. <code>&lt;state&gt;--light.png</code> is the light theme.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:13.5px">In <code>prototype.html</code>, look for the section banners: <code>COGENTIQ DESIGN SYSTEM</code> (tokens and shared components), <code>TYPES</code>, <code>A2A SERVERS</code>, <code>DETAIL PANEL</code>, <code>REGISTER A REMOTE AGENT</code> and <code>HANDOFF STATE LINKS</code>.</p>
+    </section>
+  </main>
+</div>
+
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Full-size capture"><img id="lbImg" alt=""></div>
+
+<script>
+/* Every state the prototype can be opened in. The id is the deep link
+   (prototype.html#id) and the screenshot name (screens/id.png). */
+const GROUPS = [
+  { id: 'g-page', title: 'Agents page', intro: 'Build → Agents. One page for everything the workspace can run, cut by type in the sidebar and by source in the segment.', states: [
+    { id: 'list-cards', title: 'Card grid (default)', how: 'Open Build → Agents.', notes: ['Two-up grid of 120 px+ cards: mark, name, two-line description, capability chips, creator avatar, ⋯ menu.', 'Orchestrator and Remote carry a tab in the top-right corner.', 'Remote cards show the connection (A2A agent, Hosted API, Direct connect) and the number of agent cards.', 'Count line under the grid: “N of M agents”.'] },
+    { id: 'list-table', title: 'Table view', how: 'Click the list icon at the right of the filter bar.', notes: ['Columns: Agent · Type · Model / endpoint · Created by · Status · actions. Rows are 66 px.', 'Remote rows show the endpoint; agents with no model show “Not configured”.'] },
+    { id: 'type-remote', title: 'Filtered to Remote', how: 'Click Remote in the Type sidebar.', notes: ['Sidebar items carry live counts for the current source.', 'Filters combine: type, search, Created by, Tags, Status.'] },
+    { id: 'filter-owner', title: 'Created by filter', how: 'Click Created by.', notes: ['Multi-select with its own search. A blue count badge shows on the trigger once anything is checked.'] },
+    { id: 'filter-tags', title: 'Tags filter', how: 'Click Tags.', notes: ['Same multi-select pattern as Created by. Matches agents with any checked tag.'] },
+    { id: 'filter-status', title: 'Status filter', how: 'Click Any status.', notes: ['Single select with a tick: Any status, Running, Idle, In review, Failing, Draft.'] },
+    { id: 'empty', title: 'No results', how: 'Search for something that matches nothing.', notes: ['“No agents match” replaces the grid or table.'] },
+    { id: 'marketplace', title: 'Marketplace source', how: 'Click Marketplace in the segment.', notes: ['Same grid, published agents not yet in the workspace. Cards show installs.'] },
+    { id: 'new-menu', title: 'Create menu', how: 'Click Create new agent.', notes: ['New agent and New orchestrator build something; under a rule, Remote agent (A2A) registers something that already runs.'] },
+    { id: 'rail-open', title: 'Platform rail opened', how: 'Hover the left rail.', notes: ['Overlays the page rather than pushing it. Opens after 140 ms, closes 200 ms after leaving.'] }
+  ]},
+  { id: 'g-panel', title: 'Detail panel', intro: 'Opens from the right (420 px) when a card or row is selected. Sections depend on the agent type.', states: [
+    { id: 'panel-agent', title: 'Agent', how: 'Select any running agent.', notes: ['Badges: type, status. Run agent + Edit.', 'Configuration (model, orchestrated by), then Tools, Skills and Guardrails as named pills with counts.', 'Used by lists automations and assistants; About lists runs (30d), creator, last updated, tags.'] },
+    { id: 'panel-orchestrator', title: 'Orchestrator', how: 'Select Claims Intake Desk.', notes: ['Adds Sub-agents with each member’s role; remote members carry a Remote badge.'] },
+    { id: 'panel-remote-a2a', title: 'Remote · A2A', how: 'Select Fraud Risk Scorer.', notes: ['Subtitle “Runs on {server}”. Secondary action reads Connection.', 'Connection: endpoint, A2A server, protocol “A2A, called directly”, auth, agent cards. Then Skills published.'] },
+    { id: 'panel-remote-rest', title: 'Remote · hosted API', how: 'Select Weather Lookup.', notes: ['Protocol “REST via managed adapter” with a note that Cogentiq wraps it and publishes it on the Cogentiq Managed A2A server.'] },
+    { id: 'panel-remote-direct', title: 'Remote · direct connection', how: 'Register an agent through Connect directly.', notes: ['Connection row instead of A2A server; protocol “Direct connection, manifest defined by you”.', 'Adds Request, Message field and Response field, and a note that Cogentiq calls the endpoint exactly as mapped.'] },
+    { id: 'panel-failing', title: 'Failing agent', how: 'Select Returns Note Reader.', notes: ['NEEDS ATTENTION leads the panel in red with the reason. Run agent shows a toast instead of running.'] },
+    { id: 'panel-remote-failing', title: 'Failing remote agent', how: 'Select Delivery Tracker.', notes: ['Same treatment for a remote agent whose credential has been rejected.'] },
+    { id: 'panel-marketplace', title: 'Marketplace agent', how: 'Marketplace, then select any agent.', notes: ['Primary becomes Add to workspace, secondary Preview. Shows installs; no Used by.'] }
+  ]},
+  { id: 'g-step1', title: 'Register · Step 1 · Details', intro: 'Create new agent → Remote agent (A2A). Name and purpose first.', states: [
+    { id: 'wiz-1', title: 'Empty', how: 'Open the wizard.', notes: ['Steps segment: Details · Connection · Review.', 'Continue is aria-disabled; hint “Give the agent a name.”'] },
+    { id: 'wiz-1-filled', title: 'Filled', how: 'Type a name.', notes: ['Description is optional; the hint under it says it is what people see on the Agents page.'] }
+  ]},
+  { id: 'g-direct', title: 'Register · Step 2 · Connect directly', intro: 'The default route. The address, credential and request shape live on a reusable integration, so this step picks one.', states: [
+    { id: 'wiz-2-direct', title: 'No integration chosen', how: 'Continue from step 1.', notes: ['“WHERE IS THIS AGENT?” three choice cards, with “Which one do I pick?” on the right.', 'Integration select with a New integration button beside it.'] },
+    { id: 'wiz-2-direct-open', title: 'Integration list open', how: 'Click Select integration.', notes: ['Each option shows name and one-line description; the chosen one carries a tick.'] },
+    { id: 'wiz-2-direct-done', title: 'Integration chosen', how: 'Pick Acme Claims Agent.', notes: ['The field shows the name with “{url} · {auth}” under it. Continue enables.'] },
+    { id: 'new-integration', title: 'New integration modal', how: 'Click New integration.', notes: ['Name, timeout, description, base URL, authentication type with its fields, and the request shape (method, path, message and response JSON paths).', 'Sits over the wizard; saving selects the new integration.'] },
+    { id: 'compare', title: 'Which connection method?', how: 'Click Which one do I pick?', notes: ['Three-column comparison: Pick this when · What you need · Who does the work, then a recommendation. Got it returns to the step.'] }
+  ]},
+  { id: 'g-a2a', title: 'Register · Step 2 · Already an agent (A2A)', intro: 'The agent lives on an A2A server that publishes Agent Cards. Pick the server here, the card on the next step.', states: [
+    { id: 'wiz-2-a2a', title: 'No server chosen', how: 'Choose “It is already an agent”.', notes: ['“WHICH SERVER” combobox showing “Choose a server · 3 registered”.'] },
+    { id: 'wiz-2-a2a-open', title: 'Server list open', how: 'Click the server field.', notes: ['Search, then each server with its URL and card count. The managed server uses the Cogentiq mark.', '“Register a new server” sits at the foot.'] },
+    { id: 'wiz-2-a2a-done', title: 'Server chosen', how: 'Pick Acme Bank A2A.', notes: ['Field shows “{url} · {n} agent cards”. Continue enables.'] },
+    { id: 'wiz-2-a2a-register', title: 'Register a new server', how: 'Register a new server.', notes: ['Inline form: Server name, A2A server URL. Dashed empty state until discovery runs.', 'Actions: Discover agent cards · Register server · Cancel.'] },
+    { id: 'wiz-2-a2a-discovered', title: 'Cards discovered', how: 'Fill both fields, then Discover agent cards.', notes: ['“AGENT CARDS ON THIS SERVER” with a count. Each card shows name, .well-known path, description and an editable Auth select.'] }
+  ]},
+  { id: 'g-rest', title: 'Register · Step 2 · A plain API', intro: 'A normal web service. Cogentiq reads its document, builds the adapter and hosts the agent.', states: [
+    { id: 'wiz-2-rest', title: 'Waiting for a document', how: 'Choose “It is a plain API”.', notes: ['Drop zone: “Drop your spec here, or browse”, OpenAPI 3.x or an agent manifest, JSON or YAML.', '“Use a sample spec instead” under it.'] },
+    { id: 'wiz-2-rest-checking', title: 'Validating', how: 'Drop or pick a file.', notes: ['File row with spinner and “Validating…”. Continue stays blocked with “Wait for the document to finish validating.”'] },
+    { id: 'wiz-2-rest-done', title: 'Valid', how: 'Wait for validation.', notes: ['“Valid OpenAPI 3.0.3 · 4 operations · {server url}”. The × removes the file and the validation.'] }
+  ]},
+  { id: 'g-step3', title: 'Register · Step 3 · Review', intro: 'A2A still has a choice to make here. Direct and Plain API have nothing left to ask, so the step is a preview of what will be added.', states: [
+    { id: 'wiz-3-a2a', title: 'A2A · choose a card', how: 'Continue with a server chosen.', notes: ['AGENT CARD select. Search appears only with six or more cards.', 'Note: one card per agent; compose several in an orchestrator.'] },
+    { id: 'wiz-3-a2a-card', title: 'A2A · card chosen', how: 'Pick Fraud Signals.', notes: ['Authentication type appears, preselected from the card’s declared auth, with the fields that type needs.'] },
+    { id: 'wiz-3-a2a-ready', title: 'A2A · authenticated', how: 'Enter the API key.', notes: ['The Agent Card JSON appears, “Fetched from {server}{path}”, with Copy. Register agent enables.'] },
+    { id: 'wiz-3-direct', title: 'Direct · preview', how: 'Continue with an integration chosen.', notes: ['“THE AGENT YOU ARE ADDING” preview card, then the Agent Card built from the integration (with its adapter block), then review rows: protocol, endpoint, request, auth.'] },
+    { id: 'wiz-3-rest', title: 'Plain API · preview', how: 'Continue with a valid document.', notes: ['Same preview, with one skill per operation and the card “Generated by the managed adapter from {file}”.'] }
+  ]},
+  { id: 'g-done', title: 'Outcome', intro: 'Registration is not activation: a remote agent joins the workspace in review and runs once governance approves it.', states: [
+    { id: 'registered', title: 'Registered', how: 'Register agent.', notes: ['Wizard closes; filters reset to In workspace + Remote; the new agent leads the list, In review, Created by You.', 'Its panel opens and the toast reads “{name} registered — awaiting governance approval.”'] }
+  ]}
+];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const all = GROUPS.flatMap(g => g.states);
+$('stateCount').textContent = all.length;
+
+/* Screenshots follow the viewer's theme until someone picks one. */
+const prefersDark = () => {
+  const t = document.documentElement.dataset.theme;
+  if (t === 'dark' || t === 'light') return t === 'dark';
+  return !window.matchMedia || matchMedia('(prefers-color-scheme: dark)').matches;
+};
+let shotMode = prefersDark() ? 'dark' : 'light';
+let liveMode = shotMode;
+const shotSrc = id => `screens/${id}${shotMode === 'light' ? '--light' : ''}.png`;
+
+function paintGallery() {
+  $('gallery').innerHTML = GROUPS.map(g => `
+    <div class="group" id="${g.id}">
+      <div class="group__head"><h3>${esc(g.title)}</h3><p class="muted">${esc(g.intro)}</p></div>
+      <div class="shots">${g.states.map(s => `
+        <article class="shot" id="s-${s.id}">
+          <button class="shot__img" type="button" data-zoom="${s.id}" aria-label="Full size: ${esc(s.title)}">
+            <img src="${shotSrc(s.id)}" alt="${esc(g.title)}: ${esc(s.title)}" loading="lazy" width="1440" height="900">
+          </button>
+          <div class="shot__body">
+            <span class="shot__id">#${s.id}</span>
+            <h4>${esc(s.title)}</h4>
+            <p class="shot__how"><b>Get here:</b> ${esc(s.how)}</p>
+            <ul>${s.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>
+          </div>
+          <div class="shot__foot">
+            <button type="button" data-live="${s.id}">Load in live prototype</button>
+            <a href="prototype.html#${s.id}">Open page</a>
+          </div>
+        </article>`).join('')}
+      </div>
+    </div>`).join('');
+}
+paintGallery();
+
+function syncSeg(attr, mode) {
+  document.querySelectorAll(`[${attr}]`).forEach(b => b.setAttribute('aria-pressed', String(b.getAttribute(attr) === mode)));
+}
+syncSeg('data-shot-mode', shotMode);
+document.querySelectorAll('[data-shot-mode]').forEach(b => b.addEventListener('click', () => {
+  shotMode = b.dataset.shotMode;
+  syncSeg('data-shot-mode', shotMode);
+  document.querySelectorAll('.shot img').forEach(img => {
+    const id = img.closest('.shot').id.slice(2);
+    img.src = shotSrc(id);
+  });
+}));
+
+/* ── Live frame ── */
+const frame = $('liveFrame'), stage = $('liveStage'), sel = $('liveState');
+sel.innerHTML = GROUPS.map(g => `<optgroup label="${esc(g.title)}">${g.states.map(s =>
+  `<option value="${s.id}">${esc(s.title)}</option>`).join('')}</optgroup>`).join('');
+
+function fit() {
+  const w = stage.clientWidth, k = w / 1440;
+  frame.style.transform = `scale(${k})`;
+  stage.style.height = `${Math.round(900 * k)}px`;
+}
+if (window.ResizeObserver) new ResizeObserver(fit).observe(stage); else addEventListener('resize', fit);
+fit();
+
+function loadLive(id) {
+  sel.value = id;
+  const url = `prototype.html#${id}--${liveMode}`;
+  frame.src = url;
+  $('liveOpen').href = url;
+}
+syncSeg('data-live-mode', liveMode);
+loadLive('list-cards');
+sel.addEventListener('change', () => loadLive(sel.value));
+document.querySelectorAll('[data-live-mode]').forEach(b => b.addEventListener('click', () => {
+  liveMode = b.dataset.liveMode;
+  syncSeg('data-live-mode', liveMode);
+  loadLive(sel.value);
+}));
+
+$('gallery').addEventListener('click', e => {
+  const live = e.target.closest('[data-live]');
+  if (live) {
+    loadLive(live.dataset.live);
+    $('live').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    return;
+  }
+  const z = e.target.closest('[data-zoom]');
+  if (z) { $('lbImg').src = shotSrc(z.dataset.zoom); $('lbImg').alt = z.getAttribute('aria-label'); $('lb').classList.add('is-open'); }
+});
+$('lb').addEventListener('click', () => $('lb').classList.remove('is-open'));
+addEventListener('keydown', e => { if (e.key === 'Escape') $('lb').classList.remove('is-open'); });
+
+/* ── Copy buttons ── */
+document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', () => {
+  const pre = btn.nextElementSibling;
+  const done = () => { btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = 'Copy'; }, 1400); };
+  const select = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+  try {
+    navigator.clipboard.writeText(pre.textContent).then(done, select);
+  } catch (e) { select(); }
+}));
+</script>
