@@ -1,0 +1,45 @@
+<style>
+  body { margin: 0; padding: 14px; font: 12px/1.5 Inter, system-ui, sans-serif; color: var(--figma-color-text, #222); background: var(--figma-color-bg, #fff); }
+  .drop { border: 1.5px dashed var(--figma-color-border, #ccc); border-radius: 8px; padding: 18px 12px; text-align: center; cursor: pointer; }
+  .drop.over { border-color: var(--figma-color-border-brand, #0d99ff); background: var(--figma-color-bg-brand-tertiary, #e5f4ff); }
+  .drop strong { display: block; font-size: 13px; margin-bottom: 2px; }
+  .hint { color: var(--figma-color-text-secondary, #777); }
+  button { margin-top: 10px; width: 100%; height: 32px; border: 0; border-radius: 6px; background: var(--figma-color-bg-brand, #0d99ff); color: #fff; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  #log { margin-top: 10px; max-height: 120px; overflow: auto; white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; font-size: 11px; }
+</style>
+<label class="drop" id="drop">
+  <strong>Drop .figma.json files here</strong>
+  <span class="hint" id="picked">or click to choose — made by html-to-figma.js</span>
+  <input type="file" id="file" accept=".json" multiple hidden>
+</label>
+<button id="go" disabled>Import</button>
+<div id="log"></div>
+<script>
+  const drop = document.getElementById('drop'), input = document.getElementById('file'), go = document.getElementById('go'), log = document.getElementById('log'), picked = document.getElementById('picked');
+  let files = [];
+  const setFiles = list => {
+    files = [...list].filter(f => f.name.endsWith('.json'));
+    picked.textContent = files.length ? files.map(f => f.name).join(', ') : 'or click to choose — made by html-to-figma.js';
+    go.disabled = !files.length;
+  };
+  input.onchange = () => setFiles(input.files);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); setFiles(e.dataTransfer.files); };
+  const say = t => { log.textContent += t + '\n'; log.scrollTop = log.scrollHeight; };
+  go.onclick = async () => {
+    go.disabled = true; log.textContent = '';
+    const bundles = [];
+    for (const f of files) {
+      try { bundles.push(JSON.parse(await f.text())); } catch (e) { say(`✗ ${f.name}: not valid JSON`); }
+    }
+    parent.postMessage({ pluginMessage: { type: 'import', bundles } }, '*');
+  };
+  onmessage = e => {
+    const m = e.data.pluginMessage;
+    if (!m) return;
+    if (m.type === 'log') say(m.text);
+    if (m.type === 'done') { say('Done.'); go.disabled = !files.length; }
+  };
+</script>
