@@ -2509,10 +2509,11 @@ body.cq { margin: 0; }
     .mk-search__clear { color: rgba(255, 255, 255, .64); }
     .mk-search__clear:hover { color: var(--white); background: rgba(255, 255, 255, .12); }
 
-    /* ── Search results · the Agents tab's frame: types on the left,
-       a bar with the count, search and sort, then one section per type. */
-    .mk-sv__bar { height: 60px; gap: 12px; }
-    .mk-sv__search { width: 400px; padding-right: 4px; }
+    /* ── Search results · under the banner, in the storefront's
+       margins: count and sort, type filters, then a section per type. */
+    .mk-results { padding: 32px 64px 48px; display: flex; flex-direction: column; gap: 16px; }
+    .mk-results[hidden] { display: none; }
+    .mk-results__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .mk-sort { position: relative; flex: none; cursor: pointer; }
     .mk-sort > span { color: var(--text-teritiary); }
     .mk-sort select {
@@ -2523,16 +2524,19 @@ body.cq { margin: 0; }
     }
     .mk-sort select:focus-visible { outline: none; }
     .mk-sort:focus-within { border-color: var(--strokes-checkbox-focus); }
-    .mk-sv .mk-side { width: 240px; }
-    .mk-ind--type .cq-ic { flex: none; color: var(--text-teritiary); }
-    .mk-ind--type.is-active { background: var(--backgrounds-card-bg-4); }
-    .mk-ind--type.is-active .cq-ic { color: var(--text-primary); }
-    .mk-ind__n { flex: none; color: var(--text-teritiary); font: 400 11px/16px var(--font-geist-mono, var(--font-geist)); font-variant-numeric: tabular-nums; }
-    .mk-ind--type:disabled { cursor: default; opacity: .4; }
-    .mk-ind--type:disabled:hover { background: none; }
-    .mk-sv__note { margin: 0 0 16px; color: var(--text-teritiary); }
+    .mk-pill { display: inline-flex; align-items: center; gap: 6px; }
+    .mk-pill .cq-ic { flex: none; }
+    .mk-pill__n {
+      min-width: 18px; height: 18px; padding: 0 5px; border-radius: 100px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--backgrounds-card-bg-4); color: var(--text-teritiary);
+      font: 400 11px/1 var(--font-geist); font-variant-numeric: tabular-nums;
+    }
+    .mk-pill.is-active .mk-pill__n { background: var(--backgrounds-card-bg-2); color: var(--text-button-tonal-1); }
+    .mk-sv__note { margin: 0; color: var(--text-teritiary); }
     .mk-sv__note[hidden] { display: none; }
-    .mk-sv__sec + .mk-sv__sec { border-top: 1px solid var(--strokes-line-1); padding-top: 20px; margin-top: 24px; }
+    .mk-sv__body { padding-top: 8px; }
+    .mk-sv__sec + .mk-sv__sec { border-top: 1px solid var(--strokes-line-1); padding-top: 24px; margin-top: 28px; }
     .mk-sv__head { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
     .mk-sv__head h3 { margin: 0; color: var(--text-primary); }
     .mk-sv__head .mk-sv__more { margin-left: auto; }
@@ -2583,10 +2587,9 @@ body.cq { margin: 0; }
       .mk-conn { flex-wrap: wrap; }
       .mk-pv__comments { padding: 16px; }
       .mk-section, .mk-catalog { padding-left: 24px; padding-right: 24px; }
-      .mk-sv__bar { height: auto; flex-wrap: wrap; padding: 12px 16px; }
-      .mk-sv__search { width: 100%; max-width: none; order: 3; }
-      .mk-sv .mk-side { width: auto; }
-      .mk-ind--type:disabled { display: none; }
+      .mk-results { padding-left: 24px; padding-right: 24px; }
+      .mk-results__head { flex-wrap: wrap; }
+      .mk-results__head .mk-section__title { flex: 1 1 100%; }
       .mk-trend__grid, .mk-grid-3, .mk-grid-2 { grid-template-columns: minmax(0, 1fr); }
       .mk-tool .mk-usage { display: none; }
       .mk-panel { padding: 20px; }
@@ -2891,6 +2894,24 @@ body.cq { margin: 0; }
 
             </div>
 
+            <!-- ── Search results: under the banner, in place of the storefront ── -->
+            <section class="mk-results" id="mkSearch" hidden aria-labelledby="mkSvTitle">
+              <div class="mk-results__head">
+                <h2 class="mk-section__title cq-subhead1-med" id="mkSvTitle" aria-live="polite">Results</h2>
+                <label class="cq-dropdown mk-sort">
+                  <span>Sort</span>
+                  <select id="mkSvSort" aria-label="Sort results">
+                    <option value="best">Best match</option>
+                    <option value="installs">Most installed</option>
+                    <option value="rating">Highest rated</option>
+                  </select>
+                </label>
+              </div>
+              <div class="mk-pills" id="mkSvTypes" role="group" aria-label="Filter results by type"></div>
+              <p class="mk-sv__note cq-body2-reg" id="mkSvNote" hidden></p>
+              <div class="mk-sv__body" id="mkSvBody"></div>
+            </section>
+
             <!-- ── Explore: the storefront ── -->
             <div id="mkExplore">
 
@@ -2999,37 +3020,7 @@ body.cq { margin: 0; }
               </div>
             </section>
           </div>
-          <!-- ── Search results: a library page of its own ── -->
-          <div class="mk-agents mk-sv" id="mkSearch" hidden>
-            <aside class="mk-side" aria-label="Filter results by type">
-              <span class="mk-side__title cq-caption-med">TYPE</span>
-              <div class="mk-side__list" id="mkSvTypes"></div>
-            </aside>
-            <section class="mk-agents__main" aria-labelledby="mkSvTitle">
-              <div class="mk-agents__bar mk-sv__bar">
-                <h2 class="mk-agents__count cq-body1-med" id="mkSvTitle" aria-live="polite">Results</h2>
-                <form class="cq-search cq-search--sm mk-agents__search mk-sv__search" id="mkSvForm" role="search">
-                  <img src="data:image/svg+xml;base64,PHN2ZyBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJub25lIiBvdmVyZmxvdz0idmlzaWJsZSIgc3R5bGU9ImRpc3BsYXk6IGJsb2NrOyIgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiB2aWV3Qm94PSIwIDAgMjAgMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGlkPSJTZWFyY2giIGNsaXAtcGF0aD0idXJsKCNjbGlwMF8wXzE3KSI+CjxnIGlkPSJWZWN0b3IiPgo8L2c+CjxwYXRoIGlkPSJWZWN0b3JfMiIgZD0iTTIuNSA4LjMzMzMzQzIuNSA5LjA5OTM4IDIuNjUwODggOS44NTc5MiAyLjk0NDA0IDEwLjU2NTdDMy4yMzcxOSAxMS4yNzM0IDMuNjY2ODcgMTEuOTE2NCA0LjIwODU0IDEyLjQ1ODFDNC43NTAyMiAxMi45OTk4IDUuMzkzMjggMTMuNDI5NSA2LjEwMTAxIDEzLjcyMjZDNi44MDg3NSAxNC4wMTU4IDcuNTY3MjkgMTQuMTY2NyA4LjMzMzMzIDE0LjE2NjdDOS4wOTkzOCAxNC4xNjY3IDkuODU3OTIgMTQuMDE1OCAxMC41NjU3IDEzLjcyMjZDMTEuMjczNCAxMy40Mjk1IDExLjkxNjQgMTIuOTk5OCAxMi40NTgxIDEyLjQ1ODFDMTIuOTk5OCAxMS45MTY0IDEzLjQyOTUgMTEuMjczNCAxMy43MjI2IDEwLjU2NTdDMTQuMDE1OCA5Ljg1NzkyIDE0LjE2NjcgOS4wOTkzOCAxNC4xNjY3IDguMzMzMzNDMTQuMTY2NyA3LjU2NzI5IDE0LjAxNTggNi44MDg3NSAxMy43MjI2IDYuMTAxMDFDMTMuNDI5NSA1LjM5MzI4IDEyLjk5OTggNC43NTAyMiAxMi40NTgxIDQuMjA4NTRDMTEuOTE2NCAzLjY2Njg3IDExLjI3MzQgMy4yMzcxOSAxMC41NjU3IDIuOTQ0MDRDOS44NTc5MiAyLjY1MDg4IDkuMDk5MzggMi41IDguMzMzMzMgMi41QzcuNTY3MjkgMi41IDYuODA4NzUgMi42NTA4OCA2LjEwMTAxIDIuOTQ0MDRDNS4zOTMyOCAzLjIzNzE5IDQuNzUwMjIgMy42NjY4NyA0LjIwODU0IDQuMjA4NTRDMy42NjY4NyA0Ljc1MDIyIDMuMjM3MTkgNS4zOTMyOCAyLjk0NDA0IDYuMTAxMDFDMi42NTA4OCA2LjgwODc1IDIuNSA3LjU2NzI5IDIuNSA4LjMzMzMzWiIgc3Ryb2tlPSIjNzU3NTc1IiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxwYXRoIGlkPSJWZWN0b3JfMyIgZD0iTTE3LjUgMTcuNUwxMi41IDEyLjUiIHN0cm9rZT0iIzc1NzU3NSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L2c+CjxkZWZzPgo8Y2xpcFBhdGggaWQ9ImNsaXAwXzBfMTciPgo8cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9IndoaXRlIi8+CjwvY2xpcFBhdGg+CjwvZGVmcz4KPC9zdmc+Cg==" width="20" height="20" alt="" />
-                  <input class="cq-body2-reg" id="mkSvQ" type="search" placeholder="Search the marketplace" aria-label="Search the marketplace" autocomplete="off"
-                    role="combobox" aria-expanded="false" aria-controls="mkTa" aria-autocomplete="list" />
-                  <button type="button" class="mk-clear" data-clear aria-label="Clear search"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#mk-close"/></svg></button>
-                </form>
-                <label class="cq-dropdown mk-sort">
-                  <span>Sort</span>
-                  <select id="mkSvSort" aria-label="Sort results">
-                    <option value="best">Best match</option>
-                    <option value="installs">Most installed</option>
-                    <option value="rating">Highest rated</option>
-                  </select>
-                </label>
-              </div>
-              <div class="mk-agents__scroll cq-scroll-y" id="mkSvScroll">
-                <p class="mk-sv__note cq-body2-reg" id="mkSvNote" hidden></p>
-                <div class="mk-sv__body" id="mkSvBody"></div>
-              </div>
-            </section>
-          </div>
-          <!-- Typeahead: fixed to whichever search field is in use. -->
+          <!-- Typeahead: fixed under the hero search field. -->
           <div class="mk-ta" id="mkTa" role="listbox" aria-label="Search suggestions" hidden></div>
           <div class="mk-toast cq-body2-med" id="mkToast" role="status" hidden></div>
         </section>
@@ -4211,9 +4202,8 @@ function forgetSearch(q) {
 }
 
 /* ── Typeahead ──
-   One panel, shared by the hero field and the results bar's field; it
-   is fixed under whichever one is in use. Only here are matched words
-   marked — the results page shows artifacts plainly. */
+   Fixed under the hero field, so the hero's clipping can't cut it off.
+   Only here are matched words marked — results show artifacts plainly. */
 let taOpts = [];
 let taActive = -1;
 let taInput = null;
@@ -4279,7 +4269,8 @@ function renderTa() {
 function closeTa() {
   $('mkTa').hidden = true;
   taActive = -1;
-  for (const id of ['mkQ', 'mkSvQ']) { $(id).setAttribute('aria-expanded', 'false'); $(id).removeAttribute('aria-activedescendant'); }
+  $('mkQ').setAttribute('aria-expanded', 'false');
+  $('mkQ').removeAttribute('aria-activedescendant');
 }
 function moveTa(d) {
   if (!taOpts.length) return;
@@ -4315,7 +4306,6 @@ function runSearch(q) {
   closeTa();
   if (!q) return;
   $('mkQ').value = q;
-  $('mkSvQ').value = q;
   syncClear();
   query = q;
   resType = 'all';
@@ -4323,8 +4313,13 @@ function runSearch(q) {
   rememberSearch(q);
   view = 'explore';
   paint();
-  $('mkSvScroll').scrollTo({ top: 0 });
+  scrollToResults();
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+function scrollToResults() {
+  const sc = $('mkScroll');
+  const top = sc.scrollTop + $('mkSearch').getBoundingClientRect().top - sc.getBoundingClientRect().top;
+  sc.scrollTo({ top: Math.max(0, top - 8), behavior: 'smooth' });
 }
 function sortResults(list) {
   if (resSort === 'installs') return [...list].sort((x, y) => y.doc.a.installs - x.doc.a.installs);
@@ -4336,10 +4331,12 @@ function paintResults() {
   const counts = Object.fromEntries(Object.keys(TYPES).map(k => [k, results.filter(r => r.doc.a.type === k).length]));
   if (resType !== 'all' && !counts[resType]) resType = 'all';
 
-  const typeBtn = (k, label, icon, n) => `<button type="button" class="mk-ind mk-ind--type${k === resType ? ' is-active' : ''}" data-rtype="${k}" aria-pressed="${k === resType}"${n ? '' : ' disabled'}>
-      ${SVG(icon)}<span class="mk-ind__label cq-body2-reg">${label}</span><span class="mk-ind__n">${n}</span></button>`;
-  $('mkSvTypes').innerHTML = typeBtn('all', 'All results', 'mk-web', results.length)
-    + Object.entries(TYPES).map(([k, t]) => typeBtn(k, t.label, t.icon, counts[k])).join('');
+  /* Only the types that have something to show. */
+  const pill = (k, label, icon, n) => `<button type="button" class="mk-pill cq-body2-med${k === resType ? ' is-active' : ''}" data-rtype="${k}" aria-pressed="${k === resType}">
+      ${SVG(icon)}${label}<span class="mk-pill__n">${n}</span></button>`;
+  $('mkSvTypes').hidden = !results.length;
+  $('mkSvTypes').innerHTML = pill('all', 'All', 'mk-web', results.length)
+    + Object.entries(TYPES).filter(([k]) => counts[k]).map(([k, t]) => pill(k, t.label, t.icon, counts[k])).join('');
 
   const shown = resType === 'all' ? results.length : counts[resType];
   $('mkSvTitle').textContent = `${shown} result${shown === 1 ? '' : 's'} for “${query}”${resType === 'all' ? '' : ` in ${TYPES[resType].label}`}`;
@@ -4371,7 +4368,7 @@ function paintResults() {
         <span class="cq-count">${list.length}</span>
         ${resType === 'all' && list.length > SECTION_MAX ? `<button type="button" class="cq-btn cq-btn--ghost cq-btn--sm mk-sv__more" data-rtype="${k}">See all ${list.length}</button>` : ''}
       </div>
-      <div class="mk-agents__grid">${cut.map(r => artCard(r.doc.a)).join('')}</div>
+      <div class="mk-grid-3">${cut.map(r => artCard(r.doc.a)).join('')}</div>
     </section>`;
   }).join('');
 }
@@ -4398,8 +4395,7 @@ function paint() {
   const catalog = !agentsView && view !== 'explore';
   const results = !agentsView && view === 'explore' && q !== '';
   $('mkSearch').hidden = !results;
-  $('mkScroll').hidden = agentsView || results;
-  $('mkExplore').hidden = catalog;
+  $('mkExplore').hidden = catalog || results;
   $('mkCatalog').hidden = !catalog;
 
   document.querySelectorAll('#typeSeg > button').forEach(b => {
@@ -4435,7 +4431,6 @@ function setView(v) {
 function clearSearch() {
   query = '';
   $('mkQ').value = '';
-  $('mkSvQ').value = '';
   syncClear();
   closeTa();
   paint();
@@ -4450,7 +4445,7 @@ $('typeSeg').addEventListener('click', e => {
 document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => setView(b.dataset.goto)));
 
 /* Typing only suggests; Enter, a use case or "See all" commits. */
-for (const input of [$('mkQ'), $('mkSvQ')]) {
+for (const input of [$('mkQ')]) {
   input.addEventListener('input', () => { taInput = input; syncClear(); renderTa(); });
   input.addEventListener('focus', () => { taInput = input; renderTa(); });
   input.addEventListener('keydown', e => {
@@ -4464,7 +4459,7 @@ for (const input of [$('mkQ'), $('mkSvQ')]) {
     }
   });
 }
-for (const [form, input] of [[$('mkSearchForm'), $('mkQ')], [$('mkSvForm'), $('mkSvQ')]]) {
+for (const [form, input] of [[$('mkSearchForm'), $('mkQ')]]) {
   form.addEventListener('submit', e => {
     e.preventDefault();
     if (taActive >= 0 && !$('mkTa').hidden) pickTa(taActive);
@@ -4490,16 +4485,15 @@ $('mkTa').addEventListener('click', e => {
   if (o) pickTa(Number(o.dataset.opt));
 });
 document.addEventListener('mousedown', e => {
-  if (!e.target.closest('.mk-search, .mk-sv__search, #mkTa')) closeTa();
+  if (!e.target.closest('.mk-search, #mkTa')) closeTa();
 });
 document.addEventListener('keydown', e => {
   if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
-  const field = !$('mkSearch').hidden ? $('mkSvQ') : $('mkScroll').offsetParent ? $('mkQ') : null;
-  if (!field) return;
+  if (!$('mkScroll').offsetParent) return;
   e.preventDefault();
-  if (field === $('mkQ')) $('mkScroll').scrollTo({ top: 0 });
-  field.focus({ preventScroll: true });
+  $('mkScroll').scrollTo({ top: 0 });
+  $('mkQ').focus({ preventScroll: true });
 });
 addEventListener('resize', () => { if (!$('mkTa').hidden) placeTa(); });
 $('mkScroll').addEventListener('scroll', () => { if (!$('mkTa').hidden) placeTa(); }, { passive: true });
@@ -4509,7 +4503,7 @@ document.querySelector('.mk-suggest').addEventListener('click', e => {
 });
 $('mkSearch').addEventListener('click', e => {
   const t = e.target.closest('[data-rtype]');
-  if (t && !t.disabled) { resType = t.dataset.rtype; paintResults(); $('mkSvScroll').scrollTo({ top: 0 }); return; }
+  if (t) { resType = t.dataset.rtype; paintResults(); if ($('mkSearch').getBoundingClientRect().top < $('mkScroll').getBoundingClientRect().top) scrollToResults(); return; }
   const dym = e.target.closest('[data-dym]');
   if (dym) { runSearch(dym.dataset.dym); return; }
   const q = e.target.closest('[data-q]');
