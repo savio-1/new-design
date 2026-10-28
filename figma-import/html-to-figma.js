@@ -471,6 +471,14 @@ function extract({ rootSel, full }) {
     const fam = cs.fontFamily.split(',')[0].trim().replace(/^["']|["']$/g, '');
     return { f: fam, w: parseInt(cs.fontWeight) || 400, i: cs.fontStyle === 'italic' || cs.fontStyle.startsWith('oblique') ? 1 : 0 };
   }
+  // CSS scale transforms shrink boxes but not computed sizes; this is the factor to apply
+  function scaleOf(el) {
+    if (!el || !el.offsetWidth) return 1;
+    const k = el.getBoundingClientRect().width / el.offsetWidth;
+    return Math.abs(k - 1) < 0.01 || !isFinite(k) ? 1 : Math.round(k * 1000) / 1000;
+  }
+  const scaleR = (r, k) => (k === 1 || !r ? r : Array.isArray(r) ? r.map(v => R(v * k)) : R(r * k));
+  const scaleFx = (fx, k) => (k === 1 ? fx : fx.map(e => ({ ...e, x: e.x !== undefined ? R(e.x * k) : e.x, y: e.y !== undefined ? R(e.y * k) : e.y, r: R(e.r * k), s: e.s !== undefined ? R(e.s * k) : e.s })));
   function segStyle(el) {
     const cs = getComputedStyle(el);
     const f = fontOf(cs);
@@ -485,7 +493,8 @@ function extract({ rootSel, full }) {
     const ls = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing);
     const dec = (cs.textDecorationLine || '').includes('underline') ? 'U' : (cs.textDecorationLine || '').includes('line-through') ? 'S' : '';
     const tc = { uppercase: 'U', lowercase: 'L', capitalize: 'T' }[cs.textTransform] || '';
-    return { f: f.f, w: f.w, i: f.i, z: parseFloat(cs.fontSize), c, g: grad, ls: R(ls), d: dec, tc, o: 1 };
+    const k = scaleOf(el);
+    return { f: f.f, w: f.w, i: f.i, z: R(parseFloat(cs.fontSize) * k), c, g: grad, ls: R(ls * k), d: dec, tc, o: 1 };
   }
   function collectSegs(nodes, segs) {
     for (const n of nodes) {
@@ -532,7 +541,7 @@ function extract({ rootSel, full }) {
     for (const r of rects) if (!tops.some(t => Math.abs(t - r.top) < 3)) tops.push(r.top);
     const nLines = Math.max(1, tops.length);
     const ocs = getComputedStyle(ownerEl);
-    let lh = parseFloat(ocs.lineHeight);
+    let lh = parseFloat(ocs.lineHeight) * scaleOf(ownerEl);
     if (isNaN(lh)) lh = nLines > 1 ? (bb.height / nLines) : bb.height;
     const align = { center: 'C', right: 'R', end: 'R', justify: 'J' }[ocs.textAlign] || 'L';
     const node = { t: 'T', ch: trimmed, sg: merged.map(r => [r.a, r.b, r.st]), lh: R(lh), al: align };
@@ -813,9 +822,10 @@ function extract({ rootSel, full }) {
     if (!visibleRect(r) && !clip) return sorted.map(([k, n]) => [inheritedKey !== undefined ? inheritedKey : k, n]);
     const n = { t: 'F', k: ek, nm: nameOf(el), x: box.x, y: box.y, w: box.w, h: box.h };
     if (visFills.length) n.fl = visFills;
-    const rd = radius(cs, box.w, box.h); if (rd) n.r = rd;
-    if (b) n.b = b;
-    if (fx.length) n.fx = fx;
+    const k = rot ? 1 : scaleOf(el);
+    const rd = scaleR(radius(cs, box.w / k, box.h / k), k); if (rd) n.r = rd;
+    if (b) n.b = k === 1 ? b : { ...b, w: Array.isArray(b.w) ? b.w.map(v => R(v * k)) : R(b.w * k) };
+    if (fx.length) n.fx = scaleFx(fx, k);
     if (clip) n.cl = 1;
     if (opacity < 1) n.op = R(opacity * 100) / 100;
     if (rot) n.rot = rot;

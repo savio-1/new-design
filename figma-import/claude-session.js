@@ -9,6 +9,13 @@
 //   node figma-import/claude-session.js upload <bundle.figma.json> <submitUrl> [<submitUrl> ...]
 //       POSTs the page data and images, then writes <bundle>.loader.js —
 //       pass that file's contents to use_figma as-is
+//
+// Several pages at once (images shared between pages are uploaded once):
+//   node figma-import/claude-session.js count-many  [--per-call 4] <bundle> ...
+//   node figma-import/claude-session.js upload-many [--per-call 4] [--cols 4] [--origin x,y]
+//                                                   <bundle> ... --urls <submitUrl> ...
+//       writes loader-1.js, loader-2.js … next to the first bundle, each
+//       building --per-call pages in a grid
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -36,8 +43,10 @@ const DECODER = `async function loadPayload(hash){
   return JSON.parse(s+out.join(''));
 }`;
 
-const [, , cmd, bundleFile, ...urls] = process.argv;
-if (!cmd || !bundleFile) { console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 12).join('\n')); process.exit(1); }
+const [, , cmd, ...rest] = process.argv;
+if (!cmd || !rest.length) { console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 20).join('\n')); process.exit(1); }
+if (cmd === 'count-many' || cmd === 'upload-many') { many(cmd, rest); process.exit(0); }
+const [bundleFile, ...urls] = rest;
 const bundle = JSON.parse(fs.readFileSync(bundleFile, 'utf8'));
 const images = bundle.images.map((im, i) => (im ? { i, ...im } : null)).filter(Boolean);
 
@@ -80,6 +89,90 @@ const loaderFile = bundleFile.replace(/\.figma\.json$/, '') + '.loader.js';
 fs.writeFileSync(loaderFile, loader);
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`${loaderFile} (${loader.length} chars) — pass its contents to use_figma`);
+
+function many(cmd, args) {
+  const opt = { perCall: 4, cols: 4, origin: [0, 0] };
+  const bundles = [], urls = [];
+  let target = bundles;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--per-call') opt.perCall = +args[++i];
+    else if (a === '--cols') opt.cols = +args[++i];
+    else if (a === '--origin') opt.origin = args[++i].split(',').map(Number);
+    else if (a === '--urls') target = urls;
+    else target.push(a);
+  }
+  const crypto = require('crypto');
+  const pages = bundles.map(f => ({ file: f, b: JSON.parse(fs.readFileSync(f, 'utf8')) }));
+  // one upload per distinct image across all pages
+  const uniq = [], bySha = new Map();
+  for (const pg of pages) {
+    pg.remap = pg.b.images.map(im => {
+      if (!im) return -1;
+      const sha = crypto.createHash('sha1').update(im.data).digest('hex');
+      if (!bySha.has(sha)) { bySha.set(sha, uniq.length); uniq.push(im); }
+      return bySha.get(sha);
+    });
+  }
+  const groups = [];
+  for (let i = 0; i < pages.length; i += opt.perCall) groups.push(pages.slice(i, i + opt.perCall));
+  const need = uniq.length + groups.length;
+  if (cmd === 'count-many') { console.log(need); return; }
+  if (urls.length !== need) { console.error(`need ${need} upload URLs, got ${urls.length}`); process.exit(1); }
+
+  const tmp = fs.mkdtempSync(path.join(require('os').tmpdir(), 'h2f-'));
+  const remapTree = (n, map) => {
+    if (n.t === 'I') { if (n.i >= 0) n.i = map[n.i]; if (n.il !== undefined) n.il = map[n.il]; }
+    (n.fl || []).forEach(p => { if (p.t === 'I') p.i = map[p.i]; });
+    (n.c || []).forEach(k => remapTree(k, map));
+  };
+  // grid positions for every page, in the order given
+  let k = 0;
+  const files = [];
+  groups.forEach((g, gi) => {
+    const list = g.map(pg => {
+      const col = k % opt.cols, row = Math.floor(k++ / opt.cols);
+      remapTree(pg.b.root, pg.remap);
+      return { ...pg.b, images: [], x: opt.origin[0] + col * (pg.b.width + 200), y: opt.origin[1] + row * (pg.b.height + 300) };
+    });
+    const f = path.join(tmp, `payload-${gi + 1}.png`);
+    fs.writeFileSync(f, packPng(Buffer.from(JSON.stringify(list), 'utf8')));
+    files.push({ file: f, type: 'image/png' });
+  });
+  uniq.forEach((im, i) => {
+    const f = path.join(tmp, `img${i}.${im.type.split('/')[1].replace('jpeg', 'jpg').replace('+xml', '')}`);
+    fs.writeFileSync(f, Buffer.from(im.data, 'base64'));
+    files.push({ file: f, type: im.type });
+  });
+  const results = files.map((f, i) => {
+    const out = execFileSync('curl', ['-sS', '-f', '-F', `file=@${f.file};type=${f.type};filename=${path.basename(f.file)}`, urls[i]], { encoding: 'utf8' });
+    const r = JSON.parse(out);
+    if (!r.success) throw new Error('upload failed: ' + out);
+    return r;
+  });
+  const hashes = results.slice(groups.length).map(r => r.imageHash);
+  const placed = results.map(r => r.placedOnNodeId).filter(Boolean);
+  const pluginCode = fs.readFileSync(path.join(__dirname, 'plugin', 'code.js'), 'utf8');
+  const shared = pluginCode.slice(pluginCode.indexOf('// <shared>'), pluginCode.indexOf('// </shared>'));
+  const outDir = path.dirname(bundles[0]);
+  groups.forEach((g, gi) => {
+    const loader = `${DECODER}
+${shared}
+for (const id of ${JSON.stringify(placed)}) { const n = await figma.getNodeByIdAsync(id); if (n) n.remove(); }
+const H = ${JSON.stringify(hashes)};
+const made = [];
+for (const b of await loadPayload(${JSON.stringify(results[gi].imageHash)})) {
+  const r = await importBundle(b, b.x, b.y, H);
+  made.push({ id: r.frame.id, name: b.name, layers: r.layers, warnings: r.warnings.length });
+}
+return made;
+`;
+    const lf = path.join(outDir, `loader-${gi + 1}.js`);
+    fs.writeFileSync(lf, loader);
+    console.log(`${lf} (${loader.length} chars): ${g.map(pg => path.basename(pg.file)).join(', ')}`);
+  });
+  fs.rmSync(tmp, { recursive: true, force: true });
+}
 
 function packPng(data) {
   const body = Buffer.concat([Buffer.from([data.length >>> 24, (data.length >>> 16) & 255, (data.length >>> 8) & 255, data.length & 255]), data]);

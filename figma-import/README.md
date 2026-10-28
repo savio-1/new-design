@@ -59,6 +59,8 @@ Fills, borders, text, icon vectors, gradient stops and shadows all bind. Each fr
 - CSS masks have no Figma equivalent, so a masked element is imported as an image of just that element.
 - Hover, focus and other interaction states aren't captured; only the page as it first renders.
 - A font must exist in Figma to be used. Missing families fall back to Inter.
+- Repeating background patterns (dot grids drawn with `background-size`) come through as a single gradient, not a tiled pattern.
+- `text-overflow: ellipsis` isn't reproduced; the text is clipped by its frame instead.
 
 ## From a Claude Code session (no plugin)
 
@@ -67,3 +69,5 @@ A cloud session can't run the plugin, but it can import through the Figma MCP co
 1. `node figma-import/claude-session.js count <bundle>` gives N. Call `upload_assets` with `count: N`.
 2. `node figma-import/claude-session.js upload <bundle> <submitUrl …>` POSTs everything and writes `<bundle>.loader.js`.
 3. Pass that file's contents to `use_figma`. It builds the whole page in one call and removes the temporary upload frames.
+
+For many pages, `count-many` / `upload-many` upload each distinct image once, pack several pages per data file (`--per-call`, default 4), and lay the frames out in a grid (`--cols`, `--origin x,y`). The 12 CogentIQ inner pages, about 4,500 layers, went in with one upload request and one build call of about 25 seconds.
