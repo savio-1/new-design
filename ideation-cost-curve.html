@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cost curve ideation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0c2340;--navy2:#142c47;--deep:#071a30;--line:#1f3d63;--gold:#ffb81c;--blue:#007dba;--sky:#29a8e0;--t1:#fff;--t2:#c3cfdd;--t3:#8fa3bd;--display:'DM Sans',sans-serif;--body:'Lato',sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--navy);color:var(--t1);font-family:var(--body);-webkit-font-smoothing:antialiased}
+.note{max-width:1200px;margin:0 auto;padding:18px 24px 0;font:500 12px/1.4 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--t3)}
+.sec{max-width:1200px;margin:0 auto;padding:56px 24px 96px}
+h2{margin:0;text-align:center;font:700 clamp(30px,3.4vw,40px)/1.15 var(--display)}
+.sub{margin:12px 0 0;text-align:center;font:700 clamp(18px,1.9vw,24px)/1.35 var(--display);color:var(--gold)}
+
+.cc{margin-top:44px;padding:32px 32px 24px;border-radius:24px;background:var(--deep);background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.5px);background-size:20px 20px;border:1px solid var(--line)}
+.cc-head{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.tabs{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;padding:5px;border-radius:999px;background:#0f2747;border:1px solid var(--line)}
+.tab{position:relative;z-index:1;padding:12px 26px;border:0;background:none;cursor:pointer;font:600 16px/1 var(--display);color:var(--t3);transition:color .4s;white-space:nowrap}
+.tab[aria-selected="true"]{color:#fff}
+.tab:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:999px}
+.thumb{position:absolute;top:5px;bottom:5px;left:5px;width:calc(50% - 5px);border-radius:999px;background:#263850;border:1px solid rgba(143,163,189,.6);transition:transform .5s cubic-bezier(.5,0,.3,1),background .5s,border-color .5s}
+.cc.m1 .thumb{transform:translateX(100%);background:#0b3050;border-color:rgba(41,168,224,.6)}
+.cap{margin:0;min-height:28px;font:500 19px/28px var(--display);color:#fff;transition:opacity .3s}
+.cap b{color:var(--gold);font-weight:700}
+
+.chart{margin-top:18px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.grid line{stroke:#142f54;stroke-width:1}
+.axis{fill:none;stroke:#2c4d77;stroke-width:1.5}
+.tk{font:500 15px/1 var(--display);fill:var(--t3);text-anchor:middle}
+.axl{font:500 14px/1 var(--display);fill:var(--t2)}
+.f{transition:fill .5s}
+.cc:not(.m1) .f{fill:#5f7591}
+.cc:not(.m1) .u{fill:#8fa3bd}
+.cc.m1 .f{fill:#007dba}
+.cc.m1 .u{fill:#ffb81c}
+.ghost{fill:none;stroke:#8fa3bd;stroke-width:1.5;stroke-dasharray:5 5;opacity:0;transition:opacity .5s}
+.cc.m1 .ghost.on{opacity:.75}
+.cum{fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;transition:stroke .5s}
+.cc:not(.m1) .cum{stroke:#e8eef5}
+.cc.m1 .cum{stroke:var(--gold)}
+.pt{transition:fill .5s;stroke:var(--deep);stroke-width:3}
+.cc:not(.m1) .pt{fill:#e8eef5}
+.cc.m1 .pt{fill:var(--gold)}
+.bub{opacity:0;transition:opacity .45s}
+.bub.on{opacity:1}
+.bub rect{fill:#0f2747;stroke:#2c4d77}
+.cc.m1 .bub rect{stroke:rgba(255,184,28,.6)}
+.bub text{font:700 17px/1 var(--display);fill:#fff;text-anchor:middle}
+.bub text tspan.s{font-weight:500;font-size:13px;fill:var(--t2)}
+.save{opacity:0;transition:opacity .5s}
+.save.on{opacity:1}
+.save path{fill:none;stroke:var(--gold);stroke-width:2}
+.save text{font:700 17px/1 var(--display);fill:var(--gold)}
+
+.foot{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font:500 13.5px/1 var(--display);color:var(--t2)}
+.legend span{display:inline-flex;align-items:center;gap:8px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block;transition:background .5s}
+.cc:not(.m1) .lg-f{background:#5f7591}.cc:not(.m1) .lg-u{background:#8fa3bd}
+.cc.m1 .lg-f{background:#007dba}.cc.m1 .lg-u{background:#ffb81c}
+.lg-g{display:none!important}
+.cc.m1 .lg-g{display:inline-flex!important}
+.lg-g i{background:none!important;border:1.5px dashed #8fa3bd}
+.syn{font:400 12px/1.4 var(--body);color:var(--t3)}
+@media (max-width:600px){.cc{padding:22px 14px 18px}.tab{padding:11px 14px;font-size:14px}.cap{font-size:16px;line-height:24px;min-height:48px}}
+@media (max-width:600px){
+  .tk{font-size:34px}.axl{font-size:30px}
+  .save text{font-size:34px}
+  .bub text{font-size:44px}.bub text tspan.s{font-size:32px}
+  .cum{stroke-width:5}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<p class="note">Ideation · "Where agent pilots stall" with the cost curve as the hero visual · not on the website</p>
+<section class="sec">
+  <h2>Where agent pilots stall</h2>
+  <p class="sub">Enterprises rarely fail at demoing an agent. They fail at the next three steps.</p>
+
+  <div class="cc" id="cc">
+    <div class="cc-head">
+      <div class="tabs" role="tablist" aria-label="Compare the two paths">
+        <button type="button" class="tab" role="tab" aria-selected="true" data-m="0">Without Cogentiq</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" tabindex="-1" data-m="1">With Cogentiq</button>
+        <i class="thumb"></i>
+      </div>
+      <p class="cap" id="cap" aria-live="polite"></p>
+    </div>
+    <div class="chart">
+      <svg id="svg" viewBox="0 0 1000 440" role="img" aria-labelledby="ct">
+        <title id="ct">Cumulative cost over five solutions. Without Cogentiq every solution rebuilds the foundation, so cost climbs steeply. With Cogentiq the foundation is built once and each new solution adds only its use case, so cost flattens.</title>
+        <g class="grid" id="grid"></g>
+        <path class="axis" d="M80 20 V380 H970"/>
+        <text class="axl" x="80" y="10">Cumulative cost</text>
+        <g id="ticks"></g>
+        <text class="axl" id="xt" x="525" y="432" text-anchor="middle">Solutions delivered</text>
+        <g id="ghosts"></g>
+        <g id="bars"></g>
+        <path class="cum" id="cum" pathLength="1"/>
+        <g id="pts"></g>
+        <g class="bub" id="bub"><rect x="0" y="0" width="150" height="52" rx="26"/><text id="bubt" x="75" y="23">6.5x<tspan class="s" x="75" dy="18">the first build</tspan></text></g>
+        <g class="save" id="save"><path id="savep"/><text id="savet"></text></g>
+      </svg>
+    </div>
+    <div class="foot">
+      <div class="legend" aria-hidden="true">
+        <span><i class="lg-f"></i><b id="lgf" style="font-weight:500">Foundation, rebuilt every time</b></span>
+        <span><i class="lg-u"></i>Use case</span>
+        <span class="lg-g"><i></i>Without Cogentiq</span>
+      </div>
+      <span class="syn">Illustrative and synthetic data</span>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+  const cc = document.getElementById("cc"), svg = document.getElementById("svg");
+  const NS = "http://www.w3.org/2000/svg", el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const X0 = 80, Y0 = 380, TOP = 70, N = 5, BW = 92, MAX = 7;
+  const xc = i => 165 + i * 172, Y = v => Y0 - v / MAX * (Y0 - TOP);
+  // cumulative cost after n solutions: foundation share + use-case share (illustrative)
+  const MODE = [
+    { f: n => 1.0 * n, u: n => 0.3 * n, cap: 'Every new solution <b>rebuilds the foundation</b>.', lg: "Foundation, rebuilt every time" },
+    { f: () => 1.6, u: n => 0.35 * n, cap: 'Build the foundation <b>once</b>. Each new solution adds only its use case.', lg: "Foundation, built once" }
+  ];
+  // grid + ticks
+  [1.75, 3.5, 5.25, 7].forEach(v => document.getElementById("grid").appendChild(el("line", { x1: X0, x2: 970, y1: Y(v), y2: Y(v) })));
+  for (let i = 0; i < N; i++) { const t = el("text", { class: "tk", x: xc(i), y: 404 }); t.textContent = i + 1; document.getElementById("ticks").appendChild(t); }
+  const bars = [], ghosts = [], pts = [];
+  for (let i = 0; i < N; i++) {
+    const g = el("g", {}), f = el("rect", { class: "f", x: xc(i) - BW / 2, width: BW, rx: 4 }), u = el("rect", { class: "u", x: xc(i) - BW / 2, width: BW, rx: 4 });
+    g.append(f, u); document.getElementById("bars").appendChild(g); bars.push({ f, u });
+    const gh = el("rect", { class: "ghost", x: xc(i) - BW / 2 - 7, width: BW + 14, rx: 7 }); document.getElementById("ghosts").appendChild(gh); ghosts.push(gh);
+    const p = el("circle", { class: "pt", r: 7, cx: xc(i) }); document.getElementById("pts").appendChild(p); pts.push(p);
+  }
+  const cum = document.getElementById("cum"), bub = document.getElementById("bub"), bubt = document.getElementById("bubt"), save = document.getElementById("save");
+  const cap = document.getElementById("cap"), lgf = document.getElementById("lgf"), tabs = [...document.querySelectorAll(".tab")];
+  // current animated values per bar
+  const cur = Array.from({ length: N }, () => ({ f: 0, u: 0 }));
+  const draw = () => {
+    cur.forEach((c, i) => {
+      const yf = Y(c.f), yt = Y(c.f + c.u);
+      bars[i].f.setAttribute("y", yf); bars[i].f.setAttribute("height", Math.max(0, Y0 - yf));
+      bars[i].u.setAttribute("y", yt); bars[i].u.setAttribute("height", Math.max(0, yf - yt - (c.u > 0.01 ? 3 : 0)));
+      pts[i].setAttribute("cy", yt); pts[i].style.opacity = c.f + c.u > 0.05 ? 1 : 0;
+    });
+    cum.setAttribute("d", cur.map((c, i) => `${i ? "L" : "M"}${xc(i)} ${Y(c.f + c.u)}`).join(" "));
+  };
+  const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  let anim = 0;
+  const tween = (to, ms, delay = i => i * 140) => new Promise(res => {
+    cancelAnimationFrame(anim);
+    const from = cur.map(c => ({ ...c })), t0 = performance.now();
+    const step = now => {
+      let done = true;
+      cur.forEach((c, i) => {
+        const p = reduce ? 1 : Math.min(1, Math.max(0, (now - t0 - delay(i)) / ms)); if (p < 1) done = false;
+        const e = ease(p); c.f = from[i].f + (to[i].f - from[i].f) * e; c.u = from[i].u + (to[i].u - from[i].u) * e;
+      });
+      draw(); if (!done) anim = requestAnimationFrame(step); else res();
+    };
+    anim = requestAnimationFrame(step);
+  });
+  const target = m => Array.from({ length: N }, (_, i) => ({ f: MODE[m].f(i + 1), u: MODE[m].u(i + 1) }));
+  const total = (m, n) => MODE[m].f(n) + MODE[m].u(n);
+  const narrow = () => svg.getBoundingClientRect().width < 600;
+  const placeBubble = (m) => {
+    const v = total(m, N), first = total(0, 1);
+    bubt.firstChild.textContent = (v / first).toFixed(1).replace(/\.0$/, "") + "×";
+    const k = narrow() ? 2.5 : 1;
+    bubt.lastChild.setAttribute("dy", narrow() ? 42 : 18);
+    bub.querySelector("rect").setAttribute("width", 150 * k); bub.querySelector("rect").setAttribute("height", 52 * k); bub.querySelector("rect").setAttribute("rx", 26 * k);
+    bubt.setAttribute("x", 75 * k); bubt.lastChild.setAttribute("x", 75 * k); bubt.setAttribute("y", narrow() ? 58 : 23);
+    bub.setAttribute("transform", `translate(${Math.min(xc(N - 1) - 75 * k, 1000 - 150 * k)} ${Y(v) - 70 * k})`);
+  };
+  const placeSave = () => {
+    const a = Y(total(0, N)), b = Y(total(1, N)), x = xc(N - 1) + BW / 2 + 22;
+    document.getElementById("savep").setAttribute("d", `M${x - 6} ${a} H${x} V${b} H${x - 6}`);
+    const t = document.getElementById("savet");
+    if (narrow()) { t.setAttribute("x", xc(N - 1)); t.setAttribute("y", a - 26); t.setAttribute("text-anchor", "middle"); }
+    else { t.setAttribute("x", x + 10); t.setAttribute("y", (a + b) / 2 + 6); t.removeAttribute("text-anchor"); }
+    t.textContent = Math.round((1 - total(1, N) / total(0, N)) * 100) + "% lower";
+  };
+  ghosts.forEach((g, i) => { const v = total(0, i + 1); g.setAttribute("y", Y(v) - 7); g.setAttribute("height", Y0 - Y(v) + 7); });
+  let mode = 0, user = false, timer = 0, run = 0;
+  async function show(m) {
+    const id = ++run; clearTimeout(timer); mode = m;
+    cc.classList.toggle("m1", m === 1);
+    tabs.forEach((t, i) => { t.setAttribute("aria-selected", i === m); t.tabIndex = i === m ? 0 : -1; });
+    cap.innerHTML = MODE[m].cap; lgf.textContent = MODE[m].lg;
+    bub.classList.remove("on"); save.classList.remove("on"); ghosts.forEach(g => g.classList.remove("on"));
+    if (m === 0) { await tween(cur.map(() => ({ f: 0, u: 0 })), 350, () => 0); if (id !== run) return; await tween(target(0), 900); }
+    else { ghosts.forEach(g => g.classList.add("on")); await tween(target(1), 1100, i => i * 120); }
+    if (id !== run) return;
+    if (m === 0) { placeBubble(m); bub.classList.add("on"); }
+    else { placeSave(); save.classList.add("on"); }
+    if (!reduce) timer = setTimeout(() => show(user ? mode : 1 - mode), m === 0 ? 4200 : 5200);
+  }
+  tabs.forEach((t, i) => t.addEventListener("click", () => { user = true; show(i); }));
+  document.querySelector(".tabs").addEventListener("keydown", e => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault(); user = true; show(1 - mode); tabs[mode].focus();
+  });
+  const fitAxis = () => { const n = narrow(); svg.setAttribute("viewBox", `0 0 1000 ${n ? 500 : 440}`); document.getElementById("xt").setAttribute("y", n ? 470 : 432); };
+  fitAxis(); addEventListener("resize", fitAxis);
+  draw();
+  new IntersectionObserver(es => { if (es[0].isIntersecting && run === 0) show(0); }, { threshold: .3 }).observe(cc);
+})();
+</script>
+</body>
+</html>
