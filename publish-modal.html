@@ -201,6 +201,15 @@
   .seg-sm{display:flex;gap:2px;padding:2px;border-radius:8px;background:var(--bg-seg-1);flex-shrink:0}
   .seg-sm button{padding:4px 8px;border-radius:6px;color:var(--text-tertiary);white-space:nowrap}
   .seg-sm button[aria-pressed="true"]{background:var(--bg-card-2);color:var(--text-primary);box-shadow:0 1px 2px 0 rgba(33,33,33,.2)}
+  .s-radios{display:flex;flex-wrap:wrap;gap:8px 24px;padding:0 12px 12px 56px;margin-top:-2px}
+  .radio{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-primary)}
+  .radio input{position:absolute;opacity:0;width:16px;height:16px;margin:0;cursor:pointer}
+  .radio .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid #5a5a5a;flex-shrink:0;display:grid;place-items:center;transition:border-color .15s}
+  .radio .dot::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--bg-btn-primary);transform:scale(0);transition:transform .15s}
+  .radio:hover .dot{border-color:#8c8c8c}
+  .radio input:checked + .dot{border-color:var(--bg-btn-primary)}
+  .radio input:checked + .dot::after{transform:scale(1)}
+  .radio input:focus-visible + .dot{outline:2px solid var(--stroke-card-selected);outline-offset:2px}
   .s-warn{display:flex;gap:6px;align-items:flex-start;margin:0 12px 12px 56px;padding:8px;border-radius:6px;background:rgba(252,158,36,.08);color:#fcb45a}
   .s-warn[hidden]{display:none}
 
@@ -418,10 +427,10 @@
               <span class="t-body2-reg">Integration credentials</span>
               <span class="sub t-caption-reg" id="intSub"></span>
             </span>
-            <div class="seg-sm" role="group" aria-label="Integration credentials" id="credSeg">
-              <button type="button" class="t-caption-med" data-cred="own" aria-pressed="true">Users connect</button>
-              <button type="button" class="t-caption-med" data-cred="mine" aria-pressed="false">Use mine</button>
-            </div>
+          </div>
+          <div class="s-radios" role="radiogroup" aria-label="Integration credentials" id="credGroup">
+            <label class="radio t-body2-reg"><input type="radio" name="credentials" value="own" checked /><span class="dot"></span>Users connect their own</label>
+            <label class="radio t-body2-reg"><input type="radio" name="credentials" value="mine" /><span class="dot"></span>Share my credentials</label>
           </div>
           <p class="s-warn t-caption-reg" id="credWarn" hidden></p>
         </div>
@@ -569,11 +578,10 @@
     const on = all.filter(c => c.getAttribute('aria-pressed') === 'true').length;
     $('toolsSub').textContent = `${on} of ${all.length} ${current.unit} ${current.verb} · ${current.tools.length} tools`;
   }
+  const credValue = () => $('credGroup').querySelector('input:checked').value;
   function renderCred(){
-    const mine = $('credSeg').querySelector('[aria-pressed="true"]').dataset.cred === 'mine';
-    $('intSub').textContent = mine
-      ? `Your ${listText(current.integrations)} accounts`
-      : `Users sign in to ${listText(current.integrations)}`;
+    const mine = credValue() === 'mine';
+    $('intSub').textContent = listText(current.integrations);
     $('credWarn').hidden = !mine;
     $('credWarn').textContent = `Anyone who uses this ${current.noun} will act through your ${listText(current.integrations)} accounts.`;
   }
@@ -599,7 +607,7 @@
       $('toolsList').appendChild(wrap);
     });
     setTools(false);
-    $('credSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cred === 'own')));
+    $('credGroup').querySelector('input[value="own"]').checked = true;
     renderModels(); renderToolsSummary(); renderCred();
   }
 
@@ -617,11 +625,7 @@
     renderToolsSummary();
   });
   $('shareModels').addEventListener('change', renderModels);
-  $('credSeg').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    $('credSeg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    renderCred();
-  });
+  $('credGroup').addEventListener('change', renderCred);
   $('typeSeg').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     $('typeSeg').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
@@ -638,7 +642,7 @@
       [current.unit]: [...$('toolsList').querySelectorAll(`.chip[aria-pressed="true"]`)]
         .filter(c => c.dataset.tool === t.name).map(c => c.textContent),
     })),
-    credentials: $('credSeg').querySelector('[aria-pressed="true"]').dataset.cred,
+    credentials: credValue(),
   });
 
   document.getElementById('seeSample').addEventListener('click', e => {
