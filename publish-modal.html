@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cogentiq — Publish to Marketplace</title>
+<meta name="description" content="Cogentiq Builder: publish an artifact to the Marketplace (Figma node 3144:5679)." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Inter:wght@500&display=swap" rel="stylesheet" />
+<style>
+  /* ============ Tokens (Cogentiq Builder, dark) ============ */
+  :root{
+    --bg-page-1:#121212;
+    --bg-page-2:#212121;
+    --bg-card-2:#212121;
+    --bg-card-3:#323232;
+    --bg-card-5:#1b1b1b;
+    --bg-seg-1:#424242;
+    --bg-input:#323232;
+    --bg-btn-tonal-1:#093077;
+    --bg-btn-tonal-2:#424242;
+    --bg-btn-primary:#0d99ff;
+
+    --stroke-line-3:#323232;
+    --stroke-card:#424242;
+    --stroke-card-selected:#0d99ff;
+    --stroke-input:#424242;
+
+    --text-primary:#ffffff;
+    --text-tertiary:#8c8c8c;
+    --text-blue:#44aaf3;
+    --text-btn-tonal-2:#bdbdbd;
+    --text-required:#dc3412;
+
+    --grad-blue:linear-gradient(225.24deg,#007be5 8.84%,#0d99ff 54.42%,#bde3ff 100%);
+    --grad-purple:linear-gradient(225.24deg,#8638e5 8.84%,#9747ff 54.42%,#e4ccff 100%);
+    --grad-indigo:linear-gradient(225.24deg,#454de0 8.84%,#5860ed 54.42%,#c2c5fa 100%);
+    --grad-orange:linear-gradient(225.24deg,#dd7c0e 8.84%,#fc9e24 54.42%,#fcd19c 100%);
+    --grad-green:linear-gradient(225.24deg,#009951 8.84%,#14ae5c 54.42%,#aff4c6 100%);
+
+    --font:'Geist', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --modal-shadow:0 4px 12px 0 rgba(33,33,33,.16);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);background:var(--bg-page-1);color:var(--text-primary);-webkit-font-smoothing:antialiased;overflow:hidden}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer}
+  img{display:block}
+
+  /* type styles */
+  .t-body2-reg{font-size:14px;line-height:20px;font-weight:400;letter-spacing:-.56px}
+  .t-body2-med{font-size:14px;line-height:20px;font-weight:500;letter-spacing:-.56px}
+  .t-body1-med{font-size:16px;line-height:24px;font-weight:500;letter-spacing:-.64px}
+  .t-caption-reg{font-size:12px;line-height:16px;font-weight:400;letter-spacing:-.24px}
+  .t-caption-med{font-size:12px;line-height:16px;font-weight:500;letter-spacing:-.48px}
+  .t-subhead2-med{font-size:18px;line-height:24px;font-weight:500;letter-spacing:-.72px}
+
+  /* ============ Workspace shell ============ */
+  .shell{display:flex;align-items:stretch;height:100vh;min-height:820px}
+
+  /* Platform panel (left rail) */
+  .rail{display:flex;flex-direction:column;align-items:flex-start;gap:16px;padding:8px 16px;background:var(--bg-page-1);flex-shrink:0}
+  .rail-logo{display:flex;align-items:center;justify-content:center;width:36px;padding:8px 0}
+  .rail-logo .disc{position:relative;width:32px;height:32px;border-radius:100px;background:var(--bg-page-2);overflow:hidden}
+  .rail-logo .disc img{position:absolute;left:6px;top:7px;width:20px;height:17.5px}
+  .rail-group{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+  .rail-list{display:flex;flex-direction:column;align-items:flex-start}
+
+  .tile{position:relative;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:var(--bg-card-3);overflow:hidden}
+  .tile .deco{position:absolute;transform:rotate(180deg);pointer-events:none}
+  .tile .deco img{position:absolute;max-width:none}
+  .tile .deco.e316{left:132px;top:79px;width:120px;height:57px}
+  .tile .deco.e316 img{inset:-66.23% -31.46%;width:calc(100% + 62.92%);height:calc(100% + 132.46%)}
+  .tile .deco.e317{left:0;top:0;width:188px;height:188px}
+  .tile .deco.e317 img{inset:-20.08%;width:140.16%;height:140.16%}
+  .tile .deco.glow{left:-54px;top:-140px;width:224.244px;height:255.244px}
+  .tile .deco.glow img{inset:-14.79% -16.84%;width:133.68%;height:129.58%}
+  .tile .mark{position:relative;width:24px;height:15.6px}
+  .rail-divider{width:36px;height:1px}
+
+  .rail-btn{display:flex;align-items:center;justify-content:center;width:36px;padding:10px 8px;border-radius:8px;border:1px solid transparent;transition:background .15s}
+  .rail-btn:hover{background:var(--bg-card-3)}
+  .rail-btn img{width:16px;height:16px}
+  .rail-btn.is-active{background:var(--bg-btn-tonal-1);border-color:var(--stroke-card-selected)}
+  .rail-btn.plain{border:none;border-radius:0}
+
+  .rail-badge-wrap{display:flex;align-items:center;justify-content:center;width:36px}
+  .rail-badge{position:relative;width:24px;height:24px;border-radius:6px;overflow:hidden}
+  .rail-badge img{position:absolute;left:4px;top:4px;width:16px;height:16px}
+  .rail-badge img.sm{left:5px;top:5px;width:14px;height:14px}
+  .rail-badge img.sm-c{left:5.2px;top:5.2px;width:14px;height:14px}
+  .g-blue{background:var(--grad-blue)} .g-purple{background:var(--grad-purple)}
+  .g-indigo{background:var(--grad-indigo)} .g-orange{background:var(--grad-orange)} .g-green{background:var(--grad-green)}
+
+  /* Main content */
+  .main{flex:1 0 0;min-width:0;display:flex;flex-direction:column;padding:8px 8px 8px 0}
+  .wrap{flex:1 0 0;min-height:0;display:flex;flex-direction:column;background:var(--bg-page-2);border:1px solid var(--stroke-line-3);border-radius:12px;overflow:hidden}
+  .hdr{display:flex;align-items:center;justify-content:space-between;height:48px;padding:12px 16px;background:var(--bg-card-5);border-bottom:1px solid var(--stroke-line-3);flex-shrink:0}
+  .hdr-actions{display:flex;align-items:center;gap:12px}
+  .ws-dd{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px}
+  .ws-dd:hover{background:var(--bg-card-3)}
+  .ws-dd .who{display:flex;align-items:center;gap:4px}
+  .ws-dd .av{position:relative;width:20px;height:20px}
+  .ws-dd .av img{position:absolute;inset:0;width:20px;height:20px}
+  .ws-dd .av span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:16px;letter-spacing:-.24px;color:#fff}
+  .ws-dd .chev{width:16px;height:16px}
+  .user-av{width:32px;height:32px;border-radius:50%}
+
+  .filters{display:flex;padding:8px 24px;background:var(--bg-card-5);border-bottom:1px solid var(--stroke-line-3);flex-shrink:0}
+  .seg{display:flex;gap:4px;align-items:center;padding:4px;border-radius:12px;background:var(--bg-seg-1)}
+  .seg button{padding:4px 8px;border-radius:8px;color:var(--text-tertiary)}
+  .seg button.is-active{background:var(--bg-card-2);color:var(--text-primary);box-shadow:0 1px 2px 0 rgba(33,33,33,.2)}
+
+  .body{flex:1 0 0;min-height:0;display:flex}
+  .side{width:288px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;padding:24px;background:var(--bg-page-2);border-right:1px solid var(--stroke-card)}
+  .side .lbl{color:var(--text-tertiary)}
+  .side .opt{padding:8px;border-radius:8px;background:var(--bg-btn-tonal-1);color:var(--text-blue)}
+  .cards{flex:1 0 0;min-width:0;padding:32px;background:var(--bg-page-1)}
+
+  /* ============ Modal ============ */
+  .backdrop{position:fixed;inset:0;background:rgba(18,18,18,.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:10}
+  .modal{position:fixed;left:50%;top:108px;transform:translateX(-50%);z-index:11;width:640px;max-width:calc(100vw - 32px);
+    display:flex;flex-direction:column;gap:16px;background:var(--bg-page-2);border:1px solid var(--stroke-card);border-radius:12px;box-shadow:var(--modal-shadow)}
+  .modal[hidden],.backdrop[hidden]{display:none}
+  .m-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--stroke-card);border-radius:12px 12px 0 0}
+  .icon-btn{display:flex;align-items:center;border-radius:6px}
+  .icon-btn:hover{background:var(--bg-card-3)}
+  .icon-btn img{width:20px;height:20px}
+
+  .m-body{display:flex;flex-direction:column;gap:16px;padding:0 24px}
+  .artifact-icon{width:44px;height:44px;object-fit:cover}
+  .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .field label,.field .flabel{color:var(--text-primary)}
+  .req{color:var(--text-required)}
+  .control{width:100%;padding:12px;border-radius:8px;background:var(--bg-input);border:1px solid var(--stroke-input);
+    color:var(--text-primary);font-family:inherit;outline:none;transition:border-color .15s}
+  .control::placeholder{color:var(--text-tertiary);opacity:1}
+  .control:focus,.control:focus-visible{border-color:var(--stroke-card-selected)}
+  textarea.control{height:120px;resize:none;display:block}
+  .hint{color:var(--text-tertiary)}
+  .hint a{color:inherit;text-decoration:underline;text-underline-position:from-font}
+  .field.has-error .control,.field.has-error .dd-trigger{border-color:var(--text-required)}
+
+  .row{display:flex;gap:16px;align-items:flex-start}
+  .row > .field{flex:1 0 0}
+
+  .dd{position:relative}
+  .dd-trigger{display:flex;align-items:center;gap:8px;text-align:left}
+  .dd-trigger .val{flex:1 0 0;min-width:0;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dd-trigger.has-value .val{color:var(--text-primary)}
+  .dd-trigger img{width:20px;height:20px;flex-shrink:0;transition:transform .15s}
+  .dd.open .dd-trigger{border-color:var(--stroke-card-selected)}
+  .dd.open .dd-trigger img{transform:rotate(180deg)}
+  .dd-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;max-height:220px;overflow:auto;padding:4px;
+    background:var(--bg-page-2);border:1px solid var(--stroke-card);border-radius:8px;box-shadow:var(--modal-shadow);list-style:none}
+  .dd-menu[hidden]{display:none}
+  .dd-menu li{padding:8px;border-radius:6px;cursor:pointer;color:var(--text-primary)}
+  .dd-menu li:hover,.dd-menu li.is-focus{background:var(--bg-card-3)}
+  .dd-menu li[aria-selected="true"]{background:var(--bg-btn-tonal-1);color:var(--text-blue)}
+
+  .m-ftr{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-top:1px solid var(--stroke-card);border-radius:0 0 12px 12px}
+  .preview-link{font-family:'Inter',var(--font);font-size:12px;font-weight:500;line-height:normal;color:var(--text-blue)}
+  .preview-link:hover{text-decoration:underline}
+  .m-actions{display:flex;gap:12px;align-items:center}
+  .btn{display:flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:8px;text-align:center;white-space:nowrap;transition:filter .15s}
+  .btn:hover{filter:brightness(1.1)}
+  .btn-tonal{background:var(--bg-btn-tonal-2);color:var(--text-btn-tonal-2)}
+  .btn-primary{background:var(--bg-btn-primary);color:#fff}
+
+  .reopen{position:fixed;right:24px;bottom:24px;z-index:12}
+  .reopen[hidden]{display:none}
+
+  button:focus-visible,a:focus-visible{outline:2px solid var(--stroke-card-selected);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<!-- ================= Workspace underlying shell ================= -->
+<div class="shell" data-node-id="3144:5680">
+  <!-- Platform panel -->
+  <nav class="rail" aria-label="Platform" data-node-id="3144:5681">
+    <div class="rail-logo">
+      <div class="disc"><img src="assets/publish-modal/cogentiq-logo.svg" width="20" height="17.6389" alt="Cogentiq" /></div>
+    </div>
+
+    <div class="rail-group">
+      <div class="tile" aria-hidden="true">
+        <div class="deco e316"><img src="assets/publish-modal/ellipse-316.svg" width="195.505" height="132.505" alt="" /></div>
+        <div class="deco e317"><img src="assets/publish-modal/ellipse-317.svg" width="263.505" height="263.505" alt="" /></div>
+        <div class="deco glow"><img src="assets/publish-modal/tile-glow.svg" width="299.75" height="330.75" alt="" /></div>
+        <img class="mark" src="assets/publish-modal/tile-mark.svg" width="24" height="15.6" alt="" />
+      </div>
+      <img class="rail-divider" src="assets/publish-modal/divider-line.svg" width="36" height="1" alt="" />
+    </div>
+
+    <button class="rail-btn" aria-label="Home"><img src="assets/publish-modal/home.svg" width="16" height="16" alt="" /></button>
+
+    <div class="rail-group">
+      <div class="rail-badge-wrap"><div class="rail-badge g-blue"><img src="assets/publish-modal/build-frame.svg" width="16" height="16" alt="" /></div></div>
+      <div class="rail-list">
+        <button class="rail-btn" aria-label="Automation"><img src="assets/publish-modal/automation.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn" aria-label="Agent"><img src="assets/publish-modal/agent.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn" aria-label="AI assistant"><img src="assets/publish-modal/ai-assistant.svg" width="16" height="16" alt="" /></button>
+      </div>
+    </div>
+
+    <div class="rail-group">
+      <div class="rail-badge-wrap"><div class="rail-badge g-purple"><img src="assets/publish-modal/resources-frame.svg" width="16" height="16" alt="" /></div></div>
+      <div class="rail-list">
+        <button class="rail-btn is-active" aria-label="Tools &amp; skills" aria-current="page"><img src="assets/publish-modal/tools-skills.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn plain" aria-label="Skill"><img src="assets/publish-modal/skill.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn plain" aria-label="Integrations"><img src="assets/publish-modal/integrations.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn plain" aria-label="Folder"><img src="assets/publish-modal/folder.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn plain" aria-label="File"><img src="assets/publish-modal/file.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn plain" aria-label="Brain"><img src="assets/publish-modal/brain.svg" width="16" height="16" alt="" /></button>
+        <button class="rail-btn plain" aria-label="Guardrails"><img src="assets/publish-modal/guardrails.svg" width="16" height="16" alt="" /></button>
+      </div>
+    </div>
+
+    <div class="rail-badge-wrap"><div class="rail-badge g-indigo"><img src="assets/publish-modal/edit.svg" width="16" height="16" alt="" /></div></div>
+    <div class="rail-badge-wrap"><div class="rail-badge g-orange"><img class="sm" src="assets/publish-modal/monitor-cog.svg" width="14" height="14" alt="" /></div></div>
+    <div class="rail-badge-wrap"><div class="rail-badge g-green"><img class="sm-c" src="assets/publish-modal/book-open-01.svg" width="14" height="14" alt="" /></div></div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main" data-node-id="3144:5967">
+    <div class="wrap">
+      <header class="hdr">
+        <h1 class="t-subhead2-med">Marketplace</h1>
+        <div class="hdr-actions">
+          <button class="ws-dd" aria-label="Switch workspace">
+            <span class="who">
+              <span class="av"><img src="assets/publish-modal/workspace-avatar.svg" width="20" height="20" alt="" /><span>F</span></span>
+              <span class="t-body2-reg">Finance</span>
+            </span>
+            <img class="chev" src="assets/publish-modal/arrow-down-sm.svg" width="16" height="16" alt="" />
+          </button>
+          <img class="user-av" src="assets/publish-modal/avatar-user.png" width="32" height="32" alt="Your profile" />
+        </div>
+      </header>
+
+      <div class="filters">
+        <div class="seg" role="tablist">
+          <button class="t-body2-med is-active" role="tab" aria-selected="true">Explore</button>
+          <button class="t-body2-med" role="tab" aria-selected="false">Agents</button>
+          <button class="t-body2-med" role="tab" aria-selected="false">Tools</button>
+        </div>
+      </div>
+
+      <div class="body">
+        <aside class="side">
+          <p class="lbl t-caption-med">INDUSTRY</p>
+          <div class="opt t-body2-med">All Industries</div>
+        </aside>
+        <section class="cards" aria-label="Marketplace items"></section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ================= Publish Artifact Modal ================= -->
+<div class="backdrop" id="backdrop" data-node-id="3144:5998"></div>
+
+<form class="modal" id="publishModal" role="dialog" aria-modal="true" aria-labelledby="publishTitle" novalidate data-node-id="3144:5999">
+  <div class="m-hdr">
+    <h2 class="t-body1-med" id="publishTitle">Publish to Marketplace</h2>
+    <button type="button" class="icon-btn" data-close aria-label="Close"><img src="assets/publish-modal/close.svg" width="20" height="20" alt="" /></button>
+  </div>
+
+  <div class="m-body">
+    <img class="artifact-icon" src="assets/publish-modal/artifact-agent-icon.png" width="44" height="44" alt="Agent artifact" />
+
+    <div class="field" data-field="name">
+      <label class="t-body2-reg" for="pubName">Name <span class="req">*</span></label>
+      <input class="control t-body2-reg" id="pubName" name="name" type="text" value="Social media orchestrator" required />
+    </div>
+
+    <div class="field" data-field="description">
+      <label class="t-body2-reg" for="pubDesc">Description <span class="req">*</span></label>
+      <textarea class="control t-body2-reg" id="pubDesc" name="description" placeholder="Describe what this artifact does, how to use it..." required></textarea>
+      <p class="hint t-caption-reg">Provide a detailed description to help users understand where to use this artifact, when it works best, and example use cases. <a href="#" id="seeSample">See sample</a></p>
+    </div>
+
+    <div class="row">
+      <div class="field" data-field="industry">
+        <span class="flabel t-body2-reg" id="lblIndustry">Industry <span class="req">*</span></span>
+        <div class="dd" data-dd>
+          <button type="button" class="control dd-trigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lblIndustry">
+            <span class="val t-body2-reg" data-placeholder="Select industry">Select industry</span>
+            <img src="assets/publish-modal/arrow-down.svg" width="20" height="20" alt="" />
+          </button>
+          <ul class="dd-menu t-body2-reg" role="listbox" hidden>
+            <li role="option">Banking &amp; Financial Services</li>
+            <li role="option">Insurance</li>
+            <li role="option">Healthcare &amp; Life Sciences</li>
+            <li role="option">Retail &amp; CPG</li>
+            <li role="option">Manufacturing</li>
+            <li role="option">Technology, Media &amp; Telecom</li>
+            <li role="option">Cross-industry</li>
+          </ul>
+          <input type="hidden" name="industry" />
+        </div>
+      </div>
+
+      <div class="field" data-field="function">
+        <span class="flabel t-body2-reg" id="lblFunction">Function <span class="req">*</span></span>
+        <div class="dd" data-dd>
+          <button type="button" class="control dd-trigger" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lblFunction">
+            <span class="val t-body2-reg" data-placeholder="Select function">Select function</span>
+            <img src="assets/publish-modal/arrow-down.svg" width="20" height="20" alt="" />
+          </button>
+          <ul class="dd-menu t-body2-reg" role="listbox" hidden>
+            <li role="option">Marketing</li>
+            <li role="option">Sales</li>
+            <li role="option">Finance</li>
+            <li role="option">Human Resources</li>
+            <li role="option">Operations</li>
+            <li role="option">Customer Service</li>
+            <li role="option">IT</li>
+          </ul>
+          <input type="hidden" name="function" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-ftr">
+    <a href="#" class="preview-link">See preview of your artifact</a>
+    <div class="m-actions">
+      <button type="button" class="btn btn-tonal t-body2-med" data-close>Cancel</button>
+      <button type="submit" class="btn btn-primary t-body2-med">Publish to marketplace</button>
+    </div>
+  </div>
+</form>
+
+<button type="button" class="btn btn-primary t-body2-med reopen" id="reopen" hidden>Publish to marketplace</button>
+
+<script>
+(() => {
+  const modal = document.getElementById('publishModal');
+  const backdrop = document.getElementById('backdrop');
+  const reopen = document.getElementById('reopen');
+
+  const open = () => { modal.hidden = backdrop.hidden = false; reopen.hidden = true; document.getElementById('pubName').focus(); };
+  const close = () => { closeMenus(); modal.hidden = backdrop.hidden = true; reopen.hidden = false; reopen.focus(); };
+
+  modal.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', close));
+  backdrop.addEventListener('click', close);
+  reopen.addEventListener('click', open);
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || modal.hidden) return;
+    if (modal.querySelector('.dd.open')) closeMenus(); else close();
+  });
+
+  // ---- dropdowns ----
+  const dds = [...modal.querySelectorAll('[data-dd]')];
+  function closeMenus(except){
+    dds.forEach(dd => { if (dd === except) return;
+      dd.classList.remove('open'); dd.querySelector('.dd-menu').hidden = true;
+      dd.querySelector('.dd-trigger').setAttribute('aria-expanded','false'); });
+  }
+  dds.forEach(dd => {
+    const trigger = dd.querySelector('.dd-trigger');
+    const menu = dd.querySelector('.dd-menu');
+    const val = dd.querySelector('.val');
+    const input = dd.querySelector('input[type=hidden]');
+    const items = [...menu.querySelectorAll('li')];
+    let focus = -1;
+    const setFocus = i => { items.forEach(li => li.classList.remove('is-focus')); focus = (i + items.length) % items.length;
+      items[focus].classList.add('is-focus'); items[focus].scrollIntoView({block:'nearest'}); };
+    const toggle = force => {
+      const willOpen = force ?? menu.hidden;
+      closeMenus(dd);
+      dd.classList.toggle('open', willOpen); menu.hidden = !willOpen;
+      trigger.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) setFocus(Math.max(0, items.findIndex(li => li.getAttribute('aria-selected') === 'true')));
+    };
+    const choose = li => {
+      items.forEach(x => x.setAttribute('aria-selected', String(x === li)));
+      val.textContent = li.textContent; input.value = li.textContent;
+      trigger.classList.add('has-value');
+      dd.closest('.field').classList.remove('has-error');
+      toggle(false); trigger.focus();
+    };
+    trigger.addEventListener('click', () => toggle());
+    trigger.addEventListener('keydown', e => {
+      if (menu.hidden && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); toggle(true); return; }
+      if (menu.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); setFocus(focus + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); setFocus(focus - 1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(items[focus]); }
+      else if (e.key === 'Tab') toggle(false);
+    });
+    items.forEach(li => li.addEventListener('click', () => choose(li)));
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('[data-dd]')) closeMenus(); });
+
+  // ---- validation / submit ----
+  modal.querySelectorAll('.control:not(.dd-trigger)').forEach(c =>
+    c.addEventListener('input', () => c.closest('.field').classList.remove('has-error')));
+
+  modal.addEventListener('submit', e => {
+    e.preventDefault();
+    const data = new FormData(modal);
+    let firstBad = null;
+    ['name','description','industry','function'].forEach(k => {
+      const ok = String(data.get(k) || '').trim() !== '';
+      const field = modal.querySelector(`[data-field="${k}"]`);
+      field.classList.toggle('has-error', !ok);
+      if (!ok && !firstBad) firstBad = field.querySelector('.control');
+    });
+    if (firstBad) { firstBad.focus(); return; }
+    close();
+  });
+
+  document.getElementById('seeSample').addEventListener('click', e => {
+    e.preventDefault();
+    const d = document.getElementById('pubDesc');
+    if (!d.value.trim()) {
+      d.value = 'Plans, drafts and schedules social posts across LinkedIn, X and Instagram from a single campaign brief. Works best for recurring product or event announcements. Example: "Create a 2-week launch calendar for our Q3 release."';
+      d.dispatchEvent(new Event('input'));
+    }
+    d.focus();
+  });
+})();
+</script>
+</body>
+</html>
