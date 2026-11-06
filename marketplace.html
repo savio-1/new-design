@@ -1841,6 +1841,13 @@ body.cq { margin: 0; }
       transition: background .15s ease;
     }
     .mk-suggest > button:hover { background: rgba(255, 255, 255, .3); }
+    /* The chips cycle through use cases: each set lifts away one chip
+       after another, and the next rises in behind it. */
+    .mk-suggest > button { animation: mk-chip-in .42s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+    .mk-suggest.is-leaving > button { animation: mk-chip-out .26s ease-in both; animation-delay: calc(var(--i, 0) * 50ms); }
+    @keyframes mk-chip-in { from { opacity: 0; transform: translateY(8px) scale(.96); filter: blur(4px); } }
+    @keyframes mk-chip-fade { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    @keyframes mk-chip-out { to { opacity: 0; transform: translateY(-8px) scale(.96); filter: blur(4px); } }
 
     /* ── Sections ── */
     .mk-section { padding: 40px 64px 24px; }
@@ -2729,6 +2736,7 @@ body.cq { margin: 0; }
       .mk-suggest { top: 250px; }
     }
     @media (prefers-reduced-motion: reduce) {
+      .mk-suggest > button, .mk-suggest.is-leaving > button { animation-name: mk-chip-fade; transform: none; filter: none; }
       .mk-float { animation: none; }
       .mk-tcard:hover, .mk-type:hover { transform: none; }
     }
@@ -4795,6 +4803,35 @@ document.querySelector('.mk-suggest').addEventListener('click', e => {
   const b = e.target.closest('[data-q]');
   if (b) runSearch(b.textContent.trim());
 });
+/* The use-case chips under the search keep changing: every few seconds
+   the next five use cases take their place. They hold still while the
+   pointer or focus is on them, and while the tab is in the background. */
+(() => {
+  const box = document.querySelector('.mk-suggest');
+  const icon = box.querySelector('button img').outerHTML;
+  const SETS = [];
+  /* Short labels, so every set of five sits on the banner's two rows. */
+  const CHIPS = USE_CASES.map(q => q === 'Summarize customer feedback' ? 'Summarize feedback' : q);
+  for (let i = 0; i < CHIPS.length; i += 5) SETS.push(CHIPS.slice(i, i + 5));
+  let set = 0, busy = false;
+  const paint = list => {
+    box.innerHTML = list.map((q, i) => `<button type="button" class="cq-body2-med" data-q="${esc(q)}" style="--i:${i}">${icon}${esc(q)}</button>`).join('');
+  };
+  box.querySelectorAll('button').forEach((b, i) => { b.style.setProperty('--i', i); b.style.animation = 'none'; });
+  const held = () => document.hidden || box.matches(':hover, :focus-within');
+  const next = () => {
+    if (busy || held()) return;
+    busy = true;
+    box.classList.add('is-leaving');
+    setTimeout(() => {
+      set = (set + 1) % SETS.length;
+      box.classList.remove('is-leaving');
+      paint(SETS[set]);
+      busy = false;
+    }, 4 * 50 + 260);
+  };
+  setInterval(next, 4200);
+})();
 $('mkSearch').addEventListener('click', e => {
   const t = e.target.closest('[data-rtype]');
   if (t) { resType = t.dataset.rtype; paintResults(); if ($('mkSearch').getBoundingClientRect().top < $('mkScroll').getBoundingClientRect().top) scrollToResults(); return; }
