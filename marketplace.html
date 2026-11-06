@@ -3027,6 +3027,16 @@ body.cq { margin: 0; }
                 </div>
               </section>
 
+              <section class="mk-section" aria-labelledby="mkAsstTitle">
+                <div class="mk-stack-16">
+                  <div class="mk-section__head">
+                    <h2 class="mk-section__title cq-subhead1-med" id="mkAsstTitle">Assistants</h2>
+                    <button class="cq-btn cq-btn--tonal mk-btn-xs" type="button" data-goto="assistant">Show all</button>
+                  </div>
+                  <div class="mk-grid-4 mk-cards mk-cards--open" id="mkAssistants"></div>
+                </div>
+              </section>
+
               <section class="mk-section mk-section--creators" aria-labelledby="mkCreatorTitle">
                 <div class="mk-stack-16">
                   <div class="mk-section__head">
@@ -3445,7 +3455,7 @@ function itemCard(item) {
       <span class="cq-card__desc" title="${esc(item.desc)}">${esc(item.desc)}</span>
     </div>
     <div class="cq-card__foot">
-      <div class="cq-card__tags">${miniTags(item.tags || [])}</div>
+      <div class="cq-card__tags">${miniTags(item.id != null ? tagsOf(item.type, item.id) : [])}</div>
       <img class="mk-face mk-face--sm" src="${IMG.agentFace}" width="16" height="16" alt="" />
     </div>
   </article>`;
@@ -3486,7 +3496,7 @@ function renderTrend() {
         <div class="mk-tcard__meta">
           ${(a.logos || []).map(k => logoTile(k, false)).join('')}
           <span class="mk-tag mk-tag--count">${a.agents} Agents</span>
-          ${miniTags(a.tags || [])}
+          ${miniTags(tagsOf('automation', AUTOMATIONS.indexOf(a)))}
         </div>
         <img class="mk-face" src="${IMG.face[a.face]}" width="20" height="20" alt="" />
       </div>
@@ -3546,6 +3556,11 @@ $('mkFeatPills').addEventListener('click', e => {
 $('mkFeatPrev').addEventListener('click', () => { featPage--; renderFeatured(); });
 $('mkFeatNext').addEventListener('click', () => { featPage++; renderFeatured(); });
 
+/* Assistants on Explore: all of them, in the system card. */
+function renderAssistants() {
+  $('mkAssistants').innerHTML = ASSISTANTS.map((a, id) => itemCard({ ...a, id, type: 'assistant' })).join('');
+}
+
 let creatorsOpen = false;
 function renderCreators() {
   const list = creatorsOpen ? CREATORS : CREATORS.slice(0, 8);
@@ -3580,7 +3595,7 @@ function renderSkills() {
         <span class="cq-card__desc" title="${esc(sk.desc)}">${esc(sk.desc)}</span>
       </div>
       <div class="cq-card__foot">
-        <div class="cq-card__tags">${miniTags(sk.tags)}<span class="mk-usage cq-caption-reg">Used in ${sk.uses} agents</span></div>
+        <div class="cq-card__tags">${miniTags(tagsOf('skill', i))}<span class="mk-usage cq-caption-reg">Used in ${sk.uses} agents</span></div>
       </div>
     </article>`).join('');
 }
@@ -3640,7 +3655,7 @@ const FUNCTIONS = [
   { key: 'sales',   label: 'Sales',      icon: 'fd-sales' }
 ];
 const DOMAINS = [
-  { key: 'cpg',    label: 'Consumer products & goods', icon: 'fd-cpg' },
+  { key: 'cpg',    label: 'Consumer products & goods', tag: 'CPG', icon: 'fd-cpg' },
   { key: 'fin',    label: 'Financial services',        icon: 'fd-fin' },
   { key: 'ins',    label: 'Insurance',                 icon: 'fd-ins' },
   { key: 'media',  label: 'Media',                     icon: 'fd-media' },
@@ -3667,6 +3682,13 @@ const FACETS = {
   guardrail: [['it', 'fin'], ['ops', 'media'], ['ops', 'telco'], ['it', 'ins']]
 };
 const facetsOf = a => { const [fn, dom] = FACETS[a.type][a.k]; return { fn, dom }; };
+/* An artifact's tags are its function and its domain, nothing else, so
+   what a card says always matches the filters on the left. */
+function tagsOf(type, k) {
+  const [fn, dom] = FACETS[type][k];
+  const d = DOMAINS.find(x => x.key === dom);
+  return [FUNCTIONS.find(x => x.key === fn).label, d.tag || d.label];
+}
 const filters = { fn: new Set(), dom: new Set() };
 const filterFind = { fn: '', dom: '' };
 let tabQuery = '';
@@ -3763,7 +3785,7 @@ function agentCard(a) {
     </div>
     <p class="mk-acard__desc cq-caption-reg">${esc(a.desc)}</p>
     <div class="mk-acard__foot">
-      <div class="cq-card__tags">${miniTags(a.tags)}</div>
+      <div class="cq-card__tags">${miniTags(tagsOf('agent', a.id))}</div>
       <img class="mk-face mk-face--sm" src="${c.photo}" width="16" height="16" alt="" title="${esc(c.name)}" />
     </div>
   </article>`;
@@ -3840,7 +3862,9 @@ function art(ref) {
 
   a.rating = type === 'agent' ? src.rating : 4 + ((k * 7 + 3) % 9) / 10;
   a.installs = type === 'agent' ? src.installs : src.uses ? src.uses * 31 : 1200 + ((k * 389) % 2600);
-  a.tags = type === 'automation' ? src.ind.filter(i => i !== 'General') : (type === 'tool' ? ['Tool'] : src.tags || []);
+  a.tags = tagsOf(type, k);
+  /* The source's own descriptive tags stay searchable, but are never shown. */
+  a.keywords = type === 'automation' ? src.ind.filter(i => i !== 'General') : (src.tags || []);
   a.creator = type === 'agent' ? creatorOf(src) : creatorOf({ id: k + 5 + Object.keys(SOURCE).indexOf(type) * 3 });
 
   /* What's inside, as groups of { label, items }. Agents, skills and
@@ -3892,17 +3916,17 @@ function aboutOf(a) {
     'Perfect for customer experience, product, and marketing teams, it supports informed decisions to boost service and products. When setting up, connect data from surveys, social media, and support tickets for full insights.',
     'Remember to update sentiment models regularly to keep up with changing customer language and trends.'
   ];
-  const teams = (a.tags.length ? a.tags : ['operations']).map(t => t.toLowerCase()).join(' and ');
+  const teams = `${a.tags[0]} teams in ${a.tags[1]}`;
   if (a.type === 'automation') return [
     `${a.desc} The template chains agents, tools and a human checkpoint into one workflow, so each step hands its result to the next without anyone copying data between apps.`,
-    `Built for ${teams} teams. Everything listed under What's inside is added to your workspace together, already wired up in the right order.`,
+    `Built for ${teams}. Everything listed under What's inside is added to your workspace together, already wired up in the right order.`,
     'Review the checkpoint step before your first run so the right person signs off on results.'
   ];
   return [
     `${a.desc} It works in the background and surfaces what needs a person's attention, so the team can act on it the same day.`,
     a.type === 'guardrail'
-      ? `Built for ${teams} teams. Once added, switch it on for any agent or assistant from your workspace's guardrail settings.`
-      : `Built for ${teams} teams. Check the integrations and model below before adding it, so you know what you'll need to connect.`,
+      ? `Built for ${teams}. Once added, switch it on for any agent or assistant from your workspace's guardrail settings.`
+      : `Built for ${teams}. Check the integrations and model below before adding it, so you know what you'll need to connect.`,
     `Review this ${TYPE_WORD[a.type]}'s settings every quarter so it keeps pace with how your team works.`
   ];
 }
@@ -4266,7 +4290,7 @@ const words = s => (String(s).toLowerCase().match(/[a-z0-9]+/g) || []);
 const wordHit = (t, q) => t.startsWith(q) || (q.length >= 5 && t.length >= 5 && t.slice(0, q.length - 1) === q.slice(0, -1));
 
 const INDUSTRY_LABEL = { fin: 'Finance Banking', health: 'Healthcare', cpg: 'Retail CPG', tech: 'Technology IT', telco: 'Telecom', ins: 'Insurance', media: 'Media Entertainment' };
-const FIELD_W = { title: 6, tag: 3, type: 2.5, industry: 2, desc: 2, inside: 1.6, integration: 1.6, model: 1.2, publisher: 1 };
+const FIELD_W = { title: 6, tag: 3, type: 2.5, industry: 2, keyword: 2, desc: 2, inside: 1.6, integration: 1.6, model: 1.2, publisher: 1 };
 let INDEX = null;
 function buildIndex() {
   INDEX = CATALOG.map(item => {
@@ -4276,6 +4300,7 @@ function buildIndex() {
     add('title', a.title);
     add('desc', a.desc);
     a.tags.forEach(t => add('tag', t, 'Tag'));
+    a.keywords.forEach(t => add('keyword', t, 'Keyword'));
     add('type', `${TYPES[a.type].label} ${TYPE_WORD[a.type]}`);
     if (a.type === 'agent' && INDUSTRY_LABEL[AGENTS[a.k].ind]) add('industry', INDUSTRY_LABEL[AGENTS[a.k].ind], 'Industry');
     if (a.type === 'automation') AUTOMATIONS[a.k].ind.forEach(i => add('industry', i, 'Industry'));
@@ -4312,7 +4337,7 @@ function scoreDoc(doc, terms) {
       if (!soft) {
         hit++;
         /* Matched in the artifact's own words, not only in what it contains. */
-        if (['title', 'desc', 'tag', 'industry'].includes(bestF.field)) { direct = true; dhit++; }
+        if (['title', 'desc', 'tag', 'industry', 'keyword'].includes(bestF.field)) { direct = true; dhit++; }
         if (bestF.field === 'title') titleHit = true;
       }
       score += soft ? best * 0.5 : best;
@@ -4633,6 +4658,7 @@ applyMode(stored === 'light' ? 'light' : 'dark');
 renderPills();
 renderTrend();
 renderFeatured();
+renderAssistants();
 renderCreators();
 renderSkills();
 renderGuardrails();
