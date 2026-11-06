@@ -1962,6 +1962,16 @@ body.cq { margin: 0; }
 
     /* ── Featured agents · the cq-card, at the frame's spacing ── */
     .mk-feature { background: var(--backgrounds-page-bg-3); }
+    /* Recent assistants: the panel grey, washed with the assistant marks'
+       own hues — purple from the left, blue top right, amber bottom right. */
+    .mk-asst { background: var(--backgrounds-page-bg-3); }
+    .mk-asst::before {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(55% 120% at 0% 0%, color-mix(in srgb, #9747ff 16%, transparent), transparent 70%),
+        radial-gradient(45% 100% at 100% 0%, color-mix(in srgb, #0d99ff 14%, transparent), transparent 70%),
+        radial-gradient(50% 110% at 100% 100%, color-mix(in srgb, #ffa629 14%, transparent), transparent 70%);
+    }
     .mk-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .mk-cards .cq-card {
       min-height: 0; gap: 10px; border-radius: var(--radius-lg);
@@ -2232,6 +2242,11 @@ body.cq { margin: 0; }
     /* Room for the button beside a long name, so it never covers it. */
     .mk-acard .mk-acard__head, .mk-openable .cq-card__title-row { padding-right: 72px; }
     @media (hover: none) { .mk-acard .mk-acard__head, .mk-openable .cq-card__title-row { padding-right: 0; } }
+    /* Four across leaves no room beside the name, so in Recent assistants
+       Preview takes the avatar's corner instead and the name runs full width. */
+    .mk-asst .mk-openable .cq-card__title-row { padding-right: 0; }
+    .mk-asst .mk-pv-cta { top: auto; bottom: 12px; }
+    .mk-asst [data-ref]:hover .mk-face, .mk-asst [data-ref]:focus-visible .mk-face { visibility: hidden; }
     @media (hover: none) { .mk-pv-cta { display: none; } }
     .mk-openable:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; }
 
@@ -3028,12 +3043,12 @@ body.cq { margin: 0; }
               </section>
 
               <section class="mk-section" aria-labelledby="mkAsstTitle">
-                <div class="mk-stack-16">
+                <div class="mk-panel mk-asst">
                   <div class="mk-section__head">
-                    <h2 class="mk-section__title cq-subhead1-med" id="mkAsstTitle">Assistants</h2>
+                    <h2 class="mk-section__title cq-subhead1-med" id="mkAsstTitle">Recent assistants</h2>
                     <button class="cq-btn cq-btn--tonal mk-btn-xs" type="button" data-goto="assistant">Show all</button>
                   </div>
-                  <div class="mk-grid-4 mk-cards mk-cards--open" id="mkAssistants"></div>
+                  <div class="mk-grid-4 mk-cards" id="mkAssistants"></div>
                 </div>
               </section>
 
@@ -3377,7 +3392,11 @@ const ASSISTANTS = [
   { title: 'HR Policy Assistant', desc: 'Answers employee questions about leave, benefits and policy from your handbook.', tags: ['HR'] },
   { title: 'Finance Close Assistant', desc: 'Walks the team through month-end close and tracks what is still open.', tags: ['Finance'] },
   { title: 'Sales Enablement Assistant', desc: 'Finds the right deck, case study or battlecard for the deal in front of you.', tags: ['Sales'] },
-  { title: 'IT Helpdesk Assistant', desc: 'Resolves common IT requests and opens tickets for the rest.', tags: ['IT'] }
+  { title: 'IT Helpdesk Assistant', desc: 'Resolves common IT requests and opens tickets for the rest.', tags: ['IT'] },
+  { title: 'Customer Support Assistant', desc: 'Drafts replies to customer questions from your help centre and past tickets.', tags: ['Support'] },
+  { title: 'Marketing Content Assistant', desc: 'Writes campaign copy, briefs and social posts in your brand voice.', tags: ['Marketing'] },
+  { title: 'Procurement Assistant', desc: 'Compares supplier quotes and checks purchase requests against policy.', tags: ['Procurement'] },
+  { title: 'Clinical Policy Assistant', desc: 'Answers staff questions about clinical guidelines and care procedures.', tags: ['Healthcare'] }
 ];
 const SKILLS = [
   { title: 'Summarize thread', desc: 'Condenses a long email or chat thread into decisions and next steps.', tags: ['Productivity'], uses: 64 },
@@ -3556,9 +3575,10 @@ $('mkFeatPills').addEventListener('click', e => {
 $('mkFeatPrev').addEventListener('click', () => { featPage--; renderFeatured(); });
 $('mkFeatNext').addEventListener('click', () => { featPage++; renderFeatured(); });
 
-/* Assistants on Explore: all of them, in the system card. */
+/* Recent assistants on Explore: the newest eight, two rows of four,
+   newest first. */
 function renderAssistants() {
-  $('mkAssistants').innerHTML = ASSISTANTS.map((a, id) => itemCard({ ...a, id, type: 'assistant' })).join('');
+  $('mkAssistants').innerHTML = ASSISTANTS.map((a, id) => ({ ...a, id, type: 'assistant' })).reverse().slice(0, 8).map(itemCard).join('');
 }
 
 let creatorsOpen = false;
@@ -3676,7 +3696,7 @@ const FACETS = {
     ['mkt', 'cpg'], ['mkt', 'cpg'], ['finance', 'fin'], ['ops', 'ins'], ['finance', 'fin'],
     ['sales', 'cpg'], ['ops', 'pharma'], ['mkt', 'cpg'], ['finance', 'fin']
   ],
-  assistant: [['hr', 'ins'], ['finance', 'fin'], ['sales', 'media'], ['it', 'telco']],
+  assistant: [['hr', 'ins'], ['finance', 'fin'], ['sales', 'media'], ['it', 'telco'], ['ops', 'telco'], ['mkt', 'media'], ['finance', 'cpg'], ['ops', 'pharma']],
   tool: [['it', 'fin'], ['it', 'telco'], ['ops', 'ins'], ['ops', 'pharma'], ['mkt', 'media'], ['it', 'cpg']],
   skill: [['ops', 'media'], ['finance', 'fin'], ['mkt', 'cpg'], ['it', 'telco'], ['it', 'pharma'], ['mkt', 'cpg']],
   guardrail: [['it', 'fin'], ['ops', 'media'], ['ops', 'telco'], ['it', 'ins']]
