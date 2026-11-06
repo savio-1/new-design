@@ -2615,7 +2615,40 @@ body.cq { margin: 0; }
       animation: cq-tiq-spin 6s linear infinite;
     }
     @media (prefers-reduced-motion: reduce) { .mk-sum::before, .mk-sum__ic { animation: none; } }
+    .mk-sum__body { flex: 1 1 auto; min-width: 0; }
     .mk-sum__text { margin: 0; color: var(--text-primary); }
+    /* Thinking: a shimmering line of text and two Tiq-tinted bars, with
+       the mark and the edge turning faster. */
+    .mk-sum__load { display: none; flex-direction: column; gap: 8px; padding-top: 1px; }
+    .mk-sum.is-loading .mk-sum__load { display: flex; }
+    .mk-sum.is-loading .mk-sum__text { display: none; }
+    .mk-sum.is-loading .mk-sum__ic { animation-duration: 1.2s; }
+    .mk-sum.is-loading::before { animation-duration: 1.6s; }
+    .mk-sum__think {
+      background: linear-gradient(90deg, var(--text-teritiary) 0%, var(--text-primary) 45%, var(--text-teritiary) 90%) 0 0 / 200% 100%;
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      animation: mk-sheen 1.6s linear infinite;
+    }
+    .mk-sum__bar {
+      height: 10px; width: 100%; border-radius: 5px;
+      background: linear-gradient(90deg,
+        color-mix(in srgb, #0d99ff 16%, transparent), color-mix(in srgb, #5860ed 20%, transparent),
+        color-mix(in srgb, #f24822 14%, transparent), color-mix(in srgb, #ffca28 16%, transparent),
+        color-mix(in srgb, #0d99ff 16%, transparent)) 0 0 / 200% 100%;
+      animation: mk-sheen 1.4s ease-in-out infinite;
+    }
+    .mk-sum__bar--short { width: 62%; }
+    @keyframes mk-sheen { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+    /* The answer: each word fades in from a soft blur, one after another. */
+    .mk-sum.is-typing .mk-w {
+      display: inline; opacity: 0; filter: blur(3px);
+      animation: mk-word-in .32s ease forwards; animation-delay: calc(var(--i) * 26ms);
+    }
+    @keyframes mk-word-in { to { opacity: 1; filter: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .mk-sum__think, .mk-sum__bar { animation: none; }
+      .mk-sum.is-typing .mk-w { opacity: 1; filter: none; animation: none; }
+    }
     .mk-sum__link { color: var(--text-coloured-blue); font-weight: 500; }
     .mk-sum__link:hover { text-decoration: underline; }
     .mk-sv__note[hidden] { display: none; }
@@ -3010,7 +3043,14 @@ body.cq { margin: 0; }
               </div>
               <div class="mk-sum" id="mkSvSum" hidden>
                 <span class="mk-sum__ic" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5c.4 2.9 1.6 4.1 4.5 4.5-2.9.4-4.1 1.6-4.5 4.5-.4-2.9-1.6-4.1-4.5-4.5 2.9-.4 4.1-1.6 4.5-4.5Z" fill="currentColor"/><path d="M12.5 9.5c.2 1.5.8 2.1 2.3 2.3-1.5.2-2.1.8-2.3 2.3-.2-1.5-.8-2.1-2.3-2.3 1.5-.2 2.1-.8 2.3-2.3Z" fill="currentColor"/></svg></span>
-                <p class="mk-sum__text cq-body2-reg" id="mkSvSumText"></p>
+                <div class="mk-sum__body">
+                  <div class="mk-sum__load" aria-hidden="true">
+                    <span class="mk-sum__think cq-body2-reg">Finding the best matches across the marketplace…</span>
+                    <span class="mk-sum__bar"></span>
+                    <span class="mk-sum__bar mk-sum__bar--short"></span>
+                  </div>
+                  <p class="mk-sum__text cq-body2-reg" id="mkSvSumText" aria-live="polite"></p>
+                </div>
               </div>
               <div class="mk-pills" id="mkSvTypes" role="group" aria-label="Filter results by type"></div>
               <p class="mk-sv__note cq-body2-reg" id="mkSvNote" hidden></p>
@@ -3345,7 +3385,7 @@ const ASST_IC = ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIi
 const AUTO_TINT = [['#0D99FF', '#0D99FF'], ['#FFA000', '#FF8F00'], ['#8BC34A', '#14AE5C'], ['#E91E63', '#E91E63'], ['#DD7C0E', '#DD7C0E'], ['#9747FF', '#9747FF']];
 
 /* ════ Data ════ */
-const INDUSTRIES = ['General', 'CPG', 'Retail', 'Finance', 'Healthcare', 'Banking', 'All'];
+const INDUSTRIES = ['All', 'General', 'CPG', 'Retail', 'Finance', 'Healthcare', 'Banking'];
 
 /* `overlay` draws the connectors onto the diagram (card one in the frame);
    otherwise they sit in the footer beside the agent count. */
@@ -3522,7 +3562,7 @@ function itemCard(item) {
 
 /* ════ Trending ════ */
 const PER_PAGE = 3;
-let industry = 'General';
+let industry = 'All';
 let page = 0;
 
 function trendList() {
@@ -3580,7 +3620,7 @@ $('mkNext').addEventListener('click', () => { page++; renderTrend(); });
 /* Featured agents take the same industry pills as Trending. General is
    the hand-picked set; the rest read the agent's industry and tags. */
 const FEAT_PER_PAGE = 6;
-let featInd = 'General';
+let featInd = 'All';
 let featPage = 0;
 const FEAT_FILTER = {
   General: a => a.feat,
@@ -4515,6 +4555,7 @@ function runSearch(q) {
   query = q;
   resType = 'all';
   resSort = 'best';
+  sumKey = null;
   view = 'explore';
   paint();
   scrollToResults();
@@ -4562,13 +4603,56 @@ function summaryOf(q, results, partial) {
     /* Only matched through what's inside (an integration, a tool, a
        skill): say that, and lead with the most installed. */
     const pop = [...results].sort((x, y) => y.doc.a.installs - x.doc.a.installs)[0].doc.a;
-    return `${countsText(results)} work with “${esc(uc)}” through the tools, integrations or skills inside ${results.length === 1 ? 'it' : 'them'} — the most installed is ${link(pop)}, ${aOrAn(TYPE_WORD[pop.type])} that ${what(pop)}.`;
+    return `${countsText(results)} work with “${esc(uc)}” through the tools, integrations or skills inside ${results.length === 1 ? 'it' : 'them'}. The most installed is ${link(pop)}, ${aOrAn(TYPE_WORD[pop.type])} that ${what(pop)}.`;
   }
   const top = directs[0].doc.a;
   /* A pair has to be nearly as relevant as the lead, or we leave it out. */
   const lead = directs[0].hit;
   const pair = directs.slice(1, 8).filter(r => r.hit >= (lead <= 2 ? lead : lead - 1)).map(r => r.doc.a).find(a => a.type !== top.type);
-  return `${partial ? `Nothing covers every part of “${esc(uc)}”, but ${countsText(results)} come close` : `For “${esc(uc)}”, ${countsText(results)} match`} — start with ${link(top)}, ${aOrAn(TYPE_WORD[top.type])} that ${what(top)}${pair ? `, and pair it with the ${TYPE_WORD[pair.type]} ${link(pair)}` : ''}.`;
+  return `${partial ? `Nothing covers every part of “${esc(uc)}”, but ${countsText(results)} come close` : `For “${esc(uc)}”, ${countsText(results)} match`}. Start with ${link(top)}, ${aOrAn(TYPE_WORD[top.type])} that ${what(top)}${pair ? `, and pair it with the ${TYPE_WORD[pair.type]} ${link(pair)}` : ''}.`;
+}
+/* The summary arrives like an answer: a short thinking state in Tiq's
+   colours, then the line reveals word by word. Repaints for a filter or
+   sort keep the line as it is; only a new search plays it again. */
+let sumKey = null;
+let sumTimer = null;
+let sumPending = '';
+const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function showSummary(html) {
+  const box = $('mkSvSum'), text = $('mkSvSumText');
+  if (sumKey === query) { if (!box.classList.contains('is-loading')) text.innerHTML = html; else sumPending = html; return; }
+  sumKey = query;
+  clearTimeout(sumTimer);
+  sumPending = html;
+  text.innerHTML = '';
+  box.classList.remove('is-typing');
+  box.classList.add('is-loading');
+  box.setAttribute('aria-busy', 'true');
+  sumTimer = setTimeout(() => {
+    text.innerHTML = sumPending;
+    box.classList.remove('is-loading');
+    box.removeAttribute('aria-busy');
+    if (calm()) return;
+    let i = 0;
+    const walk = node => {
+      for (const n of [...node.childNodes]) {
+        if (n.nodeType === 3) {
+          const frag = document.createDocumentFragment();
+          for (const part of n.textContent.split(/(\s+)/)) {
+            if (!part) continue;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); continue; }
+            const w = document.createElement('span');
+            w.className = 'mk-w'; w.style.setProperty('--i', i++); w.textContent = part;
+            frag.appendChild(w);
+          }
+          n.replaceWith(frag);
+        } else if (n.nodeType === 1) walk(n);
+      }
+    };
+    walk(text);
+    box.classList.add('is-typing');
+    sumTimer = setTimeout(() => box.classList.remove('is-typing'), i * 26 + 400);
+  }, calm() ? 0 : 1200);
 }
 function paintResults() {
   const { results, partial } = search(query);
@@ -4587,7 +4671,7 @@ function paintResults() {
   $('mkSvSort').value = resSort;
   $('mkSvNote').hidden = true;
   $('mkSvSum').hidden = !results.length;
-  if (results.length) $('mkSvSumText').innerHTML = summaryOf(query, results, partial);
+  if (results.length) showSummary(summaryOf(query, results, partial));
 
   if (!results.length) {
     const dym = didYouMean(query);
