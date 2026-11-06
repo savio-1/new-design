@@ -2598,6 +2598,22 @@ body.cq { margin: 0; }
     }
     .mk-pill.is-active .mk-pill__n { background: var(--backgrounds-card-bg-2); color: var(--text-button-tonal-1); }
     .mk-sv__note { margin: 0; color: var(--text-teritiary); }
+    /* The summary: one line on what was found and where to start. */
+    .mk-sum {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 16px; border-radius: var(--radius-lg);
+      background: linear-gradient(100deg, color-mix(in srgb, var(--purple-400) 12%, transparent), color-mix(in srgb, var(--blue-500) 8%, transparent));
+      border: 1px solid color-mix(in srgb, var(--blue-500) 24%, transparent);
+    }
+    .mk-sum[hidden] { display: none; }
+    .mk-sum__ic {
+      flex: none; width: 22px; height: 22px; margin-top: -1px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center; color: var(--white);
+      background-image: linear-gradient(42deg, var(--purple-400), var(--blue-500) 55%, var(--blue-600));
+    }
+    .mk-sum__text { margin: 0; color: var(--text-primary); }
+    .mk-sum__link { color: var(--text-coloured-blue); font-weight: 500; }
+    .mk-sum__link:hover { text-decoration: underline; }
     .mk-sv__note[hidden] { display: none; }
     .mk-sv__body { padding-top: 8px; }
     .mk-sv__sec + .mk-sv__sec { border-top: 1px solid var(--strokes-line-1); padding-top: 24px; margin-top: 28px; }
@@ -2985,6 +3001,10 @@ body.cq { margin: 0; }
                     <option value="rating">Highest rated</option>
                   </select>
                 </label>
+              </div>
+              <div class="mk-sum" id="mkSvSum" hidden>
+                <span class="mk-sum__ic" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5c.4 2.9 1.6 4.1 4.5 4.5-2.9.4-4.1 1.6-4.5 4.5-.4-2.9-1.6-4.1-4.5-4.5 2.9-.4 4.1-1.6 4.5-4.5Z" fill="currentColor"/><path d="M12.5 9.5c.2 1.5.8 2.1 2.3 2.3-1.5.2-2.1.8-2.3 2.3-.2-1.5-.8-2.1-2.3-2.3 1.5-.2 2.1-.8 2.3-2.3Z" fill="currentColor"/></svg></span>
+                <p class="mk-sum__text cq-body2-reg" id="mkSvSumText"></p>
               </div>
               <div class="mk-pills" id="mkSvTypes" role="group" aria-label="Filter results by type"></div>
               <p class="mk-sv__note cq-body2-reg" id="mkSvNote" hidden></p>
@@ -4208,13 +4228,18 @@ document.addEventListener('keydown', e => { if (e.target.matches && e.target.mat
    say where it matched. Words are stemmed and lightly expanded with
    synonyms; every query word has to land somewhere (AND), and only if
    nothing does do we fall back to results matching some of the words. */
-const STOP = new Set('a an and the for to of in on with my our your me i we is are be by from at as or that this it how can do does want need help using use'.split(' '));
+/* Words that carry no meaning in a sentence typed to the search, so
+   "I need something to automate invoice approvals for my team" comes
+   down to its content words. */
+const STOP = new Set(('a an and the for to of in on with my our your me i im we us is are be by from at as or that this it how can do does want wanted need needs help helps using use ' +
+  'looking look something anything some any which what who would could should like please show give tell team teams company will way solution solutions usecase usecases case cases ' +
+  'thing things there all also just so more better faster easier easily quickly automatically every each across into out up via when where our their them they you').split(' '));
 const SYN = {
   ticket: ['issue', 'request', 'incident'], issue: ['ticket'], incident: ['ticket', 'outage'],
   invoice: ['bill', 'payment'], bill: ['invoice'], payment: ['invoice'],
   lead: ['prospect'], prospect: ['lead'], crm: ['lead'],
   email: ['gmail', 'mail', 'inbox'], mail: ['email', 'gmail'], inbox: ['email', 'gmail'],
-  doc: ['document'], document: ['doc', 'pdf'], pdf: ['document'],
+  doc: ['document'], document: ['doc', 'pdf', 'text', 'file'], pdf: ['document'],
   hr: ['employee', 'human'], employee: ['hr'],
   pii: ['personal'], personal: ['pii'], privacy: ['pii', 'personal'],
   feedback: ['review', 'sentiment'], sentiment: ['feedback'],
@@ -4230,7 +4255,11 @@ const SYN = {
 /* Verbs that describe the job rather than the thing: they rank a result
    when present but never rule one out. "Automate RFP responses" should
    still find the RFP drafter. */
-const SOFT = new Set(['automate', 'manage', 'handle', 'make', 'create', 'build', 'find', 'run', 'improve', 'get', 'best', 'tool']);
+const SOFT = new Set(['automate', 'manage', 'handle', 'make', 'create', 'build', 'find', 'run', 'improve', 'get', 'best', 'tool',
+  /* Type words rank that type up without ruling the others out. */
+  'agent', 'automation', 'assistant', 'skill', 'guardrail', 'template', 'workflow', 'bot',
+  /* So do words of intent: what you want to do, not what it's about. */
+  'understand', 'know', 'say', 'see', 'learn', 'figure', 'work', 'stop', 'prevent', 'avoid', 'reduce', 'speed']);
 const stem = w => {
   if (w.length > 4 && w.endsWith('ies')) return w.slice(0, -3) + 'y';
   if (w.length > 5 && w.endsWith('ing')) return w.slice(0, -3);
@@ -4271,7 +4300,7 @@ function parseQuery(q) {
   return terms.map(t => ({ t, alts: (SYN[t] || []).map(stem) }));
 }
 function scoreDoc(doc, terms) {
-  let score = 0, hit = 0;
+  let score = 0, hit = 0, dhit = 0, titleHit = false, direct = false;
   const matched = new Set();
   const where = new Map();
   const lit = new Set();
@@ -4288,23 +4317,37 @@ function scoreDoc(doc, terms) {
     }
     if (best) {
       const soft = SOFT.has(t);
-      if (!soft) hit++;
+      if (!soft) {
+        hit++;
+        /* Matched in the artifact's own words, not only in what it contains. */
+        if (['title', 'desc', 'tag', 'industry'].includes(bestF.field)) { direct = true; dhit++; }
+        if (bestF.field === 'title') titleHit = true;
+      }
       score += soft ? best * 0.5 : best;
       matched.add(t);
       if (!['title', 'desc', 'type'].includes(bestF.field)) where.set(bestF.label + bestF.text, bestF);
     }
   }
-  return { score, hit, matched, where: [...where.values()], lit };
+  return { score, hit, dhit, matched, direct, titleHit, where: [...where.values()], lit };
 }
 function search(q) {
   if (!INDEX) buildIndex();
   const terms = parseQuery(q);
   if (!terms.length) return { terms, results: [], partial: false };
   const phrase = q.trim().toLowerCase();
+  const norm = s => words(s).join(' ');
+  const nq = norm(q);
   let rows = INDEX.map(doc => ({ doc, ...scoreDoc(doc, terms) })).filter(r => r.matched.size);
   const hard = terms.map(x => x.t).filter(t => !SOFT.has(t));
   const need = hard.length ? hard : terms.map(x => x.t);
-  const full = rows.filter(r => need.every(t => r.matched.has(t)));
+  /* A short query has to match in full; a sentence only needs most of
+     its content words, since nobody's artifact repeats a whole sentence. */
+  const cover = need.length <= 2 ? need.length : Math.ceil(need.length * 0.6);
+  /* Typing an artifact's name puts that artifact first. */
+  rows.forEach(r => { const t = norm(r.doc.a.title); r.exact = nq === t || (t.split(' ').length > 1 && nq.includes(t)); });
+  /* A word in the artifact's own name also lets it through: searching
+     "translate documents" should still find the Translate skill. */
+  const full = rows.filter(r => r.exact || (r.titleHit && need.length <= 3) || need.filter(t => r.matched.has(t)).length >= cover);
   const loose = rows.filter(r => r.hit || !hard.length);
   const partial = !full.length && loose.length > 0;
   rows = partial ? loose : full;
@@ -4312,9 +4355,11 @@ function search(q) {
     const t = r.doc.a.title.toLowerCase();
     if (t.includes(phrase)) r.score += 6;
     else if (r.doc.a.desc.toLowerCase().includes(phrase)) r.score += 3;
-    r.score += r.hit * 2 + Math.log10(r.doc.a.installs + 10) * 0.2;
+    /* A word in the artifact's own text counts for far more than one
+       found only in something it contains. */
+    r.score += r.dhit * 3 + (r.hit - r.dhit) * 0.5 + (r.direct ? 2 : 0) + (r.titleHit ? 4 : 0) + Math.log10(r.doc.a.installs + 10) * 0.2;
   });
-  rows.sort((x, y) => y.hit - x.hit || y.score - x.score);
+  rows.sort((x, y) => (y.exact - x.exact) || y.score - x.score);
   return { terms, results: rows, partial };
 }
 /* Wrap each word that matched in <mark>, escaping the rest. */
@@ -4490,6 +4535,46 @@ function sortResults(list) {
   if (resSort === 'rating') return [...list].sort((x, y) => y.doc.a.rating - x.doc.a.rating);
   return list;
 }
+/* ── The one-line summary over the results ──
+   What was found, counted by type, which artifact to start with and
+   one of another type to pair it with. Names open their preview. */
+const aOrAn = w => (/^[aeiou]/i.test(w) ? 'an ' : 'a ') + w;
+const listJoinAnd = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+function useCaseOf(q) {
+  let s = q.trim().replace(/[?.!]+$/, '');
+  const lead = /^(i|we)\s+(want|need|would like|'d like)\s+(to\s+)?|^(please\s+)?(help|show|find|get)\s+(me|us)\s+(to\s+)?|^how\s+(do|can|should)\s+(i|we)\s+|^can\s+you\s+|^(i'm|i am|we're|we are)\s+looking\s+for\s+|^looking\s+for\s+|^find\s+|^(something|an?\s+\w+)\s+(that|to)\s+(can\s+)?/i;
+  for (let i = 0; i < 3 && lead.test(s); i++) s = s.replace(lead, '');
+  if (s.length > 64) s = s.slice(0, 64).replace(/\s+\S*$/, '') + '…';
+  return /^[A-Z][a-z]/.test(s) ? s[0].toLowerCase() + s.slice(1) : s;
+}
+function countsText(results) {
+  return listJoinAnd(Object.keys(TYPES).map(k => {
+    const n = results.filter(r => r.doc.a.type === k).length;
+    return n ? `${n} ${n === 1 ? TYPE_ONE[k].toLowerCase() : TYPES[k].label.toLowerCase()}` : '';
+  }).filter(Boolean));
+}
+function summaryOf(q, results, partial) {
+  const link = a => `<button type="button" class="mk-sum__link" data-ref="${a.ref}">${esc(a.title)}</button>`;
+  const what = a => String(a.desc).replace(/\.$/, '').replace(/^[A-Z](?=[a-z])/, c => c.toLowerCase());
+  const named = results.find(r => r.exact);
+  if (named) {
+    const a = named.doc.a, rest = results.filter(r => r !== named);
+    return `${link(a)} is ${aOrAn(TYPE_WORD[a.type])} that ${what(a)}${rest.length ? `; we also found ${countsText(rest)} related to it` : ''}.`;
+  }
+  const uc = useCaseOf(q);
+  const directs = results.filter(r => r.direct);
+  if (!directs.length) {
+    /* Only matched through what's inside (an integration, a tool, a
+       skill): say that, and lead with the most installed. */
+    const pop = [...results].sort((x, y) => y.doc.a.installs - x.doc.a.installs)[0].doc.a;
+    return `${countsText(results)} work with “${esc(uc)}” through the tools, integrations or skills inside ${results.length === 1 ? 'it' : 'them'} — the most installed is ${link(pop)}, ${aOrAn(TYPE_WORD[pop.type])} that ${what(pop)}.`;
+  }
+  const top = directs[0].doc.a;
+  /* A pair has to be nearly as relevant as the lead, or we leave it out. */
+  const lead = directs[0].hit;
+  const pair = directs.slice(1, 8).filter(r => r.hit >= (lead <= 2 ? lead : lead - 1)).map(r => r.doc.a).find(a => a.type !== top.type);
+  return `${partial ? `Nothing covers every part of “${esc(uc)}”, but ${countsText(results)} come close` : `For “${esc(uc)}”, ${countsText(results)} match`} — start with ${link(top)}, ${aOrAn(TYPE_WORD[top.type])} that ${what(top)}${pair ? `, and pair it with the ${TYPE_WORD[pair.type]} ${link(pair)}` : ''}.`;
+}
 function paintResults() {
   const { results, partial } = search(query);
   const counts = Object.fromEntries(Object.keys(TYPES).map(k => [k, results.filter(r => r.doc.a.type === k).length]));
@@ -4505,8 +4590,9 @@ function paintResults() {
   const shown = resType === 'all' ? results.length : counts[resType];
   $('mkSvTitle').textContent = `${shown} result${shown === 1 ? '' : 's'} for “${query}”${resType === 'all' ? '' : ` in ${TYPES[resType].label}`}`;
   $('mkSvSort').value = resSort;
-  $('mkSvNote').hidden = !(partial && results.length);
-  $('mkSvNote').textContent = 'Nothing matches every word you typed, so these match some of them.';
+  $('mkSvNote').hidden = true;
+  $('mkSvSum').hidden = !results.length;
+  if (results.length) $('mkSvSumText').innerHTML = summaryOf(query, results, partial);
 
   if (!results.length) {
     const dym = didYouMean(query);
