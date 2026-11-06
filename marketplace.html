@@ -3058,6 +3058,7 @@ body.cq { margin: 0; }
                     <h2 class="mk-section__title cq-subhead1-med" id="mkAsstTitle">Recent assistants</h2>
                     <button class="cq-btn cq-btn--tonal mk-btn-xs" type="button" data-goto="assistant">Show all</button>
                   </div>
+                  <div class="mk-pills" id="mkAsstPills" role="group" aria-label="Function"></div>
                   <div class="mk-grid-4 mk-cards" id="mkAssistants"></div>
                 </div>
               </section>
@@ -3606,10 +3607,23 @@ $('mkFeatPrev').addEventListener('click', () => { featPage--; renderFeatured(); 
 $('mkFeatNext').addEventListener('click', () => { featPage++; renderFeatured(); });
 
 /* Recent assistants on Explore: the newest eight, two rows of four,
-   newest first. */
+   newest first, narrowed by the same functions the filters use. */
+let asstFn = 'all';
 function renderAssistants() {
-  $('mkAssistants').innerHTML = ASSISTANTS.map((a, id) => ({ ...a, id, type: 'assistant' })).reverse().slice(0, 8).map(itemCard).join('');
+  $('mkAsstPills').innerHTML = [{ key: 'all', label: 'All' }, ...FUNCTIONS].map(f =>
+    `<button type="button" class="mk-pill cq-body2-med${f.key === asstFn ? ' is-active' : ''}" aria-pressed="${f.key === asstFn}" data-fn="${f.key}">${f.label}</button>`
+  ).join('');
+  const list = ASSISTANTS.map((a, id) => ({ ...a, id, type: 'assistant' }))
+    .filter(a => asstFn === 'all' || FACETS.assistant[a.id][0] === asstFn)
+    .reverse().slice(0, 8);
+  $('mkAssistants').innerHTML = list.map(itemCard).join('');
 }
+$('mkAsstPills').addEventListener('click', e => {
+  const b = e.target.closest('[data-fn]');
+  if (!b) return;
+  asstFn = b.dataset.fn;
+  renderAssistants();
+});
 
 let creatorsOpen = false;
 function renderCreators() {
