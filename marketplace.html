@@ -3285,7 +3285,7 @@ const AUTOMATIONS = [
 ];
 
 /* [title, description, icon, tags, industry, rating, installs, featured]
-   Industry keys feed the Domain filter (AGENT_DOMAIN below). */
+   Industry keys drive the Agents-tab data; filters use FACETS below. */
 const AGENTS = [
   ['Customer Feedback Analyzer', 'Aggregates and interprets customer reviews to identify key satisfaction drivers.', 'blue', ['Healthcare', 'Marketing'], 'health', 4.2, 2500, true],
   ['Contract Clause Reviewer', 'Reads contracts against your playbook and flags clauses that need a lawyer.', 'green', ['Legal', 'Finance'], 'fin', 4.4, 1600, true],
@@ -3604,42 +3604,41 @@ $('mkTools').addEventListener('click', e => {
    on the left (any within a group, both groups together), a count and a
    search over the grid. */
 const FUNCTIONS = [
-  { key: 'finance', label: 'Finance',    icon: 'mk-coin',  re: /financ|invoice|expense|credit|loan|payment|risk|kyc|contract|legal|close/i },
-  { key: 'hr',      label: 'HR',         icon: 'fd-hr',    re: /human resources|\bHR\b|employee|hiring|handbook|leave|benefit/ },
-  { key: 'it',      label: 'IT',         icon: 'i-globe',  re: /\bIT\b|technology|helpdesk|ticket|sql|database|network|outage|prompt|code|document/ },
-  { key: 'mkt',     label: 'Marketing',  icon: 'fd-mkt',   re: /marketing|campaign|social|sentiment|brand|feedback|\bad\b|media|promotion/i },
-  { key: 'ops',     label: 'Operations', icon: 'fd-ops',   re: /operation|inventory|supply|manufactur|claim|intake|monitor|policy|rights|guardrail|toxic|boundary|injection|pii/i },
-  { key: 'sales',   label: 'Sales',      icon: 'fd-sales', re: /sales|lead|crm|prospect|proposal|rfp|retail|e-commerce|churn|price|shelf|renewal|conversion/i }
+  { key: 'finance', label: 'Finance',    icon: 'mk-coin' },
+  { key: 'hr',      label: 'HR',         icon: 'fd-hr' },
+  { key: 'it',      label: 'IT',         icon: 'i-globe' },
+  { key: 'mkt',     label: 'Marketing',  icon: 'fd-mkt' },
+  { key: 'ops',     label: 'Operations', icon: 'fd-ops' },
+  { key: 'sales',   label: 'Sales',      icon: 'fd-sales' }
 ];
 const DOMAINS = [
-  { key: 'cpg',    label: 'Consumer products & goods', icon: 'fd-cpg',    re: /cpg|retail|e-commerce|shelf|promotion|inventory|consumer/i },
-  { key: 'fin',    label: 'Financial services',        icon: 'fd-fin',    re: /financ|bank|credit|loan|kyc|invoice|expense/i },
-  { key: 'ins',    label: 'Insurance',                 icon: 'fd-ins',    re: /insurance|claim|policy|polic(ies|y) renewal|adjuster/i },
-  { key: 'media',  label: 'Media',                     icon: 'fd-media',  re: /media|entertainment|ad campaign|licens|social/i },
-  { key: 'pharma', label: 'Pharma',                    icon: 'fd-pharma', re: /pharma|health|patient|care team|clinical/i },
-  { key: 'telco',  label: 'Telecom',                   icon: 'fd-telco',  re: /telecom|network|outage|churn/i }
+  { key: 'cpg',    label: 'Consumer products & goods', icon: 'fd-cpg' },
+  { key: 'fin',    label: 'Financial services',        icon: 'fd-fin' },
+  { key: 'ins',    label: 'Insurance',                 icon: 'fd-ins' },
+  { key: 'media',  label: 'Media',                     icon: 'fd-media' },
+  { key: 'pharma', label: 'Pharma',                    icon: 'fd-pharma' },
+  { key: 'telco',  label: 'Telecom',                   icon: 'fd-telco' }
 ];
-const AGENT_DOMAIN = { cpg: 'cpg', fin: 'fin', ins: 'ins', media: 'media', health: 'pharma', telco: 'telco' };
-const AUTO_DOMAIN = { CPG: 'cpg', Retail: 'cpg', Finance: 'fin', Banking: 'fin', Healthcare: 'pharma' };
-/* Which functions and domains an artifact belongs to, read from its own
-   words and tags; one with nothing to go on gets a steady fallback so the
-   filters still sort it somewhere. */
-const facetCache = new Map();
-function facetsOf(a) {
-  if (facetCache.has(a.ref)) return facetCache.get(a.ref);
-  const src = SOURCE[a.type]()[a.k];
-  const text = `${a.title} ${a.desc} ${a.tags.join(' ')}`;
-  const t = Object.keys(TYPES).indexOf(a.type);
-  const fn = new Set(FUNCTIONS.filter(f => f.re.test(text)).map(f => f.key));
-  const dom = new Set(DOMAINS.filter(f => f.re.test(text)).map(f => f.key));
-  if (a.type === 'agent' && AGENT_DOMAIN[src.ind]) dom.add(AGENT_DOMAIN[src.ind]);
-  if (a.type === 'automation') src.ind.forEach(i => AUTO_DOMAIN[i] && dom.add(AUTO_DOMAIN[i]));
-  if (!fn.size) fn.add(FUNCTIONS[(a.k + t) % FUNCTIONS.length].key);
-  if (!dom.size) { dom.add(DOMAINS[(a.k * 2 + t) % DOMAINS.length].key); dom.add(DOMAINS[(a.k * 2 + t + 3) % DOMAINS.length].key); }
-  const f = { fn, dom };
-  facetCache.set(a.ref, f);
-  return f;
-}
+/* Each artifact sits under exactly one function and one domain, so a
+   group's counts always add up to the tab's total. [function, domain],
+   in the order each list is declared above. */
+const FACETS = {
+  agent: [
+    ['mkt', 'pharma'], ['finance', 'fin'], ['sales', 'cpg'], ['sales', 'cpg'], ['sales', 'cpg'], ['ops', 'cpg'],
+    ['hr', 'telco'], ['hr', 'media'], ['mkt', 'media'], ['finance', 'fin'], ['mkt', 'cpg'], ['finance', 'fin'],
+    ['it', 'telco'], ['sales', 'pharma'], ['it', 'fin'], ['sales', 'fin'], ['sales', 'telco'], ['finance', 'fin'],
+    ['ops', 'ins'], ['sales', 'ins'], ['ops', 'pharma'], ['it', 'telco'], ['ops', 'media'], ['mkt', 'media']
+  ],
+  automation: [
+    ['mkt', 'cpg'], ['mkt', 'cpg'], ['finance', 'fin'], ['ops', 'ins'], ['finance', 'fin'],
+    ['sales', 'cpg'], ['ops', 'pharma'], ['mkt', 'cpg'], ['finance', 'fin']
+  ],
+  assistant: [['hr', 'ins'], ['finance', 'fin'], ['sales', 'media'], ['it', 'telco']],
+  tool: [['it', 'fin'], ['it', 'telco'], ['ops', 'ins'], ['ops', 'pharma'], ['mkt', 'media'], ['it', 'cpg']],
+  skill: [['ops', 'media'], ['finance', 'fin'], ['mkt', 'cpg'], ['it', 'telco'], ['it', 'pharma'], ['mkt', 'cpg']],
+  guardrail: [['it', 'fin'], ['ops', 'media'], ['ops', 'telco'], ['it', 'ins']]
+};
+const facetsOf = a => { const [fn, dom] = FACETS[a.type][a.k]; return { fn, dom }; };
 const filters = { fn: new Set(), dom: new Set() };
 const filterFind = { fn: '', dom: '' };
 let tabQuery = '';
@@ -3648,14 +3647,22 @@ const TYPE_ONE = { agent: 'Agent', automation: 'Automation', assistant: 'Assista
 function typeItems() {
   return SOURCE[view]().map((_, k) => art(`${view}:${k}`));
 }
+/* An artifact passes a group when nothing in it is ticked or its own
+   value is; the search applies on top. */
+const inGroup = (a, g) => !filters[g].size || filters[g].has(facetsOf(a)[g]);
+const matchesQuery = a => { const q = tabQuery.trim().toLowerCase(); return !q || `${a.title} ${a.desc} ${a.tags.join(' ')}`.toLowerCase().includes(q); };
 function renderFilters() {
-  const items = typeItems();
+  const items = typeItems().filter(matchesQuery);
   for (const [g, list, el] of [['fn', FUNCTIONS, 'mkFnList'], ['dom', DOMAINS, 'mkDomList']]) {
+    /* Counts follow the other group and the search, so they add up to
+       what the grid shows. */
+    const other = g === 'fn' ? 'dom' : 'fn';
+    const base = items.filter(a => inGroup(a, other));
     const find = filterFind[g].trim().toLowerCase();
     const shown = list.filter(f => !find || f.label.toLowerCase().includes(find));
     $(el).innerHTML = shown.length ? shown.map(f => {
       const on = filters[g].has(f.key);
-      const n = items.filter(a => facetsOf(a)[g].has(f.key)).length;
+      const n = base.filter(a => facetsOf(a)[g] === f.key).length;
       return `<label class="mk-fopt${on ? ' is-checked' : ''}">
         <input type="checkbox" class="mk-fopt__input" data-group="${g}" value="${f.key}"${on ? ' checked' : ''} />
         <span class="cq-checkbox" aria-hidden="true"><svg viewBox="0 0 16 16"><use href="#i-check"/></svg></span>
@@ -3669,13 +3676,7 @@ function renderFilters() {
 }
 function renderTypeView() {
   const t = TYPES[view];
-  const q = tabQuery.trim().toLowerCase();
-  const list = typeItems().filter(a => {
-    const f = facetsOf(a);
-    return (!filters.fn.size || [...filters.fn].some(k => f.fn.has(k)))
-      && (!filters.dom.size || [...filters.dom].some(k => f.dom.has(k)))
-      && (!q || `${a.title} ${a.desc} ${a.tags.join(' ')}`.toLowerCase().includes(q));
-  });
+  const list = typeItems().filter(a => inGroup(a, 'fn') && inGroup(a, 'dom') && matchesQuery(a));
   $('mkAgentCount').textContent = `${list.length} ${list.length === 1 ? TYPE_ONE[view] : t.label}`;
   $('mkAgentGrid').innerHTML = list.length
     ? list.map(artCard).join('')
@@ -3704,7 +3705,7 @@ $('mkAgents').addEventListener('click', e => {
 $('mkAgents').addEventListener('input', e => {
   const f = e.target.closest('[data-fsearch]');
   if (f) { filterFind[f.dataset.fsearch] = f.value; renderFilters(); return; }
-  if (e.target.id === 'mkAgentQ') { tabQuery = e.target.value; renderTypeView(); }
+  if (e.target.id === 'mkAgentQ') { tabQuery = e.target.value; renderFilters(); renderTypeView(); }
 });
 
 const fmtCount = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
