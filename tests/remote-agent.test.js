@@ -48,12 +48,12 @@ const ok=(n,c)=>console.log((c?'PASS':'FAIL')+'  '+n);
   ok('the list and search give way to it', await p.evaluate(()=>
     getComputedStyle(document.querySelector('.agent-searchwrap')).display==='none' &&
     getComputedStyle(document.getElementById('agentList')).display==='none'));
-  const steps = await p.evaluate(()=>[...document.querySelectorAll('.rw-step')].map(s=>s.textContent.trim()));
+  const steps = await p.evaluate(()=>[...document.querySelectorAll(".rw-tab")].map(s=>s.textContent.trim()));
   console.log('  steps:', JSON.stringify(steps));
   ok('it shows three steps: Details, Connection, Review',
      steps.length===3 && /Details/.test(steps[0]) && /Connection/.test(steps[1]) && /Review/.test(steps[2]));
   ok('step 1 is active and Back is hidden', await p.evaluate(()=>
-    document.querySelector('.rw-step[data-step="1"]').classList.contains('on') &&
+    document.querySelector('.rw-tab[data-step="1"]').classList.contains('on') &&
     document.getElementById('rwPrev').hidden));
   ok('Continue is blocked until the agent is named', await p.evaluate(()=>
     document.getElementById('rwNext').disabled &&
@@ -67,9 +67,9 @@ const ok=(n,c)=>console.log((c?'PASS':'FAIL')+'  '+n);
 
   // step 2
   ok('step 2 shows the three connection choices', await p.evaluate(()=>
-    document.querySelector('.rw-step[data-step="2"]').classList.contains('on') &&
+    document.querySelector('.rw-tab[data-step="2"]').classList.contains('on') &&
     document.querySelectorAll('#rwProto .rw-choice').length===3 &&
-    document.querySelector('.rw-step[data-step="1"]').classList.contains('done')));
+    document.querySelector('.rw-tab[data-step="1"]').classList.contains('done')));
   ok('"Connect it directly" is the default and asks for an integration', await p.evaluate(()=>
     document.querySelector('.rw-choice[data-proto="direct"]').classList.contains('on') &&
     !document.querySelector('.rw-group[data-only="direct"]').hidden &&
@@ -95,7 +95,7 @@ const ok=(n,c)=>console.log((c?'PASS':'FAIL')+'  '+n);
 
   // step 3
   ok('step 3 offers that server\'s agent cards', await p.evaluate(()=>
-    document.querySelector('.rw-step[data-step="3"]').classList.contains('on') &&
+    document.querySelector('.rw-tab[data-step="3"]').classList.contains('on') &&
     document.querySelectorAll('#rwCardPick .rw-opt').length===2));
   ok('it blocks until a card is chosen', await p.evaluate(()=>
     document.getElementById('rwNext').disabled && /agent card/i.test(document.getElementById('rwHint').textContent)));
