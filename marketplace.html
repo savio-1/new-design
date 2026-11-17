@@ -2685,17 +2685,17 @@ body.cq { margin: 0; }
     .mk-rtab .n { color: var(--text-teritiary); font-weight: 400; font-variant-numeric: tabular-nums; }
     .mk-rtab[aria-selected="true"] { background: var(--backgrounds-badge-blue); border-color: var(--strokes-colour-blue); color: var(--text-coloured-blue); }
     .mk-rtab[aria-selected="true"] .n { color: inherit; opacity: .75; }
-    .mk-rtab.has-todo::after { content: ""; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%;
-      background: var(--mk-warn-fg); box-shadow: 0 0 0 2px var(--backgrounds-page-bg-2, #1b1b1b); }
     .mk-res + .mk-res { border-top: 1px solid var(--strokes-card-default); }
     .mk-res__head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; text-align: left; cursor: pointer; }
     .mk-res__head:hover { background: var(--backgrounds-card-bg-4); }
     .mk-res__chev { flex: none; color: var(--text-teritiary); transition: transform .15s ease; }
     .mk-res.is-open .mk-res__chev { transform: rotate(180deg); }
-    .mk-res__todo { margin: -4px 0 0; padding: 0 12px 10px 56px; color: var(--mk-warn-fg); }
-    .mk-res__todo b { font-weight: 500; }
-    .mk-res.is-open .mk-res__todo { display: none; }
-    .mk-res__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; padding: 2px 12px 12px 56px; }
+    .mk-res__n { flex: none; color: var(--text-teritiary); font-variant-numeric: tabular-nums; }
+    .mk-res__fields { display: flex; flex-direction: column; gap: 8px; padding: 2px 12px 14px 56px; }
+    .mk-res__req { color: var(--text-secondary); }
+    .mk-reqtags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mk-reqtag { height: 26px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border-radius: 8px;
+      border: 1px solid var(--strokes-card-default); background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
     .mk-res__fields[hidden] { display: none; }
     .mk-field { min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
     .mk-field > svg { flex: none; }
@@ -2710,7 +2710,7 @@ body.cq { margin: 0; }
     .mk-res__legend .ok { color: var(--text-coloured-green); }
     .mk-res__legend .todo { color: var(--mk-warn-fg); }
     .mk-setup__list b { font-weight: 500; color: var(--text-primary); }
-    @media (max-width: 640px) { .mk-res__fields { grid-template-columns: 1fr; padding-left: 12px; } .mk-res__todo { padding-left: 12px; } }
+    @media (max-width: 640px) { .mk-res__fields { padding-left: 12px; } }
     .mk-setup { gap: 8px; border: 1px solid transparent; }
     .mk-setup--ok   { background: var(--backgrounds-badge-green); border-color: var(--strokes-colour-green); }
     .mk-setup--todo { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); }
@@ -3457,7 +3457,7 @@ body.cq { margin: 0; }
           <hr class="mk-pv__rule" id="mkPvInsideRule" />
           <section class="mk-pv__sec" aria-labelledby="mkPvConnH">
             <div class="mk-pv__hrow">
-              <h3 class="mk-pv__h cq-body2-med" id="mkPvConnH">Resources &amp; details</h3>
+              <h3 class="mk-pv__h cq-body2-med" id="mkPvConnH">Details to fill in</h3>
               <span id="mkPvConnBadge"></span>
             </div>
             <div class="mk-note" id="mkPvConnNote">
@@ -4486,10 +4486,8 @@ function statePill(shared, isModel) {
     : `<span class="mk-state mk-state--todo cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#${isModel ? 'ic-pp_brain' : 'ic-pp_integrations'}"/></svg>Needs to be added</span>`;
 }
 function shareBadge(a) {
-  const n = fieldsToFill(a);
-  if (!a.res.length) return `<span class="mk-state mk-state--ok cq-caption-med">Nothing to set up</span>`;
-  if (!n) return `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>All details shared</span>`;
-  return `<span class="mk-state mk-state--todo cq-caption-med">${n} ${n === 1 ? 'detail' : 'details'} to fill in</span>`;
+  const n = resNeeds(a).length;
+  return n ? `<span class="mk-pv__meta cq-caption-reg">${n} ${n === 1 ? 'item' : 'items'}</span>` : '';
 }
 /* The resources that still need something, by name. */
 function setupNeeds(a) { return resNeeds(a).map(r => r.name); }
@@ -4498,10 +4496,9 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 function connLede(a) {
   const w = TYPE_WORD[a.type];
-  if (!a.res.length) return `This ${w} runs on the platform's built-in policy engine. There's nothing to set up.`;
-  const n = fieldsToFill(a), r = resNeeds(a).length;
-  if (!n) return `Everything below comes with this ${w}, and the publisher shared every detail it needs. It works as soon as it's added to your workspace.`;
-  return `Everything below comes with this ${w}. The publisher kept some details private, so after it's added you fill in ${plural(n, 'detail')} across ${plural(r, 'resource')}. Open a resource to see what was shared.`;
+  if (!a.res.length) return `This ${w} runs on the platform's built-in policy engine. There's nothing to fill in.`;
+  if (!fieldsToFill(a)) return `Nothing to fill in. The publisher shared every detail this ${w} needs, so it works as soon as it's added to your workspace.`;
+  return `Everything this ${w} uses comes with it. The publisher kept some details private, so add these after it's in your workspace. Open one to see what's required.`;
 }
 
 /* What it means to run on someone else's keys. Shown whenever the
@@ -4527,35 +4524,34 @@ const FIELD_TODO = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" 
 const whyTag = f => f.why ? `<span class="mk-why${f.why === 'Secret' ? ' mk-why--secret' : ''}">${f.why}</span>` : '';
 let pvResTab = 'all';
 let pvResOpen = null;
+/* Only what is left to fill in: one row per resource, its details as tags. */
 function resRow(r) {
   const todo = resTodo(r), open = pvResOpen === r.id;
   const sub = r.type + (r.used && r.used.length ? ` · used by ${listJoin(r.used)}` : '') + (r.on && r.on.length ? ` · runs on ${listJoin(r.on)}` : '');
-  const pill = todo.length
-    ? `<span class="mk-state mk-state--todo cq-caption-med">${todo.length} to fill in</span>`
-    : `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>All shared</span>`;
-  return `<div class="mk-res${todo.length ? ' is-todo' : ''}${open ? ' is-open' : ''}" data-res="${esc(r.id)}">
+  return `<div class="mk-res${open ? ' is-open' : ''}" data-res="${esc(r.id)}">
     <button type="button" class="mk-res__head" aria-expanded="${open}">
       <span class="mk-conn__mark">${r.mark()}</span>
       <span class="mk-conn__text"><span class="cq-body2-med">${esc(r.name)}</span><span class="mk-conn__sub cq-caption-reg">${esc(sub)}</span></span>
-      ${pill}
+      <span class="mk-res__n cq-caption-reg">${todo.length} ${todo.length === 1 ? 'detail' : 'details'}</span>
       <svg class="cq-ic mk-res__chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pp_chevron"/></svg>
     </button>
-    ${todo.length ? `<p class="mk-res__todo cq-caption-reg">To fill in: ${todo.map(f => `<b>${esc(f.label)}</b>`).join(', ')}</p>` : ''}
-    <div class="mk-res__fields cq-caption-reg"${open ? '' : ' hidden'}>${r.fields.map(f => `
-      <span class="mk-field ${f.shared ? 'is-shared' : 'is-todo'}" title="${f.shared ? 'Shared by the publisher' : 'You fill this in'}">${f.shared ? FIELD_OK : FIELD_TODO}<span class="mk-field__l">${esc(f.label)}</span>${whyTag(f)}</span>`).join('')}
+    <div class="mk-res__fields"${open ? '' : ' hidden'}>
+      <span class="mk-res__req cq-caption-med">Required details to fill:</span>
+      <span class="mk-reqtags">${todo.map(f => `<span class="mk-reqtag cq-caption-med">${esc(f.label)}${f.why ? `<span class="mk-why">${f.why}</span>` : ''}</span>`).join('')}</span>
     </div>
   </div>`;
 }
 function paintRes(a) {
-  const kinds = RES_KINDS.filter(t => a.res.some(r => r.rk === t.key));
+  const need = resNeeds(a);
+  const kinds = RES_KINDS.filter(t => need.some(r => r.rk === t.key));
   if (pvResTab !== 'all' && !kinds.some(t => t.key === pvResTab)) pvResTab = 'all';
-  const tab = (key, label, list) => `<button type="button" role="tab" class="mk-rtab${key !== 'all' && list.some(r => resTodo(r).length) ? ' has-todo' : ''}" data-rtab="${key}" aria-selected="${pvResTab === key}">${label} <span class="n">${list.length}</span></button>`;
+  const tab = (key, label, list) => `<button type="button" role="tab" class="mk-rtab" data-rtab="${key}" aria-selected="${pvResTab === key}">${label} <span class="n">${list.length}</span></button>`;
   $('mkPvResTabs').innerHTML = kinds.length > 1
-    ? tab('all', 'All', a.res) + kinds.map(t => tab(t.key, t.label, a.res.filter(r => r.rk === t.key))).join('') : '';
+    ? tab('all', 'All', need) + kinds.map(t => tab(t.key, t.label, need.filter(r => r.rk === t.key))).join('') : '';
   $('mkPvResTabs').hidden = kinds.length < 2;
-  const list = pvResTab === 'all' ? a.res : a.res.filter(r => r.rk === pvResTab);
+  const list = pvResTab === 'all' ? need : need.filter(r => r.rk === pvResTab);
   $('mkPvConns').innerHTML = list.map(resRow).join('');
-  $('mkPvConns').hidden = !a.res.length;
+  $('mkPvConns').hidden = !need.length;
 }
 $('mkPvResTabs').addEventListener('click', e => {
   const b = e.target.closest('[data-rtab]'); if (!b || !pv) return;
@@ -4690,7 +4686,7 @@ function renderPreview() {
   /* Resources and their details. */
   $('mkPvConnBadge').innerHTML = shareBadge(a);
   $('mkPvConnLede').textContent = connLede(a);
-  $('mkPvConnNote').className = `mk-note ${fieldsToFill(a) ? 'mk-note--todo' : ''}`;
+  $('mkPvConnNote').className = 'mk-note';
   if (pvResShown !== a.ref) { pvResTab = 'all'; pvResOpen = null; pvResShown = a.ref; }
   paintRes(a);
   const disc = disclaimerOf(a);
