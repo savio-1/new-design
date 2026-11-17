@@ -513,6 +513,8 @@
     if (!w) return;
     closeDialog(true);
     if (typeof closePanel === 'function') closePanel();
+    /* On the Agents page, configuring an agent happens in the builder. */
+    if (PAGE === 'agent' && window.agb && window.agb.openSetup(ref)) return;
     cfgRef = ref;
     var el = byId('mkwsCfg');
     if (!el) {
@@ -718,5 +720,31 @@
       setTimeout(function () { focusOn(ref); }, 120);
     }
   });
+  /* What the agent builder needs to drive setup from its own canvas. */
+  window.mkws = {
+    get: wsByRef,
+    remaining: function (ref) { var w = wsByRef(ref); return w ? remaining(w) : []; },
+    isDone: function (ref, n) { var w = wsByRef(ref); return !!(w && needDone(w, n)); },
+    connect: function (ref, key, cb) {
+      var w = wsByRef(ref); if (!w) return;
+      setTimeout(function () {
+        cfg(w).done[key] = true;
+        save(w);
+        var n = (w.needs || []).filter(function (x) { return x.key === key; })[0];
+        say((n ? n.name : 'Account') + ' connected');
+        if (cb) cb();
+      }, 900);
+    },
+    setModel: function (ref, m) { var w = wsByRef(ref); if (!w) return; cfg(w).model = m; save(w); },
+    finish: function (ref) {
+      var w = wsByRef(ref); if (!w || remaining(w).length) return;
+      w.ready = true;
+      save(w);
+      sync();
+      focusOn(w.ref, true);
+      say(w.name + ' is configured and ready to use');
+    },
+    discard: function (ref) { discard(ref); }
+  };
   post({ cqWsRequest: true });
 })();

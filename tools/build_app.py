@@ -23,16 +23,41 @@ def with_bridge(src: str, bridge: str) -> str:
     return src[:i] + tag + src[i:] if i >= 0 else src + tag
 
 
+NEUTRAL = {'arrow-left', 'assistant', 'edit-title', 'options', 'card-options', 'close', 'zoom',
+           'arrow-down', 'write', 'undo', 'redo'}
+
+
+def builder_svgs() -> dict:
+    """The builder's Figma icons, inlined. Ids are prefixed per icon so two
+    on one page never share a clip path; the neutral ones take
+    currentColor so they follow the theme."""
+    out = {}
+    for f in sorted((APP / 'assets' / 'builder').glob('*.svg')):
+        name = f.stem
+        s = f.read_text(encoding='utf-8')
+        s = re.sub(r'\s(preserveAspectRatio|overflow|style)="[^"]*"', '', s)
+        s = re.sub(r'id="([^"]+)"', lambda m: 'id="agx-%s-%s"' % (name, m.group(1)), s)
+        s = re.sub(r'url\(#([^)]+)\)', lambda m: 'url(#agx-%s-%s)' % (name, m.group(1)), s)
+        if name in NEUTRAL:
+            s = re.sub(r'(stroke|fill)="#[0-9A-Fa-f]{3,8}"', r'\1="currentColor"', s)
+        s = re.sub(r'>\s+<', '><', s).strip()
+        out[name] = s
+    return out
+
+
 def b64(s: str) -> str:
     return base64.b64encode(s.encode('utf-8')).decode('ascii')
 
 
 def main():
     bridge = (APP / 'workspace-bridge.js').read_text(encoding='utf-8')
+    agx = (APP / 'agents-v2.js').read_text(encoding='utf-8')
+    assert agx.count('/*AGX_SVG*/{}') == 1
+    agx = agx.replace('/*AGX_SVG*/{}', json.dumps(builder_svgs()))
     pages = {
         'marketplace.html': (ROOT / 'marketplace.html').read_text(encoding='utf-8'),
         'automations.html': with_bridge((APP / 'automations.src.html').read_text(encoding='utf-8'), bridge),
-        'agents.html': with_bridge((APP / 'agents.src.html').read_text(encoding='utf-8'), bridge),
+        'agents.html': with_bridge(with_bridge((APP / 'agents.src.html').read_text(encoding='utf-8'), agx), bridge),
     }
     shell = (APP / 'shell.html').read_text(encoding='utf-8')
     blob = json.dumps({k: b64(v) for k, v in pages.items()})
