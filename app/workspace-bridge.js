@@ -113,12 +113,13 @@
     '  border-radius:16px;background:var(--backgrounds-card-bg-2);border:1px solid var(--strokes-card-default);box-shadow:var(--shadow-tiq);',
     '  transform:translateY(6px) scale(.98);transition:transform .2s cubic-bezier(.2,.8,.2,1)}',
     '.mkws-scrim.is-shown .mkws-dlg{transform:none}',
-    '.mkws-dlg__head{display:flex;align-items:flex-start;gap:12px}',
-    '.mkws-dlg__ic{width:40px;height:40px;flex:none;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;',
+    /* Icon and heading on one row; the text below runs from the left edge. */
+    '.mkws-dlg__intro{display:flex;flex-direction:column;gap:8px}',
+    '.mkws-dlg__head{display:flex;align-items:center;gap:10px}',
+    '.mkws-dlg__ic{width:32px;height:32px;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;',
     '  background:var(--backgrounds-badge-orange);border:1px solid var(--strokes-colour-orange);color:var(--text-coloured-orange)}',
-    '.mkws-dlg__ic svg{width:20px;height:20px}',
-    '.mkws-dlg__id{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}',
-    '.mkws-dlg__title{margin:0;color:var(--text-primary)}',
+    '.mkws-dlg__ic svg{width:18px;height:18px}',
+    '.mkws-dlg__title{flex:1 1 auto;min-width:0;margin:0;color:var(--text-primary)}',
     '.mkws-dlg__text{margin:0;color:var(--text-secondary)}',
     '.mkws-x{flex:none;width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-teritiary)}',
     '.mkws-x:hover{background:var(--backgrounds-card-bg-4);color:var(--text-primary)}',
@@ -463,14 +464,14 @@
     scrim.className = 'mkws-scrim'; scrim.id = 'mkwsDlg';
     scrim.innerHTML =
       '<div class="mkws-dlg" role="dialog" aria-modal="true" aria-labelledby="mkwsDlgT" aria-describedby="mkwsDlgD">' +
-        '<div class="mkws-dlg__head">' +
-          '<span class="mkws-dlg__ic">' + IC.warn + '</span>' +
-          '<span class="mkws-dlg__id">' +
+        '<div class="mkws-dlg__intro">' +
+          '<div class="mkws-dlg__head">' +
+            '<span class="mkws-dlg__ic">' + IC.warn + '</span>' +
             '<h2 class="mkws-dlg__title cq-subhead2-med" id="mkwsDlgT">Configure before it can be used</h2>' +
-            '<p class="mkws-dlg__text cq-body2-reg" id="mkwsDlgD"><b>' + E(w.name) + '</b> was added from the Marketplace. ' +
-              E(w.publisher) + ' didn’t share ' + (needs.length === 1 ? 'one thing' : 'a few things') + ' it needs, so add your own before the first run.</p>' +
-          '</span>' +
-          '<button type="button" class="mkws-x" data-mkws-dlg-close aria-label="Close">' + IC.close + '</button>' +
+            '<button type="button" class="mkws-x" data-mkws-dlg-close aria-label="Close">' + IC.close + '</button>' +
+          '</div>' +
+          '<p class="mkws-dlg__text cq-body2-reg" id="mkwsDlgD"><b>' + E(w.name) + '</b> was added from the Marketplace. ' +
+            E(w.publisher) + ' didn’t share ' + (needs.length === 1 ? 'one thing' : 'a few things') + ' it needs, so add your own before the first run.</p>' +
         '</div>' +
         '<span class="mkws-dlg__label cq-caption-med">TO BE ADDED · ' + remaining(w).length + ' OF ' + needs.length + '</span>' +
         '<div class="mkws-steps">' + needs.map(function (n) {
