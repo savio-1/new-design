@@ -10,6 +10,42 @@ const lum = c => { const f = c.map(v => { v /= 255; return v <= .03928 ? v / 12.
 const ratio = (a, b) => { const [x, y] = [lum(rgb(a)), lum(rgb(b))].sort((p, q) => q - p); return (x + .05) / (y + .05); };
 const near = (a, b, t = 1) => Math.abs(a - b) <= t;
 
+
+/* Every button in the panel that claims to centre its label must actually
+   centre it. Measured as the union of the button's leaf boxes (icon + text),
+   so an icon beside a label is not mistaken for skew; buttons styled
+   text-align:left (the option cards) are not candidates. */
+const CENTRED = () => [...document.getElementById('agentPanel').querySelectorAll('button')]
+  .map(b => {
+    const r = b.getBoundingClientRect();
+    if (!r.width || b.offsetParent === null) return null;
+    if (getComputedStyle(b).textAlign !== 'center') return null;
+    const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+    let L = Infinity, R = -Infinity, n;
+    while ((n = w.nextNode())) {
+      let t;
+      if (n.nodeType === 3) {
+        if (!n.nodeValue.trim()) continue;
+        const rg = document.createRange(); rg.selectNodeContents(n); t = rg.getBoundingClientRect();
+      } else {
+        if (n.children.length || n.textContent.trim()) continue;
+        t = n.getBoundingClientRect();
+      }
+      if (t.width) { L = Math.min(L, t.left); R = Math.max(R, t.right); }
+    }
+    if (L === Infinity) return null;
+    return { id: b.id || b.className.split(' ')[0], label: b.textContent.trim().slice(0, 24),
+             skew: ((L - r.left) - (r.right - R)) / 2 };
+  }).filter(Boolean);
+
+const centredOk = async (p, where) => {
+  const rows = await p.evaluate(CENTRED);
+  const bad = rows.filter(r => Math.abs(r.skew) > 2);
+  ok(`every centring button centres its label on ${where}`
+     + (bad.length ? ' — ' + bad.map(b => `${b.id} "${b.label}" ${b.skew.toFixed(1)}px`).join(', ') : ''),
+     bad.length === 0);
+};
+
 /* Walk to step 1 of Register a remote agent, with the name filled so Continue opens. */
 async function openWizard(p) {
   const rc = async s => { const x = await p.locator(s).boundingBox(); await p.mouse.click(x.x + x.width / 2, x.y + x.height / 2); };
@@ -69,6 +105,8 @@ async function run(scheme) {
   ok('an unreachable tab does not invite a click', tabs.tabs[2].cursor === 'default');
   ok('the track sits inside the panel',
      tabs.trackBox.left >= tabs.panel.left && tabs.trackBox.right <= tabs.panel.right);
+
+  await centredOk(p, 'step 1');
 
   // ── fields ──
   await p.fill('#rwName', 'Bank Ops Assistant');
@@ -146,6 +184,12 @@ async function run(scheme) {
   ok('step 1 becomes a reachable tab', s2.done && s2.cursor === 'pointer');
   ok('Back and Continue share the footer, both inside the panel', s2.count === 2 && s2.inside);
   ok('neither footer label is clipped', s2.notClipped);
+  await centredOk(p, 'step 2');
+  await rc('.rw-choice:nth-child(2)'); await p.waitForTimeout(400);      // A2A swaps the sub-form
+  await centredOk(p, 'step 2 via A2A');
+  await rc('#rwSrvPick .rw-opt:first-child'); await p.waitForTimeout(350);
+  await rc('#rwNext'); await p.waitForTimeout(450);
+  await centredOk(p, 'step 3');
   await rc('.rw-tab[data-step="1"]'); await p.waitForTimeout(400);
   ok('clicking the completed tab returns to step 1', await p.evaluate(() =>
     document.querySelector('.rw-tab[data-step="1"]').classList.contains('on') &&
