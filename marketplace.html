@@ -2673,6 +2673,44 @@ body.cq { margin: 0; }
     .mk-state--todo { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); color: var(--mk-warn-fg); }
     .mk-state--part { background: var(--backgrounds-badge-blue); border-color: var(--strokes-colour-blue); color: var(--text-coloured-blue); }
 
+
+    /* Resources, field by field: what came with it, what is left to fill in */
+    .mk-rtabs { display: flex; flex-wrap: wrap; gap: 6px; }
+    .mk-rtab {
+      position: relative; height: 26px; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px;
+      border-radius: 100px; border: 1px solid var(--strokes-card-default); color: var(--text-secondary);
+      font: 500 12px/16px var(--font-geist); transition: border-color .15s ease, background .15s ease;
+    }
+    .mk-rtab:hover { border-color: var(--strokes-card-selected); }
+    .mk-rtab .n { color: var(--text-teritiary); font-weight: 400; font-variant-numeric: tabular-nums; }
+    .mk-rtab[aria-selected="true"] { background: var(--backgrounds-badge-blue); border-color: var(--strokes-colour-blue); color: var(--text-coloured-blue); }
+    .mk-rtab[aria-selected="true"] .n { color: inherit; opacity: .75; }
+    .mk-rtab.has-todo::after { content: ""; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--mk-warn-fg); box-shadow: 0 0 0 2px var(--backgrounds-page-bg-2, #1b1b1b); }
+    .mk-res + .mk-res { border-top: 1px solid var(--strokes-card-default); }
+    .mk-res__head { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; text-align: left; cursor: pointer; }
+    .mk-res__head:hover { background: var(--backgrounds-card-bg-4); }
+    .mk-res__chev { flex: none; color: var(--text-teritiary); transition: transform .15s ease; }
+    .mk-res.is-open .mk-res__chev { transform: rotate(180deg); }
+    .mk-res__todo { margin: -4px 0 0; padding: 0 12px 10px 56px; color: var(--mk-warn-fg); }
+    .mk-res__todo b { font-weight: 500; }
+    .mk-res.is-open .mk-res__todo { display: none; }
+    .mk-res__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; padding: 2px 12px 12px 56px; }
+    .mk-res__fields[hidden] { display: none; }
+    .mk-field { min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+    .mk-field > svg { flex: none; }
+    .mk-field.is-shared > svg { color: var(--text-coloured-green); }
+    .mk-field.is-todo { color: var(--text-primary); }
+    .mk-field.is-todo > svg { color: var(--mk-warn-fg); }
+    .mk-field__l { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mk-why { flex: none; padding: 0 5px; border-radius: 4px; border: 1px solid var(--strokes-card-default); color: var(--text-teritiary); font: 400 10px/14px var(--font-geist); }
+    .mk-why--secret { border-color: var(--mk-warn-edge); color: var(--mk-warn-fg); }
+    .mk-res__legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--text-teritiary); }
+    .mk-res__legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .mk-res__legend .ok { color: var(--text-coloured-green); }
+    .mk-res__legend .todo { color: var(--mk-warn-fg); }
+    .mk-setup__list b { font-weight: 500; color: var(--text-primary); }
+    @media (max-width: 640px) { .mk-res__fields { grid-template-columns: 1fr; padding-left: 12px; } .mk-res__todo { padding-left: 12px; } }
     .mk-setup { gap: 8px; border: 1px solid transparent; }
     .mk-setup--ok   { background: var(--backgrounds-badge-green); border-color: var(--strokes-colour-green); }
     .mk-setup--todo { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); }
@@ -3419,13 +3457,14 @@ body.cq { margin: 0; }
           <hr class="mk-pv__rule" id="mkPvInsideRule" />
           <section class="mk-pv__sec" aria-labelledby="mkPvConnH">
             <div class="mk-pv__hrow">
-              <h3 class="mk-pv__h cq-body2-med" id="mkPvConnH">Integrations &amp; models</h3>
+              <h3 class="mk-pv__h cq-body2-med" id="mkPvConnH">Resources &amp; details</h3>
               <span id="mkPvConnBadge"></span>
             </div>
             <div class="mk-note" id="mkPvConnNote">
               <svg class="cq-ic mk-note__ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#mk-info"/></svg>
               <p class="mk-note__text cq-body2-reg" id="mkPvConnLede"></p>
             </div>
+            <div class="mk-rtabs" id="mkPvResTabs" role="tablist" aria-label="Resource type"></div>
             <div class="mk-conns" id="mkPvConns"></div>
             <div class="mk-disclaimer" id="mkPvDisclaimer" role="note" hidden></div>
           </section>
@@ -4230,6 +4269,116 @@ const typeTile = (type, size) => {
   return `<span class="mk-type-tile ${t.grad}" style="width:${size}px;height:${size}px;border-radius:${size > 32 ? 10 : 8}px"><svg class="cq-ic" width="${size > 32 ? 22 : 16}" height="${size > 32 ? 22 : 16}" viewBox="0 0 16 16"><use href="#${t.icon}"/></svg></span>`;
 };
 
+/* ── What's inside, field by field ─────────────────────────────────
+   Everything an artifact uses comes with it: its agents, tools,
+   integrations, model, skills and guardrails. What the publisher decides
+   at publish time ("Customize what's shared") is which of each one's
+   details go along. Keys, links, account details and data start private;
+   whatever stays private is for the person who adds it to fill in.
+   Field names follow the platform's resource attributes. */
+const FIELD_SETS = {
+  agent: 'agent_goal agent_backstory task_description expected_output llm_model tools_list guardrails_list max_iter',
+  assistant: 'planner_llm coder_llm tool_list skill_list guardrails context_list hitl_config domain',
+  apiTool: 'connection_id connection_payload pydantic_output_schema',
+  sharepointTool: 'connection_id tool_attributes',
+  docExtractorTool: 'llm_connection_id document_path parsing_required key_value_pairs tables',
+  customTool: 'tool_class_name custom_tool_code requirements_text custom_variables',
+  ragTool: 'knowledge_base chunking_size chunk_overlap_token files',
+  modelInt: 'model custom_llm_provider api_key base_url api_version',
+  apiInt: 'endpoint auth_type request_method bearer_token timeout',
+  sharepointInt: 'tenant_id client_id client_secret site_id drive_id',
+  s3Int: 'bucket_name bucket_url access_key_id secret_access_key',
+  skill: 'skill_name skill_description management_tag adls_directory',
+  guardrail: 'guardrail_name guardrail_type guardrail_desc guardrail_content attached_tool'
+};
+/* Why a detail starts private, as the publish dialog tags it. */
+const FIELD_WHY = {};
+Object.entries({
+  Secret: 'api_key password username bearer_token client_secret client_id tenant_id sas_token access_token custom_variables access_key_id secret_access_key',
+  Link: 'endpoint base_url account_url site_id drive_id adls_directory document_path connection_id connection_payload llm_connection_id bucket_name bucket_url',
+  Data: 'files knowledge_base'
+}).forEach(([tag, keys]) => keys.split(' ').forEach(k => { FIELD_WHY[k] = tag; }));
+const FIELD_WORDS = { llm: 'LLM', id: 'ID', url: 'URL', api: 'API', iter: 'iterations', hitl: 'HITL', adls: 'ADLS', pydantic: 'Pydantic', desc: 'description' };
+const FIELD_LABEL = {
+  adls_directory: 'Skill files', pydantic_output_schema: 'Output schema', custom_llm_provider: 'Provider',
+  llm_connection_id: 'LLM connection', connection_id: 'Connection', connection_payload: 'Connection payload',
+  hitl_config: 'Human review settings', context_list: 'Context', knowledge_base: 'Knowledge base', files: 'Files',
+  max_iter: 'Max iterations', llm_model: 'LLM model', secret_access_key: 'Secret access key', access_key_id: 'Access key ID'
+};
+const fieldLabel = k => FIELD_LABEL[k] || (s => s[0].toUpperCase() + s.slice(1))(k.split('_').map(w => FIELD_WORDS[w] || w).join(' '));
+const INTEG_TYPE = {
+  sharepoint: ['SharePoint integration', 'sharepointInt'], teams: ['API integration', 'apiInt'],
+  gmail: ['API integration', 'apiInt'], s3: ['S3 integration', 's3Int']
+};
+const RES_KINDS = [
+  { key: 'agents', label: 'Agents', one: 'agent' }, { key: 'tools', label: 'Tools', one: 'tool' },
+  { key: 'integrations', label: 'Integrations', one: 'integration' }, { key: 'models', label: 'Models', one: 'model' },
+  { key: 'skills', label: 'Skills', one: 'skill' }, { key: 'guardrails', label: 'Guardrails', one: 'guardrail' }
+];
+const TOOL_GLYPH = () => `<svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pp_toolsskills"/></svg>`;
+
+/* Who shared what, by the artifact's sharing mode:
+     shared  the publisher ticked every detail, their keys included
+     byo     the defaults: keys, links and data stay private
+     mixed   some integrations sent whole, the rest private; one agent
+             or the artifact's own task details kept back */
+function fieldShared(mode, rk, f, ctx) {
+  if (mode === 'shared') return true;
+  const priv = !!FIELD_WHY[f];
+  if (rk === 'skills' || rk === 'guardrails') return true;
+  if (rk === 'agents') return !(mode === 'mixed' && ctx.i === 0 && (f === 'task_description' || f === 'expected_output'));
+  if (mode === 'mixed' && rk === 'integrations' && ctx.i % 2 === 0) return true;
+  if (mode === 'mixed' && rk === 'tools' && ctx.integShared) return true;
+  return !priv;
+}
+function buildRes(a, type, k, toolkit) {
+  const out = [];
+  const integShared = {};
+  const push = (rk, id, name, type2, set, look, ctx) => {
+    const fields = FIELD_SETS[set].split(' ').map(f => ({ k: f, label: fieldLabel(f), why: FIELD_WHY[f] || '', shared: fieldShared(a.share, rk, f, ctx) }));
+    out.push({ rk, id, name, type: type2, fields, ...look });
+    return fields;
+  };
+  const kindCount = rk => out.filter(r => r.rk === rk).length;
+  /* The artifact itself, when it is one resource. */
+  if (type === 'agent') push('agents', a.ref, a.title, 'Standalone agent', 'agent', { mark: () => a.icon(20) }, { i: 0 });
+  if (type === 'assistant') push('agents', a.ref, a.title, 'Assistant', 'assistant', { mark: () => a.icon(20) }, { i: 1 });
+  (a.inside.find(g => g.key === 'agent') || { items: [] }).items.forEach(it =>
+    push('agents', it.ref, it.name, 'Standalone agent', 'agent', { mark: () => INSIDE_ICON.agent(it.ref) }, { i: kindCount('agents') }));
+  /* Integrations first decide; their tools follow them. */
+  a.conns.forEach((c, i) => {
+    const [t, set] = INTEG_TYPE[c.key];
+    const f = push('integrations', 'integ:' + c.key, INTEGRATIONS[c.key].name, t, set, { mark: () => INTEGRATIONS[c.key].mark(), used: c.used }, { i });
+    integShared[c.key] = f.every(x => x.shared);
+  });
+  if (type === 'tool') {
+    const integ = TOOL_NEEDS[k] && TOOL_NEEDS[k][0];
+    const [t, set] = !integ ? (k % 2 ? ['RAG tool', 'ragTool'] : ['Custom tool', 'customTool'])
+      : integ === 'sharepoint' ? ['SharePoint tool', 'sharepointTool'] : ['API tool', 'apiTool'];
+    push('tools', a.ref, a.title, t, set, { mark: () => a.icon(20) }, { i: 0, integShared: integ ? integShared[integ] : false });
+  }
+  (a.inside.find(g => g.key === 'tool') || { items: [] }).items.forEach(it => {
+    const [t, set] = /extract/i.test(it.name) ? ['Doc extractor tool', 'docExtractorTool']
+      : it.integ === 'sharepoint' ? ['SharePoint tool', 'sharepointTool'] : ['API tool', 'apiTool'];
+    push('tools', 'tool:' + it.name, it.name, t, set, { mark: () => INTEGRATIONS[it.integ].mark(), on: [INTEGRATIONS[it.integ].name] },
+      { i: kindCount('tools'), integShared: !!integShared[it.integ] });
+  });
+  if (a.model) push('models', 'model:' + a.model.m.name, a.model.m.name, `Model integration · ${a.model.m.vendor}`, 'modelInt', { mark: () => a.model.m.mark() }, { i: 0 });
+  if (type === 'skill') push('skills', a.ref, a.title, 'Skill', 'skill', { mark: () => a.icon(20) }, { i: 0 });
+  (a.inside.find(g => g.key === 'skill') || { items: [] }).items.forEach(it =>
+    push('skills', it.ref, it.name, 'Skill', 'skill', { mark: () => INSIDE_ICON.skill() }, { i: kindCount('skills') }));
+  if (type === 'guardrail') push('guardrails', a.ref, a.title, 'Guardrail', 'guardrail', { mark: () => a.icon(20) }, { i: 0 });
+  (a.inside.find(g => g.key === 'guardrail') || { items: [] }).items.forEach(it =>
+    push('guardrails', it.ref, it.name, 'Guardrail', 'guardrail', { mark: () => INSIDE_ICON.guardrail(it.ref) }, { i: kindCount('guardrails') }));
+  return out;
+}
+/* Resources with details left to fill in, and how many details in all. */
+const resTodo = r => r.fields.filter(f => !f.shared);
+const resNeeds = a => a.res.filter(r => resTodo(r).length);
+const fieldsToFill = a => a.res.reduce((n, r) => n + resTodo(r).length, 0);
+/* Secrets the publisher chose to send along. */
+const resSecrets = a => a.res.map(r => ({ r, f: r.fields.filter(f => f.shared && f.why === 'Secret') })).filter(x => x.f.length);
+
 const artCache = new Map();
 function art(ref) {
   if (artCache.has(ref)) return artCache.get(ref);
@@ -4303,6 +4452,7 @@ function art(ref) {
     shared: a.share === 'shared' || (a.share === 'mixed' && n % 2 === 0)
   }));
   if (type !== 'guardrail') a.model = { m: MODELS[k % MODELS.length], shared: a.share === 'shared' };
+  a.res = buildRes(a, type, k, tools);
   artCache.set(ref, a);
   return a;
 }
@@ -4336,71 +4486,92 @@ function statePill(shared, isModel) {
     : `<span class="mk-state mk-state--todo cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#${isModel ? 'ic-pp_brain' : 'ic-pp_integrations'}"/></svg>Needs to be added</span>`;
 }
 function shareBadge(a) {
-  const todo = setupNeeds(a);
-  if (!a.conns.length && !a.model) return `<span class="mk-state mk-state--ok cq-caption-med">Nothing to connect</span>`;
-  if (!todo.length) return `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>Included by publisher</span>`;
-  return a.conns.some(c => c.shared)
-    ? `<span class="mk-state mk-state--part cq-caption-med">Partly included</span>`
-    : `<span class="mk-state mk-state--todo cq-caption-med">Needs to be added</span>`;
+  const n = fieldsToFill(a);
+  if (!a.res.length) return `<span class="mk-state mk-state--ok cq-caption-med">Nothing to set up</span>`;
+  if (!n) return `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>All details shared</span>`;
+  return `<span class="mk-state mk-state--todo cq-caption-med">${n} ${n === 1 ? 'detail' : 'details'} to fill in</span>`;
 }
-function setupNeeds(a) {
-  const n = a.conns.filter(c => !c.shared).map(c => INTEGRATIONS[c.key].name);
-  if (a.model && !a.model.shared) n.push('a model');
-  return n;
-}
+/* The resources that still need something, by name. */
+function setupNeeds(a) { return resNeeds(a).map(r => r.name); }
 const listJoin = xs => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 function connLede(a) {
   const w = TYPE_WORD[a.type];
-  if (!a.conns.length && !a.model) return `This ${w} runs on the platform's built-in policy engine. There's nothing to connect.`;
-  const have = [a.conns.length ? 'connections' : '', a.model ? 'model' : ''].filter(Boolean).join(' and ');
-  if (!setupNeeds(a).length) return `The publisher has shared their ${have} with this ${w}. It works as soon as you add it, running on the publisher's accounts and model.`;
-  if (a.conns.some(c => c.shared)) return `The publisher has shared some connections but not all of them. The ones marked below need to be added${a.model && !a.model.shared ? ', along with a model,' : ''} before the first run.`;
-  const what = [a.conns.length ? (a.conns.length === 1 ? 'integration' : 'integrations') : '', a.model ? 'model' : ''].filter(Boolean).join(' and ');
-  return `The publisher has not shared their ${a.conns.length ? 'connections or ' : ''}model. After you add this ${w}, the ${what} below need${what === 'model' || what === 'integration' ? 's' : ''} to be added before it can run.`;
+  if (!a.res.length) return `This ${w} runs on the platform's built-in policy engine. There's nothing to set up.`;
+  const n = fieldsToFill(a), r = resNeeds(a).length;
+  if (!n) return `Everything below comes with this ${w}, and the publisher shared every detail it needs. It works as soon as it's added to your workspace.`;
+  return `Everything below comes with this ${w}. The publisher kept some details private, so after it's added you fill in ${plural(n, 'detail')} across ${plural(r, 'resource')}. Open a resource to see what was shared.`;
 }
 
-/* What it means to run on someone else's accounts. Shown whenever the
-   publisher shares anything, and only about what they share. */
+/* What it means to run on someone else's keys. Shown whenever the
+   publisher shares any, and only about what they share. */
 function disclaimerOf(a) {
-  const integs = a.conns.filter(c => c.shared).map(c => INTEGRATIONS[c.key].name);
-  const model = a.model && a.model.shared ? a.model.m : null;
-  if (!integs.length && !model) return '';
-  const what = integs.length && model ? 'connections and model' : integs.length ? 'connections' : 'model';
+  const sec = resSecrets(a);
+  if (!sec.length) return '';
+  const model = sec.find(x => x.r.rk === 'models');
+  const integs = sec.filter(x => x.r.rk === 'integrations').map(x => x.r.name);
   const items = [];
-  if (model) items.push(['mk-coin', `Runs use the publisher's ${esc(model.name)}. Usage is charged to your workspace.`]);
-  items.push(['mk-lock', integs.length
-    ? `Your data passes through the publisher's ${esc(listJoin(integs))} accounts${model ? `, and their ${esc(model.vendor)} model` : ''}.`
-    : `Prompts and outputs are processed by the publisher's ${esc(model.vendor)} model.`]);
-  items.push(['mk-sync', `The publisher can change or remove access. Switch to your own ${what} anytime.`]);
+  if (model) items.push(['mk-coin', `Runs use the publisher's ${esc(model.r.name)} API key. Usage is charged to your workspace.`]);
+  if (integs.length) items.push(['mk-lock', `Your data passes through the publisher's ${esc(listJoin(integs))} ${integs.length === 1 ? 'account' : 'accounts'}, signed in with their credentials.`]);
+  items.push(['mk-sync', `The publisher can rotate or revoke these keys at any time. Replace them with your own whenever you like.`]);
   return `<div class="mk-disclaimer__head">
       <svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#mk-info"/></svg>
-      <span class="cq-body2-med">Using the publisher's ${what}</span>
+      <span class="cq-body2-med">Includes the publisher's keys</span>
     </div>
     <ul class="mk-disclaimer__list">${items.map(([ic, v]) => `<li><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#${ic}"/></svg><span class="cq-body2-reg">${v}</span></li>`).join('')}</ul>`;
 }
 
-function connRow(c) {
-  const i = INTEGRATIONS[c.key];
-  return `<div class="mk-conn">
-    <span class="mk-conn__mark">${i.mark()}</span>
-    <span class="mk-conn__text">
-      <span class="cq-body2-med">${esc(i.name)}</span>
-      <span class="mk-conn__sub cq-caption-reg">${c.shared ? 'Publisher’s account' : 'Not included'}${c.used.length ? ` · used by ${esc(listJoin(c.used))}` : ''}</span>
-    </span>
-    ${statePill(c.shared, false)}
+const FIELD_OK = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FIELD_TODO = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+const whyTag = f => f.why ? `<span class="mk-why${f.why === 'Secret' ? ' mk-why--secret' : ''}">${f.why}</span>` : '';
+let pvResTab = 'all';
+let pvResOpen = null;
+function resRow(r) {
+  const todo = resTodo(r), open = pvResOpen === r.id;
+  const sub = r.type + (r.used && r.used.length ? ` · used by ${listJoin(r.used)}` : '') + (r.on && r.on.length ? ` · runs on ${listJoin(r.on)}` : '');
+  const pill = todo.length
+    ? `<span class="mk-state mk-state--todo cq-caption-med">${todo.length} to fill in</span>`
+    : `<span class="mk-state mk-state--ok cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16"><use href="#i-check"/></svg>All shared</span>`;
+  return `<div class="mk-res${todo.length ? ' is-todo' : ''}${open ? ' is-open' : ''}" data-res="${esc(r.id)}">
+    <button type="button" class="mk-res__head" aria-expanded="${open}">
+      <span class="mk-conn__mark">${r.mark()}</span>
+      <span class="mk-conn__text"><span class="cq-body2-med">${esc(r.name)}</span><span class="mk-conn__sub cq-caption-reg">${esc(sub)}</span></span>
+      ${pill}
+      <svg class="cq-ic mk-res__chev" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#ic-pp_chevron"/></svg>
+    </button>
+    ${todo.length ? `<p class="mk-res__todo cq-caption-reg">To fill in: ${todo.map(f => `<b>${esc(f.label)}</b>`).join(', ')}</p>` : ''}
+    <div class="mk-res__fields cq-caption-reg"${open ? '' : ' hidden'}>${r.fields.map(f => `
+      <span class="mk-field ${f.shared ? 'is-shared' : 'is-todo'}" title="${f.shared ? 'Shared by the publisher' : 'You fill this in'}">${f.shared ? FIELD_OK : FIELD_TODO}<span class="mk-field__l">${esc(f.label)}</span>${whyTag(f)}</span>`).join('')}
+    </div>
   </div>`;
 }
-function modelRow(mo) {
-  return `<div class="mk-conn">
-    <span class="mk-conn__mark">${mo.shared ? mo.m.mark() : '<svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16"><use href="#ic-pp_brain"/></svg>'}</span>
-    <span class="mk-conn__text">
-      <span class="cq-body2-med">${mo.shared ? esc(mo.m.name) : 'Any chat model'}</span>
-      <span class="mk-conn__sub cq-caption-reg">${mo.shared ? `Model · ${esc(mo.m.vendor)} · publisher’s deployment` : `Model · not included · publisher tested with ${esc(mo.m.name)}`}</span>
-    </span>
-    ${statePill(mo.shared, true)}
-  </div>`;
+function paintRes(a) {
+  const kinds = RES_KINDS.filter(t => a.res.some(r => r.rk === t.key));
+  if (pvResTab !== 'all' && !kinds.some(t => t.key === pvResTab)) pvResTab = 'all';
+  const tab = (key, label, list) => `<button type="button" role="tab" class="mk-rtab${key !== 'all' && list.some(r => resTodo(r).length) ? ' has-todo' : ''}" data-rtab="${key}" aria-selected="${pvResTab === key}">${label} <span class="n">${list.length}</span></button>`;
+  $('mkPvResTabs').innerHTML = kinds.length > 1
+    ? tab('all', 'All', a.res) + kinds.map(t => tab(t.key, t.label, a.res.filter(r => r.rk === t.key))).join('') : '';
+  $('mkPvResTabs').hidden = kinds.length < 2;
+  const list = pvResTab === 'all' ? a.res : a.res.filter(r => r.rk === pvResTab);
+  $('mkPvConns').innerHTML = list.map(resRow).join('');
+  $('mkPvConns').hidden = !a.res.length;
 }
+$('mkPvResTabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-rtab]'); if (!b || !pv) return;
+  pvResTab = b.dataset.rtab; pvResOpen = null; paintRes(pv);
+});
+$('mkPvConns').addEventListener('click', e => {
+  const h = e.target.closest('.mk-res__head'); if (!h || !pv) return;
+  const id = h.closest('.mk-res').dataset.res;
+  pvResOpen = pvResOpen === id ? null : id;
+  $('mkPvConns').querySelectorAll('.mk-res').forEach(row => {
+    const on = row.dataset.res === pvResOpen;
+    row.classList.toggle('is-open', on);
+    row.querySelector('.mk-res__head').setAttribute('aria-expanded', String(on));
+    row.querySelector('.mk-res__fields').hidden = !on;
+  });
+});
 
 const INSIDE_ICON = {
   agent: r => `<img src="${IMG.agent[AGENTS[Number(r.split(':')[1])].ic]}" width="20" height="20" alt="" class="mk-chip__img" />`,
@@ -4467,6 +4638,7 @@ const COMMENTS = {
 const PER_COMMENT_PAGE = 2;
 let pv = null;
 let pvCommentPage = 0;
+let pvResShown = null;
 const liked = new Set();
 const added = new Set();
 let pvReturnFocus = null;
@@ -4515,24 +4687,27 @@ function renderPreview() {
       </div>`).join('');
   }
 
-  /* Integrations and models. */
+  /* Resources and their details. */
   $('mkPvConnBadge').innerHTML = shareBadge(a);
   $('mkPvConnLede').textContent = connLede(a);
-  $('mkPvConnNote').className = `mk-note ${setupNeeds(a).length ? 'mk-note--todo' : ''}`;
-  $('mkPvConns').innerHTML = a.conns.map(connRow).join('') + (a.model ? modelRow(a.model) : '');
-  $('mkPvConns').hidden = !a.conns.length && !a.model;
+  $('mkPvConnNote').className = `mk-note ${fieldsToFill(a) ? 'mk-note--todo' : ''}`;
+  if (pvResShown !== a.ref) { pvResTab = 'all'; pvResOpen = null; pvResShown = a.ref; }
+  paintRes(a);
   const disc = disclaimerOf(a);
   $('mkPvDisclaimer').innerHTML = disc;
   $('mkPvDisclaimer').hidden = !disc;
 
   /* The setup summary at the top of the side column. */
-  const todo = setupNeeds(a);
+  const todo = resNeeds(a);
+  const nTodo = fieldsToFill(a);
+  const MAX = 4;
   $('mkPvSetup').className = `mk-box mk-setup ${todo.length ? 'mk-setup--todo' : 'mk-setup--ok'}`;
   $('mkPvSetup').innerHTML = todo.length
-    ? `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_integrations"/></svg><span class="cq-body2-med">To be added before first run</span></span>
-       <ul class="mk-setup__list cq-caption-reg">${a.conns.filter(x => !x.shared).map(x => `<li>${esc(INTEGRATIONS[x.key].name)} integration</li>`).join('')}${a.model && !a.model.shared ? '<li>A model</li>' : ''}</ul>`
+    ? `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_edit"/></svg><span class="cq-body2-med">${nTodo} ${nTodo === 1 ? 'detail' : 'details'} to fill in</span></span>
+       <span class="mk-setup__note cq-caption-reg">Added with everything else. Fill these in after adding, before the first run.</span>
+       <ul class="mk-setup__list cq-caption-reg">${todo.slice(0, MAX).map(r => { const f = resTodo(r).map(x => x.label); return `<li><b>${esc(r.name)}</b> · ${esc(f.length > 2 ? f.slice(0, 2).join(', ') + ` +${f.length - 2}` : f.join(', '))}</li>`; }).join('')}${todo.length > MAX ? `<li>and ${todo.length - MAX} more</li>` : ''}</ul>`
     : `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to run</span></span>
-       <span class="mk-setup__note cq-caption-reg">${a.conns.length || a.model ? 'Runs on the publisher’s connections and model. Usage is charged to your workspace.' : 'Nothing to connect.'}</span>`;
+       <span class="mk-setup__note cq-caption-reg">${a.res.length ? 'Every detail it needs was shared by the publisher.' : 'Nothing to set up.'}</span>`;
 
   $('mkPvSimH').textContent = `Similar ${a.type === 'automation' ? 'automations' : TYPES[a.type].label.toLowerCase()} in this category`;
   $('mkPvSimilar').innerHTML = similarTo(a).map(artCard).join('');
@@ -4597,56 +4772,66 @@ const WS_NAME = { agent: 'Agents', automation: 'Automations' };
 const toWorkspace = a => IN_SHELL && WS_PAGE[a.type];
 
 function workspacePayload(a) {
-  const needs = a.conns.filter(c => !c.shared)
-    .map(c => ({ kind: 'integration', key: c.key, name: INTEGRATIONS[c.key].name, used: c.used }));
-  if (a.model && !a.model.shared) needs.push({ kind: 'model', key: 'model', name: 'Model', tested: a.model.m.name });
+  const one = rk => RES_KINDS.find(t => t.key === rk).one;
+  const needs = resNeeds(a).map(r => ({
+    kind: one(r.rk), rk: r.rk, key: r.id, name: r.name, type: r.type, used: r.used || [], on: r.on || [],
+    fields: resTodo(r).map(f => ({ k: f.k, label: f.label, why: f.why })),
+    sharedFields: r.fields.filter(f => f.shared).map(f => f.label)
+  }));
   const group = k => ((a.inside.find(g => g.key === k) || {}).items || []).map(x => x.name);
+  const now = Date.now();
   return {
     ref: a.ref, kind: a.type, name: a.title, desc: a.desc,
     publisher: a.creator.name, tags: [a.facets[0].toLowerCase()],
-    model: a.model ? a.model.m.name : null, modelShared: !a.model || a.model.shared,
-    shared: a.conns.filter(c => c.shared).map(c => INTEGRATIONS[c.key].name),
+    model: a.model ? a.model.m.name : null, modelShared: true,
+    shared: a.conns.map(c => INTEGRATIONS[c.key].name),
+    included: a.res.map(r => ({ kind: one(r.rk), name: r.name, type: r.type, total: r.fields.length, todo: resTodo(r).length })),
+    secrets: resSecrets(a).map(x => x.r.name),
     needs, ready: !needs.length,
     tools: group('tool'), skills: group('skill'), guards: group('guardrail'),
     agents: group('agent'), checkpoints: group('checkpoint'),
-    config: { done: {}, model: '' }, added: Date.now()
+    /* Nothing lands in the workspace straight away: the request goes to
+       the workspace admins, then through the workspace's policy checks. */
+    status: 'requested', requestedAt: now,
+    config: { done: {} }, added: now
   };
 }
 function goWorkspace(a) {
   parent.postMessage({ cqNav: WS_PAGE[a.type], cqFocus: a.ref }, '*');
 }
+function goTrack(a) {
+  parent.postMessage({ cqNav: WS_PAGE[a.type], cqFocus: 'req:' + a.ref }, '*');
+}
+/* Where each request stands, as the workspace pages report it. */
+const wsStatus = new Map();
 function paintAdd() {
   if (!pv) return;
   const on = added.has(pv.ref);
+  const st = wsStatus.get(pv.ref);
   $('mkPvAdd').classList.toggle('is-added', on);
   $('mkPvAddLabel').textContent = !on ? 'Add to workspace'
-    : toWorkspace(pv) ? `Open in ${WS_NAME[pv.type]}` : 'Added to workspace';
+    : !toWorkspace(pv) ? 'Requested'
+    : st === 'added' ? `Open in ${WS_NAME[pv.type]}` : 'Track request';
 }
 
 /* ── Caution before adding ─────────────────────────────────────────
    When the publisher shared anything secret — a signed-in connection, or
    their model deployment and its API key — whoever adds it is told so
    first, plainly, before it lands in their workspace. */
-const sharedSecrets = a => {
-  const out = a.conns.filter(c => c.shared).map(c => ({
-    mark: INTEGRATIONS[c.key].mark(), name: INTEGRATIONS[c.key].name,
-    sub: `Publisher's signed-in account${c.used.length ? ` · used by ${listJoin(c.used)}` : ''}`,
-    secret: 'Sign-in hidden'
-  }));
-  if (a.model && a.model.shared) out.push({
-    mark: a.model.m.mark(), name: a.model.m.name,
-    sub: `${a.model.m.vendor} · publisher's deployment and API key`, secret: 'API key hidden'
-  });
-  return out;
-};
+const sharedSecrets = a => resSecrets(a).map(({ r, f }) => ({
+  mark: r.mark(), name: r.name,
+  sub: `${r.type} · ${listJoin(f.map(x => x.label))} shared`,
+  secret: 'Hidden from you'
+}));
 let cautionNext = null;
 let cautionFocus = null;
 function openCaution(a, next) {
   const items = sharedSecrets(a);
   const w = TYPE_WORD[a.type];
-  const has = { conns: a.conns.some(c => c.shared), model: !!(a.model && a.model.shared) };
-  const what = has.conns && has.model ? 'connections and model' : has.conns ? 'connections' : 'model';
-  $('mkCautionD').innerHTML = `<b>${esc(a.creator.name)}</b> shared their own ${what} with <b>${esc(a.title)}</b>. Once you add this ${esc(w)}, it runs on their credentials, not yours.`;
+  const sec = resSecrets(a);
+  const model = sec.find(x => x.r.rk === 'models');
+  const integ = sec.some(x => x.r.rk !== 'models');
+  $('mkCautionD').innerHTML = `<b>${esc(a.creator.name)}</b> shared their own keys and sign-in details with <b>${esc(a.title)}</b>. Once it's in your workspace, these parts run on their credentials, not yours.`;
   $('mkCautionList').innerHTML = items.map(x => `
     <div class="mk-caution__row">
       <span class="mk-caution__mark">${x.mark}</span>
@@ -4654,11 +4839,11 @@ function openCaution(a, next) {
       <span class="mk-caution__secret cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><use href="#mk-lock"/></svg>${esc(x.secret)}</span>
     </div>`).join('');
   const pts = [
-    ['mk-lock', `The publisher's API keys, tokens and sign-ins stay hidden. You can use them through this ${esc(w)}, but you can't view, copy or export them.`],
-    ['mk-info', `Whatever it reads or sends goes through the publisher's ${has.conns ? 'accounts' : 'model deployment'}, so that activity may show up in their own logs. Avoid confidential data unless your organisation allows it.`]
+    ['mk-lock', `The publisher's keys, secrets and sign-ins stay hidden. You can use them through this ${esc(w)}, but you can't view, copy or export them.`],
+    ['mk-info', `Whatever it reads or sends goes through the publisher's ${integ ? 'accounts' : 'model deployment'}, so that activity may show up in their own logs. Your workspace admins see this too when they review the request.`]
   ];
-  if (has.model) pts.push(['mk-coin', `Runs use the publisher's ${esc(a.model.m.name)} deployment. Usage is charged to your workspace.`]);
-  pts.push(['mk-sync', `The publisher can rotate or revoke access at any time, and it stops working until you connect your own. You can switch to your own ${what} whenever you like.`]);
+  if (model) pts.push(['mk-coin', `Runs use the publisher's ${esc(model.r.name)} API key. Usage is charged to your workspace.`]);
+  pts.push(['mk-sync', `The publisher can rotate or revoke these keys at any time, and those parts stop working until you add your own.`]);
   $('mkCautionPoints').innerHTML = pts.map(([ic, t]) =>
     `<li><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#${ic}"/></svg><span class="cq-body2-reg">${t}</span></li>`).join('');
   cautionNext = next;
@@ -4695,37 +4880,34 @@ document.addEventListener('keydown', e => {
 
 $('mkPvAdd').addEventListener('click', () => {
   const ws = toWorkspace(pv);
-  if (added.has(pv.ref)) { if (ws) goWorkspace(pv); return; }
+  if (added.has(pv.ref)) {
+    if (ws) wsStatus.get(pv.ref) === 'added' ? goWorkspace(pv) : goTrack(pv);
+    return;
+  }
   const a = pv;
   if (sharedSecrets(a).length) openCaution(a, () => addToWorkspace(a));
   else addToWorkspace(a);
 });
+/* Adding is a request: it goes to the workspace admins for review and
+   through the workspace's policies before it can be added. */
 function addToWorkspace(a) {
   const ws = toWorkspace(a);
   added.add(a.ref);
+  if (ws) { wsStatus.set(a.ref, 'requested'); parent.postMessage({ cqWsAdd: workspacePayload(a) }, '*'); }
   paintAdd();
-  const todo = setupNeeds(a);
-  const word = TYPE_ONE[a.type];
-  if (ws) parent.postMessage({ cqWsAdd: workspacePayload(a) }, '*');
-  const where = ws ? WS_NAME[a.type] : 'your workspace';
   tidbit({
-    tone: todo.length ? 'warn' : 'ok',
-    title: todo.length ? `${word} added, configure to use` : `${word} added!`,
-    text: todo.length
-      ? `${a.title} is in ${where}. Add ${listJoin(todo)} before it can be used.`
-      : `${a.title} is in ${where} and ready to use.`,
-    action: ws ? { label: `View in ${WS_NAME[a.type]}`, run: () => goWorkspace(a) } : null
+    tone: 'ok',
+    title: 'Sent for admin review',
+    text: `${a.title} has been requested to add to your workspace.`,
+    action: ws ? { label: 'Track here', run: () => goTrack(a) } : null
   });
 }
-
-/* The shell's copy is the truth: something discarded in the workspace
-   can be added again from here. */
 window.addEventListener('message', e => {
   const d = e.data || {};
   if (!Array.isArray(d.cqWorkspace)) return;
   const refs = new Set(d.cqWorkspace.map(w => w.ref));
-  [...added].forEach(r => { if (WS_PAGE[r.split(':')[0]] && !refs.has(r)) added.delete(r); });
-  refs.forEach(r => added.add(r));
+  [...added].forEach(r => { if (WS_PAGE[r.split(':')[0]] && !refs.has(r)) { added.delete(r); wsStatus.delete(r); } });
+  d.cqWorkspace.forEach(w => { added.add(w.ref); wsStatus.set(w.ref, w.status || 'added'); });
   paintAdd();
 });
 $('mkPvForm').addEventListener('submit', e => {

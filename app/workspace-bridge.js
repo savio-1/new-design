@@ -6,14 +6,19 @@
    and adds what was taken from the Marketplace to the page's own
    inventory, drawn with the page's own card.
 
-   Every such card carries a Marketplace tag in its footer. Then one of
-   two states, decided in the Marketplace when the item was added:
-     ready        everything it needs was shared by the publisher. The
-                  card opens the page's own detail panel, as any other.
-     needs setup  the publisher kept some connections or their model.
-                  An alert icon sits beside the name; opening the card
-                  asks for configuration first, in a dialog, and its
-                  Continue leads to the configuration screen.
+   Adding from the Marketplace is a request. It waits in its own
+   Requested category, beside the page's own tabs, while the workspace
+   admins review it and the workspace policies are checked; a tracker
+   shows where it stands. Once every check passes it can be added.
+
+   Added, it is drawn as any other card, with a Marketplace tag in its
+   footer, in one of two states:
+     ready        the publisher shared every detail it needs. The card
+                  opens the page's own detail panel, as any other.
+     needs setup  the publisher kept some details private: keys, links,
+                  task details. An alert icon sits beside the name;
+                  opening the card asks for configuration first, and its
+                  Continue leads to a form with a field per detail.
    ════════════════════════════════════════════════════════════════════ */
 (function () {
   var PAGE = typeof AUTOS !== 'undefined' ? 'automation'
@@ -30,8 +35,6 @@
   var dlgRef = null;      /* … in the dialog */
   var cfgRef = null;      /* … on the configuration screen */
   var WORD = PAGE === 'agent' ? 'agent' : 'automation';
-
-  var MODEL_CHOICES = ['GPT-4.1', 'GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 2.5 Pro', 'Mistral Large 2'];
 
   /* ── Glyphs. Integrations and the model use the pages' own sprite. ── */
   var IC = {
@@ -113,6 +116,7 @@
     '  border-radius:16px;background:var(--backgrounds-card-bg-2);border:1px solid var(--strokes-card-default);box-shadow:var(--shadow-tiq);',
     '  transform:translateY(6px) scale(.98);transition:transform .2s cubic-bezier(.2,.8,.2,1)}',
     '.mkws-scrim.is-shown .mkws-dlg{transform:none}',
+    '.mkws-dlg:focus{outline:none}',
     /* Icon and heading on one row; the text below runs from the left edge. */
     '.mkws-dlg__intro{display:flex;flex-direction:column;gap:8px}',
     '.mkws-dlg__head{display:flex;align-items:center;gap:10px}',
@@ -162,6 +166,100 @@
     '  background:var(--backgrounds-card-bg-4);color:var(--text-secondary);font:400 12px/1 var(--font-geist);letter-spacing:-.24px}',
     '.mkws-pill2 .cq-ic{color:var(--text-teritiary)}',
     '.mkws-side p{margin:0;color:var(--text-secondary)}',
+
+
+    /* Field-level setup: one card per resource, a field per private detail */
+    '.mkws-form{display:flex;flex-direction:column;gap:12px}',
+    '.mkws-res{border:1px solid var(--strokes-line-1);border-radius:12px;background:var(--backgrounds-page-bg-2);overflow:hidden}',
+    '.mkws-res__head{display:flex;align-items:center;gap:12px;padding:12px 14px}',
+    '.mkws-res.is-done .mkws-step__ic{background:var(--backgrounds-badge-green);color:var(--text-coloured-green)}',
+    '.mkws-res__st{flex:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;color:var(--text-coloured-orange);font:500 var(--fs-caption,12px)/16px var(--font-geist)}',
+    '.mkws-res.is-done .mkws-res__st{color:var(--text-coloured-green)}',
+    '.mkws-res__shared{margin:-4px 0 0;padding:0 14px 12px 58px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.mkws-res__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;padding:12px 14px 14px;border-top:1px solid var(--strokes-line-3)}',
+    '.mkws-res__grid--one{grid-template-columns:minmax(0,1fr)}',
+    '.mkws-f{display:flex;flex-direction:column;gap:6px;min-width:0;margin:0}',
+    '.mkws-f--wide{grid-column:1/-1}',
+    '.mkws-f__l{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font:500 12px/16px var(--font-geist)}',
+    '.mkws-f__l .ok{margin-left:auto;display:inline-flex;color:var(--text-coloured-green)}',
+    '.mkws-f__l .ok[hidden]{display:none}',
+    '.mkws-why{padding:0 5px;border-radius:4px;border:1px solid var(--strokes-line-1);color:var(--text-teritiary);font:400 10px/14px var(--font-geist)}',
+    '.mkws-why--secret{border-color:var(--strokes-colour-orange);color:var(--text-coloured-orange)}',
+    '.mkws-in{display:block;width:100%;height:34px;margin:0;padding:0 10px;box-sizing:border-box;border-radius:8px;background:var(--backgrounds-type-default-bg-1);',
+    '  border:1px solid var(--strokes-type-default);color:var(--text-primary);font:400 13px/18px var(--font-geist);letter-spacing:-.2px}',
+    'textarea.mkws-in{height:64px;padding:8px 10px;resize:vertical}',
+    '.mkws-in::placeholder{color:var(--text-teritiary);opacity:1}',
+    '.mkws-in:focus{outline:none;border-color:var(--strokes-type-focus)}',
+    '.mkws-up{width:100%;height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;cursor:pointer;background:none;',
+    '  border:1px dashed var(--strokes-line-1) !important;color:var(--text-secondary) !important;font:500 12px/16px var(--font-geist) !important}',
+    '.mkws-up:hover{border-color:var(--strokes-card-selected) !important;color:var(--text-primary) !important}',
+    '.mkws-up.is-set{justify-content:flex-start;padding:0 10px;border-style:solid !important;color:var(--text-coloured-green) !important}',
+
+    /* Requested from the Marketplace: its own category, with a tracker */
+    '.mkreq-on > :not(.cq-page__bar):not(#mkreqPane){display:none !important}',
+    '.mkreq-on .cq-page__bar .cq-search,.mkreq-on .cq-page__bar #newBtn,.mkreq-on .cq-page__bar #newWrap{visibility:hidden}',
+    'body.mkreq-body .cq-page__sidebar{display:none}',
+    '.mkreq-pane{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:20px;padding:24px}',
+    '.mkreq-pane[hidden]{display:none}',
+    '.mkreq-head h2{margin:0;color:var(--text-primary)}',
+    '.mkreq-head p{margin:4px 0 0;max-width:720px;color:var(--text-secondary)}',
+    '.mkreq-list{display:flex;flex-direction:column;gap:10px}',
+    '.mkreq-row{width:100%;display:grid;grid-template-columns:36px minmax(0,1fr) minmax(200px,280px) 150px 16px;align-items:center;gap:16px;',
+    '  padding:14px 16px;border-radius:12px;text-align:left;cursor:pointer;font:inherit;color:inherit;',
+    '  background:var(--backgrounds-card-bg-2);border:1px solid var(--strokes-card-default);',
+    '  transition:border-color .15s ease,box-shadow .2s ease,transform .2s ease}',
+    '.mkreq-row:hover{border-color:var(--strokes-card-selected);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.18)}',
+    '.mkreq-row:focus-visible{outline:2px solid var(--strokes-type-focus);outline-offset:2px}',
+    '@media (max-width:900px){.mkreq-row{grid-template-columns:36px minmax(0,1fr) 150px 16px}.mkreq-row .mkreq-mini{display:none}}',
+    '.mkreq-mark{width:36px;height:36px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
+    '.mkreq-id{display:flex;flex-direction:column;gap:2px;min-width:0}',
+    '.mkreq-id .t{color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.mkreq-id .s{color:var(--text-teritiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.mkreq-mini{display:flex;flex-direction:column;gap:6px;min-width:0}',
+    '.mkreq-mini .l{color:var(--text-secondary);font:400 12px/16px var(--font-geist)}',
+    '.mkreq-bars{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}',
+    '.mkreq-bars i{height:4px;border-radius:2px;background:var(--backgrounds-card-bg-4)}',
+    '.mkreq-bars i.is-done{background:var(--text-coloured-green)}',
+    '.mkreq-bars i.is-now{background:linear-gradient(90deg,var(--backgrounds-card-bg-4) 0,var(--text-coloured-blue) 50%,var(--backgrounds-card-bg-4) 100%);background-size:200% 100%;animation:mkreq-run 1.4s linear infinite}',
+    '@keyframes mkreq-run{from{background-position:100% 0}to{background-position:-100% 0}}',
+    '.mkreq-pill{justify-self:start;height:24px;display:inline-flex;align-items:center;gap:6px;padding:0 9px;border-radius:12px;white-space:nowrap;',
+    '  background:var(--backgrounds-badge-blue);border:1px solid var(--strokes-colour-blue);color:var(--text-coloured-blue);font:500 12px/16px var(--font-geist)}',
+    '.mkreq-pill.is-ready{background:var(--backgrounds-badge-green);border-color:var(--strokes-colour-green);color:var(--text-coloured-green)}',
+    '.mkreq-chev{color:var(--text-teritiary);display:inline-flex}',
+    '.mkreq-spin{width:10px;height:10px;flex:none;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:mkreq-rot .8s linear infinite}',
+    '@keyframes mkreq-rot{to{transform:rotate(360deg)}}',
+    '.mkreq-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:64px 24px;border:1px dashed var(--strokes-line-1);border-radius:12px;text-align:center;color:var(--text-secondary)}',
+    '.mkreq-empty .cq-btn{height:36px}',
+    /* The tracker */
+    '.mkws-dlg--wide{width:min(560px,100%)}',
+    '.mkreq-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-line-1)}',
+    '.mkreq-item .mkreq-id{flex:1 1 auto}',
+    '.mkreq-steps{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}',
+    '.mkreq-step{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:12px;padding-bottom:18px}',
+    '.mkreq-step:last-child{padding-bottom:0}',
+    '.mkreq-step::before{content:"";position:absolute;left:11px;top:28px;bottom:4px;width:2px;border-radius:1px;background:var(--strokes-line-1)}',
+    '.mkreq-step:last-child::before{display:none}',
+    '.mkreq-step.is-done::before{background:var(--strokes-colour-green)}',
+    '.mkreq-dot{width:24px;height:24px;box-sizing:border-box;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;',
+    '  border:1.5px solid var(--strokes-line-1);background:var(--backgrounds-card-bg-2);color:var(--text-teritiary);font:500 11px/1 var(--font-geist)}',
+    '.is-done > .mkreq-dot{border-color:var(--strokes-colour-green);background:var(--backgrounds-badge-green);color:var(--text-coloured-green)}',
+    '.is-now > .mkreq-dot{border-color:var(--strokes-colour-blue);background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
+    '.mkreq-step__b{display:flex;flex-direction:column;gap:2px;min-width:0;padding-top:2px}',
+    '.mkreq-step__t{display:flex;align-items:center;gap:8px;color:var(--text-primary)}',
+    '.is-todo .mkreq-step__t{color:var(--text-teritiary)}',
+    '.mkreq-step__s{color:var(--text-secondary)}',
+    '.mkreq-tag{height:20px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;border-radius:10px;font:500 11px/1 var(--font-geist);',
+    '  background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
+    '.mkreq-tag.is-ok{background:var(--backgrounds-badge-green);color:var(--text-coloured-green)}',
+    '.mkreq-checks{margin:8px 0 0;padding:8px 10px;list-style:none;display:flex;flex-direction:column;gap:6px;border-radius:10px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-line-3)}',
+    '.mkreq-checks li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:start;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.mkreq-checks li b{display:block;font-weight:500;color:var(--text-secondary)}',
+    '.mkreq-checks li.is-ok{color:var(--text-secondary)}',
+    '.mkreq-checks li.is-ok b{color:var(--text-primary)}',
+    '.mkreq-checks .ci{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;margin-top:0}',
+    '.mkreq-checks li.is-ok .ci{color:var(--text-coloured-green)}',
+    '.mkreq-checks li.is-now .ci{color:var(--text-coloured-blue)}',
+    '.mkreq-checks .ci i{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--strokes-line-1)}',
 
     /* A toast for the page that has none of its own */
     /* Notification tidbit · design system "Single line, Button=No" */
@@ -251,12 +349,24 @@
 
   /* ── Small helpers ── */
   function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
-  function cfg(w) { if (!w.config) w.config = { done: {}, model: '' }; if (!w.config.done) w.config.done = {}; return w.config; }
-  function needDone(w, n) { var c = cfg(w); return n.kind === 'model' ? !!c.model : !!c.done[n.key]; }
+  function cfg(w) { if (!w.config) w.config = { done: {} }; if (!w.config.done) w.config.done = {}; return w.config; }
+  /* A need is one resource, with the details its publisher kept private. */
+  function fkey(n, f) { return n.key + '|' + f.k; }
+  function needLeft(w, n) { var c = cfg(w); return (n.fields || []).filter(function (f) { return !c.done[fkey(n, f)]; }); }
+  function needDone(w, n) { return !needLeft(w, n).length; }
   function remaining(w) { return (w.needs || []).filter(function (n) { return !needDone(w, n); }); }
+  function totals(w) {
+    var t = 0, l = 0;
+    (w.needs || []).forEach(function (n) { t += (n.fields || []).length; l += needLeft(w, n).length; });
+    return { total: t, left: l, done: t - l };
+  }
   function wsByRef(ref) { for (var i = 0; i < WS.length; i++) if (WS[i].ref === ref) return WS[i]; return null; }
-  function mine() { return WS.filter(function (w) { return w.kind === PAGE; }).sort(function (a, b) { return (b.added || 0) - (a.added || 0); }); }
-  function needLabel(n) { return n.kind === 'model' ? 'A model' : n.name + ' integration'; }
+  /* In the workspace: added, past review. Requested: still on its way. */
+  function mine() { return WS.filter(function (w) { return w.kind === PAGE && (w.status || 'added') === 'added'; }).sort(function (a, b) { return (b.added || 0) - (a.added || 0); }); }
+  function reqs() { return WS.filter(function (w) { return w.kind === PAGE && w.status === 'requested'; }).sort(function (a, b) { return (b.requestedAt || 0) - (a.requestedAt || 0); }); }
+  function needLabel(n) { return n.name; }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+  function listAnd(xs) { return xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]; }
   function needsSetup(ref) { var w = wsByRef(ref); return !!(w && !w.ready); }
 
   var TAG = '<span class="mkws-tag" title="Added from the Marketplace">' + IC.store + 'Marketplace</span>';
@@ -442,30 +552,85 @@
   }
 
   /* ════════════════════════════════════════════════════════════════
-     ROWS — one per missing piece, shared by the screen
+     THE FORM — a card per resource, a field per private detail
      ════════════════════════════════════════════════════════════════ */
-  function stepsHTML(w) {
-    var c = cfg(w);
-    return '<div class="mkws-steps">' + (w.needs || []).map(function (n) {
-      var done = needDone(w, n);
-      var sub, action;
-      if (n.kind === 'model') {
-        sub = done ? 'Using ' + c.model : 'Not shared by the publisher · they tested with ' + (n.tested || 'GPT-4.1');
-        action = '<select class="mkws-sel" data-mkws-model="' + E(w.ref) + '" aria-label="Choose a model">' +
-          '<option value="">Choose a model</option>' +
-          MODEL_CHOICES.map(function (m) { return '<option' + (c.model === m ? ' selected' : '') + '>' + E(m) + '</option>'; }).join('') +
-          '</select>';
-      } else {
-        sub = done ? 'Connected to your ' + n.name + ' account'
-          : 'Not shared by the publisher' + (n.used && n.used.length ? ' · used by ' + n.used.join(', ') : '');
-        action = done ? '<span class="mkws-ok">' + IC.check + 'Connected</span>'
-          : '<button type="button" class="cq-btn cq-btn--tonal" data-mkws-connect="' + E(n.key) + '" data-mkws-w="' + E(w.ref) + '">Connect</button>';
-      }
-      return '<div class="mkws-step' + (done ? ' is-done' : '') + '">' +
-        '<span class="mkws-step__ic">' + (done ? IC.check : n.kind === 'model' ? IC.brain : IC.plug) + '</span>' +
-        '<span class="mkws-step__id"><span class="t cq-body2-med">' + E(n.kind === 'model' ? 'Model' : n.name) + '</span>' +
-        '<span class="s cq-caption-reg">' + E(sub) + '</span></span>' + action + '</div>';
-    }).join('') + '</div>';
+  var PH = {
+    api_key: 'sk-…', base_url: 'https://your-resource.openai.azure.com', endpoint: 'https://api.example.com/v1',
+    tenant_id: '00000000-0000-0000-0000-000000000000', client_id: 'Application (client) ID', client_secret: 'Client secret value',
+    site_id: 'contoso.sharepoint.com,…', drive_id: 'b!…', bearer_token: 'Paste a token', connection_id: 'Your connection',
+    connection_payload: '{ "query": "…" }', llm_connection_id: 'Your LLM connection', document_path: '/Shared Documents/…',
+    bucket_name: 'my-bucket', bucket_url: 'https://my-bucket.s3.amazonaws.com', access_key_id: 'AKIA…', secret_access_key: 'Secret access key',
+    custom_variables: 'KEY=value', task_description: 'What should it do, step by step?', expected_output: 'What a good result looks like',
+    guardrail_content: 'The rules it enforces'
+  };
+  var LONG = { task_description: 1, expected_output: 1, guardrail_content: 1, custom_tool_code: 1, connection_payload: 1, agent_backstory: 1 };
+  var UPLOAD = { knowledge_base: 'knowledge-base.zip', files: 'reference-docs.zip' };
+  var KIND_IC = { integration: IC.plug, model: IC.brain, tool: IC.tool, agent: IC.agent, skill: IC.skill, guardrail: IC.guard };
+  var KIND_ORDER = [['agent', 'AGENTS'], ['tool', 'TOOLS'], ['integration', 'INTEGRATIONS'], ['model', 'MODELS'], ['skill', 'SKILLS'], ['guardrail', 'GUARDRAILS']];
+
+  function fieldHTML(w, n, f) {
+    var id = w.ref + '|' + n.key + '|' + f.k;
+    var v = cfg(w).done[fkey(n, f)] || '';
+    var why = f.why ? '<span class="mkws-why' + (f.why === 'Secret' ? ' mkws-why--secret' : '') + '">' + E(f.why) + '</span>' : '';
+    var ok = '<span class="ok"' + (v ? '' : ' hidden') + '>' + IC.check + '</span>';
+    var ctl;
+    if (f.why === 'Data') ctl = '<button type="button" class="mkws-up' + (v ? ' is-set' : '') + '" data-mkws-upload="' + E(id) + '">' + (v ? IC.check + E(v) : 'Upload files') + '</button>';
+    else if (LONG[f.k]) ctl = '<textarea class="mkws-in" data-mkws-field="' + E(id) + '" placeholder="' + E(PH[f.k] || '') + '">' + E(v) + '</textarea>';
+    else ctl = '<input class="mkws-in" type="' + (f.why === 'Secret' ? 'password' : 'text') + '" data-mkws-field="' + E(id) + '" value="' + E(v) + '" placeholder="' +
+      E(PH[f.k] || 'Enter ' + f.label.toLowerCase()) + '" autocomplete="off" spellcheck="false" />';
+    return '<label class="mkws-f' + (LONG[f.k] ? ' mkws-f--wide' : '') + '"><span class="mkws-f__l">' + E(f.label) + why + ok + '</span>' + ctl + '</label>';
+  }
+  function stText(left, tot) { return left ? left + ' of ' + tot + ' to fill in' : IC.check + 'Done'; }
+  function resHTML(w, n, compact) {
+    var left = needLeft(w, n).length;
+    var sub = n.type + (n.used && n.used.length ? ' · used by ' + n.used.join(', ') : '') + (n.on && n.on.length ? ' · runs on ' + n.on.join(', ') : '');
+    return '<div class="mkws-res' + (left ? '' : ' is-done') + '" data-mkws-res="' + E(w.ref + '|' + n.key) + '">' +
+      '<div class="mkws-res__head"><span class="mkws-step__ic">' + (KIND_IC[n.kind] || IC.plug) + '</span>' +
+        '<span class="mkws-step__id"><span class="t cq-body2-med">' + E(n.name) + '</span><span class="s cq-caption-reg">' + E(sub) + '</span></span>' +
+        '<span class="mkws-res__st" data-mkws-st>' + stText(left, n.fields.length) + '</span></div>' +
+      (n.sharedFields && n.sharedFields.length ? '<p class="mkws-res__shared">Shared by the publisher: ' + E(n.sharedFields.join(', ')) + '</p>' : '') +
+      '<div class="mkws-res__grid' + (compact ? ' mkws-res__grid--one' : '') + '">' + n.fields.map(function (f) { return fieldHTML(w, n, f); }).join('') + '</div>' +
+    '</div>';
+  }
+  function formHTML(w, compact) {
+    return '<div class="mkws-form" data-mkws-form="' + E(w.ref) + '">' + (w.needs || []).map(function (n) { return resHTML(w, n, compact); }).join('') + '</div>';
+  }
+  function progHTML(T) {
+    return '<span class="mkws-prog__bar"><i style="width:' + (T.total ? Math.round(T.done / T.total * 100) : 100) + '%"></i></span>' + T.done + ' of ' + T.total + ' filled in';
+  }
+  function noteHTML(w) {
+    var T = totals(w), left = remaining(w);
+    return T.left
+      ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>' + plural(T.left, 'detail') + ' left in ' + listAnd(left.map(function (n) { return n.name; })) +
+        '. Until they are filled in it stays in your workspace as a draft and cannot run.</span></div>'
+      : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>Every detail is filled in. Finish setup to start using it.</span></div>';
+  }
+  /* Typing never repaints: only the counts and ticks around the field move. */
+  function patch(w) {
+    (w.needs || []).forEach(function (n) {
+      var el = document.querySelector('[data-mkws-res="' + w.ref + '|' + n.key + '"]');
+      if (!el) return;
+      var left = needLeft(w, n).length;
+      el.classList.toggle('is-done', !left);
+      el.querySelector('[data-mkws-st]').innerHTML = stText(left, n.fields.length);
+      var ic = el.querySelector('.mkws-step__ic');
+      if (ic) ic.innerHTML = left ? (KIND_IC[n.kind] || IC.plug) : IC.check;
+    });
+    var T = totals(w);
+    document.querySelectorAll('[data-mkws-prog="' + w.ref + '"]').forEach(function (el) { el.innerHTML = progHTML(T); });
+    document.querySelectorAll('[data-mkws-finish="' + w.ref + '"]').forEach(function (b) { b.disabled = T.left > 0; });
+    document.querySelectorAll('[data-mkws-left="' + w.ref + '"]').forEach(function (el) { el.innerHTML = noteHTML(w); });
+    if (window.mkws && typeof window.mkws.onchange === 'function') window.mkws.onchange(w.ref);
+  }
+  function setField(id, v, el) {
+    var p = id.split('|'), w = wsByRef(p[0]);
+    if (!w) return;
+    var k = p[1] + '|' + p[2];
+    if (v) cfg(w).done[k] = v; else delete cfg(w).done[k];
+    var ok = el && el.closest('.mkws-f') && el.closest('.mkws-f').querySelector('.ok');
+    if (ok) ok.hidden = !v;
+    saveQuiet(w);
+    patch(w);
   }
 
   /* ── The panel section, ready items only ── */
@@ -474,19 +639,16 @@
     if (!sec) return;
     if (!w || !w.ready) { sec.hidden = true; sec.innerHTML = ''; return; }
     sec.hidden = false;
-    var c = cfg(w);
-    var shared = (w.shared || []).slice();
-    if (w.model && w.modelShared) shared.push(w.model);
+    var inc = w.included || [];
     sec.innerHTML =
       '<span class="cq-section-label cq-caption-med">FROM THE MARKETPLACE</span>' +
       '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>' +
-        (w.needs && w.needs.length ? 'Configured and ready to use.' : 'Ready to use. Everything it needs was shared by the publisher.') + '</span></div>' +
+        (w.needs && w.needs.length ? 'Every detail is filled in. Ready to use.' : 'Ready to use. The publisher shared every detail it needs.') + '</span></div>' +
       '<div>' +
         '<div class="mkws-kv"><span class="k">Publisher</span><span class="v">' + E(w.publisher) + '</span></div>' +
-        (shared.length ? '<div class="mkws-kv"><span class="k">Runs on publisher’s</span><span class="v">' + E(shared.join(', ')) + '</span></div>' : '') +
-        ((w.needs || []).filter(function (n) { return n.kind !== 'model'; }).length
-          ? '<div class="mkws-kv"><span class="k">Your connections</span><span class="v">' + E(w.needs.filter(function (n) { return n.kind !== 'model'; }).map(function (n) { return n.name; }).join(', ')) + '</span></div>' : '') +
-        (c.model ? '<div class="mkws-kv"><span class="k">Model</span><span class="v">' + E(c.model) + '</span></div>' : '') +
+        (inc.length ? '<div class="mkws-kv"><span class="k">Came with</span><span class="v">' + E(plural(inc.length, 'resource')) + '</span></div>' : '') +
+        ((w.needs || []).length ? '<div class="mkws-kv"><span class="k">Filled in by you</span><span class="v">' + E(w.needs.map(function (n) { return n.name; }).join(', ')) + '</span></div>' : '') +
+        ((w.secrets || []).length ? '<div class="mkws-kv"><span class="k">Publisher’s keys</span><span class="v">' + E(w.secrets.join(', ')) + '</span></div>' : '') +
         '<div class="mkws-kv"><span class="k">Added</span><span class="v">' + E(when(w.added)) + '</span></div>' +
       '</div>';
   }
@@ -507,6 +669,7 @@
     dlgRef = ref;
     lastFocus = document.activeElement;
     var needs = w.needs || [];
+    var T = totals(w);
     var scrim = document.createElement('div');
     scrim.className = 'mkws-scrim'; scrim.id = 'mkwsDlg';
     scrim.innerHTML =
@@ -517,19 +680,17 @@
             '<h2 class="mkws-dlg__title cq-subhead2-med" id="mkwsDlgT">Configure before it can be used</h2>' +
             '<button type="button" class="mkws-x" data-mkws-dlg-close aria-label="Close">' + IC.close + '</button>' +
           '</div>' +
-          '<p class="mkws-dlg__text cq-body2-reg" id="mkwsDlgD"><b>' + E(w.name) + '</b> was added from the Marketplace. ' +
-            E(w.publisher) + ' didn’t share ' + (needs.length === 1 ? 'one thing' : 'a few things') + ' it needs, so add your own before the first run.</p>' +
+          '<p class="mkws-dlg__text cq-body2-reg" id="mkwsDlgD"><b>' + E(w.name) + '</b> came with everything it uses. ' +
+            E(w.publisher) + ' kept some details private when publishing it, so fill in your own before the first run.</p>' +
         '</div>' +
-        '<span class="mkws-dlg__label cq-caption-med">TO BE ADDED · ' + remaining(w).length + ' OF ' + needs.length + '</span>' +
+        '<span class="mkws-dlg__label cq-caption-med">TO FILL IN · ' + T.left + ' OF ' + T.total + ' DETAILS</span>' +
         '<div class="mkws-steps">' + needs.map(function (n) {
-          var done = needDone(w, n);
+          var left = needLeft(w, n), done = !left.length;
           return '<div class="mkws-step' + (done ? ' is-done' : '') + '">' +
-            '<span class="mkws-step__ic">' + (done ? IC.check : n.kind === 'model' ? IC.brain : IC.plug) + '</span>' +
-            '<span class="mkws-step__id"><span class="t cq-body2-med">' + E(needLabel(n)) + '</span>' +
-            '<span class="s cq-caption-reg">' + E(n.kind === 'model'
-              ? (done ? 'Using ' + cfg(w).model : 'Publisher tested with ' + (n.tested || 'GPT-4.1'))
-              : (done ? 'Connected' : n.used && n.used.length ? 'Used by ' + n.used.join(', ') : 'Your own account')) + '</span></span>' +
-            (done ? '<span class="mkws-ok">' + IC.check + 'Done</span>' : '') +
+            '<span class="mkws-step__ic">' + (done ? IC.check : KIND_IC[n.kind] || IC.plug) + '</span>' +
+            '<span class="mkws-step__id"><span class="t cq-body2-med">' + E(n.name) + '</span>' +
+            '<span class="s cq-caption-reg">' + E(done ? n.type + ' · filled in' : left.map(function (f) { return f.label; }).join(', ')) + '</span></span>' +
+            (done ? '<span class="mkws-ok">' + IC.check + 'Done</span>' : '<span class="mkws-res__st">' + left.length + ' to fill in</span>') +
           '</div>';
         }).join('') + '</div>' +
         '<div class="mkws-dlg__foot">' +
@@ -583,22 +744,16 @@
   function paintConfig(w) {
     var el = byId('mkwsCfg');
     if (!el) return;
-    var needs = w.needs || [];
-    var left = remaining(w).length;
-    var doneN = needs.length - left;
-    var integ = needs.filter(function (n) { return n.kind !== 'model'; });
-    var model = needs.filter(function (n) { return n.kind === 'model'; });
-    var only = function (arr) { var c = { needs: arr, config: w.config, ref: w.ref }; return stepsHTML(c); };
+    var T = totals(w);
     var pills = function (arr, ic) {
       return '<div class="mkws-pills">' + arr.map(function (n) { return '<span class="mkws-pill2">' + ic + E(n) + '</span>'; }).join('') + '</div>';
     };
-    var inside = [];
-    if (w.agents && w.agents.length) inside.push(['AGENTS · ' + w.agents.length, pills(w.agents, IC.agent)]);
-    if (w.tools && w.tools.length) inside.push(['TOOLS · ' + w.tools.length, pills(w.tools, IC.tool)]);
-    if (w.skills && w.skills.length) inside.push(['SKILLS · ' + w.skills.length, pills(w.skills, IC.skill)]);
-    if (w.guards && w.guards.length) inside.push(['GUARDRAILS · ' + w.guards.length, pills(w.guards, IC.guard)]);
-    var shared = (w.shared || []).slice();
-    if (w.model && w.modelShared) shared.push(w.model);
+    var inc = (w.included || []);
+    var groups = KIND_ORDER.map(function (k) {
+      var list = (w.needs || []).filter(function (n) { return n.kind === k[0]; });
+      return list.length ? '<div class="mkws-cfg__group"><span class="mkws-cfg__label cq-caption-med">' + k[1] + '</span>' +
+        '<div class="mkws-form">' + list.map(function (n) { return resHTML(w, n); }).join('') + '</div></div>' : '';
+    }).join('');
 
     el.innerHTML =
       '<div class="mkws-cfg__bar">' +
@@ -610,26 +765,26 @@
             '<span class="cq-caption-reg" style="color:var(--text-teritiary)">From the Marketplace · published by ' + E(w.publisher) + '</span>' +
           '</span>' +
         '</span>' +
-        '<span class="mkws-prog cq-caption-reg"><span class="mkws-prog__bar"><i style="width:' + (needs.length ? Math.round(doneN / needs.length * 100) : 100) + '%"></i></span>' + doneN + ' of ' + needs.length + ' done</span>' +
+        '<span class="mkws-prog cq-caption-reg" data-mkws-prog="' + E(w.ref) + '">' + progHTML(T) + '</span>' +
         '<button type="button" class="cq-btn cq-btn--ghost" data-mkws-discard="' + E(w.ref) + '">Discard</button>' +
-        '<button type="button" class="cq-btn cq-btn--primary" data-mkws-finish="' + E(w.ref) + '"' + (left ? ' disabled' : '') + '>Finish setup</button>' +
+        '<button type="button" class="cq-btn cq-btn--primary" data-mkws-finish="' + E(w.ref) + '"' + (T.left ? ' disabled' : '') + '>Finish setup</button>' +
       '</div>' +
       '<div class="mkws-cfg__body">' +
         '<div class="mkws-cfg__grid">' +
           '<div class="mkws-cfg__main">' +
             '<div>' +
-              '<h2 class="mkws-cfg__h cq-subhead1-med">Set up what the publisher didn’t share</h2>' +
-              '<p class="mkws-cfg__lede cq-body2-reg">This ' + WORD + ' came with everything else it needs. Add the pieces below and it can be used straight away.</p>' +
+              '<h2 class="mkws-cfg__h cq-subhead1-med">Fill in what the publisher kept private</h2>' +
+              '<p class="mkws-cfg__lede cq-body2-reg">Every agent, tool, integration and model this ' + WORD + ' uses came with it. ' +
+                'Only the details below were kept private when it was published. Add your own and it can be used straight away.</p>' +
             '</div>' +
-            (left ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>' + left + ' of ' + needs.length + ' still to add. Until then it stays in your workspace as a draft and cannot run.</span></div>'
-                  : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>Everything is added. Finish setup to start using it.</span></div>') +
-            (integ.length ? '<div class="mkws-cfg__group"><span class="mkws-cfg__label cq-caption-med">INTEGRATIONS</span>' + only(integ) + '</div>' : '') +
-            (model.length ? '<div class="mkws-cfg__group"><span class="mkws-cfg__label cq-caption-med">MODEL</span>' + only(model) + '</div>' : '') +
+            '<div data-mkws-left="' + E(w.ref) + '">' + noteHTML(w) + '</div>' +
+            groups +
           '</div>' +
           '<aside class="mkws-side">' +
             '<div class="mkws-side__sec"><span class="mkws-side__label cq-caption-med">ABOUT</span><p class="cq-body2-reg">' + E(w.desc) + '</p></div>' +
-            inside.map(function (s) { return '<div class="mkws-side__sec"><span class="mkws-side__label cq-caption-med">' + s[0] + '</span>' + s[1] + '</div>'; }).join('') +
-            (shared.length ? '<div class="mkws-side__sec"><span class="mkws-side__label cq-caption-med">SHARED BY THE PUBLISHER</span>' + pills(shared, IC.check) + '</div>' : '') +
+            (inc.length ? '<div class="mkws-side__sec"><span class="mkws-side__label cq-caption-med">CAME WITH IT · ' + inc.length + '</span>' +
+              pills(inc.map(function (r) { return r.name; }), IC.check) + '</div>' : '') +
+            ((w.secrets || []).length ? '<div class="mkws-side__sec"><span class="mkws-side__label cq-caption-med">RUNS ON THE PUBLISHER’S KEYS</span>' + pills(w.secrets, IC.plug) + '</div>' : '') +
           '</aside>' +
         '</div>' +
       '</div>';
@@ -638,7 +793,9 @@
 
   /* ── Changes go to the shell, which keeps them for every page ── */
   function save(w) { post({ cqWsUpdate: w }); lastJSON = ''; }
-  function discard(ref) {
+  /* The shell echoes the change back; nothing on screen needs redrawing. */
+  function saveQuiet(w) { post({ cqWsUpdate: w }); lastJSON = JSON.stringify(WS); }
+  function discard(ref, msg) {
     var w = wsByRef(ref);
     WS = WS.filter(function (x) { return x.ref !== ref; });
     post({ cqWsRemove: ref });
@@ -646,7 +803,7 @@
     if (cfgRef === ref) closeConfig();
     if (openRef === ref) closePanel();
     sync();
-    if (w) say(w.name + ' was discarded from this workspace');
+    if (w) say(msg || w.name + ' was discarded from this workspace');
   }
 
   /* One capture listener for everything of ours, ahead of the page's own
@@ -673,20 +830,16 @@
       closeConfig();
       return;
     }
-    if ((t = e.target.closest('[data-mkws-connect]'))) {
+    if ((t = e.target.closest('[data-mkws-upload]'))) {
       e.stopPropagation(); e.preventDefault();
-      var w = wsByRef(t.getAttribute('data-mkws-w'));
-      if (!w || t.disabled) return;
-      var key = t.getAttribute('data-mkws-connect');
-      t.disabled = true; t.textContent = 'Connecting…';
+      if (t.classList.contains('is-busy')) return;
+      var id = t.getAttribute('data-mkws-upload');
+      t.classList.add('is-busy'); t.textContent = 'Uploading…';
       setTimeout(function () {
-        cfg(w).done[key] = true;
-        save(w);
-        if (cfgRef === w.ref) paintConfig(w);
-        refreshCard(w);
-        var n = (w.needs || []).filter(function (x) { return x.key === key; })[0];
-        say((n ? n.name : 'Account') + ' connected');
-      }, 900);
+        var name = UPLOAD[id.split('|')[2]] || 'files.zip';
+        t.classList.remove('is-busy'); t.classList.add('is-set'); t.innerHTML = IC.check + E(name);
+        setField(id, name, t);
+      }, 700);
       return;
     }
     if ((t = e.target.closest('[data-mkws-finish]'))) {
@@ -731,14 +884,9 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     }
   }, true);
-  document.addEventListener('change', function (e) {
-    var s = e.target.closest('[data-mkws-model]');
-    if (!s) return;
-    var w = wsByRef(s.getAttribute('data-mkws-model'));
-    if (!w) return;
-    cfg(w).model = s.value;
-    save(w);
-    if (cfgRef === w.ref) paintConfig(w);
+  document.addEventListener('input', function (e) {
+    var t = e.target && e.target.closest && e.target.closest('[data-mkws-field]');
+    if (t) setField(t.getAttribute('data-mkws-field'), t.value.trim(), t);
   });
 
   function refreshCard() { /* the card shows no progress; nothing to repaint */ }
@@ -759,30 +907,25 @@
         lastJSON = json;
         WS = JSON.parse(json);
         sync();
+        paintReqs(true);
+        if (trackRef) { var tw = wsByRef(trackRef); if (tw && tw.status === 'requested') paintTrack(tw); else closeTrack(true); }
         if (cfgRef) { var w = wsByRef(cfgRef); if (w && !w.ready) paintConfig(w); else if (!w) closeConfig(); }
       }
     }
     if (typeof d.cqFocus === 'string') {
       var ref = d.cqFocus;
-      setTimeout(function () { focusOn(ref); }, 120);
+      if (ref.indexOf('req:') === 0) setTimeout(function () { reqShow(true); openTrack(ref.slice(4)); }, 120);
+      else setTimeout(function () { focusOn(ref); }, 120);
     }
   });
   /* What the agent builder needs to drive setup from its own canvas. */
   window.mkws = {
     get: wsByRef,
     remaining: function (ref) { var w = wsByRef(ref); return w ? remaining(w) : []; },
-    isDone: function (ref, n) { var w = wsByRef(ref); return !!(w && needDone(w, n)); },
-    connect: function (ref, key, cb) {
-      var w = wsByRef(ref); if (!w) return;
-      setTimeout(function () {
-        cfg(w).done[key] = true;
-        save(w);
-        var n = (w.needs || []).filter(function (x) { return x.key === key; })[0];
-        say((n ? n.name : 'Account') + ' connected');
-        if (cb) cb();
-      }, 900);
-    },
-    setModel: function (ref, m) { var w = wsByRef(ref); if (!w) return; cfg(w).model = m; save(w); },
+    left: function (ref, n) { var w = wsByRef(ref); return w ? needLeft(w, n) : []; },
+    totals: function (ref) { var w = wsByRef(ref); return w ? totals(w) : { total: 0, left: 0, done: 0 }; },
+    formHTML: function (ref) { var w = wsByRef(ref); return w ? formHTML(w, true) : ''; },
+    onchange: null,
     finish: function (ref) {
       var w = wsByRef(ref); if (!w || remaining(w).length) return;
       w.ready = true;
@@ -793,5 +936,234 @@
     },
     discard: function (ref) { discard(ref); }
   };
+
+  /* ════════════════════════════════════════════════════════════════
+     REQUESTED — what was asked for from the Marketplace. It sits in a
+     category of its own until it clears admin review and the workspace
+     policies; only then can it be added.
+     ════════════════════════════════════════════════════════════════ */
+  var ADMIN_MS = 6000, CHECK_MS = 1200;
+  var ADMINS = ['Priya Nair', 'Arjun Mehta'];
+  var STEP_NAMES = ['Requested', 'Admin review', 'Workspace policy check', 'Ready to add to workspace'];
+  var STAGE_LABEL = ['Requested', 'In admin review', 'Checking workspace policies', 'Ready to add'];
+  function checksOf(w) {
+    var c = [['Publisher verified', w.publisher + ' is a verified Marketplace publisher']];
+    if (w.shared && w.shared.length) c.push(['Integrations allowed', listAnd(w.shared) + (w.shared.length === 1 ? ' is' : ' are') + ' on the workspace allow-list']);
+    if (w.model) c.push(['Model allowed', w.model + ' is approved for use in this workspace']);
+    c.push(['Credential policy', w.secrets && w.secrets.length
+      ? 'Publisher keys in ' + listAnd(w.secrets) + ' are allowed by the credential policy'
+      : 'No publisher keys or sign-ins included']);
+    c.push(['Data residency', 'Runs in your workspace region, EU West']);
+    return c;
+  }
+  function stageOf(w) {
+    var t = Date.now() - (w.requestedAt || 0), n = checksOf(w).length;
+    if (t < ADMIN_MS) return { step: 1, checks: 0, n: n };
+    var k = Math.floor((t - ADMIN_MS) / CHECK_MS);
+    return k < n ? { step: 2, checks: k, n: n } : { step: 3, checks: n, n: n };
+  }
+  function clock(t) { return new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+  var SPIN = '<span class="mkreq-spin" aria-hidden="true"></span>';
+  var CHEV = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var REQ_IC = '<svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><use href="#' + (PAGE === 'agent' ? 'ic-pp_agent' : 'ic-pp_automation') + '"/></svg>';
+
+  var seg = byId(PAGE === 'agent' ? 'srcTabs' : 'auTabs');
+  var col = seg && seg.closest('.cq-page__col');
+  var reqOn = false, lastReqSig = '', trackRef = null, trackFocus = null;
+  if (seg && col) {
+    var rb = document.createElement('button');
+    rb.setAttribute('role', 'tab'); rb.setAttribute('aria-selected', 'false'); rb.setAttribute('data-mkreq', '');
+    rb.innerHTML = 'Requested <span class="' + (PAGE === 'agent' ? 'seg-count' : 'au-seg-count') + '" id="mkreqN">0</span>';
+    seg.appendChild(rb);
+    var pane = document.createElement('div');
+    pane.id = 'mkreqPane'; pane.className = 'mkreq-pane cq-scroll-y'; pane.hidden = true; pane.setAttribute('role', 'tabpanel');
+    col.appendChild(pane);
+    setTimeout(segSync, 0);
+  }
+  function segSync() { if (seg && typeof cqSegSync === 'function') cqSegSync(seg); }
+  function reqShow(on) {
+    if (!seg || !col) return;
+    reqOn = on;
+    col.classList.toggle('mkreq-on', on);
+    document.body.classList.toggle('mkreq-body', on);
+    byId('mkreqPane').hidden = !on;
+    var mine2 = seg.querySelector('[data-mkreq]');
+    if (on) {
+      seg.querySelectorAll(':scope > button').forEach(function (b) {
+        var me = b === mine2; b.classList.toggle('is-active', me); b.setAttribute('aria-selected', String(me));
+      });
+      if (typeof closePanel === 'function') closePanel();
+      paintReqs(true);
+    } else {
+      mine2.classList.remove('is-active'); mine2.setAttribute('aria-selected', 'false');
+    }
+    segSync();
+  }
+  function bars(s) {
+    return '<span class="mkreq-bars" aria-hidden="true">' + [0, 1, 2, 3].map(function (i) {
+      var done = i < s.step || s.step === 3;
+      return '<i class="' + (done ? 'is-done' : i === s.step ? 'is-now' : '') + '"></i>';
+    }).join('') + '</span>';
+  }
+  function pillHTML(s) {
+    return s.step === 3 ? '<span class="mkreq-pill is-ready">' + IC.check + 'Ready to add</span>'
+      : '<span class="mkreq-pill">' + SPIN + STAGE_LABEL[s.step] + '</span>';
+  }
+  function reqRow(w) {
+    var s = stageOf(w);
+    return '<button type="button" class="mkreq-row" data-mkreq-open="' + E(w.ref) + '">' +
+      '<span class="mkreq-mark">' + REQ_IC + '</span>' +
+      '<span class="mkreq-id"><span class="t cq-body1-med">' + E(w.name) + '</span>' +
+        '<span class="s cq-caption-reg">Published by ' + E(w.publisher) + ' · requested ' + E(when(w.requestedAt)) + '</span></span>' +
+      '<span class="mkreq-mini">' + bars(s) + '<span class="l">Step ' + Math.min(s.step + 1, 4) + ' of 4 · ' + E(STEP_NAMES[s.step]) + '</span></span>' +
+      pillHTML(s) +
+      '<span class="mkreq-chev">' + CHEV + '</span>' +
+    '</button>';
+  }
+  function reqSig() { return reqs().map(function (w) { var s = stageOf(w); return w.ref + s.step + '.' + s.checks; }).join('|') + (reqOn ? '+' : '-'); }
+  function paintReqs(force) {
+    var list = reqs();
+    var n = byId('mkreqN');
+    if (n && n.textContent !== String(list.length)) { n.textContent = list.length; segSync(); }
+    var sig = reqSig();
+    if (!force && sig === lastReqSig) return;
+    lastReqSig = sig;
+    var p = byId('mkreqPane');
+    if (!reqOn || !p) return;
+    var focused = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-mkreq-open');
+    p.innerHTML =
+      '<div class="mkreq-head"><h2 class="cq-subhead1-med">Requested from the Marketplace</h2>' +
+        '<p class="cq-body2-reg">Each ' + WORD + ' you request is sent to your workspace admins for review, then checked against your workspace policies. ' +
+        'Once every check passes, it is ready to be added to your workspace.</p></div>' +
+      (list.length ? '<div class="mkreq-list">' + list.map(reqRow).join('') + '</div>'
+        : '<div class="mkreq-empty"><span class="cq-body1-med" style="color:var(--text-primary)">No requests yet</span>' +
+          '<span class="cq-body2-reg">' + (PAGE === 'agent' ? 'Agents' : 'Automations') + ' you add from the Marketplace wait here while they are reviewed.</span>' +
+          '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Browse the Marketplace</button></div>');
+    if (focused) { var f = p.querySelector('[data-mkreq-open="' + focused + '"]'); if (f) f.focus({ preventScroll: true }); }
+  }
+
+  function openTrack(ref) {
+    var w = wsByRef(ref);
+    if (!w) return;
+    if (w.status !== 'requested') { reqShow(false); var first = seg && seg.querySelector(':scope > button:not([data-mkreq])'); if (first) first.click(); focusOn(ref); return; }
+    closeTrack(true);
+    trackRef = ref;
+    trackFocus = document.activeElement;
+    var scrim = document.createElement('div');
+    scrim.className = 'mkws-scrim'; scrim.id = 'mkreqDlg';
+    scrim.innerHTML = '<div class="mkws-dlg mkws-dlg--wide" role="dialog" aria-modal="true" aria-labelledby="mkreqT"></div>';
+    document.body.appendChild(scrim);
+    paintTrack(w);
+    requestAnimationFrame(function () { scrim.classList.add('is-shown'); });
+    var d = scrim.querySelector('.mkws-dlg'); d.setAttribute('tabindex', '-1'); d.focus({ preventScroll: true });
+  }
+  function closeTrack(quiet) {
+    var s = byId('mkreqDlg');
+    trackRef = null;
+    if (!s) return;
+    s.remove();
+    if (!quiet && trackFocus && trackFocus.focus) trackFocus.focus();
+  }
+  function paintTrack(w) {
+    var host = byId('mkreqDlg'); if (!host) return;
+    var dlg = host.querySelector('.mkws-dlg');
+    var s = stageOf(w), T = totals(w), t0 = w.requestedAt || Date.now();
+    var checks = checksOf(w);
+    var stepCls = function (i) { return i < s.step || s.step === 3 ? 'is-done' : i === s.step ? 'is-now' : 'is-todo'; };
+    var dot = function (i) { var c = stepCls(i); return '<span class="mkreq-dot">' + (c === 'is-done' ? IC.check : c === 'is-now' ? SPIN : (i + 1)) + '</span>'; };
+    var checkList = '<ul class="mkreq-checks">' + checks.map(function (c, i) {
+      var st = i < s.checks ? 'is-ok' : i === s.checks && s.step === 2 ? 'is-now' : '';
+      return '<li class="' + st + '"><span class="ci">' + (st === 'is-ok' ? IC.check : st === 'is-now' ? SPIN : '<i></i>') + '</span>' +
+        '<span><b>' + E(c[0]) + '</b>' + E(c[1]) + '</span></li>';
+    }).join('') + '</ul>';
+    var steps = [
+      ['Requested', 'You requested it from the Marketplace · ' + clock(t0), ''],
+      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(t0 + ADMIN_MS) : 'Sent to your workspace admins, ' + listAnd(ADMINS),
+        s.step === 1 ? '<span class="mkreq-tag">' + SPIN + 'In review</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
+      ['Workspace policy check', s.step < 2 ? 'Runs once an admin approves the request'
+        : s.step === 2 ? 'Checking ' + s.n + ' workspace policies · ' + s.checks + ' passed' : 'Passed all ' + s.n + ' workspace policies',
+        s.step < 2 ? '' : s.step === 2 ? '<span class="mkreq-tag">' + SPIN + 'Checking</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Passed</span>'],
+      ['Ready to add to workspace', s.step === 3 ? 'Every check passed. Add it to your workspace to start using it.' : 'Once every check passes', '']
+    ];
+    var after = T.total
+      ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>After it is added, fill in ' + plural(T.total, 'detail') + ' in ' +
+        listAnd((w.needs || []).map(function (n) { return n.name; })) + '. The publisher kept these private.</span></div>'
+      : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>The publisher shared every detail it needs, so it is ready to use as soon as it is added.</span></div>';
+    dlg.innerHTML =
+      '<div class="mkws-dlg__head">' +
+        '<h2 class="mkws-dlg__title cq-subhead2-med" id="mkreqT">Request status</h2>' +
+        '<button type="button" class="mkws-x" data-mkreq-close aria-label="Close">' + IC.close + '</button>' +
+      '</div>' +
+      '<div class="mkreq-item"><span class="mkreq-mark">' + REQ_IC + '</span>' +
+        '<span class="mkreq-id"><span class="t cq-body2-med">' + E(w.name) + '</span>' +
+        '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + ' · published by ' + E(w.publisher) + '</span></span>' + pillHTML(s) + '</div>' +
+      '<ol class="mkreq-steps">' + steps.map(function (st, i) {
+        return '<li class="mkreq-step ' + stepCls(i) + '">' + dot(i) +
+          '<span class="mkreq-step__b"><span class="mkreq-step__t cq-body2-med">' + E(st[0]) + st[2] + '</span>' +
+          '<span class="mkreq-step__s cq-caption-reg">' + E(st[1]) + '</span>' + (i === 2 && s.step >= 2 ? checkList : '') + '</span></li>';
+      }).join('') + '</ol>' +
+      after +
+      '<div class="mkws-dlg__foot">' +
+        '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>' +
+        '<span class="sp"></span>' +
+        '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-close>Close</button>' +
+        '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (s.step === 3 ? '' : ' disabled') + '>Add to workspace</button>' +
+      '</div>';
+  }
+  function addReq(ref) {
+    var w = wsByRef(ref);
+    if (!w || stageOf(w).step < 3) return;
+    w.status = 'added'; w.added = Date.now();
+    save(w);
+    closeTrack(true);
+    sync();
+    reqShow(false);
+    var first = seg && seg.querySelector(':scope > button:not([data-mkreq])');
+    if (first) first.click();
+    paintReqs(true);
+    setTimeout(function () { focusOn(ref); }, 60);
+    var T = totals(w);
+    say(T.total ? w.name + ' is in your workspace. Fill in ' + plural(T.total, 'detail') + ' to start using it'
+                : w.name + ' is in your workspace and ready to use');
+  }
+  /* The review moves on its own; the list and tracker follow it. */
+  setInterval(function () {
+    if (!reqs().length && !trackRef) return;
+    var sig = reqSig();
+    if (sig === lastReqSig) return;
+    paintReqs();
+    if (trackRef) { var w = wsByRef(trackRef); if (w) paintTrack(w); }
+  }, 400);
+
+  document.addEventListener('click', function (e) {
+    var t;
+    if (e.target.closest('[data-mkreq]')) { e.stopPropagation(); e.preventDefault(); reqShow(true); return; }
+    if (reqOn && seg && e.target.closest('#' + seg.id + ' > button:not([data-mkreq])')) reqShow(false);
+    if ((t = e.target.closest('[data-mkreq-open]'))) { e.stopPropagation(); openTrack(t.getAttribute('data-mkreq-open')); return; }
+    if (e.target.closest('[data-mkreq-close]') || e.target.id === 'mkreqDlg') { e.stopPropagation(); closeTrack(); return; }
+    if ((t = e.target.closest('[data-mkreq-add]'))) { e.stopPropagation(); addReq(t.getAttribute('data-mkreq-add')); return; }
+    if ((t = e.target.closest('[data-mkreq-withdraw]'))) {
+      e.stopPropagation();
+      var w = wsByRef(t.getAttribute('data-mkreq-withdraw'));
+      closeTrack(true);
+      if (w) discard(w.ref, 'Request for ' + w.name + ' was withdrawn');
+      paintReqs(true);
+      return;
+    }
+    if (e.target.closest('[data-mkreq-browse]')) { e.stopPropagation(); post({ cqNav: 'marketplace.html' }); }
+  }, true);
+  document.addEventListener('keydown', function (e) {
+    if (!byId('mkreqDlg')) return;
+    if (e.key === 'Escape') { e.stopPropagation(); closeTrack(); return; }
+    if (e.key === 'Tab') {
+      var f = byId('mkreqDlg').querySelectorAll('button:not([disabled])');
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }, true);
+  window.addEventListener('resize', segSync);
+
   post({ cqWsRequest: true });
 })();

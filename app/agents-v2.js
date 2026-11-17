@@ -222,6 +222,13 @@ body.agx .ag-card__end .cq-avatar { width: 20px; height: 20px; }
 .agb-need .act { grid-column: 2; grid-row: 1 / span 2; }
 .agb-connect { padding: 3px 8px; border-radius: 6px; background: var(--backgrounds-button-primary); color: #fff !important; font: 500 11px/14px var(--font-geist); white-space: nowrap; }
 .agb-need .ok { color: var(--text-coloured-green); font: 500 11px/14px var(--font-geist); white-space: nowrap; }
+.agb-mcol { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.agb.is-setup .agb-world { padding-right: 400px; }
+.agb-mneed { display: block; width: 100%; margin-top: 4px; color: var(--text-coloured-orange); font: 400 11px/14px var(--font-geist); }
+/* Setup: the details the publisher kept private, filled in beside the canvas */
+.agb-setup__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 12px 4px; }
+.agb-setup__lede { margin: 0 4px 12px; color: var(--text-secondary); font: 400 12px/17px var(--font-geist); }
+.agb-setup .mkws-res__shared { padding-left: 14px; margin-top: -6px; }
 .agb-chip .ok { color: var(--text-coloured-green); }
 
 /* The agent in the middle */
@@ -571,6 +578,12 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
             '</label>' +
           '</div>' +
         '</div>' +
+      '</aside>' +
+      '<aside class="agb-test agb-setup" id="agbSetup" aria-label="Fill in details">' +
+        '<div class="agb-test__in">' +
+          '<div class="agb-test__head"><b>Fill in details</b><button class="agb-x" data-b="setup-close" aria-label="Close">' + SVG.close + '</button></div>' +
+          '<div class="agb-setup__body" id="agbSetupBody"></div>' +
+        '</div>' +
       '</aside>';
     document.body.appendChild(root);
     requestAnimationFrame(function () { root.classList.add('is-shown'); });
@@ -583,7 +596,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     if (!B.setup || !window.mkws) return null;
     var w = window.mkws.get(B.setup);
     if (!w) return null;
-    return { w: w, left: window.mkws.remaining(B.setup), needs: w.needs || [] };
+    return { w: w, left: window.mkws.remaining(B.setup), needs: w.needs || [], T: window.mkws.totals(B.setup) };
   }
 
   function paint() {
@@ -595,6 +608,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
 
     /* The four states of the bar, as in the frames. */
     var acts = '<button class="agb-btn agb-btn--test' + (byId('agbTest') && byId('agbTest').classList.contains('is-open') ? ' is-on' : '') + '" data-b="test">Test</button>';
+    if (S) acts = '<button class="agb-btn agb-btn--test' + (setupOpen() ? ' is-on' : '') + '" data-b="setup">Fill in details</button>' + acts;
     if (S) {
       acts += '<button class="agb-btn agb-btn--primary" data-b="finish"' + (S.left.length ? ' disabled' : '') + '>Finish setup</button>';
     } else if (edit) {
@@ -606,12 +620,12 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     byId('agbActions').innerHTML = acts;
 
     byId('agbSetupChip').innerHTML = S
-      ? '<span class="agb-setupchip">' + (S.left.length ? 'Setup · ' + (S.needs.length - S.left.length) + ' of ' + S.needs.length + ' done' : 'Setup complete') + '</span>' : '';
+      ? '<span class="agb-setupchip">' + (S.T.left ? 'Setup · ' + S.T.done + ' of ' + S.T.total + ' filled in' : 'Setup complete') + '</span>' : '';
 
     var banner = '';
     if (S && S.left.length) {
-      banner = '<div class="agb-banner agb-banner--warn"><span>Configure before it can be used: ' +
-        E(listAnd(S.left.map(function (n) { return n.kind === 'model' ? 'choose a model' : 'connect ' + n.name; }))) + '</span></div>';
+      banner = '<div class="agb-banner agb-banner--warn"><span>Configure before it can be used: fill in ' + S.T.left + ' private ' +
+        (S.T.left === 1 ? 'detail' : 'details') + '</span>' + (setupOpen() ? '' : '<button class="agb-banner__btn" data-b="setup">Fill in</button>') + '</div>';
     } else if (!edit) {
       banner = '<div class="agb-banner"><span>View-only mode. Click edit to make changes</span>' +
         '<button class="agb-banner__btn" data-b="edit">' + SVG['edit-white'] + 'Edit</button></div>';
@@ -642,41 +656,47 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
 
   function paintStage(S) {
     var a = B.a;
-    var needIntegs = {};
-    if (S) (S.w.needs || []).forEach(function (n) {
-      if (n.kind !== 'model') (n.used || []).forEach(function (t) { needIntegs[t] = n; });
-    });
-    var modelNeed = S && (S.w.needs || []).filter(function (n) { return n.kind === 'model'; })[0];
+    var left = function (n) { return window.mkws.left(B.setup, n); };
+    /* A tool's own details come first; otherwise those of the integration it runs on. */
+    var needByTool = {};
+    if (S) S.needs.forEach(function (n) { if (n.kind === 'integration') (n.used || []).forEach(function (t) { needByTool[t] = n; }); });
+    if (S) S.needs.forEach(function (n) { if (n.kind === 'tool') needByTool[n.name] = n; });
+    var modelNeed = S && S.needs.filter(function (n) { return n.kind === 'model'; })[0];
+    var modelLeft = modelNeed ? left(modelNeed) : [];
+    var selfNeed = S && S.needs.filter(function (n) { return n.kind === 'agent'; })[0];
+    var selfLeft = selfNeed ? left(selfNeed) : [];
 
-    var modelBox = hasModel()
+    var modelBox = '<span class="agb-mcol">' + (hasModel()
       ? '<span class="agb-model">' + (logoOf(a.model) ? logoHTML(logoOf(a.model), 16) : '') + E(a.model) + '</span>'
-      : '<span class="agb-ph">' + (modelNeed ? 'Choose a model · publisher tested with ' + E(modelNeed.tested || 'GPT-4.1') : 'Choose the model') + '</span>';
+      : '<span class="agb-ph">Choose the model</span>') +
+      (modelLeft.length ? '<span class="agb-mneed">' + E(listAnd(modelLeft.map(function (f) { return f.label; }))) + ' to fill in</span>' : '') + '</span>';
     var chips = function (list, emptyText, need) {
       if (!list.length) return '<span class="agb-ph">' + emptyText + '</span>';
       var rows = need && list.some(function (t) { return need[t]; });
       return '<span class="agb-list' + (rows ? ' is-rows' : '') + '">' + list.map(function (t) {
         var n = need && need[t];
         if (!rows) return '<span class="agb-chip" title="' + E(t) + '"><span>' + E(t) + '</span></span>';
-        var done = n && window.mkws && window.mkws.isDone(B.setup, n);
-        return '<span class="agb-need' + (n && !done ? ' is-warn' : '') + '" title="' + E(t) + '">' +
+        var l = n ? left(n).length : 0;
+        return '<span class="agb-need' + (l ? ' is-warn' : '') + '" title="' + E(t) + '">' +
           '<span class="nm">' + E(t) + '</span>' +
-          '<span class="via">' + (n ? E(n.name) + (done ? ' · connected' : ' · not connected') : 'Shared by the publisher') + '</span>' +
-          '<span class="act">' + (n ? (done ? '<span class="ok">✓ Connected</span>' : '<button class="agb-connect" data-connect="' + E(n.key) + '">Connect</button>') : '') + '</span>' +
+          '<span class="via">' + (n ? E(n.kind === 'tool' ? 'Tool details' : n.name) + (l ? ' · ' + l + ' to fill in' : ' · filled in') : 'Shared by the publisher') + '</span>' +
+          '<span class="act">' + (n ? (l ? '<button class="agb-connect" data-jump="' + E(n.key) + '">Fill in</button>' : '<span class="ok">✓ Done</span>') : '') + '</span>' +
         '</span>';
       }).join('') + '</span>';
     };
     var text = function (v, ph) { return v ? '<span class="agb-val">' + E(v) + '</span>' : '<span class="agb-ph">' + ph + '</span>'; };
 
-    var toolsWarn = S && Object.keys(needIntegs).some(function (t) { return a.tools.indexOf(t) >= 0 && !window.mkws.isDone(B.setup, needIntegs[t]); });
+    var toolsWarn = S && a.tools.some(function (t) { return needByTool[t] && left(needByTool[t]).length; });
 
     byId('agbStage').innerHTML =
       '<svg class="agb-wires" id="agbWires" aria-hidden="true"></svg>' +
       '<div class="agb-col agb-col--side">' +
-        node('model', 'agb-label--model', SVG.model, 'Model', true, modelBox, { pick: true, warn: !!(modelNeed && !hasModel()) }) +
+        node('model', 'agb-label--model', SVG.model, 'Model', true, modelBox, { pick: true, warn: !!modelLeft.length }) +
         node('context', 'agb-label--context', SVG.context, 'Context', false, chips(a.context, 'Add context to your assistant'), { pick: true }) +
       '</div>' +
       '<div class="agb-col agb-col--mid">' +
-        node('instructions', 'agb-label--instr', SVG.instructions, 'Instructions', false, text(a.instructions, 'Write task specific instructions'), { pick: true }) +
+        node('instructions', 'agb-label--instr', SVG.instructions, 'Instructions', false, '<span class="agb-mcol">' + text(a.instructions, 'Write task specific instructions') +
+          (selfLeft.length ? '<span class="agb-mneed">' + E(listAnd(selfLeft.map(function (f) { return f.label; }))) + ' to fill in</span>' : '') + '</span>', { pick: true, warn: !!selfLeft.length }) +
         '<div class="agb-agent" id="agbAgent">' +
           '<span class="agb-tab" id="agbTab">' + SVG.robot + '<span>' + E(a.name) + '</span></span>' +
           '<div class="agb-card" id="agbCard">' +
@@ -687,7 +707,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
         '</div>' +
       '</div>' +
       '<div class="agb-col agb-col--side">' +
-        node('tools', 'agb-label--tools', SVG.tools, 'Tools', false, chips(a.tools, 'Connect actions to perform', needIntegs), { pick: true, warn: toolsWarn }) +
+        node('tools', 'agb-label--tools', SVG.tools, 'Tools', false, chips(a.tools, 'Connect actions to perform', needByTool), { pick: true, warn: toolsWarn }) +
         node('guardrails', 'agb-label--guard', SVG.guardrails, 'Guardrails', false, chips(a.guards, 'Set boundaries on what it can say'), { pick: true }) +
       '</div>';
     byId('agbStage').style.transform = B.zoom === 100 ? '' : 'scale(' + (B.zoom / 100) + ')';
@@ -774,9 +794,32 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
      TEST
      ════════════════════════════════════════════════════════════════ */
   var LOGS = [], filter = 'all', running = false;
+  function setupOpen() { var p = byId('agbSetup'); return !!(p && p.classList.contains('is-open')); }
+  function toggleSetup(on, jump) {
+    var p = byId('agbSetup');
+    if (!p || !B || !B.setup) return;
+    on = on == null ? !p.classList.contains('is-open') : on;
+    if (on) {
+      byId('agbTest').classList.remove('is-open');
+      if (!p.classList.contains('is-open')) byId('agbSetupBody').innerHTML =
+        '<p class="agb-setup__lede">Everything this agent uses came with it. These are the details its publisher kept private; fill them in and finish setup to start using it.</p>' +
+        window.mkws.formHTML(B.setup);
+    }
+    p.classList.toggle('is-open', on);
+    root.classList.toggle('is-setup', on);
+    paint();
+    if (on && jump) setTimeout(function () {
+      var el = p.querySelector('[data-mkws-res="' + B.setup + '|' + jump + '"]');
+      if (!el) return;
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      var f = [].filter.call(el.querySelectorAll('.mkws-in'), function (x) { return !x.value; })[0];
+      if (f) f.focus({ preventScroll: true });
+    }, 260);
+  }
   function toggleTest(on) {
     var p = byId('agbTest');
     on = on == null ? !p.classList.contains('is-open') : on;
+    if (on && byId('agbSetup')) { byId('agbSetup').classList.remove('is-open'); root.classList.remove('is-setup'); }
     p.classList.toggle('is-open', on);
     paint();
     if (on) setTimeout(function () { byId('agbIn').focus(); }, 200);
@@ -978,20 +1021,14 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
       if (g && g.contains(e.target)) return onPublishClick(e);
       return;
     }
-    var t = e.target.closest('[data-b], [data-pick], [data-connect], [data-filter], [data-pop], .agb-opt, [data-menu], [data-z]');
+    var t = e.target.closest('[data-b], [data-pick], [data-jump], [data-filter], [data-pop], .agb-opt, [data-menu], [data-z]');
     var pop = byId('agbPop');
     if (pop && !pop.contains(e.target) && !(t && t.dataset.pick)) closePick();
     if (!e.target.closest('#agbMenu, [data-b="more"]')) { var m = byId('agbMenu'); if (m) m.hidden = true; }
     if (!e.target.closest('.agb-zpop, [data-b="zoom"]')) { var zp = root.querySelector('.agb-zpop'); if (zp) zp.remove(); }
     if (!t) return;
     var b = t.dataset.b;
-    if (t.dataset.connect) {
-      e.stopPropagation();
-      var key = t.dataset.connect;
-      t.disabled = true; t.textContent = 'Connecting…';
-      window.mkws.connect(B.setup, key, function () { paint(); });
-      return;
-    }
+    if (t.dataset.jump) { e.stopPropagation(); return toggleSetup(true, t.dataset.jump); }
     if (t.dataset.filter) { filter = t.dataset.filter; return paintLogs(); }
     if (t.dataset.z) { B.zoom = +t.dataset.z; var zp2 = root.querySelector('.agb-zpop'); if (zp2) zp2.remove(); return paint(); }
     if (t.dataset.menu) { byId('agbMenu').hidden = true; return menuAct(t.dataset.menu); }
@@ -1006,6 +1043,8 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     if (b === 'edit') { B.mode = 'edit'; B.tested = false; return paint(); }
     if (b === 'test') return toggleTest();
     if (b === 'test-close') return toggleTest(false);
+    if (b === 'setup') return toggleSetup();
+    if (b === 'setup-close') return toggleSetup(false);
     if (b === 'send') return run();
     if (b === 'publish') return openPublish();
     if (b === 'finish') return finishSetup();
@@ -1033,6 +1072,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
       if (byId('agp')) { byId('agp').remove(); P = null; e.stopPropagation(); return; }
       if (byId('agbPop')) { closePick(); paintActive(); e.stopPropagation(); return; }
       if (byId('agbTest').classList.contains('is-open')) { toggleTest(false); e.stopPropagation(); return; }
+      if (setupOpen()) { toggleSetup(false); e.stopPropagation(); return; }
       closeBuilder(); e.stopPropagation(); return;
     }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.agb-box[data-pick]')) { e.preventDefault(); openPick(e.target.dataset.pick, e.target); }
@@ -1063,7 +1103,6 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     var kind = byId('agbPop').dataset.kind, v = t.dataset.v, a = B.a;
     if (kind === 'model') {
       a.model = v;
-      if (B.setup && window.mkws) window.mkws.setModel(B.setup, v);
       closePick(); return commit();
     }
     var list = kind === 'tools' ? a.tools : kind === 'guardrails' ? a.guards : a.context;
@@ -1131,6 +1170,8 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
       var a = prime(AGENTS[k]);
       a.status = 'draft';
       openBuilder(a, { mode: 'edit', setup: ref });
+      if (window.mkws) window.mkws.onchange = function (r) { if (B && B.setup === r) paint(); };
+      setTimeout(function () { toggleSetup(true); }, 120);
       return true;
     },
     refresh: function () { if (root && B) paint(); },
