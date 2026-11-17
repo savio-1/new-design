@@ -164,10 +164,23 @@
     '.mkws-side p{margin:0;color:var(--text-secondary)}',
 
     /* A toast for the page that has none of its own */
-    '.mkws-toast{position:fixed;left:50%;bottom:28px;z-index:400;transform:translate(-50%,8px);opacity:0;pointer-events:none;',
-    '  padding:10px 16px;border-radius:8px;background:var(--text-primary);color:var(--backgrounds-page-bg-1);',
-    '  font:500 14px/20px var(--font-geist);letter-spacing:-.4px;box-shadow:0 4px 12px rgba(0,0,0,.2);transition:opacity .18s ease,transform .18s ease}',
-    '.mkws-toast.is-shown{opacity:1;transform:translate(-50%,0)}',
+    /* Notification tidbit · design system "Single line, Button=No" */
+    '.mkws-tidbit{position:fixed;top:64px;right:20px;z-index:400;width:380px;max-width:calc(100vw - 40px);',
+    '  display:flex;align-items:center;gap:8px;padding:12px;border-radius:12px;',
+    '  background:var(--backgrounds-card-bg-2);border:1px solid var(--strokes-card-default);border-bottom:0;',
+    '  box-shadow:0 4px 8px rgba(0,0,0,.5),0 12px 28px rgba(0,0,0,.35);',
+    '  opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}',
+    ':root[data-mode="light"] .mkws-tidbit{box-shadow:0 4px 8px rgba(18,18,18,.32)}',
+    '.mkws-tidbit.is-shown{opacity:1;transform:none;pointer-events:auto}',
+    '.mkws-tidbit__ic{position:relative;flex:none;width:20px;height:20px}',
+    '.mkws-tidbit__ic img{position:absolute;display:block}',
+    '.mkws-tidbit__ic .v{left:2.5px;top:2.5px}',
+    '.mkws-tidbit__ic .t{left:5px;top:5px}',
+    '.mkws-tidbit__text{flex:1 1 auto;min-width:0;color:var(--text-primary);font:400 14px/20px var(--font-geist);letter-spacing:-.56px}',
+    '.mkws-tidbit__close{flex:none;padding:4px;border-radius:6px;background:none;border:0;cursor:pointer;display:inline-flex}',
+    '.mkws-tidbit__close:hover{background:var(--backgrounds-card-bg-4)}',
+    '.mkws-tidbit__close img{display:block}',
+    '@media (prefers-reduced-motion: reduce){.mkws-tidbit{transition:none;transform:none}}',
     '@media (prefers-reduced-motion: reduce){.mkws-scrim,.mkws-dlg,.mkws-cfg{transition:none}}'
   ].join('\n');
   document.head.appendChild(css);
@@ -188,19 +201,53 @@
 
   /* ── Toast ── */
   var tT;
+  /* Notifications are the design system's single-line tidbit, top right:
+     the success mark, the line, and a close at the end. */
+  var TIDBIT_IC = /*TIDBIT_IC*/{};
+  function hideSay() {
+    var t = byId('mkwsToast');
+    clearTimeout(tT);
+    if (t) t.classList.remove('is-shown');
+  }
   function say(msg) {
-    if (PAGE === 'agent' && typeof toast === 'function') return toast(msg);
     var t = byId('mkwsToast');
     if (!t) {
       t = document.createElement('div');
-      t.id = 'mkwsToast'; t.className = 'mkws-toast'; t.setAttribute('role', 'status');
+      t.id = 'mkwsToast'; t.className = 'mkws-tidbit'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite');
       document.body.appendChild(t);
+      t.addEventListener('click', function (e) { if (e.target.closest('[data-say-close]')) hideSay(); });
+      t.addEventListener('mouseenter', function () { clearTimeout(tT); });
+      t.addEventListener('mouseleave', function () { tT = setTimeout(hideSay, 2000); });
     }
-    t.textContent = msg;
+    t.innerHTML =
+      '<span class="mkws-tidbit__ic"><img class="v" src="' + TIDBIT_IC.vector + '" width="15" height="15" alt="" />' +
+        '<img class="t" src="' + TIDBIT_IC.tick + '" width="10" height="10" alt="" /></span>' +
+      '<span class="mkws-tidbit__text">' + E(msg) + '</span>' +
+      '<button type="button" class="mkws-tidbit__close" data-say-close aria-label="Close notification">' +
+        '<img src="' + TIDBIT_IC.close + '" width="16" height="16" alt="" /></button>';
+    placeSay();
     requestAnimationFrame(function () { t.classList.add('is-shown'); });
     clearTimeout(tT);
-    tT = setTimeout(function () { t.classList.remove('is-shown'); }, 2800);
+    tT = setTimeout(hideSay, 4000);
   }
+  /* Top right, clear of whatever action bar is on screen: the page's own
+     bar, or the builder's while it is open. */
+  function placeSay() {
+    var t = byId('mkwsToast'); if (!t) return;
+    var builder = document.querySelector('.agb-bar');
+    var bar = builder || document.querySelector('.cq-page__bar');
+    t.style.top = bar ? Math.round(bar.getBoundingClientRect().bottom + 12) + 'px' : '';
+  }
+  /* A click anywhere else is the reader moving on: the notice steps aside,
+     so it can never sit on top of the menu or button they reach for. */
+  document.addEventListener('pointerdown', function (e) {
+    var t = byId('mkwsToast');
+    if (t && t.classList.contains('is-shown') && !t.contains(e.target)) hideSay();
+  }, true);
+  window.mkwsSay = say;
+  window.mkwsPlace = placeSay;
+  /* The Agents page's own notices take the same form. */
+  if (PAGE === 'agent' && typeof toast === 'function') toast = function (msg) { say(msg); };
 
   /* ── Small helpers ── */
   function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }

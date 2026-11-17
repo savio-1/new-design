@@ -51,6 +51,11 @@ def b64(s: str) -> str:
 
 def main():
     bridge = (APP / 'workspace-bridge.js').read_text(encoding='utf-8')
+    tb = APP / 'assets' / 'tidbit'
+    uri = lambda f: 'data:image/svg+xml;base64,' + base64.b64encode((tb / f).read_bytes()).decode('ascii')
+    assert bridge.count('/*TIDBIT_IC*/{}') == 1
+    bridge = bridge.replace('/*TIDBIT_IC*/{}', json.dumps(
+        {'vector': uri('done-vector.svg'), 'tick': uri('done-tick.svg'), 'close': uri('close.svg')}))
     agx = (APP / 'agents-v2.js').read_text(encoding='utf-8')
     assert agx.count('/*AGX_SVG*/{}') == 1
     agx = agx.replace('/*AGX_SVG*/{}', json.dumps(builder_svgs()))

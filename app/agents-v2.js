@@ -951,14 +951,14 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     say(a.name + (a.published.where === 'marketplace' ? ' is published to the Marketplace' : ' is published to this workspace'));
   }
 
-  function say(msg) { if (typeof toast === 'function') toast(msg); }
+  function say(msg) { if (window.mkwsSay) window.mkwsSay(msg); else if (typeof toast === 'function') toast(msg); }
 
   function closeBuilder() {
     if (!root) return;
     closePick();
     var r = root; root = null;
     r.classList.remove('is-shown');
-    setTimeout(function () { r.remove(); }, 180);
+    setTimeout(function () { r.remove(); if (window.mkwsPlace) window.mkwsPlace(); }, 180);
     var ref = B && B.a; B = null;
     render();
     if (ref) {
