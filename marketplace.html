@@ -2133,6 +2133,12 @@ body.cq { margin: 0; }
       transition: opacity .18s ease, transform .18s ease;
     }
     .mk-toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+    .mk-toast.has-action { display: flex; align-items: center; gap: 16px; max-width: min(640px, calc(100vw - 48px)); }
+    .mk-toast__act {
+      flex: none; padding: 2px 0; border-radius: 4px; white-space: nowrap;
+      color: #007be5; text-decoration: underline; text-underline-offset: 3px;
+    }
+    :root[data-mode="light"] .mk-toast__act { color: #80caff; }
 
     /* ── Agents tab · Figma "Marketplace" 1687:430848 ───────────────
        Industry sidebar on the left, a count-and-search bar over a
@@ -3739,16 +3745,28 @@ function renderGuardrails() {
 
 /* ════ Toast ════ */
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, action) {
   const t = $('mkToast');
+  const hide = () => {
+    t.classList.remove('is-shown');
+    setTimeout(() => { t.hidden = true; }, 200);
+  };
   t.textContent = msg;
+  /* An action rides at the end of the line, for the one next step worth
+     offering: going to see what was just added. */
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mk-toast__act cq-body2-med';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { hide(); action.run(); });
+    t.appendChild(b);
+  }
+  t.classList.toggle('has-action', !!action);
   t.hidden = false;
   requestAnimationFrame(() => t.classList.add('is-shown'));
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    t.classList.remove('is-shown');
-    setTimeout(() => { t.hidden = true; }, 200);
-  }, 2400);
+  toastTimer = setTimeout(hide, action ? 6000 : 2400);
 }
 
 function renderTools() {
@@ -4239,8 +4257,7 @@ function renderPreview() {
   $('mkPvSub').textContent = a.ref === 'agent:0' ? 'This agent gathers and analyzes customer feedback from various sources' : a.desc;
   $('mkPvLike').classList.toggle('is-on', liked.has(a.ref));
   $('mkPvLike').setAttribute('aria-pressed', String(liked.has(a.ref)));
-  $('mkPvAdd').classList.toggle('is-added', added.has(a.ref));
-  $('mkPvAddLabel').textContent = added.has(a.ref) ? 'Added to workspace' : 'Add to workspace';
+  paintAdd();
   $('mkPvAbout').innerHTML = aboutOf(a).map(t => `<p>${esc(t)}</p>`).join('');
 
   /* What's inside — only for artifacts that bundle others. */
@@ -4328,15 +4345,73 @@ $('mkPvLike').addEventListener('click', () => {
   $('mkPvLike').setAttribute('aria-pressed', String(liked.has(pv.ref)));
   toast(liked.has(pv.ref) ? `Saved ${pv.title} to your favourites` : `Removed ${pv.title} from your favourites`);
 });
+/* ── Into the workspace ────────────────────────────────────────────
+   Agents and automations land on their own pages in the workspace. In
+   the app those pages sit beside this one, so what is added is handed to
+   the shell, which keeps it for them: ready to use when the publisher
+   shared everything it needs, or waiting to be configured when they did
+   not. Opened on its own, this page keeps the earlier behaviour. */
+const IN_SHELL = window.parent !== window;
+const WS_PAGE = { agent: 'agents.html', automation: 'automations.html' };
+const WS_NAME = { agent: 'Agents', automation: 'Automations' };
+const toWorkspace = a => IN_SHELL && WS_PAGE[a.type];
+
+function workspacePayload(a) {
+  const needs = a.conns.filter(c => !c.shared)
+    .map(c => ({ kind: 'integration', key: c.key, name: INTEGRATIONS[c.key].name, used: c.used }));
+  if (a.model && !a.model.shared) needs.push({ kind: 'model', key: 'model', name: 'Model', tested: a.model.m.name });
+  const group = k => ((a.inside.find(g => g.key === k) || {}).items || []).map(x => x.name);
+  return {
+    ref: a.ref, kind: a.type, name: a.title, desc: a.desc,
+    publisher: a.creator.name, tags: [a.facets[0].toLowerCase()],
+    model: a.model ? a.model.m.name : null, modelShared: !a.model || a.model.shared,
+    shared: a.conns.filter(c => c.shared).map(c => INTEGRATIONS[c.key].name),
+    needs, ready: !needs.length,
+    tools: group('tool'), skills: group('skill'), guards: group('guardrail'),
+    agents: group('agent'), checkpoints: group('checkpoint'),
+    config: { done: {}, model: '' }, added: Date.now()
+  };
+}
+function goWorkspace(a) {
+  parent.postMessage({ cqNav: WS_PAGE[a.type], cqFocus: a.ref }, '*');
+}
+function paintAdd() {
+  if (!pv) return;
+  const on = added.has(pv.ref);
+  $('mkPvAdd').classList.toggle('is-added', on);
+  $('mkPvAddLabel').textContent = !on ? 'Add to workspace'
+    : toWorkspace(pv) ? `Open in ${WS_NAME[pv.type]}` : 'Added to workspace';
+}
+
 $('mkPvAdd').addEventListener('click', () => {
-  if (added.has(pv.ref)) return;
+  const ws = toWorkspace(pv);
+  if (added.has(pv.ref)) { if (ws) goWorkspace(pv); return; }
   added.add(pv.ref);
-  $('mkPvAdd').classList.add('is-added');
-  $('mkPvAddLabel').textContent = 'Added to workspace';
+  paintAdd();
   const todo = setupNeeds(pv);
+  if (ws) {
+    const a = pv;
+    parent.postMessage({ cqWsAdd: workspacePayload(a) }, '*');
+    toast(todo.length
+      ? `${a.title} added to ${WS_NAME[a.type]}. Configure it before it can be used: ${listJoin(todo)}.`
+      : `${a.title} added to ${WS_NAME[a.type]} and ready to use`,
+      { label: `View in ${WS_NAME[a.type]}`, run: () => goWorkspace(a) });
+    return;
+  }
   toast(todo.length
     ? `${pv.title} added to Finance. ${listJoin(todo).replace(/^a/, 'A')} still need${todo.length === 1 ? 's' : ''} to be added.`
     : `${pv.title} added to Finance and ready to run${pv.conns.length || pv.model ? ' on the publisher’s connections' : ''}`);
+});
+
+/* The shell's copy is the truth: something discarded in the workspace
+   can be added again from here. */
+window.addEventListener('message', e => {
+  const d = e.data || {};
+  if (!Array.isArray(d.cqWorkspace)) return;
+  const refs = new Set(d.cqWorkspace.map(w => w.ref));
+  [...added].forEach(r => { if (WS_PAGE[r.split(':')[0]] && !refs.has(r)) added.delete(r); });
+  refs.forEach(r => added.add(r));
+  paintAdd();
 });
 $('mkPvForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -5857,6 +5932,7 @@ railExposeOnly(null);
     'home': 'index.html',
     'marketplace': 'marketplace.html',
     'automations': 'automations.html',
+    'agents': 'agents.html',
     'skills': 'skills.html',
     'skill': 'skills.html',
     'integrations': 'integrations.html',

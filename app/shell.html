@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cogentiq Marketplace</title>
+<meta name="description" content="The Cogentiq Marketplace with the workspace's Automations and Agents pages: what is added from the Marketplace lands there, ready to use or waiting to be configured." />
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #121212; overflow: hidden; }
+  body[data-mode="light"] { background: #f5f5f5; }
+
+  .stage { position: fixed; inset: 0; }
+  .stage iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border: 0; display: block;
+    background: transparent;
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+    transition: opacity .13s ease-in, transform 0s linear .13s;
+    pointer-events: none;
+    will-change: opacity, transform;
+  }
+  /* The outgoing page leaves first and the incoming one rises in after
+     it, as the platform shell does: two dense screens dissolved through
+     each other only read as blur. */
+  .stage iframe.is-live {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    transition: opacity .2s ease-out, transform .28s cubic-bezier(.22, .8, .3, 1);
+    pointer-events: auto;
+    z-index: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage iframe, .stage iframe.is-live { transition: none; transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <iframe id="a" title="Cogentiq"></iframe>
+  <iframe id="b" title="Cogentiq"></iframe>
+</div>
+
+<script>
+(function () {
+  var PAGES = /*PAGES*/;
+  var frames = [document.getElementById('a'), document.getElementById('b')];
+  var live = 0;
+  var current = null;
+  var busy = false;
+  var theme = 'dark';
+  var themePref = 'dark';
+  var brand = null;
+  /* What was taken from the Marketplace into the workspace. The frames'
+     own stores are opaque to one another, so it is kept here and handed
+     to whichever page loads. */
+  var K_WS = 'cq-mk-workspace';
+  var workspace = [];
+  var focus = null;
+
+  function read(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function write(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  try { brand = JSON.parse(read('cq-brand') || 'null'); } catch (e) {}
+  try { workspace = JSON.parse(read(K_WS) || '[]') || []; } catch (e) { workspace = []; }
+  (function () {
+    var st = read('cq-theme-pref');
+    if (st === 'light' || st === 'dark' || st === 'system') themePref = st;
+    var sm = read('cq-theme');
+    theme = sm === 'light' || sm === 'dark' ? sm
+          : themePref === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : themePref;
+  })();
+
+  function decode(b64) {
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  function tellState(frame) {
+    try {
+      frame.contentWindow.postMessage(
+        { cqTheme: theme, cqThemePref: themePref, cqBrand: brand, cqWorkspace: workspace }, '*');
+    } catch (e) { /* not ready */ }
+  }
+  function setTheme(mode) {
+    theme = mode;
+    document.body.dataset.mode = mode;
+    write('cq-theme', mode);
+    frames.forEach(tellState);
+  }
+  function saveWorkspace() {
+    write(K_WS, JSON.stringify(workspace));
+    frames.forEach(tellState);
+  }
+  function sendFocus(frame) {
+    if (!focus) return;
+    var f = focus; focus = null;
+    setTimeout(function () { try { frame.contentWindow.postMessage({ cqFocus: f }, '*'); } catch (e) {} }, 60);
+  }
+
+  function show(name, instant) {
+    if (!PAGES[name]) return;           /* a page this app does not carry */
+    if (name === current) { sendFocus(frames[live]); return; }
+    if (busy) return;
+    busy = true;
+
+    var incoming = frames[instant ? live : 1 - live];
+    var outgoing = frames[live];
+
+    var reveal = function () {
+      tellState(incoming);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          incoming.classList.add('is-live');
+          live = frames.indexOf(incoming);
+          current = name;
+          busy = false;
+          sendFocus(incoming);
+          try { history.replaceState(null, '', '#' + name.replace('.html', '')); } catch (e) {}
+        });
+      });
+    };
+    var settle = function () {
+      incoming.removeEventListener('load', once);
+      if (instant) return reveal();
+      outgoing.classList.remove('is-live');
+      setTimeout(reveal, 140);
+    };
+    var settled = false;
+    function once() {
+      if (settled) return;
+      settled = true;
+      settle();
+    }
+    incoming.addEventListener('load', once);
+    incoming.srcdoc = decode(PAGES[name]);
+
+    var t0 = Date.now();
+    (function poll() {
+      if (settled) return;
+      var doc = null;
+      try { doc = incoming.contentDocument; } catch (e) {}
+      if (doc && doc.readyState !== 'loading' && doc.querySelector('[aria-label="Platform"]')) return once();
+      if (Date.now() - t0 > 4000) return once();
+      requestAnimationFrame(poll);
+    })();
+  }
+
+  window.addEventListener('message', function (e) {
+    var data = e.data || {};
+    if (typeof data.cqFocus === 'string' && typeof data.cqNav === 'string') focus = data.cqFocus;
+    if (typeof data.cqNav === 'string') show(data.cqNav);
+    if (data.cqThemePref) { themePref = data.cqThemePref; write('cq-theme-pref', themePref); }
+    if (data.cqTheme === 'light' || data.cqTheme === 'dark') setTheme(data.cqTheme);
+    if (data.cqThemeRequest || data.cqWsRequest) frames.forEach(tellState);
+    if (data.cqBrand !== undefined) {
+      brand = data.cqBrand;
+      write('cq-brand', JSON.stringify(brand));
+      frames.forEach(tellState);
+    }
+    if (data.cqWsAdd && data.cqWsAdd.ref) {
+      workspace = workspace.filter(function (w) { return w.ref !== data.cqWsAdd.ref; });
+      workspace.push(data.cqWsAdd);
+      saveWorkspace();
+    }
+    if (data.cqWsUpdate && data.cqWsUpdate.ref) {
+      workspace = workspace.map(function (w) { return w.ref === data.cqWsUpdate.ref ? data.cqWsUpdate : w; });
+      saveWorkspace();
+    }
+    if (typeof data.cqWsRemove === 'string') {
+      workspace = workspace.filter(function (w) { return w.ref !== data.cqWsRemove; });
+      saveWorkspace();
+    }
+  });
+
+  var initial = 'marketplace.html';
+  try {
+    var h = (location.hash || '').replace(/^#\/?/, '');
+    if (h && PAGES[h + '.html']) initial = h + '.html';
+  } catch (e) {}
+  setTheme(theme);
+  show(initial, true);
+})();
+</script>
+</body>
+</html>
