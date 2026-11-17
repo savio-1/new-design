@@ -1997,6 +1997,32 @@ body.cq { margin: 0; }
         radial-gradient(45% 100% at 100% 0%, color-mix(in srgb, #0d99ff 14%, transparent), transparent 70%),
         radial-gradient(50% 110% at 100% 100%, color-mix(in srgb, #ffa629 14%, transparent), transparent 70%);
     }
+    /* Tools, Skills and Guardrails take panels of their own, each washed in
+       its own marks' hues: tools amber and blue, skills indigo and pink,
+       guardrails green and red. */
+    .mk-toolsp, .mk-skillsp, .mk-guardp { background: var(--backgrounds-page-bg-3); }
+    .mk-toolsp::before, .mk-skillsp::before, .mk-guardp::before {
+      content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    }
+    .mk-toolsp::before {
+      background:
+        radial-gradient(55% 120% at 0% 0%, color-mix(in srgb, #fc9e24 15%, transparent), transparent 70%),
+        radial-gradient(45% 100% at 100% 0%, color-mix(in srgb, #ffca28 12%, transparent), transparent 70%),
+        radial-gradient(50% 110% at 100% 100%, color-mix(in srgb, #0d99ff 12%, transparent), transparent 70%);
+    }
+    .mk-skillsp::before {
+      background:
+        radial-gradient(55% 120% at 0% 0%, color-mix(in srgb, #5860ed 16%, transparent), transparent 70%),
+        radial-gradient(45% 100% at 100% 0%, color-mix(in srgb, #e91e63 12%, transparent), transparent 70%),
+        radial-gradient(50% 110% at 100% 100%, color-mix(in srgb, #00a2c2 12%, transparent), transparent 70%);
+    }
+    .mk-guardp::before {
+      background:
+        radial-gradient(55% 120% at 0% 0%, color-mix(in srgb, #14ae5c 14%, transparent), transparent 70%),
+        radial-gradient(45% 100% at 100% 0%, color-mix(in srgb, #dc3412 12%, transparent), transparent 70%),
+        radial-gradient(50% 110% at 100% 100%, color-mix(in srgb, #dd7c0e 12%, transparent), transparent 70%);
+    }
+    .mk-panel__empty { margin: 0; padding: 24px 0; text-align: center; color: var(--text-teritiary); }
     .mk-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .mk-cards .cq-card {
       min-height: 0; gap: 10px; border-radius: var(--radius-lg);
@@ -3239,32 +3265,38 @@ body.cq { margin: 0; }
               </section>
 
               <section class="mk-section" aria-labelledby="mkToolsTitle">
-                <div class="mk-stack-16">
+                <div class="mk-panel mk-toolsp">
                   <div class="mk-section__head">
                     <div class="mk-section__name"><h2 class="mk-section__title cq-subhead1-med" id="mkToolsTitle">Tools</h2><span class="cq-count" data-count="tool"></span></div>
                     <button class="cq-btn cq-btn--tonal mk-btn-xs" type="button" data-goto="tool">Show all</button>
                   </div>
+                  <div class="mk-pills" data-dom-pills="tool" role="group" aria-label="Domain"></div>
                   <div class="mk-grid-2" id="mkTools"></div>
+                  <p class="mk-panel__empty cq-body2-reg" data-dom-empty="tool" hidden></p>
                 </div>
               </section>
 
               <section class="mk-section" aria-labelledby="mkSkillsTitle">
-                <div class="mk-stack-16">
+                <div class="mk-panel mk-skillsp">
                   <div class="mk-section__head">
                     <div class="mk-section__name"><h2 class="mk-section__title cq-subhead1-med" id="mkSkillsTitle">Skills</h2><span class="cq-count" data-count="skill"></span></div>
                     <button class="cq-btn cq-btn--tonal mk-btn-xs" type="button" data-goto="skill">Show all</button>
                   </div>
-                  <div class="mk-grid-3 mk-cards mk-cards--open" id="mkSkills"></div>
+                  <div class="mk-pills" data-dom-pills="skill" role="group" aria-label="Domain"></div>
+                  <div class="mk-grid-3 mk-cards" id="mkSkills"></div>
+                  <p class="mk-panel__empty cq-body2-reg" data-dom-empty="skill" hidden></p>
                 </div>
               </section>
 
               <section class="mk-section mk-section--last" aria-labelledby="mkGuardTitle">
-                <div class="mk-stack-16">
+                <div class="mk-panel mk-guardp">
                   <div class="mk-section__head">
                     <div class="mk-section__name"><h2 class="mk-section__title cq-subhead1-med" id="mkGuardTitle">Guardrails</h2><span class="cq-count" data-count="guardrail"></span></div>
                     <button class="cq-btn cq-btn--tonal mk-btn-xs" type="button" data-goto="guardrail">Show all</button>
                   </div>
+                  <div class="mk-pills" data-dom-pills="guardrail" role="group" aria-label="Domain"></div>
                   <div class="mk-grid-2" id="mkGuardrails"></div>
+                  <p class="mk-panel__empty cq-body2-reg" data-dom-empty="guardrail" hidden></p>
                 </div>
               </section>
 
@@ -3844,9 +3876,31 @@ $('mkCreators').addEventListener('click', e => {
   if (b) toast(`Opening ${b.dataset.profile}'s profile…`);
 });
 
-/* ════ Skills and guardrails ════ */
+/* ════ Tools, skills and guardrails ════
+   Each panel narrows by domain, the same six the Domain filter uses. */
+const secDom = { tool: 'all', skill: 'all', guardrail: 'all' };
+const domPick = (type, list) => list.map((x, i) => ({ x, i })).filter(({ i }) => secDom[type] === 'all' || FACETS[type][i][1] === secDom[type]);
+function paintDomPills(type, shown) {
+  const el = document.querySelector(`[data-dom-pills="${type}"]`);
+  el.innerHTML = [{ key: 'all', label: 'All' }, ...DOMAINS].map(d =>
+    `<button type="button" class="mk-pill cq-body2-med${d.key === secDom[type] ? ' is-active' : ''}" aria-pressed="${d.key === secDom[type]}" data-dom="${d.key}">${esc(d.tag || d.label)}</button>`).join('');
+  const empty = document.querySelector(`[data-dom-empty="${type}"]`);
+  const d = DOMAINS.find(x => x.key === secDom[type]);
+  empty.hidden = shown > 0;
+  empty.textContent = shown ? '' : `No ${TYPES[type].label.toLowerCase()} for ${d ? d.label : 'this domain'} yet.`;
+}
+document.querySelectorAll('[data-dom-pills]').forEach(el => el.addEventListener('click', e => {
+  const b = e.target.closest('[data-dom]');
+  if (!b) return;
+  const type = el.dataset.domPills;
+  secDom[type] = b.dataset.dom;
+  ({ tool: renderTools, skill: renderSkills, guardrail: renderGuardrails })[type]();
+}));
 function renderSkills() {
-  $('mkSkills').innerHTML = SKILLS.slice(0, 6).map((sk, i) => `
+  const rows = domPick('skill', SKILLS).slice(0, 6);
+  paintDomPills('skill', rows.length);
+  $('mkSkills').hidden = !rows.length;
+  $('mkSkills').innerHTML = rows.map(({ x: sk, i }) => `
     <article class="cq-card cq-card--auto mk-openable" data-ref="skill:${i}" tabindex="0" role="button" aria-label="Preview ${esc(sk.title)}">${PREVIEW_CTA}
       <div class="cq-card__head">
         <div class="cq-card__title-row">${iconFor({ ...sk, id: i, type: 'skill' })}<span class="cq-card__title cq-body2-med cq-truncate">${esc(sk.title)}</span></div>
@@ -3858,7 +3912,10 @@ function renderSkills() {
     </article>`).join('');
 }
 function renderGuardrails() {
-  $('mkGuardrails').innerHTML = GUARDRAILS.map((g, i) => `
+  const rows = domPick('guardrail', GUARDRAILS);
+  paintDomPills('guardrail', rows.length);
+  $('mkGuardrails').hidden = !rows.length;
+  $('mkGuardrails').innerHTML = rows.map(({ x: g, i }) => `
     <div class="mk-tool mk-openable" data-ref="guardrail:${i}" tabindex="0" role="button" aria-label="Preview ${esc(g.title)}">${PREVIEW_CTA}
       <div class="mk-tool__main">
         ${iconFor({ ...g, id: i, type: 'guardrail' })}
@@ -3950,8 +4007,11 @@ function toast(msg, action) {
 }
 
 function renderTools() {
-  /* Explore keeps the six Cogentiq tools; the Tools tab lists them all. */
-  $('mkTools').innerHTML = TOOLS.slice(0, 6).map((t, i) => {
+  /* Explore shows six at a time; the Tools tab lists them all. */
+  const rows = domPick('tool', TOOLS).slice(0, 6);
+  paintDomPills('tool', rows.length);
+  $('mkTools').hidden = !rows.length;
+  $('mkTools').innerHTML = rows.map(({ x: t, i }) => {
     const [src, s] = TOOL_IC[t.ic];
     return `<div class="mk-tool mk-openable" data-ref="tool:${i}" tabindex="0" role="button" aria-label="Preview ${esc(t.title)}">${PREVIEW_CTA}
       <div class="mk-tool__main">
