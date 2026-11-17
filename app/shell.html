@@ -56,7 +56,8 @@
   var brand = null;
   /* What was taken from the Marketplace into the workspace. The frames'
      own stores are opaque to one another, so it is kept here and handed
-     to whichever page loads. */
+     to whichever page loads. It lasts as long as this visit: every time
+     the app is opened it starts fresh, with everything addable again. */
   var K_WS = 'cq-mk-workspace';
   var workspace = [];
   var focus = null;
@@ -65,7 +66,7 @@
   function write(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
   try { brand = JSON.parse(read('cq-brand') || 'null'); } catch (e) {}
-  try { workspace = JSON.parse(read(K_WS) || '[]') || []; } catch (e) { workspace = []; }
+  try { localStorage.removeItem(K_WS); } catch (e) {}   /* clears what earlier versions kept */
   (function () {
     var st = read('cq-theme-pref');
     if (st === 'light' || st === 'dark' || st === 'system') themePref = st;
@@ -94,7 +95,6 @@
     frames.forEach(tellState);
   }
   function saveWorkspace() {
-    write(K_WS, JSON.stringify(workspace));
     frames.forEach(tellState);
   }
   function sendFocus(frame) {
@@ -121,7 +121,6 @@
           current = name;
           busy = false;
           sendFocus(incoming);
-          try { history.replaceState(null, '', '#' + name.replace('.html', '')); } catch (e) {}
         });
       });
     };
