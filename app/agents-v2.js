@@ -421,6 +421,102 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
 .agp__btn--ghost { border: 1px solid var(--strokes-line-1) !important; color: var(--text-secondary); }
 .agp__btn--primary { background: var(--backgrounds-button-primary); color: #fff; }
 
+
+/* ── Editing happens in the right panel (Figma: Task instructions, Tools) ── */
+.agb.has-side .agb-world { padding-right: 400px; }
+.agb-edit { z-index: 7; }
+.agb-edit__in { width: 344px; height: 100%; display: flex; flex-direction: column; border-radius: 16px; overflow: hidden;
+  background: var(--backgrounds-card-bg-5); border: 1px solid var(--strokes-type-default); box-shadow: 0 1px 4px rgba(33, 33, 33, .08); }
+.agb-edit__head { flex: none; display: flex; align-items: center; gap: 6px; padding: 16px 16px 12px; border-bottom: 1px solid var(--strokes-line-1);
+  color: var(--text-primary); font: 500 16px/24px var(--font-geist); letter-spacing: -0.64px; }
+.agb-edit__head svg { width: 20px; height: 20px; flex: none; }
+.agb-edit__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 12px 16px 16px; }
+.agb-edit__foot { flex: none; padding: 8px 16px; background: var(--backgrounds-page-bg-2); border-top: 1px solid var(--strokes-card-default); }
+.agb-save { width: 100%; height: 36px; border-radius: 8px; font: 500 14px/20px var(--font-geist); letter-spacing: -0.56px;
+  background: var(--backgrounds-button-primary); color: #fff; }
+.agb-save:disabled { background: var(--backgrounds-disabled-tonal-2); color: var(--text-disabled-tonal-2); cursor: default; }
+.agb-f { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.agb-f__l { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-primary);
+  font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; }
+.agb-f__l .req { color: var(--text-coloured-red); }
+.agb-f__l .opt { color: var(--text-teritiary); }
+.agb-f__ex { color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px; }
+.agb-f__ex:hover { color: var(--text-primary); }
+.agb-f__help { margin: 0; color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px; }
+.agb-in { width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; background: var(--backgrounds-type-default-bg-1);
+  border: 1px solid var(--strokes-type-default); color: var(--text-primary); font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; }
+.agb-in::placeholder { color: var(--text-teritiary); opacity: 1; }
+.agb-in:focus { outline: none; border-color: var(--strokes-type-focus); }
+textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
+.agb-in--sm { padding: 6px 8px; }
+.agb-rte { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px 12px; border-radius: 8px; background: var(--backgrounds-type-default-bg-1);
+  border: 1px solid var(--strokes-type-default); }
+.agb-rte:focus-within { border-color: var(--strokes-type-focus); }
+.agb-rte__bar { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); }
+.agb-rte__bar button { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font: 600 12px/1 var(--font-geist); color: inherit; }
+.agb-rte__bar button:hover { color: var(--text-primary); }
+.agb-rte__sep { width: 1px; height: 12px; background: var(--strokes-line-1); }
+.agb-rte__size { display: inline-flex !important; width: auto !important; gap: 2px; color: var(--text-teritiary) !important; font: 500 12px/16px var(--font-geist) !important; }
+.agb-rte textarea { width: 100%; min-height: 220px; padding: 0; border: 0; background: none; resize: vertical; color: var(--text-primary);
+  font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; }
+.agb-rte textarea:focus { outline: none; }
+.agb-rte textarea::placeholder { color: var(--text-teritiary); }
+.agb-group { display: flex; flex-direction: column; gap: 12px; padding: 8px 12px 12px; border-radius: 12px; background: var(--backgrounds-page-bg-1); }
+.agb-group__h { display: flex; align-items: center; justify-content: space-between; color: var(--text-primary); font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; }
+.agb-group__h button { color: var(--text-secondary); display: inline-flex; }
+.agb-group__h button svg { transition: transform .15s ease; }
+.agb-group.is-closed .agb-group__h button svg { transform: rotate(180deg); }
+.agb-group.is-closed > :not(.agb-group__h):not(.agb-group__sub) { display: none; }
+.agb-group__sub { margin: -10px 0 0; color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px; }
+.agb-group__k { color: var(--text-secondary); font: 400 12px/16px var(--font-geist); }
+.agb-ph-tag { padding: 0 4px; border-radius: 3px; background: var(--backgrounds-badge-purple, #160524); color: var(--text-coloured-purple, #bb7fff); }
+.agb-tonal { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border-radius: 6px;
+  background: var(--backgrounds-button-tonal-1); color: var(--text-button-tonal-1); font: 500 12px/16px var(--font-geist); letter-spacing: -0.24px; }
+.agb-params { display: flex; flex-direction: column; gap: 8px; }
+.agb-param { display: flex; align-items: center; gap: 6px; }
+.agb-param .agb-in { flex: 1 1 auto; }
+.agb-param button { color: var(--text-teritiary); display: inline-flex; }
+.agb-param button:hover { color: var(--text-primary); }
+.agb-rule2 { height: 1px; background: var(--strokes-line-1); }
+.agb-range { display: flex; align-items: center; gap: 12px; }
+.agb-range input[type=range] { flex: 1 1 auto; accent-color: var(--backgrounds-button-primary); }
+.agb-range .agb-in { width: 72px; flex: none; }
+.agb-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-primary); font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; cursor: pointer; }
+.agb-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.agb-toggle i { position: relative; width: 34px; height: 18px; flex: none; border-radius: 9px; background: var(--backgrounds-card-bg-4); border: 1px solid var(--strokes-line-1); transition: background .15s; }
+.agb-toggle i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-teritiary); transition: transform .15s, background .15s; }
+.agb-toggle input:checked + i { background: var(--backgrounds-button-primary); border-color: transparent; }
+.agb-toggle input:checked + i::after { transform: translateX(16px); background: #fff; }
+.agb-select { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; text-align: left;
+  background: var(--backgrounds-type-default-bg-1); border: 1px solid var(--strokes-type-default); color: var(--text-button-tonal-2);
+  font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; }
+.agb-select.is-set { color: var(--text-primary); }
+.agb-select > span { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agb-select > svg { width: 20px; height: 20px; flex: none; color: var(--text-secondary); }
+.agb-select.is-open { border-color: var(--strokes-type-focus); }
+.agb-dd { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; display: flex; flex-direction: column; padding: 4px; border-radius: 8px;
+  background: var(--backgrounds-card-bg-2); border: 1px solid var(--strokes-line-1); box-shadow: 0 8px 24px rgba(0, 0, 0, .35); max-height: 300px; overflow-y: auto; }
+.agb-dd__search { display: flex; align-items: center; gap: 8px; margin: -1px -1px 4px; }
+.agb-dd__search .agb-in { padding: 8px 12px; border-color: var(--strokes-type-focus); }
+.agb-dd__new { flex: none; padding: 4px 8px; border-radius: 6px; background: var(--backgrounds-button-primary); color: #fff; font: 500 12px/16px var(--font-geist); white-space: nowrap; }
+.agb-dd__opt { width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; text-align: left; color: var(--text-primary);
+  font: 400 14px/20px var(--font-geist); letter-spacing: -0.56px; }
+.agb-dd__opt:hover { background: var(--backgrounds-card-bg-4); }
+.agb-dd__opt .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agb-dd__opt .ty { flex: none; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--strokes-line-1); color: var(--text-secondary); font: 400 12px/16px var(--font-geist); }
+.agb-dd__opt .ck { flex: none; color: var(--text-coloured-blue); display: inline-flex; }
+.agb-dd__opt.is-on { background: var(--backgrounds-card-bg-4); }
+.agb-dd__ic { width: 20px; height: 20px; flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+.agb-dd__ic svg { width: 16px; height: 16px; }
+.agb-dd__empty { padding: 8px; color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); }
+.agb-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.agb-badge2 { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 80px; background: var(--backgrounds-button-tonal-1);
+  color: var(--text-primary); font: 500 12px/16px var(--font-geist); letter-spacing: -0.24px; }
+.agb-badge2 .ic { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
+.agb-badge2 .ic svg { width: 14px; height: 14px; }
+.agb-badge2 button { display: inline-flex; color: var(--text-secondary); }
+.agb-badge2 button:hover { color: var(--text-primary); }
+
 @media (prefers-reduced-motion: reduce) { .agb, .agb-test, .agb-log__row { transition: none; animation: none; } }
 `;
   document.head.appendChild(css);
@@ -471,8 +567,9 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
   var uniq = function (xs) { return xs.filter(function (x, i) { return x && xs.indexOf(x) === i; }); };
   var TOOL_CATALOG = function () {
     return uniq([].concat.apply([], AGENTS.concat(MARKET).map(function (a) { return a.tools || []; }))
-      .concat(['Web search', 'SQL query', 'Email sender', 'Calendar lookup', 'Slack poster'])).sort();
+      .concat(['Web search', 'SQL query', 'Email sender', 'Calendar lookup', 'Slack poster']).concat(TOOL_EXTRA)).sort();
   };
+  var TOOL_EXTRA = [];
   var GUARD_CATALOG = function () {
     return uniq([].concat.apply([], AGENTS.concat(MARKET).map(function (a) { return a.guards || []; }))
       .concat(['PII filter', 'Toxicity check', 'Topic boundary', 'Prompt injection shield'])).sort();
@@ -490,6 +587,8 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     a.instructions = a.instructions != null ? a.instructions
       : (a.skills && a.skills.length ? 'Steps to follow:\n' + a.skills.map(function (s, i) { return (i + 1) + '. ' + s; }).join('\n') : '');
     a.context = a.context || [];
+    a.expected = a.expected != null ? a.expected : (a.goal ? 'A short, sourced summary the team can act on.' : '');
+    a.outParam = a.outParam != null ? a.outParam : (a.goal ? 'result' : '');
     a.tools = a.tools || []; a.guards = a.guards || []; a.skills = a.skills || [];
     a.status = a.status || (a.state === 'draft' ? 'draft' : 'published');
     return a;
@@ -502,7 +601,8 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
 
   function snapshot(a) {
     return JSON.stringify({ name: a.name, goal: a.goal, backstory: a.backstory, instructions: a.instructions,
-      model: a.model, tools: a.tools, context: a.context, guards: a.guards });
+      model: a.model, tools: a.tools, context: a.context, guards: a.guards, params: a.params || [], expected: a.expected || '',
+      outParam: a.outParam || '', maxIter: a.maxIter || 20, planning: !!a.planning, finalTool: a.finalTool || '' });
   }
   function commit() {
     B.past.push(B.last);
@@ -584,6 +684,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
           '</div>' +
         '</div>' +
       '</aside>' +
+      '<aside class="agb-test agb-edit" id="agbEdit" aria-label="Edit"><div class="agb-edit__in"></div></aside>' +
       '<aside class="agb-test agb-setup" id="agbSetup" aria-label="Fill in details">' +
         '<div class="agb-test__in">' +
           '<div class="agb-test__head"><b>Fill in details</b><button class="agb-x" data-b="setup-close" aria-label="Close">' + SVG.close + '</button></div>' +
@@ -591,6 +692,10 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
         '</div>' +
       '</aside>';
     document.body.appendChild(root);
+    var ep = byId('agbEdit');
+    ep.addEventListener('click', editClick);
+    ep.addEventListener('input', editInput);
+    ep.addEventListener('change', editInput);
     requestAnimationFrame(function () { root.classList.add('is-shown'); });
     paint();
     var f = root.querySelector('.agb-back');
@@ -752,45 +857,229 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
   /* ════════════════════════════════════════════════════════════════
      PICKERS
      ════════════════════════════════════════════════════════════════ */
-  function closePick() { var p = byId('agbPop'); if (p) p.remove(); if (B) { B.pick = null; } }
-  function openPick(kind, anchor) {
-    if (B.mode !== 'edit') return;
-    closePick();
-    B.pick = kind;
-    var a = B.a, html = '';
-    var multi = function (title, all, sel) {
-      return '<span class="agb-pop__h">' + title + '</span><div class="agb-pop__list">' + all.map(function (v) {
-        var on = sel.indexOf(v) >= 0;
-        return '<button class="agb-opt' + (on ? ' is-on' : '') + '" data-v="' + E(v) + '"><span class="box">' + (on ? '✓' : '') + '</span>' + E(v) + '</button>';
-      }).join('') + '</div><div class="agb-pop__foot"><button class="agb-mini agb-mini--primary" data-pop="done">Done</button></div>';
-    };
-    if (kind === 'model') {
-      html = '<span class="agb-pop__h">Choose the model</span><div class="agb-pop__list">' + MODELS.map(function (m) {
-        var lg = logoOf(m);
-        return '<button class="agb-opt' + (a.model === m ? ' is-on' : '') + '" data-v="' + E(m) + '"><span class="lg">' + (lg ? logoHTML(lg, 16) : '') + '</span>' + E(m) +
-          '<svg class="tick" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-      }).join('') + '</div>';
-    } else if (kind === 'tools') html = multi('Tools', TOOL_CATALOG(), a.tools);
-    else if (kind === 'guardrails') html = multi('Guardrails', GUARD_CATALOG(), a.guards);
-    else if (kind === 'context') html = multi('Context', CONTEXT_CATALOG, a.context);
-    else {
-      var label = { instructions: 'Instructions', goal: 'Goal', backstory: 'Backstory' }[kind];
-      html = '<span class="agb-pop__h">' + label + '</span><textarea id="agbText" placeholder="' +
-        ({ instructions: 'Write task specific instructions', goal: 'What should this agent achieve?', backstory: 'Who is it, and how should it behave?' }[kind]) + '">' +
-        E(a[kind]) + '</textarea><div class="agb-pop__foot"><button class="agb-mini agb-mini--ghost" data-pop="cancel">Cancel</button>' +
-        '<button class="agb-mini agb-mini--primary" data-pop="save">Save</button></div>';
-    }
-    var pop = document.createElement('div');
-    pop.className = 'agb-pop'; pop.id = 'agbPop'; pop.dataset.kind = kind;
-    pop.innerHTML = html;
-    byId('agbCanvas').appendChild(pop);
-    var cv = byId('agbCanvas').getBoundingClientRect(), r = anchor.getBoundingClientRect();
-    var left = Math.min(Math.max(8, r.left - cv.left + byId('agbCanvas').scrollLeft), cv.width - 296);
-    pop.style.left = left + 'px';
-    pop.style.top = (r.bottom - cv.top + byId('agbCanvas').scrollTop + 8) + 'px';
-    paintActive();
-    var t = byId('agbText'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  /* ════════════════════════════════════════════════════════════════
+     EDITING — in the right panel, one form per node, as in the frames
+     (Task instructions, Tools). Changes are a draft until Save.
+     ════════════════════════════════════════════════════════════════ */
+  var ED = null;   /* { kind, d: draft, orig, dd: open dropdown, q: search } */
+  var EDIT_HEAD = {
+    model: ['Model', 'model'], instructions: ['Task instructions', 'instructions'], context: ['Context', 'context'],
+    tools: ['Tools', 'tools'], guardrails: ['Guardrails', 'guardrails'], goal: ['Agent details', 'robot']
+  };
+  var IC_CHECK = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var IC_X = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+  var IC_PLUS = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  var IC_DOWN = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var IC_UP = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 10 4-4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var toolType = function (n) { return /sql|query|warehouse/i.test(n) ? 'NL2SQL' : /code|script|calc|scor|parser|regex/i.test(n) ? 'Code' : 'App'; };
+
+  function draftOf(kind) {
+    var a = B.a;
+    if (kind === 'model') return { model: a.model && a.model !== '—' ? a.model : '' };
+    if (kind === 'instructions') return { params: (a.params || []).slice(), instructions: a.instructions || '', expected: a.expected || '',
+      outParam: a.outParam || '', maxIter: a.maxIter || 20, planning: !!a.planning, open: true };
+    if (kind === 'tools') return { list: a.tools.slice(), final: a.finalTool || '' };
+    if (kind === 'context') return { list: a.context.slice() };
+    if (kind === 'guardrails') return { list: a.guards.slice() };
+    return { name: a.name, goal: a.goal || '', backstory: a.backstory || '' };
   }
+  function edValid() {
+    var d = ED.d;
+    if (ED.kind === 'model') return !!d.model;
+    if (ED.kind === 'instructions') return !!(d.instructions.trim() && d.expected.trim() && d.outParam.trim());
+    if (ED.kind === 'tools') return d.list.length > 0;
+    if (ED.kind === 'goal') return !!(d.goal.trim() && d.backstory.trim());
+    return true;
+  }
+  function edDirty() { var c = JSON.parse(JSON.stringify(ED.d)); delete c.open; var o = JSON.parse(ED.orig); delete o.open; return JSON.stringify(c) !== JSON.stringify(o); }
+  function edSync() { var s = byId('agbEditSave'); if (s) s.disabled = !(edDirty() && edValid()); }
+
+  function openEdit(kind) {
+    if (!B || B.mode !== 'edit') return;
+    if (kind === 'backstory') kind = 'goal';
+    var p = byId('agbEdit');
+    byId('agbTest').classList.remove('is-open');
+    if (byId('agbSetup')) { byId('agbSetup').classList.remove('is-open'); root.classList.remove('is-setup'); }
+    ED = { kind: kind, d: draftOf(kind), dd: null, q: '' };
+    ED.orig = JSON.stringify(ED.d);
+    B.pick = kind;
+    paintEdit();
+    p.classList.add('is-open');
+    root.classList.add('has-side');
+    paint();
+    paintActive();
+    var f = p.querySelector('textarea, .agb-in:not([readonly])');
+    if (f && kind !== 'tools' && kind !== 'context' && kind !== 'guardrails' && kind !== 'model') setTimeout(function () { f.focus({ preventScroll: true }); }, 220);
+  }
+  function closeEdit() {
+    var p = byId('agbEdit');
+    ED = null;
+    if (B) B.pick = null;
+    if (p) p.classList.remove('is-open');
+    if (root) root.classList.remove('has-side');
+    paintActive();
+  }
+  function closePick() { var p = byId('agbPop'); if (p) p.remove(); }
+  function openPick(kind) { openEdit(kind); }
+
+  function fld(label, req, inner, help, ex, opt) {
+    return '<div class="agb-f"><span class="agb-f__l"><span>' + label + (req ? ' <span class="req">*</span>' : '') + (opt ? ' <span class="opt">(optional)</span>' : '') + '</span>' +
+      (ex ? '<button class="agb-f__ex" data-ed-ex="' + ex + '">Example</button>' : '') + '</span>' + inner +
+      (help ? '<p class="agb-f__help">' + help + '</p>' : '') + '</div>';
+  }
+  function itemIcon(kind, v) {
+    if (kind === 'model') { var lg = logoOf(v); return lg ? logoHTML(lg, 16) : SVG.model; }
+    return kind === 'tools' ? SVG.tools : kind === 'context' ? SVG.context : SVG.guardrails;
+  }
+  function catalog(kind) { return kind === 'tools' ? TOOL_CATALOG() : kind === 'context' ? CONTEXT_CATALOG : kind === 'guardrails' ? GUARD_CATALOG() : MODELS; }
+  function ddHTML(key) {
+    var kind = ED.kind, d = ED.d;
+    if (key === 'model') return '<div class="agb-dd" data-ed-dd-list>' + MODELS.map(function (m) {
+      return '<button class="agb-dd__opt' + (d.model === m ? ' is-on' : '') + '" data-ed-pick="' + E(m) + '"><span class="agb-dd__ic">' + itemIcon('model', m) + '</span><span class="nm">' + E(m) + '</span>' +
+        (d.model === m ? '<span class="ck">' + IC_CHECK + '</span>' : '') + '</button>';
+    }).join('') + '</div>';
+    if (key === 'final') return '<div class="agb-dd" data-ed-dd-list>' + [''].concat(d.list).map(function (t) {
+      return '<button class="agb-dd__opt' + (d.final === t ? ' is-on' : '') + '" data-ed-final="' + E(t) + '"><span class="nm">' + (t ? E(t) : 'None, let the agent compose its answer') + '</span>' +
+        (d.final === t ? '<span class="ck">' + IC_CHECK + '</span>' : '') + '</button>';
+    }).join('') + '</div>';
+    return '<div class="agb-dd" data-ed-dd-list>' +
+      '<div class="agb-dd__search"><input class="agb-in" data-ed-q placeholder="Search ' + EDIT_HEAD[kind][0].toLowerCase() + '" value="' + E(ED.q) + '" />' +
+      (kind === 'tools' ? '<button class="agb-dd__new" data-ed-new>+New Tool</button>' : '') + '</div>' +
+      '<div data-ed-opts>' + optsHTML() + '</div></div>';
+  }
+  function optsHTML() {
+    var kind = ED.kind, sel = ED.d.list, q = ED.q.trim().toLowerCase();
+    var all = catalog(kind).filter(function (v) { return !q || v.toLowerCase().indexOf(q) >= 0; });
+    if (!all.length) return '<div class="agb-dd__empty">Nothing matches “' + E(ED.q) + '”</div>';
+    return all.map(function (v) {
+      var on = sel.indexOf(v) >= 0;
+      return '<button class="agb-dd__opt' + (on ? ' is-on' : '') + '" data-ed-pick="' + E(v) + '"><span class="agb-dd__ic">' + itemIcon(kind, v) + '</span><span class="nm">' + E(v) + '</span>' +
+        (kind === 'tools' ? '<span class="ty">' + toolType(v) + '</span>' : '') + (on ? '<span class="ck">' + IC_CHECK + '</span>' : '') + '</button>';
+    }).join('');
+  }
+  function selectBtn(key, valueHTML, ph) {
+    return '<button class="agb-select' + (valueHTML ? ' is-set' : '') + (ED.dd === key ? ' is-open' : '') + '" data-ed-dd="' + key + '"><span>' + (valueHTML || ph) + '</span>' + IC_DOWN + '</button>' +
+      (ED.dd === key ? ddHTML(key) : '');
+  }
+  function badges(kind, list) {
+    return list.length ? '<div class="agb-badges">' + list.map(function (v) {
+      return '<span class="agb-badge2"><span class="ic">' + itemIcon(kind, v) + '</span>' + E(v) + '<button data-ed-rm="' + E(v) + '" aria-label="Remove ' + E(v) + '">' + IC_X + '</button></span>';
+    }).join('') + '</div>' : '';
+  }
+
+  function paintEdit() {
+    var p = byId('agbEdit'); if (!p || !ED) return;
+    var k = ED.kind, d = ED.d, h = EDIT_HEAD[k], body = '';
+    if (k === 'model') {
+      body = fld('Select model', true, '<div class="agb-f" style="gap:0">' + selectBtn('model', d.model ? '<span class="agb-dd__ic">' + itemIcon('model', d.model) + '</span>' + E(d.model) : '', 'Select') + '</div>',
+        'The model this agent reasons with. Tools, context and guardrails work the same on every model.');
+    } else if (k === 'instructions') {
+      body =
+        '<div class="agb-group' + (d.open ? '' : ' is-closed') + '">' +
+          '<div class="agb-group__h">Input parameter<button data-ed-toggle aria-label="Collapse">' + IC_UP + '</button></div>' +
+          '<p class="agb-group__sub">Add any placeholder you’ll reference in the instructions, like <span class="agb-ph-tag">{topic}</span></p>' +
+          (d.params.length ? '<div class="agb-params">' + d.params.map(function (v, i) {
+            return '<span class="agb-param"><input class="agb-in agb-in--sm" data-ed-param="' + i + '" value="' + E(v) + '" placeholder="Parameter name" />' +
+              '<button data-ed-param-rm="' + i + '" aria-label="Remove parameter">' + IC_X + '</button></span>';
+          }).join('') + '</div>' : '') +
+          '<button class="agb-tonal" data-ed-param-add>' + IC_PLUS + (d.params.length ? 'Add another' : 'Add parameter') + '</button>' +
+        '</div>' +
+        fld('Instructions', true,
+          '<div class="agb-rte"><div class="agb-rte__bar"><button title="Bold">B</button><button title="Italic"><i>I</i></button><button title="Underline"><u>U</u></button>' +
+          '<button title="Bulleted list">•</button><button title="Numbered list">1.</button><span class="agb-rte__sep"></span><button class="agb-rte__size">Medium' +
+          '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>' +
+          '<textarea data-ed="instructions" placeholder="Write task specific instructions">' + E(d.instructions) + '</textarea></div>',
+          'Detailed instructions on what the agent should do. Include step-by-step guidance.', 'instructions') +
+        fld('Expected output', true, '<input class="agb-in" data-ed="expected" value="' + E(d.expected) + '" placeholder="Define agent’s output" />',
+          'Define the format and content of the agent’s final output.') +
+        '<div class="agb-group"><div class="agb-group__h"><span>Output parameter <span class="req" style="color:var(--text-coloured-red)">*</span></span></div>' +
+          '<p class="agb-group__sub">Give a name to the output of the agent</p>' +
+          '<input class="agb-in agb-in--sm" data-ed="outParam" value="' + E(d.outParam) + '" placeholder="Output parameter name" /></div>' +
+        '<div class="agb-rule2"></div>' +
+        '<div class="agb-group"><span class="agb-group__k">Adv. options</span>' +
+          '<div class="agb-f"><span class="agb-f__l">Max. iterations</span><span class="agb-range"><input type="range" min="1" max="50" data-ed="maxIter" value="' + d.maxIter + '" />' +
+          '<input class="agb-in agb-in--sm" type="number" min="1" max="50" data-ed="maxIter" value="' + d.maxIter + '" /></span></div>' +
+          '<div class="agb-rule2"></div>' +
+          '<label class="agb-toggle">Include planning before executing<input type="checkbox" data-ed="planning"' + (d.planning ? ' checked' : '') + ' /><i></i></label>' +
+        '</div>';
+    } else if (k === 'tools') {
+      body = fld('Select tools', true, '<div class="agb-f" style="gap:0">' + selectBtn('list', '', 'Select') + '</div>') + badges('tools', d.list) +
+        fld('Use a tool’s output as the final answer', false, '<div class="agb-f" style="gap:0">' + selectBtn('final', d.final ? E(d.final) : '', 'Select') + '</div>',
+          'Choose one of the selected tools whose result should be returned as the agent’s final answer. Leave empty to let the agent compose its own response.', null, true);
+    } else if (k === 'context' || k === 'guardrails') {
+      body = fld(k === 'context' ? 'Select context' : 'Select guardrails', false, '<div class="agb-f" style="gap:0">' + selectBtn('list', '', 'Select') + '</div>',
+        k === 'context' ? 'Documents and knowledge the agent can look things up in while it works.' : 'Boundaries checked on everything the agent reads and says.') + badges(k, d.list);
+    } else {
+      body = fld('Agent name', false, '<input class="agb-in" data-ed="name" value="' + E(d.name) + '" placeholder="Name this agent" />') +
+        fld('Goal', true, '<input class="agb-in" data-ed="goal" value="' + E(d.goal) + '" placeholder="Define agent’s goal" />', 'Define the agent’s goal in 1-2 lines', 'goal') +
+        fld('Backstory', true, '<textarea class="agb-in" rows="4" data-ed="backstory" placeholder="Define agent’s backstory">' + E(d.backstory) + '</textarea>',
+          'Define the agent’s expertise, skills, and personality to guide its behaviour.', 'backstory');
+    }
+    var keep = document.activeElement && p.contains(document.activeElement) ? document.activeElement.getAttribute('data-ed-q') : null;
+    var sc = p.querySelector('.agb-edit__body'); var top = sc ? sc.scrollTop : 0;
+    p.querySelector('.agb-edit__in').innerHTML =
+      '<div class="agb-edit__head">' + SVG[h[1]] + h[0] + '</div>' +
+      '<div class="agb-edit__body">' + body + '</div>' +
+      '<div class="agb-edit__foot"><button class="agb-save" id="agbEditSave" data-ed-save disabled>Save</button></div>';
+    p.querySelector('.agb-edit__body').scrollTop = top;
+    if (keep != null || ED.dd === 'list') { var q = p.querySelector('[data-ed-q]'); if (q) { q.focus({ preventScroll: true }); q.setSelectionRange(q.value.length, q.value.length); } }
+    edSync();
+  }
+  var EXAMPLES = {
+    instructions: function () {
+      var ps = ED.d.params.filter(Boolean);
+      var t = ps[0] ? '{' + ps[0].toLowerCase() + '}' : 'the request';
+      return 'Research the latest developments in ' + t + '.\n- Summarize the top 3 findings, keeping each point under 50 words.\n- Cite the source for each finding.\n- Flag anything that needs a person to review.';
+    },
+    goal: function () { return 'Review incoming requests and hand back a clear, sourced answer the team can act on.'; },
+    backstory: function () { return 'A careful analyst on the operations team. It checks its sources, keeps answers short and says plainly when something needs a person to decide.'; }
+  };
+  function applyEdit() {
+    var a = B.a, d = ED.d, k = ED.kind;
+    if (k === 'model') a.model = d.model;
+    else if (k === 'instructions') { a.params = d.params.map(function (x) { return x.trim(); }).filter(Boolean); a.instructions = d.instructions; a.expected = d.expected; a.outParam = d.outParam; a.maxIter = +d.maxIter || 20; a.planning = d.planning; }
+    else if (k === 'tools') { a.tools = d.list.slice(); a.finalTool = d.list.indexOf(d.final) >= 0 ? d.final : ''; }
+    else if (k === 'context') a.context = d.list.slice();
+    else if (k === 'guardrails') a.guards = d.list.slice();
+    else { a.name = d.name.trim() || a.name; a.goal = d.goal.trim(); a.backstory = d.backstory.trim(); }
+    closeEdit();
+    commit();
+    say(EDIT_HEAD[k][0] + ' saved');
+  }
+  function editClick(e) {
+    var t = e.target, x;
+    e.stopPropagation();
+    if (!ED) return;
+    var d = ED.d;
+    if ((x = t.closest('[data-ed-save]'))) { if (!x.disabled) applyEdit(); return; }
+    if ((x = t.closest('[data-ed-dd]'))) { ED.dd = ED.dd === x.dataset.edDd ? null : x.dataset.edDd; ED.q = ''; return paintEdit(); }
+    if ((x = t.closest('[data-ed-pick]'))) {
+      var v = x.dataset.edPick;
+      if (ED.kind === 'model') { d.model = v; ED.dd = null; return paintEdit(); }
+      var i = d.list.indexOf(v); i >= 0 ? d.list.splice(i, 1) : d.list.push(v);
+      return paintEdit();
+    }
+    if ((x = t.closest('[data-ed-final]'))) { d.final = x.dataset.edFinal; ED.dd = null; return paintEdit(); }
+    if ((x = t.closest('[data-ed-rm]'))) { d.list.splice(d.list.indexOf(x.dataset.edRm), 1); if (d.final === x.dataset.edRm) d.final = ''; return paintEdit(); }
+    if (t.closest('[data-ed-new]')) { var n = ED.q.trim() || 'New tool'; if (TOOL_EXTRA.indexOf(n) < 0) TOOL_EXTRA.push(n); if (d.list.indexOf(n) < 0) d.list.push(n); ED.q = ''; ED.dd = null; return paintEdit(); }
+    if (t.closest('[data-ed-toggle]')) { d.open = !d.open; return paintEdit(); }
+    if (t.closest('[data-ed-param-add]')) { d.params.push(''); d.open = true; paintEdit(); var ins = byId('agbEdit').querySelectorAll('[data-ed-param]'); if (ins.length) ins[ins.length - 1].focus(); return; }
+    if ((x = t.closest('[data-ed-param-rm]'))) { d.params.splice(+x.dataset.edParamRm, 1); return paintEdit(); }
+    if ((x = t.closest('[data-ed-ex]'))) { var f = x.dataset.edEx; d[f] = EXAMPLES[f](); paintEdit(); return; }
+    if (ED.dd && !t.closest('[data-ed-dd-list]')) { ED.dd = null; paintEdit(); }
+  }
+  function editInput(e) {
+    var t = e.target; if (!ED) return;
+    /* Text fields report on input; a change on blur would redraw the list under the pointer. */
+    if (e.type === 'change' && t.type !== 'checkbox') return;
+    if (t.hasAttribute('data-ed-q')) { ED.q = t.value; var o = byId('agbEdit').querySelector('[data-ed-opts]'); if (o) o.innerHTML = optsHTML(); return; }
+    if (t.hasAttribute('data-ed-param')) { ED.d.params[+t.dataset.edParam] = t.value; return edSync(); }
+    var k = t.dataset.ed; if (!k) return;
+    ED.d[k] = t.type === 'checkbox' ? t.checked : t.value;
+    if (k === 'maxIter') byId('agbEdit').querySelectorAll('[data-ed="maxIter"]').forEach(function (o) { if (o !== t) o.value = t.value; });
+    edSync();
+  }
+
   function paintActive() {
     root.querySelectorAll('.agb-box').forEach(function (b) { b.classList.toggle('is-active', b.dataset.pick === (B && B.pick)); });
   }
@@ -805,6 +1094,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     if (!p || !B || !B.setup) return;
     on = on == null ? !p.classList.contains('is-open') : on;
     if (on) {
+      closeEdit();
       byId('agbTest').classList.remove('is-open');
       if (!p.classList.contains('is-open')) byId('agbSetupBody').innerHTML =
         '<p class="agb-setup__lede">Everything this agent uses came with it. These are the details its publisher kept private; fill them in and finish setup to start using it.</p>' +
@@ -825,6 +1115,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     var p = byId('agbTest');
     on = on == null ? !p.classList.contains('is-open') : on;
     if (on && byId('agbSetup')) { byId('agbSetup').classList.remove('is-open'); root.classList.remove('is-setup'); }
+    if (on) closeEdit();
     p.classList.toggle('is-open', on);
     paint();
     if (on) setTimeout(function () { byId('agbIn').focus(); }, 200);
@@ -1003,7 +1294,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
 
   function closeBuilder() {
     if (!root) return;
-    closePick();
+    closePick(); closeEdit();
     var r = root; root = null;
     r.classList.remove('is-shown');
     setTimeout(function () { r.remove(); if (window.mkwsPlace) window.mkwsPlace(); }, 180);
@@ -1031,6 +1322,8 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     if (pop && !pop.contains(e.target) && !(t && t.dataset.pick)) closePick();
     if (!e.target.closest('#agbMenu, [data-b="more"]')) { var m = byId('agbMenu'); if (m) m.hidden = true; }
     if (!e.target.closest('.agb-zpop, [data-b="zoom"]')) { var zp = root.querySelector('.agb-zpop'); if (zp) zp.remove(); }
+    /* A click on bare canvas puts the open editor away. */
+    if (!t && ED && e.target.closest('#agbCanvas') && !e.target.closest('.agb-box, .agb-card, .agb-field')) { closeEdit(); return; }
     if (!t) return;
     var b = t.dataset.b;
     if (t.dataset.jump) { e.stopPropagation(); return toggleSetup(true, t.dataset.jump); }
@@ -1041,8 +1334,9 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     if (t.dataset.pop) return popAct(t.dataset.pop);
     if (t.dataset.pick && !b) {
       if (B.mode !== 'edit') return;
-      if (byId('agbPop') && B.pick === t.dataset.pick) return closePick();
-      return openPick(t.dataset.pick, t);
+      var pk = t.dataset.pick === 'backstory' ? 'goal' : t.dataset.pick;
+      if (ED && ED.kind === pk) return closeEdit();
+      return openEdit(pk);
     }
     if (b === 'close') return closeBuilder();
     if (b === 'edit') { B.mode = 'edit'; B.tested = false; return paint(); }
@@ -1076,6 +1370,7 @@ select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
     if (e.key === 'Escape') {
       if (byId('agp')) { byId('agp').remove(); P = null; e.stopPropagation(); return; }
       if (byId('agbPop')) { closePick(); paintActive(); e.stopPropagation(); return; }
+      if (ED) { closeEdit(); e.stopPropagation(); return; }
       if (byId('agbTest').classList.contains('is-open')) { toggleTest(false); e.stopPropagation(); return; }
       if (setupOpen()) { toggleSetup(false); e.stopPropagation(); return; }
       closeBuilder(); e.stopPropagation(); return;
