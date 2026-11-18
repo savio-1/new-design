@@ -36,7 +36,7 @@ body.agx .cq-page__sidebar, body.agx .hdr-sub, body.agx .filter-row, body.agx .a
    split by a separator under the header; the cards sit below on the page. */
 body.agx .cq-page__header { background: var(--backgrounds-card-bg-2); border-bottom: 1px solid var(--strokes-line-1); }
 body.agx .cq-page__bar {
-  height: 52px; padding: 8px 48px; gap: 12px; justify-content: space-between;
+  height: 52px; padding: 8px 24px; gap: 12px; justify-content: space-between;
   background: var(--backgrounds-card-bg-2); border-bottom: 0; filter: none;
 }
 body.agx .cq-page__bar .bar-actions { gap: 12px; }
@@ -46,7 +46,7 @@ body.agx .new-btn > svg:last-child { display: none; }
 body.agx .seg-count { color: inherit; font: inherit; background: none; border: 0; padding: 0; min-width: 0; height: auto; }
 body.agx .seg-count::before { content: "("; }
 body.agx .seg-count::after { content: ")"; }
-body.agx .cq-page__content { padding: 16px 48px 32px; background: var(--backgrounds-page-bg-4); }
+body.agx .cq-page__content { padding: 16px 24px 32px; background: var(--backgrounds-page-bg-4); }
 body.agx .ag-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 1180px) { body.agx .ag-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px)  { body.agx .ag-grid { grid-template-columns: minmax(0, 1fr); } }

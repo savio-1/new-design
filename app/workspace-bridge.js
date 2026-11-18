@@ -220,6 +220,9 @@
     '.mkreq-bars{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}',
     '.mkreq-bars i{height:4px;border-radius:2px;background:var(--backgrounds-card-bg-4)}',
     '.mkreq-bars i.is-done{background:var(--text-coloured-green)}',
+    '.mkreq-bars i.is-wait{background:var(--text-coloured-orange)}',
+    '.mkreq-pill.is-wait,.mkreq-tag.is-wait{background:var(--backgrounds-badge-orange);border-color:var(--strokes-colour-orange);color:var(--text-coloured-orange)}',
+    '.is-wait > .mkreq-dot{border-color:var(--strokes-colour-orange);background:var(--backgrounds-badge-orange);color:var(--text-coloured-orange)}',
     '.mkreq-bars i.is-now{background:linear-gradient(90deg,var(--backgrounds-card-bg-4) 0,var(--text-coloured-blue) 50%,var(--backgrounds-card-bg-4) 100%);background-size:200% 100%;animation:mkreq-run 1.4s linear infinite}',
     '@keyframes mkreq-run{from{background-position:100% 0}to{background-position:-100% 0}}',
     '.mkreq-pill{justify-self:start;height:24px;display:inline-flex;align-items:center;gap:6px;padding:0 9px;border-radius:12px;white-space:nowrap;',
@@ -955,7 +958,8 @@
   var ADMIN_MS = 6000, CHECK_MS = 1200;
   var ADMINS = ['Priya Nair', 'Arjun Mehta'];
   var STEP_NAMES = ['Requested', 'Admin review', 'Workspace policy check', 'Ready to add to workspace'];
-  var STAGE_LABEL = ['Requested', 'In admin review', 'Checking workspace policies', 'Ready to add'];
+  var STAGE_LABEL = ['Requested', 'Waiting for admin review', 'Checking workspace policies', 'Ready to add'];
+  var CLOCK = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8V8l2.2 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function checksOf(w) {
     var c = [['Publisher verified', w.publisher + ' is a verified Marketplace publisher']];
     if (w.shared && w.shared.length) c.push(['Integrations allowed', listAnd(w.shared) + (w.shared.length === 1 ? ' is' : ' are') + ' on the workspace allow-list']);
@@ -966,10 +970,13 @@
     c.push(['Data residency', 'Runs in your workspace region, EU West']);
     return c;
   }
+  /* A review takes people, and people take time: a request waits at admin
+     review until someone approves it (approvedAt). The policy checks run
+     from that moment. */
   function stageOf(w) {
-    var t = Date.now() - (w.requestedAt || 0), n = checksOf(w).length;
-    if (t < ADMIN_MS) return { step: 1, checks: 0, n: n };
-    var k = Math.floor((t - ADMIN_MS) / CHECK_MS);
+    var n = checksOf(w).length;
+    if (!w.approvedAt) return { step: 1, checks: 0, n: n, waiting: true };
+    var k = Math.floor((Date.now() - w.approvedAt) / CHECK_MS);
     return k < n ? { step: 2, checks: k, n: n } : { step: 3, checks: n, n: n };
   }
   function clock(t) { return new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
@@ -1013,11 +1020,12 @@
   function bars(s) {
     return '<span class="mkreq-bars" aria-hidden="true">' + [0, 1, 2, 3].map(function (i) {
       var done = i < s.step || s.step === 3;
-      return '<i class="' + (done ? 'is-done' : i === s.step ? 'is-now' : '') + '"></i>';
+      return '<i class="' + (done ? 'is-done' : i === s.step ? (s.waiting ? 'is-wait' : 'is-now') : '') + '"></i>';
     }).join('') + '</span>';
   }
   function pillHTML(s) {
     return s.step === 3 ? '<span class="mkreq-pill is-ready">' + IC.check + 'Ready to add</span>'
+      : s.waiting ? '<span class="mkreq-pill is-wait">' + CLOCK + STAGE_LABEL[s.step] + '</span>'
       : '<span class="mkreq-pill">' + SPIN + STAGE_LABEL[s.step] + '</span>';
   }
   function reqRow(w) {
@@ -1092,17 +1100,18 @@
     var el = byId('mkreqPanel'); if (!el) return;
     var s = stageOf(w), T = totals(w), t0 = w.requestedAt || Date.now();
     var checks = checksOf(w);
-    var stepCls = function (i) { return i < s.step || s.step === 3 ? 'is-done' : i === s.step ? 'is-now' : 'is-todo'; };
-    var dot = function (i) { var c = stepCls(i); return '<span class="mkreq-dot">' + (c === 'is-done' ? IC.check : c === 'is-now' ? SPIN : (i + 1)) + '</span>'; };
+    var stepCls = function (i) { return i < s.step || s.step === 3 ? 'is-done' : i === s.step ? (s.waiting ? 'is-wait' : 'is-now') : 'is-todo'; };
+    var dot = function (i) { var c = stepCls(i); return '<span class="mkreq-dot">' + (c === 'is-done' ? IC.check : c === 'is-now' ? SPIN : c === 'is-wait' ? CLOCK : (i + 1)) + '</span>'; };
     var checkList = '<ul class="mkreq-checks">' + checks.map(function (c, i) {
       var st = i < s.checks ? 'is-ok' : i === s.checks && s.step === 2 ? 'is-now' : '';
       return '<li class="' + st + '"><span class="ci">' + (st === 'is-ok' ? IC.check : st === 'is-now' ? SPIN : '<i></i>') + '</span>' +
         '<span><b>' + E(c[0]) + '</b>' + E(c[1]) + '</span></li>';
     }).join('') + '</ul>';
     var steps = [
-      ['Requested', 'You requested it from the Marketplace · ' + clock(t0), ''],
-      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(t0 + ADMIN_MS) : 'Sent to your workspace admins, ' + listAnd(ADMINS),
-        s.step === 1 ? '<span class="mkreq-tag">' + SPIN + 'In review</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
+      ['Requested', 'You requested it from the Marketplace · Today, ' + clock(t0), ''],
+      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(w.approvedAt)
+        : 'Sent to your workspace admins, ' + listAnd(ADMINS) + '. Reviews usually take 1 to 2 business days, and you will be notified once it is approved.',
+        s.step === 1 ? '<span class="mkreq-tag is-wait">' + CLOCK + 'Waiting</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
       ['Workspace policy check', s.step < 2 ? 'Runs once an admin approves the request'
         : s.step === 2 ? 'Checking ' + s.n + ' workspace policies · ' + s.checks + ' passed' : 'Passed all ' + s.n + ' workspace policies',
         s.step < 2 ? '' : s.step === 2 ? '<span class="mkreq-tag">' + SPIN + 'Checking</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Passed</span>'],
