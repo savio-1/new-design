@@ -3390,7 +3390,7 @@ body.cq { margin: 0; }
               <div class="mk-caution__id">
                 <div class="mk-caution__head">
                   <span class="mk-caution__ic" aria-hidden="true"><svg class="cq-ic" width="18" height="18" viewBox="0 0 16 16"><use href="#mk-lock"/></svg></span>
-                  <h2 class="mk-caution__title cq-subhead2-med" id="mkCautionT">This uses the publisher’s private credentials</h2>
+                  <h2 class="mk-caution__title cq-subhead2-med" id="mkCautionT">You’ll be using the publisher’s details</h2>
                 </div>
                 <p class="mk-caution__text cq-body2-reg" id="mkCautionD"></p>
               </div>
@@ -3399,7 +3399,7 @@ body.cq { margin: 0; }
                 <div class="mk-caution__list" id="mkCautionList"></div>
               </div>
               <div class="mk-caution__sec">
-                <span class="mk-caution__label cq-caption-med">BEFORE YOU ADD IT</span>
+                <span class="mk-caution__label cq-caption-med">GOOD TO KNOW</span>
                 <ul class="mk-caution__points" id="mkCautionPoints"></ul>
               </div>
               <div class="mk-caution__foot">
@@ -4816,8 +4816,7 @@ function paintAdd() {
    first, plainly, before it lands in their workspace. */
 const sharedSecrets = a => resSecrets(a).map(({ r, f }) => ({
   mark: r.mark(), name: r.name,
-  sub: `${r.type} · ${listJoin(f.map(x => x.label))} shared`,
-  secret: 'Hidden from you'
+  sub: `Publisher's ${listJoin(f.map(x => x.label))}`
 }));
 let cautionNext = null;
 let cautionFocus = null;
@@ -4827,19 +4826,15 @@ function openCaution(a, next) {
   const sec = resSecrets(a);
   const model = sec.find(x => x.r.rk === 'models');
   const integ = sec.some(x => x.r.rk !== 'models');
-  $('mkCautionD').innerHTML = `<b>${esc(a.creator.name)}</b> shared their own keys and sign-in details with <b>${esc(a.title)}</b>. Once it's in your workspace, these parts run on their credentials, not yours.`;
+  $('mkCautionD').innerHTML = `<b>${esc(a.creator.name)}</b> shared their own keys with <b>${esc(a.title)}</b>. The parts below will run on the publisher's details, not yours.`;
   $('mkCautionList').innerHTML = items.map(x => `
     <div class="mk-caution__row">
       <span class="mk-caution__mark">${x.mark}</span>
       <span class="mk-caution__who"><span class="t cq-body2-med">${esc(x.name)}</span><span class="s cq-caption-reg">${esc(x.sub)}</span></span>
-      <span class="mk-caution__secret cq-caption-med"><svg class="cq-ic" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><use href="#mk-lock"/></svg>${esc(x.secret)}</span>
     </div>`).join('');
-  const pts = [
-    ['mk-lock', `The publisher's keys, secrets and sign-ins stay hidden. You can use them through this ${esc(w)}, but you can't view, copy or export them.`],
-    ['mk-info', `Whatever it reads or sends goes through the publisher's ${integ ? 'accounts' : 'model deployment'}, so that activity may show up in their own logs. Your workspace admins see this too when they review the request.`]
-  ];
-  if (model) pts.push(['mk-coin', `Runs use the publisher's ${esc(model.r.name)} API key. Usage is charged to your workspace.`]);
-  pts.push(['mk-sync', `The publisher can rotate or revoke these keys at any time, and those parts stop working until you add your own.`]);
+  const pts = [['mk-info', integ ? 'Activity goes through their accounts.' : 'Prompts go through their model deployment.']];
+  if (model) pts.push(['mk-coin', 'Usage is charged to your workspace.']);
+  pts.push(['mk-sync', 'They can revoke access anytime. Add your own details to keep it running.']);
   $('mkCautionPoints').innerHTML = pts.map(([ic, t]) =>
     `<li><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><use href="#${ic}"/></svg><span class="cq-body2-reg">${t}</span></li>`).join('');
   cautionNext = next;
