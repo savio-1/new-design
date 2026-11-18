@@ -4808,6 +4808,14 @@ const CLOCK_IC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ar
 const reqAt = new Map();
 function paintSetupBox(a) {
   const st = added.has(a.ref) ? (wsStatus.get(a.ref) || 'requested') : null;
+  /* Mirrors the workspace pages: a while in review, then the checks, then ready. */
+  if (st === 'requested' && Date.now() > (reqAt.get(a.ref) || Date.now()) + 25000 + 6000) {
+    $('mkPvSetup').className = 'mk-box mk-setup mk-setup--ok';
+    $('mkPvSetup').innerHTML = `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to add to workspace</span></span>
+       <span class="mk-setup__note cq-caption-reg">Approved and passed every workspace policy.</span>
+       ${toWorkspace(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>Add it now<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}`;
+    return;
+  }
   if (st === 'requested') {
     const t = new Date(reqAt.get(a.ref) || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     $('mkPvSetup').className = 'mk-box mk-setup mk-setup--wait';
@@ -4917,6 +4925,8 @@ $('mkPvAdd').addEventListener('click', () => {
 /* Adding is a request: it goes to the workspace admins for review and
    through the workspace's policies before it can be added. */
 $('mkPvSetup').addEventListener('click', e => { if (e.target.closest('[data-track]') && pv) goTrack(pv); });
+/* Keep the status box current while a requested item is open. */
+setInterval(() => { if (pv && !$('mkPreview').hidden && added.has(pv.ref) && wsStatus.get(pv.ref) !== 'added') paintSetupBox(pv); }, 1000);
 /* Types without a workspace page in this app show their status in place. */
 function showStatusBox() {
   const box = $('mkPvSetup');
@@ -4941,7 +4951,7 @@ window.addEventListener('message', e => {
   if (!Array.isArray(d.cqWorkspace)) return;
   const refs = new Set(d.cqWorkspace.map(w => w.ref));
   [...added].forEach(r => { if (WS_PAGE[r.split(':')[0]] && !refs.has(r)) { added.delete(r); wsStatus.delete(r); } });
-  d.cqWorkspace.forEach(w => { added.add(w.ref); wsStatus.set(w.ref, w.status || 'added'); });
+  d.cqWorkspace.forEach(w => { added.add(w.ref); wsStatus.set(w.ref, w.status || 'added'); if (w.requestedAt) reqAt.set(w.ref, w.requestedAt); });
   paintAdd();
 });
 $('mkPvForm').addEventListener('submit', e => {

@@ -976,10 +976,12 @@
   /* A review takes people, and people take time: a request waits at admin
      review until someone approves it (approvedAt). The policy checks run
      from that moment. */
+  var REVIEW_MS = 25000;   /* the prototype's stand-in for a review that takes days */
+  function approvedAt(w) { return w.approvedAt || (w.requestedAt || Date.now()) + REVIEW_MS; }
   function stageOf(w) {
     var n = checksOf(w).length;
-    if (!w.approvedAt) return { step: 1, checks: 0, n: n, waiting: true };
-    var k = Math.floor((Date.now() - w.approvedAt) / CHECK_MS);
+    if (Date.now() < approvedAt(w)) return { step: 1, checks: 0, n: n, waiting: true };
+    var k = Math.floor((Date.now() - approvedAt(w)) / CHECK_MS);
     return k < n ? { step: 2, checks: k, n: n } : { step: 3, checks: n, n: n };
   }
   function clock(t) { return new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
@@ -1111,7 +1113,7 @@
     }).join('') + '</ul>';
     var steps = [
       ['Requested', 'You requested it from the Marketplace · Today, ' + clock(t0), ''],
-      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(w.approvedAt)
+      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(approvedAt(w))
         : 'Sent to your workspace admins, ' + listAnd(ADMINS) + '. Reviews usually take 1 to 2 business days, and you will be notified once it is approved.',
         s.step === 1 ? '<span class="mkreq-tag is-wait">' + CLOCK + 'Waiting</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
       ['Workspace policy check', s.step < 2 ? 'Runs once an admin approves the request'
@@ -1170,7 +1172,12 @@
     if (sig === lastReqSig) return;
     paintReqs();
     if (trackRef) { var w = wsByRef(trackRef); if (w) paintTrack(w); }
+    /* Say so once a request clears every check. */
+    reqs().forEach(function (r) {
+      if (stageOf(r).step === 3 && !readySaid[r.ref]) { readySaid[r.ref] = true; say(r.name + ' is ready to add to your workspace'); }
+    });
   }, 400);
+  var readySaid = {};
 
   document.addEventListener('click', function (e) {
     var t;
