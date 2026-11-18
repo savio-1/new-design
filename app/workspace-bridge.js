@@ -231,7 +231,17 @@
     '.mkreq-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:64px 24px;border:1px dashed var(--strokes-line-1);border-radius:12px;text-align:center;color:var(--text-secondary)}',
     '.mkreq-empty .cq-btn{height:36px}',
     /* The tracker */
-    '.mkws-dlg--wide{width:min(560px,100%)}',
+    '.mkreq-panel{z-index:240;font-family:var(--font-geist);color:var(--text-primary);padding:0}',
+    ':where(.mkreq-panel) button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}',
+    '.mkreq-panel .cq-panel__section{gap:12px}',
+    '.mkreq-p__bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 0}',
+    '.mkreq-p__x{width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary)}',
+    '.mkreq-p__x:hover{background:var(--backgrounds-card-bg-4);color:var(--text-primary)}',
+    '.mkreq-p__title{display:flex;align-items:center;gap:12px;min-width:0}',
+    '.mkreq-p__acts{display:flex;gap:8px}',
+    '.mkreq-p__acts .cq-btn{height:36px}',
+    '.mkreq-p__acts .cq-btn--primary{flex:1 1 auto;justify-content:center}',
+    '.mkreq-row.is-sel{border-color:var(--strokes-card-selected);box-shadow:0 0 0 1px var(--strokes-card-selected)}',
     '.mkreq-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-line-1)}',
     '.mkreq-item .mkreq-id{flex:1 1 auto}',
     '.mkreq-steps{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}',
@@ -996,6 +1006,7 @@
       paintReqs(true);
     } else {
       mine2.classList.remove('is-active'); mine2.setAttribute('aria-selected', 'false');
+      closeTrack(true);
     }
     segSync();
   }
@@ -1040,33 +1051,45 @@
           '<span class="cq-body2-reg">' + (PAGE === 'agent' ? 'Agents' : 'Automations') + ' you add from the Marketplace wait here while they are reviewed.</span>' +
           '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Browse the Marketplace</button></div>');
     if (focused) { var f = p.querySelector('[data-mkreq-open="' + focused + '"]'); if (f) f.focus({ preventScroll: true }); }
+    markSel();
   }
 
+  /* The tracker opens in the page's right-hand panel, as any detail does. */
+  function trackPanel() {
+    var el = byId('mkreqPanel');
+    if (el) return el;
+    el = document.createElement('aside');
+    el.className = 'cq-panel mkreq-panel'; el.id = 'mkreqPanel';
+    el.setAttribute('aria-label', 'Request status'); el.setAttribute('aria-hidden', 'true');
+    var host = byId('panel') || byId('auPanel');
+    (host ? host.parentNode : document.body).appendChild(el);
+    return el;
+  }
+  function markSel() {
+    document.querySelectorAll('.mkreq-row').forEach(function (r) { r.classList.toggle('is-sel', r.getAttribute('data-mkreq-open') === trackRef); });
+  }
   function openTrack(ref) {
     var w = wsByRef(ref);
     if (!w) return;
     if (w.status !== 'requested') { reqShow(false); var first = seg && seg.querySelector(':scope > button:not([data-mkreq])'); if (first) first.click(); focusOn(ref); return; }
-    closeTrack(true);
+    if (typeof closePanel === 'function') closePanel();
+    if (!trackRef) trackFocus = document.activeElement;
     trackRef = ref;
-    trackFocus = document.activeElement;
-    var scrim = document.createElement('div');
-    scrim.className = 'mkws-scrim'; scrim.id = 'mkreqDlg';
-    scrim.innerHTML = '<div class="mkws-dlg mkws-dlg--wide" role="dialog" aria-modal="true" aria-labelledby="mkreqT"></div>';
-    document.body.appendChild(scrim);
+    var el = trackPanel();
     paintTrack(w);
-    requestAnimationFrame(function () { scrim.classList.add('is-shown'); });
-    var d = scrim.querySelector('.mkws-dlg'); d.setAttribute('tabindex', '-1'); d.focus({ preventScroll: true });
+    markSel();
+    requestAnimationFrame(function () { el.classList.add('is-open'); el.setAttribute('aria-hidden', 'false'); });
   }
   function closeTrack(quiet) {
-    var s = byId('mkreqDlg');
+    var el = byId('mkreqPanel');
     trackRef = null;
-    if (!s) return;
-    s.remove();
-    if (!quiet && trackFocus && trackFocus.focus) trackFocus.focus();
+    markSel();
+    if (!el) return;
+    el.classList.remove('is-open'); el.setAttribute('aria-hidden', 'true');
+    if (!quiet && trackFocus && trackFocus.focus) trackFocus.focus({ preventScroll: true });
   }
   function paintTrack(w) {
-    var host = byId('mkreqDlg'); if (!host) return;
-    var dlg = host.querySelector('.mkws-dlg');
+    var el = byId('mkreqPanel'); if (!el) return;
     var s = stageOf(w), T = totals(w), t0 = w.requestedAt || Date.now();
     var checks = checksOf(w);
     var stepCls = function (i) { return i < s.step || s.step === 3 ? 'is-done' : i === s.step ? 'is-now' : 'is-todo'; };
@@ -1089,26 +1112,29 @@
       ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>After it is added, fill in ' + plural(T.total, 'detail') + ' in ' +
         listAnd((w.needs || []).map(function (n) { return n.name; })) + '. The publisher kept these private.</span></div>'
       : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>The publisher shared every detail it needs, so it is ready to use as soon as it is added.</span></div>';
-    dlg.innerHTML =
-      '<div class="mkws-dlg__head">' +
-        '<h2 class="mkws-dlg__title cq-subhead2-med" id="mkreqT">Request status</h2>' +
-        '<button type="button" class="mkws-x" data-mkreq-close aria-label="Close">' + IC.close + '</button>' +
+    el.innerHTML =
+      '<div class="mkreq-p__bar">' + pillHTML(s) +
+        '<button type="button" class="mkreq-p__x" data-mkreq-close aria-label="Close" title="Close">' +
+          '<svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-pp_closepanel"/></svg></button>' +
       '</div>' +
-      '<div class="mkreq-item"><span class="mkreq-mark">' + REQ_IC + '</span>' +
-        '<span class="mkreq-id"><span class="t cq-body2-med">' + E(w.name) + '</span>' +
-        '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + ' · published by ' + E(w.publisher) + '</span></span>' + pillHTML(s) + '</div>' +
-      '<ol class="mkreq-steps">' + steps.map(function (st, i) {
-        return '<li class="mkreq-step ' + stepCls(i) + '">' + dot(i) +
-          '<span class="mkreq-step__b"><span class="mkreq-step__t cq-body2-med">' + E(st[0]) + st[2] + '</span>' +
-          '<span class="mkreq-step__s cq-caption-reg">' + E(st[1]) + '</span>' + (i === 2 && s.step >= 2 ? checkList : '') + '</span></li>';
-      }).join('') + '</ol>' +
-      after +
-      '<div class="mkws-dlg__foot">' +
-        '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>' +
-        '<span class="sp"></span>' +
-        '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-close>Close</button>' +
-        '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (s.step === 3 ? '' : ' disabled') + '>Add to workspace</button>' +
-      '</div>';
+      '<div class="cq-panel__section">' +
+        '<div class="mkreq-p__title"><span class="mkreq-mark">' + REQ_IC + '</span>' +
+          '<span class="mkreq-id"><span class="t cq-body1-med">' + E(w.name) + '</span>' +
+          '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + ' · published by ' + E(w.publisher) + '</span></span></div>' +
+        (w.desc ? '<p class="cq-caption-reg" style="margin:0;color:var(--text-secondary)">' + E(w.desc) + '</p>' : '') +
+        '<div class="mkreq-p__acts">' +
+          '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (s.step === 3 ? '' : ' disabled') + '>Add to workspace</button>' +
+          '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">REQUEST STATUS</span>' +
+        '<ol class="mkreq-steps">' + steps.map(function (st, i) {
+          return '<li class="mkreq-step ' + stepCls(i) + '">' + dot(i) +
+            '<span class="mkreq-step__b"><span class="mkreq-step__t cq-body2-med">' + E(st[0]) + st[2] + '</span>' +
+            '<span class="mkreq-step__s cq-caption-reg">' + E(st[1]) + '</span>' + (i === 2 && s.step >= 2 ? checkList : '') + '</span></li>';
+        }).join('') + '</ol>' +
+      '</div>' +
+      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">AFTER IT IS ADDED</span>' + after + '</div>';
   }
   function addReq(ref) {
     var w = wsByRef(ref);
@@ -1140,7 +1166,7 @@
     if (e.target.closest('[data-mkreq]')) { e.stopPropagation(); e.preventDefault(); reqShow(true); return; }
     if (reqOn && seg && e.target.closest('#' + seg.id + ' > button:not([data-mkreq])')) reqShow(false);
     if ((t = e.target.closest('[data-mkreq-open]'))) { e.stopPropagation(); openTrack(t.getAttribute('data-mkreq-open')); return; }
-    if (e.target.closest('[data-mkreq-close]') || e.target.id === 'mkreqDlg') { e.stopPropagation(); closeTrack(); return; }
+    if (e.target.closest('[data-mkreq-close]')) { e.stopPropagation(); closeTrack(); return; }
     if ((t = e.target.closest('[data-mkreq-add]'))) { e.stopPropagation(); addReq(t.getAttribute('data-mkreq-add')); return; }
     if ((t = e.target.closest('[data-mkreq-withdraw]'))) {
       e.stopPropagation();
@@ -1153,15 +1179,7 @@
     if (e.target.closest('[data-mkreq-browse]')) { e.stopPropagation(); post({ cqNav: 'marketplace.html' }); }
   }, true);
   document.addEventListener('keydown', function (e) {
-    if (!byId('mkreqDlg')) return;
-    if (e.key === 'Escape') { e.stopPropagation(); closeTrack(); return; }
-    if (e.key === 'Tab') {
-      var f = byId('mkreqDlg').querySelectorAll('button:not([disabled])');
-      if (!f.length) return;
-      var first = f[0], last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    }
+    if (e.key === 'Escape' && trackRef) { e.stopPropagation(); closeTrack(); }
   }, true);
   window.addEventListener('resize', segSync);
 

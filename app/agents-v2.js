@@ -32,11 +32,15 @@
   css.textContent = String.raw`
 /* ── Landing ── */
 body.agx .cq-page__sidebar, body.agx .hdr-sub, body.agx .filter-row, body.agx .ag-count { display: none !important; }
+/* As the frame has it: the header and the tab row share one surface,
+   split by a separator under the header; the cards sit below on the page. */
+body.agx .cq-page__header { background: var(--backgrounds-card-bg-2); border-bottom: 1px solid var(--strokes-line-1); }
 body.agx .cq-page__bar {
   height: 52px; padding: 8px 48px; gap: 12px; justify-content: space-between;
-  background: var(--backgrounds-page-bg-4); border-bottom: 0; filter: none;
+  background: var(--backgrounds-card-bg-2); border-bottom: 0; filter: none;
 }
 body.agx .cq-page__bar .bar-actions { gap: 12px; }
+body.agx #srcTabs > button { gap: 4px; }
 body.agx .cq-page__bar .cq-search { width: 320px; height: 36px; }
 body.agx .new-btn > svg:last-child { display: none; }
 body.agx .seg-count { color: inherit; font: inherit; background: none; border: 0; padding: 0; min-width: 0; height: auto; }
