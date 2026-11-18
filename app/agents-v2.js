@@ -206,7 +206,8 @@ body.agx .ag-card__end .cq-avatar { width: 20px; height: 20px; }
 .agb-val { flex: 1 1 auto; min-width: 0; white-space: pre-line; color: var(--text-primary); font: 400 12px/16px var(--font-geist); letter-spacing: -0.24px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .agb-model { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; color: var(--text-primary); font: 500 12px/16px var(--font-geist); }
-.agb-plus { flex: none; width: 20px; height: 20px; padding: 2px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+/* Top right corner of the box, as in the frame: 12px in, 8px down. */
+.agb-plus { flex: none; align-self: flex-start; margin-left: auto; width: 20px; height: 20px; padding: 2px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
   background: var(--backgrounds-button-primary); color: #fff; }
 .agb.is-view .agb-plus, .agb.is-view .agb-edit { display: none; }
 .agb-list { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -226,7 +227,7 @@ body.agx .ag-card__end .cq-avatar { width: 20px; height: 20px; }
 .agb-need .act { grid-column: 2; grid-row: 1 / span 2; }
 .agb-connect { padding: 3px 8px; border-radius: 6px; background: var(--backgrounds-button-primary); color: #fff !important; font: 500 11px/14px var(--font-geist); white-space: nowrap; }
 .agb-need .ok { color: var(--text-coloured-green); font: 500 11px/14px var(--font-geist); white-space: nowrap; }
-.agb-mcol { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.agb-mcol { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
 .agb.is-setup .agb-world { padding-right: 400px; }
 .agb-mneed { display: block; width: 100%; margin-top: 4px; color: var(--text-coloured-orange); font: 400 11px/14px var(--font-geist); }
 /* Setup: the details the publisher kept private, filled in beside the canvas */
