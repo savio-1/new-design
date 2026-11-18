@@ -204,13 +204,16 @@
     '.mkreq-head h2{margin:0;color:var(--text-primary)}',
     '.mkreq-head p{margin:4px 0 0;max-width:720px;color:var(--text-secondary)}',
     '.mkreq-list{display:flex;flex-direction:column;gap:10px}',
-    '.mkreq-row{width:100%;display:grid;grid-template-columns:36px minmax(0,1fr) minmax(200px,280px) 150px 16px;align-items:center;gap:16px;',
-    '  padding:14px 16px;border-radius:12px;text-align:left;cursor:pointer;font:inherit;color:inherit;',
+    '.mkreq-row{width:100%;display:grid;grid-template-columns:40px minmax(0,1fr) minmax(220px,280px) 16px;align-items:center;column-gap:20px;',
+    '  padding:16px 20px;border-radius:12px;text-align:left;cursor:pointer;font:inherit;color:inherit;',
     '  background:var(--backgrounds-card-bg-2);border:1px solid var(--strokes-card-default);',
     '  transition:border-color .15s ease,box-shadow .2s ease,transform .2s ease}',
     '.mkreq-row:hover{border-color:var(--strokes-card-selected);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.18)}',
     '.mkreq-row:focus-visible{outline:2px solid var(--strokes-type-focus);outline-offset:2px}',
-    '@media (max-width:900px){.mkreq-row{grid-template-columns:36px minmax(0,1fr) 150px 16px}.mkreq-row .mkreq-mini{display:none}}',
+    '@media (max-width:900px){.mkreq-row{grid-template-columns:40px minmax(0,1fr) 16px}.mkreq-row .mkreq-mini{display:none}}',
+    '.mkreq-row .mkreq-mark{width:40px;height:40px;border-radius:10px}',
+    '.mkreq-row .mkreq-id{gap:3px}',
+    '.mkreq-row .mkreq-id .mkreq-pill{align-self:flex-start;height:22px;margin-bottom:6px;padding:0 8px;font-size:11px}',
     '.mkreq-mark{width:36px;height:36px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
     '.mkreq-id{display:flex;flex-direction:column;gap:2px;min-width:0}',
     '.mkreq-id .t{color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -1032,10 +1035,9 @@
     var s = stageOf(w);
     return '<button type="button" class="mkreq-row" data-mkreq-open="' + E(w.ref) + '">' +
       '<span class="mkreq-mark">' + REQ_IC + '</span>' +
-      '<span class="mkreq-id"><span class="t cq-body1-med">' + E(w.name) + '</span>' +
+      '<span class="mkreq-id">' + pillHTML(s) + '<span class="t cq-body1-med">' + E(w.name) + '</span>' +
         '<span class="s cq-caption-reg">Published by ' + E(w.publisher) + ' · requested ' + E(when(w.requestedAt)) + '</span></span>' +
       '<span class="mkreq-mini">' + bars(s) + '<span class="l">Step ' + Math.min(s.step + 1, 4) + ' of 4 · ' + E(STEP_NAMES[s.step]) + '</span></span>' +
-      pillHTML(s) +
       '<span class="mkreq-chev">' + CHEV + '</span>' +
     '</button>';
   }

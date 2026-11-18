@@ -2712,6 +2712,15 @@ body.cq { margin: 0; }
     .mk-setup__list b { font-weight: 500; color: var(--text-primary); }
     @media (max-width: 640px) { .mk-res__fields { padding-left: 12px; } }
     .mk-setup { gap: 8px; border: 1px solid transparent; }
+    .mk-setup--wait { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); }
+    .mk-setup--wait .mk-setup__head > svg { flex: none; color: var(--mk-warn-fg); }
+    .mk-reqbars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding-left: 24px; }
+    .mk-reqbars i { height: 4px; border-radius: 2px; background: var(--backgrounds-card-bg-4); }
+    .mk-reqbars i.is-done { background: var(--text-coloured-green); }
+    .mk-reqbars i.is-wait { background: var(--mk-warn-fg); }
+    .mk-setup.is-flash { animation: mk-setup-flash 1.4s ease-out 1; }
+    @keyframes mk-setup-flash { 0% { box-shadow: 0 0 0 0 rgba(13,153,255,0); } 25% { box-shadow: 0 0 0 4px rgba(13,153,255,.45); } 100% { box-shadow: 0 0 0 0 rgba(13,153,255,0); } }
+
     .mk-setup--ok   { background: var(--backgrounds-badge-green); border-color: var(--strokes-colour-green); }
     .mk-setup--todo { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); }
     .mk-setup__head { display: flex; align-items: center; gap: 8px; color: var(--text-primary); }
@@ -4698,17 +4707,7 @@ function renderPreview() {
   $('mkPvDisclaimer').innerHTML = disc;
   $('mkPvDisclaimer').hidden = !disc;
 
-  /* The setup summary at the top of the side column. */
-  const todo = resNeeds(a);
-  const nTodo = fieldsToFill(a);
-  const MAX = 4;
-  $('mkPvSetup').className = `mk-box mk-setup ${todo.length ? 'mk-setup--todo' : 'mk-setup--ok'}`;
-  $('mkPvSetup').innerHTML = todo.length
-    ? `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_edit"/></svg><span class="cq-body2-med">${nTodo} ${nTodo === 1 ? 'detail' : 'details'} to fill in</span></span>
-       <span class="mk-setup__note cq-caption-reg">Added with everything else. Fill these in after adding, before the first run.</span>
-       <ul class="mk-setup__list cq-caption-reg">${todo.slice(0, MAX).map(r => { const f = resTodo(r).map(x => x.label); return `<li><b>${esc(r.name)}</b> · ${esc(f.length > 2 ? f.slice(0, 2).join(', ') + ` +${f.length - 2}` : f.join(', '))}</li>`; }).join('')}${todo.length > MAX ? `<li>and ${todo.length - MAX} more</li>` : ''}</ul>`
-    : `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to run</span></span>
-       <span class="mk-setup__note cq-caption-reg">${a.res.length ? 'Every detail it needs was shared by the publisher.' : 'Nothing to set up.'}</span>`;
+  paintSetupBox(a);
 
   $('mkPvSimH').textContent = `Similar ${a.type === 'automation' ? 'automations' : TYPES[a.type].label.toLowerCase()} in this category`;
   $('mkPvSimilar').innerHTML = similarTo(a).map(artCard).join('');
@@ -4805,14 +4804,46 @@ function goTrack(a) {
 }
 /* Where each request stands, as the workspace pages report it. */
 const wsStatus = new Map();
+/* The top of the side column: once requested, where the request stands;
+   before that, what will need filling in after it is added. */
+const CLOCK_IC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8V8l2.2 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const reqAt = new Map();
+function paintSetupBox(a) {
+  const st = added.has(a.ref) ? (wsStatus.get(a.ref) || 'requested') : null;
+  if (st === 'requested') {
+    const t = new Date(reqAt.get(a.ref) || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    $('mkPvSetup').className = 'mk-box mk-setup mk-setup--wait';
+    $('mkPvSetup').innerHTML = `<span class="mk-setup__head">${CLOCK_IC}<span class="cq-body2-med">Waiting for admin review</span></span>
+       <span class="mk-reqbars" aria-hidden="true"><i class="is-done"></i><i class="is-wait"></i><i></i><i></i></span>
+       <span class="mk-setup__note cq-caption-reg">Requested today, ${t}. Your workspace admins review it, then it is checked against workspace policies. This usually takes 1 to 2 business days.</span>`;
+    return;
+  }
+  if (st === 'added') {
+    $('mkPvSetup').className = 'mk-box mk-setup mk-setup--ok';
+    $('mkPvSetup').innerHTML = `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">In your workspace</span></span>
+       <span class="mk-setup__note cq-caption-reg">Approved and added to your workspace.</span>`;
+    return;
+  }
+  const todo = resNeeds(a);
+  const nTodo = fieldsToFill(a);
+  const MAX = 4;
+  $('mkPvSetup').className = `mk-box mk-setup ${todo.length ? 'mk-setup--todo' : 'mk-setup--ok'}`;
+  $('mkPvSetup').innerHTML = todo.length
+    ? `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#ic-pp_edit"/></svg><span class="cq-body2-med">${nTodo} ${nTodo === 1 ? 'detail' : 'details'} to fill in</span></span>
+       <span class="mk-setup__note cq-caption-reg">Added with everything else. Fill these in after adding, before the first run.</span>
+       <ul class="mk-setup__list cq-caption-reg">${todo.slice(0, MAX).map(r => { const f = resTodo(r).map(x => x.label); return `<li><b>${esc(r.name)}</b> · ${esc(f.length > 2 ? f.slice(0, 2).join(', ') + ` +${f.length - 2}` : f.join(', '))}</li>`; }).join('')}${todo.length > MAX ? `<li>and ${todo.length - MAX} more</li>` : ''}</ul>`
+    : `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to run</span></span>
+       <span class="mk-setup__note cq-caption-reg">${a.res.length ? 'Every detail it needs was shared by the publisher.' : 'Nothing to set up.'}</span>`;
+
+}
 function paintAdd() {
   if (!pv) return;
   const on = added.has(pv.ref);
   const st = wsStatus.get(pv.ref);
   $('mkPvAdd').classList.toggle('is-added', on);
   $('mkPvAddLabel').textContent = !on ? 'Add to workspace'
-    : !toWorkspace(pv) ? 'Requested'
-    : st === 'added' ? `Open in ${WS_NAME[pv.type]}` : 'Track request';
+    : toWorkspace(pv) && st === 'added' ? `Open in ${WS_NAME[pv.type]}` : 'See status';
+  paintSetupBox(pv);
 }
 
 /* ── Caution before adding ─────────────────────────────────────────
@@ -4878,6 +4909,7 @@ $('mkPvAdd').addEventListener('click', () => {
   const ws = toWorkspace(pv);
   if (added.has(pv.ref)) {
     if (ws) wsStatus.get(pv.ref) === 'added' ? goWorkspace(pv) : goTrack(pv);
+    else showStatusBox();
     return;
   }
   const a = pv;
@@ -4886,16 +4918,23 @@ $('mkPvAdd').addEventListener('click', () => {
 });
 /* Adding is a request: it goes to the workspace admins for review and
    through the workspace's policies before it can be added. */
+/* Types without a workspace page in this app show their status in place. */
+function showStatusBox() {
+  const box = $('mkPvSetup');
+  box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  box.classList.remove('is-flash'); void box.offsetWidth; box.classList.add('is-flash');
+}
 function addToWorkspace(a) {
   const ws = toWorkspace(a);
   added.add(a.ref);
+  reqAt.set(a.ref, Date.now());
   if (ws) { wsStatus.set(a.ref, 'requested'); parent.postMessage({ cqWsAdd: workspacePayload(a) }, '*'); }
   paintAdd();
   tidbit({
     tone: 'ok',
     title: 'Sent for admin review',
     text: `${a.title} has been requested to add to your workspace.`,
-    action: ws ? { label: 'Track here', run: () => goTrack(a) } : null
+    action: { label: 'Track here', run: () => ws ? goTrack(a) : (pv && pv.ref === a.ref ? showStatusBox() : (openPreview(a.ref), showStatusBox())) }
   });
 }
 window.addEventListener('message', e => {
