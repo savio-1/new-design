@@ -976,7 +976,7 @@
   /* A review takes people, and people take time: a request waits at admin
      review until someone approves it (approvedAt). The policy checks run
      from that moment. */
-  var REVIEW_MS = 25000;   /* the prototype's stand-in for a review that takes days */
+  var REVIEW_MS = 4000;   /* the prototype's stand-in for a review that takes days */
   function approvedAt(w) { return w.approvedAt || (w.requestedAt || Date.now()) + REVIEW_MS; }
   function stageOf(w) {
     var n = checksOf(w).length;
