@@ -1172,12 +1172,7 @@
     if (sig === lastReqSig) return;
     paintReqs();
     if (trackRef) { var w = wsByRef(trackRef); if (w) paintTrack(w); }
-    /* Say so once a request clears every check. */
-    reqs().forEach(function (r) {
-      if (stageOf(r).step === 3 && !readySaid[r.ref]) { readySaid[r.ref] = true; say(r.name + ' is ready to add to your workspace'); }
-    });
   }, 400);
-  var readySaid = {};
 
   document.addEventListener('click', function (e) {
     var t;

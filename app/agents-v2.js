@@ -1044,7 +1044,6 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
     else { a.name = d.name.trim() || a.name; a.goal = d.goal.trim(); a.backstory = d.backstory.trim(); }
     closeEdit();
     commit();
-    say(EDIT_HEAD[k][0] + ' saved');
   }
   function editClick(e) {
     var t = e.target, x;
