@@ -3984,6 +3984,12 @@ function hideTidbit() {
   t.classList.remove('is-shown');
   setTimeout(() => { if (!t.classList.contains('is-shown')) t.hidden = true; }, 220);
 }
+/* A click anywhere else is the reader moving on: the notice steps aside,
+   so it never sits on a button they reach for. */
+document.addEventListener('pointerdown', e => {
+  const t = $('mkTidbit');
+  if (t && t.classList.contains('is-shown') && !t.contains(e.target)) hideTidbit();
+}, true);
 function tidbit({ tone = 'ok', title, text, action }) {
   const t = $('mkTidbit');
   const icon = tone === 'ok'
@@ -4011,10 +4017,9 @@ function tidbit({ tone = 'ok', title, text, action }) {
   /* Held while the pointer is on it, so a reader is never cut off. */
   t.onmouseenter = () => clearTimeout(tidbitTimer);
   t.onmouseleave = () => { tidbitTimer = setTimeout(hideTidbit, 2500); };
-  /* Top right of the page; with a preview open it drops just below the
-     preview's header, so Add and Close stay within reach. */
-  const head = !$('mkPreview').hidden && $('mkPvAdd').closest('header');
-  t.style.top = head ? Math.round(head.getBoundingClientRect().bottom + 12) + 'px' : '';
+  /* Always the top right of the page, under the header, where the
+     platform's own notifications appear, whatever is open beneath it. */
+  t.style.top = '';
   t.hidden = false;
   requestAnimationFrame(() => t.classList.add('is-shown'));
   clearTimeout(tidbitTimer);
