@@ -2714,10 +2714,6 @@ body.cq { margin: 0; }
     .mk-setup { gap: 8px; border: 1px solid transparent; }
     .mk-setup--wait { background: var(--mk-warn-bg); border-color: var(--mk-warn-edge); }
     .mk-setup--wait .mk-setup__head > svg { flex: none; color: var(--mk-warn-fg); }
-    .mk-reqbars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding-left: 24px; }
-    .mk-reqbars i { height: 4px; border-radius: 2px; background: var(--backgrounds-card-bg-4); }
-    .mk-reqbars i.is-done { background: var(--text-coloured-green); }
-    .mk-reqbars i.is-wait { background: var(--mk-warn-fg); }
     .mk-setup.is-flash { animation: mk-setup-flash 1.4s ease-out 1; }
     @keyframes mk-setup-flash { 0% { box-shadow: 0 0 0 0 rgba(13,153,255,0); } 25% { box-shadow: 0 0 0 4px rgba(13,153,255,.45); } 100% { box-shadow: 0 0 0 0 rgba(13,153,255,0); } }
 
@@ -2728,6 +2724,8 @@ body.cq { margin: 0; }
     .mk-setup--todo .mk-setup__head .cq-ic { color: var(--mk-warn-fg); }
     .mk-setup__list { margin: 0; padding-left: 24px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; }
     .mk-setup__note { color: var(--text-secondary); padding-left: 24px; }
+    .mk-setup__link { align-self: flex-start; margin-left: 24px; display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--text-coloured-blue); }
+    .mk-setup__link:hover { text-decoration: underline; }
     .mk-tcard:focus-visible { outline: 2px solid var(--strokes-type-focus); outline-offset: 2px; }
     .mk-tcard { cursor: pointer; }
 
@@ -4814,8 +4812,8 @@ function paintSetupBox(a) {
     const t = new Date(reqAt.get(a.ref) || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     $('mkPvSetup').className = 'mk-box mk-setup mk-setup--wait';
     $('mkPvSetup').innerHTML = `<span class="mk-setup__head">${CLOCK_IC}<span class="cq-body2-med">Waiting for admin review</span></span>
-       <span class="mk-reqbars" aria-hidden="true"><i class="is-done"></i><i class="is-wait"></i><i></i><i></i></span>
-       <span class="mk-setup__note cq-caption-reg">Requested today, ${t}. Your workspace admins review it, then it is checked against workspace policies. This usually takes 1 to 2 business days.</span>`;
+       <span class="mk-setup__note cq-caption-reg">Requested today, ${t}${toWorkspace(a) ? '' : '. Usually reviewed within 1 to 2 business days.'}</span>
+       ${toWorkspace(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>Track here<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}`;
     return;
   }
   if (st === 'added') {
@@ -4918,6 +4916,7 @@ $('mkPvAdd').addEventListener('click', () => {
 });
 /* Adding is a request: it goes to the workspace admins for review and
    through the workspace's policies before it can be added. */
+$('mkPvSetup').addEventListener('click', e => { if (e.target.closest('[data-track]') && pv) goTrack(pv); });
 /* Types without a workspace page in this app show their status in place. */
 function showStatusBox() {
   const box = $('mkPvSetup');
