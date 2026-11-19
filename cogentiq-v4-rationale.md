@@ -42,6 +42,55 @@
 | Real case studies and articles replace the placeholders ("Case study headline, up to 80 characters", posts linking to `#`). | Placeholder text and dead links hurt credibility and SEO. |
 | A draft `llms.txt` for the root of fractal.ai. | A plain-text map of Cogentiq for AI assistants. fractal.ai currently has none (it returns "not found"). |
 
+## 1a. Governance, monitoring and observability
+
+**Why add it:** the live page never says "monitoring" or "observability". Buyers search for these terms ("AI agent observability", "agent monitoring", "agent tracing", "AI governance platform"), and every competing platform covers them.
+
+**What the research shows** (11 vendor pages read: Datadog, Arize, LangSmith, W&B Weave, Salesforce Agentforce, Microsoft Foundry, IBM watsonx.governance, Credo AI, Dynatrace, Databricks, Dataiku):
+- They split the topic three ways:
+  - governance is control and risk
+  - monitoring is performance over time
+  - observability explains a single run
+- Platform vendors cover it as a pillar of the platform page rather than a separate page.
+- Vendors without strong product screens use pillars, lifecycle loops and stylised diagrams.
+- The main risk is showing an invented dashboard or invented numbers.
+
+| Change | Why |
+|---|---|
+| The governance section becomes **"AI agent governance, monitoring and observability"**. The existing animated checkpoint flow stays as the "govern in action" visual. | It extends the section people already reach (it's in the navigation and the paths) instead of adding a page. The heading carries all three search terms. |
+| The four governance cards become **three pillars: Govern, Monitor, Observe**, each with one promise and four specifics. The old cards' content (policy inheritance, least privilege, evaluations, cost limits) is kept inside the pillars. | The same split buyers see on competitor pages, without making the section any longer. |
+| **"Every run, traced end to end":** a stylised run trace built from the claim example the page already uses (five agents, an approval, 11 seconds, $12,400, M. Carter). Steps draw in order, and it's labelled illustrative. It links to the product tour's Govern tab, which shows monitoring. | It shows observability without a product screenshot. Reusing the existing example keeps the story consistent. |
+| Three new FAQ answers: the difference between governance, monitoring and observability; how agents are monitored in production; whether you can see why an agent made a decision. They're also in the FAQ structured data. | AI answer engines quote clear question-and-answer pairs, and these target the new search terms. |
+| The Govern platform card, the "Where do you want to start?" card and the structured data's feature list now name monitoring and run traces. | The same terms everywhere, so the page reads as one consistent story. |
+
+**Please confirm before launch:** that alerts on drift, latency and blocked runs, step-level run traces, and cost per agent, team and workspace are all available or on the near-term roadmap. The page states them as current capabilities.
+
+## 1b. Hero: the buttons are visible without scrolling
+
+- Before this round, the buttons sat 673–728 px down on a 1366×768 laptop. With the browser toolbar, that's below the fold.
+- Now they end at about 550 px at every common laptop size (1280×720 to 1920×1080). Changes:
+  - less padding above the hero
+  - a smaller logo
+  - a wider headline (three lines instead of four)
+  - the text column aligned to the top instead of centred against the diagram
+- The keywords and security badges below the buttons now have room to breathe:
+  - a divider with 56 px of space above it
+  - the keywords in a neat two-by-two grid
+  - wider gaps between the badges
+
+## 1c. The 2-page overview is now business-led
+
+- "How Cogentiq helps your business" replaces the problem-led version. It covers:
+  - what Cogentiq is
+  - four things it does for a business
+  - how it works in five steps
+  - what it gives each team
+  - where it helps, by function and industry
+  - governed, monitored and observable by default
+  - enterprise readiness
+  - three steps to start
+- It uses the page's own wording and invents no figures.
+
 ## 2. More enquiries and demos
 
 | Change | Why |
@@ -55,7 +104,7 @@
 
 | Change | Why |
 |---|---|
-| **The 2-page overview, "What is Cogentiq?"** (`cogentiq-overview.pdf`). It asks for a work email only, then downloads at once and sends a copy by email. | Most visitors aren't ready for a call. One field is the lowest barrier there is, and the instant download rewards them right away. |
+| **The 2-page overview, "How Cogentiq helps your business"** (`cogentiq-overview.pdf`). It asks for a work email only, then downloads at once and sends a copy by email. | Most visitors aren't ready for a call. One field is the lowest barrier there is, and the instant download rewards them right away. |
 | One document everywhere (hero, after the cost curve, after the tour, governance, the nudge and the header). | One clear offer instead of several briefs. |
 | The demo request now needs only an email. "What would you like to see?" is optional. The request is recorded at step 1, and name, company, role and stage come afterwards as optional details, with a Skip button. | Every required field loses people. Taking the request at the email means no lead is lost if someone leaves at step 2. |
 | One gentle nudge per visit, past the middle of the page, offering the overview. It doesn't show to anyone who has already asked for something, and it can be closed. | Catches interested readers before they leave, without getting in the way. |
