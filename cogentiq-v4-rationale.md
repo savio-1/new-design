@@ -57,11 +57,11 @@
 
 | Change | Why |
 |---|---|
-| The governance section becomes **"AI agent governance, monitoring and observability"**. The existing animated checkpoint flow stays as the "govern in action" visual. | It extends the section people already reach (it's in the navigation and the paths) instead of adding a page. The heading carries all three search terms. |
+| The section is labelled **"AI agent governance, monitoring and observability"** (for search), above a stronger heading: **"Full control and full visibility of every agent"**. The earlier animated checkpoint flow was removed because it told one example agent's story. | It extends the section people already reach instead of adding a page. The label carries all three search terms; the heading carries the benefit. |
 | The four governance cards become **three pillars: Govern, Monitor, Observe**, each with one promise and four specifics. The old cards' content (policy inheritance, least privilege, evaluations, cost limits) is kept inside the pillars. | The same split buyers see on competitor pages, without making the section any longer. |
-| **"Every run, traced end to end":** a stylised run trace built from the claim example the page already uses (five agents, an approval, 11 seconds, $12,400, M. Carter). Steps draw in order, and it's labelled illustrative. It links to the product tour's Govern tab, which shows monitoring. | It shows observability without a product screenshot. Reusing the existing example keeps the story consistent. |
+| **"Every run, traced end to end":** a generic, stylised run trace (request, retrieval, tool call, policy check, human approval, response, audit trail). Steps draw in order; labelled illustrative; links to the product tour's monitoring view. | Shows observability without a product screenshot and without any example agent or process, so it reads as capability. |
 | Three new FAQ answers: the difference between governance, monitoring and observability; how agents are monitored in production; whether you can see why an agent made a decision. They're also in the FAQ structured data. | AI answer engines quote clear question-and-answer pairs, and these target the new search terms. |
-| The Govern platform card, the "Where do you want to start?" card and the structured data's feature list now name monitoring and run traces. | The same terms everywhere, so the page reads as one consistent story. |
+| The Govern platform card and the structured data's feature list now name monitoring and run traces. Pillar copy is three short points each. | The same terms everywhere, and less text to read. |
 
 **Please confirm before launch:** that alerts on drift, latency and blocked runs, step-level run traces, and cost per agent, team and workspace are all available or on the near-term roadmap. The page states them as current capabilities.
 
@@ -77,6 +77,14 @@
   - a divider with 56 px of space above it
   - the keywords in a neat two-by-two grid
   - wider gaps between the badges
+
+## 1b+. Latest refinements
+
+- **Hero link:** "Get the platform overview" (with a document icon) and one line on what's inside replaces "Not ready to talk?". It offers something of value instead of assuming the visitor isn't ready.
+- **Proof row:** the keywords and badges now sit closer to the buttons.
+- **After the cost curve:** "Why the curve flattens: every new agent reuses the connectors, context and controls already in place…", followed by the demo and overview. It's generic, not a promise to tailor the curve to each visitor.
+- **End of the tour:** the message is on the left and both buttons on the right.
+- **Before-and-after report:** `cogentiq-v4-improvements.pdf` compares today's live page with variation D, using the data behind each change.
 
 ## 1c. The 2-page overview is now business-led
 
@@ -117,7 +125,7 @@
 | Keywords cut from 6 to 4 ("Enterprise grade" and "Built to scale" removed) and shown as plain text instead of bordered pills. | Less visual weight. The four left are the specific ones. |
 | "Illustrative and synthetic data" appears once per group of visuals instead of on every card (removed 10+ times). | The same caption on every card was visual noise. |
 | More space between each section's intro and its content, and narrower intro lines. | Gives the eye room, without adding length or changing the layout. |
-| Blog and videos moved below the demo form. Navigation is in story order and highlights the section in view. A "Where do you want to start?" choice sits under the hero. | The page ends on the ask. Visitors can jump straight to what they came for. |
+| Blog and videos moved below the demo form. Navigation is in story order and highlights the section in view. The "Where do you want to start?" block was removed: it repeated the navigation without adding value. | The page ends on the ask, with fewer blocks to scroll past. |
 
 ## 5. Measurement
 
