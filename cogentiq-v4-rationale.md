@@ -75,7 +75,7 @@
   - the text column aligned to the top instead of centred against the diagram
 - The keywords and security badges below the buttons now have room to breathe:
   - a divider with 56 px of space above it
-  - the keywords in a neat two-by-two grid
+  - the three pills now sit under the headline, in the live page's style
   - wider gaps between the badges
 
 ## 1b+. Latest refinements
@@ -121,8 +121,8 @@
 
 | Change | Why |
 |---|---|
-| Hero order: headline → one sentence → two buttons → overview link → then, below a divider, the proof (four quiet keywords and the security badges). | The keyword pills and the buttons were competing for attention. Separating them gives one clear focal point, the buttons. |
-| Keywords cut from 6 to 4 ("Enterprise grade" and "Built to scale" removed) and shown as plain text instead of bordered pills. | Less visual weight. The four left are the specific ones. |
+| Hero order: headline → three pills → one short sentence → two buttons → overview link → then, below a divider, the security badges. | Each element has one job, and the buttons are the clear focal point. |
+| Three pills in the live page's style (amber Lato tags on a faint slate tint): Enterprise grade, Built to scale, Ontology grounded. The definition sentence is shortened to "Cogentiq is Fractal’s agentic AI platform to build, run and govern agents on the systems you already run." | It keeps a design the team likes and the search-friendly definition, with less to read. |
 | "Illustrative and synthetic data" appears once per group of visuals instead of on every card (removed 10+ times). | The same caption on every card was visual noise. |
 | More space between each section's intro and its content, and narrower intro lines. | Gives the eye room, without adding length or changing the layout. |
 | Blog and videos moved below the demo form. Navigation is in story order and highlights the section in view. The "Where do you want to start?" block was removed: it repeated the navigation without adding value. | The page ends on the ask, with fewer blocks to scroll past. |
