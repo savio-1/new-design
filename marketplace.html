@@ -4937,20 +4937,21 @@ const CLOCK_IC = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" ar
 const reqAt = new Map();
 function paintSetupBox(a) {
   const st = added.has(a.ref) ? (wsStatus.get(a.ref) || 'requested') : null;
-  /* Mirrors the workspace pages: a while in review, then the checks, then ready. */
-  if (st === 'requested' && Date.now() > (reqAt.get(a.ref) || Date.now()) + 4000 + 6000) {
+  /* Mirrors the workspace pages: the five review stages, export then import. */
+  const CR = window.cqReview, rw = CR && st === 'requested' && CR.find(a.ref);
+  const LINK = (label) => toWorkspace(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>${label}<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : '';
+  if (rw && CR.isDone(rw)) {
     $('mkPvSetup').className = 'mk-box mk-setup mk-setup--ok';
     $('mkPvSetup').innerHTML = `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to add to workspace</span></span>
-       <span class="mk-setup__note cq-caption-reg">Approved and passed every workspace policy.</span>
-       ${toWorkspace(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>Add it now<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}`;
+       <span class="mk-setup__note cq-caption-reg">All five review stages passed.</span>${LINK('Add it now')}`;
     return;
   }
   if (st === 'requested') {
     const t = new Date(reqAt.get(a.ref) || Date.now()).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const s = rw ? CR.stageOf(rw) : null;
     $('mkPvSetup').className = 'mk-box mk-setup mk-setup--wait';
-    $('mkPvSetup').innerHTML = `<span class="mk-setup__head">${CLOCK_IC}<span class="cq-body2-med">Waiting for admin review</span></span>
-       <span class="mk-setup__note cq-caption-reg">Requested today, ${t}${toWorkspace(a) ? '' : '. Usually reviewed within 1 to 2 business days.'}</span>
-       ${toWorkspace(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>Track here<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}`;
+    $('mkPvSetup').innerHTML = `<span class="mk-setup__head">${CLOCK_IC}<span class="cq-body2-med">${esc(s ? CR.stateLabel(rw, s) : 'Sent for review')}</span></span>
+       <span class="mk-setup__note cq-caption-reg">Requested today, ${t}${s ? ' · ' + esc(CR.stepText(rw, s)) : ''}</span>${LINK('Track here')}`;
     return;
   }
   if (st === 'added') {
@@ -5330,6 +5331,8 @@ function setFlow(m) {
 }
 $('mkFlow').addEventListener('click', e => { const b = e.target.closest('[data-flow]'); if (b) setFlow(b.dataset.flow); });
 $('mkpReopen').addEventListener('click', pubOpen);
+/* From the profile's Published tab: straight into publishing. */
+window.addEventListener('message', e => { if ((e.data || {}).cqFocus === 'publish') setFlow('publish'); });
 
 $('mkPvForm').addEventListener('submit', e => {
   e.preventDefault();
@@ -6851,6 +6854,7 @@ railExposeOnly(null);
     'marketplace': 'marketplace.html',
     'automations': 'automations.html',
     'agents': 'agents.html',
+    'monitoring': 'monitoring.html',
     'skills': 'skills.html',
     'skill': 'skills.html',
     'integrations': 'integrations.html',

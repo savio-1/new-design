@@ -310,7 +310,7 @@
   document.head.appendChild(css);
 
   /* ── Navigation the page's own wiring leaves out ── */
-  var NAV = { agents: 'agents.html', automations: 'automations.html' };
+  var NAV = { agents: 'agents.html', automations: 'automations.html', monitoring: 'monitoring.html' };
   document.querySelectorAll('[aria-label="Platform"] button[title]').forEach(function (btn) {
     var url = NAV[(btn.getAttribute('title') || '').trim().toLowerCase()];
     if (!url || btn.classList.contains('is-active') || btn.style.cursor === 'pointer') return;
@@ -1064,18 +1064,18 @@
       : '<span class="mkreq-pill">' + SPIN + stageLabel(w || {}, s.step) + '</span>';
   }
   function reqRow(w) {
-    var s = stageOf(w);
+    var CR = window.cqReview, s = CR.stageOf(w);
     return '<button type="button" class="mkreq-row" data-mkreq-open="' + E(w.ref) + '">' +
       '<span class="mkreq-mark">' + REQ_IC + '</span>' +
-      '<span class="mkreq-id">' + pillHTML(s, w) + '<span class="t cq-body1-med">' + E(w.name) + '</span>' +
+      '<span class="mkreq-id">' + CR.pill(w, s) + '<span class="t cq-body1-med">' + E(w.name) + '</span>' +
         '<span class="s cq-caption-reg">' + (isPub(w) ? 'Submitted by you · ' + E(when(w.requestedAt)) + (w.industry ? ' · ' + E(w.industry) : '')
           : 'Published by ' + E(w.publisher) + ' · requested ' + E(when(w.requestedAt))) + '</span></span>' +
-      '<span class="mkreq-mini">' + bars(s) + '<span class="l">Step ' + Math.min(s.step + 1, 4) + ' of 4 · ' + E(stepName(w, s.step)) + '</span></span>' +
+      '<span class="mkreq-mini">' + CR.bars(w, s) + '<span class="l">' + E(CR.stepText(w, s)) + '</span></span>' +
       '<span class="mkreq-chev">' + CHEV + '</span>' +
     '</button>';
   }
   var reqFlow = 'add';
-  function reqSig() { return reqs().map(function (w) { var s = stageOf(w); return w.ref + s.step + '.' + s.checks; }).join('|') + (reqOn ? '+' : '-') + reqFlow; }
+  function reqSig() { return reqs().map(function (w) { var s = window.cqReview.stageOf(w); return w.ref + s.i + s.state; }).join('|') + (reqOn ? '+' : '-') + reqFlow; }
   function paintReqs(force) {
     var all = reqs();
     var n = byId('mkreqN');
@@ -1146,74 +1146,41 @@
   }
   function paintTrack(w) {
     var el = byId('mkreqPanel'); if (!el) return;
-    var s = stageOf(w), T = totals(w), t0 = w.requestedAt || Date.now();
-    var checks = checksOf(w);
-    var stepCls = function (i) { return i < s.step || s.step === 3 ? 'is-done' : i === s.step ? (s.waiting ? 'is-wait' : 'is-now') : 'is-todo'; };
-    var dot = function (i) { var c = stepCls(i); return '<span class="mkreq-dot">' + (c === 'is-done' ? IC.check : c === 'is-now' ? SPIN : c === 'is-wait' ? CLOCK : (i + 1)) + '</span>'; };
-    var checkList = '<ul class="mkreq-checks">' + checks.map(function (c, i) {
-      var st = i < s.checks ? 'is-ok' : i === s.checks && s.step === 2 ? 'is-now' : '';
-      return '<li class="' + st + '"><span class="ci">' + (st === 'is-ok' ? IC.check : st === 'is-now' ? SPIN : '<i></i>') + '</span>' +
-        '<span><b>' + E(c[0]) + '</b>' + E(c[1]) + '</span></li>';
-    }).join('') + '</ul>';
-    var pub = isPub(w);
-    var steps = pub ? [
-      ['Submitted', 'You submitted it to the Marketplace · Today, ' + clock(t0), ''],
-      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(approvedAt(w))
-        : 'Sent to your workspace admins, ' + listAnd(ADMINS) + '. Reviews usually take 1 to 2 business days, and you will be notified once it is approved.',
-        s.step === 1 ? '<span class="mkreq-tag is-wait">' + CLOCK + 'Waiting</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
-      ['Marketplace policy check', s.step < 2 ? 'Runs once an admin approves the submission'
-        : s.step === 2 ? 'Checking ' + s.n + ' Marketplace policies · ' + s.checks + ' passed' : 'Passed all ' + s.n + ' Marketplace policies',
-        s.step < 2 ? '' : s.step === 2 ? '<span class="mkreq-tag">' + SPIN + 'Checking</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Passed</span>'],
-      ['Live on the Marketplace', s.step === 3 ? 'Anyone in your organisation can now find it and request it for their workspace.' : 'Once every check passes', '']
-    ] : [
-      ['Requested', 'You requested it from the Marketplace · Today, ' + clock(t0), ''],
-      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(approvedAt(w))
-        : 'Sent to your workspace admins, ' + listAnd(ADMINS) + '. Reviews usually take 1 to 2 business days, and you will be notified once it is approved.',
-        s.step === 1 ? '<span class="mkreq-tag is-wait">' + CLOCK + 'Waiting</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
-      ['Workspace policy check', s.step < 2 ? 'Runs once an admin approves the request'
-        : s.step === 2 ? 'Checking ' + s.n + ' workspace policies · ' + s.checks + ' passed' : 'Passed all ' + s.n + ' workspace policies',
-        s.step < 2 ? '' : s.step === 2 ? '<span class="mkreq-tag">' + SPIN + 'Checking</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Passed</span>'],
-      ['Ready to add to workspace', s.step === 3 ? 'Every check passed. Add it to your workspace to start using it.' : 'Once every check passes', '']
-    ];
+    var CR = window.cqReview, s = CR.stageOf(w), T = totals(w), pub = isPub(w), done = s.state === 'done', rej = s.state === 'rejected';
     var after = pub
       ? '<div class="mkreq-kv"><span>Industry</span><b>' + E(w.industry || '—') + '</b></div>' +
         '<div class="mkreq-kv"><span>Function</span><b>' + E(w.func || '—') + '</b></div>' +
         '<div class="mkreq-kv"><span>Shared</span><b>' + E(w.sharedSummary || '') + '</b></div>' +
         (w.about ? '<p class="cq-caption-reg" style="margin:4px 0 0;color:var(--text-secondary)">' + E(w.about) + '</p>' : '')
       : T.total
-      ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>After it is added, fill in ' + plural(T.total, 'detail') + ' in ' +
-        listAnd((w.needs || []).map(function (n) { return n.name; })) + '. The publisher kept these private.</span></div>'
-      : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>The publisher shared every detail it needs, so it is ready to use as soon as it is added.</span></div>';
+        ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>After it is added, fill in ' + plural(T.total, 'detail') + ' in ' +
+          listAnd((w.needs || []).map(function (n) { return n.name; })) + '. The publisher kept these private.</span></div>'
+        : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>The publisher shared every detail it needs, so it is ready to use as soon as it is added.</span></div>';
+    var acts = rej
+      ? '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Remove</button>'
+      : pub
+        ? (done ? '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-browse>View on Marketplace</button>'
+                : '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw submission</button>')
+        : '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (done ? '' : ' disabled') + '>Add to workspace</button>' +
+          '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>';
     el.innerHTML =
-      '<div class="mkreq-p__bar">' + pillHTML(s, w) +
+      '<div class="mkreq-p__bar">' + CR.pill(w, s) +
         '<button type="button" class="mkreq-p__x" data-mkreq-close aria-label="Close" title="Close">' +
           '<svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-pp_closepanel"/></svg></button>' +
       '</div>' +
       '<div class="cq-panel__section">' +
         '<div class="mkreq-p__title"><span class="mkreq-mark">' + REQ_IC + '</span>' +
           '<span class="mkreq-id"><span class="t cq-body1-med">' + E(w.name) + '</span>' +
-          '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + (pub ? ' · from your workspace' : ' · published by ' + E(w.publisher)) + '</span></span></div>' +
+          '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + (pub ? ' · Finance → Marketplace' : ' · Marketplace → Finance · published by ' + E(w.publisher)) + '</span></span></div>' +
         (w.desc ? '<p class="cq-caption-reg" style="margin:0;color:var(--text-secondary)">' + E(w.desc) + '</p>' : '') +
-        '<div class="mkreq-p__acts">' +
-          (pub
-            ? (s.step === 3 ? '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-browse>View on Marketplace</button>'
-                            : '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw submission</button>')
-            : '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (s.step === 3 ? '' : ' disabled') + '>Add to workspace</button>' +
-              '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>') +
-        '</div>' +
+        '<div class="mkreq-p__acts">' + acts + '</div>' +
       '</div>' +
-      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">' + (pub ? 'REVIEW STATUS' : 'REQUEST STATUS') + '</span>' +
-        '<ol class="mkreq-steps">' + steps.map(function (st, i) {
-          return '<li class="mkreq-step ' + stepCls(i) + '">' + dot(i) +
-            '<span class="mkreq-step__b"><span class="mkreq-step__t cq-body2-med">' + E(st[0]) + st[2] + '</span>' +
-            '<span class="mkreq-step__s cq-caption-reg">' + E(st[1]) + '</span>' + (i === 2 && s.step >= 2 ? checkList : '') + '</span></li>';
-        }).join('') + '</ol>' +
-      '</div>' +
+      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">REVIEW · EXPORT THEN IMPORT</span>' + CR.trackerHTML(w, { links: true }) + '</div>' +
       '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">' + (pub ? 'WHAT YOU SUBMITTED' : 'AFTER IT IS ADDED') + '</span>' + after + '</div>';
   }
   function addReq(ref) {
     var w = wsByRef(ref);
-    if (!w || stageOf(w).step < 3) return;
+    if (!w || !window.cqReview.isDone(w)) return;
     w.status = 'added'; w.added = Date.now();
     save(w);
     closeTrack(true);

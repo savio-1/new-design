@@ -5,6 +5,10 @@
   app/automations.src.html    the Automations landing page, verbatim
   app/agents.src.html         the Agents landing page, verbatim
   app/workspace-bridge.js     appended to the two landing pages
+  app/review.js               the Marketplace review, appended to every page
+  app/admin.html              the Admin panel
+  app/monitoring.src.html     Monitoring, from the platform, with monitoring-mk.js
+  app/profile.src.html        Profile, from the platform, with profile-mk.js
   app/shell.html              hosts the three in frames
 
 Writes cogentiq-marketplace-app.html at the repo root, and with --publish
@@ -59,10 +63,18 @@ def main():
     agx = (APP / 'agents-v2.js').read_text(encoding='utf-8')
     assert agx.count('/*AGX_SVG*/{}') == 1
     agx = agx.replace('/*AGX_SVG*/{}', json.dumps(builder_svgs()))
+    review = (APP / 'review.js').read_text(encoding='utf-8')
+    rd = lambda f: (APP / f).read_text(encoding='utf-8')
+    admin = rd('admin.html')
+    assert admin.count('/*TOKENS*/') == 1
+    admin = admin.replace('/*TOKENS*/', rd('admin-tokens.css'))
     pages = {
-        'marketplace.html': (ROOT / 'marketplace.html').read_text(encoding='utf-8'),
-        'automations.html': with_bridge((APP / 'automations.src.html').read_text(encoding='utf-8'), bridge),
-        'agents.html': with_bridge(with_bridge((APP / 'agents.src.html').read_text(encoding='utf-8'), agx), bridge),
+        'marketplace.html': with_bridge((ROOT / 'marketplace.html').read_text(encoding='utf-8'), review),
+        'automations.html': with_bridge(with_bridge(rd('automations.src.html'), review), bridge),
+        'agents.html': with_bridge(with_bridge(with_bridge(rd('agents.src.html'), agx), review), bridge),
+        'admin.html': with_bridge(admin, review),
+        'monitoring.html': with_bridge(with_bridge(rd('monitoring.src.html'), review), rd('monitoring-mk.js')),
+        'profile.html': with_bridge(with_bridge(rd('profile.src.html'), review), rd('profile-mk.js')),
     }
     shell = (APP / 'shell.html').read_text(encoding='utf-8')
     blob = json.dumps({k: b64(v) for k, v in pages.items()})
