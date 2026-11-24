@@ -3096,7 +3096,7 @@ main [id]{scroll-margin-top:76px}
 </section>
 
 </main>
-<a href="#tour" class="fcta" id="fcta" data-cta="float-tour"><i><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5 3.2l8 4.8-8 4.8z" fill="currentColor"/></svg></i><span>See it run</span></a>
+<a href="#tour" class="fcta" id="fcta" data-cta="float-tour"><i><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M5 3.2l8 4.8-8 4.8z" fill="currentColor"/></svg></i><span>See it in action</span></a>
 <aside class="nudge" id="nudge" aria-label="Get the 2-page overview" hidden>
   <button type="button" class="nudge-x" aria-label="Dismiss"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
   <b>Cogentiq platform overview</b><span>How the platform works, how every agent stays governed, and where it deploys.</span>
@@ -4655,26 +4655,15 @@ function hideNudge() { nudge.hidden = true; }
   $(".nudge-x", nudge).addEventListener("click", () => { hideNudge(); track("nudge_dismissed"); });
 })();
 
-/* floating button: "See it run" until the tour has been seen, then "Book a demo" */
-(function smartFloat() {
-  const fc = $("#fcta"), label = $("span", fc), icon = $("i", fc);
-  const CAL = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>';
-  let mode = "tour", tourIn = false, demoIn = false, heroIn = false, since = 0, watched = 0;
-  const show = () => fc.classList.toggle("off", heroIn || demoIn || (mode === "tour" && tourIn));
-  const toDemo = () => {
-    if (mode === "demo") return; mode = "demo";
-    fc.href = "#demo"; fc.dataset.cta = "float-demo"; label.textContent = "Book a demo"; icon.innerHTML = CAL;
-    track("float_cta_switch", { to: "demo" }); show();
-  };
-  new IntersectionObserver(es => {
-    const x = es[0]; tourIn = x.isIntersecting;
-    if (tourIn) since = performance.now();
-    else { if (since) watched += performance.now() - since; since = 0; if (watched > 6000 || x.boundingClientRect.top < 0) toDemo(); }
-    show();
-  }, { threshold: 0.2 }).observe($("#tour"));
+/* floating button: "See it in action", as on the live page, from the first screen.
+   It steps aside only while the tour itself or the demo form is on screen. */
+(function floatTour() {
+  const fc = $("#fcta");
+  let tourIn = false, demoIn = false;
+  const show = () => fc.classList.toggle("off", tourIn || demoIn);
+  new IntersectionObserver(es => { tourIn = es[0].isIntersecting; show(); }, { threshold: 0.2 }).observe($("#tour"));
   new IntersectionObserver(es => { demoIn = es[0].isIntersecting; show(); }, { threshold: 0.15 }).observe($("#demo"));
-  new IntersectionObserver(es => { heroIn = es[0].isIntersecting; show(); }).observe($("#intro .ctas"));  // the hero already shows both buttons
-  fc.addEventListener("click", () => { if (mode === "tour") select(ORD()[0]); });
+  fc.addEventListener("click", () => select(ORD()[0]));
   show();
 })();
 
