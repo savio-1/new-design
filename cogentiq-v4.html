@@ -2447,6 +2447,26 @@ main [id]{scroll-margin-top:76px}
 .sec-eyebrow{margin-bottom:12px}
 @media (max-width:760px){.h-sec,.ctx2-head h3,#demo .cta h2{font-size:30px;line-height:38px}.sec-eyebrow,.ctx2-head .eyebrow{font-size:16px;line-height:20px}}
 #partners .h-sec ~ p{font-family:'Lato',sans-serif;font-weight:400;font-size:16px;line-height:24px;letter-spacing:.2px;color:#fff}
+/* product tour, Govern: simple Performance, Adoption and Cost views */
+.sg2 .g-ov{display:contents}
+.sg2 .g-ov.off{display:none}
+.sg2 .g-alt{grid-column:1/-1;grid-row:1/-1;display:none;grid-template-rows:auto minmax(0,1fr);gap:12px;min-height:0}
+.sg2 .g-alt.on{display:grid;animation:g-alt-in .35s ease both}
+@keyframes g-alt-in{from{opacity:0;transform:translateY(6px)}}
+.sg2 .g-alt .k-strip{grid-column:auto}
+.sg2 .g-alt-w{flex:1;min-height:0;display:grid;place-items:center;padding:10px 16px}
+.sg2 .g-alt-ch{width:100%;height:100%;max-height:250px;overflow:visible}
+.sg2 .g-alt-line{fill:none;stroke:#0d99ff;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
+.sg2 .g-alt.on .g-alt-line{stroke-dashoffset:0;transition:stroke-dashoffset 1.2s ease .15s}
+.sg2 .g-alt-area{fill:rgba(13,153,255,.14);opacity:0}
+.sg2 .g-alt.on .g-alt-area{opacity:1;transition:opacity .6s ease .8s}
+.sg2 .g-alt-dot{fill:#ffb81c;stroke:#1b1b1b;stroke-width:3;opacity:0}
+.sg2 .g-alt.on .g-alt-dot{opacity:1;transition:opacity .3s ease 1.3s}
+.sg2 .g-alt-bar{fill:#0d99ff;transform-box:fill-box;transform-origin:bottom;transform:scaleY(0)}
+.sg2 .g-alt-bar.last{fill:#ffb81c}
+.sg2 .g-alt.on .g-alt-bar{transform:none;transition:transform .5s cubic-bezier(.3,.8,.3,1) calc(var(--i) * .05s + .1s)}
+.sg2 .g-alt-bud{stroke:#ffb81c;stroke-width:1.6;stroke-dasharray:6 6}
+.sg2 .g-alt-budt{font:500 11px/1 var(--kf);fill:#ffd36b}
 
 /* heading levels fixed (h4 to h3): same look */
 .cl-why h3{font:700 11px/1 var(--km);letter-spacing:.16em;text-transform:uppercase;color:#dfe8f2;margin-bottom:4px}.sp h3{margin-top:16px;font-family:var(--display);font-size:20px;color:#fff}.bl-b h3{margin-top:10px;font-family:var(--display);font-size:19px;line-height:1.3;color:#fff}.cl-why h3{color:var(--gold)}.sp-h h3{margin:0;font-family:var(--display);font-size:18px;color:#fff}
@@ -3884,7 +3904,7 @@ const S_BLD = {
 
 /* ── scene 5 · Govern — Monitoring ── */
 const S_GOV = {
-  dur: 13000,
+  dur: 20000,
   html() {
     const GRP = [["sparkle", "Performance", "success rate", [["Avg latency", "2.1 s"], ["Quality score", "4.6 / 5"]], "↑ 0.4% vs yesterday"],
       ["agent", "Adoption", "runs today", [["Active users", "312"], ["Agents live", "18"]], "↑ 15% vs yesterday"],
@@ -3914,17 +3934,44 @@ const S_GOV = {
     // cost by agent
     const COST = [["Claims triage", 41, "#0d99ff"], ["Service assist", 33, "#44aaf3"], ["Invoice sync", 29, "#0768cf"], ["Coverage check", 24, "#0d99ff"]];
     const cost = COST.map(([n, v, c], i) => `<div class="g-cb"><span>${n}</span><span class="g-bt"><i data-cb="${i}" style="--w:${(v / 41 * 100).toFixed(0)}%;background:${c}"></i></span><b>$${v}</b></div>`).join("");
+    // three simple tab views: three figures and one chart each
+    const tile = (ic, l, v, d) => `<div class="k-stat g-grp"><div class="k-capm k-ts g-gh">${ki(ic, 14)}<b>${l}</b></div><div class="v">${v}</div><div class="d">${d}</div></div>`;
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const lineChart = (vals, lo, hi, unit) => {
+      const W = 880, Hh = 230, X = i => 40 + i * (W - 70) / (vals.length - 1), Y = v => Hh - 30 - (v - lo) / (hi - lo) * (Hh - 60);
+      const pts = vals.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+      return `<svg class="g-alt-ch" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        ${[lo, (lo + hi) / 2, hi].map(v => `<line class="g-gl" x1="40" x2="${W - 30}" y1="${Y(v)}" y2="${Y(v)}"/><text class="g-ax" x="32" y="${Y(v) + 3}" text-anchor="end">${v}${unit}</text>`).join("")}
+        ${days.map((d, i) => `<text class="g-ax" x="${X(i)}" y="${Hh - 8}" text-anchor="middle">${d}</text>`).join("")}
+        <polygon class="g-alt-area" points="${X(0)},${Hh - 30} ${pts} ${X(vals.length - 1)},${Hh - 30}"/><polyline class="g-alt-line" pathLength="1" points="${pts}"/>
+        <circle class="g-alt-dot" cx="${X(vals.length - 1)}" cy="${Y(vals[vals.length - 1])}" r="5"/></svg>`;
+    };
+    const barChart = (vals, max, labels, budget) => {
+      const W = 880, Hh = 230, bw = (W - 80) / vals.length, Y = v => Hh - 30 - v / max * (Hh - 60);
+      return `<svg class="g-alt-ch" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <line class="g-gl" x1="40" x2="${W - 30}" y1="${Hh - 30}" y2="${Hh - 30}"/>
+        ${vals.map((v, i) => `<rect class="g-alt-bar${i === vals.length - 1 ? " last" : ""}" style="--i:${i}" x="${(48 + i * bw).toFixed(1)}" y="${Y(v).toFixed(1)}" width="${(bw - 14).toFixed(1)}" height="${(Hh - 30 - Y(v)).toFixed(1)}" rx="4"/>`).join("")}
+        ${labels.map((t, i) => t ? `<text class="g-ax" x="${(48 + i * bw + (bw - 14) / 2).toFixed(1)}" y="${Hh - 10}" text-anchor="middle">${t}</text>` : "").join("")}
+        ${budget ? `<line class="g-alt-bud" x1="40" x2="${W - 30}" y1="${Y(budget)}" y2="${Y(budget)}"/><text class="g-alt-budt" x="${W - 30}" y="${Y(budget) - 8}" text-anchor="end">Daily budget</text>` : ""}</svg>`;
+    };
+    const view = (id, tiles, title, chart) => `<div class="g-alt" data-view="${id}"><div class="k-mv k-strip">${tiles}</div><div class="k-mv"><div class="k-mvh"><span class="k-eyebrow">${title}</span></div><div class="g-alt-w">${chart}</div></div></div>`;
+    const ALT = view("perf", tile("check", "Success rate", "97.7%", "↑ 0.4% vs last week") + tile("clock", "Avg latency", "2.1 s", "↓ 0.3 s vs last week") + tile("sparkle", "Quality score", "4.6 / 5", "From live evaluations"),
+        "Success rate · last 7 days", lineChart([96.9, 97.1, 97.0, 97.3, 97.4, 97.6, 97.7], 96, 98, "%"))
+      + view("adop", tile("agent", "Active users", "312", "↑ 22% vs last month") + tile("layers", "Agents live", "18", "3 new this month") + tile("zap", "Runs today", "1,847", "↑ 15% vs yesterday"),
+        "Active users · last 8 weeks", barChart([128, 150, 171, 196, 224, 251, 287, 312], 340, ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "Now"]))
+      + view("cost", tile("dollar", "Spent today", "$127.40", "Within budget") + tile("dollar", "Cost per run", "$0.07", "↓ 8% vs last month") + tile("dashboard", "Monthly budget", "38% used", "On track"),
+        "Daily spend · last 14 days", barChart([96, 104, 99, 112, 108, 101, 118, 115, 109, 121, 117, 124, 119, 127], 180, ["", "", "", "", "", "", "", "", "", "", "", "", "", "Today"], 150));
     return shell("sg sg2", 5, head("Monitoring", "Performance, adoption and cost for every agent — live, and over time.") + `
-      <div class="k-bar"><span class="k-seg"><span class="on"><span class="k-live"><i></i></span>Overview</span><span>Performance</span><span>Adoption</span><span>Cost</span></span>
+      <div class="k-bar"><span class="k-seg"><span class="on" data-tab="ov"><span class="k-live"><i></i></span>Overview</span><span data-tab="perf">Performance</span><span data-tab="adop">Adoption</span><span data-tab="cost">Cost</span></span>
         <span class="k-drop" style="margin-left:auto">All automations${ki("chev", 14)}</span><span class="k-drop">Today${ki("chev", 14)}</span><span class="k-cap k-tt" style="display:flex;align-items:center;gap:7px"><span class="k-live"><i></i></span>Live · 30s</span></div>
-      <div class="k-body"><div class="k-content">
+      <div class="k-body"><div class="k-content"><div class="g-ov">
         <div class="k-mv k-strip fx">${GRP.map(([ic, l, u, sub, d], i) => `<div class="k-stat g-grp" data-s="${i}"><div class="k-capm k-ts g-gh">${ki(ic, 14)}<b>${l}</b></div><div class="g-vr"><div><div class="v" data-v="${i}">0</div><div class="g-vl">${u}</div></div>${spark(SP[i], i)}</div><div class="g-sub">${sub.map(([k, v]) => `<span><small>${k}</small><b>${v}</b></span>`).join("")}</div><div class="d">${d}</div></div>`).join("")}</div>
         <div class="k-mv fx" data-ch><div class="k-mvh"><span class="k-live"><i></i></span><span class="k-eyebrow">Executions · last 24 hours</span><span class="g-key" style="margin-left:auto"><i style="background:#0d99ff"></i>Runs<i style="background:#8c8c8c;margin-left:10px"></i>Guardrail blocks</span></div><div class="g-chw">${chart}</div></div>
         <div class="g-col">
           <div class="k-mv fx" data-dn><div class="k-mvh"><span class="k-eyebrow">Policy outcomes</span></div><div class="g-dw">${donut}<div class="g-lgs">${leg}</div></div></div>
           <div class="k-mv fx" data-co><div class="k-mvh"><span class="k-eyebrow">Cost by agent · today</span></div><div class="g-cw">${cost}</div></div>
         </div>
-      </div></div>`);
+      </div>${ALT}</div></div>`);
   },
   play(T) {
     T.at(150, () => T.on(".k-strip"));
@@ -3940,6 +3987,14 @@ const S_GOV = {
     T.at(1400, () => { T.on(".g-dn", "draw"); T.count("[data-dv]", 0, 99, 1400, v => Math.round(v) + "%"); });
     T.at(1700, () => T.on(".g-cw", "grow"));
     T.at(5000, () => T.on(".g-ch", "spike"));
+    // then the cursor opens each tab in turn
+    const cur = T.$(".cursor"), tab = k => T.$(`.k-seg [data-tab="${k}"]`);
+    const open = k => { T.$$(".k-seg [data-tab]").forEach(t => t.classList.toggle("on", t.dataset.tab === k)); T.$(".g-ov").classList.toggle("off", k !== "ov"); T.$$(".g-alt").forEach(v => v.classList.toggle("on", v.dataset.view === k)); };
+    [["perf", 6400], ["adop", 10900], ["cost", 15400]].forEach(([k, t]) => {
+      T.at(t - 700, () => { T.on(cur); aim(T, cur, tab(k)); });
+      T.at(t, () => { T.click(cur); open(k); });
+    });
+    T.at(19200, () => T.off(cur));
   }
 };
 
