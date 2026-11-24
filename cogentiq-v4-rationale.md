@@ -67,13 +67,22 @@
 
 ## 1a+. Agent registration and the animated governance cards
 
-- **Agent registration** (new, short): a band just before governance, "Bring the agents you already have". Agents built in other frameworks or by vendors are registered (endpoint, owner, purpose), inherit your policies, and are monitored and traced like your own. It matches the hero's "Third-party agents · Register" layer, and comes with a new FAQ answer and a structured-data feature.
+- **Agent registration** (new, short): a small section just after the product tour, "Bring the agents you already have". Agents built in other frameworks or by vendors are registered (endpoint, owner, purpose), inherit your policies, and are monitored and traced like your own. It matches the hero's "Third-party agents · Register" layer, and comes with a new FAQ answer and a structured-data feature.
 - **Governance section, rebuilt for scanning.** Three cards, each with a small looping animation and one line of text:
   - **Govern:** checks light in turn
   - **Monitor:** simple performance, cost and adoption charts, with status words instead of detailed numbers
   - **Observe:** an SDK snippet types itself, then a trace appears
 - The long pillars and the large run trace are gone.
 - **Please confirm:** the SDK syntax shown (`from cogentiq import trace` / `@trace`) is illustrative. Replace it with the real import and decorator, and confirm that registering third-party agents is available.
+
+## 1a++. One typographic system for every section
+
+- Every section from the cost curve to the demo form uses the live site's values:
+  - **headings:** DM Sans bold, 40/48 px, white
+  - **subtext:** Lato, 16/24 px, white, letter-spacing 0.2 px
+  - **tags above headings** (for example "Cogentiq Context" or "Agent registration"): DM Sans, 20 px, uppercase, yellow
+- On phones, headings are 30/38 px.
+- In "Everything enterprise agents need", "Your brief" and "Your systems of record" are now the same width.
 
 ## 1b. Hero: the buttons are visible without scrolling
 
