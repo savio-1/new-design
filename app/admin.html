@@ -49,7 +49,18 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .ad-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; margin: 8px 8px 8px 0; border-radius: 12px; overflow: hidden;
   background: var(--backgrounds-page-bg-2); border: 1px solid var(--strokes-line-3); }
 .ad-head { flex: none; height: 48px; display: flex; align-items: center; gap: 16px; padding: 0 16px; border-bottom: 1px solid var(--strokes-line-3); background: var(--backgrounds-card-bg-5); }
-.ad-head h1 { flex: 1 1 auto; margin: 0; font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px; }
+.ad-head h1 { flex: 0 1 auto; margin: 0; font: 500 18px/24px var(--font-geist); letter-spacing: -0.72px; }
+.ad-head .ad-sp2 { flex: 1 1 auto; }
+.mk-view { position: relative; margin-left: -4px; }
+.mk-view__btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border-radius: 8px; cursor: pointer; border: 1px solid var(--strokes-card-default); background: none; color: var(--text-secondary); font: 500 13px/18px var(--font-geist); letter-spacing: -0.4px; }
+.mk-view__btn:hover, .mk-view__btn[aria-expanded="true"] { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+.mk-view__menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; width: 280px; padding: 4px; border-radius: 10px; background: var(--backgrounds-page-bg-2); border: 1px solid var(--strokes-card-default); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
+.mk-view__menu[hidden] { display: none; }
+.mk-view__menu button { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 0; border-radius: 6px; background: none; cursor: pointer; text-align: left; color: var(--text-primary); font-family: var(--font-geist); }
+.mk-view__menu button:hover { background: var(--backgrounds-card-bg-4); }
+.mk-view__menu b { display: block; font: 500 14px/20px var(--font-geist); letter-spacing: -0.4px; }
+.mk-view__menu small { display: block; color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); }
+.mk-view__menu .tick { width: 16px; flex: none; margin-top: 2px; color: var(--text-coloured-blue); }
 .ad-crumb { color: var(--text-teritiary); }
 .ad-icon { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-secondary); }
 .ad-icon:hover { background: var(--backgrounds-card-bg-4); }
@@ -146,6 +157,14 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   <main class="ad-main">
     <header class="ad-head">
       <h1 id="adTitle">Marketplace approvals</h1>
+      <div class="mk-view" id="adView">
+        <button type="button" class="mk-view__btn" aria-haspopup="menu" aria-expanded="false">Platform admin view<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <div class="mk-view__menu" role="menu" hidden>
+          <button type="button" role="menuitemradio" aria-checked="false" data-view="platform"><span class="tick"></span><span><b>Platform view</b><small>Browse the Marketplace and add to your workspace</small></span></button>
+          <button type="button" role="menuitemradio" aria-checked="true" data-view="admin"><span class="tick"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Platform admin view</b><small>Review what workspaces publish to and add from the Marketplace</small></span></button>
+        </div>
+      </div>
+      <span class="ad-sp2"></span>
       <button class="ad-icon" title="Notifications" aria-label="Notifications"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 8.5a5 5 0 0 1 10 0v3.3l1.5 2.7h-13L5 11.8V8.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 16.5a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
       <button class="ws-pill" title="Switch workspace"><span class="av">F</span>Finance<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <span class="ad-avatar" title="Savio Govindu">S</span>
@@ -238,10 +257,23 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
     if ((x = t.closest('[data-group]'))) { x.closest('.ad-group').classList.toggle('is-closed'); return; }
     if (t.closest('[data-portal]') && inShell) parent.postMessage({ cqNav: 'marketplace.html' }, '*');
   });
+  (function () {
+    var wrap = $('adView'), btn = wrap.querySelector('.mk-view__btn'), menu = wrap.querySelector('.mk-view__menu');
+    var show = function (on) { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+    btn.addEventListener('click', function (e) { e.stopPropagation(); show(menu.hidden); });
+    menu.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-view]'); if (!b) return;
+      show(false);
+      if (b.dataset.view === 'platform' && inShell) parent.postMessage({ cqNav: 'marketplace.html' }, '*');
+    });
+    document.addEventListener('click', function (e) { if (!e.target.closest('#adView')) show(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') show(false); });
+  })();
   function count() { var n = window.cqReview ? window.cqReview.pendingFor('platform').length : 0; $('adApprN').textContent = n || ''; }
   window.addEventListener('message', function (e) {
     var d = e.data || {};
     if (d.cqTheme === 'light' || d.cqTheme === 'dark') document.documentElement.dataset.mode = d.cqTheme;
+    if (d.cqFocus === 'approvals') nav('approvals');
     if (typeof d.cqFocus === 'string' && d.cqFocus.indexOf('mkapp:') === 0) {
       var ref = d.cqFocus.slice(6);
       nav('approvals');

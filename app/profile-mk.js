@@ -42,7 +42,7 @@
   };
   document.addEventListener('click', function (e) {
     var pub = e.target.closest('button');
-    if (pub && /Publish to marketplace/i.test(pub.textContent || '') && !pub.closest('[data-mk-track]')) { e.stopPropagation(); e.preventDefault(); go({ cqNav: 'marketplace.html', cqFocus: 'publish' }); return; }
+    if (pub && /Publish to marketplace/i.test(pub.textContent || '') && !pub.closest('[data-mk-track]')) { e.stopPropagation(); e.preventDefault(); go({ cqNav: 'agents.html', cqFocus: 'publish' }); return; }
     var t = e.target.closest('[data-mk-track]');
     if (!t) return;
     e.stopPropagation();
@@ -174,7 +174,7 @@
     $('pfCreGrid').innerHTML = rows.length ? rows.map(function (c) {
       var m = market(c);
       var act = m[0] === 'Not published'
-        ? (c.pub ? '<button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-cpub>Publish</button>' : '')
+        ? (c.pub ? '<button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-cpub="' + c.kind + '|' + E(c.name) + '">Publish</button>' : '')
         : m[2] && m[0] !== 'Published' ? '<button class="cq-btn cq-btn--s cq-btn--outline" type="button" data-mk-track="' + E(m[2].ref) + '">Track review</button>'
         : '<button class="cq-btn cq-btn--s cq-btn--ghost" type="button" data-ctab="published">See listing</button>';
       return '<article class="cq-card cq-card--auto"><div class="cq-card__title-row">' + tile(c.kind) +
@@ -208,7 +208,11 @@
     if ((x = t.closest('[data-ck]'))) { cKind = x.dataset.ck; return paintCreated(); }
     if ((x = t.closest('[data-cws]'))) { cWs = x.dataset.cws; return paintCreated(); }
     if ((x = t.closest('[data-pws]'))) { pWs = x.dataset.pws; return paintPublished(); }
-    if ((x = t.closest('[data-cpub]'))) { e.stopPropagation(); return go({ cqNav: 'marketplace.html', cqFocus: 'publish' }); }
+    if ((x = t.closest('[data-cpub]'))) {
+      e.stopPropagation();
+      var kp = x.dataset.cpub.split('|');
+      return go({ cqNav: kp[0] === 'automation' ? 'automations.html' : 'agents.html', cqFocus: 'publish:' + kp.slice(1).join('|') });
+    }
     if ((x = t.closest('[data-copen]'))) { var k = x.dataset.copen; if (k === 'agent' || k === 'automation') go({ cqNav: k === 'agent' ? 'agents.html' : 'automations.html' }); return; }
     if ((x = t.closest('[data-ctab]'))) { var b = document.querySelector('#pfTabs [data-tab="published"]'); if (b) b.click(); }
   });

@@ -421,5 +421,17 @@
     close();
   }, true);
 
+  /* From the Profile: publish a named artifact, or point to the ⋯ menu. */
+  window.addEventListener('message', function (e) {
+    var f = (e.data || {}).cqFocus;
+    if (typeof f !== 'string' || f.indexOf('publish') !== 0) return;
+    var name = f.slice(8), arr = PAGE === 'agent' ? AGENTS : AUTOS;
+    var a = name && arr.filter(function (x) { return x.name === name; })[0];
+    setTimeout(function () {
+      if (a) open(a);
+      else say('To publish, open the ⋯ on a' + (PAGE === 'agent' ? 'n agent' : 'n automation') + ' and choose Publish to Marketplace.');
+    }, 300);
+  });
+
   window.cqPublish = { open: open };
 })();

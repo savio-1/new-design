@@ -953,6 +953,7 @@
     }
     if (typeof d.cqFocus === 'string') {
       var ref = d.cqFocus;
+      if (ref.indexOf('publish') === 0) return;
       if (ref.indexOf('req:') === 0) setTimeout(function () { reqShow(true); openTrack(ref.slice(4)); }, 120);
       else setTimeout(function () { focusOn(ref); }, 120);
     }

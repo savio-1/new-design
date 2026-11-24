@@ -2712,6 +2712,19 @@ body.cq { margin: 0; }
     .mk-setup__list b { font-weight: 500; color: var(--text-primary); }
     @media (max-width: 640px) { .mk-res__fields { padding-left: 12px; } }
     .mk-setup { gap: 8px; border: 1px solid transparent; }
+    /* ── View switch: the platform, or the platform admin's view of it ── */
+    .mk-view { position: relative; }
+    .mk-view__btn { height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px 0 10px; border-radius: 8px; cursor: pointer;
+      border: 1px solid var(--strokes-card-default); background: none; color: var(--text-secondary); font: 500 13px/18px var(--font-geist); letter-spacing: -0.4px; }
+    .mk-view__btn:hover, .mk-view__btn[aria-expanded="true"] { background: var(--backgrounds-card-bg-4); color: var(--text-primary); }
+    .mk-view__menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 60; width: 280px; padding: 4px; border-radius: 10px;
+      background: var(--backgrounds-page-bg-2); border: 1px solid var(--strokes-card-default); box-shadow: 0 8px 24px rgba(0, 0, 0, .28); }
+    .mk-view__menu[hidden] { display: none; }
+    .mk-view__menu button { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 0; border-radius: 6px; background: none; cursor: pointer; text-align: left; color: var(--text-primary); }
+    .mk-view__menu button:hover { background: var(--backgrounds-card-bg-4); }
+    .mk-view__menu b { display: block; font: 500 14px/20px var(--font-geist); letter-spacing: -0.4px; }
+    .mk-view__menu small { display: block; color: var(--text-teritiary); font: 400 12px/16px var(--font-geist); }
+    .mk-view__menu .tick { width: 16px; flex: none; margin-top: 2px; color: var(--text-coloured-blue); }
     /* ── Flow switch: taking from the Marketplace, or publishing to it ── */
     .cq-page__header { position: relative; }
     .mk-flow { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 4px; padding: 3px; border-radius: 10px;
@@ -3258,10 +3271,14 @@ body.cq { margin: 0; }
 
       <header class="cq-page__header">
         <span class="cq-subhead2-med">Marketplace</span>
-        <div class="mk-flow" id="mkFlow" role="tablist" aria-label="Marketplace flow">
-          <button type="button" role="tab" data-flow="add" aria-selected="true">Add to workspace</button>
-          <button type="button" role="tab" data-flow="publish" aria-selected="false">Publish to Marketplace</button>
+        <div class="mk-view" id="mkView">
+          <button type="button" class="mk-view__btn" aria-haspopup="menu" aria-expanded="false">Platform view<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="mk-view__menu" role="menu" hidden>
+            <button type="button" role="menuitemradio" aria-checked="true" data-view="platform"><span class="tick"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Platform view</b><small>Browse the Marketplace and add to your workspace</small></span></button>
+            <button type="button" role="menuitemradio" aria-checked="false" data-view="admin"><span class="tick"></span><span><b>Platform admin view</b><small>Review what workspaces publish to and add from the Marketplace</small></span></button>
+          </div>
         </div>
+        <div style="flex:1 1 auto"></div>
         <div class="hdr-actions">
           <button class="cq-icon-btn hdr-bell" title="Notifications" aria-label="Notifications, 1 unread">
             <svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#mk-bell"/></svg>
@@ -5323,16 +5340,23 @@ document.addEventListener('keydown', e => {
 }, true);
 
 /* The switch in the header: take from the Marketplace, or publish to it. */
+/* Publishing happens on each artifact's own page (its ⋯ menu), so the
+   Marketplace keeps no publish tab. The header switch moves between the
+   platform and the platform admin's view of the Marketplace. */
 let flowMode = 'add';
-function setFlow(m) {
-  flowMode = m;
-  document.querySelectorAll('#mkFlow [data-flow]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.flow === m)));
-  if (m === 'publish') pubOpen(); else { if (P) pubClose(); $('mkpReopen').hidden = true; }
-}
-$('mkFlow').addEventListener('click', e => { const b = e.target.closest('[data-flow]'); if (b) setFlow(b.dataset.flow); });
 $('mkpReopen').addEventListener('click', pubOpen);
-/* From the profile's Published tab: straight into publishing. */
-window.addEventListener('message', e => { if ((e.data || {}).cqFocus === 'publish') setFlow('publish'); });
+(() => {
+  const wrap = $('mkView'), btn = wrap.querySelector('.mk-view__btn'), menu = wrap.querySelector('.mk-view__menu');
+  const show = on => { menu.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+  btn.addEventListener('click', e => { e.stopPropagation(); show(menu.hidden); });
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('[data-view]'); if (!b) return;
+    show(false);
+    if (b.dataset.view === 'admin' && IN_SHELL) parent.postMessage({ cqNav: 'admin.html', cqFocus: 'approvals' }, '*');
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('#mkView')) show(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) show(false); });
+})();
 
 $('mkPvForm').addEventListener('submit', e => {
   e.preventDefault();
