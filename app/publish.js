@@ -103,7 +103,7 @@
     /* the dialog */
     '.cqp{position:fixed;inset:0;z-index:250;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(18,18,18,.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}',
     '.cqp[hidden]{display:none}',
-    '.cqp-dlg{width:min(640px,100%);max-height:calc(100vh - 48px);display:flex;flex-direction:column;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);border-radius:12px;box-shadow:0 4px 12px rgba(33,33,33,.16);color:var(--text-primary);font-family:var(--font-geist)}',
+    '.cqp-dlg{width:min(640px,100%);height:min(760px,calc(100vh - 48px));display:flex;flex-direction:column;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);border-radius:12px;box-shadow:0 4px 12px rgba(33,33,33,.16);color:var(--text-primary);font-family:var(--font-geist)}',
     '.cqp-dlg[hidden]{display:none}',
     '.cqp-dlg button{font-family:inherit}',
     '.cqp-hdr{flex:none;display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--strokes-card-default)}',
@@ -258,9 +258,7 @@
   var P = null;
   var root = document.createElement('div');
   root.className = 'cqp'; root.hidden = true;
-  root.innerHTML = '<div class="cqp-dlg" id="cqpDlg" role="dialog" aria-modal="true" aria-labelledby="cqpTitle"></div>' +
-    '<div class="cqp-over" id="cqpOver" hidden></div>' +
-    '<div class="cqp-dlg cqp-dlg--share" id="cqpShare" role="dialog" aria-modal="true" aria-label="Customize what\'s shared" hidden></div>';
+  root.innerHTML = '<div class="cqp-dlg" id="cqpDlg" role="dialog" aria-modal="true" aria-labelledby="cqpTitle"></div>';
   document.body.appendChild(root);
   var $ = function (id) { return document.getElementById(id); };
 
@@ -295,6 +293,7 @@
 
   function paint() {
     if (!P) return;
+    if (P.share) return paintShare();
     var a = P.a, sum = summary(), kindWord = PAGE === 'agent' ? 'Agent' : 'Automation';
     var meta = kindWord + (a.version ? ' · ' + a.version : '') + (a.updated ? ' · Edited ' + a.updated : a.last ? ' · Last run ' + a.last : '');
     var dd = function (key, lbl, all, val) {
@@ -323,12 +322,12 @@
       '<div class="cqp-ftr"><p class="cqp-hint">Goes to your workspace admin, then the platform admin, before it is listed.</p><div class="cqp-acts">' +
         '<button type="button" class="cqp-btn cqp-btn--tonal" data-cqpa="close">Cancel</button>' +
         '<button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="publish">Publish to marketplace</button></div></div>';
-    paintShare();
   }
+  /* Customize what's shared is the dialog's second page: it takes the
+     form's place, with a back arrow to return to it. */
   function paintShare() {
-    var sh = $('cqpShare');
-    sh.hidden = $('cqpOver').hidden = !P.share;
-    if (!P.share) return;
+    if (!P.share) return paint();
+    var sh = $('cqpDlg');
     var list = P.res.filter(function (r) { return r.rk === P.tab; });
     var rows = list.map(function (r) {
       var on = P.on[r.id], n = on.size, t = r.fields.length, isOpen = P.open === r.id;
@@ -351,7 +350,8 @@
         '</div></div>';
     }).join('');
     sh.innerHTML =
-      '<div class="cqp-hdr"><button type="button" class="cqp-x" data-cqpa="share-back" aria-label="Back to publish">' + IC.back + '</button><h2>Customize what\'s shared</h2></div>' +
+      '<div class="cqp-hdr"><button type="button" class="cqp-x" data-cqpa="share-back" aria-label="Back to publish">' + IC.back + '</button><h2 id="cqpTitle">Customize what\'s shared</h2>' +
+        '<button type="button" class="cqp-x" data-cqpa="close" aria-label="Close">' + IC.close + '</button></div>' +
       '<div class="cqp-body">' +
         '<p class="cqp-hint">Tick the details people get when they add this ' + PAGE + '. Keys, links, account details and your data start unticked and stay private.</p>' +
         '<div class="cqp-tabs" role="tablist">' + TABS.filter(function (t) { return P.res.some(function (r) { return r.rk === t[0]; }); }).map(function (t) {
@@ -387,11 +387,11 @@
     if ((x = t.closest('[data-cqp-dd]'))) { P.dd = P.dd === x.dataset.cqpDd ? null : x.dataset.cqpDd; return paint(); }
     if ((x = t.closest('[data-cqp-tab]'))) { P.tab = x.dataset.cqpTab; P.open = null; return paintShare(); }
     if ((x = t.closest('[data-cqp-res]'))) { P.open = P.open === x.dataset.cqpRes ? null : x.dataset.cqpRes; return paintShare(); }
-    if (t === root || t === $('cqpOver')) { if (P.share) { P.share = false; return paint(); } return close(); }
+    if (t === root) return close();
     if (!b) return;
     var k = b.dataset.cqpa;
     if (k === 'close') return close();
-    if (k === 'share') { P.share = true; return paint(); }
+    if (k === 'share') { P.share = true; paint(); $('cqpDlg').querySelector('.cqp-body').scrollTop = 0; return; }
     if (k === 'share-back') { P.share = false; return paint(); }
     if (k === 'reset') { P.on = defaults(); return paintShare(); }
     if (k === 'example') {

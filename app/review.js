@@ -89,11 +89,18 @@
     spin: '<span class="cqr-spin" aria-hidden="true"></span>',
     bell: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6.5a4 4 0 0 1 8 0v2.8l1.2 2.2H2.8L4 9.3V6.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 13a1.6 1.6 0 0 0 3 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
   };
+  /* The tag says only where it stands; the full line is its tooltip. */
+  function shortLabel(w, s) {
+    if (s.state === 'done') return isPub(w) ? 'Live' : 'Ready';
+    if (s.state === 'rejected') return 'Rejected';
+    if (s.state === 'waiting') return 'Waiting';
+    return s.stages[s.i].k === 'travel' ? 'In transit' : 'Checking';
+  }
   function pill(w, s) {
     s = s || stageOf(w);
     var cls = s.state === 'done' ? 'is-ok' : s.state === 'waiting' ? 'is-wait' : s.state === 'rejected' ? 'is-rej' : '';
     var ic = s.state === 'done' ? IC.check : s.state === 'waiting' ? IC.clock : s.state === 'rejected' ? IC.x : IC.spin;
-    return '<span class="cqr-pill ' + cls + '">' + ic + E(stateLabel(w, s)) + '</span>';
+    return '<span class="cqr-pill ' + cls + '" title="' + E(stateLabel(w, s)) + '">' + ic + E(shortLabel(w, s)) + '</span>';
   }
   function bars(w, s) {
     s = s || stageOf(w);
@@ -177,9 +184,9 @@
     ':root[data-mode="light"]{--backgrounds-badge-orange:#fff4e5;--strokes-colour-orange:#fcd19c;--text-coloured-orange:#8a480f;--backgrounds-badge-red:#fff5f5;--strokes-colour-red:#ffc7c2;--text-coloured-red:#dc3412}',
     '.cqr-spin{width:10px;height:10px;flex:none;display:inline-block;border-radius:50%;border:1.6px solid currentColor;border-right-color:transparent;animation:cqr-rot .8s linear infinite}',
     '@keyframes cqr-rot{to{transform:rotate(360deg)}}',
-    '.cqr-pill{height:20px;display:inline-flex;align-items:center;gap:4px;padding:0 7px;border-radius:10px;white-space:nowrap;font:500 11px/14px var(--font-geist);letter-spacing:-.1px;',
-    '.cqr-pill svg{width:10px;height:10px}',
-    '.cqr-pill .cqr-spin{width:8px;height:8px;border-width:1.4px}',
+    '.cqr-pill{height:18px;display:inline-flex;align-items:center;gap:3px;padding:0 6px;border-radius:9px;white-space:nowrap;font:500 10px/12px var(--font-geist);letter-spacing:0;',
+    '.cqr-pill svg{width:9px;height:9px}',
+    '.cqr-pill .cqr-spin{width:7px;height:7px;border-width:1.3px}',
     '  background:var(--backgrounds-badge-blue);border:1px solid var(--strokes-colour-blue);color:var(--text-coloured-blue)}',
     '.cqr-pill.is-ok{background:var(--backgrounds-badge-green);border-color:var(--strokes-colour-green);color:var(--text-coloured-green)}',
     '.cqr-pill.is-wait{background:var(--backgrounds-badge-orange);border-color:var(--strokes-colour-orange);color:var(--text-coloured-orange)}',

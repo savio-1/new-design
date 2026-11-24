@@ -2729,7 +2729,7 @@ body.cq { margin: 0; }
     .mkp { position: fixed; inset: 0; z-index: 240; display: flex; align-items: center; justify-content: center; padding: 24px;
       background: rgba(18, 18, 18, .7); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .mkp[hidden] { display: none; }
-    .mkp-dlg { width: min(640px, 100%); max-height: calc(100vh - 48px); display: flex; flex-direction: column;
+    .mkp-dlg { width: min(640px, 100%); max-height: calc(100vh - 48px); min-height: min(640px, calc(100vh - 48px)); display: flex; flex-direction: column;
       background: var(--backgrounds-page-bg-2); border: 1px solid var(--strokes-card-default); border-radius: 12px; box-shadow: 0 4px 12px rgba(33, 33, 33, .16);
       color: var(--text-primary); font-family: var(--font-geist); }
     .mkp-dlg button { font-family: inherit; }
@@ -3546,8 +3546,6 @@ body.cq { margin: 0; }
 <!-- ══ Publish to Marketplace ══ -->
 <div class="mkp" id="mkPub" hidden>
   <div class="mkp-dlg" id="mkpDlg" role="dialog" aria-modal="true" aria-labelledby="mkpTitle"></div>
-  <div class="mkp-over" id="mkpOver" hidden></div>
-  <div class="mkp-dlg mkp-dlg--share" id="mkpShare" role="dialog" aria-modal="true" aria-label="Customize what's shared" hidden></div>
 </div>
 <button type="button" class="mkp-reopen" id="mkpReopen" hidden>Publish to marketplace</button>
 
@@ -5178,6 +5176,7 @@ function pubSummary(it) {
 
 function paintPub() {
   if (!P) return;
+  if (P.share && P.step === 'form') return paintPubShare();
   const dlg = $('mkpDlg');
   if (P.step === 'pick') {
     const group = kind => PUBLISHABLE.filter(x => x.kind === kind).map(x => `
@@ -5194,7 +5193,7 @@ function paintPub() {
       <div class="mkp-ftr"><div class="mkp-acts">
         <button type="button" class="mkp-btn mkp-btn--tonal" data-pub="close">Cancel</button>
         <button type="button" class="mkp-btn mkp-btn--primary" data-pub="next"${P.sel ? '' : ' disabled'}>Continue</button></div></div>`;
-    $('mkpShare').hidden = $('mkpOver').hidden = true;
+
     return;
   }
   const it = pubItem(), sum = pubSummary(it);
@@ -5224,12 +5223,12 @@ function paintPub() {
     <div class="mkp-ftr"><div class="mkp-acts">
       <button type="button" class="mkp-btn mkp-btn--tonal" data-pub="close">Cancel</button>
       <button type="button" class="mkp-btn mkp-btn--primary" data-pub="publish">Publish to marketplace</button></div></div>`;
-  paintPubShare();
 }
+/* Customize what's shared is the dialog's second page: it takes the
+   form's place, with a back arrow to return to it. */
 function paintPubShare() {
-  const sh = $('mkpShare');
-  sh.hidden = $('mkpOver').hidden = !P.share;
-  if (!P.share) return;
+  if (!P.share) return paintPub();
+  const sh = $('mkpDlg');
   const it = pubItem();
   const list = it.res.filter(r => r.rk === P.tab);
   const rows = list.map(r => {
@@ -5252,7 +5251,8 @@ function paintPubShare() {
       </div></div>`;
   }).join('');
   sh.innerHTML = `
-    <div class="mkp-hdr"><button type="button" class="mkp-x" data-pub="share-back" aria-label="Back to publish">${PUB_IC.back}</button><h2>Customize what's shared</h2></div>
+    <div class="mkp-hdr"><button type="button" class="mkp-x" data-pub="share-back" aria-label="Back to publish">${PUB_IC.back}</button><h2 id="mkpTitle">Customize what's shared</h2>
+      <button type="button" class="mkp-x" data-pub="close" aria-label="Close">${PUB_IC.close}</button></div>
     <div class="mkp-body">
       <p class="mkp-hint">Tick the details people get when they add this ${it.kind}. Keys, links, account details and your data start unticked and stay private.</p>
       <div class="mkp-tabs" role="tablist">${PUB_TABS.filter(([k]) => it.res.some(r => r.rk === k)).map(([k, l]) => {
@@ -5290,13 +5290,13 @@ $('mkPub').addEventListener('click', e => {
   if ((x = t.closest('[data-pub-dd]'))) { P.dd = P.dd === x.dataset.pubDd ? null : x.dataset.pubDd; return paintPub(); }
   if ((x = t.closest('[data-pub-tab]'))) { P.tab = x.dataset.pubTab; P.open = null; return paintPubShare(); }
   if ((x = t.closest('[data-pub-res]'))) { P.open = P.open === x.dataset.pubRes ? null : x.dataset.pubRes; return paintPubShare(); }
-  if (t === $('mkPub') || t === $('mkpOver')) { if (P.share) { P.share = false; return paintPub(); } return pubClose(); }
+  if (t === $('mkPub')) return pubClose();
   if (!b) return;
   const a = b.dataset.pub;
   if (a === 'close') return pubClose();
   if (a === 'next' && P.sel) { P.step = 'form'; P.on = pubDefaults(pubItem()); P.tab = 'agents'; return paintPub(); }
   if (a === 'back') { P.step = 'pick'; P.share = false; return paintPub(); }
-  if (a === 'share') { P.share = true; return paintPub(); }
+  if (a === 'share') { P.share = true; paintPub(); $('mkpDlg').querySelector('.mkp-body').scrollTop = 0; return; }
   if (a === 'share-back') { P.share = false; return paintPub(); }
   if (a === 'reset') { P.on = pubDefaults(pubItem()); return paintPubShare(); }
   if (a === 'example') { const it = pubItem(); P.about = `${it.desc} Works best for ${it.kind === 'agent' ? 'teams that handle this every day' : 'recurring, high-volume work'}. Example: "Run it on last week's batch and flag anything that needs a person."`; P.err.about = false; return paintPub(); }
