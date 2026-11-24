@@ -1360,6 +1360,7 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
       var S = setupState();
       menu.innerHTML = (B.mode === 'view' ? '<button data-menu="edit">Edit agent</button>' : '') +
         '<button data-menu="dup">Duplicate</button><button data-menu="versions">Version history</button>' +
+        (!S && !B.isNew && window.cqPublish ? '<button data-menu="publish">Publish to Marketplace</button>' : '') +
         (S ? '<button data-menu="discard" class="is-danger">Discard from workspace</button>' : '<button data-menu="delete" class="is-danger">Delete agent</button>');
       menu.hidden = !menu.hidden; return;
     }
@@ -1451,6 +1452,7 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
       closeBuilder(); say(a.name + ' was deleted'); return;
     }
     if (k === 'dup') say('A copy of ' + a.name + ' is in your drafts');
+    if (k === 'publish' && window.cqPublish) window.cqPublish.open(a);
     if (k === 'versions') say('Version history: v3 published 2 days ago · v2 · v1');
   }
   function finishSetup() {
@@ -1472,6 +1474,12 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
       if (window.mkws) window.mkws.onchange = function (r) { if (B && B.setup === r) paint(); };
       setTimeout(function () { toggleSetup(true); }, 120);
       return true;
+    },
+    /* From the ⋯ on a card: a new version of the agent, as an editable draft. */
+    editVersion: function (i) {
+      var a = AGENTS[i]; if (!a) return;
+      openBuilder(a, { mode: 'edit' });
+      say('Editing ' + a.name + ' as a new version. The live one keeps running until you publish.');
     },
     refresh: function () { if (root && B) paint(); },
     isOpen: function () { return !!root; }

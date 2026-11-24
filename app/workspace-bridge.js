@@ -223,7 +223,7 @@
     '@media (max-width:900px){.mkreq-row{grid-template-columns:40px minmax(0,1fr) 16px}.mkreq-row .mkreq-mini{display:none}}',
     '.mkreq-row .mkreq-mark{width:40px;height:40px;border-radius:10px}',
     '.mkreq-row .mkreq-id{gap:3px}',
-    '.mkreq-row .mkreq-id .mkreq-pill{align-self:flex-start;height:22px;margin-bottom:6px;padding:0 8px;font-size:11px}',
+    '.mkreq-row .mkreq-id .mkreq-pill{align-self:flex-start;height:20px;margin-bottom:6px;padding:0 7px;font-size:11px}',
     '.mkreq-mark{width:36px;height:36px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
     '.mkreq-id{display:flex;flex-direction:column;gap:2px;min-width:0}',
     '.mkreq-id .t{color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
@@ -301,6 +301,8 @@
     '.mkws-tidbit__ic .v{left:2.5px;top:2.5px}',
     '.mkws-tidbit__ic .t{left:5px;top:5px}',
     '.mkws-tidbit__text{flex:1 1 auto;min-width:0;color:var(--text-primary);font:400 14px/20px var(--font-geist);letter-spacing:-.56px}',
+    '.mkws-tidbit__act{display:inline-flex;margin-top:8px;height:28px;align-items:center;padding:0 10px;border-radius:6px;border:0;cursor:pointer;background:var(--backgrounds-button-primary);color:#fff;font:500 12px/16px var(--font-geist)}',
+    '.mkws-tidbit__text{display:flex;flex-direction:column;align-items:flex-start}',
     '.mkws-tidbit__close{flex:none;padding:4px;border-radius:6px;background:none;border:0;cursor:pointer;display:inline-flex}',
     '.mkws-tidbit__close:hover{background:var(--backgrounds-card-bg-4)}',
     '.mkws-tidbit__close img{display:block}',
@@ -333,7 +335,7 @@
     clearTimeout(tT);
     if (t) t.classList.remove('is-shown');
   }
-  function say(msg) {
+  function say(msg, action) {
     var t = byId('mkwsToast');
     if (!t) {
       t = document.createElement('div');
@@ -346,13 +348,14 @@
     t.innerHTML =
       '<span class="mkws-tidbit__ic"><img class="v" src="' + TIDBIT_IC.vector + '" width="15" height="15" alt="" />' +
         '<img class="t" src="' + TIDBIT_IC.tick + '" width="10" height="10" alt="" /></span>' +
-      '<span class="mkws-tidbit__text">' + E(msg) + '</span>' +
+      '<span class="mkws-tidbit__text">' + E(msg) + (action ? '<button type="button" class="mkws-tidbit__act" data-say-act>' + E(action.label) + '</button>' : '') + '</span>' +
       '<button type="button" class="mkws-tidbit__close" data-say-close aria-label="Close notification">' +
         '<img src="' + TIDBIT_IC.close + '" width="16" height="16" alt="" /></button>';
+    t.onclick = function (e) { if (action && e.target.closest('[data-say-act]')) { hideSay(); action.run(); } };
     placeSay();
     requestAnimationFrame(function () { t.classList.add('is-shown'); });
     clearTimeout(tT);
-    tT = setTimeout(hideSay, 4000);
+    tT = setTimeout(hideSay, action ? 7000 : 4000);
   }
   /* Top right, clear of whatever action bar is on screen: the page's own
      bar, or the builder's while it is open. */
@@ -1225,6 +1228,13 @@
     if (e.key === 'Escape' && trackRef) { e.stopPropagation(); closeTrack(); }
   }, true);
   window.addEventListener('resize', segSync);
+  /* For the publish flow on this page: open its request in the tracker. */
+  window.mkwsTrack = function (ref, n) {
+    var w = wsByRef(ref);
+    if (!w) { if ((n || 0) < 20) setTimeout(function () { window.mkwsTrack(ref, (n || 0) + 1); }, 100); return; }
+    reqFlow = isPub(w) ? 'publish' : 'add';
+    reqShow(true); setTimeout(function () { openTrack(ref); }, 60);
+  };
 
   post({ cqWsRequest: true });
 })();
