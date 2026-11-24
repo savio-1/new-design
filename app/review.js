@@ -5,10 +5,10 @@
 
      publishing (Finance → Marketplace)        adding (Marketplace → Finance)
      1 Export policy check   Finance policy    1 Export policy check   Marketplace policy
-     2 Export admin approval Finance admin     2 Export admin approval Platform admin
+     2 Export admin approval Workspace admin    2 Export admin approval Platform admin
      3 Travel                                  3 Travel
      4 Import policy check   Marketplace       4 Import policy check   Finance policy
-     5 Import admin approval Platform admin    5 Import admin approval Finance admin
+     5 Import admin approval Platform admin    5 Import admin approval Workspace admin
 
    Policy checks and travel run on their own; admin approvals wait for a
    person. Workspace admins approve from Monitoring, the platform admin
@@ -38,9 +38,9 @@
   function stagesOf(w) {
     var ws = w.workspace || HOME;
     return isPub(w) ? [
-      { k: 'xpol', name: 'Export policy check', who: ws + ' workspace policy', auto: true,
+      { k: 'xpol', name: 'Export policy check', who: 'Workspace policy', auto: true,
         checks: [['Sharing rules', 'Only the details marked shared leave the workspace'], ['Secrets', w.secrets && w.secrets.length ? 'Keys shared for ' + listAnd(w.secrets) + ' are allowed to leave' : 'No keys or sign-ins leave the workspace'], ['Data classification', 'Nothing classified confidential is attached']] },
-      { k: 'xadm', name: 'Export admin approval', who: ws + ' workspace admin', role: 'ws', ws: ws },
+      { k: 'xadm', name: 'Export admin approval', who: 'Workspace admin', role: 'ws', ws: ws },
       { k: 'travel', name: 'Travel', who: 'Packaged and moved to the Marketplace', auto: true },
       { k: 'ipol', name: 'Import policy check', who: 'Marketplace import policy', auto: true,
         checks: [['Listing complete', 'Name, description, about, industry and function are filled in'], ['No customer data', 'Nothing in the shared details holds customer or personal data'], ['Naming guidelines', 'The name and description follow the Marketplace guidelines']] },
@@ -50,9 +50,9 @@
         checks: [['Publisher verified', (w.publisher || 'The publisher') + ' is a verified Marketplace publisher'], ['Listing current', 'This is the latest approved version']] },
       { k: 'xadm', name: 'Export admin approval', who: 'Platform admin', role: 'platform' },
       { k: 'travel', name: 'Travel', who: 'Copied into the ' + ws + ' workspace', auto: true },
-      { k: 'ipol', name: 'Import policy check', who: ws + ' workspace policy', auto: true,
+      { k: 'ipol', name: 'Import policy check', who: 'Workspace policy', auto: true,
         checks: [['Integrations allowed', w.shared && w.shared.length ? listAnd(w.shared) + (w.shared.length === 1 ? ' is' : ' are') + ' on the allow-list' : 'Uses no integrations'], ['Model allowed', (w.model || 'Its model') + ' is approved here'], ['Credential policy', w.secrets && w.secrets.length ? 'Publisher keys in ' + listAnd(w.secrets) + ' are allowed' : 'No publisher keys included'], ['Data residency', 'Runs in the workspace region, EU West']] },
-      { k: 'iadm', name: 'Import admin approval', who: ws + ' workspace admin', role: 'ws', ws: ws }
+      { k: 'iadm', name: 'Import admin approval', who: 'Workspace admin', role: 'ws', ws: ws }
     ];
   }
   /* Where a request stands: the stage it is on, and whether that stage is
@@ -79,7 +79,7 @@
     if (s.state === 'done') return doneLabel(w);
     var st = s.stages[s.i];
     if (s.state === 'rejected') return 'Rejected at ' + st.name.toLowerCase();
-    if (s.state === 'waiting') return 'Waiting for ' + (st.role === 'platform' ? 'platform admin' : st.ws + ' admin');
+    if (s.state === 'waiting') return 'Waiting for ' + (st.role === 'platform' ? 'platform admin' : 'workspace admin');
     return st.k === 'travel' ? 'In transit' : st.k === 'xpol' ? 'Checking export policy' : 'Checking import policy';
   }
   var IC = {
@@ -132,7 +132,7 @@
       } else if (c === 'is-now') {
         tag = '<span class="cqr-tag">' + IC.spin + (st.k === 'travel' ? 'Moving' : 'Checking') + '</span>';
       } else if (c === 'is-wait') {
-        var who = st.role === 'platform' ? PLATFORM_ADMIN + ', platform admin' : listAnd(WS_ADMINS.concat(['you'])) + ', ' + st.ws + ' admins';
+        var who = st.role === 'platform' ? PLATFORM_ADMIN + ', platform admin' : listAnd(WS_ADMINS.concat(['you'])) + ', workspace admins,';
         sub = 'Waiting for ' + st.who + '. ' + who + (st.role === 'platform' ? ' has' : ' have') + ' been notified.';
         tag = '<span class="cqr-tag is-wait">' + IC.clock + 'Waiting</span>';
         if (opts.role && opts.role === st.role) {
@@ -141,7 +141,7 @@
             '<button type="button" class="cqr-btn cqr-btn--primary" data-cqr-approve="' + E(w.ref) + '|' + st.k + '">Approve</button></div></div>';
         } else if (opts.links) {
           extra = '<button type="button" class="cqr-link" data-cqr-goto="' + (st.role === 'platform' ? 'admin' : 'monitoring') + '|' + E(w.ref) + '">' +
-            (st.role === 'platform' ? 'Review as platform admin in the Admin panel' : 'Review as ' + st.ws + ' admin in Monitoring') + ' →</button>';
+            (st.role === 'platform' ? 'Review as platform admin in the Admin panel' : 'Review as workspace admin in Monitoring') + ' →</button>';
         }
       } else if (c === 'is-rej') {
         sub = 'Rejected by ' + (s.by || 'an admin') + (s.note ? ' · “' + s.note + '”' : '');
@@ -322,7 +322,7 @@
         return '<button type="button" class="cqr-mi" data-cqr-open="' + (x.role === 'platform' ? 'admin' : 'monitoring') + '|' + E(w.ref) + '">' +
           '<span class="av" style="background:' + hue(who) + '">' + E(who[0]) + '</span>' +
           '<span class="tx"><span><b>' + E(who) + '</b> ' + (isPub(w) ? 'wants to publish ' : 'wants to add ') + '<b>' + E(w.name) + '</b>' + (isPub(w) ? ' to the Marketplace' : ' to ' + (w.workspace || HOME)) + '</span>' +
-          '<small>' + E(s.stages[s.i].name) + ' · as ' + (x.role === 'platform' ? 'platform admin' : (w.workspace || HOME) + ' admin') + '</small></span></button>';
+          '<small>' + E(s.stages[s.i].name) + ' · as ' + (x.role === 'platform' ? 'platform admin' : 'workspace admin') + '</small></span></button>';
       }).join('') : '<div class="cqr-empty">Nothing waiting on you</div>');
   }
   function paintBells() {

@@ -29,8 +29,8 @@
 
   var pane = document.createElement('div');
   pane.className = 'mon-mk'; pane.id = 'monMk'; pane.hidden = true;
-  pane.innerHTML = '<div class="mon-mk__intro"><h2>Marketplace approvals · Finance</h2>' +
-    '<p>As a Finance workspace admin you approve stage 2 when Finance publishes to the Marketplace, and stage 5 when Finance adds something from it. ' +
+  pane.innerHTML = '<div class="mon-mk__intro"><h2>Marketplace approvals</h2>' +
+    '<p>As a workspace admin you approve stage 2 when this workspace publishes to the Marketplace, and stage 5 when it adds something from it. ' +
     'Policy checks and travel run on their own; the platform admin approves the other side in the Admin panel.</p></div><div id="monMkQ"></div>';
   act.parentNode.insertBefore(pane, act);
   var queue = CR.mountQueue($('monMkQ'), 'ws');
