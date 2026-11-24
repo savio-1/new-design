@@ -65,6 +65,16 @@
 
 **Please confirm before launch:** that alerts on drift, latency and blocked runs, step-level run traces, and cost per agent, team and workspace are all available or on the near-term roadmap. The page states them as current capabilities.
 
+## 1a+. Agent registration and the animated governance cards
+
+- **Agent registration** (new, short): a band just before governance, "Bring the agents you already have". Agents built in other frameworks or by vendors are registered (endpoint, owner, purpose), inherit your policies, and are monitored and traced like your own. It matches the hero's "Third-party agents · Register" layer, and comes with a new FAQ answer and a structured-data feature.
+- **Governance section, rebuilt for scanning.** Three cards, each with a small looping animation and one line of text:
+  - **Govern:** checks light in turn
+  - **Monitor:** simple performance, cost and adoption charts, with status words instead of detailed numbers
+  - **Observe:** an SDK snippet types itself, then a trace appears
+- The long pillars and the large run trace are gone.
+- **Please confirm:** the SDK syntax shown (`from cogentiq import trace` / `@trace`) is illustrative. Replace it with the real import and decorator, and confirm that registering third-party agents is available.
+
 ## 1b. Hero: the buttons are visible without scrolling
 
 - Before this round, the buttons sat 673–728 px down on a 1366×768 laptop. With the browser toolbar, that's below the fold.
@@ -150,7 +160,7 @@ Adding `?debug-events` to the URL prints them in the browser console. Suggested 
 
 ## Before launch: decisions and site-wide fixes
 
-1. **The pen-test badge:** the live page says "Pen tested by The SecOps Group", while this design (as requested earlier) says UltraViolet Cyber. Confirm which is correct; the overview PDF uses UltraViolet Cyber.
+1. **The pen-test badge:** resolved. The hero now matches the live page: "Pen tested by The SecOps Group", with its logo. The overview PDF says the same.
 2. **Connect the forms.** The overview and demo forms are front-end only. Send them to your CRM or email tool, and host `cogentiq-overview.pdf` on the site.
 3. **Duplicate titles across the site.** Several live Cogentiq pages share the generic title "Enterprise AI Solutions & AI Consulting Services | Fractal Analytics": both Underwriting pages, Digital Commerce, Campaign Assist and all three case studies. Give each a unique title and description.
 4. **In Framer:**
