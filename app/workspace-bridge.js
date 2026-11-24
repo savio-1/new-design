@@ -204,6 +204,16 @@
     '.mkreq-head h2{margin:0;color:var(--text-primary)}',
     '.mkreq-head p{margin:4px 0 0;max-width:720px;color:var(--text-secondary)}',
     '.mkreq-list{display:flex;flex-direction:column;gap:10px}',
+    '.mkreq-sub{display:flex;gap:6px;flex-wrap:wrap}',
+    '.mkreq-sub button{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;cursor:pointer;font:500 13px/18px var(--font-geist);',
+    '  background:none;border:1px solid var(--strokes-card-default);color:var(--text-secondary)}',
+    '.mkreq-sub button:hover{border-color:var(--strokes-card-selected)}',
+    '.mkreq-sub button .n{color:var(--text-teritiary);font-weight:400}',
+    '.mkreq-sub button[aria-selected="true"]{background:var(--backgrounds-badge-blue);border-color:var(--strokes-colour-blue);color:var(--text-coloured-blue)}',
+    '.mkreq-sub button[aria-selected="true"] .n{color:inherit;opacity:.75}',
+    '.mkreq-kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--strokes-line-3);font:400 13px/18px var(--font-geist)}',
+    '.mkreq-kv span{color:var(--text-teritiary)}',
+    '.mkreq-kv b{font-weight:400;color:var(--text-primary);text-align:right}',
     '.mkreq-row{width:100%;display:grid;grid-template-columns:40px minmax(0,1fr) minmax(220px,280px) 16px;align-items:center;column-gap:20px;',
     '  padding:16px 20px;border-radius:12px;text-align:left;cursor:pointer;font:inherit;color:inherit;',
     '  background:var(--backgrounds-card-bg-2);border:1px solid var(--strokes-card-default);',
@@ -378,8 +388,17 @@
   }
   function wsByRef(ref) { for (var i = 0; i < WS.length; i++) if (WS[i].ref === ref) return WS[i]; return null; }
   /* In the workspace: added, past review. Requested: still on its way. */
-  function mine() { return WS.filter(function (w) { return w.kind === PAGE && (w.status || 'added') === 'added'; }).sort(function (a, b) { return (b.added || 0) - (a.added || 0); }); }
-  function reqs() { return WS.filter(function (w) { return w.kind === PAGE && w.status === 'requested'; }).sort(function (a, b) { return (b.requestedAt || 0) - (a.requestedAt || 0); }); }
+  function mine() { return WS.filter(function (w) { return w.kind === PAGE && w.flow !== 'publish' && (w.status || 'added') === 'added'; }).sort(function (a, b) { return (b.added || 0) - (a.added || 0); }); }
+  /* Requests both ways: taking an artifact from the Marketplace into the
+     workspace, and publishing one of the workspace's own to the Marketplace. */
+  function isPub(w) { return w.flow === 'publish'; }
+  function reqs(flow) {
+    return WS.filter(function (w) {
+      if (w.kind !== PAGE) return false;
+      var on = isPub(w) || w.status === 'requested';
+      return on && (!flow || (isPub(w) ? 'publish' : 'add') === flow);
+    }).sort(function (a, b) { return (b.requestedAt || 0) - (a.requestedAt || 0); });
+  }
   function needLabel(n) { return n.name; }
   function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
   function listAnd(xs) { return xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]; }
@@ -962,8 +981,19 @@
   var ADMINS = ['Priya Nair', 'Arjun Mehta'];
   var STEP_NAMES = ['Requested', 'Admin review', 'Workspace policy check', 'Ready to add to workspace'];
   var STAGE_LABEL = ['Requested', 'Waiting for admin review', 'Checking workspace policies', 'Ready to add'];
+  var PUB_STEPS = ['Submitted', 'Admin review', 'Marketplace policy check', 'Live on the Marketplace'];
+  var PUB_LABEL = ['Submitted', 'Waiting for admin review', 'Checking Marketplace policies', 'Live on the Marketplace'];
+  function stepName(w, i) { return (isPub(w) ? PUB_STEPS : STEP_NAMES)[i]; }
+  function stageLabel(w, i) { return (isPub(w) ? PUB_LABEL : STAGE_LABEL)[i]; }
   var CLOCK = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8V8l2.2 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function checksOf(w) {
+    if (isPub(w)) return [
+      ['Listing complete', 'Name, description, about, industry (' + (w.industry || '—') + ') and function (' + (w.func || '—') + ') are filled in'],
+      ['Shared details', w.secrets && w.secrets.length ? 'Keys shared for ' + listAnd(w.secrets) + ' are allowed by the publishing policy' : 'Keys, links and account details stay private'],
+      ['No customer data', 'Nothing in the shared details holds customer or personal data'],
+      ['Naming guidelines', 'The name and description follow the Marketplace guidelines'],
+      ['Visibility', 'Listed for every workspace in your organisation']
+    ];
     var c = [['Publisher verified', w.publisher + ' is a verified Marketplace publisher']];
     if (w.shared && w.shared.length) c.push(['Integrations allowed', listAnd(w.shared) + (w.shared.length === 1 ? ' is' : ' are') + ' on the workspace allow-list']);
     if (w.model) c.push(['Model allowed', w.model + ' is approved for use in this workspace']);
@@ -995,7 +1025,7 @@
   if (seg && col) {
     var rb = document.createElement('button');
     rb.setAttribute('role', 'tab'); rb.setAttribute('aria-selected', 'false'); rb.setAttribute('data-mkreq', '');
-    rb.innerHTML = 'Requested <span class="' + (PAGE === 'agent' ? 'seg-count' : 'au-seg-count') + '" id="mkreqN">0</span>';
+    rb.innerHTML = 'Requests <span class="' + (PAGE === 'agent' ? 'seg-count' : 'au-seg-count') + '" id="mkreqN">0</span>';
     seg.appendChild(rb);
     var pane = document.createElement('div');
     pane.id = 'mkreqPane'; pane.className = 'mkreq-pane cq-scroll-y'; pane.hidden = true; pane.setAttribute('role', 'tabpanel');
@@ -1028,40 +1058,53 @@
       return '<i class="' + (done ? 'is-done' : i === s.step ? (s.waiting ? 'is-wait' : 'is-now') : '') + '"></i>';
     }).join('') + '</span>';
   }
-  function pillHTML(s) {
-    return s.step === 3 ? '<span class="mkreq-pill is-ready">' + IC.check + 'Ready to add</span>'
-      : s.waiting ? '<span class="mkreq-pill is-wait">' + CLOCK + STAGE_LABEL[s.step] + '</span>'
-      : '<span class="mkreq-pill">' + SPIN + STAGE_LABEL[s.step] + '</span>';
+  function pillHTML(s, w) {
+    return s.step === 3 ? '<span class="mkreq-pill is-ready">' + IC.check + (w && isPub(w) ? 'Live on the Marketplace' : 'Ready to add') + '</span>'
+      : s.waiting ? '<span class="mkreq-pill is-wait">' + CLOCK + stageLabel(w || {}, s.step) + '</span>'
+      : '<span class="mkreq-pill">' + SPIN + stageLabel(w || {}, s.step) + '</span>';
   }
   function reqRow(w) {
     var s = stageOf(w);
     return '<button type="button" class="mkreq-row" data-mkreq-open="' + E(w.ref) + '">' +
       '<span class="mkreq-mark">' + REQ_IC + '</span>' +
-      '<span class="mkreq-id">' + pillHTML(s) + '<span class="t cq-body1-med">' + E(w.name) + '</span>' +
-        '<span class="s cq-caption-reg">Published by ' + E(w.publisher) + ' · requested ' + E(when(w.requestedAt)) + '</span></span>' +
-      '<span class="mkreq-mini">' + bars(s) + '<span class="l">Step ' + Math.min(s.step + 1, 4) + ' of 4 · ' + E(STEP_NAMES[s.step]) + '</span></span>' +
+      '<span class="mkreq-id">' + pillHTML(s, w) + '<span class="t cq-body1-med">' + E(w.name) + '</span>' +
+        '<span class="s cq-caption-reg">' + (isPub(w) ? 'Submitted by you · ' + E(when(w.requestedAt)) + (w.industry ? ' · ' + E(w.industry) : '')
+          : 'Published by ' + E(w.publisher) + ' · requested ' + E(when(w.requestedAt))) + '</span></span>' +
+      '<span class="mkreq-mini">' + bars(s) + '<span class="l">Step ' + Math.min(s.step + 1, 4) + ' of 4 · ' + E(stepName(w, s.step)) + '</span></span>' +
       '<span class="mkreq-chev">' + CHEV + '</span>' +
     '</button>';
   }
-  function reqSig() { return reqs().map(function (w) { var s = stageOf(w); return w.ref + s.step + '.' + s.checks; }).join('|') + (reqOn ? '+' : '-'); }
+  var reqFlow = 'add';
+  function reqSig() { return reqs().map(function (w) { var s = stageOf(w); return w.ref + s.step + '.' + s.checks; }).join('|') + (reqOn ? '+' : '-') + reqFlow; }
   function paintReqs(force) {
-    var list = reqs();
+    var all = reqs();
     var n = byId('mkreqN');
-    if (n && n.textContent !== String(list.length)) { n.textContent = list.length; segSync(); }
+    if (n && n.textContent !== String(all.length)) { n.textContent = all.length; segSync(); }
     var sig = reqSig();
     if (!force && sig === lastReqSig) return;
     lastReqSig = sig;
     var p = byId('mkreqPane');
     if (!reqOn || !p) return;
     var focused = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-mkreq-open');
+    var list = reqs(reqFlow), nAdd = reqs('add').length, nPub = reqs('publish').length;
+    var NOUN = PAGE === 'agent' ? 'agent' : 'automation', NOUNS = PAGE === 'agent' ? 'Agents' : 'Automations';
     p.innerHTML =
-      '<div class="mkreq-head"><h2 class="cq-subhead1-med">Requested from the Marketplace</h2>' +
-        '<p class="cq-body2-reg">Each ' + WORD + ' you request is sent to your workspace admins for review, then checked against your workspace policies. ' +
-        'Once every check passes, it is ready to be added to your workspace.</p></div>' +
+      '<div class="mkreq-head"><h2 class="cq-subhead1-med">Requests</h2>' +
+        '<p class="cq-body2-reg">' + (reqFlow === 'add'
+          ? 'Each ' + NOUN + ' you request from the Marketplace is reviewed by your workspace admins and checked against your workspace policies. Once every check passes, you can add it to your workspace.'
+          : 'Each ' + NOUN + ' you publish is reviewed by your workspace admins and checked against the Marketplace policies before it goes live for everyone in your organisation.') + '</p></div>' +
+      '<div class="mkreq-sub" role="tablist" aria-label="Request type">' +
+        '<button type="button" role="tab" data-mkreq-flow="add" aria-selected="' + (reqFlow === 'add') + '">Adding to workspace <span class="n">' + nAdd + '</span></button>' +
+        '<button type="button" role="tab" data-mkreq-flow="publish" aria-selected="' + (reqFlow === 'publish') + '">Publishing to Marketplace <span class="n">' + nPub + '</span></button>' +
+      '</div>' +
       (list.length ? '<div class="mkreq-list">' + list.map(reqRow).join('') + '</div>'
-        : '<div class="mkreq-empty"><span class="cq-body1-med" style="color:var(--text-primary)">No requests yet</span>' +
-          '<span class="cq-body2-reg">' + (PAGE === 'agent' ? 'Agents' : 'Automations') + ' you add from the Marketplace wait here while they are reviewed.</span>' +
-          '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Browse the Marketplace</button></div>');
+        : reqFlow === 'add'
+          ? '<div class="mkreq-empty"><span class="cq-body1-med" style="color:var(--text-primary)">No requests yet</span>' +
+            '<span class="cq-body2-reg">' + NOUNS + ' you add from the Marketplace wait here while they are reviewed.</span>' +
+            '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Browse the Marketplace</button></div>'
+          : '<div class="mkreq-empty"><span class="cq-body1-med" style="color:var(--text-primary)">Nothing submitted yet</span>' +
+            '<span class="cq-body2-reg">' + NOUNS + ' you publish to the Marketplace wait here while they are reviewed.</span>' +
+            '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Publish from the Marketplace</button></div>');
     if (focused) { var f = p.querySelector('[data-mkreq-open="' + focused + '"]'); if (f) f.focus({ preventScroll: true }); }
     markSel();
   }
@@ -1083,7 +1126,8 @@
   function openTrack(ref) {
     var w = wsByRef(ref);
     if (!w) return;
-    if (w.status !== 'requested') { reqShow(false); var first = seg && seg.querySelector(':scope > button:not([data-mkreq])'); if (first) first.click(); focusOn(ref); return; }
+    reqFlow = isPub(w) ? 'publish' : 'add';
+    if (!isPub(w) && w.status !== 'requested') { reqShow(false); var first = seg && seg.querySelector(':scope > button:not([data-mkreq])'); if (first) first.click(); focusOn(ref); return; }
     if (typeof closePanel === 'function') closePanel();
     if (!trackRef) trackFocus = document.activeElement;
     trackRef = ref;
@@ -1111,7 +1155,17 @@
       return '<li class="' + st + '"><span class="ci">' + (st === 'is-ok' ? IC.check : st === 'is-now' ? SPIN : '<i></i>') + '</span>' +
         '<span><b>' + E(c[0]) + '</b>' + E(c[1]) + '</span></li>';
     }).join('') + '</ul>';
-    var steps = [
+    var pub = isPub(w);
+    var steps = pub ? [
+      ['Submitted', 'You submitted it to the Marketplace · Today, ' + clock(t0), ''],
+      ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(approvedAt(w))
+        : 'Sent to your workspace admins, ' + listAnd(ADMINS) + '. Reviews usually take 1 to 2 business days, and you will be notified once it is approved.',
+        s.step === 1 ? '<span class="mkreq-tag is-wait">' + CLOCK + 'Waiting</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Approved</span>'],
+      ['Marketplace policy check', s.step < 2 ? 'Runs once an admin approves the submission'
+        : s.step === 2 ? 'Checking ' + s.n + ' Marketplace policies · ' + s.checks + ' passed' : 'Passed all ' + s.n + ' Marketplace policies',
+        s.step < 2 ? '' : s.step === 2 ? '<span class="mkreq-tag">' + SPIN + 'Checking</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Passed</span>'],
+      ['Live on the Marketplace', s.step === 3 ? 'Anyone in your organisation can now find it and request it for their workspace.' : 'Once every check passes', '']
+    ] : [
       ['Requested', 'You requested it from the Marketplace · Today, ' + clock(t0), ''],
       ['Admin review', s.step > 1 ? 'Approved by ' + ADMINS[0] + ' · ' + clock(approvedAt(w))
         : 'Sent to your workspace admins, ' + listAnd(ADMINS) + '. Reviews usually take 1 to 2 business days, and you will be notified once it is approved.',
@@ -1121,33 +1175,41 @@
         s.step < 2 ? '' : s.step === 2 ? '<span class="mkreq-tag">' + SPIN + 'Checking</span>' : '<span class="mkreq-tag is-ok">' + IC.check + 'Passed</span>'],
       ['Ready to add to workspace', s.step === 3 ? 'Every check passed. Add it to your workspace to start using it.' : 'Once every check passes', '']
     ];
-    var after = T.total
+    var after = pub
+      ? '<div class="mkreq-kv"><span>Industry</span><b>' + E(w.industry || '—') + '</b></div>' +
+        '<div class="mkreq-kv"><span>Function</span><b>' + E(w.func || '—') + '</b></div>' +
+        '<div class="mkreq-kv"><span>Shared</span><b>' + E(w.sharedSummary || '') + '</b></div>' +
+        (w.about ? '<p class="cq-caption-reg" style="margin:4px 0 0;color:var(--text-secondary)">' + E(w.about) + '</p>' : '')
+      : T.total
       ? '<div class="mkws-note cq-caption-reg">' + IC.warn + '<span>After it is added, fill in ' + plural(T.total, 'detail') + ' in ' +
         listAnd((w.needs || []).map(function (n) { return n.name; })) + '. The publisher kept these private.</span></div>'
       : '<div class="mkws-note is-ok cq-caption-reg">' + IC.check + '<span>The publisher shared every detail it needs, so it is ready to use as soon as it is added.</span></div>';
     el.innerHTML =
-      '<div class="mkreq-p__bar">' + pillHTML(s) +
+      '<div class="mkreq-p__bar">' + pillHTML(s, w) +
         '<button type="button" class="mkreq-p__x" data-mkreq-close aria-label="Close" title="Close">' +
           '<svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#ic-pp_closepanel"/></svg></button>' +
       '</div>' +
       '<div class="cq-panel__section">' +
         '<div class="mkreq-p__title"><span class="mkreq-mark">' + REQ_IC + '</span>' +
           '<span class="mkreq-id"><span class="t cq-body1-med">' + E(w.name) + '</span>' +
-          '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + ' · published by ' + E(w.publisher) + '</span></span></div>' +
+          '<span class="s cq-caption-reg">' + (PAGE === 'agent' ? 'Agent' : 'Automation') + (pub ? ' · from your workspace' : ' · published by ' + E(w.publisher)) + '</span></span></div>' +
         (w.desc ? '<p class="cq-caption-reg" style="margin:0;color:var(--text-secondary)">' + E(w.desc) + '</p>' : '') +
         '<div class="mkreq-p__acts">' +
-          '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (s.step === 3 ? '' : ' disabled') + '>Add to workspace</button>' +
-          '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>' +
+          (pub
+            ? (s.step === 3 ? '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-browse>View on Marketplace</button>'
+                            : '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw submission</button>')
+            : '<button type="button" class="cq-btn cq-btn--primary" data-mkreq-add="' + E(w.ref) + '"' + (s.step === 3 ? '' : ' disabled') + '>Add to workspace</button>' +
+              '<button type="button" class="cq-btn cq-btn--ghost" data-mkreq-withdraw="' + E(w.ref) + '">Withdraw request</button>') +
         '</div>' +
       '</div>' +
-      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">REQUEST STATUS</span>' +
+      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">' + (pub ? 'REVIEW STATUS' : 'REQUEST STATUS') + '</span>' +
         '<ol class="mkreq-steps">' + steps.map(function (st, i) {
           return '<li class="mkreq-step ' + stepCls(i) + '">' + dot(i) +
             '<span class="mkreq-step__b"><span class="mkreq-step__t cq-body2-med">' + E(st[0]) + st[2] + '</span>' +
             '<span class="mkreq-step__s cq-caption-reg">' + E(st[1]) + '</span>' + (i === 2 && s.step >= 2 ? checkList : '') + '</span></li>';
         }).join('') + '</ol>' +
       '</div>' +
-      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">AFTER IT IS ADDED</span>' + after + '</div>';
+      '<div class="cq-panel__section"><span class="cq-section-label cq-caption-med">' + (pub ? 'WHAT YOU SUBMITTED' : 'AFTER IT IS ADDED') + '</span>' + after + '</div>';
   }
   function addReq(ref) {
     var w = wsByRef(ref);
@@ -1178,6 +1240,7 @@
     var t;
     if (e.target.closest('[data-mkreq]')) { e.stopPropagation(); e.preventDefault(); reqShow(true); return; }
     if (reqOn && seg && e.target.closest('#' + seg.id + ' > button:not([data-mkreq])')) reqShow(false);
+    if ((t = e.target.closest('[data-mkreq-flow]'))) { e.stopPropagation(); reqFlow = t.getAttribute('data-mkreq-flow'); closeTrack(true); paintReqs(true); return; }
     if ((t = e.target.closest('[data-mkreq-open]'))) { e.stopPropagation(); openTrack(t.getAttribute('data-mkreq-open')); return; }
     if (e.target.closest('[data-mkreq-close]')) { e.stopPropagation(); closeTrack(); return; }
     if ((t = e.target.closest('[data-mkreq-add]'))) { e.stopPropagation(); addReq(t.getAttribute('data-mkreq-add')); return; }
@@ -1185,7 +1248,7 @@
       e.stopPropagation();
       var w = wsByRef(t.getAttribute('data-mkreq-withdraw'));
       closeTrack(true);
-      if (w) discard(w.ref, 'Request for ' + w.name + ' was withdrawn');
+      if (w) discard(w.ref, (isPub(w) ? 'Submission for ' : 'Request for ') + w.name + ' was withdrawn');
       paintReqs(true);
       return;
     }
