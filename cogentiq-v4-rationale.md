@@ -121,8 +121,8 @@
 
 | Change | Why |
 |---|---|
-| Hero order: headline → three pills → one short sentence → two buttons → overview link → then, below a divider, the security badges. | Each element has one job, and the buttons are the clear focal point. |
-| Three pills in the live page's style (amber Lato tags on a faint slate tint): Enterprise grade, Built to scale, Ontology grounded. The definition sentence is shortened to "Cogentiq is Fractal’s agentic AI platform to build, run and govern agents on the systems you already run." | It keeps a design the team likes and the search-friendly definition, with less to read. |
+| Hero order: headline “Intelligence is universal. Your business isn’t.” → subtext “Your Enterprise. Your Harness. Your Advantage.” → three pills → two buttons → overview link → then, below a divider, the security badges. | A distinct brand message first; the buttons stay the clear focal point and end at about 500 px on a 1366×768 laptop. |
+| Three pills in the live page's style (amber Lato tags on a faint slate tint): Enterprise grade, Built to scale, Ontology grounded. The plain definition of Cogentiq now lives in the title, meta description, structured data and the first FAQ answer rather than the hero. | Keeps a design the team likes. Note: the H1 no longer contains “enterprise agent platform”, so the title tag and description carry that keyword. |
 | "Illustrative and synthetic data" appears once per group of visuals instead of on every card (removed 10+ times). | The same caption on every card was visual noise. |
 | More space between each section's intro and its content, and narrower intro lines. | Gives the eye room, without adding length or changing the layout. |
 | Blog and videos moved below the demo form. Navigation is in story order and highlights the section in view. The "Where do you want to start?" block was removed: it repeated the navigation without adding value. | The page ends on the ask, with fewer blocks to scroll past. |
