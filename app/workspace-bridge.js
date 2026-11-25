@@ -1078,7 +1078,7 @@
       '<td><span class="cqr-art"><span class="ic">' + REQ_IC + '</span><span class="tx"><b>' + E(w.name) + '</b><small>' +
         (isPub(w) ? (w.industry ? E(w.industry) : (PAGE === 'agent' ? 'Agent' : 'Automation')) : 'By ' + E(w.publisher || 'the publisher')) + '</small></span></span></td>' +
       '<td>' + E(when(w.requestedAt)) + '</td>' +
-      '<td class="cqr-st-td"><span class="cqr-stage"><span class="cqr-stage__top">' + CR.pill(w, s) + '<b>' + E(CR.stepText(w, s)) + '</b></span>' + CR.bars(w, s) + '</span></td>' +
+      '<td class="cqr-st-td">' + CR.statusCell(w, s) + '</td>' +
       '<td class="cqr-fit">' + CR.typeTag(w) + '</td>' +
       '<td class="cqr-fit" style="text-align:right">' + (ready
         ? '<button type="button" class="cqr-act" data-mkreq-add="' + E(w.ref) + '">Add</button>'

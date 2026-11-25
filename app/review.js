@@ -103,6 +103,12 @@
     if (s.state === 'waiting') return 'Waiting';
     return s.stages[s.i].k === 'travel' ? 'In transit' : 'Checking';
   }
+  /* The status, kept short: the tag and, while it is moving, the stage it is on. */
+  function statusCell(w, s) {
+    s = s || stageOf(w);
+    var open = s.state !== 'done' && s.state !== 'rejected';
+    return '<span class="cqr-stage__top">' + pill(w, s) + (open ? '<span class="cqr-stage__s">' + E(s.stages[s.i].name) + '</span>' : '') + '</span>';
+  }
   function typeTag(w) { return isPub(w) ? '<span class="cqr-type is-pub">' + IC.up + 'Publish</span>' : '<span class="cqr-type is-add">' + IC.down + 'Add to workspace</span>'; }
   function wsColor(n) { var c = { Finance: '#2f7bff', Marketing: '#7c5cff', Sales: '#e8632b', Support: '#159f7a', 'Customer success': '#159f7a', 'Design systems': '#e8632b' }; return c[n] || '#5a5a5a'; }
   function pill(w, s) {
@@ -294,7 +300,8 @@
     '.cqr-stage{display:flex;flex-direction:column;gap:8px;min-width:240px}',
     '.cqr-stage__top{display:flex;align-items:center;gap:8px;min-width:0}',
     '.cqr-stage__top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);font:500 13px/18px var(--font-geist);letter-spacing:-.3px}',
-    '.cqr-st-td{width:34%}',
+    '.cqr-st-td{width:30%}',
+    '.cqr-stage__s{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);font:400 13px/18px var(--font-geist)}',
     '.cqr-table td.cqr-fit{width:1%;white-space:nowrap}',
     '.cqr-act{height:30px;padding:0 12px;border-radius:8px;cursor:pointer;font:500 12px/16px var(--font-geist);background:var(--backgrounds-button-primary);color:#fff;border:0;white-space:nowrap}',
     '.cqr-act--ghost{background:none;border:1px solid var(--strokes-line-1);color:var(--text-primary)}',
@@ -450,7 +457,7 @@
               (role === 'platform' ? '<td><span class="cqr-ws"><span class="av" style="background:' + wsColor(w.workspace || HOME) + '">' + E((w.workspace || HOME)[0]) + '</span>' + E(w.workspace || HOME) + '</span></td>' : '') +
               '<td>' + E(w.requester || 'Savio Govindu') + '</td>' +
               /* Where it stands, next to the action it asks for. */
-              '<td class="cqr-st-td"><span class="cqr-stage"><span class="cqr-stage__top">' + pill(w, s) + '<b>' + E(stepText(w, s)) + '</b></span>' + bars(w, s) + '</span></td>' +
+              '<td class="cqr-st-td">' + statusCell(w, s) + '</td>' +
               /* What is being asked, as a tag, right before the action. */
               '<td class="cqr-fit">' + typeTag(w) + '</td>' +
               '<td class="cqr-fit" style="text-align:right"><button type="button" class="cqr-act' + (mineNow ? '' : ' cqr-act--ghost') + '" data-cqr-row="' + E(w.ref) + '">' + (mineNow ? 'Review' : 'View') + '</button></td></tr>';
@@ -524,7 +531,7 @@
   if (inShell) post({ cqWsRequest: true });
 
   window.cqReview = {
-    stagesOf: stagesOf, stageOf: stageOf, stateLabel: stateLabel, pill: pill, bars: bars, stepText: stepText, typeTag: typeTag,
+    stagesOf: stagesOf, stageOf: stageOf, stateLabel: stateLabel, pill: pill, bars: bars, stepText: stepText, typeTag: typeTag, statusCell: statusCell,
     trackerHTML: trackerHTML, isPub: isPub, isDone: function (w) { return stageOf(w).state === 'done'; },
     isRejected: function (w) { return stageOf(w).state === 'rejected'; },
     pendingFor: pendingFor, requests: requests, find: find, decide: decide, mountQueue: mountQueue,
