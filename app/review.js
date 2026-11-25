@@ -96,6 +96,7 @@
     if (s.state === 'waiting') return 'Waiting';
     return s.stages[s.i].k === 'travel' ? 'In transit' : 'Checking';
   }
+  function wsColor(n) { var c = { Finance: '#2f7bff', Marketing: '#7c5cff', Sales: '#e8632b', Support: '#159f7a', 'Customer success': '#159f7a', 'Design systems': '#e8632b' }; return c[n] || '#5a5a5a'; }
   function pill(w, s) {
     s = s || stageOf(w);
     var cls = s.state === 'done' ? 'is-ok' : s.state === 'waiting' ? 'is-wait' : s.state === 'rejected' ? 'is-rej' : '';
@@ -274,6 +275,8 @@
     '.cqr-art .tx{display:flex;flex-direction:column;min-width:0}',
     '.cqr-art .tx b{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.cqr-art .tx small{color:var(--text-teritiary);font-size:12px}',
+    '.cqr-ws{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}',
+    '.cqr-ws .av{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font:600 11px/1 var(--font-geist)}',
     '.cqr-dir{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);white-space:nowrap}',
     '.cqr-stage{display:flex;flex-direction:column;gap:6px;min-width:150px}',
     '.cqr-stage small{color:var(--text-teritiary);font-size:12px}',
@@ -414,12 +417,13 @@
       host.innerHTML = '<div class="cqr-q">' +
         '<div class="cqr-q__bar">' + chip('view', 'waiting', 'Waiting on you', waiting, Q.view === 'waiting') + chip('view', 'all', 'All requests', total, Q.view === 'all') +
           '<span class="cqr-sp"></span>' + chip('flow', 'all', 'All', null, Q.flow === 'all') + chip('flow', 'publish', 'Publishing to Marketplace', null, Q.flow === 'publish') + chip('flow', 'add', 'Adding to workspaces', null, Q.flow === 'add') + '</div>' +
-        (list.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th><th>Direction</th><th>Requested by</th><th>Stage</th><th>Status</th><th></th></tr></thead><tbody>' +
+        (list.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th>' + (role === 'platform' ? '<th>Workspace</th>' : '') + '<th>Request</th><th>Requested by</th><th>Stage</th><th>Status</th><th></th></tr></thead><tbody>' +
           list.map(function (w) {
             var s = stageOf(w), mineNow = s.state === 'waiting' && s.stages[s.i].role === role;
             return '<tr data-cqr-row="' + E(w.ref) + '"' + (Q.sel === w.ref ? ' class="is-sel"' : '') + '>' +
               '<td><span class="cqr-art"><span class="ic">' + artIcon(w.kind) + '</span><span class="tx"><b>' + E(w.name) + '</b><small>' + (w.kind === 'automation' ? 'Automation' : 'Agent') + '</small></span></span></td>' +
-              '<td><span class="cqr-dir">' + (isPub(w) ? E(w.workspace || HOME) + ' → Marketplace' : 'Marketplace → ' + E(w.workspace || HOME)) + '</span></td>' +
+              (role === 'platform' ? '<td><span class="cqr-ws"><span class="av" style="background:' + wsColor(w.workspace || HOME) + '">' + E((w.workspace || HOME)[0]) + '</span>' + E(w.workspace || HOME) + '</span></td>' : '') +
+              '<td><span class="cqr-dir">' + (isPub(w) ? 'Publish to Marketplace' : 'Add to workspace') + '</span></td>' +
               '<td>' + E(w.requester || 'Savio Govindu') + '</td>' +
               '<td><span class="cqr-stage">' + bars(w, s) + '<small>' + E(stepText(w, s)) + '</small></span></td>' +
               '<td>' + pill(w, s) + '</td>' +
