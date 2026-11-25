@@ -179,6 +179,24 @@
     '.mkws-res__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px;padding:12px 14px 14px;border-top:1px solid var(--strokes-line-3)}',
     '.mkws-res__grid--one{grid-template-columns:minmax(0,1fr)}',
     '.mkws-f{display:flex;flex-direction:column;gap:6px;min-width:0;margin:0}',
+    /* Connections are picked from the workspace's own, with a search. */
+    '.mkws-pick{position:relative}',
+    '.mkws-pick__btn{display:flex !important;align-items:center;gap:8px;text-align:left;cursor:pointer;color:var(--text-primary)}',
+    '.mkws-pick__btn .v{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+    '.mkws-pick__btn .v.ph{color:var(--text-teritiary)}',
+    '.mkws-pick__btn svg{flex:none;color:var(--text-teritiary)}',
+    '.mkws-pick__pop{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:60;padding:6px;border-radius:10px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);box-shadow:0 8px 24px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:4px}',
+    '.mkws-pick__pop[hidden]{display:none}',
+    '.mkws-pick__q{width:100%;box-sizing:border-box;height:32px;padding:0 10px 0 30px;border-radius:7px;border:1px solid var(--strokes-type-default);background:var(--backgrounds-type-default-bg-1) no-repeat 9px 50%/14px url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 20 20%27 fill=%27none%27%3E%3Ccircle cx=%279%27 cy=%279%27 r=%275.5%27 stroke=%27%238c8c8c%27 stroke-width=%271.6%27/%3E%3Cpath d=%27m13.2 13.2 3.3 3.3%27 stroke=%27%238c8c8c%27 stroke-width=%271.6%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");color:var(--text-primary);font:400 13px/18px var(--font-geist);outline:none}',
+    '.mkws-pick__q:focus{border-color:var(--strokes-card-selected)}',
+    '.mkws-pick__list{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}',
+    '.mkws-pick__l{padding:6px 8px 2px;color:var(--text-teritiary);font:500 11px/14px var(--font-geist);letter-spacing:.02em}',
+    '.mkws-pick__o{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:none;cursor:pointer;text-align:left;color:var(--text-primary);font:400 13px/18px var(--font-geist)}',
+    '.mkws-pick__o:hover{background:var(--backgrounds-card-bg-4)}',
+    '.mkws-pick__o.is-on{color:var(--text-coloured-blue)}',
+    '.mkws-pick__o small{margin-left:auto;color:var(--text-teritiary);font-size:12px}',
+    '.mkws-pick__none{padding:8px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.mkws-pick__new{display:flex;align-items:center;gap:6px;padding:7px 8px;border:0;border-top:1px solid var(--strokes-line-3);border-radius:0 0 6px 6px;background:none;cursor:pointer;color:var(--text-coloured-blue);font:500 13px/18px var(--font-geist);text-align:left}',
     '.mkws-f--wide{grid-column:1/-1}',
     '.mkws-f__l{display:flex;align-items:center;gap:6px;color:var(--text-secondary);font:500 12px/16px var(--font-geist)}',
     '.mkws-f__l .ok{margin-left:auto;display:inline-flex;color:var(--text-coloured-green)}',
@@ -609,9 +627,42 @@
   var KIND_IC = { integration: IC.plug, model: IC.brain, tool: IC.tool, agent: IC.agent, skill: IC.skill, guardrail: IC.guard };
   var KIND_ORDER = [['agent', 'AGENTS'], ['tool', 'TOOLS'], ['integration', 'INTEGRATIONS'], ['model', 'MODELS'], ['skill', 'SKILLS'], ['guardrail', 'GUARDRAILS']];
 
+  /* The workspace's connections, for the fields that point at one. */
+  var PICKS = {
+    connection_id: { what: 'connection', list: [['Microsoft Teams', 'Finance workspace'], ['Microsoft Teams', 'Support desk'], ['Amazon S3', 'finance-data'], ['Amazon S3', 'prod-exports'],
+      ['SharePoint', 'Contoso Finance'], ['Gmail', 'AP inbox'], ['Salesforce', 'Sales cloud'], ['Slack', 'Ops alerts'], ['NetSuite', 'ERP'], ['Snowflake', 'Warehouse']] },
+    llm_connection_id: { what: 'LLM connection', list: [['OpenAI', 'GPT-4.1 · Finance'], ['OpenAI', 'GPT-4o mini'], ['Azure OpenAI', 'gpt-4o · EU West'], ['Google', 'Gemini 2.5 Pro'],
+      ['Anthropic', 'Claude Sonnet'], ['Mistral AI', 'Mistral Large 2']] }
+  };
+  function pickLabel(o) { return o[0] + ' · ' + o[1]; }
+  function pickList(id, q) {
+    var p = id.split('|'), w = wsByRef(p[0]), P = PICKS[p[2]];
+    var n = w && (w.needs || []).filter(function (x) { return x.key === p[1]; })[0];
+    var hint = ((n && n.on) || []).concat(n && n.name ? [n.name] : []).join(' ').toLowerCase();
+    var cur = w ? cfg(w).done[p[1] + '|' + p[2]] : '';
+    q = (q || '').toLowerCase();
+    var all = P.list.filter(function (o) { return !q || pickLabel(o).toLowerCase().indexOf(q) >= 0; });
+    var sug = all.filter(function (o) { return hint && hint.indexOf(o[0].toLowerCase()) >= 0; });
+    var rest = all.filter(function (o) { return sug.indexOf(o) < 0; });
+    var row = function (o) { var l = pickLabel(o); return '<button type="button" class="mkws-pick__o' + (l === cur ? ' is-on' : '') + '" data-mkws-opt="' + E(l) + '">' + (KIND_IC.integration) + E(o[0]) + '<small>' + E(o[1]) + '</small></button>'; };
+    if (!all.length) return '<div class="mkws-pick__none">No ' + P.what + 's match. Add a new one below.</div>';
+    return (sug.length ? '<div class="mkws-pick__l">SUGGESTED</div>' + sug.map(row).join('') + (rest.length ? '<div class="mkws-pick__l">ALL ' + P.what.toUpperCase() + 'S</div>' : '') : '') + rest.map(row).join('');
+  }
   function fieldHTML(w, n, f) {
     var id = w.ref + '|' + n.key + '|' + f.k;
     var v = cfg(w).done[fkey(n, f)] || '';
+    if (PICKS[f.k]) {
+      var P = PICKS[f.k];
+      return '<div class="mkws-f"><span class="mkws-f__l">' + E(f.label) + (f.why ? '<span class="mkws-why">' + E(f.why) + '</span>' : '') +
+          '<span class="ok"' + (v ? '' : ' hidden') + '>' + IC.check + '</span></span>' +
+        '<div class="mkws-pick" data-mkws-pick="' + E(id) + '">' +
+          '<button type="button" class="mkws-in mkws-pick__btn" data-mkws-pick-btn aria-haspopup="listbox"><span class="v' + (v ? '' : ' ph') + '">' + E(v || 'Select a ' + P.what) + '</span>' +
+            '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+          '<div class="mkws-pick__pop" hidden><input class="mkws-pick__q" data-mkws-pick-q placeholder="Search ' + P.what + 's" autocomplete="off" />' +
+            '<div class="mkws-pick__list">' + pickList(id, '') + '</div>' +
+            '<button type="button" class="mkws-pick__new" data-mkws-pick-new>+ New ' + P.what + '</button></div>' +
+        '</div></div>';
+    }
     var why = f.why ? '<span class="mkws-why' + (f.why === 'Secret' ? ' mkws-why--secret' : '') + '">' + E(f.why) + '</span>' : '';
     var ok = '<span class="ok"' + (v ? '' : ' hidden') + '>' + IC.check + '</span>';
     var ctl;
@@ -706,6 +757,8 @@
   function openDialog(ref) {
     var w = wsByRef(ref);
     if (!w) return;
+    /* An automation that still needs details opens straight in its builder. */
+    if (PAGE === 'automation' && window.aub && window.aub.openSetup(ref)) { if (typeof closePanel === 'function') closePanel(); return; }
     closeDialog(true);
     dlgRef = ref;
     lastFocus = document.activeElement;
@@ -764,6 +817,7 @@
     if (typeof closePanel === 'function') closePanel();
     /* On the Agents page, configuring an agent happens in the builder. */
     if (PAGE === 'agent' && window.agb && window.agb.openSetup(ref)) return;
+    if (PAGE === 'automation' && window.aub && window.aub.openSetup(ref)) return;
     cfgRef = ref;
     var el = byId('mkwsCfg');
     if (!el) {
@@ -871,6 +925,28 @@
       closeConfig();
       return;
     }
+    /* Connection pickers: open, search, choose. */
+    var pk = e.target.closest('[data-mkws-pick]');
+    document.querySelectorAll('.mkws-pick__pop:not([hidden])').forEach(function (pp) { if (!pk || !pk.contains(pp)) pp.hidden = true; });
+    if (pk) {
+      var pop = pk.querySelector('.mkws-pick__pop'), pid = pk.getAttribute('data-mkws-pick');
+      if (e.target.closest('[data-mkws-pick-btn]')) {
+        e.stopPropagation(); e.preventDefault();
+        pop.hidden = !pop.hidden;
+        if (!pop.hidden) { var q0 = pk.querySelector('[data-mkws-pick-q]'); q0.value = ''; pk.querySelector('.mkws-pick__list').innerHTML = pickList(pid, ''); q0.focus(); }
+        return;
+      }
+      if ((t = e.target.closest('[data-mkws-opt]'))) {
+        e.stopPropagation(); e.preventDefault();
+        var val = t.getAttribute('data-mkws-opt'), vEl = pk.querySelector('.mkws-pick__btn .v');
+        vEl.textContent = val; vEl.classList.remove('ph'); pop.hidden = true;
+        setField(pid, val, pk);
+        return;
+      }
+      if (e.target.closest('[data-mkws-pick-new]')) { e.stopPropagation(); e.preventDefault(); pop.hidden = true; say('New connections are added under Integrations. Pick an existing one for now.'); return; }
+      e.stopPropagation();
+      return;
+    }
     if ((t = e.target.closest('[data-mkws-upload]'))) {
       e.stopPropagation(); e.preventDefault();
       if (t.classList.contains('is-busy')) return;
@@ -926,6 +1002,8 @@
     }
   }, true);
   document.addEventListener('input', function (e) {
+    var q = e.target && e.target.closest && e.target.closest('[data-mkws-pick-q]');
+    if (q) { var pk = q.closest('[data-mkws-pick]'); pk.querySelector('.mkws-pick__list').innerHTML = pickList(pk.getAttribute('data-mkws-pick'), q.value); return; }
     var t = e.target && e.target.closest && e.target.closest('[data-mkws-field]');
     if (t) setField(t.getAttribute('data-mkws-field'), t.value.trim(), t);
   });
@@ -967,6 +1045,7 @@
     left: function (ref, n) { var w = wsByRef(ref); return w ? needLeft(w, n) : []; },
     totals: function (ref) { var w = wsByRef(ref); return w ? totals(w) : { total: 0, left: 0, done: 0 }; },
     formHTML: function (ref) { var w = wsByRef(ref); return w ? formHTML(w, true) : ''; },
+    resHTML: function (ref, key) { var w = wsByRef(ref); var n = w && (w.needs || []).filter(function (x) { return x.key === key; })[0]; return n ? resHTML(w, n, true) : ''; },
     onchange: null,
     finish: function (ref) {
       var w = wsByRef(ref); if (!w || remaining(w).length) return;

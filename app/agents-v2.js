@@ -721,7 +721,7 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
     if (S) acts = '<button class="agb-btn agb-btn--test' + (setupOpen() ? ' is-on' : '') + '" data-b="setup">Fill in details</button>' + acts;
     if (S) {
       acts += '<button class="agb-btn agb-btn--primary" data-b="finish"' + (S.left.length ? ' disabled' : '') + '>Finish setup</button>';
-    } else if (edit) {
+    } else {
       var canPublish = B.tested && hasModel();
       acts += '<button class="agb-btn agb-btn--primary" data-b="publish"' + (canPublish ? '' : ' disabled') +
         ' title="' + (canPublish ? 'Publish this agent' : 'Run a test first. Publish unlocks once a test passes.') + '">Publish</button>';
@@ -729,13 +729,12 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
     if (!(edit && B.isNew && !S)) acts += '<button class="agb-more" data-b="more" aria-label="More options">' + SVG.options + '</button>';
     byId('agbActions').innerHTML = acts;
 
-    byId('agbSetupChip').innerHTML = S
-      ? '<span class="agb-setupchip">' + (S.T.left ? 'Setup · ' + S.T.done + ' of ' + S.T.total + ' filled in' : 'Setup complete') + '</span>' : '';
+    byId('agbSetupChip').innerHTML = '';
 
     var banner = '';
     if (S && S.left.length) {
       banner = '<div class="agb-banner agb-banner--warn"><span>Configure before it can be used: fill in ' + S.T.left + ' private ' +
-        (S.T.left === 1 ? 'detail' : 'details') + '</span>' + (setupOpen() ? '' : '<button class="agb-banner__btn" data-b="setup">Fill in</button>') + '</div>';
+        (S.T.left === 1 ? 'detail' : 'details') + '</span></div>';
     } else if (!edit) {
       banner = '<div class="agb-banner"><span>View-only mode. Click edit to make changes</span>' +
         '<button class="agb-banner__btn" data-b="edit">' + SVG['edit-white'] + 'Edit</button></div>';
@@ -1179,7 +1178,7 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
       out.insertAdjacentHTML('beforeend', '<div class="agb-msg agb-msg--agent"><b>' + E(a.name) + '</b>' +
         E(reply(a, input)) + '</div>');
       out.scrollTop = out.scrollHeight;
-      if (B.mode === 'edit') { B.tested = true; paint(); }
+      B.tested = true; paint();
     })();
   }
   function reply(a, input) {
