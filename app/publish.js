@@ -325,18 +325,19 @@
         '<div class="cqp-f"><span class="cqp-f__l">Name</span><span class="cqp-lockwrap"><input class="cqp-in is-locked" value="' + E(a.name) + '" readonly /><span class="cqp-lock">' + IC.lock + '</span></span>' +
           '<p class="cqp-hint">Comes from the ' + PAGE + '. Rename it in the builder to change it here.</p></div>' +
         '<div class="cqp-f"><span class="cqp-f__l">Description</span><span class="cqp-lockwrap"><input class="cqp-in is-locked" value="' + E(a.desc) + '" readonly /><span class="cqp-lock">' + IC.lock + '</span></span>' +
-          '<p class="cqp-hint">Shows under its name on the Marketplace card. Edit it in the builder to change it here.</p></div>' +
+          '<p class="cqp-hint">Shows under its name ' + (P.dest === 'workspace' ? 'in the workspace' : 'on the Marketplace card') + '. Edit it in the builder to change it here.</p></div>' +
         (P.dest === 'workspace' ? '' :
         '<div class="cqp-f' + (P.err.about ? ' has-error' : '') + '"><span class="cqp-f__l"><span>About <span class="req">*</span></span><button type="button" class="cqp-link" data-cqpa="example">Example</button></span>' +
           '<textarea class="cqp-in" data-cqp-in="about" placeholder="Describe what this ' + PAGE + ' does, how to use it...">' + E(P.about) + '</textarea>' +
           '<p class="cqp-hint">Help people understand what it does, where to use it, when it works best, and example use cases.</p></div>' +
-        '<div class="cqp-row">' + dd('industry', 'Industry', INDUSTRIES, P.industry) + dd('func', 'Domain', FUNCTIONS, P.func) + '</div>' +
+        '<div class="cqp-row">' + dd('industry', 'Industry', INDUSTRIES, P.industry) + dd('func', 'Domain', FUNCTIONS, P.func) + '</div>') +
+        /* What goes along, wherever it is published. */
         '<div class="cqp-f"><span class="cqp-f__l" style="font-weight:500">What\'s included</span>' +
           '<button type="button" class="cqp-cta" data-cqpa="share"><span class="cqp-ico">' + IC.share + '</span>' +
-          '<span class="txt"><span class="t">Customize what\'s shared to Marketplace</span><span class="s">' + sum.html + '</span></span>' +
-          '<span class="go">Customize ' + IC.right + '</span></button></div>') +
+          '<span class="txt"><span class="t">Customize what\'s shared ' + (P.dest === 'workspace' ? 'with ' + E(P.ws || 'the workspace') : 'to Marketplace') + '</span><span class="s">' + sum.html + '</span></span>' +
+          '<span class="go">Customize ' + IC.right + '</span></button></div>' +
       '</div>' +
-      '<div class="cqp-ftr"><p class="cqp-hint">' + (P.dest === 'workspace' ? 'Copied as it is, with its details. The workspace admin there approves it.' : 'Goes to your workspace admin, then the platform admin, before it is listed.') + '</p><div class="cqp-acts">' +
+      '<div class="cqp-ftr"><p class="cqp-hint">' + (P.dest === 'workspace' ? 'The workspace admin there approves it before people can run it.' : 'Goes to your workspace admin, then the platform admin, before it is listed.') + '</p><div class="cqp-acts">' +
         '<button type="button" class="cqp-btn cqp-btn--tonal" data-cqpa="close">Cancel</button>' +
         '<button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="publish">' + (P.dest === 'workspace' ? 'Publish to workspace' : 'Publish to marketplace') + '</button></div></div>';
   }
@@ -385,9 +386,9 @@
     if (P.dest === 'workspace') {
       P.err = { ws: !P.ws };
       if (P.err.ws) return paint();
-      var nm = P.a.name, ws = P.ws;
+      var nm = P.a.name, ws = P.ws, shared = summary().text.split(' · ')[0];
       close();
-      return say(nm + ' was sent to the ' + ws + ' workspace. Its workspace admin approves it before people there can run it.');
+      return say(nm + ' was sent to the ' + ws + ' workspace with ' + shared + '. Its workspace admin approves it before people there can run it.');
     }
     P.err = { about: !P.about.trim(), industry: !P.industry, func: !P.func };
     if (P.err.about || P.err.industry || P.err.func) return paint();
