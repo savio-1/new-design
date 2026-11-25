@@ -12,7 +12,7 @@
 
   var css = document.createElement('style');
   css.textContent = [
-    '.mon-mk-n{min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:#f24822;color:#fff;font:600 10px/1 var(--font-geist)}',
+    '.mon-mk-n{min-width:18px;height:18px;padding:0 5px;margin-left:6px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--red-500,#f24822);color:#fff;font:600 10px/1 var(--font-geist)}',
     '.mon-mk-n:empty{display:none}',
     '.mon-mk{display:flex;flex-direction:column;gap:16px}',
     '.mon-mk[hidden]{display:none}',

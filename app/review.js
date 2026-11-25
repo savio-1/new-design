@@ -117,48 +117,42 @@
   /* The tracker. opts.role ('ws' | 'platform') adds Approve and Reject to
      the stage that role decides; opts.links adds, for the requester, a
      shortcut to where that admin reviews it. */
+  /* The stages, kept light: one line each, a time on the right, and a
+     second line only where someone has to act or something went wrong. */
   function trackerHTML(w, opts) {
     opts = opts || {};
     var s = stageOf(w), t0 = w.requestedAt || Date.now(), ap = w.approvals || {};
-    var rows = [['req', isPub(w) ? 'Submitted' : 'Requested', (isPub(w) ? 'Submitted to the Marketplace' : 'Requested from the Marketplace') + ' by ' + (w.requester || 'you') + ' · ' + clock(t0)]];
-    var html = '<ol class="cqr-steps">' +
-      '<li class="cqr-step is-done"><span class="cqr-dot">' + IC.check + '</span><span class="cqr-step__b"><span class="cqr-step__t">' + rows[0][1] + '</span><span class="cqr-step__s">' + E(rows[0][2]) + '</span></span></li>';
+    var step = function (c, dot, title, time, sub, extra) {
+      return '<li class="cqr-step ' + c + '"><span class="cqr-dot">' + dot + '</span><span class="cqr-step__b"><span class="cqr-step__t">' + title +
+        (time ? '<span class="cqr-time">' + time + '</span>' : '') + '</span>' + (sub ? '<span class="cqr-step__s">' + E(sub) + '</span>' : '') + (extra || '') + '</span></li>';
+    };
+    var html = '<ol class="cqr-steps">' + step('is-done', IC.check, isPub(w) ? 'Submitted' : 'Requested', clock(t0), 'by ' + (w.requester || 'you'));
     s.stages.forEach(function (st, j) {
       var c = s.state === 'done' || j < s.i ? 'is-done' : j === s.i ? (s.state === 'waiting' ? 'is-wait' : s.state === 'rejected' ? 'is-rej' : 'is-now') : 'is-todo';
-      var dot = c === 'is-done' ? IC.check : c === 'is-wait' ? IC.clock : c === 'is-rej' ? IC.x : c === 'is-now' ? IC.spin : (j + 1);
-      var sub = st.who, tag = '', extra = '';
+      var dot = c === 'is-done' ? IC.check : c === 'is-wait' ? IC.clock : c === 'is-rej' ? IC.x : c === 'is-now' ? IC.spin : '';
+      var sub = '', time = '', extra = '';
       if (c === 'is-done') {
-        if (!st.auto) { var a = ap[st.k] || {}; sub = 'Approved by ' + (a.by || 'an admin') + ' · ' + clock(a.at || Date.now()) + (a.note ? ' · “' + a.note + '”' : ''); tag = '<span class="cqr-tag is-ok">' + IC.check + 'Approved</span>'; }
-        else { sub = st.who + (s.times[j] ? ' · ' + clock(s.times[j]) : ''); tag = '<span class="cqr-tag is-ok">' + IC.check + (st.k === 'travel' ? 'Arrived' : 'Passed') + '</span>'; }
+        if (!st.auto) { var a = ap[st.k] || {}; sub = 'Approved by ' + (a.by || 'an admin') + (a.note ? ' · “' + a.note + '”' : ''); time = clock(a.at || Date.now()); }
+        else time = s.times[j] ? clock(s.times[j]) : '';
       } else if (c === 'is-now') {
-        tag = '<span class="cqr-tag">' + IC.spin + (st.k === 'travel' ? 'Moving' : 'Checking') + '</span>';
+        sub = st.k === 'travel' ? 'Moving' : 'Running ' + (st.checks ? st.checks.length + ' checks' : 'checks');
       } else if (c === 'is-wait') {
-        var who = st.role === 'platform' ? PLATFORM_ADMIN + ', platform admin' : listAnd(WS_ADMINS.concat(['you'])) + ', workspace admins,';
-        sub = 'Waiting for ' + st.who + '. ' + who + (st.role === 'platform' ? ' has' : ' have') + ' been notified.';
-        tag = '<span class="cqr-tag is-wait">' + IC.clock + 'Waiting</span>';
+        sub = 'Waiting for ' + st.who.toLowerCase();
         if (opts.role && opts.role === st.role) {
-          extra = '<div class="cqr-decide"><textarea class="cqr-note" data-cqr-note placeholder="Add a note for the requester (optional)"></textarea>' +
+          extra = '<div class="cqr-decide"><textarea class="cqr-note" data-cqr-note placeholder="Note for the requester (optional)"></textarea>' +
             '<div class="cqr-decide__acts"><button type="button" class="cqr-btn cqr-btn--ghost" data-cqr-reject="' + E(w.ref) + '|' + st.k + '">Reject</button>' +
             '<button type="button" class="cqr-btn cqr-btn--primary" data-cqr-approve="' + E(w.ref) + '|' + st.k + '">Approve</button></div></div>';
         } else if (opts.links) {
           extra = '<button type="button" class="cqr-link" data-cqr-goto="' + (st.role === 'platform' ? 'admin' : 'monitoring') + '|' + E(w.ref) + '">' +
-            (st.role === 'platform' ? 'Review as platform admin in the Admin panel' : 'Review as workspace admin in Monitoring') + ' →</button>';
+            (st.role === 'platform' ? 'Open in Admin panel' : 'Open in Monitoring') + ' →</button>';
         }
       } else if (c === 'is-rej') {
         sub = 'Rejected by ' + (s.by || 'an admin') + (s.note ? ' · “' + s.note + '”' : '');
-        tag = '<span class="cqr-tag is-rej">' + IC.x + 'Rejected</span>';
       }
-      if (st.checks && (c === 'is-done' || c === 'is-now')) {
-        extra += '<ul class="cqr-checks">' + st.checks.map(function (k) {
-          return '<li class="' + (c === 'is-done' ? 'is-ok' : '') + '"><span class="ci">' + (c === 'is-done' ? IC.check : IC.spin) + '</span><span><b>' + E(k[0]) + '</b>' + E(k[1]) + '</span></li>';
-        }).join('') + '</ul>';
-      }
-      html += '<li class="cqr-step ' + c + '"><span class="cqr-dot">' + dot + '</span><span class="cqr-step__b"><span class="cqr-step__t">' +
-        '<span class="cqr-n">' + (j + 1) + '</span>' + E(st.name) + tag + '</span><span class="cqr-step__s">' + E(sub) + '</span>' + extra + '</span></li>';
+      html += step(c, dot, E(st.name), time, sub, extra);
     });
     var last = s.state === 'done';
-    html += '<li class="cqr-step ' + (last ? 'is-done' : 'is-todo') + '"><span class="cqr-dot">' + (last ? IC.check : '') + '</span><span class="cqr-step__b"><span class="cqr-step__t">' + doneLabel(w) + '</span>' +
-      '<span class="cqr-step__s">' + (last ? (isPub(w) ? 'Anyone in your organisation can now find it and request it for their workspace.' : 'Every stage passed. It can be added to the workspace.') : 'Once all five stages pass') + '</span></span></li></ol>';
+    html += step(last ? 'is-done' : 'is-todo', last ? IC.check : '', doneLabel(w), '', '') + '</ol>';
     return html;
   }
 
@@ -199,7 +193,9 @@
     '.cqr-bars i.is-rej{background:var(--text-coloured-red,#ff7a5c)}',
     '.cqr-bars i.is-now{background:var(--text-coloured-blue)}',
     '.cqr-steps{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}',
-    '.cqr-step{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:12px;padding-bottom:16px}',
+    '.cqr-step{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:12px;padding-bottom:12px}',
+    '.cqr-time{margin-left:auto;padding-left:8px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.cqr-step.is-todo .cqr-step__t{color:var(--text-teritiary);font-weight:400}',
     '.cqr-step:last-child{padding-bottom:0}',
     '.cqr-step::before{content:"";position:absolute;left:11px;top:28px;bottom:4px;width:2px;border-radius:1px;background:var(--strokes-line-1)}',
     '.cqr-step:last-child::before{display:none}',
@@ -253,7 +249,7 @@
     '.cqr-sep{height:1px;margin:6px 4px;background:var(--strokes-line-1)}',
     '.cqr-empty{padding:16px 10px;color:var(--text-teritiary);font:400 13px/18px var(--font-geist);text-align:center}',
     '.cqr-bell-dot{position:absolute;top:4px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;',
-    '  background:#f24822;color:#fff;font:600 10px/1 var(--font-geist);box-shadow:0 0 0 2px var(--backgrounds-card-bg-5,#1b1b1b);pointer-events:none}',
+    '  background:var(--red-500,#f24822);color:#fff;font:600 10px/1 var(--font-geist);box-shadow:0 0 0 2px var(--backgrounds-card-bg-5,#1b1b1b);pointer-events:none}',
     /* The approvals queue (Admin panel, Monitoring) */
     '.cqr-q{display:flex;flex-direction:column;gap:16px}',
     '.cqr-q__bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
@@ -441,10 +437,9 @@
         '<div class="cqr-drawer__body">' +
           '<div class="cqr-sec"><span class="cqr-art"><span class="ic">' + artIcon(w.kind) + '</span><span class="tx"><b style="font-size:16px;line-height:24px">' + E(w.name) + '</b>' +
             '<small>' + (w.kind === 'automation' ? 'Automation' : 'Agent') + ' · ' + (isPub(w) ? E(w.workspace || HOME) + ' → Marketplace' : 'Marketplace → ' + E(w.workspace || HOME)) + '</small></span></span>' +
-            (w.desc ? '<p style="margin:0;color:var(--text-secondary);font:400 13px/18px var(--font-geist)">' + E(w.desc) + '</p>' : '') +
-            '<div>' + '<div class="cqr-kv"><span>Requested by</span><b>' + E(w.requester || 'Savio Govindu') + '</b></div>' +
+            '<div>' +
               (isPub(w) ? '<div class="cqr-kv"><span>Industry · Function</span><b>' + E((w.industry || '—') + ' · ' + (w.func || '—')) + '</b></div>' +
-                          '<div class="cqr-kv"><span>Shared</span><b>' + E(w.sharedSummary || '—') + '</b></div>'
+                          '<div class="cqr-kv"><span>Shared</span><b>' + E(String(w.sharedSummary || '—').split(' · ')[0]) + '</b></div>'
                         : '<div class="cqr-kv"><span>Publisher</span><b>' + E(w.publisher || '—') + '</b></div>') +
               (w.secrets && w.secrets.length ? '<div class="cqr-kv"><span>Keys included</span><b>' + E(listAnd(w.secrets)) + '</b></div>' : '') +
             '</div></div>' +
