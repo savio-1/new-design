@@ -113,6 +113,26 @@
 
   var css = document.createElement('style');
   css.textContent = [
+    /* Profile sections: plain tabs, a line under the one that is open. */
+    '#pfTabs{display:flex;width:100%;gap:24px;padding:0;border-radius:0;background:none;border-bottom:1px solid var(--strokes-line-3)}',
+    '#pfTabs > .cq-seg__thumb{display:none}',
+    '#pfTabs > button{position:relative;padding:8px 0 10px;border-radius:0;background:none!important;box-shadow:none!important;color:var(--text-teritiary)}',
+    '#pfTabs > button:hover{color:var(--text-primary)}',
+    '#pfTabs > button.is-active{color:var(--text-primary)}',
+    '#pfTabs > button.is-active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;background:var(--text-coloured-blue)}',
+    /* Workspace: one dropdown at the right of the filter bar. */
+    '.pf-wsdd{position:relative}',
+    '.pf-wsdd__btn{height:36px;display:inline-flex;align-items:center;gap:8px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);color:var(--text-primary);cursor:pointer;font:500 13px/18px var(--font-geist)}',
+    '.pf-wsdd__btn:hover,.pf-wsdd__btn[aria-expanded="true"]{border-color:var(--strokes-card-selected)}',
+    '.pf-wsdd__btn .l{color:var(--text-teritiary);font-weight:400}',
+    '.pf-wsdd__menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:260px;padding:4px;border-radius:10px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);box-shadow:0 8px 24px rgba(0,0,0,.28)}',
+    '.pf-wsdd__menu[hidden]{display:none}',
+    '.pf-wsdd__menu button{width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:6px;background:none;cursor:pointer;text-align:left;color:var(--text-primary);font:400 13px/18px var(--font-geist)}',
+    '.pf-wsdd__menu button:hover{background:var(--backgrounds-card-bg-4)}',
+    '.pf-wsdd__menu button[aria-checked="true"]{background:var(--backgrounds-button-tonal-1);color:var(--text-coloured-blue)}',
+    '.pf-wsdd__menu .n{margin-left:auto;color:var(--text-teritiary)}',
+    '.pf-wsdd .d{width:8px;height:8px;border-radius:50%;flex:none}',
+    '#pfPublished .pf-bar > .cq-btn--primary, #pfPubNote, #pfCreNote{display:none!important}',
     '.pf-ws{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-4px 0 4px}',
     '.pf-ws__l{color:var(--text-teritiary);font:400 12px/16px var(--font-geist);margin-right:2px}',
     '.pf-ws button{height:28px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-radius:14px;border:1px solid var(--strokes-card-default);color:var(--text-secondary);font:500 12px/16px var(--font-geist)}',
@@ -141,21 +161,26 @@
   pane.className = 'pf-pane pf-pub'; pane.id = 'pfCreated'; pane.hidden = true; pane.setAttribute('role', 'tabpanel');
   pane.innerHTML = '<div class="pf-split" id="pfCreSplit"></div>' +
     '<div class="pf-bar"><div class="cq-seg" id="pfCreFilter" role="tablist" aria-label="Filter created artifacts"><span class="cq-seg__thumb" aria-hidden="true"></span></div>' +
-    '<span class="pf-bar__spacer"></span><span class="cq-caption-reg" id="pfCreNote" style="color:var(--text-teritiary)"></span></div>' +
-    '<div class="pf-ws" id="pfCreWs"></div>' +
+    '<span class="pf-bar__spacer"></span><span class="cq-caption-reg" id="pfCreNote" style="color:var(--text-teritiary)"></span><div class="pf-wsdd" id="pfCreWs"></div></div>' +
     '<div class="cq-card-grid cq-card-grid--3up" id="pfCreGrid"></div>';
   pubPane.parentNode.insertBefore(pane, pubPane);
 
   var cKind = 'all', cWs = 'all', pWs = 'all';
+  /* The workspace filter, as a dropdown in the filter bar. */
+  var ddOpen = null;
   function wsRow(id, list, cur, attr) {
     var count = function (ws) { return list.filter(function (x) { return ws === 'all' || x.ws === ws; }).length; };
-    var dot = function (id) { var w = (typeof WS !== 'undefined' ? WS : []).filter(function (x) { return x.id === id; })[0]; return w ? '<span class="d" style="background:' + w.hue + '"></span>' : ''; };
-    $(id).innerHTML = '<span class="pf-ws__l">Workspace</span>' +
-      '<button type="button" ' + attr + '="all" aria-pressed="' + (cur === 'all') + '">All <span class="n">' + count('all') + '</span></button>' +
-      WSL.filter(function (w) { return count(w.id); }).map(function (w) {
-        return '<button type="button" ' + attr + '="' + w.id + '" aria-pressed="' + (cur === w.id) + '">' + dot(w.id) + E(w.name) + ' <span class="n">' + count(w.id) + '</span>' +
-          '<span class="pf-ws__role">' + E(w.role) + '</span></button>';
-      }).join('');
+    var hue = function (id) { var w = (typeof WS !== 'undefined' ? WS : []).filter(function (x) { return x.id === id; })[0]; return w ? w.hue : '#5a5a5a'; };
+    var curName = cur === 'all' ? 'All workspaces' : wsName(cur);
+    $(id).innerHTML = '<button type="button" class="pf-wsdd__btn" data-wsdd="' + id + '" aria-haspopup="menu" aria-expanded="' + (ddOpen === id) + '">' +
+        (cur === 'all' ? '' : '<span class="d" style="background:' + hue(cur) + '"></span>') + '<span class="l">Workspace</span>' + E(curName) +
+        '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<div class="pf-wsdd__menu" role="menu"' + (ddOpen === id ? '' : ' hidden') + '>' +
+        '<button type="button" role="menuitemradio" ' + attr + '="all" aria-checked="' + (cur === 'all') + '">All workspaces<span class="n">' + count('all') + '</span></button>' +
+        WSL.filter(function (w) { return count(w.id); }).map(function (w) {
+          return '<button type="button" role="menuitemradio" ' + attr + '="' + w.id + '" aria-checked="' + (cur === w.id) + '"><span class="d" style="background:' + hue(w.id) + '"></span>' + E(w.name) +
+            '<span class="pf-ws__role">' + E(w.role) + '</span><span class="n">' + count(w.id) + '</span></button>';
+        }).join('') + '</div>';
   }
   function paintCreated() {
     var kinds = ['all'].concat(CREATED.map(function (c) { return c.kind; }).filter(function (k, i, a) { return a.indexOf(k) === i; }));
@@ -191,8 +216,8 @@
 
   /* Published gets the same workspace filter. */
   var pubBar = pubPane.querySelector('.pf-bar');
-  var pRow = document.createElement('div'); pRow.className = 'pf-ws'; pRow.id = 'pfPubWs';
-  pubBar.insertAdjacentElement('afterend', pRow);
+  var pRow = document.createElement('div'); pRow.className = 'pf-wsdd'; pRow.id = 'pfPubWs';
+  pubBar.appendChild(pRow);
   var _paint = paintPublished;
   paintPublished = function () {
     var all = PUBS.slice();
@@ -206,8 +231,10 @@
   document.addEventListener('click', function (e) {
     var t = e.target, x;
     if ((x = t.closest('[data-ck]'))) { cKind = x.dataset.ck; return paintCreated(); }
-    if ((x = t.closest('[data-cws]'))) { cWs = x.dataset.cws; return paintCreated(); }
-    if ((x = t.closest('[data-pws]'))) { pWs = x.dataset.pws; return paintPublished(); }
+    if ((x = t.closest('[data-wsdd]'))) { e.stopPropagation(); ddOpen = ddOpen === x.dataset.wsdd ? null : x.dataset.wsdd; return ddOpen === 'pfPubWs' || x.dataset.wsdd === 'pfPubWs' ? paintPublished() : paintCreated(); }
+    if ((x = t.closest('[data-cws]'))) { cWs = x.dataset.cws; ddOpen = null; return paintCreated(); }
+    if ((x = t.closest('[data-pws]'))) { pWs = x.dataset.pws; ddOpen = null; return paintPublished(); }
+    if (ddOpen && !t.closest('.pf-wsdd')) { var was = ddOpen; ddOpen = null; if (was === 'pfPubWs') paintPublished(); else paintCreated(); }
     if ((x = t.closest('[data-cpub]'))) {
       e.stopPropagation();
       var kp = x.dataset.cpub.split('|');

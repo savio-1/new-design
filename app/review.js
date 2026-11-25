@@ -62,21 +62,21 @@
   /* Where a request stands: the stage it is on, and whether that stage is
      running, waiting for a person, done or rejected. */
   function stageOf(w) {
-    var S = stagesOf(w), t = w.requestedAt || Date.now(), now = Date.now(), ap = w.approvals || {}, times = [];
+    var S = stagesOf(w), t = w.requestedAt || Date.now(), now = Date.now(), ap = w.approvals || {}, times = [], seen = {};
     for (var i = 0; i < S.length; i++) {
       var st = S[i];
       if (st.auto) {
-        if (now < t + AUTO_MS) return { i: i, state: 'running', stages: S, times: times };
+        if (now < t + AUTO_MS) return { i: i, state: 'running', stages: S, times: times, ap: seen };
         t += AUTO_MS; times[i] = t;
       } else {
         var a = ap[st.k];
         if (!a && !w.sample && now >= t + ADMIN_MS) a = { by: st.role === 'platform' ? PLATFORM_ADMIN : WS_ADMINS[0], at: t + ADMIN_MS };
-        if (!a) return { i: i, state: 'waiting', stages: S, times: times };
-        if (a.rejected) return { i: i, state: 'rejected', stages: S, times: times, by: a.by, note: a.note };
-        t = Math.max(t, a.at); times[i] = a.at;
+        if (!a) return { i: i, state: 'waiting', stages: S, times: times, ap: seen };
+        if (a.rejected) return { i: i, state: 'rejected', stages: S, times: times, by: a.by, note: a.note, ap: seen };
+        seen[st.k] = a; t = Math.max(t, a.at); times[i] = a.at;
       }
     }
-    return { i: S.length, state: 'done', stages: S, times: times };
+    return { i: S.length, state: 'done', stages: S, times: times, ap: seen };
   }
   function doneLabel(w) { return isPub(w) ? 'Live on the Marketplace' : 'Ready to add'; }
   function stateLabel(w, s) {
@@ -140,7 +140,7 @@
       var dot = c === 'is-done' ? IC.check : c === 'is-wait' ? IC.clock : c === 'is-rej' ? IC.x : c === 'is-now' ? IC.spin : '';
       var sub = '', time = '', extra = '';
       if (c === 'is-done') {
-        if (!st.auto) { var a = ap[st.k] || {}; sub = 'Approved by ' + (a.by || 'an admin') + (a.note ? ' · “' + a.note + '”' : ''); time = clock(a.at || Date.now()); }
+        if (!st.auto) { var a = s.ap[st.k] || ap[st.k] || {}; sub = 'Approved by ' + (a.by || 'an admin') + (a.note ? ' · “' + a.note + '”' : ''); time = clock(a.at || Date.now()); }
         else time = s.times[j] ? clock(s.times[j]) : '';
       } else if (c === 'is-now') {
         sub = st.k === 'travel' ? 'Moving' : 'Running ' + (st.checks ? st.checks.length + ' checks' : 'checks');
