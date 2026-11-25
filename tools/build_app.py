@@ -7,6 +7,7 @@
   app/workspace-bridge.js     appended to the two landing pages
   app/publish.js              the ⋯ menu and Publish to Marketplace on both
   app/auto-builder.js         the automation builder, for setup after adding
+  app/viewer.js               view an artifact under review (Admin, Monitoring)
   app/review.js               the Marketplace review, appended to every page
   app/admin.html              the Admin panel
   app/monitoring.src.html     Monitoring, from the platform, with monitoring-mk.js
@@ -75,8 +76,8 @@ def main():
         'marketplace.html': with_bridge((ROOT / 'marketplace.html').read_text(encoding='utf-8'), review),
         'automations.html': with_bridge(with_bridge(with_bridge(with_bridge(rd('automations.src.html'), review), bridge), pub), rd('auto-builder.js')),
         'agents.html': with_bridge(with_bridge(with_bridge(with_bridge(rd('agents.src.html'), agx), review), bridge), pub),
-        'admin.html': with_bridge(admin, review),
-        'monitoring.html': with_bridge(with_bridge(rd('monitoring.src.html'), review), rd('monitoring-mk.js')),
+        'admin.html': with_bridge(with_bridge(admin, review), rd('viewer.js')),
+        'monitoring.html': with_bridge(with_bridge(with_bridge(rd('monitoring.src.html'), review), rd('viewer.js')), rd('monitoring-mk.js')),
         'profile.html': with_bridge(with_bridge(rd('profile.src.html'), review), rd('profile-mk.js')),
     }
     shell = (APP / 'shell.html').read_text(encoding='utf-8')

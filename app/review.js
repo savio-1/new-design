@@ -479,7 +479,9 @@
                           '<div class="cqr-kv"><span>Shared</span><b>' + E(String(w.sharedSummary || '—').split(' · ')[0]) + '</b></div>'
                         : '<div class="cqr-kv"><span>Publisher</span><b>' + E(w.publisher || '—') + '</b></div>') +
               (w.secrets && w.secrets.length ? '<div class="cqr-kv"><span>Keys included</span><b>' + E(listAnd(w.secrets)) + '</b></div>' : '') +
-            '</div></div>' +
+            '</div>' +
+            (window.cqView ? '<button type="button" class="cqr-open" data-cqr-see="' + E(w.ref) + '"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/></svg>View ' + (w.kind === 'automation' ? 'automation' : 'agent') + '</button>' : '') +
+          '</div>' +
           '<div class="cqr-sec"><span class="cqr-sec__l">Review stages</span>' + trackerHTML(w, { role: role }) + '</div>' +
         '</div>';
       var n2 = drawer.querySelector('[data-cqr-note]'); if (n2) { n2.value = note; if (focused) n2.focus(); }
@@ -495,6 +497,7 @@
     drawer.addEventListener('click', function (e) {
       var t = e.target, x;
       if (t.closest('[data-cqr-close]')) { Q.sel = null; return paint(); }
+      if ((x = t.closest('[data-cqr-see]')) && window.cqView) return window.cqView.open(find(x.getAttribute('data-cqr-see')), role);
       if ((x = t.closest('[data-cqr-approve], [data-cqr-reject]'))) {
         var ok = x.hasAttribute('data-cqr-approve'), p = x.getAttribute(ok ? 'data-cqr-approve' : 'data-cqr-reject').split('|');
         var note = (drawer.querySelector('[data-cqr-note]') || {}).value || '';
