@@ -84,6 +84,8 @@
   }
   var IC = {
     check: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    up: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 12.5v-9M4 7.5l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    down: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 3.5v9M4 8.5l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     clock: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.8V8l2.2 1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     x: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
     spin: '<span class="cqr-spin" aria-hidden="true"></span>',
@@ -273,11 +275,15 @@
     '.cqr-art .tx small{color:var(--text-teritiary);font-size:12px}',
     '.cqr-ws{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}',
     '.cqr-ws .av{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font:600 11px/1 var(--font-geist)}',
+    '.cqr-type{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:6px;white-space:nowrap;font:500 12px/16px var(--font-geist);letter-spacing:-.2px}',
+    '.cqr-type.is-pub{background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue);box-shadow:inset 0 0 0 1px var(--strokes-colour-blue,rgba(68,170,243,.35))}',
+    '.cqr-type.is-add{background:var(--backgrounds-badge-purple,#17092b);color:var(--text-coloured-purple,#c9a3ff);box-shadow:inset 0 0 0 1px rgba(151,71,255,.35)}',
     '.cqr-dir{display:inline-flex;align-items:center;gap:6px;color:var(--text-secondary);white-space:nowrap}',
     '.cqr-stage{display:flex;flex-direction:column;gap:8px;min-width:240px}',
     '.cqr-stage__top{display:flex;align-items:center;gap:8px;min-width:0}',
     '.cqr-stage__top b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-primary);font:500 13px/18px var(--font-geist);letter-spacing:-.3px}',
-    '.cqr-st-td{width:32%}',
+    '.cqr-st-td{width:34%}',
+    '.cqr-table td.cqr-fit{width:1%;white-space:nowrap}',
     '.cqr-act{height:30px;padding:0 12px;border-radius:8px;cursor:pointer;font:500 12px/16px var(--font-geist);background:var(--backgrounds-button-primary);color:#fff;border:0;white-space:nowrap}',
     '.cqr-act--ghost{background:none;border:1px solid var(--strokes-line-1);color:var(--text-primary)}',
     '.cqr-qempty{padding:40px 16px;text-align:center;color:var(--text-teritiary);border:1px dashed var(--strokes-line-1);border-radius:12px;font:400 14px/20px var(--font-geist)}',
@@ -415,17 +421,18 @@
       host.innerHTML = '<div class="cqr-q">' +
         '<div class="cqr-q__bar">' + chip('view', 'waiting', 'Waiting on you', waiting, Q.view === 'waiting') + chip('view', 'all', 'All requests', total, Q.view === 'all') +
           '<span class="cqr-sp"></span>' + chip('flow', 'all', 'All', null, Q.flow === 'all') + chip('flow', 'publish', 'Publishing to Marketplace', null, Q.flow === 'publish') + chip('flow', 'add', 'Adding to workspaces', null, Q.flow === 'add') + '</div>' +
-        (list.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th>' + (role === 'platform' ? '<th>Workspace</th>' : '') + '<th>Request</th><th>Requested by</th><th>Status</th><th></th></tr></thead><tbody>' +
+        (list.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th>' + (role === 'platform' ? '<th>Workspace</th>' : '') + '<th>Requested by</th><th>Status</th><th>Request</th><th></th></tr></thead><tbody>' +
           list.map(function (w) {
             var s = stageOf(w), mineNow = s.state === 'waiting' && s.stages[s.i].role === role;
             return '<tr data-cqr-row="' + E(w.ref) + '"' + (Q.sel === w.ref ? ' class="is-sel"' : '') + '>' +
               '<td><span class="cqr-art"><span class="ic">' + artIcon(w.kind) + '</span><span class="tx"><b>' + E(w.name) + '</b><small>' + (w.kind === 'automation' ? 'Automation' : 'Agent') + '</small></span></span></td>' +
               (role === 'platform' ? '<td><span class="cqr-ws"><span class="av" style="background:' + wsColor(w.workspace || HOME) + '">' + E((w.workspace || HOME)[0]) + '</span>' + E(w.workspace || HOME) + '</span></td>' : '') +
-              '<td><span class="cqr-dir">' + (isPub(w) ? 'Publish to Marketplace' : 'Add to workspace') + '</span></td>' +
               '<td>' + E(w.requester || 'Savio Govindu') + '</td>' +
               /* Where it stands, next to the action it asks for. */
               '<td class="cqr-st-td"><span class="cqr-stage"><span class="cqr-stage__top">' + pill(w, s) + '<b>' + E(stepText(w, s)) + '</b></span>' + bars(w, s) + '</span></td>' +
-              '<td style="text-align:right"><button type="button" class="cqr-act' + (mineNow ? '' : ' cqr-act--ghost') + '" data-cqr-row="' + E(w.ref) + '">' + (mineNow ? 'Review' : 'View') + '</button></td></tr>';
+              /* What is being asked, as a tag, right before the action. */
+              '<td class="cqr-fit">' + (isPub(w) ? '<span class="cqr-type is-pub">' + IC.up + 'Publish</span>' : '<span class="cqr-type is-add">' + IC.down + 'Add to workspace</span>') + '</td>' +
+              '<td class="cqr-fit" style="text-align:right"><button type="button" class="cqr-act' + (mineNow ? '' : ' cqr-act--ghost') + '" data-cqr-row="' + E(w.ref) + '">' + (mineNow ? 'Review' : 'View') + '</button></td></tr>';
           }).join('') + '</tbody></table>'
           : '<div class="cqr-qempty">' + (Q.view === 'waiting' ? 'Nothing is waiting on you. New requests show up here and on the bell.' : 'No requests yet.') + '</div>') +
       '</div>';
