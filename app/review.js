@@ -103,6 +103,7 @@
     if (s.state === 'waiting') return 'Waiting';
     return s.stages[s.i].k === 'travel' ? 'In transit' : 'Checking';
   }
+  function typeTag(w) { return isPub(w) ? '<span class="cqr-type is-pub">' + IC.up + 'Publish</span>' : '<span class="cqr-type is-add">' + IC.down + 'Add to workspace</span>'; }
   function wsColor(n) { var c = { Finance: '#2f7bff', Marketing: '#7c5cff', Sales: '#e8632b', Support: '#159f7a', 'Customer success': '#159f7a', 'Design systems': '#e8632b' }; return c[n] || '#5a5a5a'; }
   function pill(w, s) {
     s = s || stageOf(w);
@@ -436,7 +437,7 @@
               /* Where it stands, next to the action it asks for. */
               '<td class="cqr-st-td"><span class="cqr-stage"><span class="cqr-stage__top">' + pill(w, s) + '<b>' + E(stepText(w, s)) + '</b></span>' + bars(w, s) + '</span></td>' +
               /* What is being asked, as a tag, right before the action. */
-              '<td class="cqr-fit">' + (isPub(w) ? '<span class="cqr-type is-pub">' + IC.up + 'Publish</span>' : '<span class="cqr-type is-add">' + IC.down + 'Add to workspace</span>') + '</td>' +
+              '<td class="cqr-fit">' + typeTag(w) + '</td>' +
               '<td class="cqr-fit" style="text-align:right"><button type="button" class="cqr-act' + (mineNow ? '' : ' cqr-act--ghost') + '" data-cqr-row="' + E(w.ref) + '">' + (mineNow ? 'Review' : 'View') + '</button></td></tr>';
           }).join('') + '</tbody></table>'
           : '<div class="cqr-qempty">' + (Q.view === 'waiting' ? 'Nothing is waiting on you. New requests show up here and on the bell.' : 'No requests yet.') + '</div>') +
@@ -508,7 +509,7 @@
   if (inShell) post({ cqWsRequest: true });
 
   window.cqReview = {
-    stagesOf: stagesOf, stageOf: stageOf, stateLabel: stateLabel, pill: pill, bars: bars, stepText: stepText,
+    stagesOf: stagesOf, stageOf: stageOf, stateLabel: stateLabel, pill: pill, bars: bars, stepText: stepText, typeTag: typeTag,
     trackerHTML: trackerHTML, isPub: isPub, isDone: function (w) { return stageOf(w).state === 'done'; },
     isRejected: function (w) { return stageOf(w).state === 'rejected'; },
     pendingFor: pendingFor, requests: requests, find: find, decide: decide, mountQueue: mountQueue,

@@ -204,6 +204,8 @@
     '.mkreq-head h2{margin:0;color:var(--text-primary)}',
     '.mkreq-head p{margin:4px 0 0;max-width:720px;color:var(--text-secondary)}',
     '.mkreq-list{display:flex;flex-direction:column;gap:10px}',
+    '.mkreq-table tbody tr{cursor:pointer}',
+    '.mkreq-table tr.is-sel td{background:var(--backgrounds-badge-blue)}',
     '.mkreq-sub{display:flex;gap:6px;flex-wrap:wrap}',
     '.mkreq-sub button{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;cursor:pointer;font:500 13px/18px var(--font-geist);',
     '  background:none;border:1px solid var(--strokes-card-default);color:var(--text-secondary)}',
@@ -1068,18 +1070,22 @@
       : s.waiting ? '<span class="mkreq-pill is-wait">' + CLOCK + stageLabel(w || {}, s.step) + '</span>'
       : '<span class="mkreq-pill">' + SPIN + stageLabel(w || {}, s.step) + '</span>';
   }
+  /* One row of the Requests table: what it is, where its review stands,
+     which way it is going, and what you can do next. */
   function reqRow(w) {
-    var CR = window.cqReview, s = CR.stageOf(w);
-    return '<button type="button" class="mkreq-row" data-mkreq-open="' + E(w.ref) + '">' +
-      '<span class="mkreq-mark">' + REQ_IC + '</span>' +
-      '<span class="mkreq-id">' + CR.pill(w, s) + '<span class="t cq-body1-med">' + E(w.name) + '</span>' +
-        '<span class="s cq-caption-reg">' + (isPub(w) ? 'Submitted by you · ' + E(when(w.requestedAt)) + (w.industry ? ' · ' + E(w.industry) : '')
-          : 'Published by ' + E(w.publisher) + ' · requested ' + E(when(w.requestedAt))) + '</span></span>' +
-      '<span class="mkreq-mini">' + CR.bars(w, s) + '<span class="l">' + E(CR.stepText(w, s)) + '</span></span>' +
-      '<span class="mkreq-chev">' + CHEV + '</span>' +
-    '</button>';
+    var CR = window.cqReview, s = CR.stageOf(w), ready = !isPub(w) && s.state === 'done';
+    return '<tr class="mkreq-tr" tabindex="0" data-mkreq-open="' + E(w.ref) + '">' +
+      '<td><span class="cqr-art"><span class="ic">' + REQ_IC + '</span><span class="tx"><b>' + E(w.name) + '</b><small>' +
+        (isPub(w) ? (w.industry ? E(w.industry) : (PAGE === 'agent' ? 'Agent' : 'Automation')) : 'By ' + E(w.publisher || 'the publisher')) + '</small></span></span></td>' +
+      '<td>' + E(when(w.requestedAt)) + '</td>' +
+      '<td class="cqr-st-td"><span class="cqr-stage"><span class="cqr-stage__top">' + CR.pill(w, s) + '<b>' + E(CR.stepText(w, s)) + '</b></span>' + CR.bars(w, s) + '</span></td>' +
+      '<td class="cqr-fit">' + CR.typeTag(w) + '</td>' +
+      '<td class="cqr-fit" style="text-align:right">' + (ready
+        ? '<button type="button" class="cqr-act" data-mkreq-add="' + E(w.ref) + '">Add</button>'
+        : '<button type="button" class="cqr-act cqr-act--ghost" data-mkreq-open="' + E(w.ref) + '">' + (s.state === 'done' ? 'View' : 'Track') + '</button>') + '</td>' +
+    '</tr>';
   }
-  var reqFlow = 'add';
+  var reqFlow = 'all';
   function reqSig() { return reqs().map(function (w) { var s = window.cqReview.stageOf(w); return w.ref + s.i + s.state; }).join('|') + (reqOn ? '+' : '-') + reqFlow; }
   function paintReqs(force) {
     var all = reqs();
@@ -1091,25 +1097,25 @@
     var p = byId('mkreqPane');
     if (!reqOn || !p) return;
     var focused = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute('data-mkreq-open');
-    var list = reqs(reqFlow), nAdd = reqs('add').length, nPub = reqs('publish').length;
+    var list = reqs(reqFlow === 'all' ? null : reqFlow), nAll = reqs().length, nAdd = reqs('add').length, nPub = reqs('publish').length;
     var NOUN = PAGE === 'agent' ? 'agent' : 'automation', NOUNS = PAGE === 'agent' ? 'Agents' : 'Automations';
     p.innerHTML =
       '<div class="mkreq-head"><h2 class="cq-subhead1-med">Requests</h2>' +
-        '<p class="cq-body2-reg">' + (reqFlow === 'add'
-          ? 'Each ' + NOUN + ' you request from the Marketplace is reviewed by your workspace admins and checked against your workspace policies. Once every check passes, you can add it to your workspace.'
-          : 'Each ' + NOUN + ' you publish is reviewed by your workspace admins and checked against the Marketplace policies before it goes live for everyone in your organisation.') + '</p></div>' +
+        '<p class="cq-body2-reg">' + NOUNS + ' you asked to add from the Marketplace or publish to it, and where each review stands.</p></div>' +
       '<div class="mkreq-sub" role="tablist" aria-label="Request type">' +
+        '<button type="button" role="tab" data-mkreq-flow="all" aria-selected="' + (reqFlow === 'all') + '">All <span class="n">' + nAll + '</span></button>' +
         '<button type="button" role="tab" data-mkreq-flow="add" aria-selected="' + (reqFlow === 'add') + '">Adding to workspace <span class="n">' + nAdd + '</span></button>' +
         '<button type="button" role="tab" data-mkreq-flow="publish" aria-selected="' + (reqFlow === 'publish') + '">Publishing to Marketplace <span class="n">' + nPub + '</span></button>' +
       '</div>' +
-      (list.length ? '<div class="mkreq-list">' + list.map(reqRow).join('') + '</div>'
-        : reqFlow === 'add'
+      (list.length ? '<div class="cqr-q"><table class="cqr-table mkreq-table"><thead><tr><th>' + (PAGE === 'agent' ? 'Agent' : 'Automation') + '</th><th>Requested</th><th>Status</th><th>Request</th><th></th></tr></thead><tbody>' +
+          list.map(reqRow).join('') + '</tbody></table></div>'
+        : reqFlow !== 'publish'
           ? '<div class="mkreq-empty"><span class="cq-body1-med" style="color:var(--text-primary)">No requests yet</span>' +
             '<span class="cq-body2-reg">' + NOUNS + ' you add from the Marketplace wait here while they are reviewed.</span>' +
             '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Browse the Marketplace</button></div>'
           : '<div class="mkreq-empty"><span class="cq-body1-med" style="color:var(--text-primary)">Nothing submitted yet</span>' +
             '<span class="cq-body2-reg">' + NOUNS + ' you publish to the Marketplace wait here while they are reviewed.</span>' +
-            '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-browse>Publish from the Marketplace</button></div>');
+            '<button type="button" class="cq-btn cq-btn--tonal" data-mkreq-ws>Pick one to publish</button></div>');
     if (focused) { var f = p.querySelector('[data-mkreq-open="' + focused + '"]'); if (f) f.focus({ preventScroll: true }); }
     markSel();
   }
@@ -1126,12 +1132,12 @@
     return el;
   }
   function markSel() {
-    document.querySelectorAll('.mkreq-row').forEach(function (r) { r.classList.toggle('is-sel', r.getAttribute('data-mkreq-open') === trackRef); });
+    document.querySelectorAll('.mkreq-tr').forEach(function (r) { r.classList.toggle('is-sel', r.getAttribute('data-mkreq-open') === trackRef); });
   }
   function openTrack(ref) {
     var w = wsByRef(ref);
     if (!w) return;
-    reqFlow = isPub(w) ? 'publish' : 'add';
+    if (reqFlow !== 'all') reqFlow = isPub(w) ? 'publish' : 'add';
     if (!isPub(w) && w.status !== 'requested') { reqShow(false); var first = seg && seg.querySelector(':scope > button:not([data-mkreq])'); if (first) first.click(); focusOn(ref); return; }
     if (typeof closePanel === 'function') closePanel();
     if (!trackRef) trackFocus = document.activeElement;
@@ -1213,9 +1219,9 @@
     if (e.target.closest('[data-mkreq]')) { e.stopPropagation(); e.preventDefault(); reqShow(true); return; }
     if (reqOn && seg && e.target.closest('#' + seg.id + ' > button:not([data-mkreq])')) reqShow(false);
     if ((t = e.target.closest('[data-mkreq-flow]'))) { e.stopPropagation(); reqFlow = t.getAttribute('data-mkreq-flow'); closeTrack(true); paintReqs(true); return; }
+    if ((t = e.target.closest('[data-mkreq-add]'))) { e.stopPropagation(); addReq(t.getAttribute('data-mkreq-add')); return; }
     if ((t = e.target.closest('[data-mkreq-open]'))) { e.stopPropagation(); openTrack(t.getAttribute('data-mkreq-open')); return; }
     if (e.target.closest('[data-mkreq-close]')) { e.stopPropagation(); closeTrack(); return; }
-    if ((t = e.target.closest('[data-mkreq-add]'))) { e.stopPropagation(); addReq(t.getAttribute('data-mkreq-add')); return; }
     if ((t = e.target.closest('[data-mkreq-withdraw]'))) {
       e.stopPropagation();
       var w = wsByRef(t.getAttribute('data-mkreq-withdraw'));
@@ -1224,17 +1230,20 @@
       paintReqs(true);
       return;
     }
+    if (e.target.closest('[data-mkreq-ws]')) { e.stopPropagation(); reqShow(false); var f0 = seg && seg.querySelector(':scope > button:not([data-mkreq])'); if (f0) f0.click(); say('Open the ⋯ on any ' + (PAGE === 'agent' ? 'agent' : 'automation') + ' and choose Publish to Marketplace'); return; }
     if (e.target.closest('[data-mkreq-browse]')) { e.stopPropagation(); post({ cqNav: 'marketplace.html' }); }
   }, true);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && trackRef) { e.stopPropagation(); closeTrack(); }
+    var tr = e.key === 'Enter' && e.target.closest && e.target.closest('tr.mkreq-tr');
+    if (tr && e.target === tr) { e.preventDefault(); openTrack(tr.getAttribute('data-mkreq-open')); }
   }, true);
   window.addEventListener('resize', segSync);
   /* For the publish flow on this page: open its request in the tracker. */
   window.mkwsTrack = function (ref, n) {
     var w = wsByRef(ref);
     if (!w) { if ((n || 0) < 20) setTimeout(function () { window.mkwsTrack(ref, (n || 0) + 1); }, 100); return; }
-    reqFlow = isPub(w) ? 'publish' : 'add';
+    if (reqFlow !== 'all') reqFlow = isPub(w) ? 'publish' : 'add';
     reqShow(true); setTimeout(function () { openTrack(ref); }, 60);
   };
 
