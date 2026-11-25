@@ -391,6 +391,8 @@ body.agx .ag-card__end .cq-avatar { width: 20px; height: 20px; }
   border: 1px solid transparent; color: var(--text-primary); font: 400 13px/18px var(--font-geist); }
 textarea.agp__in { height: 96px; padding: 8px 10px; resize: none; }
 select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
+.agp__selwrap { position: relative; }
+.agp__selwrap::after { content: ""; position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; margin-top: -5px; border-right: 1.5px solid var(--text-teritiary); border-bottom: 1.5px solid var(--text-teritiary); transform: rotate(45deg); pointer-events: none; }
 .agp__in:focus { border-color: var(--strokes-type-focus); }
 .agp__in.is-bad { border-color: #f24822; }
 .agp__err { color: #ff8a73; font: 400 12px/16px var(--font-geist); }
@@ -1196,7 +1198,7 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
   function openPublish() {
     var a = B.a;
     P = { step: 1, name: a.name === 'Untitled agent' ? '' : a.name, desc: a.isDesc ? a.desc : (a.goal || ''), cat: '', doms: [],
-      where: 'workspace', shareConn: false, shareModel: false, tried: false };
+      where: 'workspace', ws: 'Finance', shareConn: false, shareModel: false, tried: false };
     var el = document.createElement('div');
     el.className = 'agp-scrim'; el.id = 'agp';
     document.body.appendChild(el);
@@ -1229,9 +1231,15 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
       var conns = a.tools.length ? a.tools.slice(0, 3).join(', ') + (a.tools.length > 3 ? '…' : '') : 'none';
       main =
         '<div class="agp__f"><span class="agp__l"><span>Who can use it</span></span>' +
-          '<button class="agp__radio' + (P.where === 'workspace' ? ' is-on' : '') + '" data-where="workspace"><i></i><span><b>This workspace</b><span>Everyone in Finance can find and run it under Agents.</span></span></button>' +
+          '<button class="agp__radio' + (P.where === 'workspace' ? ' is-on' : '') + '" data-where="workspace"><i></i><span><b>A workspace</b><span>Everyone in the workspace you choose can find and run it under Agents.</span></span></button>' +
           '<button class="agp__radio' + (P.where === 'marketplace' ? ' is-on' : '') + '" data-where="marketplace"><i></i><span><b>Marketplace</b><span>Anyone in the organisation can find it and add it to their own workspace.</span></span></button>' +
         '</div>' +
+        (P.where === 'workspace'
+          ? '<div class="agp__f"><span class="agp__l"><span>Workspace <i style="color:#f24822;font-style:normal">*</i></span></span>' +
+              '<div class="agp__selwrap"><select class="agp__in" id="agpWs">' + PUB_WS.map(function (w) {
+                return '<option value="' + E(w[0]) + '"' + (P.ws === w[0] ? ' selected' : '') + '>' + E(w[0]) + (w[1] ? ' · ' + w[1] : '') + '</option>';
+              }).join('') + '</select></div>' +
+              '<span style="color:var(--text-teritiary);font:400 12px/16px var(--font-geist)">Only workspaces where you can publish are listed.</span></div>' : '') +
         (P.where === 'marketplace'
           ? '<div class="agp__f"><span class="agp__l"><span>Share with people who add it</span></span>' +
               '<button class="agp__check' + (P.shareConn ? ' is-on' : '') + '" data-share="conn"><span class="box">' + (P.shareConn ? '✓' : '') + '</span><span><b>My connections</b><span>Tools it uses: ' + E(conns) + '. They run on your signed-in accounts.</span></span></button>' +
@@ -1246,7 +1254,7 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
         '<div class="agp__f"><span class="agp__l"><span>Review</span></span><div class="agp__sum">' +
           [['Name', P.name], ['Category', P.cat], ['Domains', P.doms.join(', ') || '—'], ['Model', hasModel() ? a.model : '—'],
            ['Tools', a.tools.length ? a.tools.join(', ') : '—'], ['Guardrails', a.guards.length ? a.guards.join(', ') : '—'],
-           ['Who can use it', P.where === 'marketplace' ? 'Marketplace' : 'This workspace'],
+           ['Who can use it', P.where === 'marketplace' ? 'Marketplace' : P.ws + ' workspace'],
            ['Shared', P.where === 'marketplace' ? (shared.length ? 'Your ' + shared.join(' and ') : 'Nothing') : '—']]
             .map(function (r) { return '<div><span>' + r[0] + '</span><em>' + E(r[1]) + '</em></div>'; }).join('') +
         '</div></div>';
@@ -1279,13 +1287,13 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
     a.name = P.name.trim(); a.desc = P.desc.trim(); a.isDesc = true; a.goal = a.goal || a.desc;
     a.tags = [P.cat.toLowerCase()];
     a.status = 'published'; a.state = 'idle'; a.updated = 'just now';
-    a.published = { where: P.where, shareConn: P.shareConn, shareModel: P.shareModel };
+    a.published = { where: P.where, ws: P.ws, shareConn: P.shareConn, shareModel: P.shareModel };
     if (B.isNew) { AGENTS.unshift(a); B.isNew = false; }
     byId('agp').remove(); P = null;
     B.mode = 'view'; B.tested = false; B.past = []; B.future = []; B.last = snapshot(a);
     render();
     paint();
-    say(a.name + (a.published.where === 'marketplace' ? ' is published to the Marketplace' : ' is published to this workspace'));
+    say(a.name + (a.published.where === 'marketplace' ? ' is published to the Marketplace' : ' is published to the ' + a.published.ws + ' workspace'));
   }
 
   function say(msg) { if (window.mkwsSay) window.mkwsSay(msg); else if (typeof toast === 'function') toast(msg); }
@@ -1383,7 +1391,9 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
     if (e.target.id === 'agpName') { P.name = e.target.value; var c = byId('agp').querySelector('.agp__l small'); if (c) c.textContent = P.name.length + '/100'; byId('agp').querySelector('.agp__card b').textContent = P.name || 'Untitled agent'; }
     if (e.target.id === 'agpDesc') P.desc = e.target.value;
   });
-  document.addEventListener('change', function (e) { if (P && e.target.id === 'agpCat') P.cat = e.target.value; });
+  document.addEventListener('change', function (e) { if (P && e.target.id === 'agpCat') P.cat = e.target.value; if (P && e.target.id === 'agpWs') P.ws = e.target.value; });
+  /* Workspaces you can publish to, the one you are in first. */
+  var PUB_WS = [['Finance', 'current'], ['Marketing', ''], ['Design systems', ''], ['Customer success', ''], ['Data platform', '']];
   window.addEventListener('resize', function () { if (root) wires(); });
 
   function onPublishClick(e) {

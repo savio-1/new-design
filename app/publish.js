@@ -64,6 +64,7 @@
     return out;
   }
 
+  var WORKSPACES = ['Marketing', 'Design systems', 'Customer success', 'Data platform', 'Sales'];
   var INDUSTRIES = ['Banking & Financial Services', 'Insurance', 'Healthcare & Life Sciences', 'Retail & CPG', 'Manufacturing', 'Technology, Media & Telecom', 'Cross-industry'];
   var FUNCTIONS = ['Marketing', 'Sales', 'Finance', 'Human Resources', 'Operations', 'Customer Service', 'IT'];
   var TABS = [['agents', 'Agents'], ['tools', 'Tools'], ['integrations', 'Integrations'], ['models', 'Models'], ['skills', 'Skills'], ['guardrails', 'Guardrails']];
@@ -137,6 +138,15 @@
     '.cqp-lock{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-teritiary);pointer-events:none;display:inline-flex}',
     '.cqp-f.has-error .cqp-in{border-color:var(--text-coloured-red,#dc3412)}',
     '.cqp-row{display:flex;gap:16px}',
+    '.cqp-menu.cqp-menu--down{bottom:auto;top:calc(100% + 4px)}',
+    '.cqp-dest{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
+    '.cqp-opt{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:10px;border:1px solid var(--strokes-card-default);background:none;cursor:pointer;text-align:left;color:inherit}',
+    '.cqp-opt:hover{border-color:#5a5a5a}',
+    '.cqp-opt.is-on{border-color:var(--strokes-card-selected,#0d99ff);background:var(--backgrounds-badge-blue)}',
+    '.cqp-opt i{flex:none;width:16px;height:16px;margin-top:2px;border-radius:50%;border:1.5px solid var(--strokes-line-1)}',
+    '.cqp-opt.is-on i{border:5px solid var(--backgrounds-button-primary)}',
+    '.cqp-opt b{display:block;font:500 14px/20px var(--font-geist)}',
+    '.cqp-opt span span{display:block;margin-top:2px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
     '.cqp-row>.cqp-f{flex:1 0 0}',
     '.cqp-dd{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer}',
     '.cqp-dd span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-teritiary)}',
@@ -281,7 +291,7 @@
   }
 
   function open(a) {
-    P = { a: a, res: resourcesOf(a), about: '', industry: '', func: '', share: false, tab: 'agents', open: null, dd: null, err: {} };
+    P = { a: a, res: resourcesOf(a), dest: 'marketplace', ws: '', about: '', industry: '', func: '', share: false, tab: 'agents', open: null, dd: null, err: {} };
     P.on = defaults();
     var firstTab = TABS.filter(function (t) { return P.res.some(function (r) { return r.rk === t[0]; }); })[0];
     if (firstTab) P.tab = firstTab[0];
@@ -299,17 +309,24 @@
     var dd = function (key, lbl, all, val) {
       return '<div class="cqp-f' + (P.err[key] ? ' has-error' : '') + '"><span class="cqp-f__l"><span>' + lbl + ' <span class="req">*</span></span></span>' +
         '<button type="button" class="cqp-in cqp-dd' + (val ? ' has-value' : '') + '" data-cqp-dd="' + key + '"><span>' + E(val || 'Select ' + lbl.toLowerCase()) + '</span>' + IC.down + '</button>' +
-        (P.dd === key ? '<ul class="cqp-menu" role="listbox">' + all.map(function (v) { return '<li role="option" class="' + (v === val ? 'is-on' : '') + '" data-cqp-opt="' + key + '" data-v="' + E(v) + '">' + E(v) + '</li>'; }).join('') + '</ul>' : '') +
+        (P.dd === key ? '<ul class="cqp-menu' + (key === 'ws' ? ' cqp-menu--down' : '') + '" role="listbox">' + all.map(function (v) { return '<li role="option" class="' + (v === val ? 'is-on' : '') + '" data-cqp-opt="' + key + '" data-v="' + E(v) + '">' + E(v) + '</li>'; }).join('') + '</ul>' : '') +
         '</div>';
     };
     $('cqpDlg').innerHTML =
-      '<div class="cqp-hdr"><h2 id="cqpTitle">Publish to Marketplace</h2><button type="button" class="cqp-x" data-cqpa="close" aria-label="Close">' + IC.close + '</button></div>' +
+      '<div class="cqp-hdr"><h2 id="cqpTitle">Publish</h2><button type="button" class="cqp-x" data-cqpa="close" aria-label="Close">' + IC.close + '</button></div>' +
       '<div class="cqp-body">' +
         '<div class="cqp-art"><span class="cqp-tile cqp-tile--' + PAGE + '">' + (PAGE === 'agent' ? IC.agent : IC.flow) + '</span><span><span class="t">' + E(a.name) + '</span><span class="s">' + E(meta) + '</span></span></div>' +
+        /* Where it goes: the Marketplace, or one workspace. */
+        '<div class="cqp-f"><span class="cqp-f__l">Publish to</span><div class="cqp-dest">' +
+          '<button type="button" class="cqp-opt' + (P.dest === 'marketplace' ? ' is-on' : '') + '" data-cqp-dest="marketplace"><i></i><span><b>Marketplace</b><span>Anyone in the organisation can find it and add it to their workspace.</span></span></button>' +
+          '<button type="button" class="cqp-opt' + (P.dest === 'workspace' ? ' is-on' : '') + '" data-cqp-dest="workspace"><i></i><span><b>A workspace</b><span>Everyone in the workspace you choose can find and run it.</span></span></button>' +
+        '</div></div>' +
+        (P.dest === 'workspace' ? dd('ws', 'Workspace', WORKSPACES, P.ws) : '') +
         '<div class="cqp-f"><span class="cqp-f__l">Name</span><span class="cqp-lockwrap"><input class="cqp-in is-locked" value="' + E(a.name) + '" readonly /><span class="cqp-lock">' + IC.lock + '</span></span>' +
           '<p class="cqp-hint">Comes from the ' + PAGE + '. Rename it in the builder to change it here.</p></div>' +
         '<div class="cqp-f"><span class="cqp-f__l">Description</span><span class="cqp-lockwrap"><input class="cqp-in is-locked" value="' + E(a.desc) + '" readonly /><span class="cqp-lock">' + IC.lock + '</span></span>' +
           '<p class="cqp-hint">Shows under its name on the Marketplace card. Edit it in the builder to change it here.</p></div>' +
+        (P.dest === 'workspace' ? '' :
         '<div class="cqp-f' + (P.err.about ? ' has-error' : '') + '"><span class="cqp-f__l"><span>About <span class="req">*</span></span><button type="button" class="cqp-link" data-cqpa="example">Example</button></span>' +
           '<textarea class="cqp-in" data-cqp-in="about" placeholder="Describe what this ' + PAGE + ' does, how to use it...">' + E(P.about) + '</textarea>' +
           '<p class="cqp-hint">Help people understand what it does, where to use it, when it works best, and example use cases.</p></div>' +
@@ -317,11 +334,11 @@
         '<div class="cqp-f"><span class="cqp-f__l" style="font-weight:500">What\'s included</span>' +
           '<button type="button" class="cqp-cta" data-cqpa="share"><span class="cqp-ico">' + IC.share + '</span>' +
           '<span class="txt"><span class="t">Customize what\'s shared to Marketplace</span><span class="s">' + sum.html + '</span></span>' +
-          '<span class="go">Customize ' + IC.right + '</span></button></div>' +
+          '<span class="go">Customize ' + IC.right + '</span></button></div>') +
       '</div>' +
-      '<div class="cqp-ftr"><p class="cqp-hint">Goes to your workspace admin, then the platform admin, before it is listed.</p><div class="cqp-acts">' +
+      '<div class="cqp-ftr"><p class="cqp-hint">' + (P.dest === 'workspace' ? 'Copied as it is, with its details. The workspace admin there approves it.' : 'Goes to your workspace admin, then the platform admin, before it is listed.') + '</p><div class="cqp-acts">' +
         '<button type="button" class="cqp-btn cqp-btn--tonal" data-cqpa="close">Cancel</button>' +
-        '<button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="publish">Publish to marketplace</button></div></div>';
+        '<button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="publish">' + (P.dest === 'workspace' ? 'Publish to workspace' : 'Publish to marketplace') + '</button></div></div>';
   }
   /* Customize what's shared is the dialog's second page: it takes the
      form's place, with a back arrow to return to it. */
@@ -365,6 +382,13 @@
         '<div class="cqp-acts"><button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="share-back">Save and go back</button></div></div>';
   }
   function submit() {
+    if (P.dest === 'workspace') {
+      P.err = { ws: !P.ws };
+      if (P.err.ws) return paint();
+      var nm = P.a.name, ws = P.ws;
+      close();
+      return say(nm + ' was sent to the ' + ws + ' workspace. Its workspace admin approves it before people there can run it.');
+    }
     P.err = { about: !P.about.trim(), industry: !P.industry, func: !P.func };
     if (P.err.about || P.err.industry || P.err.func) return paint();
     var a = P.a, now = Date.now();
@@ -384,6 +408,7 @@
     var t = e.target, b = t.closest('[data-cqpa]'), x;
     if (P.dd && !t.closest('[data-cqp-dd], .cqp-menu')) { P.dd = null; paint(); if (!b) return; }
     if ((x = t.closest('[data-cqp-opt]'))) { P[x.dataset.cqpOpt] = x.dataset.v; P.err[x.dataset.cqpOpt] = false; P.dd = null; return paint(); }
+    if ((x = t.closest('[data-cqp-dest]'))) { P.dest = x.dataset.cqpDest; P.err = {}; P.dd = null; return paint(); }
     if ((x = t.closest('[data-cqp-dd]'))) { P.dd = P.dd === x.dataset.cqpDd ? null : x.dataset.cqpDd; return paint(); }
     if ((x = t.closest('[data-cqp-tab]'))) { P.tab = x.dataset.cqpTab; P.open = null; return paintShare(); }
     if ((x = t.closest('[data-cqp-res]'))) { P.open = P.open === x.dataset.cqpRes ? null : x.dataset.cqpRes; return paintShare(); }
