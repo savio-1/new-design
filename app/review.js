@@ -29,6 +29,10 @@
   var WS_ADMINS = ['Priya Nair', 'Arjun Mehta'];
   var PLATFORM_ADMIN = 'Hitesh Vijay';
   var AUTO_MS = 1500;
+  /* In this prototype an admin answers your own requests after a short
+     wait, so the flow can be followed end to end. Other people's requests
+     (the samples) wait for you to decide in the Admin panel or Monitoring. */
+  var ADMIN_MS = 3500;
   var ITEMS = [];          /* requests from the shell */
   var SAMPLES = [];        /* other people's requests, for the admin views */
   var subs = [];
@@ -66,6 +70,7 @@
         t += AUTO_MS; times[i] = t;
       } else {
         var a = ap[st.k];
+        if (!a && !w.sample && now >= t + ADMIN_MS) a = { by: st.role === 'platform' ? PLATFORM_ADMIN : WS_ADMINS[0], at: t + ADMIN_MS };
         if (!a) return { i: i, state: 'waiting', stages: S, times: times };
         if (a.rejected) return { i: i, state: 'rejected', stages: S, times: times, by: a.by, note: a.note };
         t = Math.max(t, a.at); times[i] = a.at;
