@@ -182,6 +182,7 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
         <button type="button" class="mk-view__btn" aria-haspopup="menu" aria-expanded="false">Platform admin view<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="mk-view__menu" role="menu" hidden>
           <button type="button" role="menuitemradio" aria-checked="false" data-view="platform"><span class="tick"></span><span><b>Platform view</b><small>Browse the Marketplace and add to your workspace</small></span></button>
+          <button type="button" role="menuitemradio" aria-checked="false" data-view="wsadmin"><span class="tick"></span><span><b>Workspace admin view</b><small>Manage Finance: its users and its Marketplace artifacts</small></span></button>
           <button type="button" role="menuitemradio" aria-checked="true" data-view="admin"><span class="tick"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Platform admin view</b><small>Review what workspaces publish to and add from the Marketplace</small></span></button>
         </div>
       </div>
@@ -197,6 +198,9 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var inShell = window.parent !== window;
+  /* The same panel serves the platform admin and a workspace admin; the
+     build sets which one this copy is. */
+  var MODE = /*MODE*/'platform', WS = MODE === 'workspace', ROLE = WS ? 'ws' : 'platform', HOME_WS = 'Finance';
   function E(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   var HUES = ['#5860ed', '#0d99ff', '#14ae5c', '#dd7c0e', '#9747ff', '#e91e63', '#00a2c2'];
   var av = function (n, i) { return '<span class="ad-av" style="background:' + HUES[(i == null ? n.length : i) % HUES.length] + '">' + E(n[0]) + '</span>'; };
@@ -220,7 +224,17 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
     ['Editor', 'Creates and edits anything in a workspace', 61], ['Member', 'Uses and runs what the workspace shares', 212], ['Viewer', 'Read only', 48]];
 
   var sec = 'approvals', queue = null, qHost = null;
-  function hostQueue(el) { if (!qHost) { qHost = document.createElement('div'); queue = window.cqReview.mountQueue(qHost, 'platform'); } el.appendChild(qHost); queue.paint(); }
+  function hostQueue(el) { if (!qHost) { qHost = document.createElement('div'); queue = window.cqReview.mountQueue(qHost, ROLE); } el.appendChild(qHost); queue.paint(); }
+  if (WS) {
+    TITLES.users = 'Users · ' + HOME_WS;
+    var brandSmall = document.querySelector('.ad-brand__t small'); if (brandSmall) brandSmall.textContent = HOME_WS + ' workspace';
+    document.querySelectorAll('[data-sec="dashboard"], [data-sec="workspaces"], [data-sec="roles"]').forEach(function (b) { b.hidden = true; b.style.display = 'none'; });
+    var vb = document.querySelector('#adView .mk-view__btn'); if (vb) vb.firstChild.textContent = 'Workspace admin view';
+    var tA = document.querySelector('#adView [data-view="admin"]'), tW = document.querySelector('#adView [data-view="wsadmin"]');
+    if (tA && tW) { tW.querySelector('.tick').innerHTML = tA.querySelector('.tick').innerHTML; tA.querySelector('.tick').innerHTML = ''; tA.setAttribute('aria-checked', 'false'); tW.setAttribute('aria-checked', 'true'); }
+  }
+  /* Who is in this workspace, and as what. */
+  var WS_ROLE = { 'Savio Govindu': 'Workspace admin', 'Marcus Diaz': 'Editor', 'Nina Foster': 'Member', 'Priya Nair': 'Workspace admin', 'Arjun Mehta': 'Editor', 'Sofia Patel': 'Member', 'Hana Sato': 'Viewer' };
   function nav(s) {
     sec = s;
     $('adTitle').textContent = TITLES[s];
@@ -235,7 +249,19 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
   function paint() {
     var b = $('adBody');
     if (sec !== 'approvals' && queue) { queue.close(); }
-    if (sec === 'users') {
+    if (sec === 'users' && WS) {
+      var mem = USERS.filter(function (u) { return u[2].some(function (t) { return t[0] === HOME_WS; }); }).map(function (u) { return [u[0], u[1]]; })
+        .concat([['Priya Nair', 'priya.nair@fractal.ai'], ['Arjun Mehta', 'arjun.mehta@fractal.ai'], ['Sofia Patel', 'sofia.patel@fractal.ai'], ['Hana Sato', 'hana.sato@fractal.ai']]);
+      b.innerHTML = '<div class="ad-qh"><h2>Members of ' + HOME_WS + '</h2></div>' + bar(['Role', 'Status'], 'Invite user') +
+        '<table class="ad-table"><thead><tr><th style="width:40px"><span class="ad-cb"></span></th><th>Name</th><th>Email</th><th>Role in ' + HOME_WS + '</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>' +
+        mem.map(function (u, i) {
+          var r = WS_ROLE[u[0]] || 'Member';
+          return '<tr><td><span class="ad-cb"></span></td><td><span class="ad-who">' + av(u[0], i) + E(u[0]) + (u[0] === 'Savio Govindu' ? ' <span class="ad-tag grey">You</span>' : '') + '</span></td><td>' + E(u[1]) + '</td>' +
+            '<td><span class="ad-tag ' + (r === 'Workspace admin' ? 'orange' : r === 'Editor' ? 'blue' : 'green') + '">' + r + '</span></td><td>' + (i === 4 ? 'Invited' : 'Active') + '</td>' +
+            '<td style="text-align:right"><span class="ad-acts"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M12.5 4.5 15.5 7.5 7 16H4v-3l8.5-8.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>' +
+            '<svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="8" cy="7" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 16a5.5 5.5 0 0 1 10 0M14 9l3 3m0-3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span></td></tr>';
+        }).join('') + '</tbody></table>';
+    } else if (sec === 'users') {
       b.innerHTML = bar(['All workspaces', 'Role', 'Status'], 'New user') + '<table class="ad-table"><thead><tr><th style="width:40px"><span class="ad-cb"></span></th><th>Name</th><th>Email</th><th>Workspaces assigned</th><th style="text-align:right">Actions</th></tr></thead><tbody>' +
         USERS.map(function (u, i) {
           return '<tr><td><span class="ad-cb"></span></td><td><span class="ad-who">' + av(u[0], i) + E(u[0]) + '</span></td><td>' + E(u[1]) + '</td><td><span class="ad-tags">' +
@@ -268,8 +294,10 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
       b.innerHTML = '<div class="ad-qh"><h2>Approvals</h2><button type="button" class="ad-info" data-ad-info aria-expanded="false" aria-label="How Marketplace approvals work" title="How Marketplace approvals work"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.25" stroke="currentColor" stroke-width="1.3"/><path d="M8 7.2v3.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5" r=".85" fill="currentColor"/></svg></button>' +
         '<span style="flex:1 1 auto"></span><button type="button" class="ad-setbtn" data-ad-settings><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.8v1.6M8 12.6v1.6M14.2 8h-1.6M3.4 8H1.8M12.4 3.6l-1.1 1.1M4.7 11.3l-1.1 1.1M12.4 12.4l-1.1-1.1M4.7 4.7 3.6 3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Marketplace settings</button>' +
         '<div class="ad-pop" role="dialog" aria-label="How Marketplace approvals work" hidden><p>Every request passes five stages, export then import. Policy checks and travel run on their own.</p>' +
-        '<div><h3>Publishing to the Marketplace</h3><ol><li>Export policy · workspace</li><li>Workspace admin</li><li>Travel</li><li>Import policy · Marketplace</li><li class="you">Platform admin · you</li></ol></div>' +
-        '<div><h3>Adding from the Marketplace</h3><ol><li>Export policy · Marketplace</li><li class="you">Platform admin · you</li><li>Travel</li><li>Import policy · workspace</li><li>Workspace admin</li></ol></div></div></div>' +
+        (WS ? '<div><h3>Publishing from ' + HOME_WS + '</h3><ol><li>Export policy · workspace</li><li class="you">Workspace admin · you</li><li>Travel</li><li>Import policy · Marketplace</li><li>Platform admin</li></ol></div>' +
+              '<div><h3>Adding to ' + HOME_WS + '</h3><ol><li>Export policy · Marketplace</li><li>Platform admin</li><li>Travel</li><li>Import policy · workspace</li><li class="you">Workspace admin · you</li></ol></div></div></div>'
+            : '<div><h3>Publishing to the Marketplace</h3><ol><li>Export policy · workspace</li><li>Workspace admin</li><li>Travel</li><li>Import policy · Marketplace</li><li class="you">Platform admin · you</li></ol></div>' +
+              '<div><h3>Adding from the Marketplace</h3><ol><li>Export policy · Marketplace</li><li class="you">Platform admin · you</li><li>Travel</li><li>Import policy · workspace</li><li>Workspace admin</li></ol></div></div></div>') +
         '<div id="adQ"></div>';
       if (window.cqReview) hostQueue($('adQ'));
     }
@@ -292,13 +320,19 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
     menu.addEventListener('click', function (e) {
       var b = e.target.closest('[data-view]'); if (!b) return;
       show(false);
-      if (b.dataset.view === 'platform' && inShell) parent.postMessage({ cqNav: 'marketplace.html' }, '*');
+      if (!inShell) return;
+      if (b.dataset.view === 'platform') parent.postMessage({ cqNav: 'marketplace.html' }, '*');
+      if (b.dataset.view === 'wsadmin' && !WS) parent.postMessage({ cqNav: 'wsadmin.html', cqFocus: 'approvals' }, '*');
+      if (b.dataset.view === 'admin' && WS) parent.postMessage({ cqNav: 'admin.html', cqFocus: 'approvals' }, '*');
     });
     document.addEventListener('click', function (e) { if (!e.target.closest('#adView')) show(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') show(false); });
   })();
   /* Marketplace settings: the policies checked at stages 1 and 4, in a side sheet. */
-  var POL = [
+  var POL = WS ? [
+    [HOME_WS + ' export policy', 'Checked when ' + HOME_WS + ' publishes to the Marketplace (stage 1).', [['Only details marked shared leave the workspace', true], ['Block keys and sign-ins from leaving', true], ['Block anything classified confidential', true], ['Require a test run before publishing', false]]],
+    [HOME_WS + ' import policy', 'Checked when ' + HOME_WS + ' adds from the Marketplace (stage 4).', [['Integrations must be on the allow-list', true], ['Only approved models', true], ['Allow publisher keys', true], ['Keep data in EU West', true]]]
+  ] : [
     ['Marketplace import policy', 'Checked when a workspace publishes (stage 4).', [['Require About, industry and domain', true], ['Block listings that hold customer or personal data', true], ['Allow publisher keys to be shared', true], ['Hold first-time publishers for review', false]]],
     ['Marketplace export policy', 'Checked when a workspace adds from the Marketplace (stage 1).', [['Only verified publishers', true], ['Only the latest approved version', true], ['Block artifacts with open security findings', true], ['Require a rating of 4 or more', false]]]
   ];
@@ -306,7 +340,7 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
     var el = $('adSet');
     if (!el) { el = document.createElement('div'); el.id = 'adSet'; el.className = 'ad-set'; document.body.appendChild(el); }
     el.innerHTML = '<div class="ad-set__scrim" data-ad-set-close></div><aside class="ad-set__sheet" role="dialog" aria-label="Marketplace settings">' +
-      '<div class="ad-set__h"><h2>Marketplace settings</h2><button type="button" class="ad-set__x" data-ad-set-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>' +
+      '<div class="ad-set__h"><h2>' + (WS ? HOME_WS + ' Marketplace settings' : 'Marketplace settings') + '</h2><button type="button" class="ad-set__x" data-ad-set-close aria-label="Close"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>' +
       '<div class="ad-set__b"><p class="ad-set__p">Policy checks run on their own at stages 1 and 4 of every review. A request that fails one stops there and goes back to the requester.</p>' +
       POL.map(function (g, gi) {
         return '<section class="ad-set__sec"><h3>' + g[0] + '</h3><p>' + g[1] + '</p>' + g[2].map(function (r, ri) {
@@ -323,7 +357,7 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
     if ((x = t.closest('[data-ad-rule]'))) { var k = x.getAttribute('data-ad-rule').split('|'), r = POL[+k[0]][2][+k[1]]; r[1] = !r[1]; x.classList.toggle('off', !r[1]); x.setAttribute('aria-checked', String(r[1])); }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('adSet')) closeSettings(); });
-  function count() { var n = window.cqReview ? window.cqReview.pendingFor('platform').length : 0; $('adApprN').textContent = n || ''; }
+  function count() { var n = window.cqReview ? window.cqReview.pendingFor(ROLE).length : 0; $('adApprN').textContent = n || ''; }
   window.addEventListener('message', function (e) {
     var d = e.data || {};
     if (d.cqTheme === 'light' || d.cqTheme === 'dark') document.documentElement.dataset.mode = d.cqTheme;
@@ -337,7 +371,14 @@ button.ad-sw { border: 0; padding: 0; cursor: pointer; }
   window.addEventListener('load', function () {
     if (window.cqReview) {
       var now = Date.now(), H = 3600000;
-      window.cqReview.addSamples([
+      if (WS) window.cqReview.addSamples([
+        { ref: 'smp:expense', kind: 'agent', flow: 'add', name: 'Expense Policy Checker', desc: 'Checks expense claims against policy and explains anything it holds back.',
+          publisher: 'Sofia Patel', requester: 'Nina Foster', workspace: 'Finance', requestedAt: now - 2 * H, model: 'GPT-4.1', shared: ['SharePoint'],
+          approvals: { xadm: { by: 'Hitesh Vijay', at: now - 1.5 * H } } },
+        { ref: 'smp:close', kind: 'automation', flow: 'publish', name: 'Month-end Close Checklist', desc: 'Runs the month-end close checklist and chases owners for anything still open.',
+          requester: 'Marcus Diaz', workspace: 'Finance', requestedAt: now - 30 * 60000, industry: 'Banking & Financial Services', func: 'Finance', sharedSummary: '24 of 30 details shared · keys and links kept private' }
+      ]);
+      else window.cqReview.addSamples([
         { ref: 'smp:lead', kind: 'agent', flow: 'publish', name: 'Lead Scoring Agent', desc: 'Scores inbound leads on fit and intent and hands the best ones to sales.', requester: 'Kyle Bennett', workspace: 'Sales',
           requestedAt: now - 3 * H, industry: 'Retail & CPG', func: 'Sales', sharedSummary: '31 of 40 details shared · keys and links kept private', approvals: { xadm: { by: 'Rosa Martinez', at: now - 2.5 * H } } },
         { ref: 'smp:contract', kind: 'automation', flow: 'add', name: 'Contract Review Flow', desc: 'Reads incoming contracts, flags risky clauses and routes them for legal review.', publisher: 'Daniel Okafor', requester: 'Lila Chen', workspace: 'Design',

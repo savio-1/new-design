@@ -77,6 +77,7 @@ def main():
         'automations.html': with_bridge(with_bridge(with_bridge(with_bridge(rd('automations.src.html'), review), bridge), pub), rd('auto-builder.js')),
         'agents.html': with_bridge(with_bridge(with_bridge(with_bridge(rd('agents.src.html'), agx), review), bridge), pub),
         'admin.html': with_bridge(with_bridge(admin, review), rd('viewer.js')),
+        'wsadmin.html': with_bridge(with_bridge(admin.replace("/*MODE*/'platform'", "'workspace'"), review), rd('viewer.js')),
         'monitoring.html': with_bridge(with_bridge(with_bridge(rd('monitoring.src.html'), review), rd('viewer.js')), rd('monitoring-mk.js')),
         'profile.html': with_bridge(with_bridge(rd('profile.src.html'), review), rd('profile-mk.js')),
     }

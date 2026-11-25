@@ -260,6 +260,14 @@
     '.cqr-mi .ic{width:28px;height:28px;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-badge-orange);color:var(--text-coloured-orange)}',
     '.cqr-mi--admin{align-items:center}',
     '.cqr-mi--admin .ic{background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
+    '.cqr-menu--pm{width:280px}',
+    '.cqr-menu--pm .cqr-mi .ic{background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
+    '.cqr-pm-id img{width:34px;height:34px;border-radius:50%;flex:none}',
+    '.cqr-pm-id .av{width:34px !important;height:34px !important;border-radius:50% !important}',
+    '.cqr-pm-seg{display:flex;gap:2px;margin:0 6px 4px;padding:3px;border-radius:9px;background:var(--backgrounds-seg-control-tabs-1,var(--backgrounds-card-bg-4))}',
+    '.cqr-pm-seg button{flex:1 1 0;height:28px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;border-radius:7px;background:none;cursor:pointer;color:var(--text-secondary);font:500 12px/16px var(--font-geist)}',
+    '.cqr-pm-seg button[aria-pressed="true"]{background:var(--backgrounds-card-bg-2);color:var(--text-primary);box-shadow:0 1px 2px rgba(18,18,18,.25)}',
+    '.cqr-pm-out:hover b{color:var(--text-coloured-red)}',
     '.cqr-sep{height:1px;margin:6px 4px;background:var(--strokes-line-1)}',
     '.cqr-empty{padding:16px 10px;color:var(--text-teritiary);font:400 13px/18px var(--font-geist);text-align:center}',
     '.cqr-bell-dot{position:absolute;top:4px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;',
@@ -361,7 +369,50 @@
     });
     if (bellMenu && !bellMenu.hidden) paintBellMenu();
   }
-  function closeMenus() { if (bellMenu) bellMenu.hidden = true; if (wsMenu) wsMenu.hidden = true; }
+  function closeMenus() { if (bellMenu) bellMenu.hidden = true; if (wsMenu) wsMenu.hidden = true; if (pmMenu) pmMenu.hidden = true; }
+  /* ── The profile menu: the same on every page ── */
+  var pmMenu = null;
+  var PM_IC = {
+    user: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M3.5 13.5a4.5 4.5 0 0 1 9 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    team: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><circle cx="11" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 13a3.5 3.5 0 0 1 7 0M7.5 13a3.5 3.5 0 0 1 7 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    shield: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.8 13.2 4v3.6c0 3-2.2 5.4-5.2 6.6-3-1.2-5.2-3.6-5.2-6.6V4L8 1.8Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="m5.8 8 1.6 1.6 2.9-3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    out: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.2 13.3H3.6a1 1 0 0 1-1-1V3.7a1 1 0 0 1 1-1h2.6M10.5 11l3-3-3-3M13.5 8H6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    sun: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5 3.4 3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+    moon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    sys: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.9" y="2.9" width="12.2" height="8.2" rx="1.3" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 13.6h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
+  };
+  var themePref = null;
+  function openProfile(btn) {
+    if (!pmMenu) { pmMenu = document.createElement('div'); pmMenu.hidden = true; pmMenu.className = 'cqr-menu cqr-menu--pm'; pmMenu.setAttribute('role', 'menu'); document.body.appendChild(pmMenu); }
+    var was = !pmMenu.hidden;
+    closeMenus();
+    if (was) return;
+    var img = btn.querySelector && (btn.tagName === 'IMG' ? btn : btn.querySelector('img'));
+    var mode = document.documentElement.dataset.mode === 'light' ? 'light' : 'dark', pref = themePref || mode;
+    var page = (location.pathname.split('/').pop() || '');
+    pmMenu.innerHTML =
+      '<button type="button" class="cqr-mi cqr-pm-id" data-cqr-pm="profile">' + (img ? '<img src="' + img.getAttribute('src') + '" alt="" />' : '<span class="av" style="background:#5860ed">S</span>') +
+        '<span class="tx"><b>Savio Govindu</b><small>savio.govindu@fractal.ai</small></span></button>' +
+      '<div class="cqr-sep"></div><div class="cqr-menu__h"><span>Settings</span></div>' +
+      '<button type="button" class="cqr-mi" data-cqr-pm="wsadmin"><span class="ic">' + PM_IC.team + '</span><span class="tx"><b>Workspace settings</b><small>' + HOME + ' · users and Marketplace artifacts</small></span></button>' +
+      '<button type="button" class="cqr-mi" data-cqr-pm="admin"><span class="ic">' + PM_IC.shield + '</span><span class="tx"><b>Admin panel</b><small>Platform admin · every workspace</small></span></button>' +
+      '<div class="cqr-sep"></div><div class="cqr-menu__h"><span>Theme</span></div>' +
+      '<div class="cqr-pm-seg" role="group" aria-label="Theme">' + [['light', PM_IC.sun, 'Light'], ['dark', PM_IC.moon, 'Dark'], ['system', PM_IC.sys, 'System']].map(function (o) {
+        return '<button type="button" data-cqr-theme="' + o[0] + '" aria-pressed="' + (pref === o[0]) + '">' + o[1] + o[2] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="cqr-sep"></div>' +
+      '<button type="button" class="cqr-mi cqr-pm-out" data-cqr-pm="signout"><span class="ic">' + PM_IC.out + '</span><span class="tx"><b>Sign out</b></span></button>';
+    pmMenu.hidden = false;
+    placeMenu(pmMenu, btn);
+  }
+  function setThemePref(p) {
+    themePref = p;
+    var mode = p === 'system' ? (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : p;
+    document.documentElement.dataset.mode = mode;
+    if (inShell) parent.postMessage({ cqThemePref: p, cqTheme: mode }, '*');
+    if (pmMenu) pmMenu.querySelectorAll('[data-cqr-theme]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-cqr-theme') === p)); });
+  }
+  window.addEventListener('message', function (e) { var d = e.data || {}; if (d.cqThemePref) themePref = d.cqThemePref; });
   function openBell(btn) {
     if (!bellMenu) { bellMenu = document.createElement('div'); bellMenu.hidden = true; bellMenu.className = 'cqr-menu'; bellMenu.setAttribute('role', 'menu'); document.body.appendChild(bellMenu); }
     var was = !bellMenu.hidden && bellMenu.dataset.for === 'bell';
@@ -403,7 +454,16 @@
     if ((x = t.closest('[data-cqr-goto]'))) { e.stopPropagation(); var q = x.getAttribute('data-cqr-goto').split('|'); return go(q[0] + '.html', 'mkapp:' + q[1]); }
     if (t.closest('[data-cqr-admin]')) { e.stopPropagation(); return go('admin.html', 'mkapp:'); }
     if (t.closest('[data-cqr-portal]')) { e.stopPropagation(); return go('marketplace.html'); }
-    if ((x = t.closest('.hdr-avatar')) && !x.closest('.cq-pm-wrap, .cq-pm-trigger')) { e.stopPropagation(); return go('profile.html', 'published'); }
+    if ((x = t.closest('.cq-pm-trigger, .hdr-avatar, .ad-avatar')) && !t.closest('.cqr-menu')) { e.preventDefault(); e.stopPropagation(); return openProfile(x.closest('.cq-pm-trigger') || x); }
+    if ((x = t.closest('[data-cqr-theme]'))) { e.stopPropagation(); return setThemePref(x.getAttribute('data-cqr-theme')); }
+    if ((x = t.closest('[data-cqr-pm]'))) {
+      e.stopPropagation();
+      var a = x.getAttribute('data-cqr-pm');
+      if (a === 'profile') return go('profile.html');
+      if (a === 'wsadmin') return go('wsadmin.html', 'approvals');
+      if (a === 'admin') return go('admin.html', 'approvals');
+      closeMenus(); if (window.mkwsSay) window.mkwsSay('Signing out is not part of this prototype.'); return;
+    }
     if ((x = t.closest('[data-cqr-ws]'))) { e.stopPropagation(); closeMenus(); return; }
     if (!t.closest('.cqr-menu')) closeMenus();
   }, true);
