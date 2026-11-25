@@ -453,7 +453,7 @@
           '<div class="cqr-sec"><span class="cqr-art"><span class="ic">' + artIcon(w.kind) + '</span><span class="tx"><b style="font-size:16px;line-height:24px">' + E(w.name) + '</b>' +
             '<small>' + (w.kind === 'automation' ? 'Automation' : 'Agent') + ' · ' + (isPub(w) ? E(w.workspace || HOME) + ' → Marketplace' : 'Marketplace → ' + E(w.workspace || HOME)) + '</small></span></span>' +
             '<div>' +
-              (isPub(w) ? '<div class="cqr-kv"><span>Industry · Function</span><b>' + E((w.industry || '—') + ' · ' + (w.func || '—')) + '</b></div>' +
+              (isPub(w) ? '<div class="cqr-kv"><span>Industry · Domain</span><b>' + E((w.industry || '—') + ' · ' + (w.func || '—')) + '</b></div>' +
                           '<div class="cqr-kv"><span>Shared</span><b>' + E(String(w.sharedSummary || '—').split(' · ')[0]) + '</b></div>'
                         : '<div class="cqr-kv"><span>Publisher</span><b>' + E(w.publisher || '—') + '</b></div>') +
               (w.secrets && w.secrets.length ? '<div class="cqr-kv"><span>Keys included</span><b>' + E(listAnd(w.secrets)) + '</b></div>' : '') +

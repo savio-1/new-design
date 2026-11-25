@@ -3,7 +3,7 @@
    Publish to Marketplace. Publishing opens the same form as the
    Marketplace's publish flow, with this artifact already chosen: the name
    and description come from it, the publisher adds About, Industry and
-   Function and decides which details go along. Submitting sends it for
+   Domain and decides which details go along. Submitting sends it for
    review; the request is tracked under Requests › Publishing to
    Marketplace on this page. */
 (function () {
@@ -141,7 +141,7 @@
     '.cqp-dd{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer}',
     '.cqp-dd span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-teritiary)}',
     '.cqp-dd.has-value span{color:var(--text-primary)}',
-    '.cqp-menu{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:5;max-height:220px;overflow:auto;margin:0;padding:4px;list-style:none;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.25)}',
+    '.cqp-menu{position:absolute;left:0;right:0;bottom:calc(100% + 4px);z-index:5;max-height:220px;overflow:auto;margin:0;padding:4px;list-style:none;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.25)}',
     '.cqp-menu li{padding:8px;border-radius:6px;cursor:pointer;font:400 14px/20px var(--font-geist)}',
     '.cqp-menu li:hover{background:var(--backgrounds-card-bg-4)}',
     '.cqp-menu li.is-on{background:var(--backgrounds-button-tonal-1);color:var(--text-coloured-blue)}',
@@ -313,7 +313,7 @@
         '<div class="cqp-f' + (P.err.about ? ' has-error' : '') + '"><span class="cqp-f__l"><span>About <span class="req">*</span></span><button type="button" class="cqp-link" data-cqpa="example">Example</button></span>' +
           '<textarea class="cqp-in" data-cqp-in="about" placeholder="Describe what this ' + PAGE + ' does, how to use it...">' + E(P.about) + '</textarea>' +
           '<p class="cqp-hint">Help people understand what it does, where to use it, when it works best, and example use cases.</p></div>' +
-        '<div class="cqp-row">' + dd('industry', 'Industry', INDUSTRIES, P.industry) + dd('func', 'Function', FUNCTIONS, P.func) + '</div>' +
+        '<div class="cqp-row">' + dd('industry', 'Industry', INDUSTRIES, P.industry) + dd('func', 'Domain', FUNCTIONS, P.func) + '</div>' +
         '<div class="cqp-f"><span class="cqp-f__l" style="font-weight:500">What\'s included</span>' +
           '<button type="button" class="cqp-cta" data-cqpa="share"><span class="cqp-ico">' + IC.share + '</span>' +
           '<span class="txt"><span class="t">Customize what\'s shared to Marketplace</span><span class="s">' + sum.html + '</span></span>' +

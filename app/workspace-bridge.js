@@ -1160,7 +1160,7 @@
     var CR = window.cqReview, s = CR.stageOf(w), T = totals(w), pub = isPub(w), done = s.state === 'done', rej = s.state === 'rejected';
     var after = pub
       ? '<div class="mkreq-kv"><span>Industry</span><b>' + E(w.industry || '—') + '</b></div>' +
-        '<div class="mkreq-kv"><span>Function</span><b>' + E(w.func || '—') + '</b></div>' +
+        '<div class="mkreq-kv"><span>Domain</span><b>' + E(w.func || '—') + '</b></div>' +
         '<div class="mkreq-kv"><span>Shared</span><b>' + E(w.sharedSummary || '') + '</b></div>' +
         (w.about ? '<p class="cq-caption-reg" style="margin:4px 0 0;color:var(--text-secondary)">' + E(w.about) + '</p>' : '')
       : T.total
