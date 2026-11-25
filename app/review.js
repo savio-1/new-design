@@ -261,6 +261,12 @@
     /* The approvals queue (Admin panel, Monitoring) */
     '.cqr-q{display:flex;flex-direction:column;gap:16px}',
     '.cqr-q__bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
+    '.cqr-switch{display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:var(--backgrounds-seg-control-tabs-1,var(--backgrounds-card-bg-4))}',
+    '.cqr-switch button{height:30px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:0;border-radius:8px;background:none;cursor:pointer;color:var(--text-secondary);font:500 13px/18px var(--font-geist);letter-spacing:-.3px;white-space:nowrap}',
+    '.cqr-switch button:hover{color:var(--text-primary)}',
+    '.cqr-switch button[aria-selected="true"]{background:var(--backgrounds-card-bg-2);color:var(--text-primary);box-shadow:0 1px 2px rgba(18,18,18,.25)}',
+    '.cqr-switch .n{min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-card-bg-4);color:var(--text-secondary);font:500 11px/1 var(--font-geist)}',
+    '.cqr-switch button[aria-selected="true"] .n{background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
     '.cqr-chip{height:32px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-radius:999px;cursor:pointer;background:none;border:1px solid var(--strokes-card-default);',
     '  color:var(--text-secondary);font:500 13px/18px var(--font-geist)}',
     '.cqr-chip .n{color:var(--text-teritiary);font-weight:400}',
@@ -412,20 +418,29 @@
       var S = stagesOf(w);
       return S.some(function (st) { return st.role === role; });
     }
+    /* Three views: what waits on you, what is still moving, and history
+       (live, ready or rejected). */
+    function viewOf(w) {
+      var s = stageOf(w);
+      if (s.state === 'done' || s.state === 'rejected') return 'history';
+      return s.state === 'waiting' && s.stages[s.i].role === role ? 'waiting' : 'progress';
+    }
     function rows() {
       return requests().filter(mine).filter(function (w) {
         if (Q.flow !== 'all' && (isPub(w) ? 'publish' : 'add') !== Q.flow) return false;
-        if (Q.view === 'waiting') { var s = stageOf(w); return s.state === 'waiting' && s.stages[s.i].role === role; }
-        return true;
+        return viewOf(w) === Q.view;
       }).sort(function (a, b) { return (b.requestedAt || 0) - (a.requestedAt || 0); });
     }
     function paint() {
-      var waiting = requests().filter(mine).filter(function (w) { var s = stageOf(w); return s.state === 'waiting' && s.stages[s.i].role === role; }).length;
-      var total = requests().filter(mine).length;
+      var n = { waiting: 0, progress: 0, history: 0 };
+      requests().filter(mine).forEach(function (w) { n[viewOf(w)]++; });
       var list = rows();
       var chip = function (attr, v, label, n, on) { return '<button type="button" class="cqr-chip" data-cqr-' + attr + '="' + v + '" aria-pressed="' + on + '">' + label + (n != null ? ' <span class="n">' + n + '</span>' : '') + '</button>'; };
       host.innerHTML = '<div class="cqr-q">' +
-        '<div class="cqr-q__bar">' + chip('view', 'waiting', 'Waiting on you', waiting, Q.view === 'waiting') + chip('view', 'all', 'All requests', total, Q.view === 'all') +
+        '<div class="cqr-q__bar"><div class="cqr-switch" role="tablist" aria-label="Requests">' +
+          [['waiting', 'Waiting on you'], ['progress', 'In progress'], ['history', 'History']].map(function (v) {
+            return '<button type="button" role="tab" data-cqr-view="' + v[0] + '" aria-selected="' + (Q.view === v[0]) + '">' + v[1] + ' <span class="n">' + n[v[0]] + '</span></button>';
+          }).join('') + '</div>' +
           '<span class="cqr-sp"></span>' + chip('flow', 'all', 'All', null, Q.flow === 'all') + chip('flow', 'publish', 'Publishing to Marketplace', null, Q.flow === 'publish') + chip('flow', 'add', 'Adding to workspaces', null, Q.flow === 'add') + '</div>' +
         (list.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th>' + (role === 'platform' ? '<th>Workspace</th>' : '') + '<th>Requested by</th><th>Status</th><th>Request</th><th></th></tr></thead><tbody>' +
           list.map(function (w) {
@@ -440,7 +455,7 @@
               '<td class="cqr-fit">' + typeTag(w) + '</td>' +
               '<td class="cqr-fit" style="text-align:right"><button type="button" class="cqr-act' + (mineNow ? '' : ' cqr-act--ghost') + '" data-cqr-row="' + E(w.ref) + '">' + (mineNow ? 'Review' : 'View') + '</button></td></tr>';
           }).join('') + '</tbody></table>'
-          : '<div class="cqr-qempty">' + (Q.view === 'waiting' ? 'Nothing is waiting on you. New requests show up here and on the bell.' : 'No requests yet.') + '</div>') +
+          : '<div class="cqr-qempty">' + (Q.view === 'waiting' ? 'Nothing is waiting on you. New requests show up here and on the bell.' : Q.view === 'progress' ? 'Nothing else is in review right now.' : 'Decided requests show up here.') + '</div>') +
       '</div>';
       paintDrawer();
     }
@@ -489,7 +504,7 @@
       if (now !== sig) { sig = now; paint(); }
     }, 500);
     paint();
-    return { open: function (ref) { if (ref && find(ref)) { Q.view = 'all'; Q.sel = ref; } paint(); }, close: function () { Q.sel = null; paint(); }, paint: paint };
+    return { open: function (ref) { var w = ref && find(ref); if (w) { Q.view = viewOf(w); Q.sel = ref; } paint(); }, close: function () { Q.sel = null; paint(); }, paint: paint };
   }
 
   /* ── State from the shell ── */
