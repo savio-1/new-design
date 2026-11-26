@@ -138,6 +138,16 @@
     '.cqp-lock{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--text-teritiary);pointer-events:none;display:inline-flex}',
     '.cqp-f.has-error .cqp-in{border-color:var(--text-coloured-red,#dc3412)}',
     '.cqp-row{display:flex;gap:16px}',
+    '.cqp-ex{position:fixed;z-index:260;color:var(--text-primary);font-family:var(--font-geist);display:flex;flex-direction:column;border-radius:12px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-selected,#0d99ff);box-shadow:0 14px 40px rgba(0,0,0,.45)}',
+    '.cqp-ex::before{content:"";position:absolute;top:-6px;right:28px;width:10px;height:10px;transform:rotate(45deg);background:var(--backgrounds-page-bg-2);border-left:1px solid var(--strokes-card-selected,#0d99ff);border-top:1px solid var(--strokes-card-selected,#0d99ff)}',
+    '.cqp-ex.is-up::before{top:auto;bottom:-6px;transform:rotate(225deg)}',
+    '.cqp-ex__h{display:flex;align-items:center;gap:8px;padding:10px 10px 4px 14px}',
+    '.cqp-ex__h b{flex:1 1 auto;font:500 14px/20px var(--font-geist)}',
+    '.cqp-ex__lede{margin:0;padding:0 14px 8px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.cqp-ex__b{max-height:260px;overflow-y:auto;padding:0 14px;display:flex;flex-direction:column;gap:10px}',
+    '.cqp-ex__sec span{display:block;color:var(--text-coloured-blue);font:500 12px/16px var(--font-geist)}',
+    '.cqp-ex__sec p{margin:2px 0 0;color:var(--text-primary);font:400 13px/19px var(--font-geist)}',
+    '.cqp-ex__f{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px 12px;border-top:1px solid var(--strokes-line-3);margin-top:10px}',
     '.cqp-menu.cqp-menu--down{bottom:auto;top:calc(100% + 4px)}',
     '.cqp-dest{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
     '.cqp-opt{position:relative;display:flex;flex-direction:column;gap:10px;align-items:flex-start;padding:14px;border-radius:12px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);cursor:pointer;text-align:left;color:inherit;transition:border-color .15s ease,background .15s ease}',
@@ -304,7 +314,7 @@
     paint();
     var ta = root.querySelector('textarea'); if (ta) ta.focus({ preventScroll: true });
   }
-  function close() { root.hidden = true; P = null; }
+  function close() { root.hidden = true; P = null; var ex = document.getElementById('cqpEx'); if (ex) ex.remove(); }
 
   function paint() {
     if (!P) return;
@@ -332,7 +342,7 @@
         '<div class="cqp-f"><span class="cqp-f__l">Description</span><span class="cqp-lockwrap"><input class="cqp-in is-locked" value="' + E(a.desc) + '" readonly /><span class="cqp-lock">' + IC.lock + '</span></span>' +
           '<p class="cqp-hint">Shows under its name ' + (P.dest === 'workspace' ? 'in the workspace' : 'on the Marketplace card') + '. Edit it in the builder to change it here.</p></div>' +
         (P.dest === 'workspace' ? '' :
-        '<div class="cqp-f' + (P.err.about ? ' has-error' : '') + '"><span class="cqp-f__l"><span>About <span class="req">*</span></span><button type="button" class="cqp-link" data-cqpa="example">Example</button></span>' +
+        '<div class="cqp-f' + (P.err.about ? ' has-error' : '') + '"><span class="cqp-f__l"><span>About <span class="req">*</span></span><button type="button" class="cqp-link" data-cqpa="example" aria-expanded="' + !!P.ex + '">See an example</button></span>' +
           '<textarea class="cqp-in" data-cqp-in="about" placeholder="Describe what this ' + PAGE + ' does, how to use it...">' + E(P.about) + '</textarea>' +
           '<p class="cqp-hint">Help people understand what it does, where to use it, when it works best, and example use cases.</p></div>' +
         '<div class="cqp-row">' + dd('industry', 'Industry', INDUSTRIES, P.industry) + dd('func', 'Domain', FUNCTIONS, P.func) + '</div>') +
@@ -345,9 +355,24 @@
       '<div class="cqp-ftr"><p class="cqp-hint">' + (P.dest === 'workspace' ? 'The workspace admin there approves it before people can run it.' : 'Goes to your workspace admin, then the platform admin, before it is listed.') + '</p><div class="cqp-acts">' +
         '<button type="button" class="cqp-btn cqp-btn--tonal" data-cqpa="close">Cancel</button>' +
         '<button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="publish">' + (P.dest === 'workspace' ? 'Publish to workspace' : 'Publish to marketplace') + '</button></div></div>';
+    placeExample();
   }
   /* Customize what's shared is the dialog's second page: it takes the
      form's place, with a back arrow to return to it. */
+  /* The example floats over the dialog, under its link, so the dialog's
+     scrolling never clips it. */
+  function placeExample() {
+    var old = document.getElementById('cqpEx'); if (old) old.remove();
+    if (!P || !P.ex || P.share) return;
+    var link = root.querySelector('[data-cqpa="example"]'); if (!link) return;
+    var w = document.createElement('div'); w.id = 'cqpEx'; w.innerHTML = exampleHTML();
+    root.appendChild(w);
+    var box = w.firstChild, r = link.getBoundingClientRect(), dlg = $('cqpDlg').getBoundingClientRect();
+    box.style.position = 'fixed'; box.style.right = Math.round(window.innerWidth - r.right - 4) + 'px';
+    var top = r.bottom + 10, room = window.innerHeight - top - 16;
+    if (room < 300) { top = Math.max(16, r.top - 10 - Math.min(460, box.offsetHeight)); box.classList.add('is-up'); }
+    box.style.top = Math.round(top) + 'px'; box.style.width = Math.min(460, dlg.width - 48) + 'px';
+  }
   function paintShare() {
     if (!P.share) return paint();
     var sh = $('cqpDlg');
@@ -386,6 +411,35 @@
       '</div>' +
       '<div class="cqp-ftr"><button type="button" class="cqp-link" data-cqpa="reset">Reset to defaults</button>' +
         '<div class="cqp-acts"><button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="share-back">Save and go back</button></div></div>';
+  }
+  /* A worked About for this artifact: what a good one covers, so the
+     people who add it from the Marketplace know what they are getting. */
+  function exampleParts() {
+    var a = P.a, steps = (a.steps || []).map(function (x) { return x.l; }).filter(Boolean);
+    var tools = PAGE === 'agent' ? (a.tools || []) : (a.steps || []).filter(function (x) { return x.k === 'tool' || x.k === 'doc'; }).map(function (x) { return x.l; });
+    var needs = P.res.filter(function (r) { return r.rk === 'integrations' || r.rk === 'models'; }).map(function (r) { return r.name; });
+    var auto = PAGE === 'automation';
+    return [
+      ['What it does', a.desc],
+      ['When to use it', auto ? 'When the same work comes in every day or week and someone on the team is doing it by hand: it runs on its own ' + (a.schedule ? '(' + a.schedule.toLowerCase() + ')' : 'on a schedule or trigger') + ' and only stops for a person where a decision is needed.'
+                              : 'When someone on the team answers the same kind of question or does the same check many times a day, and wants a consistent first pass they can trust and review.'],
+      [auto ? 'How it runs' : 'How it works', auto ? (steps.length ? steps.map(function (x, i) { return (i + 1) + '. ' + x; }).join('\n') : '1. Picks up new work\n2. Does the checks\n3. Hands back a result')
+                                              : 'It reads the request, ' + (tools.length ? 'uses ' + tools.join(' and ') + ' to look things up, ' : '') + 'and replies with the result and why, so a person can check it quickly.'],
+      ['What you need to connect', needs.length ? needs.join(', ') + '. Keys and links stay private, so you add your own after adding it to your workspace.' : 'Nothing: everything it uses comes with it.'],
+      ['Example', auto ? 'A finance team points it at the AP inbox. Each morning it has processed the overnight invoices, posted the routine ones and left the three that need a decision for the controller.'
+                       : 'A pricing analyst asks it to check last week\'s quotes for Germany. It flags two that drifted from the approved list and explains by how much.'],
+      ['Good to know', auto ? 'Anything over its limits waits at a checkpoint for a person; nothing is sent or posted without that step passing.' : 'It does not change records on its own; it suggests, and a person decides.']
+    ];
+  }
+  function exampleText() { return exampleParts().map(function (p) { return p[0] + '\n' + p[1]; }).join('\n\n'); }
+  function exampleHTML() {
+    return '<div class="cqp-ex" role="dialog" aria-label="Example About">' +
+      '<div class="cqp-ex__h"><b>Example About for ' + E(P.a.name) + '</b><button type="button" class="cqp-x" data-cqpa="ex-close" aria-label="Close">' + IC.close + '</button></div>' +
+      '<p class="cqp-ex__lede">A good About tells someone browsing the Marketplace what this ' + PAGE + ' does, when to reach for it and what they will need. Cover these:</p>' +
+      '<div class="cqp-ex__b">' + exampleParts().map(function (p) {
+        return '<div class="cqp-ex__sec"><span>' + E(p[0]) + '</span><p>' + E(p[1]).replace(/\n/g, '<br>') + '</p></div>';
+      }).join('') + '</div>' +
+      '<div class="cqp-ex__f"><button type="button" class="cqp-btn cqp-btn--tonal" data-cqpa="ex-close">Close</button><button type="button" class="cqp-btn cqp-btn--primary" data-cqpa="ex-use">Use as a starting point</button></div></div>';
   }
   function submit() {
     if (P.dest === 'workspace') {
@@ -427,10 +481,9 @@
     if (k === 'share') { P.share = true; paint(); $('cqpDlg').querySelector('.cqp-body').scrollTop = 0; return; }
     if (k === 'share-back') { P.share = false; return paint(); }
     if (k === 'reset') { P.on = defaults(); return paintShare(); }
-    if (k === 'example') {
-      P.about = P.a.desc + ' Works best for ' + (PAGE === 'agent' ? 'teams that handle this every day' : 'recurring, high-volume work') + '. Example: "Run it on last week\'s batch and flag anything that needs a person."';
-      P.err.about = false; return paint();
-    }
+    if (k === 'example') { P.ex = !P.ex; return paint(); }
+    if (k === 'ex-close') { P.ex = false; return paint(); }
+    if (k === 'ex-use') { P.about = exampleText(); P.ex = false; P.err.about = false; paint(); var ta = root.querySelector('[data-cqp-in="about"]'); if (ta) { ta.focus(); ta.scrollTop = 0; } return; }
     if (k === 'publish') return submit();
   });
   root.addEventListener('change', function (e) {
