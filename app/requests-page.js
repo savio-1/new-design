@@ -80,6 +80,15 @@
     '.rq-stat span{color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
     '.rq-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
     '.rq-sp{flex:1 1 auto}',
+    '.rq-dd{position:relative}',
+    '.rq-dd__btn{height:32px;display:inline-flex;align-items:center;gap:8px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);color:var(--text-primary);cursor:pointer;font:500 13px/18px var(--font-geist)}',
+    '.rq-dd__btn:hover,.rq-dd__btn[aria-expanded="true"]{border-color:var(--strokes-card-selected)}',
+    '.rq-dd__btn .l{color:var(--text-teritiary);font-weight:400}',
+    '.rq-dd__menu{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:220px;padding:4px;border-radius:10px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);box-shadow:0 8px 24px rgba(0,0,0,.3)}',
+    '.rq-dd__menu[hidden]{display:none}',
+    '.rq-dd__menu button{width:100%;padding:8px 10px;border:0;border-radius:6px;background:none;cursor:pointer;text-align:left;color:var(--text-primary);font:400 13px/18px var(--font-geist)}',
+    '.rq-dd__menu button:hover{background:var(--backgrounds-card-bg-4)}',
+    '.rq-dd__menu button[aria-checked="true"]{background:var(--backgrounds-button-tonal-1);color:var(--text-coloured-blue)}',
     '.rq-chips{display:flex;gap:6px;flex-wrap:wrap}',
     '.rq-ic{width:32px;height:32px;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center}',
     '.rq-ic--indigo{background:var(--backgrounds-badge-indigo);color:var(--text-coloured-indigo)}',
@@ -104,7 +113,7 @@
   ].join('\n');
   document.head.appendChild(css);
 
-  var V = { view: 'open', kind: 'all', flow: 'all', sel: null };
+  var V = { view: 'open', kind: 'all', flow: 'all', sel: null, dd: false };
   var HUE = ['#5860ed', '#0d99ff', '#14ae5c', '#dd7c0e', '#9747ff', '#e91e63', '#00a2c2'];
   var hue = function (n) { var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; return HUE[h % HUE.length]; };
 
@@ -115,21 +124,21 @@
     var ready = open.filter(function (w) { return stateOf(w)[1] === 'Ready'; }).length;
     var base = V.view === 'open' ? open : hist;
     var rows = base.filter(function (w) { return (V.kind === 'all' || kindOf(w) === V.kind) && (V.flow === 'all' || (w.flow === 'publish' ? 'publish' : 'add') === V.flow); });
-    var kinds = Object.keys(KIND).filter(function (k) { return base.some(function (w) { return kindOf(w) === k; }); });
+    /* Every type has its tab, whether or not anything is in it yet. */
+    var kinds = ['agent', 'automation', 'assistant', 'tool', 'skill', 'guardrail'];
+    var FLOWS = [['all', 'All requests'], ['add', 'Adding to workspace'], ['publish', 'Publishing to Marketplace']];
+    var flowName = FLOWS.filter(function (f) { return f[0] === V.flow; })[0][1];
     var chip = function (attr, v, label, n, on) { return '<button type="button" class="cqr-chip" data-rq-' + attr + '="' + v + '" aria-pressed="' + on + '">' + label + (n != null ? ' <span class="n">' + n + '</span>' : '') + '</button>'; };
     rootEl.innerHTML =
-      '<div class="rq-stats">' +
-        '<div class="rq-stat"><b>' + open.length + '</b><span>Open requests</span></div>' +
-        '<div class="rq-stat"><b>' + open.filter(function (w) { var s = stateOf(w)[2]; return s.state === 'waiting'; }).length + '</b><span>Waiting on an admin</span></div>' +
-        '<div class="rq-stat"><b>' + ready + '</b><span>Ready to add</span></div>' +
-        '<div class="rq-stat"><b>' + hist.length + '</b><span>In history</span></div>' +
-      '</div>' +
       '<div class="rq-bar"><div class="cqr-switch" role="tablist" aria-label="Requests">' +
           '<button type="button" role="tab" data-rq-view="open" aria-selected="' + (V.view === 'open') + '">Open <span class="n">' + open.length + '</span></button>' +
           '<button type="button" role="tab" data-rq-view="history" aria-selected="' + (V.view === 'history') + '">History <span class="n">' + hist.length + '</span></button></div>' +
         '<div class="rq-chips">' + chip('kind', 'all', 'All types', null, V.kind === 'all') + kinds.map(function (k) { return chip('kind', k, KIND[k][1], base.filter(function (w) { return kindOf(w) === k; }).length, V.kind === k); }).join('') + '</div>' +
         '<span class="rq-sp"></span>' +
-        '<div class="rq-chips">' + chip('flow', 'all', 'Both ways', null, V.flow === 'all') + chip('flow', 'add', 'Adding to workspace', null, V.flow === 'add') + chip('flow', 'publish', 'Publishing', null, V.flow === 'publish') + '</div>' +
+        '<div class="rq-dd"><button type="button" class="rq-dd__btn" data-rq-dd aria-haspopup="menu" aria-expanded="' + !!V.dd + '"><span class="l">Show</span>' + flowName +
+          '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+          '<div class="rq-dd__menu" role="menu"' + (V.dd ? '' : ' hidden') + '>' + FLOWS.map(function (f) {
+            return '<button type="button" role="menuitemradio" aria-checked="' + (V.flow === f[0]) + '" data-rq-flow="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div></div>' +
       '</div>' +
       (rows.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th><th>Requested by</th><th>Requested</th><th>Status</th><th>Request</th><th></th></tr></thead><tbody>' +
         rows.map(function (w) {
@@ -200,7 +209,9 @@
     var t = e.target, x;
     if ((x = t.closest('[data-rq-view]'))) { V.view = x.getAttribute('data-rq-view'); V.kind = 'all'; return paint(); }
     if ((x = t.closest('[data-rq-kind]'))) { V.kind = x.getAttribute('data-rq-kind'); return paint(); }
-    if ((x = t.closest('[data-rq-flow]'))) { V.flow = x.getAttribute('data-rq-flow'); return paint(); }
+    if ((x = t.closest('[data-rq-flow]'))) { V.flow = x.getAttribute('data-rq-flow'); V.dd = false; return paint(); }
+    if (t.closest('[data-rq-dd]')) { V.dd = !V.dd; return paint(); }
+    if (V.dd && !t.closest('.rq-dd')) { V.dd = false; paint(); }
     if ((x = t.closest('[data-rq-add]'))) { e.stopPropagation(); return add(x.getAttribute('data-rq-add')); }
     if ((x = t.closest('[data-rq-withdraw]'))) { var r = x.getAttribute('data-rq-withdraw'); post({ cqWsRemove: r }); V.sel = null; say('The request was withdrawn.'); return setTimeout(paint, 150); }
     if ((x = t.closest('[data-rq-go]'))) { var g = x.getAttribute('data-rq-go').split('|'); return post(g[1] ? { cqNav: g[0], cqFocus: g[1] } : { cqNav: g[0] }); }

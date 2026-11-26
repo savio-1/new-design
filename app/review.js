@@ -381,9 +381,15 @@
     out: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.2 13.3H3.6a1 1 0 0 1-1-1V3.7a1 1 0 0 1 1-1h2.6M10.5 11l3-3-3-3M13.5 8H6.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     sun: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1M12.6 12.6l-1.1-1.1M4.5 4.5 3.4 3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
     moon: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.5 9.6A5.6 5.6 0 0 1 6.4 2.5a5.6 5.6 0 1 0 7.1 7.1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+    inbox: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 9.5h3l1 1.5h3l1-1.5h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3.5 3.5h9l1 6v3a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-3l1-6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     sys: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.9" y="2.9" width="12.2" height="8.2" rx="1.3" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 13.6h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>'
   };
   var themePref = null;
+  /* What the workspace has open with the Marketplace, for the menu line. */
+  function openReqs() {
+    var n = ITEMS.filter(function (w) { var st = stageOf(w); return (isPub(w) && st.state !== 'done' && st.state !== 'rejected') || (!isPub(w) && w.status === 'requested' && st.state !== 'rejected'); }).length;
+    return n ? n + ' open · track your workspace’s requests' : 'Track your workspace’s requests';
+  }
   function openProfile(btn) {
     if (!pmMenu) { pmMenu = document.createElement('div'); pmMenu.hidden = true; pmMenu.className = 'cqr-menu cqr-menu--pm'; pmMenu.setAttribute('role', 'menu'); document.body.appendChild(pmMenu); }
     var was = !pmMenu.hidden;
@@ -395,6 +401,7 @@
     pmMenu.innerHTML =
       '<button type="button" class="cqr-mi cqr-pm-id" data-cqr-pm="profile">' + (img ? '<img src="' + img.getAttribute('src') + '" alt="" />' : '<span class="av" style="background:#5860ed">S</span>') +
         '<span class="tx"><b>Savio Govindu</b><small>savio.govindu@fractal.ai</small></span></button>' +
+      '<button type="button" class="cqr-mi" data-cqr-pm="requests"><span class="ic">' + PM_IC.inbox + '</span><span class="tx"><b>Marketplace requests</b><small>' + openReqs() + '</small></span></button>' +
       '<div class="cqr-sep"></div><div class="cqr-menu__h"><span>Settings</span></div>' +
       '<button type="button" class="cqr-mi" data-cqr-pm="wsadmin"><span class="ic">' + PM_IC.team + '</span><span class="tx"><b>Workspace settings</b><small>' + HOME + ' · users and Marketplace artifacts</small></span></button>' +
       '<button type="button" class="cqr-mi" data-cqr-pm="admin"><span class="ic">' + PM_IC.shield + '</span><span class="tx"><b>Admin panel</b><small>Platform admin · every workspace</small></span></button>' +
@@ -448,25 +455,6 @@
   var RAIL = { home: 'index.html', automations: 'automations.html', agents: 'agents.html', monitoring: 'monitoring.html', monitor: 'monitoring.html',
     skills: 'skills.html', skill: 'skills.html', integrations: 'integrations.html', 'model hub': 'model-hub.html', 'doc store': 'doc-store.html',
     context: 'context.html', 'requests': 'requests.html', 'marketplace requests': 'requests.html' };
-  /* Marketplace requests, in every page's rail, under Home. */
-  (function () {
-    var rail = document.querySelector('[aria-label="Platform"]'); if (!rail) return;
-    var home = rail.querySelector('.rail-btn[title="Home"], .cq-rail-btn[title="Home"]'); if (!home) return;
-    var b = home.cloneNode(true);
-    b.setAttribute('title', 'Marketplace requests'); b.classList.remove('is-active'); b.removeAttribute('aria-current');
-    var svg = b.querySelector('svg');
-    var ic = '<svg class="' + ((svg && svg.getAttribute('class')) || 'ic') + '" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 9.5h3l1 1.5h3l1-1.5h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3.5 3.5h9l1 6v3a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-3l1-6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
-    if (svg) svg.outerHTML = ic; else b.insertAdjacentHTML('afterbegin', ic);
-    var lbl = b.querySelector('[class*="rail-lbl"]'); if (lbl) lbl.textContent = 'Marketplace requests';
-    b.insertAdjacentHTML('beforeend', '<span class="cqr-rail-n" hidden></span>');
-    b.style.position = 'relative';
-    home.parentNode.insertBefore(b, home.nextSibling);
-    if (/requests/.test(document.title.toLowerCase())) b.classList.add('is-active');
-    setInterval(function () {
-      var n = ITEMS.filter(function (w) { var st = stageOf(w); return (isPub(w) && st.state !== 'done' && st.state !== 'rejected') || (!isPub(w) && w.status === 'requested' && st.state !== 'rejected'); }).length;
-      var el = b.querySelector('.cqr-rail-n'); el.hidden = !n; el.textContent = n;
-    }, 1000);
-  })();
   function go(page, focus) {
     closeMenus();
     if (inShell) parent.postMessage(focus ? { cqNav: page, cqFocus: focus } : { cqNav: page }, '*');
@@ -486,6 +474,7 @@
       var a = x.getAttribute('data-cqr-pm');
       if (a === 'profile') return go('profile.html');
       if (a === 'wsadmin') return go('wsadmin.html', 'approvals');
+      if (a === 'requests') return go('requests.html');
       if (a === 'admin') return go('admin.html', 'approvals');
       closeMenus(); if (window.mkwsSay) window.mkwsSay('Signing out is not part of this prototype.'); return;
     }
