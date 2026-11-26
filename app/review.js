@@ -87,6 +87,11 @@
     if (s.state === 'waiting') return 'Waiting for ' + (st.role === 'platform' ? 'platform admin' : 'workspace admin');
     return st.k === 'travel' ? 'In transit' : st.k === 'xpol' ? 'Checking export policy' : 'Checking import policy';
   }
+  var SD = {
+    check: '<svg viewBox="0 0 8 8" fill="none" aria-hidden="true"><path d="m1.9 4.1 1.4 1.4 2.8-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    clock: '<svg viewBox="0 0 8 8" fill="none" aria-hidden="true"><path d="M4 2v2l1.3.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    x: '<svg viewBox="0 0 8 8" fill="none" aria-hidden="true"><path d="m2.4 2.4 3.2 3.2m0-3.2-3.2 3.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>'
+  };
   var IC = {
     check: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     up: '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 12.5v-9M4 7.5l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -137,13 +142,13 @@
     opts = opts || {};
     var s = stageOf(w), t0 = w.requestedAt || Date.now(), ap = w.approvals || {};
     var step = function (c, dot, title, time, sub, extra) {
-      return '<li class="cqr-step ' + c + '"><span class="cqr-dot">' + dot + '</span><span class="cqr-step__b"><span class="cqr-step__t">' + title +
+      return '<li class="cqr-step ' + c + '"><span class="cqr-sd">' + dot + '</span><span class="cqr-step__b"><span class="cqr-step__t">' + title +
         (time ? '<span class="cqr-time">' + time + '</span>' : '') + '</span>' + (sub ? '<span class="cqr-step__s">' + E(sub) + '</span>' : '') + (extra || '') + '</span></li>';
     };
-    var html = '<ol class="cqr-steps">' + step('is-done', IC.check, isPub(w) ? 'Submitted' : 'Requested', clock(t0), 'by ' + (w.requester || 'you'));
+    var html = '<ol class="cqr-steps">' + step('is-done', SD.check, isPub(w) ? 'Submitted' : 'Requested', clock(t0), 'by ' + (w.requester || 'you'));
     s.stages.forEach(function (st, j) {
       var c = s.state === 'done' || j < s.i ? 'is-done' : j === s.i ? (s.state === 'waiting' ? 'is-wait' : s.state === 'rejected' ? 'is-rej' : 'is-now') : 'is-todo';
-      var dot = c === 'is-done' ? IC.check : c === 'is-wait' ? IC.clock : c === 'is-rej' ? IC.x : c === 'is-now' ? IC.spin : '';
+      var dot = c === 'is-done' ? SD.check : c === 'is-wait' ? SD.clock : c === 'is-rej' ? SD.x : '';
       var sub = '', time = '', extra = '';
       if (c === 'is-done') {
         if (!st.auto) { var a = s.ap[st.k] || ap[st.k] || {}; sub = 'Approved by ' + (a.by || 'an admin') + (a.note ? ' · “' + a.note + '”' : ''); time = clock(a.at || Date.now()); }
@@ -207,19 +212,19 @@
     '.cqr-bars i.is-rej{background:var(--text-coloured-red,#ff7a5c)}',
     '.cqr-bars i.is-now{background:var(--text-coloured-blue)}',
     '.cqr-steps{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}',
-    '.cqr-step{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:12px;padding-bottom:12px}',
+    '.cqr-step{position:relative;display:grid;grid-template-columns:12px minmax(0,1fr);column-gap:14px;padding-bottom:14px}',
     '.cqr-time{margin-left:auto;padding-left:8px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
     '.cqr-step.is-todo .cqr-step__t{color:var(--text-teritiary);font-weight:400}',
     '.cqr-step:last-child{padding-bottom:0}',
-    '.cqr-step::before{content:"";position:absolute;left:11px;top:28px;bottom:4px;width:2px;border-radius:1px;background:var(--strokes-line-1)}',
+    '.cqr-step::before{content:"";position:absolute;left:5px;top:22px;bottom:-2px;width:2px;border-radius:1px;background:var(--strokes-line-1)}',
     '.cqr-step:last-child::before{display:none}',
-    '.cqr-step.is-done::before{background:var(--strokes-colour-green)}',
-    '.cqr-dot{width:24px;height:24px;box-sizing:border-box;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--strokes-line-1);',
-    '  background:var(--backgrounds-card-bg-2);color:var(--text-teritiary);font:500 11px/1 var(--font-geist)}',
-    '.is-done > .cqr-dot{border-color:var(--strokes-colour-green);background:var(--backgrounds-badge-green);color:var(--text-coloured-green)}',
-    '.is-now > .cqr-dot{border-color:var(--strokes-colour-blue);background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
-    '.is-wait > .cqr-dot{border-color:var(--strokes-colour-orange);background:var(--backgrounds-badge-orange);color:var(--text-coloured-orange)}',
-    '.is-rej > .cqr-dot{border-color:var(--strokes-colour-red,rgba(220,52,18,.4));color:var(--text-coloured-red,#ff7a5c)}',
+    '.cqr-step.is-done::before{background:var(--text-coloured-green)}',
+    '.cqr-sd{position:relative;z-index:1;width:12px;height:12px;margin-top:6px;box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--strokes-line-1);background:var(--backgrounds-card-bg-2,#1c1c1c);color:var(--backgrounds-page-bg-1,#121212)}',
+    '.cqr-sd svg{width:8px;height:8px;display:block}',
+    '.is-done > .cqr-sd{border:0;background:var(--text-coloured-green)}',
+    '.is-wait > .cqr-sd{border:0;background:var(--text-coloured-orange)}',
+    '.is-rej > .cqr-sd{border:0;background:var(--text-coloured-red,#ff7a5c)}',
+    '.is-now > .cqr-sd{border-color:var(--text-coloured-blue);border-right-color:transparent;background:none;animation:cqr-rot .8s linear infinite}',
     '.cqr-step__b{display:flex;flex-direction:column;gap:2px;min-width:0;padding-top:2px}',
     '.cqr-step__t{display:flex;align-items:center;gap:8px;color:var(--text-primary);font:500 14px/20px var(--font-geist);letter-spacing:-.4px}',
     '.is-todo .cqr-step__t{color:var(--text-teritiary)}',
@@ -262,7 +267,7 @@
     '.cqr-mi--admin .ic{background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
     '.cqr-menu--pm{width:280px}',
     '.cqr-mi--req{align-items:center}',
-    '.cqr-dot{width:8px;height:8px;margin-left:auto;align-self:center;border-radius:50%;background:var(--red-500,#f24822);flex:none}',
+    '.cqr-mdot{width:8px;height:8px;margin-left:auto;align-self:center;border-radius:50%;background:var(--red-500,#f24822);flex:none}',
     '.cqr-av-dot{position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:var(--red-500,#f24822);box-shadow:0 0 0 2px var(--backgrounds-card-bg-5,#1b1b1b);pointer-events:none}',
     '.cqr-av-pulse{animation:cqr-pulse 1.1s ease-out 2;border-radius:50%}',
     '@keyframes cqr-pulse{0%{box-shadow:0 0 0 0 rgba(13,153,255,.7)}100%{box-shadow:0 0 0 12px rgba(13,153,255,0)}}',
@@ -344,7 +349,7 @@
     '.cqr-kv:last-child{border-bottom:0}',
     '.cqr-kv span{color:var(--text-teritiary)}',
     '.cqr-kv b{font-weight:400;text-align:right}',
-    '@media (prefers-reduced-motion: reduce){.cqr-spin{animation:none}.cqr-drawer{transition:none}}'
+    '@media (prefers-reduced-motion: reduce){.cqr-spin,.is-now > .cqr-sd{animation:none}.cqr-drawer{transition:none}}'
   ].join('\n');
   (document.head || document.documentElement).appendChild(css);
 
@@ -463,7 +468,7 @@
     pmMenu.innerHTML =
       '<button type="button" class="cqr-mi cqr-pm-id" data-cqr-pm="profile">' + (img ? '<img src="' + img.getAttribute('src') + '" alt="" />' : '<span class="av" style="background:#5860ed">S</span>') +
         '<span class="tx"><b>Savio Govindu</b><small>savio.govindu@fractal.ai</small></span></button>' +
-      '<button type="button" class="cqr-mi cqr-mi--req" data-cqr-pm="requests"><span class="ic">' + PM_IC.inbox + '</span><span class="tx"><b>Marketplace requests</b></span>' + (openCount() ? '<span class="cqr-dot" aria-label="Pending requests"></span>' : '') + '</button>' +
+      '<button type="button" class="cqr-mi cqr-mi--req" data-cqr-pm="requests"><span class="ic">' + PM_IC.inbox + '</span><span class="tx"><b>Marketplace requests</b></span>' + (openCount() ? '<span class="cqr-mdot" aria-label="Pending requests"></span>' : '') + '</button>' +
       '<div class="cqr-sep"></div><div class="cqr-menu__h"><span>Settings</span></div>' +
       '<button type="button" class="cqr-mi" data-cqr-pm="wsadmin"><span class="ic">' + PM_IC.gear + '</span><span class="tx"><b>Workspace settings</b><small>' + HOME + ' · users and Marketplace artifacts</small></span></button>' +
       '<button type="button" class="cqr-mi" data-cqr-pm="admin"><span class="ic">' + PM_IC.shield + '</span><span class="tx"><b>Admin panel</b><small>Platform admin · every workspace</small></span></button>' +
