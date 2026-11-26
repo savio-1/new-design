@@ -460,7 +460,7 @@
     if (inShell) parent.postMessage({ cqWsAdd: item }, '*');
     var btn = root.querySelector('[data-cqpa="publish"]'), br = btn && btn.getBoundingClientRect();
     close();
-    if (window.cqHintRequests) window.cqHintRequests(br ? { getBoundingClientRect: function () { return br; } } : null);
+    if (inShell && window.cqHintRequests) return window.cqHintRequests(br ? { getBoundingClientRect: function () { return br; } } : null, { title: 'Sent for review' });
     say('Sent for review. ' + a.name + ' goes to your workspace admin before it is listed on the Marketplace.',
       { label: 'Track', run: function () { if (window.mkwsTrack) window.mkwsTrack(item.ref); } });
   }
