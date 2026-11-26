@@ -16,6 +16,7 @@
     tool: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M9.8 2.2a3.3 3.3 0 0 0-3.9 4.4L2.3 10.2a1.3 1.3 0 0 0 1.8 1.8l3.6-3.6a3.3 3.3 0 0 0 4.4-3.9l-2 2-1.6-.5-.5-1.6 2-2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     skill: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m8 2 1.7 3.6 3.8.5-2.8 2.6.7 3.8L8 10.7l-3.4 1.8.7-3.8-2.8-2.6 3.8-.5L8 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
     guard: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.75 13 3.5v4c0 3-2.2 5.4-5 6.75C5.2 12.9 3 10.5 3 7.5v-4L8 1.75Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    plug: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 2v3M10 2v3M4.5 5h7v2.5a3.5 3.5 0 0 1-7 0V5ZM8 11v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     brain: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.1" opacity=".6"/></svg>',
     doc: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="2" width="9" height="12" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M6 6h4M6 8.5h4M6 11h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
     hitl: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M3.5 13.5a4.5 4.5 0 0 1 9 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
@@ -50,9 +51,82 @@
     return p;
   }
 
+  /* Field by field: what the publisher shared and what stays hidden. A
+     publish request made here carries it; for the others it is read off
+     the artifact, with private details (keys, links, data) hidden. */
+  var SETS = {
+    agent: 'agent_goal agent_backstory task_description expected_output llm_model tools_list guardrails_list max_iter',
+    apiTool: 'connection_id connection_payload pydantic_output_schema',
+    modelInt: 'model custom_llm_provider api_key base_url api_version',
+    apiInt: 'endpoint auth_type request_method bearer_token timeout',
+    skill: 'skill_name skill_description management_tag adls_directory',
+    guardrail: 'guardrail_name guardrail_type guardrail_desc guardrail_content attached_tool'
+  };
+  var WHY = {};
+  [['Secret', 'api_key bearer_token client_secret client_id access_key_id secret_access_key custom_variables'],
+   ['Link', 'endpoint base_url site_id drive_id adls_directory connection_id connection_payload bucket_name bucket_url'],
+   ['Data', 'files knowledge_base']].forEach(function (p) { p[1].split(' ').forEach(function (k) { WHY[k] = p[0]; }); });
+  var WORDS = { llm: 'LLM', id: 'ID', url: 'URL', api: 'API', iter: 'iterations', adls: 'ADLS', pydantic: 'Pydantic', desc: 'description' };
+  var LABEL = { adls_directory: 'Skill files', pydantic_output_schema: 'Output schema', custom_llm_provider: 'Provider', connection_id: 'Connection', connection_payload: 'Connection payload', max_iter: 'Max iterations', llm_model: 'LLM model' };
+  function label(k) { if (LABEL[k]) return LABEL[k]; var t = k.split('_').map(function (w) { return WORDS[w] || w; }).join(' '); return t[0].toUpperCase() + t.slice(1); }
+  function sharingOf(w) {
+    if (w.sharing && w.sharing.length) return w.sharing;
+    var p = parts(w), keys = w.secrets || [], hidden = {};
+    (w.needs || []).forEach(function (n) { (n.fields || []).forEach(function (f) { hidden[n.name + '|' + f.label] = 1; }); });
+    var res = function (rk, name, type, set) {
+      return { rk: rk, name: name, type: type, fields: SETS[set].split(' ').map(function (k) {
+        var why = WHY[k] || '', lb = label(k);
+        var shared = w.needs ? !hidden[name + '|' + lb] && (!why || keys.indexOf(name) >= 0) : (!why || (why === 'Secret' && keys.indexOf(name) >= 0));
+        return { label: lb, why: why, shared: shared };
+      }) };
+    };
+    var out = [];
+    (w.kind === 'automation' ? p.agents : [w.name]).forEach(function (a) { out.push(res('agents', a, 'Standalone agent', 'agent')); });
+    p.tools.forEach(function (t) { out.push(res('tools', t, 'API tool', 'apiTool')); });
+    (w.shared || []).forEach(function (n) { out.push(res('integrations', n, 'Integration', 'apiInt')); });
+    out.push(res('models', p.model, 'Model integration', 'modelInt'));
+    p.skills.forEach(function (t) { out.push(res('skills', t, 'Skill', 'skill')); });
+    p.guards.forEach(function (t) { out.push(res('guardrails', t, 'Guardrail', 'guardrail')); });
+    return out;
+  }
+  var GROUPS = [['agents', 'Agents', 'agent'], ['tools', 'Tools', 'tool'], ['integrations', 'Integrations', 'plug'], ['models', 'Models', 'brain'], ['skills', 'Skills', 'skill'], ['guardrails', 'Guardrails', 'guard']];
+
   var css = document.createElement('style');
   css.textContent = [
-    '.cqv{position:fixed;inset:0;z-index:900;display:flex;flex-direction:column;background:var(--backgrounds-page-bg-1,#121212);color:var(--text-primary);font-family:var(--font-geist);opacity:0;transition:opacity .18s ease}',
+    '.cqv{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(18,18,18,.65);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);color:var(--text-primary);font-family:var(--font-geist);opacity:0;transition:opacity .18s ease}',
+    '.cqv-box{width:min(1240px,100%);height:min(820px,100%);display:flex;flex-direction:column;overflow:hidden;border-radius:14px;background:var(--backgrounds-page-bg-2);border:1px solid var(--strokes-card-default);box-shadow:0 24px 60px rgba(0,0,0,.5);transform:translateY(8px) scale(.99);transition:transform .22s cubic-bezier(.2,.8,.2,1)}',
+    '.cqv.is-shown .cqv-box{transform:none}',
+    '.cqv-tabs{display:flex;gap:20px;padding:0 16px;border-bottom:1px solid var(--strokes-line-3);flex:none}',
+    '.cqv-tabs button{position:relative;padding:12px 0;border:0;background:none;cursor:pointer;color:var(--text-teritiary);font:500 13px/18px var(--font-geist)}',
+    '.cqv-tabs button[aria-selected="true"]{color:var(--text-primary)}',
+    '.cqv-tabs button[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;background:var(--text-coloured-blue)}',
+    '.cqv-pane{flex:1 1 auto;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}',
+    '.cqv-pane > *{flex:none}',
+    '.cqv-sum{display:flex;gap:8px}',
+    '.cqv-sum div{flex:1 1 0;padding:10px 12px;border-radius:10px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2)}',
+    '.cqv-sum b{display:block;font:500 18px/24px var(--font-geist)}',
+    '.cqv-sum span{color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.cqv-warn{display:flex;gap:8px;padding:8px 10px;border-radius:8px;background:var(--backgrounds-badge-orange);border:1px solid var(--strokes-colour-orange);color:var(--text-coloured-orange);font:400 12px/16px var(--font-geist)}',
+    '.cqv-grp{color:var(--text-teritiary);font:500 11px/16px var(--font-geist);letter-spacing:.04em;margin-top:4px}',
+    '.cqv-res{border-radius:10px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);overflow:hidden}',
+    '.cqv-res.is-hl{border-color:var(--strokes-card-selected,#0d99ff)}',
+    '.cqv-res__h{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border:0;background:none;cursor:pointer;text-align:left;color:inherit}',
+    '.cqv-res__ic{width:28px;height:28px;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
+    '.cqv-res__h .tx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}',
+    '.cqv-res__h b{font:500 13px/18px var(--font-geist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.cqv-res__h small{color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.cqv-res__n{flex:none;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
+    '.cqv-res__chev{flex:none;color:var(--text-teritiary);transition:transform .15s}',
+    '.cqv-res.is-open .cqv-res__chev{transform:rotate(180deg)}',
+    '.cqv-res__f{display:flex;flex-direction:column;padding:0 12px 8px}',
+    '.cqv-fr{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px dashed var(--strokes-line-3);font:400 12px/16px var(--font-geist)}',
+    '.cqv-fr .l{flex:1 1 auto;min-width:0}',
+    '.cqv-why{padding:0 5px;border-radius:4px;border:1px solid var(--strokes-card-default);color:var(--text-teritiary);font:400 10px/14px var(--font-geist)}',
+    '.cqv-why.is-secret{border-color:var(--strokes-colour-orange);color:var(--text-coloured-orange)}',
+    '.cqv-st{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:10px;font:500 11px/14px var(--font-geist);white-space:nowrap}',
+    '.cqv-st.is-on{background:var(--backgrounds-badge-green);color:var(--text-coloured-green)}',
+    '.cqv-st.is-off{background:var(--backgrounds-card-bg-4);color:var(--text-teritiary)}',
+    '.cqv-st.is-key{background:var(--backgrounds-badge-orange);color:var(--text-coloured-orange)}',
     '.cqv.is-shown{opacity:1}',
     '.cqv button{font-family:inherit}',
     '.cqv-top{flex:none;height:52px;display:flex;align-items:center;gap:12px;padding:8px 16px;background:var(--backgrounds-card-bg-5);border-bottom:1px solid var(--strokes-line-1)}',
@@ -68,7 +142,7 @@
     '.cqv-btn--primary{background:var(--backgrounds-button-primary);color:#fff}',
     '.cqv-main{flex:1 1 auto;min-height:0;display:flex}',
     '.cqv-canvas{position:relative;flex:1 1 auto;min-width:0;overflow:auto;background-color:var(--backgrounds-page-bg-1,#121212);background-image:radial-gradient(circle,var(--strokes-line-3) 1.1px,transparent 1.2px);background-size:16px 16px}',
-    '.cqv-stage{position:relative;margin:40px auto 80px;padding:0}',
+    '.cqv-stage{position:relative;margin:32px auto 48px;padding:0}',
     '.cqv-wires{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}',
     '.cqv-wires path{fill:none;stroke:var(--strokes-line-1);stroke-width:1.5}',
     '.cqv-node{position:absolute;display:flex;flex-direction:column;gap:4px;align-items:flex-start}',
@@ -93,7 +167,7 @@
     '.cqv-chip{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:7px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-4);color:var(--text-primary);cursor:pointer;font:400 12px/16px var(--font-geist)}',
     '.cqv-chip:hover{border-color:var(--strokes-card-selected)}',
     '.cqv-chip svg{color:var(--text-teritiary)}',
-    '.cqv-side{flex:none;width:360px;overflow-y:auto;background:var(--backgrounds-card-bg-5);border-left:1px solid var(--strokes-line-3);padding:16px;display:flex;flex-direction:column;gap:16px}',
+    '.cqv-side{flex:none;width:420px;display:flex;flex-direction:column;min-height:0;background:var(--backgrounds-card-bg-5);border-left:1px solid var(--strokes-line-3)}',
     '.cqv-lbl{color:var(--text-teritiary);font:500 12px/16px var(--font-geist);letter-spacing:.02em}',
     '.cqv-p{margin:0;color:var(--text-secondary);font:400 13px/19px var(--font-geist)}',
     '.cqv-kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--strokes-line-3);font:400 13px/18px var(--font-geist)}',
@@ -124,26 +198,33 @@
   function open(w, role) {
     if (!w) return;
     close();
-    V = { w: w, role: role, p: parts(w), sel: null };
+    V = { w: w, role: role, p: parts(w), sel: null, tab: 'shared', open: {}, sh: sharingOf(w) };
+    if (V.sh[0]) V.open[V.sh[0].name] = true;
     var st = stageFor(w, role);
     var el = document.createElement('section');
     el.className = 'cqv'; el.id = 'cqv';
     el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Review ' + w.name);
-    el.innerHTML =
+    el.innerHTML = '<div class="cqv-box">' +
       '<header class="cqv-top">' +
-        '<button type="button" class="cqv-back" data-cqv-close aria-label="Back to approvals">' + IC.back + '</button>' +
+        '' +
         '<span class="cqv-title">' + (w.kind === 'automation' ? IC.flow : IC.agent) + '<span class="n">' + E(w.name) + '</span></span>' +
         '<span class="cqv-tag cqv-tag--view">' + IC.eye + 'View only</span>' +
         '<span class="cqv-tag">' + E(w.workspace || CR.HOME) + '</span>' + CR.typeTag(w) +
         '<span class="cqv-sp"></span>' +
         (st ? '<button type="button" class="cqv-btn cqv-btn--ghost" data-cqv-decide="0">Reject</button><button type="button" class="cqv-btn cqv-btn--primary" data-cqv-decide="1">Approve</button>'
             : CR.pill(w)) +
+        '<button type="button" class="cqv-x" data-cqv-close aria-label="Close">' + IC.close + '</button>' +
       '</header>' +
       '<div class="cqv-main"><div class="cqv-canvas" id="cqvCanvas"><div class="cqv-stage" id="cqvStage"><svg class="cqv-wires" id="cqvWires"></svg></div></div>' +
-        '<aside class="cqv-side" id="cqvSide"></aside></div>';
+        '<aside class="cqv-side" id="cqvSide"></aside></div></div>';
     document.body.appendChild(el);
     if (w.kind === 'automation') paintFlow(); else paintAgent();
     paintSide();
+    /* The agent layout is wide: fit it to the canvas. */
+    requestAnimationFrame(function () {
+      var c = $('cqvCanvas'), st2 = $('cqvStage'); if (!c || !st2) return;
+      var z = Math.min(1, (c.clientWidth - 48) / st2.offsetWidth); if (z < 1) st2.style.zoom = z.toFixed(3);
+    });
     requestAnimationFrame(function () { el.classList.add('is-shown'); });
   }
   function close() { var el = $('cqv'); if (el) el.remove(); closeModal(); V = null; }
@@ -214,31 +295,51 @@
      or the selected agent of an automation. */
   function paintSide() {
     var w = V.w, p = V.p, side = $('cqvSide'), st = stageFor(w, V.role);
-    var n = V.sel && (V.nodes || []).filter(function (x) { return x.id === V.sel; })[0];
-    if (n) {
-      side.innerHTML = '<span class="cqv-lbl">AGENT</span><div style="font:500 16px/22px var(--font-geist)">' + E(n.name) + '</div>' +
-        '<p class="cqv-p">Part of ' + E(w.name) + '. It runs on ' + E(p.model) + '.</p>' +
-        '<span class="cqv-lbl">TOOLS</span>' + (n.tools.length ? chips(n.tools, 'tool') : '<p class="cqv-p">None</p>') +
-        '<span class="cqv-lbl">SKILLS</span>' + chips(p.skills.slice(0, 2), 'skill') +
-        '<span class="cqv-lbl">GUARDRAILS</span>' + chips(p.guards, 'guardrail') +
-        '<button type="button" class="cqr-open" data-cqv-desel>' + IC.back + 'Back to the request</button>';
+    var tabs = '<div class="cqv-tabs" role="tablist"><button type="button" role="tab" data-cqv-tab="shared" aria-selected="' + (V.tab === 'shared') + '">What’s shared</button>' +
+      '<button type="button" role="tab" data-cqv-tab="req" aria-selected="' + (V.tab === 'req') + '">Request</button></div>';
+    if (V.tab === 'req') {
+      side.innerHTML = tabs + '<div class="cqv-pane">' +
+        '<span class="cqv-lbl">ABOUT</span><p class="cqv-p">' + E(w.about || w.desc) + '</p>' +
+        '<div>' +
+          '<div class="cqv-kv"><span>Workspace</span><b>' + E(w.workspace || CR.HOME) + '</b></div>' +
+          '<div class="cqv-kv"><span>Requested by</span><b>' + E(w.requester || 'Savio Govindu') + '</b></div>' +
+          (w.publisher ? '<div class="cqv-kv"><span>Publisher</span><b>' + E(w.publisher) + '</b></div>' : '') +
+          (w.industry ? '<div class="cqv-kv"><span>Industry · Domain</span><b>' + E(w.industry + ' · ' + (w.func || '—')) + '</b></div>' : '') +
+        '</div>' +
+        (st ? '<span class="cqv-lbl">YOUR DECISION · ' + E(st.name.toUpperCase()) + '</span><textarea class="cqv-note" id="cqvNote" placeholder="Note for the requester (optional)">' + E(V.note || '') + '</textarea>' +
+              '<p class="cqv-p">Approve or reject from the top bar.</p>' : '') +
+        '</div>';
       return;
     }
-    side.innerHTML =
-      '<span class="cqv-lbl">ABOUT</span><p class="cqv-p">' + E(w.about || w.desc) + '</p>' +
-      '<div>' +
-        '<div class="cqv-kv"><span>Workspace</span><b>' + E(w.workspace || CR.HOME) + '</b></div>' +
-        '<div class="cqv-kv"><span>Requested by</span><b>' + E(w.requester || 'Savio Govindu') + '</b></div>' +
-        (w.publisher ? '<div class="cqv-kv"><span>Publisher</span><b>' + E(w.publisher) + '</b></div>' : '') +
-        (w.industry ? '<div class="cqv-kv"><span>Industry · Domain</span><b>' + E(w.industry + ' · ' + (w.func || '—')) + '</b></div>' : '') +
-        (w.sharedSummary ? '<div class="cqv-kv"><span>Shared</span><b>' + E(String(w.sharedSummary).split(' · ')[0]) + '</b></div>' : '') +
-        (w.secrets && w.secrets.length ? '<div class="cqv-kv"><span>Keys included</span><b>' + E(w.secrets.join(', ')) + '</b></div>' : '') +
-      '</div>' +
-      '<span class="cqv-lbl">WHAT IT USES</span>' +
-      '<div class="cqv-chips"><span class="cqv-chip" style="cursor:default">' + IC.brain + E(p.model) + '</span></div>' +
-      chips(p.tools, 'tool') + chips(p.skills, 'skill') + chips(p.guards, 'guardrail') +
-      (st ? '<span class="cqv-lbl">YOUR DECISION · ' + E(st.name.toUpperCase()) + '</span><textarea class="cqv-note" id="cqvNote" placeholder="Note for the requester (optional)"></textarea>' +
-            '<p class="cqv-p">Approve or reject from the top bar.</p>' : '');
+    var all = 0, on = 0, keys = [];
+    V.sh.forEach(function (r) { r.fields.forEach(function (f) { all++; if (f.shared) { on++; if (f.why === 'Secret') keys.push(r.name); } }); });
+    keys = keys.filter(function (k, i) { return keys.indexOf(k) === i; });
+    var html = '<div class="cqv-sum"><div><b>' + on + '</b><span>Shared</span></div><div><b>' + (all - on) + '</b><span>Kept hidden</span></div><div><b>' + V.sh.length + '</b><span>Resources</span></div></div>' +
+      (keys.length ? '<div class="cqv-warn">' + IC.lock + '<span>The publisher’s keys are shared for ' + E(keys.join(', ')) + '. Anyone who adds it runs on their account.</span></div>' : '') +
+      '<p class="cqv-p">' + (w.flow === 'publish' ? 'What the publisher chose to send with it. Hidden details are filled in by whoever adds it.' : 'What the publisher shared. Hidden details are filled in by your workspace after it is added.') + '</p>';
+    GROUPS.forEach(function (g) {
+      var list = V.sh.filter(function (r) { return r.rk === g[0]; });
+      if (!list.length) return;
+      html += '<span class="cqv-grp">' + g[1].toUpperCase() + '</span>';
+      list.forEach(function (r) {
+        var n = r.fields.filter(function (f) { return f.shared; }).length, open = !!V.open[r.name];
+        html += '<div class="cqv-res' + (open ? ' is-open' : '') + (V.hl === r.name ? ' is-hl' : '') + '" data-cqv-res-box="' + E(r.name) + '">' +
+          '<button type="button" class="cqv-res__h" data-cqv-res="' + E(r.name) + '"><span class="cqv-res__ic">' + (IC[g[2]] || IC.tool) + '</span>' +
+            '<span class="tx"><b>' + E(r.name) + '</b><small>' + E(r.type) + '</small></span><span class="cqv-res__n">' + n + ' of ' + r.fields.length + ' shared</span>' +
+            '<svg class="cqv-res__chev" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+          (open ? '<div class="cqv-res__f">' + r.fields.map(function (f) {
+            var st2 = f.shared ? (f.why === 'Secret' ? '<span class="cqv-st is-key">' + IC.eye + 'Shared key</span>' : '<span class="cqv-st is-on">' + IC.eye + 'Shared</span>') : '<span class="cqv-st is-off">' + IC.lock + 'Hidden</span>';
+            return '<div class="cqv-fr"><span class="l">' + E(f.label) + '</span>' + (f.why ? '<span class="cqv-why' + (f.why === 'Secret' ? ' is-secret' : '') + '">' + E(f.why) + '</span>' : '') + st2 + '</div>';
+          }).join('') + '</div>' : '') + '</div>';
+      });
+    });
+    side.innerHTML = tabs + '<div class="cqv-pane" id="cqvPane">' + html + '</div>';
+  }
+  /* From the canvas: open that resource's fields on the right. */
+  function focusRes(name) {
+    if (!V.sh.some(function (r) { return r.name === name; })) return;
+    V.tab = 'shared'; V.open[name] = true; V.hl = name; paintSide();
+    var el = document.querySelector('[data-cqv-res-box="' + name.replace(/"/g, '\\"') + '"]'); if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   /* A tool, skill or guardrail opens in a modal. */
@@ -258,7 +359,11 @@
       '<div class="cqv-dlg__h"><span class="cqv-b ' + cls + '">' + ic + kind.charAt(0).toUpperCase() + kind.slice(1) + '</span><h3>' + E(name) + '</h3><button type="button" class="cqv-x" data-cqv-mclose aria-label="Close">' + IC.close + '</button></div>' +
       '<div class="cqv-dlg__b"><p class="cqv-p">' + DESC[kind] + ' Used by ' + E(V.w.name) + '.</p>' +
         '<span class="cqv-lbl">DETAILS</span>' +
-        FIELDS[kind].map(function (f) { return '<div class="cqv-field' + (f[1] ? '' : ' is-priv') + '"><span>' + f[0] + '</span><b>' + (f[1] ? E(f[1]) : IC.lock + 'Kept private') + '</b></div>'; }).join('') +
+        (function () {
+          var r = V.sh.filter(function (x) { return x.name === name; })[0];
+          if (!r) return FIELDS[kind].map(function (f) { return '<div class="cqv-field' + (f[1] ? '' : ' is-priv') + '"><span>' + f[0] + '</span><b>' + (f[1] ? E(f[1]) : IC.lock + 'Kept private') + '</b></div>'; }).join('');
+          return r.fields.map(function (f) { return '<div class="cqv-field' + (f.shared ? '' : ' is-priv') + '"><span>' + E(f.label) + (f.why ? ' · ' + E(f.why) : '') + '</span><b>' + (f.shared ? IC.eye + ' Shared' : IC.lock + 'Hidden') + '</b></div>'; }).join('');
+        })() +
         '<p class="cqv-p">Private details stay with the publisher and are filled in by whoever adds it.</p>' +
       '</div></div>';
     document.body.appendChild(m);
@@ -269,17 +374,21 @@
     var t = e.target, x;
     if ($('cqvModal') && (t.id === 'cqvModal' || t.closest('[data-cqv-mclose]'))) return closeModal();
     if (!V) return;
-    if ((x = t.closest('[data-cqv-item]'))) { var k = x.getAttribute('data-cqv-item').split('|'); e.stopPropagation(); return openModal(k[0], k.slice(1).join('|')); }
+    if ((x = t.closest('[data-cqv-item]'))) { var k = x.getAttribute('data-cqv-item').split('|'); e.stopPropagation(); focusRes(k.slice(1).join('|')); return openModal(k[0], k.slice(1).join('|')); }
+    if ((x = t.closest('[data-cqv-tab]'))) { var nt = $('cqvNote'); if (nt) V.note = nt.value; V.tab = x.getAttribute('data-cqv-tab'); return paintSide(); }
+    if ((x = t.closest('[data-cqv-res]'))) { var rn = x.getAttribute('data-cqv-res'); V.open[rn] = !V.open[rn]; V.hl = null; return paintSide(); }
+    if (t.id === 'cqv') return close();
     if (t.closest('[data-cqv-close]')) return close();
     if ((x = t.closest('[data-cqv-pick]'))) {
       V.sel = x.getAttribute('data-cqv-pick');
       document.querySelectorAll('.cqv-node').forEach(function (n) { n.classList.toggle('is-sel', n.getAttribute('data-cqv-node') === V.sel); });
-      return paintSide();
+      var node = (V.nodes || []).filter(function (n) { return n.id === V.sel; })[0];
+      return node ? focusRes(node.name) : paintSide();
     }
     if (t.closest('[data-cqv-desel]')) { V.sel = null; document.querySelectorAll('.cqv-node.is-sel').forEach(function (n) { n.classList.remove('is-sel'); }); return paintSide(); }
     if ((x = t.closest('[data-cqv-decide]'))) {
       var st = stageFor(V.w, V.role); if (!st) return;
-      var ok = x.getAttribute('data-cqv-decide') === '1', note = ($('cqvNote') || {}).value || '', name = V.w.name;
+      var ok = x.getAttribute('data-cqv-decide') === '1', note = ($('cqvNote') || {}).value || V.note || '', name = V.w.name;
       CR.decide(V.w.ref, st.k, ok, note.trim());
       close();
       if (window.mkwsSay) window.mkwsSay((ok ? 'Approved ' : 'Rejected ') + name);

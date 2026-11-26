@@ -144,7 +144,8 @@
     '.rq-who{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}',
     '.rq-who i{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font:600 10px/1 var(--font-geist);font-style:normal}',
     '.rq-you{margin-left:2px;padding:0 5px;border-radius:4px;background:var(--backgrounds-card-bg-4);color:var(--text-teritiary);font:400 10px/14px var(--font-geist)}',
-    '.rq-end{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:11px;font:500 11px/14px var(--font-geist)}',
+    '.rq-end{display:inline-flex;align-items:center;gap:5px;height:22px;box-sizing:border-box;padding:0 8px 0 7px;border-radius:11px;font:500 11px/1 var(--font-geist)}',
+    '.rq-end svg{flex:none;display:block}',
     '.rq-end.is-ok{background:var(--backgrounds-badge-green);color:var(--text-coloured-green)}',
     '.rq-end.is-rej{background:var(--backgrounds-badge-red);color:var(--text-coloured-red)}',
     '.rq-empty{padding:40px 16px;text-align:center;color:var(--text-teritiary);font:400 13px/18px var(--font-geist);border:1px dashed var(--strokes-card-default);border-radius:12px}',
@@ -191,7 +192,7 @@
       (rows.length ? '<table class="cqr-table"><thead><tr><th>Artifact</th><th>Requested by</th><th>Requested</th><th>Status</th><th>Request</th><th></th></tr></thead><tbody>' +
         rows.map(function (w) {
           var st = stateOf(w), s = st[2], who = w.requester || 'Savio Govindu';
-          var status = st[1] === 'Live' || st[1] === 'Added' ? '<span class="rq-end is-ok">✓ ' + st[1] + '</span>' : st[1] === 'Rejected' ? '<span class="rq-end is-rej">✕ Rejected</span>' : CR.statusCell(w, s);
+          var status = st[1] === 'Live' || st[1] === 'Added' ? '<span class="rq-end is-ok"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' + st[1] + '</span>' : st[1] === 'Rejected' ? '<span class="rq-end is-rej"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="m4.5 4.5 7 7m0-7-7 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Rejected</span>' : CR.statusCell(w, s);
           var act = st[1] === 'Ready' ? '<button type="button" class="cqr-act" data-rq-add="' + E(w.ref) + '">Add</button>'
             : '<button type="button" class="cqr-act cqr-act--ghost" data-rq-open="' + E(w.ref) + '">' + (st[0] === 'open' ? 'Track' : 'View') + '</button>';
           return '<tr data-rq-open="' + E(w.ref) + '"' + (V.sel === w.ref ? ' class="is-sel"' : '') + '>' +

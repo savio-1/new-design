@@ -244,7 +244,7 @@
     '.mkreq-row .mkreq-mark{width:40px;height:40px;border-radius:10px}',
     '.mkreq-row .mkreq-id{gap:3px}',
     '.mkreq-id > .cqr-pill{align-self:flex-start}',
-    '.mkreq-row .mkreq-id .mkreq-pill{align-self:flex-start;height:18px;margin-bottom:6px;padding:0 6px;font-size:10px}',
+    '.mkreq-row .mkreq-id .mkreq-pill{align-self:flex-start;height:22px;margin-bottom:6px;padding:0 8px 0 7px;font-size:11px}',
     '.mkreq-mark{width:36px;height:36px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
     '.mkreq-id{display:flex;flex-direction:column;gap:2px;min-width:0}',
     '.mkreq-id .t{color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',

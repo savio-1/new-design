@@ -453,10 +453,15 @@
     if (P.err.about || P.err.industry || P.err.func) return paint();
     var a = P.a, now = Date.now();
     var secrets = P.res.filter(function (r) { return r.fields.some(function (f) { return f.why === 'Secret' && P.on[r.id].has(f.k); }); }).map(function (r) { return r.name; });
+    var names = function (rk) { return P.res.filter(function (r) { return r.rk === rk; }).map(function (r) { return r.name; }); };
     var slug = a.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     var item = { ref: 'pub:' + PAGE + ':' + slug + ':' + now, kind: PAGE, flow: 'publish', status: 'requested',
       name: a.name, desc: a.desc, about: P.about.trim(), industry: P.industry, func: P.func, publisher: 'You', requester: 'Savio Govindu', workspace: 'Finance',
-      model: a.model || undefined, secrets: secrets, sharedSummary: summary().text, requestedAt: now, added: now, needs: [], config: { done: {} } };
+      model: a.model || undefined, secrets: secrets, sharedSummary: summary().text,
+      /* Field by field, what goes along and what stays hidden, for the admins who review it. */
+      tools: names('tools'), skills: names('skills'), guards: names('guardrails'), agents: PAGE === 'automation' ? names('agents') : undefined,
+      sharing: P.res.map(function (r) { return { rk: r.rk, name: r.name, type: r.type, fields: r.fields.map(function (f) { return { label: f.label, why: f.why, shared: P.on[r.id].has(f.k) }; }) }; }),
+      requestedAt: now, added: now, needs: [], config: { done: {} } };
     if (inShell) parent.postMessage({ cqWsAdd: item }, '*');
     var btn = root.querySelector('[data-cqpa="publish"]'), br = btn && btn.getBoundingClientRect();
     close();
