@@ -261,6 +261,19 @@
     '.cqr-mi--admin{align-items:center}',
     '.cqr-mi--admin .ic{background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
     '.cqr-menu--pm{width:280px}',
+    '.cqr-mi--req{align-items:center}',
+    '.cqr-dot{width:8px;height:8px;margin-left:auto;align-self:center;border-radius:50%;background:var(--red-500,#f24822);flex:none}',
+    '.cqr-av-dot{position:absolute;top:0;right:0;width:9px;height:9px;border-radius:50%;background:var(--red-500,#f24822);box-shadow:0 0 0 2px var(--backgrounds-card-bg-5,#1b1b1b);pointer-events:none}',
+    '.cqr-av-pulse{animation:cqr-pulse 1.1s ease-out 2;border-radius:50%}',
+    '@keyframes cqr-pulse{0%{box-shadow:0 0 0 0 rgba(13,153,255,.7)}100%{box-shadow:0 0 0 12px rgba(13,153,255,0)}}',
+    '.cqr-fly{position:fixed;z-index:700;width:10px;height:10px;border-radius:50%;background:var(--backgrounds-button-primary,#0d99ff);box-shadow:0 0 12px rgba(13,153,255,.8);pointer-events:none;transition:transform .6s cubic-bezier(.5,0,.3,1),opacity .6s ease}',
+    '.cqr-hint{position:fixed;z-index:650;width:280px;display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:12px;background:var(--backgrounds-page-bg-2);border:1px solid var(--backgrounds-button-primary,#0d99ff);box-shadow:0 10px 30px rgba(0,0,0,.4);color:var(--text-primary);cursor:pointer;opacity:0;transform:translateY(-6px);transition:opacity .2s ease,transform .25s ease}',
+    '.cqr-hint.is-shown{opacity:1;transform:none}',
+    '.cqr-hint::before{content:"";position:absolute;top:-6px;right:12px;width:10px;height:10px;transform:rotate(45deg);background:var(--backgrounds-page-bg-2);border-left:1px solid var(--backgrounds-button-primary,#0d99ff);border-top:1px solid var(--backgrounds-button-primary,#0d99ff)}',
+    '.cqr-hint__ic{width:28px;height:28px;flex:none;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
+    '.cqr-hint b{display:block;font:500 13px/18px var(--font-geist)}',
+    '.cqr-hint small{display:block;margin-top:2px;color:var(--text-secondary);font:400 12px/16px var(--font-geist)}',
+    'body.cqr-hinting .mk-tidbit, body.cqr-hinting .mkws-tidbit, body.cqr-hinting #rqToast{top:176px !important}',
     '.cqr-menu--pm .cqr-mi .ic{background:var(--backgrounds-card-bg-4);color:var(--text-secondary)}',
     '.cqr-pm-id img{width:34px;height:34px;border-radius:50%;flex:none}',
     '.cqr-pm-id .av{width:34px !important;height:34px !important;border-radius:50% !important}',
@@ -387,10 +400,51 @@
   };
   var themePref = null;
   /* What the workspace has open with the Marketplace, for the menu line. */
-  function openReqs() {
-    var n = ITEMS.filter(function (w) { var st = stageOf(w); return (isPub(w) && st.state !== 'done' && st.state !== 'rejected') || (!isPub(w) && w.status === 'requested' && st.state !== 'rejected'); }).length;
-    return n ? n + ' open · track your workspace’s requests' : 'Track your workspace’s requests';
+  function openCount() {
+    return ITEMS.filter(function (w) { var st = stageOf(w); return (isPub(w) && st.state !== 'done' && st.state !== 'rejected') || (!isPub(w) && w.status === 'requested' && st.state !== 'rejected'); }).length;
   }
+  /* A red dot on the avatar while anything is pending. */
+  function avatarEl() { return document.querySelector('.cq-pm-trigger') || document.querySelector('.hdr-avatar, .ad-avatar'); }
+  setInterval(function () {
+    var a = avatarEl(); if (!a) return;
+    var img = a.tagName === 'IMG', host = img ? a.offsetParent : a;
+    if (!host) return;
+    if (!img && getComputedStyle(host).position === 'static') host.style.position = 'relative';
+    var d = host.querySelector(':scope > .cqr-av-dot');
+    if (openCount()) {
+      if (!d) { d = document.createElement('span'); d.className = 'cqr-av-dot'; host.appendChild(d); }
+      if (img) { d.style.left = (a.offsetLeft + a.offsetWidth - 8) + 'px'; d.style.top = a.offsetTop + 'px'; d.style.right = 'auto'; }
+    } else if (d) d.remove();
+  }, 800);
+  /* Where requests are tracked, shown the moment one is made: a dot
+     travels from the button to the avatar, the avatar pulses, and a
+     small card under it says where to look. */
+  window.cqHintRequests = function (fromEl) {
+    var a = avatarEl(); if (!a) return;
+    var to = a.getBoundingClientRect(), from = fromEl && fromEl.getBoundingClientRect ? fromEl.getBoundingClientRect() : null;
+    var show = function () {
+      a.classList.remove('cqr-av-pulse'); void a.offsetWidth; a.classList.add('cqr-av-pulse');
+      var old = document.getElementById('cqrHint'); if (old) old.remove();
+      var h = document.createElement('div'); h.id = 'cqrHint'; h.className = 'cqr-hint'; h.setAttribute('role', 'status');
+      h.innerHTML = '<span class="cqr-hint__ic">' + PM_IC.inbox + '</span><span><b>Track it from here</b><small>Open your profile menu and choose Marketplace requests to see where it stands.</small></span>';
+      document.body.appendChild(h);
+      h.style.top = Math.round(to.bottom + 12) + 'px';
+      h.style.right = Math.max(8, Math.round(window.innerWidth - to.right - 6)) + 'px';
+      document.body.classList.add('cqr-hinting');
+      requestAnimationFrame(function () { h.classList.add('is-shown'); });
+      h.onclick = function () { h.remove(); document.body.classList.remove('cqr-hinting'); openProfile(a); };
+      setTimeout(function () { h.classList.remove('is-shown'); document.body.classList.remove('cqr-hinting'); setTimeout(function () { h.remove(); }, 250); }, 6000);
+    };
+    if (!from) return show();
+    var dot = document.createElement('span'); dot.className = 'cqr-fly';
+    dot.style.left = (from.left + from.width / 2 - 5) + 'px'; dot.style.top = (from.top + from.height / 2 - 5) + 'px';
+    document.body.appendChild(dot);
+    requestAnimationFrame(function () {
+      dot.style.transform = 'translate(' + (to.left + to.width / 2 - (from.left + from.width / 2)) + 'px,' + (to.top + to.height / 2 - (from.top + from.height / 2)) + 'px) scale(.6)';
+      dot.style.opacity = '.9';
+    });
+    setTimeout(function () { dot.remove(); show(); }, 650);
+  };
   function openProfile(btn) {
     if (!pmMenu) { pmMenu = document.createElement('div'); pmMenu.hidden = true; pmMenu.className = 'cqr-menu cqr-menu--pm'; pmMenu.setAttribute('role', 'menu'); document.body.appendChild(pmMenu); }
     var was = !pmMenu.hidden;
@@ -402,7 +456,7 @@
     pmMenu.innerHTML =
       '<button type="button" class="cqr-mi cqr-pm-id" data-cqr-pm="profile">' + (img ? '<img src="' + img.getAttribute('src') + '" alt="" />' : '<span class="av" style="background:#5860ed">S</span>') +
         '<span class="tx"><b>Savio Govindu</b><small>savio.govindu@fractal.ai</small></span></button>' +
-      '<button type="button" class="cqr-mi" data-cqr-pm="requests"><span class="ic">' + PM_IC.inbox + '</span><span class="tx"><b>Marketplace requests</b><small>' + openReqs() + '</small></span></button>' +
+      '<button type="button" class="cqr-mi cqr-mi--req" data-cqr-pm="requests"><span class="ic">' + PM_IC.inbox + '</span><span class="tx"><b>Marketplace requests</b></span>' + (openCount() ? '<span class="cqr-dot" aria-label="Pending requests"></span>' : '') + '</button>' +
       '<div class="cqr-sep"></div><div class="cqr-menu__h"><span>Settings</span></div>' +
       '<button type="button" class="cqr-mi" data-cqr-pm="wsadmin"><span class="ic">' + PM_IC.gear + '</span><span class="tx"><b>Workspace settings</b><small>' + HOME + ' · users and Marketplace artifacts</small></span></button>' +
       '<button type="button" class="cqr-mi" data-cqr-pm="admin"><span class="ic">' + PM_IC.shield + '</span><span class="tx"><b>Admin panel</b><small>Platform admin · every workspace</small></span></button>' +

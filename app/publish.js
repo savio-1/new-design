@@ -399,7 +399,9 @@
       name: a.name, desc: a.desc, about: P.about.trim(), industry: P.industry, func: P.func, publisher: 'You', requester: 'Savio Govindu', workspace: 'Finance',
       model: a.model || undefined, secrets: secrets, sharedSummary: summary().text, requestedAt: now, added: now, needs: [], config: { done: {} } };
     if (inShell) parent.postMessage({ cqWsAdd: item }, '*');
+    var btn = root.querySelector('[data-cqpa="publish"]'), br = btn && btn.getBoundingClientRect();
     close();
+    if (window.cqHintRequests) window.cqHintRequests(br ? { getBoundingClientRect: function () { return br; } } : null);
     say('Sent for review. ' + a.name + ' goes to your workspace admin before it is listed on the Marketplace.',
       { label: 'Track', run: function () { if (window.mkwsTrack) window.mkwsTrack(item.ref); } });
   }
