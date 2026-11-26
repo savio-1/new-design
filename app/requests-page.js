@@ -53,7 +53,13 @@
     guardrail: ['Guardrail', 'Guardrails', '<path d="M8 1.75 13 3.5v4c0 3-2.2 5.4-5 6.75C5.2 12.9 3 10.5 3 7.5v-4L8 1.75Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>', 'red']
   };
   function kindOf(w) { return KIND[w.kind] ? w.kind : 'agent'; }
-  function icon(w, size) { var k = KIND[kindOf(w)]; return '<span class="rq-ic rq-ic--' + k[3] + '"' + (size ? ' style="width:' + size + 'px;height:' + size + 'px"' : '') + '><svg width="16" height="16" viewBox="0 0 16 16" fill="none">' + k[2] + '</svg></span>'; }
+  /* The Marketplace's own type tiles: the design system icon on its gradient. */
+  var TILE = { agent: ['ic-pp_agent', 'blue'], automation: ['ic-pp_automation', 'teal'], assistant: ['ic-pp_aiassistant', 'indigo'],
+    tool: ['ic-pp_toolsskills', 'orange'], skill: ['ic-pp_skill', 'purple'], guardrail: ['ic-pp_guardrails', 'green'] };
+  function icon(w, size) {
+    var t = TILE[kindOf(w)], n = size || 32, g = n > 32 ? 20 : 16;
+    return '<span class="rq-tile rq-tile--' + t[1] + '" style="width:' + n + 'px;height:' + n + 'px;border-radius:' + (n > 32 ? 10 : 8) + 'px"><svg width="' + g + '" height="' + g + '" viewBox="0 0 16 16"><use href="#' + t[0] + '"/></svg></span>';
+  }
 
   /* ── What teammates asked for, alongside your own ── */
   var now = Date.now(), H = 3600000;
@@ -94,6 +100,14 @@
     '.rq-stat span{color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
     '.rq-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
     '.rq-sp{flex:1 1 auto}',
+    '.rq-tile{flex:none;display:inline-flex;align-items:center;justify-content:center;color:#fff}',
+    '.rq-tile svg{color:#fff}',
+    '.rq-tile--blue{background-image:linear-gradient(225.24deg,#007be5 8.84%,#0d99ff 54.42%,#bde3ff 100%)}',
+    '.rq-tile--teal{background-image:linear-gradient(225.24deg,#009951 8.84%,#14ae5c 54.42%,#6ed3f2 100%)}',
+    '.rq-tile--indigo{background-image:linear-gradient(225.24deg,#454de0 8.84%,#5860ed 54.42%,#c2c5fa 100%)}',
+    '.rq-tile--orange{background-image:linear-gradient(225.24deg,#dd7c0e 8.84%,#fc9e24 54.42%,#fcd19c 100%)}',
+    '.rq-tile--purple{background-image:linear-gradient(225.24deg,#8638e5 8.84%,#9747ff 54.42%,#e4ccff 100%)}',
+    '.rq-tile--green{background-image:linear-gradient(225.24deg,#009951 8.84%,#14ae5c 54.42%,#aff4c6 100%)}',
     '.rq-segn{color:var(--text-teritiary)}',
     '.cq-seg > button.is-active .rq-segn{color:var(--text-secondary)}',
     '.rq-search{width:min(460px,40vw)}',
