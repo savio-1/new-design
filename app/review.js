@@ -465,6 +465,12 @@
       closeMenus(); if (window.mkwsSay) window.mkwsSay('Signing out is not part of this prototype.'); return;
     }
     if ((x = t.closest('[data-cqr-ws]'))) { e.stopPropagation(); closeMenus(); return; }
+    /* Rail items for parts of the platform this prototype does not carry
+       open a placeholder, rather than doing nothing. */
+    if ((x = t.closest('[aria-label="Platform"] .rail-btn, [aria-label="Platform"] .cq-rail-btn')) && !x.classList.contains('is-active')) {
+      var ttl = (x.getAttribute('title') || '').trim();
+      if (ttl && !/^(automations|agents|monitoring|marketplace)$/i.test(ttl)) { e.preventDefault(); e.stopPropagation(); return go('soon.html', 'soon:' + ttl); }
+    }
     if (!t.closest('.cqr-menu')) closeMenus();
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });

@@ -8,6 +8,7 @@
   app/publish.js              the ⋯ menu and Publish to Marketplace on both
   app/auto-builder.js         the automation builder, for setup after adding
   app/viewer.js               view an artifact under review (Admin, Monitoring)
+  app/soon.html               placeholder for rail items outside the prototype
   app/review.js               the Marketplace review, appended to every page
   app/admin.html              the Admin panel
   app/monitoring.src.html     Monitoring, from the platform, with monitoring-mk.js
@@ -77,6 +78,7 @@ def main():
         'automations.html': with_bridge(with_bridge(with_bridge(with_bridge(rd('automations.src.html'), review), bridge), pub), rd('auto-builder.js')),
         'agents.html': with_bridge(with_bridge(with_bridge(with_bridge(rd('agents.src.html'), agx), review), bridge), pub),
         'admin.html': with_bridge(with_bridge(admin, review), rd('viewer.js')),
+        'soon.html': with_bridge(rd('soon.html').replace('/*TOKENS*/', rd('admin-tokens.css')), review),
         'wsadmin.html': with_bridge(with_bridge(admin.replace("/*MODE*/'platform'", "'workspace'"), review), rd('viewer.js')),
         'monitoring.html': with_bridge(with_bridge(with_bridge(rd('monitoring.src.html'), review), rd('viewer.js')), rd('monitoring-mk.js')),
         'profile.html': with_bridge(with_bridge(rd('profile.src.html'), review), rd('profile-mk.js')),
