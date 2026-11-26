@@ -1034,7 +1034,7 @@
     if (typeof d.cqFocus === 'string') {
       var ref = d.cqFocus;
       if (ref.indexOf('publish') === 0) return;
-      if (ref.indexOf('req:') === 0) setTimeout(function () { reqShow(true); openTrack(ref.slice(4)); }, 120);
+      if (ref.indexOf('req:') === 0) { post({ cqNav: 'requests.html', cqFocus: ref }); return; }
       else setTimeout(function () { focusOn(ref); }, 120);
     }
   });
@@ -1112,6 +1112,9 @@
     var rb = document.createElement('button');
     rb.setAttribute('role', 'tab'); rb.setAttribute('aria-selected', 'false'); rb.setAttribute('data-mkreq', '');
     rb.innerHTML = 'Requests <span class="' + (PAGE === 'agent' ? 'seg-count' : 'au-seg-count') + '" id="mkreqN">0</span>';
+    /* Requests are tracked on one page for the whole workspace now
+       (Marketplace requests, in the rail); the tab stays out of sight. */
+    rb.hidden = true; rb.style.display = 'none';
     seg.appendChild(rb);
     var pane = document.createElement('div');
     pane.id = 'mkreqPane'; pane.className = 'mkreq-pane cq-scroll-y'; pane.hidden = true; pane.setAttribute('role', 'tabpanel');
@@ -1319,7 +1322,8 @@
   }, true);
   window.addEventListener('resize', segSync);
   /* For the publish flow on this page: open its request in the tracker. */
-  window.mkwsTrack = function (ref, n) {
+  window.mkwsTrack = function (ref) { post({ cqNav: 'requests.html', cqFocus: 'req:' + ref }); };
+  window.mkwsTrackHere = function (ref, n) {
     var w = wsByRef(ref);
     if (!w) { if ((n || 0) < 20) setTimeout(function () { window.mkwsTrack(ref, (n || 0) + 1); }, 100); return; }
     if (reqFlow !== 'all') reqFlow = isPub(w) ? 'publish' : 'add';

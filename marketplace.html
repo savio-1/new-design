@@ -4913,6 +4913,8 @@ const IN_SHELL = window.parent !== window;
 const WS_PAGE = { agent: 'agents.html', automation: 'automations.html' };
 const WS_NAME = { agent: 'Agents', automation: 'Automations' };
 const toWorkspace = a => IN_SHELL && WS_PAGE[a.type];
+/* Every kind is a request the workspace can track on Marketplace requests. */
+const toRequests = a => IN_SHELL;
 
 function workspacePayload(a) {
   const one = rk => RES_KINDS.find(t => t.key === rk).one;
@@ -4943,7 +4945,7 @@ function goWorkspace(a) {
   parent.postMessage({ cqNav: WS_PAGE[a.type], cqFocus: a.ref }, '*');
 }
 function goTrack(a) {
-  parent.postMessage({ cqNav: WS_PAGE[a.type], cqFocus: 'req:' + a.ref }, '*');
+  parent.postMessage({ cqNav: 'requests.html', cqFocus: 'req:' + a.ref }, '*');
 }
 /* Where each request stands, as the workspace pages report it. */
 const wsStatus = new Map();
@@ -4955,7 +4957,7 @@ function paintSetupBox(a) {
   const st = added.has(a.ref) ? (wsStatus.get(a.ref) || 'requested') : null;
   /* Mirrors the workspace pages: the five review stages, export then import. */
   const CR = window.cqReview, rw = CR && st === 'requested' && CR.find(a.ref);
-  const LINK = (label) => toWorkspace(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>${label}<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : '';
+  const LINK = (label) => toRequests(a) ? `<button type="button" class="mk-setup__link cq-caption-med" data-track>${label}<svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : '';
   if (rw && CR.isDone(rw)) {
     $('mkPvSetup').className = 'mk-box mk-setup mk-setup--ok';
     $('mkPvSetup').innerHTML = `<span class="mk-setup__head"><svg class="cq-ic" width="16" height="16" viewBox="0 0 16 16"><use href="#i-check"/></svg><span class="cq-body2-med">Ready to add to workspace</span></span>
@@ -5060,7 +5062,8 @@ document.addEventListener('keydown', e => {
 $('mkPvAdd').addEventListener('click', () => {
   const ws = toWorkspace(pv);
   if (added.has(pv.ref)) {
-    if (ws) wsStatus.get(pv.ref) === 'added' ? goWorkspace(pv) : goTrack(pv);
+    if (wsStatus.get(pv.ref) === 'added') ws ? goWorkspace(pv) : showStatusBox();
+    else if (IN_SHELL) goTrack(pv);
     else showStatusBox();
     return;
   }
@@ -5083,20 +5086,20 @@ function addToWorkspace(a) {
   const ws = toWorkspace(a);
   added.add(a.ref);
   reqAt.set(a.ref, Date.now());
-  if (ws) { wsStatus.set(a.ref, 'requested'); parent.postMessage({ cqWsAdd: workspacePayload(a) }, '*'); }
+  if (IN_SHELL) { wsStatus.set(a.ref, 'requested'); parent.postMessage({ cqWsAdd: workspacePayload(a) }, '*'); }
   paintAdd();
   tidbit({
     tone: 'ok',
     title: 'Sent for review',
     text: `${a.title} was sent to your workspace admins for review before it is added.`,
-    action: { label: 'Track', run: () => ws ? goTrack(a) : (pv && pv.ref === a.ref ? showStatusBox() : (openPreview(a.ref), showStatusBox())) }
+    action: { label: 'Track', run: () => IN_SHELL ? goTrack(a) : (pv && pv.ref === a.ref ? showStatusBox() : (openPreview(a.ref), showStatusBox())) }
   });
 }
 window.addEventListener('message', e => {
   const d = e.data || {};
   if (!Array.isArray(d.cqWorkspace)) return;
   const refs = new Set(d.cqWorkspace.map(w => w.ref));
-  [...added].forEach(r => { if (WS_PAGE[r.split(':')[0]] && !refs.has(r)) { added.delete(r); wsStatus.delete(r); } });
+  [...added].forEach(r => { if (!refs.has(r)) { added.delete(r); wsStatus.delete(r); } });
   d.cqWorkspace.forEach(w => { added.add(w.ref); wsStatus.set(w.ref, w.status || 'added'); if (w.requestedAt) reqAt.set(w.ref, w.requestedAt); });
   paintAdd();
 });
@@ -5296,7 +5299,7 @@ function pubSubmit() {
   tidbit({
     tone: 'ok', title: 'Sent for review',
     text: `${it.name} was sent to your workspace admins for review before it goes live on the Marketplace.`,
-    action: IN_SHELL ? { label: 'Track', run: () => parent.postMessage({ cqNav: WS_PAGE[it.kind], cqFocus: 'req:' + item.ref }, '*') } : null
+    action: IN_SHELL ? { label: 'Track', run: () => parent.postMessage({ cqNav: 'requests.html', cqFocus: 'req:' + item.ref }, '*') } : null
   });
 }
 $('mkPub').addEventListener('click', e => {

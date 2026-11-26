@@ -268,6 +268,8 @@
     '.cqr-pm-seg button{flex:1 1 0;height:28px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;border-radius:7px;background:none;cursor:pointer;color:var(--text-secondary);font:500 12px/16px var(--font-geist)}',
     '.cqr-pm-seg button[aria-pressed="true"]{background:var(--backgrounds-card-bg-2);color:var(--text-primary);box-shadow:0 1px 2px rgba(18,18,18,.25)}',
     '.cqr-pm-out:hover b{color:var(--text-coloured-red)}',
+    '.cqr-rail-n{position:absolute;top:4px;left:22px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;background:var(--backgrounds-button-primary);color:#fff;font:600 9px/1 var(--font-geist);pointer-events:none}',
+    '.cqr-rail-n[hidden]{display:none}',
     '.cqr-sep{height:1px;margin:6px 4px;background:var(--strokes-line-1)}',
     '.cqr-empty{padding:16px 10px;color:var(--text-teritiary);font:400 13px/18px var(--font-geist);text-align:center}',
     '.cqr-bell-dot{position:absolute;top:4px;right:4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;',
@@ -446,6 +448,25 @@
   var RAIL = { home: 'index.html', automations: 'automations.html', agents: 'agents.html', monitoring: 'monitoring.html', monitor: 'monitoring.html',
     skills: 'skills.html', skill: 'skills.html', integrations: 'integrations.html', 'model hub': 'model-hub.html', 'doc store': 'doc-store.html',
     context: 'context.html', 'requests': 'requests.html', 'marketplace requests': 'requests.html' };
+  /* Marketplace requests, in every page's rail, under Home. */
+  (function () {
+    var rail = document.querySelector('[aria-label="Platform"]'); if (!rail) return;
+    var home = rail.querySelector('.rail-btn[title="Home"], .cq-rail-btn[title="Home"]'); if (!home) return;
+    var b = home.cloneNode(true);
+    b.setAttribute('title', 'Marketplace requests'); b.classList.remove('is-active'); b.removeAttribute('aria-current');
+    var svg = b.querySelector('svg');
+    var ic = '<svg class="' + ((svg && svg.getAttribute('class')) || 'ic') + '" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 9.5h3l1 1.5h3l1-1.5h3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M3.5 3.5h9l1 6v3a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-3l1-6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+    if (svg) svg.outerHTML = ic; else b.insertAdjacentHTML('afterbegin', ic);
+    var lbl = b.querySelector('[class*="rail-lbl"]'); if (lbl) lbl.textContent = 'Marketplace requests';
+    b.insertAdjacentHTML('beforeend', '<span class="cqr-rail-n" hidden></span>');
+    b.style.position = 'relative';
+    home.parentNode.insertBefore(b, home.nextSibling);
+    if (/requests/.test(document.title.toLowerCase())) b.classList.add('is-active');
+    setInterval(function () {
+      var n = ITEMS.filter(function (w) { var st = stageOf(w); return (isPub(w) && st.state !== 'done' && st.state !== 'rejected') || (!isPub(w) && w.status === 'requested' && st.state !== 'rejected'); }).length;
+      var el = b.querySelector('.cqr-rail-n'); el.hidden = !n; el.textContent = n;
+    }, 1000);
+  })();
   function go(page, focus) {
     closeMenus();
     if (inShell) parent.postMessage(focus ? { cqNav: page, cqFocus: focus } : { cqNav: page }, '*');
@@ -592,7 +613,7 @@
   window.addEventListener('message', function (e) {
     var d = e.data || {};
     if (Array.isArray(d.cqWorkspace)) {
-      ITEMS = JSON.parse(JSON.stringify(d.cqWorkspace)).filter(function (w) { return w.kind === 'agent' || w.kind === 'automation'; });
+      ITEMS = JSON.parse(JSON.stringify(d.cqWorkspace));
       emit();
     }
   });

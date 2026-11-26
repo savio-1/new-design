@@ -47,7 +47,7 @@
     if (!t) return;
     e.stopPropagation();
     var w = CR.find(t.getAttribute('data-mk-track'));
-    if (w) go({ cqNav: w.kind === 'agent' ? 'agents.html' : 'automations.html', cqFocus: 'req:' + w.ref });
+    if (w) go({ cqNav: 'requests.html', cqFocus: 'req:' + w.ref });
   }, true);
 
   var sig = '';
