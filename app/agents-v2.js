@@ -392,6 +392,10 @@ body.agx .ag-card__end .cq-avatar { width: 20px; height: 20px; }
 textarea.agp__in { height: 96px; padding: 8px 10px; resize: none; }
 select.agp__in { appearance: none; -webkit-appearance: none; cursor: pointer; }
 .agp__selwrap { position: relative; }
+.agp__ric { width: 36px; height: 36px; flex: none; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; }
+.agp__ric--mk { background: var(--backgrounds-badge-blue); color: var(--text-coloured-blue); }
+.agp__ric--ws { background: var(--backgrounds-badge-purple, #17092b); color: var(--text-coloured-purple, #c9a3ff); }
+.agp__radio { align-items: center !important; padding: 14px !important; }
 .agp__selwrap::after { content: ""; position: absolute; right: 12px; top: 50%; width: 7px; height: 7px; margin-top: -5px; border-right: 1.5px solid var(--text-teritiary); border-bottom: 1.5px solid var(--text-teritiary); transform: rotate(45deg); pointer-events: none; }
 .agp__in:focus { border-color: var(--strokes-type-focus); }
 .agp__in.is-bad { border-color: #f24822; }
@@ -1231,8 +1235,8 @@ textarea.agb-in { resize: vertical; min-height: 72px; display: block; }
       var conns = a.tools.length ? a.tools.slice(0, 3).join(', ') + (a.tools.length > 3 ? '…' : '') : 'none';
       main =
         '<div class="agp__f"><span class="agp__l"><span>Who can use it</span></span>' +
-          '<button class="agp__radio' + (P.where === 'workspace' ? ' is-on' : '') + '" data-where="workspace"><i></i><span><b>A workspace</b><span>Everyone in the workspace you choose can find and run it under Agents.</span></span></button>' +
-          '<button class="agp__radio' + (P.where === 'marketplace' ? ' is-on' : '') + '" data-where="marketplace"><i></i><span><b>Marketplace</b><span>Anyone in the organisation can find it and add it to their own workspace.</span></span></button>' +
+          '<button class="agp__radio' + (P.where === 'workspace' ? ' is-on' : '') + '" data-where="workspace"><i></i><span class="agp__ric agp__ric--ws"><svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/></svg></span><span><b>A workspace</b><span>Everyone in the workspace you choose can find and run it under Agents.</span></span></button>' +
+          '<button class="agp__radio' + (P.where === 'marketplace' ? ' is-on' : '') + '" data-where="marketplace"><i></i><span class="agp__ric agp__ric--mk"><svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M2.5 6.5V13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V6.5M1.75 3.5l1-1.75h10.5l1 1.75v1a2 2 0 0 1-4 0 2 2 0 0 1-4.25 0 2 2 0 0 1-4.25 0v-1Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 14v-3.5h3V14" stroke="currentColor" stroke-width="1.3"/></svg></span><span><b>Marketplace</b><span>Anyone in the organisation can find it and add it to their own workspace.</span></span></button>' +
         '</div>' +
         (P.where === 'workspace'
           ? '<div class="agp__f"><span class="agp__l"><span>Workspace <i style="color:#f24822;font-style:normal">*</i></span></span>' +

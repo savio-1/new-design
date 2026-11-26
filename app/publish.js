@@ -140,12 +140,17 @@
     '.cqp-row{display:flex;gap:16px}',
     '.cqp-menu.cqp-menu--down{bottom:auto;top:calc(100% + 4px)}',
     '.cqp-dest{display:grid;grid-template-columns:1fr 1fr;gap:8px}',
-    '.cqp-opt{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:10px;border:1px solid var(--strokes-card-default);background:none;cursor:pointer;text-align:left;color:inherit}',
+    '.cqp-opt{position:relative;display:flex;flex-direction:column;gap:10px;align-items:flex-start;padding:14px;border-radius:12px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);cursor:pointer;text-align:left;color:inherit;transition:border-color .15s ease,background .15s ease}',
+    '.cqp-opt__ic{width:40px;height:40px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center}',
+    '.cqp-opt__ic--mk{background:var(--backgrounds-badge-blue);color:var(--text-coloured-blue)}',
+    '.cqp-opt__ic--ws{background:var(--backgrounds-badge-purple,#17092b);color:var(--text-coloured-purple,#c9a3ff)}',
+    '.cqp-opt i{position:absolute;top:14px;right:14px}',
+    '.cqp-opt.is-on{box-shadow:0 0 0 1px var(--strokes-card-selected,#0d99ff)}',
     '.cqp-opt:hover{border-color:#5a5a5a}',
     '.cqp-opt.is-on{border-color:var(--strokes-card-selected,#0d99ff);background:var(--backgrounds-badge-blue)}',
     '.cqp-opt i{flex:none;width:16px;height:16px;margin-top:2px;border-radius:50%;border:1.5px solid var(--strokes-line-1)}',
     '.cqp-opt.is-on i{border:5px solid var(--backgrounds-button-primary)}',
-    '.cqp-opt b{display:block;font:500 14px/20px var(--font-geist)}',
+    '.cqp-opt b{display:block;font:500 15px/20px var(--font-geist);letter-spacing:-.4px}',
     '.cqp-opt span span{display:block;margin-top:2px;color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
     '.cqp-row>.cqp-f{flex:1 0 0}',
     '.cqp-dd{display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer}',
@@ -318,8 +323,8 @@
         '<div class="cqp-art"><span class="cqp-tile cqp-tile--' + PAGE + '">' + (PAGE === 'agent' ? IC.agent : IC.flow) + '</span><span><span class="t">' + E(a.name) + '</span><span class="s">' + E(meta) + '</span></span></div>' +
         /* Where it goes: the Marketplace, or one workspace. */
         '<div class="cqp-f"><span class="cqp-f__l">Publish to</span><div class="cqp-dest">' +
-          '<button type="button" class="cqp-opt' + (P.dest === 'marketplace' ? ' is-on' : '') + '" data-cqp-dest="marketplace"><i></i><span><b>Marketplace</b><span>Anyone in the organisation can find it and add it to their workspace.</span></span></button>' +
-          '<button type="button" class="cqp-opt' + (P.dest === 'workspace' ? ' is-on' : '') + '" data-cqp-dest="workspace"><i></i><span><b>A workspace</b><span>Everyone in the workspace you choose can find and run it.</span></span></button>' +
+          '<button type="button" class="cqp-opt' + (P.dest === 'marketplace' ? ' is-on' : '') + '" data-cqp-dest="marketplace"><span class="cqp-opt__ic cqp-opt__ic--mk"><svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M2.5 6.5V13a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V6.5M1.75 3.5l1-1.75h10.5l1 1.75v1a2 2 0 0 1-4 0 2 2 0 0 1-4.25 0 2 2 0 0 1-4.25 0v-1Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 14v-3.5h3V14" stroke="currentColor" stroke-width="1.3"/></svg></span><span class="tx"><b>Marketplace</b><span>Anyone in the organisation can find it and add it to their workspace.</span></span><i></i></button>' +
+          '<button type="button" class="cqp-opt' + (P.dest === 'workspace' ? ' is-on' : '') + '" data-cqp-dest="workspace"><span class="cqp-opt__ic cqp-opt__ic--ws"><svg width="20" height="20" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="2" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="2" y="9" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.3"/></svg></span><span class="tx"><b>A workspace</b><span>Everyone in the workspace you choose can find and run it.</span></span><i></i></button>' +
         '</div></div>' +
         (P.dest === 'workspace' ? dd('ws', 'Workspace', WORKSPACES, P.ws) : '') +
         '<div class="cqp-f"><span class="cqp-f__l">Name</span><span class="cqp-lockwrap"><input class="cqp-in is-locked" value="' + E(a.name) + '" readonly /><span class="cqp-lock">' + IC.lock + '</span></span>' +
