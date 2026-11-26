@@ -20,8 +20,21 @@
     if (t) t.textContent = 'Marketplace requests';
     if (sub) sub.textContent = 'Everything your workspace asked to add from the Marketplace or publish to it, in one place.';
   }
+  /* First level, in the page bar: Open and History, with search on the right. */
   var bar = document.querySelector('.cq-page__bar');
-  if (bar) bar.style.display = 'none';
+  if (bar) {
+    /* The page's own controls stay in the document, out of sight, since
+       its scripts still reach for them. */
+    var keep = document.createElement('div'); keep.hidden = true; keep.style.display = 'none';
+    while (bar.firstChild) keep.appendChild(bar.firstChild);
+    bar.insertAdjacentHTML('afterbegin', '<div class="cq-seg" id="rqSeg" role="tablist" aria-label="Requests"><span class="cq-seg__thumb" aria-hidden="true"></span>' +
+        '<button class="is-active" role="tab" aria-selected="true" data-rq-view="open">Open <span class="rq-segn" id="rqNOpen">0</span></button>' +
+        '<button role="tab" aria-selected="false" data-rq-view="history">History <span class="rq-segn" id="rqNHist">0</span></button></div>' +
+      '<span style="flex:1 1 auto"></span>' +
+      '<label class="cq-search rq-search"><svg class="cq-ic" width="20" height="20" viewBox="0 0 20 20"><use href="#i-search"/></svg>' +
+        '<input id="rqQ" class="cq-body2-reg" type="search" placeholder="Search requests" aria-label="Search requests" /></label>');
+    bar.appendChild(keep);
+  }
   var content = document.querySelector('.cq-page__content');
   if (!content) return;
   Array.prototype.forEach.call(content.children, function (c) { c.style.display = 'none'; });
@@ -74,12 +87,25 @@
   var css = document.createElement('style');
   css.textContent = [
     '.rq{display:flex;flex-direction:column;gap:16px;padding:0 0 40px}',
+    '.rq .cqr-table{margin-top:4px}',
     '.rq-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}',
     '.rq-stat{padding:12px 14px;border-radius:12px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);display:flex;flex-direction:column;gap:2px}',
     '.rq-stat b{font:500 22px/28px var(--font-geist)}',
     '.rq-stat span{color:var(--text-teritiary);font:400 12px/16px var(--font-geist)}',
     '.rq-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
     '.rq-sp{flex:1 1 auto}',
+    '.rq-segn{color:var(--text-teritiary)}',
+    '.cq-seg > button.is-active .rq-segn{color:var(--text-secondary)}',
+    '.rq-search{width:min(460px,40vw)}',
+    '.rq-search input{border:0;background:none;outline:none;font:400 14px/20px var(--font-geist)}',
+    '.rq-bar{align-items:flex-end !important;border-bottom:1px solid var(--strokes-line-3);margin-bottom:-4px}',
+    '.rq-tabs{display:flex;gap:20px}',
+    '.rq-tabs button{position:relative;padding:8px 0 12px;border:0;background:none;cursor:pointer;color:var(--text-teritiary);font:500 14px/20px var(--font-geist);letter-spacing:-.4px}',
+    '.rq-tabs button:hover{color:var(--text-primary)}',
+    '.rq-tabs button .n{color:var(--text-teritiary);font-weight:400}',
+    '.rq-tabs button[aria-selected="true"]{color:var(--text-primary)}',
+    '.rq-tabs button[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px 2px 0 0;background:var(--text-coloured-blue)}',
+    '.rq-bar .rq-dd{margin-bottom:8px}',
     '.rq-dd{position:relative}',
     '.rq-dd__btn{height:32px;display:inline-flex;align-items:center;gap:8px;padding:0 10px 0 12px;border-radius:8px;border:1px solid var(--strokes-card-default);background:var(--backgrounds-card-bg-2);color:var(--text-primary);cursor:pointer;font:500 13px/18px var(--font-geist)}',
     '.rq-dd__btn:hover,.rq-dd__btn[aria-expanded="true"]{border-color:var(--strokes-card-selected)}',
@@ -122,18 +148,26 @@
     var open = list.filter(function (w) { return stateOf(w)[0] === 'open'; });
     var hist = list.filter(function (w) { return stateOf(w)[0] === 'history'; });
     var ready = open.filter(function (w) { return stateOf(w)[1] === 'Ready'; }).length;
-    var base = V.view === 'open' ? open : hist;
+    var q = (V.q || '').toLowerCase();
+    var match = function (w) { return !q || (w.name + ' ' + (w.requester || 'Savio Govindu') + ' ' + (w.publisher || '') + ' ' + KIND[kindOf(w)][0]).toLowerCase().indexOf(q) >= 0; };
+    var base = (V.view === 'open' ? open : hist).filter(match);
     var rows = base.filter(function (w) { return (V.kind === 'all' || kindOf(w) === V.kind) && (V.flow === 'all' || (w.flow === 'publish' ? 'publish' : 'add') === V.flow); });
+    var seg = $('rqSeg');
+    if (seg) {
+      $('rqNOpen').textContent = open.length; $('rqNHist').textContent = hist.length;
+      seg.querySelectorAll('[data-rq-view]').forEach(function (b) { var on = b.getAttribute('data-rq-view') === V.view; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', String(on)); });
+      if (typeof cqSegSync === 'function') requestAnimationFrame(function () { cqSegSync(seg); });
+    }
     /* Every type has its tab, whether or not anything is in it yet. */
     var kinds = ['agent', 'automation', 'assistant', 'tool', 'skill', 'guardrail'];
     var FLOWS = [['all', 'All requests'], ['add', 'Adding to workspace'], ['publish', 'Publishing to Marketplace']];
     var flowName = FLOWS.filter(function (f) { return f[0] === V.flow; })[0][1];
     var chip = function (attr, v, label, n, on) { return '<button type="button" class="cqr-chip" data-rq-' + attr + '="' + v + '" aria-pressed="' + on + '">' + label + (n != null ? ' <span class="n">' + n + '</span>' : '') + '</button>'; };
     rootEl.innerHTML =
-      '<div class="rq-bar"><div class="cqr-switch" role="tablist" aria-label="Requests">' +
-          '<button type="button" role="tab" data-rq-view="open" aria-selected="' + (V.view === 'open') + '">Open <span class="n">' + open.length + '</span></button>' +
-          '<button type="button" role="tab" data-rq-view="history" aria-selected="' + (V.view === 'history') + '">History <span class="n">' + hist.length + '</span></button></div>' +
-        '<div class="rq-chips">' + chip('kind', 'all', 'All types', null, V.kind === 'all') + kinds.map(function (k) { return chip('kind', k, KIND[k][1], base.filter(function (w) { return kindOf(w) === k; }).length, V.kind === k); }).join('') + '</div>' +
+      '<div class="rq-bar">' +
+        '<div class="rq-tabs" role="tablist" aria-label="Type">' + [['all', 'All', base.length]].concat(kinds.map(function (k) { return [k, KIND[k][1], base.filter(function (w) { return kindOf(w) === k; }).length]; })).map(function (t) {
+          return '<button type="button" role="tab" data-rq-kind="' + t[0] + '" aria-selected="' + (V.kind === t[0]) + '">' + t[1] + ' <span class="n">' + t[2] + '</span></button>';
+        }).join('') + '</div>' +
         '<span class="rq-sp"></span>' +
         '<div class="rq-dd"><button type="button" class="rq-dd__btn" data-rq-dd aria-haspopup="menu" aria-expanded="' + !!V.dd + '"><span class="l">Show</span>' + flowName +
           '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
@@ -219,6 +253,7 @@
     if ((x = t.closest('[data-rq-open]'))) { V.sel = x.getAttribute('data-rq-open'); return paint(); }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && V.sel) { V.sel = null; paint(); } });
+  document.addEventListener('input', function (e) { if (e.target && e.target.id === 'rqQ') { V.q = e.target.value; paint(); } });
   /* Open straight onto a request when another page sends you here. */
   window.addEventListener('message', function (e) {
     var d = e.data || {};
