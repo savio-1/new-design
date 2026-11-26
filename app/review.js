@@ -442,6 +442,10 @@
     wsMenu.hidden = false;
     placeMenu(wsMenu, btn);
   }
+  /* The platform pages this app carries; the rest open a placeholder. */
+  var RAIL = { home: 'index.html', automations: 'automations.html', agents: 'agents.html', monitoring: 'monitoring.html', monitor: 'monitoring.html',
+    skills: 'skills.html', skill: 'skills.html', integrations: 'integrations.html', 'model hub': 'model-hub.html', 'doc store': 'doc-store.html',
+    context: 'context.html', 'requests': 'requests.html', 'marketplace requests': 'requests.html' };
   function go(page, focus) {
     closeMenus();
     if (inShell) parent.postMessage(focus ? { cqNav: page, cqFocus: focus } : { cqNav: page }, '*');
@@ -468,9 +472,10 @@
     /* Rail items for parts of the platform this prototype does not carry
        open a placeholder, rather than doing nothing. */
     if ((x = t.closest('[aria-label="Platform"] .rail-btn, [aria-label="Platform"] .cq-rail-btn')) && !x.classList.contains('is-active')) {
-      var ttl = (x.getAttribute('title') || '').trim();
-      if (ttl && !/^(automations|agents|monitoring|marketplace)$/i.test(ttl)) { e.preventDefault(); e.stopPropagation(); return go('soon.html', 'soon:' + ttl); }
+      var ttl = (x.getAttribute('title') || '').trim(), dest = RAIL[ttl.toLowerCase()];
+      if (ttl) { e.preventDefault(); e.stopPropagation(); return dest ? go(dest) : go('soon.html', 'soon:' + ttl); }
     }
+    if (t.closest('[aria-label="Platform"] .rail-market, [aria-label="Platform"] .cq-rail-market') && !/marketplace/.test(location.pathname + document.title.toLowerCase())) { e.preventDefault(); e.stopPropagation(); return go('marketplace.html'); }
     if (!t.closest('.cqr-menu')) closeMenus();
   }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
